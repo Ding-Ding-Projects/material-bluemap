@@ -62,14 +62,14 @@ export class TileLoader {
             this.fileLoader.setRevalidatedUrls(this.revalidatedUrls);
             this.fileLoader.load(
                 tileUrl,
-                async (data: ArrayBuffer) => {
+                async (data: unknown) => {
                     await this.loadBlocker();
                     if (cancelCheck()) {
                         reject({ status: "cancelled" });
                         return;
                     }
 
-                    let geometry = this.bufferGeometryLoader.parse(data);
+                    let geometry = this.bufferGeometryLoader.parse(data as ArrayBuffer);
 
                     let object = new Mesh(geometry, this.material);
 
