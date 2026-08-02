@@ -1,0 +1,13 @@
+{
+  "name": "@material-bluemap/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BlueMap server port: service, config, HTTP server, live data, commands, addon API",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}

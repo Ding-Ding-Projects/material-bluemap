@@ -1,0 +1,13 @@
+{
+  "name": "@material-bluemap/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BlueMap render engine port: world parsing, resource packs, tile rendering, storage",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}
