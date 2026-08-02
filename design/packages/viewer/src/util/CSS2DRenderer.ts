@@ -22,7 +22,7 @@ class CSS2DObject extends Object3D {
         super();
 
         this.element = document.createElement("div");
-        let parent = element.parentNode!;
+        const parent = element.parentNode!;
         parent.replaceChild(this.element, element);
         this.element.appendChild(element);
 
@@ -43,17 +43,17 @@ class CSS2DObject extends Object3D {
         });
 
         let lastClick = -1;
-        let handleClick = (event: Event) => {
+        const handleClick = (event: Event) => {
             let doubleTap = false;
 
-            let now = Date.now();
+            const now = Date.now();
             if (now - lastClick < 500) {
                 doubleTap = true;
             }
 
             lastClick = now;
 
-            let data: MapInteractionData = { doubleTap: doubleTap };
+            const data: MapInteractionData = { doubleTap: doubleTap };
 
             if (
                 (
@@ -89,20 +89,21 @@ class CSS2DRenderer {
     render: (scene: Scene, camera: Camera) => void;
 
     constructor(events: EventTarget | null = null) {
-        var _this = this;
+        // eslint-disable-next-line @typescript-eslint/no-this-alias
+        const _this = this;
 
-        var _width: number, _height: number;
-        var _widthHalf: number, _heightHalf: number;
+        let _width: number, _height: number;
+        let _widthHalf: number, _heightHalf: number;
 
-        var vector = new Vector3();
-        var viewMatrix = new Matrix4();
-        var viewProjectionMatrix = new Matrix4();
+        const vector = new Vector3();
+        const viewMatrix = new Matrix4();
+        const viewProjectionMatrix = new Matrix4();
 
-        var cache = {
+        const cache = {
             objects: new WeakMap<CSS2DObject, { distanceToCameraSquared: number }>(),
         };
 
-        var domElement = document.createElement("div");
+        const domElement = document.createElement("div");
         domElement.style.overflow = "hidden";
 
         this.domElement = domElement;
@@ -127,7 +128,7 @@ class CSS2DRenderer {
             domElement.style.height = height + "px";
         };
 
-        var renderObject = function (
+        const renderObject = function (
             object: Object3D,
             scene: Scene,
             camera: Camera,
@@ -147,15 +148,15 @@ class CSS2DRenderer {
                 vector.setFromMatrixPosition(object.matrixWorld);
                 vector.applyMatrix4(viewProjectionMatrix);
 
-                var element = object.element;
-                var style =
+                const element = object.element;
+                const style =
                     "translate(" +
                     (vector.x * _widthHalf + _widthHalf - object.anchor.x) +
                     "px," +
                     (-vector.y * _heightHalf + _heightHalf - object.anchor.y) +
                     "px)";
 
-                var elementStyle = element.style as CSSStyleDeclaration &
+                const elementStyle = element.style as CSSStyleDeclaration &
                     Record<"WebkitTransform" | "MozTransform" | "oTransform", string>;
                 elementStyle.WebkitTransform = style;
                 elementStyle.MozTransform = style;
@@ -171,7 +172,7 @@ class CSS2DRenderer {
                         ? ""
                         : "none";
 
-                var objectData = {
+                const objectData = {
                     distanceToCameraSquared: getDistanceToSquared(camera, object),
                 };
 
@@ -190,14 +191,14 @@ class CSS2DRenderer {
                 )(_this, scene, camera);
             }
 
-            for (var i = 0, l = object.children.length; i < l; i++) {
+            for (let i = 0, l = object.children.length; i < l; i++) {
                 renderObject(object.children[i]!, scene, camera, parentVisible && object.visible);
             }
         };
 
-        var getDistanceToSquared = (function () {
-            var a = new Vector3();
-            var b = new Vector3();
+        const getDistanceToSquared = (function () {
+            const a = new Vector3();
+            const b = new Vector3();
 
             return function (object1: Object3D, object2: Object3D) {
                 a.setFromMatrixPosition(object1.matrixWorld);
@@ -207,8 +208,8 @@ class CSS2DRenderer {
             };
         })();
 
-        var filterAndFlatten = function (scene: Scene) {
-            var result: CSS2DObject[] = [];
+        const filterAndFlatten = function (scene: Scene) {
+            const result: CSS2DObject[] = [];
 
             scene.traverse(function (object) {
                 if (object instanceof CSS2DObject) result.push(object);
@@ -217,18 +218,18 @@ class CSS2DRenderer {
             return result;
         };
 
-        var zOrder = function (scene: Scene) {
-            var sorted = filterAndFlatten(scene).sort(function (a, b) {
-                var distanceA = cache.objects.get(a)!.distanceToCameraSquared;
-                var distanceB = cache.objects.get(b)!.distanceToCameraSquared;
+        const zOrder = function (scene: Scene) {
+            const sorted = filterAndFlatten(scene).sort(function (a, b) {
+                const distanceA = cache.objects.get(a)!.distanceToCameraSquared;
+                const distanceB = cache.objects.get(b)!.distanceToCameraSquared;
 
                 return distanceA - distanceB;
             });
 
-            var zMax = sorted.length;
+            const zMax = sorted.length;
 
-            for (var i = 0, l = sorted.length; i < l; i++) {
-                let o = sorted[i]!;
+            for (let i = 0, l = sorted.length; i < l; i++) {
+                const o = sorted[i]!;
                 o.element.style.zIndex = String(o.disableDepthTest ? zMax + 1 : zMax - i);
             }
         };

@@ -10,7 +10,10 @@ export const VEC3_Z = new Vector3(0, 0, 1);
  * Converts a url-encoded image string to an actual image-element
  */
 export const stringToImage = (string: string): HTMLImageElement => {
-    let image = document.createElementNS("http://www.w3.org/1999/xhtml", "img") as HTMLImageElement;
+    const image = document.createElementNS(
+        "http://www.w3.org/1999/xhtml",
+        "img",
+    ) as HTMLImageElement;
     image.src = string;
     return image;
 };
@@ -41,7 +44,7 @@ const splitNumberToPath = (num: number): string => {
         path += "-";
     }
 
-    let s = num.toString();
+    const s = num.toString();
 
     for (let i = 0; i < s.length; i++) {
         path += s.charAt(i) + "/";
@@ -93,7 +96,7 @@ export const alert = (
     level: string = "info",
 ): void => {
     // alert event
-    let printToConsole = dispatchEvent(element, "bluemapAlert", {
+    const printToConsole = dispatchEvent(element, "bluemapAlert", {
         message: message,
         level: level,
     });
@@ -118,7 +121,7 @@ export const alert = (
  * @param html representing a single element
  */
 export const htmlToElement = (html: string): Element => {
-    let template = document.createElement("template");
+    const template = document.createElement("template");
     template.innerHTML = html.trim();
     return template.content.firstChild as Element;
 };
@@ -129,7 +132,7 @@ export const htmlToElement = (html: string): Element => {
  * @param html representing any number of sibling elements
  */
 export const htmlToElements = (html: string): NodeListOf<ChildNode> => {
-    let template = document.createElement("template");
+    const template = document.createElement("template");
     template.innerHTML = html;
     return template.content.childNodes;
 };
@@ -156,7 +159,7 @@ export const animate = function (
     durationMs: number = 1000,
     postAnimation: ((finished: boolean) => void) | null = null,
 ): Animation {
-    let animation: Animation = {
+    const animation: Animation = {
         animationStart: -1,
         lastFrame: -1,
         cancelled: false,
@@ -169,11 +172,11 @@ export const animate = function (
                 this.lastFrame = time;
             }
 
-            let progress =
+            const progress =
                 durationMs === 0
                     ? 1
                     : MathUtils.clamp((time - this.animationStart) / durationMs, 0, 1);
-            let deltaTime = time - this.lastFrame;
+            const deltaTime = time - this.lastFrame;
 
             animationFrame(progress, deltaTime);
 
@@ -236,7 +239,7 @@ export const EasingFunctions: Record<string, (t: number) => number> = {
  * Source: https://plainjs.com/javascript/styles/get-the-position-of-an-element-relative-to-the-document-24/
  */
 export const elementOffset = (element: Element): { top: number; left: number } => {
-    let rect = element.getBoundingClientRect(),
+    const rect = element.getBoundingClientRect(),
         scrollLeft = window.pageXOffset || document.documentElement.scrollLeft,
         scrollTop = window.pageYOffset || document.documentElement.scrollTop;
     return { top: rect.top + scrollTop, left: rect.left + scrollLeft };
@@ -248,14 +251,14 @@ export const elementOffset = (element: Element): { top: number; left: number } =
 export const deepEquals = (object1: unknown, object2: unknown): boolean => {
     if (Object.is(object1, object2)) return true;
 
-    let type = typeof object1;
+    const type = typeof object1;
     if (type !== typeof object2) return false;
 
     if (type === "number" || type === "boolean" || type === "string") return false;
 
     if (Array.isArray(object1)) {
         const array2 = object2 as unknown[];
-        let len = object1.length;
+        const len = object1.length;
         if (len !== array2.length) return false;
         for (let i = 0; i < len; i++) {
             if (!deepEquals(object1[i], array2[i])) return false;
@@ -266,7 +269,7 @@ export const deepEquals = (object1: unknown, object2: unknown): boolean => {
 
     const record1 = object1 as Record<string, unknown>;
     const record2 = object2 as Record<string, unknown>;
-    for (let property in record1) {
+    for (const property in record1) {
         if (!record1.hasOwnProperty(property)) continue;
         if (!deepEquals(record1[property], record2[property])) return false;
     }
@@ -311,7 +314,7 @@ export const removeEventListeners = (
  */
 export const softMin = (value: number, min: number, stiffness: number): number => {
     if (value >= min) return value;
-    let delta = min - value;
+    const delta = min - value;
     if (delta < 0.0001) return min;
     return value + delta * stiffness;
 };
@@ -321,7 +324,7 @@ export const softMin = (value: number, min: number, stiffness: number): number =
  */
 export const softMax = (value: number, max: number, stiffness: number): number => {
     if (value <= max) return value;
-    let delta = value - max;
+    const delta = value - max;
     if (delta < 0.0001) return max;
     return value - delta * stiffness;
 };

@@ -61,26 +61,32 @@ export class RevalidatingTextureLoader extends Loader {
             loader.setCrossOrigin(this.crossOrigin);
             loader.setPath(this.path);
 
-            loader.loadAsync(url, onProgress).then(async (blob: Blob) => {
-                revalidatedUrls.add(url);
+            loader
+                .loadAsync(url, onProgress)
+                .then(async (blob: Blob) => {
+                    revalidatedUrls.add(url);
 
-                const imageBitmap = await createImageBitmap(blob, {
-                    colorSpaceConversion: "none",
-                });
-                texture.image = imageBitmap;
-                texture.needsUpdate = true;
-                return texture;
-            }).then(onLoad, onError);
+                    const imageBitmap = await createImageBitmap(blob, {
+                        colorSpaceConversion: "none",
+                    });
+                    texture.image = imageBitmap;
+                    texture.needsUpdate = true;
+                    return texture;
+                })
+                .then(onLoad, onError);
         } else {
             const loader = this.#imageLoader;
             loader.setCrossOrigin(this.crossOrigin);
             loader.setPath(this.path);
 
-            loader.loadAsync(url, onProgress).then((image) => {
-                texture.image = image;
-                texture.needsUpdate = true;
-                return texture;
-            }).then(onLoad, onError);
+            loader
+                .loadAsync(url, onProgress)
+                .then((image) => {
+                    texture.image = image;
+                    texture.needsUpdate = true;
+                    return texture;
+                })
+                .then(onLoad, onError);
         }
 
         return texture;

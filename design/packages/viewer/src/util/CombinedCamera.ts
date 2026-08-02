@@ -12,6 +12,8 @@ export interface CombinedCameraData {
 }
 
 export class CombinedCamera extends PerspectiveCamera {
+    declare readonly isOrthographicCamera: boolean;
+
     needsUpdate: boolean;
     data: CombinedCameraData;
 
@@ -125,15 +127,22 @@ export class CombinedCamera extends PerspectiveCamera {
         if (skew !== 0) left += (near * skew) / this.getFilmWidth();
 
         // this part different to PerspectiveCamera
-        let normalizedOrtho = -Math.pow(this.ortho - 1, 6) + 1;
-        let orthoTop =
+        const normalizedOrtho = -Math.pow(this.ortho - 1, 6) + 1;
+        const orthoTop =
             (Math.max(this.distance, 0.0001) * Math.tan(MathUtils.DEG2RAD * 0.5 * this.fov)) /
             this.zoom;
-        let orthoHeight = 2 * orthoTop;
-        let orthoWidth = this.aspect * orthoHeight;
-        let orthoLeft = -0.5 * orthoWidth;
+        const orthoHeight = 2 * orthoTop;
+        const orthoWidth = this.aspect * orthoHeight;
+        const orthoLeft = -0.5 * orthoWidth;
 
-        this.perspectiveProjection.makePerspective(left, left + width, top, top - height, near, this.far);
+        this.perspectiveProjection.makePerspective(
+            left,
+            left + width,
+            top,
+            top - height,
+            near,
+            this.far,
+        );
         this.ortographicProjection.makeOrthographic(
             orthoLeft,
             orthoLeft + orthoWidth,
@@ -184,21 +193,21 @@ Object.defineProperties(CombinedCamera.prototype, {
         get(this: CombinedCamera): boolean {
             return this.ortho < 1;
         },
-        set(value: boolean) {},
+        set(_value: boolean) {},
     },
     isOrthographicCamera: {
         configurable: true,
         get(this: CombinedCamera): boolean {
             return !this.isPerspectiveCamera;
         },
-        set(value: boolean) {},
+        set(_value: boolean) {},
     },
     type: {
         configurable: true,
         get(this: CombinedCamera): string {
             return this.isPerspectiveCamera ? "PerspectiveCamera" : "OrthographicCamera";
         },
-        set(type: string) {
+        set(_type: string) {
             //ignore
         },
     },

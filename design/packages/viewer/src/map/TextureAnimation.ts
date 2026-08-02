@@ -65,15 +65,16 @@ export class TextureAnimation {
             this.frameIndex %= this.frames;
 
             if (this.data.frames) {
-                let frame = this.data.frames[this.frameIndex]!;
-                let nextFrame = this.data.frames[(this.frameIndex + 1) % this.frames]!;
+                const frame = this.data.frames[this.frameIndex]!;
+                const nextFrame = this.data.frames[(this.frameIndex + 1) % this.frames]!;
 
                 this.uniforms.animationFrameIndex.value = frame.index;
                 this.uniforms.animationInterpolationFrameIndex.value = nextFrame.index;
                 this.frameTime = frame.time * 50;
             } else {
                 this.uniforms.animationFrameIndex.value = this.frameIndex;
-                this.uniforms.animationInterpolationFrameIndex.value = (this.frameIndex + 1) % this.frames;
+                this.uniforms.animationInterpolationFrameIndex.value =
+                    (this.frameIndex + 1) % this.frames;
             }
         }
 

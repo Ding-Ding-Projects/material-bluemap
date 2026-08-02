@@ -6,15 +6,13 @@ export const lineShader: {
     vertexShader: string;
     fragmentShader: string;
 } = {
-
-    uniforms: UniformsUtils.merge( [
+    uniforms: UniformsUtils.merge([
         UniformsLib.common,
         UniformsLib.fog,
-        (UniformsLib as typeof UniformsLib & { line: { [uniform: string]: IUniform } }).line
-    ] ),
+        (UniformsLib as typeof UniformsLib & { line: { [uniform: string]: IUniform } }).line,
+    ]),
 
-    vertexShader:
-        `
+    vertexShader: `
 		#include <common>
 		#include <color_pars_vertex>
 		#include <fog_pars_vertex>
@@ -164,8 +162,7 @@ export const lineShader: {
 		}
 		`,
 
-    fragmentShader:
-        `
+    fragmentShader: `
 		#define FLT_MAX 3.402823466e+38
 
 		uniform vec3 diffuse;
@@ -239,5 +236,5 @@ export const lineShader: {
 			#include <premultiplied_alpha_fragment>
 
 		}
-		`
+		`,
 };

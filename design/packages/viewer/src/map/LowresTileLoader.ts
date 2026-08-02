@@ -42,7 +42,7 @@ export class LowresTileLoader {
         fragmentShader: string,
         uniforms: { [uniform: string]: IUniform },
         loadBlocker: () => Promise<void> = () => Promise.resolve(),
-        revalidatedUrls: Set<string> | undefined
+        revalidatedUrls: Set<string> | undefined,
     ) {
         Object.defineProperty(this, "isLowresTileLoader", { value: true });
 
@@ -59,17 +59,28 @@ export class LowresTileLoader {
         this.textureLoader = new RevalidatingTextureLoader();
         this.textureLoader.setRevalidatedUrls(this.revalidatedUrls);
         this.geometry = new PlaneGeometry(
-            tileSettings.tileSize.x + 1, tileSettings.tileSize.z + 1,
-            Math.ceil(100 / (lod * 2)), Math.ceil(100 / (lod * 2))
+            tileSettings.tileSize.x + 1,
+            tileSettings.tileSize.z + 1,
+            Math.ceil(100 / (lod * 2)),
+            Math.ceil(100 / (lod * 2)),
         );
         this.geometry.deleteAttribute("normal");
         this.geometry.deleteAttribute("uv");
         this.geometry.rotateX(-Math.PI / 2);
-        this.geometry.translate(tileSettings.tileSize.x / 2 + 1, 0, tileSettings.tileSize.x / 2 + 1);
+        this.geometry.translate(
+            tileSettings.tileSize.x / 2 + 1,
+            0,
+            tileSettings.tileSize.x / 2 + 1,
+        );
     }
 
-    load = (tileX: number, tileZ: number, cancelCheck: () => boolean = () => false, force: boolean = false): Promise<Mesh> => {
-        let tileUrl = this.tilePath + this.lod + "/" + pathFromCoords(tileX, tileZ) + ".png";
+    load = (
+        tileX: number,
+        tileZ: number,
+        cancelCheck: () => boolean = () => false,
+        force: boolean = false,
+    ): Promise<Mesh> => {
+        const tileUrl = this.tilePath + this.lod + "/" + pathFromCoords(tileX, tileZ) + ".png";
 
         //await this.loadBlocker();
         return new Promise((resolve, reject) => {
@@ -83,7 +94,9 @@ export class LowresTileLoader {
                     texture.anisotropy = 1;
                     texture.generateMipmaps = false;
                     texture.magFilter = NearestFilter;
-                    texture.minFilter = texture.generateMipmaps ? NearestMipMapLinearFilter : NearestFilter;
+                    texture.minFilter = texture.generateMipmaps
+                        ? NearestMipMapLinearFilter
+                        : NearestFilter;
                     texture.wrapS = ClampToEdgeWrapping;
                     texture.wrapT = ClampToEdgeWrapping;
                     texture.flipY = false;
@@ -98,11 +111,14 @@ export class LowresTileLoader {
 
                     const scale = Math.pow(this.tileSettings.lodFactor, this.lod - 1);
 
-                    let material = new ShaderMaterial({
+                    const material = new ShaderMaterial({
                         uniforms: {
                             ...this.uniforms,
                             tileSize: {
-                                value: new Vector2(this.tileSettings.tileSize.x, this.tileSettings.tileSize.z),
+                                value: new Vector2(
+                                    this.tileSettings.tileSize.x,
+                                    this.tileSettings.tileSize.z,
+                                ),
                             },
                             textureSize: {
                                 value: new Vector2(texture.image.width, texture.image.height),
@@ -127,9 +143,13 @@ export class LowresTileLoader {
                         wireframe: false,
                     });
 
-                    let object = new Mesh(this.geometry, material);
+                    const object = new Mesh(this.geometry, material);
 
-                    object.position.set(tileX * this.tileSettings.tileSize.x * scale, 0, tileZ * this.tileSettings.tileSize.z * scale);
+                    object.position.set(
+                        tileX * this.tileSettings.tileSize.x * scale,
+                        0,
+                        tileZ * this.tileSettings.tileSize.z * scale,
+                    );
                     object.scale.set(scale, 1, scale);
 
                     object.userData.tileUrl = tileUrl;
@@ -140,7 +160,7 @@ export class LowresTileLoader {
                     resolve(object);
                 },
                 undefined,
-                reject
+                reject,
             );
         });
     };

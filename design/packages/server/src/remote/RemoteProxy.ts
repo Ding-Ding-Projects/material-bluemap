@@ -11,18 +11,19 @@ export interface RemoteProfile {
     headers?: Record<string, string>;
 }
 
-/** Request headers forwarded to the remote (conditional requests + encoding negotiation). */
-const FORWARD_REQUEST_HEADERS = ["if-none-match", "if-modified-since", "accept", "accept-encoding"];
+/**
+ * Request headers forwarded to the remote (conditional requests). accept-encoding is
+ * deliberately NOT forwarded: undici negotiates and transparently decompresses, so the
+ * local hop always carries an identity-encoded body.
+ */
+const FORWARD_REQUEST_HEADERS = ["if-none-match", "if-modified-since", "accept"];
 
-/** Response headers passed back to the viewer. */
-const FORWARD_RESPONSE_HEADERS = [
-    "content-type",
-    "content-encoding",
-    "content-length",
-    "etag",
-    "last-modified",
-    "cache-control",
-];
+/**
+ * Response headers passed back to the viewer. content-encoding/content-length are
+ * omitted because fetch() hands us the decompressed body (their original values would
+ * describe bytes we no longer have).
+ */
+const FORWARD_RESPONSE_HEADERS = ["content-type", "etag", "last-modified", "cache-control"];
 
 /**
  * Reverse proxy for remote BlueMap servers, mounted at /remote/{profileId}/…

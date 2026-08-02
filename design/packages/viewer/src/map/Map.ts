@@ -11,7 +11,14 @@ import {
 } from "three";
 import type { IUniform } from "three";
 import { RevalidatingFileLoader } from "../util/RevalidatingFileLoader";
-import { alert, dispatchEvent, getPixel, hashTile, stringToImage, vecArrToObj } from "../util/Utils";
+import {
+    alert,
+    dispatchEvent,
+    getPixel,
+    hashTile,
+    stringToImage,
+    vecArrToObj,
+} from "../util/Utils";
 import { TileManager } from "./TileManager";
 import { TileLoader } from "./TileLoader";
 import { LowresTileLoader } from "./LowresTileLoader";
@@ -106,7 +113,7 @@ export class Map {
         liveDataRoot: string,
         loadBlocker: () => Promise<void>,
         events: EventTarget | null = null,
-        clientDecompression: boolean
+        clientDecompression: boolean,
     ) {
         Object.defineProperty(this, "isMap", { value: true });
 
@@ -119,7 +126,8 @@ export class Map {
             mapDataRoot: mapDataRoot,
             liveDataRoot: liveDataRoot,
             settingsUrl: mapDataRoot + "/settings.json",
-            texturesUrl: mapDataRoot + (clientDecompression ? "/textures.json.gz" : "/textures.json"),
+            texturesUrl:
+                mapDataRoot + (clientDecompression ? "/textures.json.gz" : "/textures.json"),
             name: id,
             startPos: { x: 0, z: 0 },
             skyColor: new Color(),
@@ -164,35 +172,49 @@ export class Map {
         lowresVertexShader: string,
         lowresFragmentShader: string,
         uniforms: { [uniform: string]: IUniform },
-        revalidatedUrls: Set<string> | undefined
+        revalidatedUrls: Set<string> | undefined,
     ): Promise<void> {
         this.unload();
 
-        let settingsPromise = this.loadSettings(revalidatedUrls);
-        let textureFilePromise = this.loadTexturesFile(revalidatedUrls);
+        const settingsPromise = this.loadSettings(revalidatedUrls);
+        const textureFilePromise = this.loadTexturesFile(revalidatedUrls);
 
-        this.lowresMaterial = this.createLowresMaterial(lowresVertexShader, lowresFragmentShader, uniforms);
+        this.lowresMaterial = this.createLowresMaterial(
+            lowresVertexShader,
+            lowresFragmentShader,
+            uniforms,
+        );
 
-        return Promise.all([settingsPromise, textureFilePromise])
-            .then((values) => {
-                let textures = values[1] as TextureData[] | null;
-                if (textures === null) throw new Error("Failed to parse textures.json!");
+        return Promise.all([settingsPromise, textureFilePromise]).then((values) => {
+            const textures = values[1] as TextureData[] | null;
+            if (textures === null) throw new Error("Failed to parse textures.json!");
 
-                this.hiresMaterial = this.createHiresMaterial(hiresVertexShader, hiresFragmentShader, uniforms, textures);
+            this.hiresMaterial = this.createHiresMaterial(
+                hiresVertexShader,
+                hiresFragmentShader,
+                uniforms,
+                textures,
+            );
 
-                this.hiresTileManager = new TileManager(new TileLoader(
+            this.hiresTileManager = new TileManager(
+                new TileLoader(
                     `${this.data.mapDataRoot}/tiles/0/`,
                     this.hiresMaterial,
                     this.data.hires,
                     this.loadBlocker,
                     revalidatedUrls,
-                    this.data.clientDecompression
-                ), this.onTileLoad("hires"), this.onTileUnload("hires"), this.events);
-                this.hiresTileManager.scene.matrixWorldAutoUpdate = false;
+                    this.data.clientDecompression,
+                ),
+                this.onTileLoad("hires"),
+                this.onTileUnload("hires"),
+                this.events,
+            );
+            this.hiresTileManager.scene.matrixWorldAutoUpdate = false;
 
-                this.lowresTileManager = [];
-                for (let i = 0; i < this.data.lowres.lodCount; i++) {
-                    this.lowresTileManager[i] = new TileManager(new LowresTileLoader(
+            this.lowresTileManager = [];
+            for (let i = 0; i < this.data.lowres.lodCount; i++) {
+                this.lowresTileManager[i] = new TileManager(
+                    new LowresTileLoader(
                         `${this.data.mapDataRoot}/tiles/`,
                         this.data.lowres,
                         i + 1,
@@ -200,86 +222,127 @@ export class Map {
                         lowresFragmentShader,
                         uniforms,
                         async () => {},
-                        revalidatedUrls
-                    ), this.onTileLoad("lowres"), this.onTileUnload("lowres"), this.events);
-                    this.lowresTileManager[i]!.scene.matrixWorldAutoUpdate = false;
-                }
+                        revalidatedUrls,
+                    ),
+                    this.onTileLoad("lowres"),
+                    this.onTileUnload("lowres"),
+                    this.events,
+                );
+                this.lowresTileManager[i]!.scene.matrixWorldAutoUpdate = false;
+            }
 
-                alert(this.events, `Map '${this.data.id}' is loaded.`, "fine");
-            });
+            alert(this.events, `Map '${this.data.id}' is loaded.`, "fine");
+        });
     }
 
     /**
      * Loads the settings of this map
      */
     loadSettings(revalidatedUrls: Set<string> | undefined): Promise<void> {
-        return this.loadSettingsFile(revalidatedUrls)
-            .then((worldSettings: MapSettings) => {
-                this.data.name = worldSettings.name ? worldSettings.name : this.data.name;
+        return this.loadSettingsFile(revalidatedUrls).then((worldSettings: MapSettings) => {
+            this.data.name = worldSettings.name ? worldSettings.name : this.data.name;
 
-                this.data.sorting = Number.isInteger(worldSettings.sorting) ? worldSettings.sorting! : this.data.sorting;
+            this.data.sorting = Number.isInteger(worldSettings.sorting)
+                ? worldSettings.sorting!
+                : this.data.sorting;
 
-                this.data.startPos = { ...this.data.startPos, ...vecArrToObj(worldSettings.startPos, true) };
+            this.data.startPos = {
+                ...this.data.startPos,
+                ...vecArrToObj(worldSettings.startPos, true),
+            };
 
-                if (worldSettings.skyColor && worldSettings.skyColor.length >= 3) {
-                    this.data.skyColor.setRGB(
-                        worldSettings.skyColor[0]!,
-                        worldSettings.skyColor[1]!,
-                        worldSettings.skyColor[2]!
-                    );
-                }
+            if (worldSettings.skyColor && worldSettings.skyColor.length >= 3) {
+                this.data.skyColor.setRGB(
+                    worldSettings.skyColor[0]!,
+                    worldSettings.skyColor[1]!,
+                    worldSettings.skyColor[2]!,
+                );
+            }
 
-                if (worldSettings.voidColor && worldSettings.voidColor.length >= 3) {
-                    this.data.voidColor.setRGB(
-                        worldSettings.voidColor[0]!,
-                        worldSettings.voidColor[1]!,
-                        worldSettings.voidColor[2]!
-                    );
-                }
+            if (worldSettings.voidColor && worldSettings.voidColor.length >= 3) {
+                this.data.voidColor.setRGB(
+                    worldSettings.voidColor[0]!,
+                    worldSettings.voidColor[1]!,
+                    worldSettings.voidColor[2]!,
+                );
+            }
 
-                this.data.ambientLight = worldSettings.ambientLight ? worldSettings.ambientLight : this.data.ambientLight;
-                this.data.skyLight = worldSettings.skyLight ? worldSettings.skyLight : this.data.skyLight;
+            this.data.ambientLight = worldSettings.ambientLight
+                ? worldSettings.ambientLight
+                : this.data.ambientLight;
+            this.data.skyLight = worldSettings.skyLight
+                ? worldSettings.skyLight
+                : this.data.skyLight;
 
-                if (worldSettings.hires === undefined) worldSettings.hires = {};
-                if (worldSettings.lowres === undefined) worldSettings.lowres = {};
+            if (worldSettings.hires === undefined) worldSettings.hires = {};
+            if (worldSettings.lowres === undefined) worldSettings.lowres = {};
 
-                this.data.hires = {
-                    tileSize: { ...this.data.hires.tileSize, ...vecArrToObj(worldSettings.hires.tileSize, true) },
-                    scale: { ...this.data.hires.scale, ...vecArrToObj(worldSettings.hires.scale, true) },
-                    translate: { ...this.data.hires.translate, ...vecArrToObj(worldSettings.hires.translate, true) },
-                };
-                this.data.lowres = {
-                    tileSize: { ...this.data.lowres.tileSize, ...vecArrToObj(worldSettings.lowres.tileSize, true) },
-                    lodFactor: worldSettings.lowres.lodFactor !== undefined ? worldSettings.lowres.lodFactor : this.data.lowres.lodFactor,
-                    lodCount: worldSettings.lowres.lodCount !== undefined ? worldSettings.lowres.lodCount : this.data.lowres.lodCount,
-                };
+            this.data.hires = {
+                tileSize: {
+                    ...this.data.hires.tileSize,
+                    ...vecArrToObj(worldSettings.hires.tileSize, true),
+                },
+                scale: {
+                    ...this.data.hires.scale,
+                    ...vecArrToObj(worldSettings.hires.scale, true),
+                },
+                translate: {
+                    ...this.data.hires.translate,
+                    ...vecArrToObj(worldSettings.hires.translate, true),
+                },
+            };
+            this.data.lowres = {
+                tileSize: {
+                    ...this.data.lowres.tileSize,
+                    ...vecArrToObj(worldSettings.lowres.tileSize, true),
+                },
+                lodFactor:
+                    worldSettings.lowres.lodFactor !== undefined
+                        ? worldSettings.lowres.lodFactor
+                        : this.data.lowres.lodFactor,
+                lodCount:
+                    worldSettings.lowres.lodCount !== undefined
+                        ? worldSettings.lowres.lodCount
+                        : this.data.lowres.lodCount,
+            };
 
-                this.data.perspectiveView = worldSettings.perspectiveView !== undefined ? worldSettings.perspectiveView : this.data.perspectiveView;
-                this.data.flatView = worldSettings.flatView !== undefined ? worldSettings.flatView : this.data.flatView;
-                this.data.freeFlightView = worldSettings.freeFlightView !== undefined ? worldSettings.freeFlightView : this.data.freeFlightView;
+            this.data.perspectiveView =
+                worldSettings.perspectiveView !== undefined
+                    ? worldSettings.perspectiveView
+                    : this.data.perspectiveView;
+            this.data.flatView =
+                worldSettings.flatView !== undefined ? worldSettings.flatView : this.data.flatView;
+            this.data.freeFlightView =
+                worldSettings.freeFlightView !== undefined
+                    ? worldSettings.freeFlightView
+                    : this.data.freeFlightView;
 
-                this.data.views = [];
-                if (this.data.perspectiveView) this.data.views.push("perspective");
-                if (this.data.flatView) this.data.views.push("flat");
-                if (this.data.freeFlightView) this.data.views.push("free");
+            this.data.views = [];
+            if (this.data.perspectiveView) this.data.views.push("perspective");
+            if (this.data.flatView) this.data.views.push("flat");
+            if (this.data.freeFlightView) this.data.views.push("free");
 
-                alert(this.events, `Settings for map '${this.data.id}' loaded.`, "fine");
-            });
+            alert(this.events, `Settings for map '${this.data.id}' loaded.`, "fine");
+        });
     }
 
-    onTileLoad = (layer: string) => (tile: Tile): void => {
-        dispatchEvent(this.events, "bluemapMapTileLoaded", {
-            tile: tile,
-            layer: layer,
-        });
-    };
+    onTileLoad =
+        (layer: string) =>
+        (tile: Tile): void => {
+            dispatchEvent(this.events, "bluemapMapTileLoaded", {
+                tile: tile,
+                layer: layer,
+            });
+        };
 
-    onTileUnload = (layer: string) => (tile: Tile): void => {
-        dispatchEvent(this.events, "bluemapMapTileUnloaded", {
-            tile: tile,
-            layer: layer,
-        });
-    };
+    onTileUnload =
+        (layer: string) =>
+        (tile: Tile): void => {
+            dispatchEvent(this.events, "bluemapMapTileUnloaded", {
+                tile: tile,
+                layer: layer,
+            });
+        };
 
     loadMapArea(x: number, z: number, hiresViewDistance: number, lowresViewDistance: number): void {
         if (!this.isLoaded) return;
@@ -308,13 +371,14 @@ export class Map {
         return new Promise((resolve, reject) => {
             alert(this.events, `Loading settings for map '${this.data.id}'...`, "fine");
 
-            let loader = new RevalidatingFileLoader();
+            const loader = new RevalidatingFileLoader();
             loader.setRevalidatedUrls(revalidatedUrls);
             loader.setResponseType("json");
-            loader.load(this.data.settingsUrl,
+            loader.load(
+                this.data.settingsUrl,
                 resolve as (data: unknown) => void,
                 () => {},
-                () => reject(`Failed to load the settings.json for map: ${this.data.id}`)
+                () => reject(`Failed to load the settings.json for map: ${this.data.id}`),
             );
         });
     }
@@ -326,14 +390,15 @@ export class Map {
         return new Promise((resolve, reject) => {
             alert(this.events, `Loading textures for map '${this.data.id}'...`, "fine");
 
-            let loader = new RevalidatingFileLoader();
+            const loader = new RevalidatingFileLoader();
             loader.setRevalidatedUrls(revalidatedUrls);
             loader.setResponseType("json");
             loader.setClientDecompression(this.data.clientDecompression);
-            loader.load(this.data.texturesUrl,
+            loader.load(
+                this.data.texturesUrl,
                 resolve as (data: unknown) => void,
                 () => {},
-                () => reject(`Failed to load the textures.json for map: ${this.data.id}`)
+                () => reject(`Failed to load the textures.json for map: ${this.data.id}`),
             );
         });
     }
@@ -346,22 +411,23 @@ export class Map {
         vertexShader: string,
         fragmentShader: string,
         uniforms: { [uniform: string]: IUniform },
-        textures: TextureData[]
+        textures: TextureData[],
     ): ShaderMaterial[] {
-        let materials: ShaderMaterial[] = [];
-        if (!Array.isArray(textures)) throw new Error("Invalid texture.json: 'textures' is not an array!");
+        const materials: ShaderMaterial[] = [];
+        if (!Array.isArray(textures))
+            throw new Error("Invalid texture.json: 'textures' is not an array!");
         for (let i = 0; i < textures.length; i++) {
-            let textureSettings = textures[i]!;
+            const textureSettings = textures[i]!;
 
             let color = textureSettings.color;
             if (!Array.isArray(color) || color.length < 4) {
                 color = [0, 0, 0, 0];
             }
 
-            let opaque = color[3] === 1;
-            let transparent = !!textureSettings.halfTransparent;
+            const opaque = color[3] === 1;
+            const transparent = !!textureSettings.halfTransparent;
 
-            let texture = new Texture();
+            const texture = new Texture();
             texture.image = stringToImage(textureSettings.texture);
 
             texture.anisotropy = 1;
@@ -373,7 +439,7 @@ export class Map {
             texture.flipY = false;
             (texture as Texture & { flatShading?: boolean }).flatShading = true;
 
-            let animationUniforms = {
+            const animationUniforms = {
                 animationFrameHeight: { value: 1 },
                 animationFrameIndex: { value: 0 },
                 animationInterpolationFrameIndex: { value: 0 },
@@ -388,12 +454,13 @@ export class Map {
 
             texture.image.addEventListener("load", () => {
                 texture.needsUpdate = true;
-                if (animation) animation.init(texture.image.naturalWidth, texture.image.naturalHeight);
+                if (animation)
+                    animation.init(texture.image.naturalWidth, texture.image.naturalHeight);
             });
 
             this.loadedTextures.push(texture);
 
-            let material = new ShaderMaterial({
+            const material = new ShaderMaterial({
                 uniforms: {
                     ...uniforms,
                     textureImage: {
@@ -423,7 +490,11 @@ export class Map {
      * Creates a lowres Material
      * @returns the hires Material
      */
-    createLowresMaterial(vertexShader: string, fragmentShader: string, uniforms: { [uniform: string]: IUniform }): ShaderMaterial {
+    createLowresMaterial(
+        vertexShader: string,
+        fragmentShader: string,
+        uniforms: { [uniform: string]: IUniform },
+    ): ShaderMaterial {
         return new ShaderMaterial({
             uniforms: uniforms,
             vertexShader: vertexShader,
@@ -468,22 +539,25 @@ export class Map {
 
         this.raycaster.set(
             new Vector3(x, 300, z), // ray-start
-            new Vector3(0, -1, 0) // ray-direction
+            new Vector3(0, -1, 0), // ray-direction
         );
         this.raycaster.near = 1;
         this.raycaster.far = 300;
         this.raycaster.layers.enableAll();
 
-        let hiresTileHash = hashTile(Math.floor((x - this.data.hires.translate.x) / this.data.hires.tileSize.x), Math.floor((z - this.data.hires.translate.z) / this.data.hires.tileSize.z));
+        const hiresTileHash = hashTile(
+            Math.floor((x - this.data.hires.translate.x) / this.data.hires.tileSize.x),
+            Math.floor((z - this.data.hires.translate.z) / this.data.hires.tileSize.z),
+        );
         let tile: Tile | undefined = this.hiresTileManager!.tiles.get(hiresTileHash);
 
         if (tile?.model) {
             try {
-                let intersects = this.raycaster.intersectObjects([tile.model]);
+                const intersects = this.raycaster.intersectObjects([tile.model]);
                 if (intersects.length > 0) {
                     return intersects[0]!.point.y;
                 }
-            } catch (ignore) {
+            } catch {
                 //empty
             }
         }
@@ -497,17 +571,22 @@ export class Map {
             };
             const tileX = Math.floor(x / scaledTileSize.x);
             const tileZ = Math.floor(z / scaledTileSize.z);
-            let lowresTileHash = hashTile(tileX, tileZ);
+            const lowresTileHash = hashTile(tileX, tileZ);
             tile = this.lowresTileManager![i]!.tiles.get(lowresTileHash);
 
             if (!tile || !tile.model) continue;
 
-            const texture = (tile.model.material as ShaderMaterial).uniforms?.textureImage?.value?.image;
+            const texture = (tile.model.material as ShaderMaterial).uniforms?.textureImage?.value
+                ?.image;
             if (texture == null) continue;
 
-            const color = getPixel(texture, x - tileX * scaledTileSize.x, z - tileZ * scaledTileSize.z + this.data.lowres.tileSize.z + 1);
+            const color = getPixel(
+                texture,
+                x - tileX * scaledTileSize.x,
+                z - tileZ * scaledTileSize.z + this.data.lowres.tileSize.z + 1,
+            );
 
-            let heightUnsigned = color[1]! * 256.0 + color[2]!;
+            const heightUnsigned = color[1]! * 256.0 + color[2]!;
             if (heightUnsigned >= 32768.0) {
                 return -(65535.0 - heightUnsigned);
             } else {

@@ -16,7 +16,12 @@ export class Tile {
     unloaded: boolean;
     loading: boolean;
 
-    constructor(x: number, z: number, onLoad: (tile: Tile) => void, onUnload: (tile: Tile) => void) {
+    constructor(
+        x: number,
+        z: number,
+        onLoad: (tile: Tile) => void,
+        onUnload: (tile: Tile) => void,
+    ) {
         Object.defineProperty(this, "isTile", { value: true });
 
         this.model = null;
@@ -53,7 +58,7 @@ export class Tile {
                 },
                 () => {
                     this.unload();
-                }
+                },
             )
             .finally(() => {
                 this.loading = false;

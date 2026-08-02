@@ -95,6 +95,9 @@ importers:
       hammerjs:
         specifier: 2.0.8
         version: 2.0.8
+      hocon-parser:
+        specifier: ^1.0.1
+        version: 1.0.1
       three:
         specifier: 0.147.0
         version: 0.147.0

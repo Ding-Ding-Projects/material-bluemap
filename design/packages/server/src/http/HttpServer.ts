@@ -66,7 +66,6 @@ export class HttpServer {
                 res.writeHead(500, { "content-type": "text/plain" });
             }
             res.end("Internal Server Error");
-            // eslint-disable-next-line no-console
             console.error("[HttpServer]", error);
         }
     }

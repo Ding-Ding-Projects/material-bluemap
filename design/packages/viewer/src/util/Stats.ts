@@ -38,10 +38,10 @@ interface PerformanceMemory {
     jsHeapSizeLimit: number;
 }
 
-let Stats = function (): Stats {
+const Stats = function (): Stats {
     let mode = 0;
 
-    let container = document.createElement("div");
+    const container = document.createElement("div");
     container.style.cssText =
         "position:absolute;bottom:5px;right:5px;cursor:pointer;opacity:0.9;z-index:10000";
     container.addEventListener(
@@ -79,9 +79,9 @@ let Stats = function (): Stats {
         frames = 0;
     let prevFrameTime = beginTime;
 
-    let fpsPanel = addPanel(new Stats.Panel("FPS", "#0ff", "#002"));
-    let msPanel = addPanel(new Stats.Panel("MS (render)", "#0f0", "#020"));
-    let lastFrameMsPanel = addPanel(new Stats.Panel("MS (all)", "#f80", "#210"));
+    const fpsPanel = addPanel(new Stats.Panel("FPS", "#0ff", "#002"));
+    const msPanel = addPanel(new Stats.Panel("MS (render)", "#0f0", "#020"));
+    const lastFrameMsPanel = addPanel(new Stats.Panel("MS (all)", "#f80", "#210"));
 
     let memPanel: StatsPanel | null = null;
     if (
@@ -109,7 +109,7 @@ let Stats = function (): Stats {
         end: function () {
             frames++;
 
-            let time = (performance || Date).now();
+            const time = (performance || Date).now();
 
             msPanel.update(time - beginTime, 200);
             lastFrameMsPanel.update(time - prevFrameTime, 200);
@@ -121,9 +121,12 @@ let Stats = function (): Stats {
                 frames = 0;
 
                 if (memPanel) {
-                    let memory = (performance as Performance & { memory?: PerformanceMemory })
+                    const memory = (performance as Performance & { memory?: PerformanceMemory })
                         .memory!;
-                    memPanel.update(memory.usedJSHeapSize / 1048576, memory.jsHeapSizeLimit / 1048576);
+                    memPanel.update(
+                        memory.usedJSHeapSize / 1048576,
+                        memory.jsHeapSizeLimit / 1048576,
+                    );
                 }
             }
 
@@ -144,11 +147,11 @@ let Stats = function (): Stats {
 
 Stats.Panel = function (name: string, fg: string, bg: string): StatsPanel {
     let min = Infinity,
-        max = 0,
-        round = Math.round;
-    let PR = round(window.devicePixelRatio || 1);
+        max = 0;
+    const round = Math.round;
+    const PR = round(window.devicePixelRatio || 1);
 
-    let WIDTH = 160 * PR,
+    const WIDTH = 160 * PR,
         HEIGHT = 96 * PR,
         TEXT_X = 3 * PR,
         TEXT_Y = 3 * PR,
@@ -157,12 +160,12 @@ Stats.Panel = function (name: string, fg: string, bg: string): StatsPanel {
         GRAPH_WIDTH = 154 * PR,
         GRAPH_HEIGHT = 77 * PR;
 
-    let canvas = document.createElement("canvas");
+    const canvas = document.createElement("canvas");
     canvas.width = WIDTH;
     canvas.height = HEIGHT;
     canvas.style.cssText = "width:160px;height:96px";
 
-    let context = canvas.getContext("2d")!;
+    const context = canvas.getContext("2d")!;
     context.font = "bold " + 9 * PR + "px Helvetica,Arial,sans-serif";
     context.textBaseline = "top";
 

@@ -11,7 +11,10 @@ import { PRBMLoader } from "./PRBMLoader";
  * - indexed: followed by 6 uint16 indices (the parser does not advance past the
  *   indices block, so no group data is appended in that layout)
  */
-function buildPrbm(bigEndian: boolean, indexed: boolean): {
+function buildPrbm(
+    bigEndian: boolean,
+    indexed: boolean,
+): {
     buffer: ArrayBuffer;
     positions: number[];
     ao: number[];
@@ -129,10 +132,12 @@ describe("PRBMLoader", () => {
         const le = loader.parse(buildPrbm(false, false).buffer);
         const be = loader.parse(buildPrbm(true, false).buffer);
 
-        expect(Array.from(be.getAttribute("position").array as Float32Array))
-            .toEqual(Array.from(le.getAttribute("position").array as Float32Array));
-        expect(Array.from(be.getAttribute("ao").array as Float32Array))
-            .toEqual(Array.from(le.getAttribute("ao").array as Float32Array));
+        expect(Array.from(be.getAttribute("position").array as Float32Array)).toEqual(
+            Array.from(le.getAttribute("position").array as Float32Array),
+        );
+        expect(Array.from(be.getAttribute("ao").array as Float32Array)).toEqual(
+            Array.from(le.getAttribute("ao").array as Float32Array),
+        );
         expect(be.groups).toEqual(le.groups);
     });
 
@@ -152,6 +157,8 @@ describe("PRBMLoader", () => {
         new Uint8Array(nonIndexed)[1]! &= 0x7f; // clear indexedGeometry bit, keep indicesNumber = 6
         expect(() => loader.parse(nonIndexed)).toThrow("Number of indices must be set to 0");
 
-        expect(() => loader.parse(buildPrbm(false, false).buffer, 2)).toThrow("Offset should be a multiple of 4");
+        expect(() => loader.parse(buildPrbm(false, false).buffer, 2)).toThrow(
+            "Offset should be a multiple of 4",
+        );
     });
 });

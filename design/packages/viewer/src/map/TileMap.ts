@@ -9,7 +9,10 @@ export class TileMap {
     texture: Texture;
 
     constructor(width: number, height: number) {
-        this.canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas") as HTMLCanvasElement;
+        this.canvas = document.createElementNS(
+            "http://www.w3.org/1999/xhtml",
+            "canvas",
+        ) as HTMLCanvasElement;
         this.canvas.width = width;
         this.canvas.height = height;
 

@@ -1,5 +1,6 @@
 import { Vector2, Scene, Group } from "three";
 import { Tile } from "./Tile";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- unused `alert` import kept from upstream
 import { alert, dispatchEvent, hashTile } from "../util/Utils";
 import { TileMap } from "./TileMap";
 import type { TileLoader } from "./TileLoader";
@@ -39,7 +40,7 @@ export class TileManager {
         tileLoader: TileLoader | LowresTileLoader,
         onTileLoad: ((tile: Tile) => void) | null = null,
         onTileUnload: ((tile: Tile) => void) | null = null,
-        events: EventTarget | null = null
+        events: EventTarget | null = null,
     ) {
         Object.defineProperty(this, "isTileManager", { value: true });
 
@@ -92,7 +93,11 @@ export class TileManager {
             this.tileMap.setAll(TileMap.EMPTY);
             this.tiles.forEach((tile) => {
                 if (!tile.loading && !tile.unloaded) {
-                    this.tileMap.setTile(tile.x - this.centerTile.x + TileManager.tileMapHalfSize, tile.z - this.centerTile.y + TileManager.tileMapHalfSize, TileMap.LOADED);
+                    this.tileMap.setTile(
+                        tile.x - this.centerTile.x + TileManager.tileMapHalfSize,
+                        tile.z - this.centerTile.y + TileManager.tileMapHalfSize,
+                        TileMap.LOADED,
+                    );
                 }
             });
         }
@@ -171,7 +176,7 @@ export class TileManager {
         if (Math.abs(x - this.centerTile.x) > this.viewDistanceX) return false;
         if (Math.abs(z - this.centerTile.y) > this.viewDistanceZ) return false;
 
-        let tileHash = hashTile(x, z);
+        const tileHash = hashTile(x, z);
 
         let tile = this.tiles.get(tileHash);
         if (tile !== undefined) return false;
@@ -199,14 +204,22 @@ export class TileManager {
     }
 
     handleLoadedTile = (tile: Tile): void => {
-        this.tileMap.setTile(tile.x - this.centerTile.x + TileManager.tileMapHalfSize, tile.z - this.centerTile.y + TileManager.tileMapHalfSize, TileMap.LOADED);
+        this.tileMap.setTile(
+            tile.x - this.centerTile.x + TileManager.tileMapHalfSize,
+            tile.z - this.centerTile.y + TileManager.tileMapHalfSize,
+            TileMap.LOADED,
+        );
 
         this.scene.add(tile.model!);
         this.onTileLoad(tile);
     };
 
     handleUnloadedTile = (tile: Tile): void => {
-        this.tileMap.setTile(tile.x - this.centerTile.x + TileManager.tileMapHalfSize, tile.z - this.centerTile.y + TileManager.tileMapHalfSize, TileMap.EMPTY);
+        this.tileMap.setTile(
+            tile.x - this.centerTile.x + TileManager.tileMapHalfSize,
+            tile.z - this.centerTile.y + TileManager.tileMapHalfSize,
+            TileMap.EMPTY,
+        );
 
         this.scene.remove(tile.model!);
         this.onTileUnload(tile);

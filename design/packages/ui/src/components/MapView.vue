@@ -39,7 +39,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
-    app?.destroy?.();
+    app?.dispose();
     app = null;
     const container = document.getElementById("map-container");
     if (container) container.innerHTML = "";

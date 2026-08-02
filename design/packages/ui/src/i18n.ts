@@ -45,7 +45,6 @@ export async function setLanguage(i18n: I18n<Record<string, unknown>>, lang: str
         (i18n.global.locale as unknown as { value: string }).value = lang;
         document.querySelector("html")?.setAttribute("lang", lang);
     } catch (error) {
-        // eslint-disable-next-line no-console
         console.error(`Failed to load language '${lang}':`, error);
     }
 }

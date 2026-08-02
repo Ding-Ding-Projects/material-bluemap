@@ -195,9 +195,7 @@ export class RevalidatingFileLoader extends Loader {
 
                     // Workaround: Checking if response.body === undefined for Alipay browser #23548
 
-                    const body = response.body as unknown as
-                        | ReadableStream<Uint8Array>
-                        | undefined;
+                    const body = response.body as unknown as ReadableStream<Uint8Array> | undefined;
 
                     if (
                         typeof ReadableStream === "undefined" ||

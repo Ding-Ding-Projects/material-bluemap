@@ -28,7 +28,7 @@ export class TileLoader {
         tileSettings: HiresTileSettings,
         loadBlocker: () => Promise<void> = () => Promise.resolve(),
         revalidatedUrls: Set<string> | undefined,
-        clientDecompression: boolean
+        clientDecompression: boolean,
     ) {
         Object.defineProperty(this, "isTileLoader", { value: true });
 
@@ -49,7 +49,12 @@ export class TileLoader {
         this.bufferGeometryLoader = new PRBMLoader();
     }
 
-    load = (tileX: number, tileZ: number, cancelCheck: () => boolean = () => false, force: boolean = false): Promise<Mesh> => {
+    load = (
+        tileX: number,
+        tileZ: number,
+        cancelCheck: () => boolean = () => false,
+        force: boolean = false,
+    ): Promise<Mesh> => {
         let tileUrl = this.tilePath + pathFromCoords(tileX, tileZ) + ".prbm";
         if (this.clientDecompression) {
             tileUrl += ".gz";
@@ -69,14 +74,18 @@ export class TileLoader {
                         return;
                     }
 
-                    let geometry = this.bufferGeometryLoader.parse(data as ArrayBuffer);
+                    const geometry = this.bufferGeometryLoader.parse(data as ArrayBuffer);
 
-                    let object = new Mesh(geometry, this.material);
+                    const object = new Mesh(geometry, this.material);
 
-                    let tileSize = this.tileSettings.tileSize;
-                    let translate = this.tileSettings.translate;
-                    let scale = this.tileSettings.scale;
-                    object.position.set(tileX * tileSize.x + translate.x, 0, tileZ * tileSize.z + translate.z);
+                    const tileSize = this.tileSettings.tileSize;
+                    const translate = this.tileSettings.translate;
+                    const scale = this.tileSettings.scale;
+                    object.position.set(
+                        tileX * tileSize.x + translate.x,
+                        0,
+                        tileZ * tileSize.z + translate.z,
+                    );
                     object.scale.set(scale.x, 1, scale.z);
 
                     object.userData.tileUrl = tileUrl;
@@ -87,7 +96,7 @@ export class TileLoader {
                     resolve(object);
                 },
                 () => {},
-                reject
+                reject,
             );
         });
     };

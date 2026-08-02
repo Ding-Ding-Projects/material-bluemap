@@ -28,13 +28,17 @@ const CONTENT_TYPES: Record<string, string> = {
  * hash-routed SPA). ETags follow upstream FileRequestHandler's shape (size|path|mtime).
  */
 export class StaticHandler implements HttpHandler {
-    constructor(private readonly root: string) {}
+    private readonly root: string;
+
+    constructor(root: string) {
+        this.root = path.resolve(root);
+    }
 
     async handle(req: http.IncomingMessage, res: http.ServerResponse): Promise<boolean> {
         if (req.method !== "GET" && req.method !== "HEAD") return false;
         const url = new URL(req.url ?? "/", "http://localhost");
         let filePath = path.normalize(path.join(this.root, decodeURIComponent(url.pathname)));
-        if (!filePath.startsWith(path.resolve(this.root))) {
+        if (!filePath.startsWith(this.root)) {
             res.writeHead(400, { "content-type": "text/plain" });
             res.end("Bad Request");
             return true;
