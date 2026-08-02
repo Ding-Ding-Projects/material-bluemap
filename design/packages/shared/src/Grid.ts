@@ -23,10 +23,10 @@ export class Grid {
         override getCell(pos: Vector2i): Vector2i {
             return pos;
         }
-        override getLocalX(posX: number): number {
+        override getLocalX(_posX: number): number {
             return 0;
         }
-        override getLocalY(posY: number): number {
+        override getLocalY(_posY: number): number {
             return 0;
         }
         override getLocal(pos: Vector2i): Vector2i {
