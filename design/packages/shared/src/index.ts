@@ -1,1 +1,21 @@
-export {};
+export { Grid, type BiIntConsumer } from "./Grid.js";
+export { Key } from "./Key.js";
+export type { Keyed } from "./Keyed.js";
+export { Registry } from "./Registry.js";
+export {
+    ITEM_PATH_PATTERN,
+    encodeTilePath,
+    decodeTilePath,
+    type TileCoords,
+} from "./TilePathCodec.js";
+
+export { Color } from "./math/Color.js";
+export { MatrixM3f } from "./math/MatrixM3f.js";
+export { MatrixM4f } from "./math/MatrixM4f.js";
+export { Vector2d } from "./math/Vector2d.js";
+export { Vector2i } from "./math/Vector2i.js";
+export { Vector3d } from "./math/Vector3d.js";
+export { Vector3i } from "./math/Vector3i.js";
+export { VectorM2f } from "./math/VectorM2f.js";
+export { VectorM2i } from "./math/VectorM2i.js";
+export { VectorM3f } from "./math/VectorM3f.js";
