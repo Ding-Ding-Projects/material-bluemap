@@ -1,0 +1,22 @@
+/*
+ * Bridges upstream's --theme-* custom properties (consumed by the viewer's raw-DOM
+ * marker elements) to the active Vuetify MD3 theme, so markers follow theme switches.
+ */
+:root,
+.v-theme--dark,
+.v-theme--light,
+.v-theme--contrast {
+  --theme-bg: rgb(var(--v-theme-surface));
+  --theme-bg-light: rgba(var(--v-theme-on-surface), 0.12);
+  --theme-bg-hover: rgba(var(--v-theme-on-surface), 0.08);
+  --theme-fg: rgb(var(--v-theme-on-surface));
+  --theme-fg-light: rgba(var(--v-theme-on-surface), 0.7);
+}
+
+html,
+body {
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: rgb(var(--v-theme-background));
+}

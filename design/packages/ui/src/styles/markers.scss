@@ -1,0 +1,179 @@
+/*
+ * Styles for the viewer's raw-DOM marker elements (CSS2D). Ported from upstream
+ * webapp/src/scss/markers.scss; upstream's --theme-* custom properties are bridged to
+ * the active Vuetify (MD3) theme in global.scss.
+ */
+
+#map-container {
+  .bm-marker-html {
+    position: relative;
+
+    user-select: none;
+
+    .bm-marker-poi-label {
+      position: absolute;
+      top: 0;
+      left: 0;
+
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .bm-marker-poi-icon {
+      opacity: 1;
+      transition: opacity 0.3s;
+      filter: drop-shadow(1px 1px 3px #0008);
+    }
+
+    &.bm-marker-highlight {
+      .bm-marker-poi-label {
+        opacity: 1;
+      }
+
+      .bm-marker-poi-icon {
+        opacity: 0;
+      }
+    }
+  }
+
+  .bm-marker-html .bm-marker-poi-label,
+  .bm-marker-labelpopup,
+  .bm-marker-popup {
+    transform: translate(-50%, -100%) translate(0, -0.5em);
+
+    max-width: 15em;
+
+    color: var(--theme-fg);
+    background-color: var(--theme-bg);
+    filter: drop-shadow(1px 1px 3px #0008);
+    padding: 0.5em;
+    border-radius: 12px; /* MD3 shape token (small) */
+
+    > hr {
+      border: none;
+      border-bottom: solid 1px var(--theme-bg-light);
+      margin: 0.5em -0.5em;
+    }
+
+    &:after {
+      position: absolute;
+      bottom: calc(-1em + 1px);
+      left: 50%;
+      transform: translate(-50%, 0);
+
+      content: '';
+      border: solid 0.5em transparent;
+      border-top-color: var(--theme-bg);
+    }
+  }
+
+  .bm-marker-popup {
+    line-height: 1.2em;
+
+    .group {
+
+      &[data-tooltip] {
+
+        position: relative;
+
+        pointer-events: auto;
+        user-select: none;
+        cursor: pointer;
+
+        margin: -0.5em;
+        padding: 0.5em;
+
+        &:hover::before {
+          display: block;
+          position: absolute;
+          z-index: 1;
+
+          left: 50%;
+          bottom: calc(100% + 0.5em);
+          transform: translate(-50%, 0);
+
+          content: attr(data-tooltip);
+
+          background: var(--theme-bg);
+          color: var(--theme-fg-light);
+          filter: drop-shadow(1px 1px 3px #0008);
+          font-size: 0.75em;
+          line-height: 1em;
+          padding: .5em;
+          border-radius: 8px;
+        }
+
+        &:active {
+          background-color: var(--theme-bg-light);
+        }
+
+      }
+
+      > .label {
+        position: relative;
+        top: 0;
+        left: 0.5em;
+
+        margin: 0 0.5em;
+
+        font-size: 0.8em;
+        color: var(--theme-fg-light);
+      }
+
+      > .content {
+        display: flex;
+        justify-content: center;
+
+        > .entry {
+          margin: 0 0.5em;
+
+          > .label {
+            color: var(--theme-fg-light);
+          }
+        }
+      }
+    }
+
+    .files {
+      font-size: 0.8em;
+      color: var(--theme-fg-light);
+    }
+  }
+
+  .bm-marker-player {
+    position: relative;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(1px 1px 3px #0008);
+
+    img {
+      width: 32px;
+      image-rendering: pixelated;
+
+      transition: width 0.3s;
+    }
+
+    .bm-player-name {
+      position: absolute;
+      top: -0.5em;
+      left: 50%;
+      transform: translate(-50%, -100%);
+
+      padding: 0.25em;
+      background-color: #0008;
+      color: #fff;
+
+      transition: opacity 0.3s;
+    }
+
+    &[distance-data="med"],
+    &[distance-data="far"] {
+      img {
+        width: 16px;
+      }
+
+      .bm-player-name {
+        opacity: 0;
+      }
+    }
+  }
+}
