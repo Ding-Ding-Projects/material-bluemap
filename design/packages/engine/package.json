@@ -9,5 +9,14 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@bokuweb/zstd-wasm": "^0.0.27",
+    "@material-bluemap/nbt": "workspace:*",
+    "@material-bluemap/shared": "workspace:*",
+    "chokidar": "^4.0.3",
+    "lru-cache": "^11.5.2",
+    "lz4js": "^0.2.0",
+    "xxhash-wasm": "^1.1.0"
   }
 }
