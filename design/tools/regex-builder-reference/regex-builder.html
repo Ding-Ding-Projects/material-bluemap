@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en" data-language="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="theme-color" content="#0b1012">
+    <meta
+      name="description"
+      content="A private, local-only JavaScript regex builder with guided controls, live matches, captures, and bounded evaluation."
+    >
+    <title>Regex Builder · Agent Global Memory</title>
+    <link rel="stylesheet" href="./styles.css">
+    <link rel="stylesheet" href="./regex-builder.css">
+    <script src="./regex-builder.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-i18n="skipLink">Skip to builder</a>
+
+    <header class="site-header">
+      <a class="brand" href="./index.html" aria-label="Agent Global Memory home" data-i18n-aria="homeLabel">
+        <span class="brand-mark" aria-hidden="true">AGM</span>
+        <span>Agent Global Memory</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary navigation" data-i18n-aria="primaryNav">
+        <a href="./index.html" data-i18n="home">Home</a>
+        <a href="./features/product/regex-builder.md" data-i18n="contract">Feature contract</a>
+        <a href="https://github.com/Ding-Ding-Projects/agent-global-memory" data-i18n="repository">Repository</a>
+      </nav>
+    </header>
+
+    <main id="main" class="regex-page">
+      <section class="regex-hero" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow" data-i18n="eyebrow">EVERY-PROJECT REFERENCE</p>
+          <h1 id="page-title" data-i18n="title">Build the pattern. See the truth.</h1>
+          <p class="regex-lede" data-i18n="lede">
+            Guided construction and raw control for JavaScript regular expressions, evaluated only in your browser.
+          </p>
+          <div class="engine-badges" aria-label="Engine details" data-i18n-aria="engineDetails">
+            <span>ECMAScript RegExp</span>
+            <span data-i18n="workerBounded">300 ms worker limit</span>
+            <span data-i18n="localOnly">Local only</span>
+          </div>
+        </div>
+        <label class="language-control" for="language-mode">
+          <span data-i18n="languageLabel">Language mode</span>
+          <select id="language-mode">
+            <option value="en">English</option>
+            <option value="yue">廣東話</option>
+            <option value="bilingual">English + 廣東話</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="builder-grid" aria-label="Regex builder workspace" data-i18n-aria="workspaceLabel">
+        <div class="builder-column">
+          <article class="builder-panel pattern-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-step">01</p>
+                <h2 data-i18n="patternHeading">Compose</h2>
+              </div>
+              <p data-i18n="patternHelp">Insert a construct or edit the pattern directly.</p>
+            </div>
+
+            <div class="field-group">
+              <label for="pattern" data-i18n="patternLabel">Pattern</label>
+              <div class="pattern-input-wrap">
+                <span aria-hidden="true">/</span>
+                <input
+                  id="pattern"
+                  type="text"
+                  maxlength="2000"
+                  value="(?&lt;word&gt;[\p{L}\p{N}_]+)"
+                  autocomplete="off"
+                  autocapitalize="off"
+                  spellcheck="false"
+                  aria-describedby="pattern-limit"
+                >
+                <span aria-hidden="true">/</span>
+              </div>
+              <p id="pattern-limit" class="field-note" data-i18n="patternLimit">Maximum 2,000 characters.</p>
+            </div>
+
+            <fieldset class="flag-fieldset">
+              <legend data-i18n="flagsLegend">Flags</legend>
+              <div class="flag-list">
+                <label><input type="checkbox" name="flag" value="d"><code>d</code><span data-i18n="flagIndices">indices</span></label>
+                <label><input type="checkbox" name="flag" value="g" checked><code>g</code><span data-i18n="flagGlobal">global</span></label>
+                <label><input type="checkbox" name="flag" value="i"><code>i</code><span data-i18n="flagIgnoreCase">ignore case</span></label>
+                <label><input type="checkbox" name="flag" value="m"><code>m</code><span data-i18n="flagMultiline">multiline</span></label>
+                <label><input type="checkbox" name="flag" value="s"><code>s</code><span data-i18n="flagDotAll">dot all</span></label>
+                <label><input type="checkbox" name="flag" value="u" checked><code>u</code><span data-i18n="flagUnicode">Unicode</span></label>
+                <label><input type="checkbox" name="flag" value="v"><code>v</code><span data-i18n="flagUnicodeSets">Unicode sets</span></label>
+                <label><input type="checkbox" name="flag" value="y"><code>y</code><span data-i18n="flagSticky">sticky</span></label>
+              </div>
+            </fieldset>
+
+            <div class="token-section">
+              <div class="subheading-row">
+                <h3 data-i18n="guidedHeading">Guided constructs</h3>
+                <span data-i18n="guidedHint">Inserted at the cursor</span>
+              </div>
+              <div class="token-grid" id="token-grid">
+                <button type="button" data-insert="literal"><code>abc</code><span data-i18n="tokenLiteral">Literal</span></button>
+                <button type="button" data-insert="any"><code>.</code><span data-i18n="tokenAny">Any</span></button>
+                <button type="button" data-insert="digit"><code>\d</code><span data-i18n="tokenDigit">Digit</span></button>
+                <button type="button" data-insert="word"><code>\w</code><span data-i18n="tokenWord">Word</span></button>
+                <button type="button" data-insert="space"><code>\s</code><span data-i18n="tokenSpace">Space</span></button>
+                <button type="button" data-insert="class"><code>[abc]</code><span data-i18n="tokenClass">Class</span></button>
+                <button type="button" data-insert="negatedClass"><code>[^abc]</code><span data-i18n="tokenNegated">Not class</span></button>
+                <button type="button" data-insert="start"><code>^</code><span data-i18n="tokenStart">Start</span></button>
+                <button type="button" data-insert="end"><code>$</code><span data-i18n="tokenEnd">End</span></button>
+                <button type="button" data-insert="capture"><code>( )</code><span data-i18n="tokenCapture">Capture</span></button>
+                <button type="button" data-insert="named"><code>(?&lt; &gt;)</code><span data-i18n="tokenNamed">Named</span></button>
+                <button type="button" data-insert="alternation"><code>|</code><span data-i18n="tokenOr">Or</span></button>
+                <button type="button" data-insert="zeroMore"><code>*</code><span data-i18n="tokenZeroMore">0 or more</span></button>
+                <button type="button" data-insert="oneMore"><code>+</code><span data-i18n="tokenOneMore">1 or more</span></button>
+                <button type="button" data-insert="optional"><code>?</code><span data-i18n="tokenOptional">Optional</span></button>
+                <button type="button" data-insert="range"><code>{1,3}</code><span data-i18n="tokenRange">Range</span></button>
+              </div>
+            </div>
+          </article>
+
+          <article class="builder-panel sample-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="panel-step">02</p>
+                <h2 data-i18n="sampleHeading">Test</h2>
+              </div>
+              <p data-i18n="sampleHelp">Use realistic text. It never leaves this page.</p>
+            </div>
+            <div class="field-group">
+              <label for="sample" data-i18n="sampleLabel">Sample text</label>
+              <textarea id="sample" maxlength="20000" rows="9" spellcheck="false">Build 42 patterns
+砌 42 個規則</textarea>
+              <p class="field-note" data-i18n="sampleLimit">Maximum 20,000 characters.</p>
+            </div>
+            <div class="action-row">
+              <button class="button button-primary" type="button" id="copy-regex" data-i18n="copyButton">Copy /pattern/flags</button>
+              <button class="button button-secondary" type="button" id="reset-builder" data-i18n="resetButton">Reset example</button>
+            </div>
+          </article>
+        </div>
+
+        <div class="builder-column result-column">
+          <article class="builder-panel result-panel">
+            <div class="panel-heading result-heading">
+              <div>
+                <p class="panel-step">03</p>
+                <h2 data-i18n="resultHeading">Inspect</h2>
+              </div>
+              <span id="result-count" class="result-pill" aria-live="polite">—</span>
+            </div>
+
+            <div id="status" class="status-message" role="status" aria-live="polite" data-state="working">
+              <span class="status-dot" aria-hidden="true"></span>
+              <span data-i18n="evaluating">Evaluating safely…</span>
+            </div>
+            <div id="error-panel" class="error-panel" role="alert" hidden></div>
+
+            <div class="result-section">
+              <div class="subheading-row">
+                <h3 data-i18n="previewHeading">Match preview</h3>
+                <span data-i18n="previewHint">Zero-width matches use a cyan marker.</span>
+              </div>
+              <div id="highlight-output" class="text-preview" aria-label="Highlighted sample text" data-i18n-aria="highlightLabel"></div>
+            </div>
+
+            <div class="result-section">
+              <div class="subheading-row">
+                <h3 data-i18n="matchesHeading">Matches and captures</h3>
+                <span data-i18n="matchLimit">First 500 matches</span>
+              </div>
+              <ol id="match-list" class="match-list"></ol>
+            </div>
+          </article>
+
+          <aside class="builder-panel safety-panel" aria-labelledby="safety-title">
+            <p class="panel-step">SAFE BY DEFAULT</p>
+            <h2 id="safety-title" data-i18n="safetyHeading">Your text stays put.</h2>
+            <p data-i18n="safetyCopy">
+              Evaluation runs in a disposable browser worker that is stopped after 300 ms. Patterns and samples are never stored; only your language choice is remembered.
+            </p>
+            <dl>
+              <div><dt data-i18n="dialectTerm">Dialect</dt><dd>JavaScript ECMAScript <code>RegExp</code></dd></div>
+              <div><dt data-i18n="limitsTerm">Limits</dt><dd data-i18n="limitsValue">2,000 pattern · 20,000 sample · 500 matches</dd></div>
+              <div><dt data-i18n="storageTerm">Storage</dt><dd data-i18n="storageValue">Language mode only</dd></div>
+            </dl>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div>
+        <span class="brand-mark" aria-hidden="true">AGM</span>
+        <p><strong>Regex Builder</strong><br><span data-i18n="footerLine">Local, bounded, inspectable.</span></p>
+      </div>
+      <nav aria-label="Footer navigation" data-i18n-aria="footerNav">
+        <a href="./index.html" data-i18n="home">Home</a>
+        <a href="./features/README.md" data-i18n="features">Features</a>
+        <a href="#main" data-i18n="backTop">Back to top</a>
+      </nav>
+    </footer>
+  </body>
+</html>

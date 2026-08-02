@@ -87,6 +87,48 @@ pre-flattening names). Resulting version matrix:
 1.16–1.17 (`Chunk_1_16`) · **1.18–26.x** (`Chunk_1_18` + LZ4 regions + overlays
 `mc1_20_3`/`mc1_21_9`/`mc26_1`).
 
+
+### Global product contracts (added 2026-08-02, user-confirmed)
+
+The user's global product contracts (source: agent-global-memory, copied to
+`design/docs/contracts/`) apply to this app and its server web UI:
+
+1. **Regex builder everywhere** (`contracts/regex-builder.md`): the app ships a complete
+   worker-isolated regex builder (guided constructs, raw editor, flags, sample text, live
+   highlighting, captures, copy/export, engine statement = JS RegExp); EVERY search bar
+   (marker search, settings search, map/server lists, tab searches, text-close fields)
+   opens it with two-way query/pattern/flags/mode sync; plain text stays the default.
+   Reference implementation vendored at `design/tools/regex-builder-reference/`.
+2. **Full browser-style tab contract** (`contracts/tab-navigation.md`): one tab per open
+   server/world; persistent grouping (named, colored, decoratable, collapsible), protected
+   pinning, overflow, reordering, persisted structure; four search scopes (current strip,
+   per-group, group names, master all-tabs) each with its own regex builder; "Close tabs
+   containing text" + inverse negating the same predicate, with preview, pinned-exclusion
+   default, and unsaved-work protection.
+3. **Full per-element appearance editors** (`contracts/appearance-editors.md`): every
+   rendered element gets Edit appearance… (context menu + keyboard path; Shift+right-click
+   direct on tabs/groups), anchored non-modal editor, Word-depth typography over all
+   installed+bundled fonts (variable axes, CJK fallback), per-element persistence with
+   inheritance/presets/reset levels/import-export, and the infinite color picker with
+   bidirectional color translation (HEX/RGB/HSL/HSV/HWB/LAB/LCH/OKLab/OKLCH/CMYK),
+   contrast reporting and gamut warnings.
+4. **Localization modes** (`contracts/localization.md`): persisted language mode with
+   English, playful Hong Kong-style Cantonese, and compact bilingual display, on top of
+   the 30 upstream locales; per-language funny-level slider 1-5 (safety/error copy stays
+   clear at every level); optional off-by-default TTS narrator (EN/Cantonese/Both,
+   serialized queue, error narration never rate-limited).
+5. **Super confirmation** (`contracts/super-confirmation.md`): destructive actions (map
+   purge, storage delete, Docker instance removal, force re-render over existing tiles)
+   use the in-app two-key + full-range-slider gate with arming/progress/completion
+   animation, Emergency exit, reduced-motion and full a11y support. No external helpers.
+
+Phase mapping: the regex builder core + search-bar integration and language modes land
+with Phase F (options GUI is the first search-heavy surface; builder core is shared);
+tabs + per-element appearance editors are Phase F/G UI infrastructure hardened through
+Phase I; super confirmation ships with the first destructive action (Phase F map wizard
+delete/purge). kitstarter copy rules (no em-dashes in product UI strings, local font
+loading, no AI-tell styling) apply to all UI copy from Phase A onward.
+
 ---
 
 ## Target architecture
