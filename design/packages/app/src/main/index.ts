@@ -66,7 +66,19 @@ async function startEmbeddedServer(): Promise<string> {
 function hardenSession(baseUrl: string): void {
     session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
         // pointer lock is needed by free-flight controls; fullscreen by the UI.
-        callback(permission === "pointerLock" || permission === "fullscreen");
+        //
+        // clipboard-sanitized-write is what the viewer's copy actions use. Denying it
+        // made every copy in the map silently do nothing: no error, no refusal, just a
+        // click that appeared to work. It was also inconsistent, because the app
+        // already grants exactly this capability through the `clipboard:writeText`
+        // IPC channel, so the web API was the only door being held shut.
+        //
+        // "sanitized" is the narrow variant: it writes text and known-safe types on an
+        // explicit user action. Reading the clipboard is a different permission and
+        // stays denied, because nothing here has a reason to look at what the user
+        // copied somewhere else.
+        const allowed = ["pointerLock", "fullscreen", "clipboard-sanitized-write"];
+        callback(allowed.includes(permission));
     });
 
     // The embedded server rejects every unauthenticated request with 403. Only the
