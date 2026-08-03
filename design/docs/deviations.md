@@ -813,3 +813,60 @@ whitespace and parses both files correctly, so fixing the CSP crash also fixes t
 locales. The divergence is asserted rather than tolerated: the test pins the exact set of
 differing paths, requires the old value at each to have been a whitespace-only string, and
 requires every other path in those two files to still match the baseline exactly.
+
+## resources/pack/resourcepack/legacy (pre-flattening 1.12 compatibility)
+
+Upstream shipped <= 1.12.2 support as an entire parallel branch (`v0.10.3-mc1.12`), with its
+own `ResourcePack`, `BlockStateResource`, `BlockModelResource` and `TextureGallery`. This
+port has one pipeline, so the era-differences are expressed as a `ResourcePackExtension`
+instead of a second pipeline. Nothing in `ResourcePack`, `Pack` or the atlas-layer changes.
+
+- **The era is detected from `pack.mcmeta`, which upstream never had to do.** The legacy
+  jar was built for one era, so it simply assumed it; here `pack_format <= 3` (the last
+  pre-flattening format) selects the compat behaviour per pack-root. The test is
+  deliberately conservative — it takes the largest format the meta declares anywhere and
+  treats an absent `pack_format` as modern, because `PackMeta`'s absent-member default is
+  the *unbounded* range and would otherwise classify every meta-less pack as 1.12.
+- **A synthetic `minecraft:blocks` atlas stands in for resolve-on-demand texture loading.**
+  The 1.12 era has no atlas: `BlockModelResource.Builder#getTexture` turned a reference
+  straight into `assets/<ns>/textures/<reference>.png` and handed it to
+  `TextureGallery#loadTexture`, lazily, the first time a model named one. The modern
+  pipeline instead *discovers* textures through the `minecraft:blocks` atlas and decodes
+  the subset that survives the texture-key filter, so a pack with no `atlases/blocks.json`
+  yields zero textures. The compat layer registers an atlas of `minecraft:directory`
+  sources, which addresses exactly the same set of files; the key-filter then reduces it to
+  the same subset upstream loaded lazily. Discovery-then-filter, rather than
+  resolve-on-demand, reaching the same result.
+- **The synthetic atlas maps the pre-flattening texture directories in both directions.**
+  Each of `blocks`/`items` is crossed with its flattened name (`block`/`item`) in both
+  roles — the directory scanned and the prefix the file is named with — giving eight
+  sources. Upstream needed no such mapping because a legacy jar only ever met legacy
+  packs; here a legacy pack can be stacked with modern ones, and BlueMap's own legacy
+  `resourceExtensions` already mix the eras (`assets/bluemap/textures/blocks/missing.png`
+  against this port's `bluemap:block/missing`). The extra sources are close to free: a
+  missing directory walks nothing, and an unreferenced name never passes the key-filter.
+- **A bare 1.12 model reference is repaired by caching the resource onto its
+  `ResourcePath`, not by rewriting the reference.** Legacy
+  `BlockStateResource.Builder#loadModel` resolved a blockstate's model against
+  `models/block`, so a 1.12 blockstate names it bare (`"stone"`); the modern loader
+  resolves against `models/` and registers the same file as `minecraft:block/stone`.
+  `ResourcePath` is a `Key` and immutable, and `Variant#model` is private, so the compat
+  layer instead fills the path's resource-slot with `setResource` — the same slot
+  `getResource(supplier)` would have filled, and the one every consumer of a variant's
+  model goes through upstream and here. The reference still *reads* as `minecraft:stone`;
+  it simply resolves. The shared `MISSING_BLOCK_MODEL` singleton is explicitly excluded,
+  since caching onto it would give every model-less variant in the process the same wrong
+  model.
+- **The extension registers itself on import.** Upstream's core ships no extensions (its
+  platform-modules register theirs), so there is no composition-root here to do it. The
+  module calls `registerLegacyResourcePackExtension()` at import — idempotent, since
+  `Registry#register` is putIfAbsent — and exports it so a composition-root can do it
+  explicitly instead.
+- **The `"normal"` variant-key needed no compat code.** Legacy
+  `BlockStateResource.Builder#parseConditionString` mapped `""`, `"default"` and
+  `"normal"` onto the `all()` condition; `Variants.Adapter#parseConditionString` already
+  does the same, so a 1.12 blockstate's `"normal"` becomes the default variant unchanged.
+  The 1.12-only `"all"` and `"map"` keys that legacy skipped explicitly ("some exceptions
+  in 1.12 resource packs that we ignore") reach the same fate by a different route: neither
+  parses as a property, so both become the `none()` condition and are dropped. Both are
+  pinned by test rather than assumed.

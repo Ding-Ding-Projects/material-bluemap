@@ -301,3 +301,16 @@ export {
     lz4BlockCompress,
     lz4BlockDecompress,
 } from "./storage/compression/Lz4Block.js";
+
+/**
+ * Legacy 1.12 resource compatibility.
+ *
+ * The extension self-registers on `ResourcePack.Extension.REGISTRY` as an import side
+ * effect, so importing this module is the whole wiring. Without this line it is dead code
+ * and every 1.12 pack silently resolves to nothing, which is exactly the kind of failure
+ * that looks like a rendering bug three phases later.
+ */
+export {
+    registerLegacyResourcePackExtension,
+    LegacyResourcePackExtension,
+} from "./resources/pack/resourcepack/legacy/LegacyResourcePackExtension.js";

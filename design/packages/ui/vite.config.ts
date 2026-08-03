@@ -14,6 +14,12 @@ export default defineConfig({
         __VUE_I18N_FULL_INSTALL__: true,
         __VUE_I18N_LEGACY_API__: false,
         __INTLIFY_PROD_DEVTOOLS__: false,
+        // Without this, vue-i18n registers `compileToFunction`, which compiles every message
+        // string with `new Function`. The Electron shell serves the app under a CSP with
+        // `script-src 'self'` and no `unsafe-eval`, so that call is refused at runtime and the
+        // UI renders blank, exactly as the eval-based HOCON parser used to (see #16).
+        // JIT compilation walks a message AST instead, so no code is generated at runtime.
+        __INTLIFY_JIT_COMPILATION__: true,
     },
     build: {
         sourcemap: true,

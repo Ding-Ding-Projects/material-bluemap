@@ -10,3 +10,11 @@ release/
 screenshots/
 playwright-report/
 test-results/
+
+# The opt-in live resource-pack proof (packages/engine/test/resourcepack-e2e.test.ts)
+# caches the Minecraft client-jar it downloads here. Never commit a Mojang jar, or
+# anything extracted from one. The second line is a belt-and-braces guard: it is the
+# exact filename MinecraftVersion#load writes, wherever it ends up.
+packages/engine/test/.minecraft-client-cache/
+minecraft-client-*.jar
+minecraft-client-*.jar.unverified
