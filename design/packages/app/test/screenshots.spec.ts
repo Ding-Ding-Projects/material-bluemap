@@ -36,14 +36,42 @@ const SCALES = [1, 1.25, 1.5, 2];
 
 let app: ElectronApplication;
 let page: Page;
+let mapDrew = false;
+
+/**
+ * A PNG of a single flat colour compresses to almost nothing. The map canvas
+ * starting out black means an all-black capture is tiny, which is a cheap and
+ * reliable "nothing has drawn yet" signal without decoding pixels.
+ */
+const EMPTY_FRAME_BYTES = 40_000;
+
+/**
+ * Waits until the map has actually drawn something.
+ *
+ * The viewer streams tiles over the network, so a capture taken the instant the
+ * interface mounts photographs an empty scene. That is how a run once produced a
+ * full set of screenshots showing black, with the chrome correct and the map
+ * missing, which reads as a rendering bug rather than a timing one.
+ *
+ * Returns whether content arrived, so a caller can record that a capture is of an
+ * empty map instead of quietly publishing it as if it were the product.
+ */
+async function waitForMapContent(timeoutMs = 45_000): Promise<boolean> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        const buffer = await page.screenshot();
+        if (buffer.length > EMPTY_FRAME_BYTES) return true;
+        await page.waitForTimeout(1000);
+    }
+    return false;
+}
 
 async function shoot(name: string, target: Page = page): Promise<void> {
     await mkdir(shotDir, { recursive: true });
-    const file = join(shotDir, `${name}.png`);
-    await target.screenshot({ path: file });
-    // A zero-byte or absent capture is a silent failure; assert it landed.
     const buffer = await target.screenshot();
+    // A zero-byte or absent capture is a silent failure; assert it landed.
     expect(buffer.length, `capture ${name} produced no bytes`).toBeGreaterThan(1000);
+    await writeFile(join(shotDir, `${name}.png`), buffer);
 }
 
 test.beforeAll(async () => {
@@ -89,6 +117,16 @@ test.beforeAll(async () => {
         console.log(`[harness] Vuetify root never appeared; captured the broken state instead.`);
         console.log(`[harness] body length: ${html.length}`);
     }
+
+    // Give the map a chance to stream tiles before anything is captured. Recorded
+    // rather than asserted: a capture of an empty map is still useful evidence, but
+    // it must be labelled as one instead of being published as the product.
+    mapDrew = await waitForMapContent();
+    console.log(
+        mapDrew
+            ? "[harness] map drew content before capturing"
+            : "[harness] WARNING: no map content appeared; captures show an empty scene"
+    );
 });
 
 test.afterAll(async () => {
@@ -151,7 +189,10 @@ test("records what was captured", async () => {
         run: process.env.GITHUB_RUN_ID ?? "(local run)",
         viewports: VIEWPORTS.map((v) => v.name),
         scales: SCALES,
-        note: "Every image is a capture of the real running app. None is a mockup or a design file.",
+        mapContentPresent: mapDrew,
+        note: mapDrew
+            ? "Every image is a capture of the real running app. None is a mockup or a design file."
+            : "Every image is a capture of the real running app, but no map tiles had loaded when they were taken, so the map area is empty. Not a mockup, and not the finished product either.",
     };
     await mkdir(shotDir, { recursive: true });
     await writeFile(join(shotDir, "manifest.json"), JSON.stringify(manifest, null, 2));
