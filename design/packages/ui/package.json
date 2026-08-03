@@ -12,9 +12,9 @@
     "dev": "vite --host"
   },
   "dependencies": {
+    "@material-bluemap/shared": "workspace:*",
     "@material-bluemap/viewer": "workspace:*",
     "@mdi/js": "^7.4.47",
-    "hocon-parser": "^1.0.1",
     "vue": "^3.5.40",
     "vue-i18n": "^9.14.5",
     "vuetify": "^3.13.0"

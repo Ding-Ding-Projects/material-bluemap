@@ -11,9 +11,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@material-bluemap/shared": "workspace:*",
     "dompurify": "^3.4.12",
     "hammerjs": "2.0.8",
-    "hocon-parser": "^1.0.1",
     "three": "0.147.0"
   },
   "devDependencies": {

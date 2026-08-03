@@ -1,7 +1,5 @@
+import { parseHocon } from "@material-bluemap/shared";
 import { createI18n, type I18n } from "vue-i18n";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - hocon-parser ships no types
-import getHocon from "hocon-parser";
 
 /**
  * Port of upstream webapp i18n.js: locales are HOCON files under ./lang/, lazily
@@ -23,10 +21,16 @@ interface LanguageInfo {
 export let languages: LanguageInfo[] = [];
 export let defaultLanguage = "en";
 
+/**
+ * `parseHocon` is the port's own dependency-free parser. The `hocon-parser` package this
+ * used to call resolves substitutions with `eval`, which the app's Content Security Policy
+ * (`script-src 'self'`, no `unsafe-eval`) refuses: the locale load threw, no messages were
+ * ever registered, and the whole UI rendered blank.
+ */
 async function fetchHocon(url: string): Promise<Record<string, unknown>> {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Failed to load ${url}: ${response.status}`);
-    return (await getHocon(await response.text())) as Record<string, unknown>;
+    return parseHocon(await response.text());
 }
 
 async function loadLanguageSettings(): Promise<void> {
@@ -38,7 +42,10 @@ async function loadLanguageSettings(): Promise<void> {
     languages = settings.languages ?? [];
 }
 
-export async function setLanguage(i18n: I18n<Record<string, unknown>>, lang: string): Promise<void> {
+export async function setLanguage(
+    i18n: I18n<Record<string, unknown>>,
+    lang: string,
+): Promise<void> {
     try {
         const messages = await fetchHocon(`./lang/${lang}.conf`);
         i18n.global.setLocaleMessage(lang, messages);

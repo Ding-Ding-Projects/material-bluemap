@@ -1,4 +1,4 @@
-import parseHocon from "hocon-parser";
+import { parseHocon } from "@material-bluemap/shared";
 
 /**
  * Converts a given value to JSON and writes it to the given key in
@@ -31,6 +31,13 @@ export const round = (value: number, precision: number): number => {
     return Math.round(value * f) / f;
 };
 
+/**
+ * Fetches and parses a `.conf` file, which a remote BlueMap server serves as HOCON.
+ *
+ * `parseHocon` is the port's own dependency-free parser: the `hocon-parser` package this
+ * used to call resolves substitutions with `eval`, which the app's Content Security Policy
+ * (`script-src 'self'`, no `unsafe-eval`) refuses at runtime.
+ */
 export const fetchHocon = async (url: string): Promise<unknown> => {
     return fetch(url)
         .then((res) => res.text())

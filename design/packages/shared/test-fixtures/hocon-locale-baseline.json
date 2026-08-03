@@ -1,0 +1,3935 @@
+{
+    "cs.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Menu",
+            "tooltip": "Menu"
+        },
+        "maps": {
+            "title": "Mapy",
+            "button": "Mapy",
+            "tooltip": "Seznam map"
+        },
+        "markers": {
+            "title": "Značky",
+            "button": "Značky",
+            "tooltip": "Seznam značek",
+            "marker": "značka | značky",
+            "markerSet": "sada značek | sady značek"
+        },
+        "settings": {
+            "title": "Nastavení",
+            "button": "Nastavení"
+        },
+        "goFullscreen": {
+            "button": "Celá obrazovka"
+        },
+        "resetCamera": {
+            "button": "Obnovit kameru",
+            "tooltip": "Obnovit kameru a pozici"
+        },
+        "updateMap": {
+            "button": "Aktualizovat mapu",
+            "tooltip": "Vymazat mezipaměť dlaždic"
+        },
+        "lighting": {
+            "title": "Osvětlení",
+            "dayNightSwitch": {
+                "tooltip": "Den/noc"
+            },
+            "sunlight": "Sluneční světlo",
+            "ambientLight": "Ambientní osvětlení"
+        },
+        "resolution": {
+            "title": "Rozlišení",
+            "high": "Vysoké (SSAA x2)",
+            "normal": "Normální (Native x1)",
+            "low": "Nízké (Upscaling x0.5)"
+        },
+        "freeFlightControls": {
+            "title": "Ovládání volného létání",
+            "mouseSensitivity": "Citlivost myši",
+            "invertMouseY": "Invertovat Y myši"
+        },
+        "renderDistance": {
+            "title": "Dohled",
+            "hiresLayer": "Vrstva vysokého rozlišení",
+            "lowersLayer": "Vrstva nízkého rozlišení"
+        },
+        "theme": {
+            "title": "Téma",
+            "default": "Výchozí (systém/prohlížeč)",
+            "dark": "Tmavé",
+            "light": "Světlé"
+        },
+        "debug": {
+            "button": "Ladění"
+        },
+        "resetAllSettings": {
+            "button": "Obnovit všechna nastavení"
+        },
+        "players": {
+            "title": "Hráči",
+            "tooltip": "Seznam hráčů"
+        },
+        "compass": {
+            "tooltip": "Kompas / sever"
+        },
+        "controls": {
+            "title": "Zobrazení / ovládání",
+            "perspective": {
+                "button": "Perspektiva",
+                "tooltip": "Zobrazení perspektivy"
+            },
+            "flatView": {
+                "button": "Plochý",
+                "tooltip": "Ortografické / ploché zobrazení"
+            },
+            "freeFlight": {
+                "button": "Volné létání",
+                "tooltip": "Volné létání / režim pozorovatele"
+            }
+        },
+        "language": {
+            "title": "Jazyk"
+        },
+        "blockTooltip": {
+            "block": "Blok",
+            "position": "Pozice",
+            "chunk": "Chunk",
+            "region": {
+                "region": "Oblast",
+                "file": "Soubor"
+            },
+            "light": {
+                "light": "Světlo",
+                "sun": "Slunce",
+                "block": "Blok"
+            }
+        },
+        "info": {
+            "title": "Informace",
+            "button": "Informace",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Ovládání myší:</h2>\r\n\t<table>\r\n\t\t<tr><th>pohyb</th><td><kbd>levé tlačítko</kbd> + táhnutí</td></tr>\r\n\t\t<tr><th>přiblížení</th><td><kbd>kolečko myši</kbd> (otáčení)</td></tr>\r\n\t\t<tr><th>rotace / naklonění</th><td><kbd>pravé tlačítko</kbd> + táhnutí</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Ovládání klávesnicí:</h2>\r\n\t<table>\r\n\t\t<tr><th>pohyb</th><td><kbd>wasd</kbd> / <kbd>šipky</kbd></td></tr>\r\n\t\t<tr><th>přiblížení</th><td>Num. klávesnice: <kbd>+</kbd>/<kbd>-</kbd> nebo <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>rotace / naklonění</th><td><kbd>Levý Alt</kbd> + <kbd>wasd</kbd> / <kbd>šipky</kbd> nebo <kbd>Del</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Ovládání dotykem:</h2>\r\n\t<table>\r\n\t\t<tr><th>pohyb</th><td>dotyk + táhnutí</td></tr>\r\n\t\t<tr><th>přiblížení</th><td>dotyk dvěma prsty + roztáhnutí</td></tr>\r\n\t\t<tr><th>rotace / naklonění</th><td>dotyk dvěma prsty + rotace / pohyb nahoru/dolů</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tMapa byla vygenerována s &#9829; pomocí <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "de.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Menü",
+            "tooltip": "Menü"
+        },
+        "map": {
+            "unloaded": "Keine Karte geladen.",
+            "loading": "Lade Karte...",
+            "errored": "Beim laden der Karte ist ein Fehler aufgetreten!"
+        },
+        "maps": {
+            "title": "Karten",
+            "button": "Karten",
+            "tooltip": "Kartenliste"
+        },
+        "markers": {
+            "title": "Marker",
+            "button": "Marker",
+            "tooltip": "Markerliste",
+            "marker": "Marker | Marker",
+            "markerSet": "Markerset | Markersets",
+            "searchPlaceholder": "Suche...",
+            "followPlayerTitle": "Spieler folgen",
+            "sort": {
+                "title": "Sortieren nach",
+                "by": {
+                    "default": "Standard",
+                    "label": "Name",
+                    "distance": "Distanz"
+                }
+            }
+        },
+        "settings": {
+            "title": "Einstellungen",
+            "button": "Einstellungen"
+        },
+        "goFullscreen": {
+            "button": "Vollbildmodus"
+        },
+        "resetCamera": {
+            "button": "Kamera zurücksetzen",
+            "tooltip": "Kamera & Position zurücksetzen"
+        },
+        "updateMap": {
+            "button": "Karte aktualisieren",
+            "tooltip": "Leere den Karten-Cache"
+        },
+        "lighting": {
+            "title": "Beleuchtung",
+            "dayNightSwitch": {
+                "tooltip": "Tag/Nacht"
+            },
+            "sunlight": "Sonnenlicht",
+            "ambientLight": "Umgebungslicht"
+        },
+        "resolution": {
+            "title": "Auflösung",
+            "high": "Hoch (SSAA x2)",
+            "normal": "Normal (Nativ x1)",
+            "low": "Niedrig (Hochskalieren x0.5)"
+        },
+        "mapControls": {
+            "title": "Steuerung",
+            "showZoomButtons": "Zoom-Buttons"
+        },
+        "freeFlightControls": {
+            "title": "Freie Kamera",
+            "mouseSensitivity": "Maus-Sensitivität",
+            "invertMouseY": "Maus Y umkehren"
+        },
+        "renderDistance": {
+            "title": "Renderdistanz",
+            "hiresLayer": "Hires-Schicht",
+            "lowersLayer": "Lowres-Schicht",
+            "loadHiresWhileMoving": "Lade Hires während Bewegung",
+            "off": "Off"
+        },
+        "theme": {
+            "title": "Farbmodus",
+            "default": "Standard (System/Browser)",
+            "dark": "Dunkel",
+            "light": "Hell",
+            "contrast": "Kontrast"
+        },
+        "chunkBorders": {
+            "button": "Chunkgrenzen anzeigen"
+        },
+        "debug": {
+            "button": "Debug"
+        },
+        "resetAllSettings": {
+            "button": "Einstellungen zurücksetzen"
+        },
+        "players": {
+            "title": "Spieler",
+            "tooltip": "Spielerliste"
+        },
+        "compass": {
+            "tooltip": "Kompass / nach Norden ausrichten"
+        },
+        "screenshot": {
+            "title": "Screenshot",
+            "button": "Screenshot machen",
+            "clipboard": "In Zwischenablage kopieren"
+        },
+        "controls": {
+            "title": "Ansicht / Steuerung",
+            "perspective": {
+                "button": "Perspektiv-Sicht",
+                "tooltip": "Perspektivische Sicht"
+            },
+            "flatView": {
+                "button": "Flache Sicht",
+                "tooltip": "Orthographisch / Flache Sicht"
+            },
+            "freeFlight": {
+                "button": "Freie Kamera",
+                "tooltip": "Freie Kamera / Zuschauermodus"
+            }
+        },
+        "language": {
+            "title": "Sprache"
+        },
+        "blockTooltip": {
+            "block": "Block",
+            "position": "Position",
+            "chunk": "Chunk",
+            "region": {
+                "region": "Region",
+                "file": "Datei"
+            },
+            "light": {
+                "light": "Licht",
+                "sun": "Sonne",
+                "block": "Block"
+            }
+        },
+        "info": {
+            "title": "Info",
+            "button": "Info",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Maussteuerung:</h2>\r\n\t<table>\r\n\t\t<tr><th>Bewegen</th><td><kbd>Linksklick</kbd> + ziehen</td></tr>\r\n\t\t<tr><th>Zoomen</th><td><kbd>Mausrad</kbd> (scrollen)</td></tr>\r\n\t\t<tr><th>Drehen / Schwenken</th><td><kbd>Rechtsklick</kbd> + ziehen</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Tastatursteuerung:</h2>\r\n\t<table>\r\n\t\t<tr><th>Bewegen</th><td><kbd>wasd</kbd> / <kbd>Pfeiltasten</kbd></td></tr>\r\n\t\t<tr><th>Zoomen</th><td>Nummernblock: <kbd>+</kbd>/<kbd>-</kbd> oder <kbd>Einfg</kbd>/<kbd>Pos 1</kbd></td></tr>\r\n\t\t<tr><th>Drehen / Schwenken</th><td><kbd>Alt</kbd> + <kbd>wasd</kbd> / <kbd>Pfeiltasten</kbd> oder <kbd>Entf</kbd>/<kbd>Ende</kbd>/<kbd>Bild &uarr;</kbd>/<kbd>Bild &darr;</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Touchsteuerung:</h2>\r\n\t<table>\r\n\t\t<tr><th>Bewegen</th><td>berühren + ziehen</td></tr>\r\n\t\t<tr><th>Zoomen</th><td>mit zwei Fingern berühren + zusammen/auseinander ziehen</td></tr>\r\n\t\t<tr><th>Drehen / Schwenken</th><td>mit zwei Fingern berühren + drehen / hoch/runter ziehen</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tDiese Map wurde mit &#9829; von <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version} generiert\r\n</p>\r\n"
+        }
+    },
+    "en.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Menu",
+            "tooltip": "Menu"
+        },
+        "map": {
+            "unloaded": "No map loaded.",
+            "loading": "Loading map...",
+            "errored": "There was an error trying to load this map!"
+        },
+        "maps": {
+            "title": "Maps",
+            "button": "Maps",
+            "tooltip": "Map-List"
+        },
+        "markers": {
+            "title": "Markers",
+            "button": "Markers",
+            "tooltip": "Marker-List",
+            "marker": "marker | markers",
+            "markerSet": "marker-set | marker-sets",
+            "searchPlaceholder": "Search...",
+            "followPlayerTitle": "Follow Player",
+            "sort": {
+                "title": "Sort by",
+                "by": {
+                    "default": "default",
+                    "label": "name",
+                    "distance": "distance"
+                }
+            }
+        },
+        "settings": {
+            "title": "Settings",
+            "button": "Settings"
+        },
+        "goFullscreen": {
+            "button": "Go Fullscreen"
+        },
+        "resetCamera": {
+            "button": "Reset Camera",
+            "tooltip": "Reset Camera & Position"
+        },
+        "updateMap": {
+            "button": "Update Map",
+            "tooltip": "Clear Tile Cache"
+        },
+        "lighting": {
+            "title": "Lighting",
+            "dayNightSwitch": {
+                "tooltip": "Day/Night"
+            },
+            "sunlight": "Sunlight",
+            "ambientLight": "Ambient-Light"
+        },
+        "resolution": {
+            "title": "Resolution",
+            "high": "High (SSAA x2)",
+            "normal": "Normal (Native x1)",
+            "low": "Low (Upscaling x0.5)"
+        },
+        "mapControls": {
+            "title": "Map Controls",
+            "showZoomButtons": "Show Zoom Buttons"
+        },
+        "freeFlightControls": {
+            "title": "Free-Flight Controls",
+            "mouseSensitivity": "Mouse-Sensitivity",
+            "invertMouseY": "Invert Mouse Y"
+        },
+        "renderDistance": {
+            "title": "Render Distance",
+            "hiresLayer": "Hires layer",
+            "lowersLayer": "Lowres layer",
+            "loadHiresWhileMoving": "Load hires while moving",
+            "off": "Off"
+        },
+        "theme": {
+            "title": "Theme",
+            "default": "Default (System/Browser)",
+            "dark": "Dark",
+            "light": "Light",
+            "contrast": "Contrast"
+        },
+        "chunkBorders": {
+            "button": "Show chunk borders"
+        },
+        "debug": {
+            "button": "Debug"
+        },
+        "resetAllSettings": {
+            "button": "Reset All Settings"
+        },
+        "players": {
+            "title": "Players",
+            "tooltip": "Player-List"
+        },
+        "compass": {
+            "tooltip": "Compass / Face North"
+        },
+        "screenshot": {
+            "title": "Screenshot",
+            "button": "Take Screenshot",
+            "clipboard": "Copy to Clipboard"
+        },
+        "controls": {
+            "title": "View / Controls",
+            "perspective": {
+                "button": "Perspective",
+                "tooltip": "Perspective-View"
+            },
+            "flatView": {
+                "button": "Flat",
+                "tooltip": "Orthographic / Flat-View"
+            },
+            "freeFlight": {
+                "button": "Free-Flight",
+                "tooltip": "Free-Flight / Spectator Mode"
+            }
+        },
+        "language": {
+            "title": "Language"
+        },
+        "blockTooltip": {
+            "block": "Block",
+            "position": "Position",
+            "chunk": "Chunk",
+            "region": {
+                "region": "Region",
+                "file": "File"
+            },
+            "light": {
+                "light": "Light",
+                "sun": "Sun",
+                "block": "Block"
+            },
+            "clipboard": "click to copy"
+        },
+        "info": {
+            "title": "Info",
+            "button": "Info",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Mouse-Controls:</h2>\r\n\t<table>\r\n\t\t<tr><th>move</th><td><kbd>left-click</kbd> + drag</td></tr>\r\n\t\t<tr><th>zoom</th><td><kbd>mousewheel</kbd> (scroll)</td></tr>\r\n\t\t<tr><th>rotate / tilt</th><td><kbd>right-click</kbd> + drag</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Keyboard-Controls:</h2>\r\n\t<table>\r\n\t\t<tr><th>move</th><td><kbd>wasd</kbd> / <kbd>arrow-keys</kbd></td></tr>\r\n\t\t<tr><th>zoom</th><td>Numpad: <kbd>+</kbd>/<kbd>-</kbd> or <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>rotate / tilt</th><td><kbd>Left-Alt</kbd> + <kbd>wasd</kbd> / <kbd>arrow-keys</kbd> or <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Touch-Controls:</h2>\r\n\t<table>\r\n\t\t<tr><th>move</th><td>touch + drag</td></tr>\r\n\t\t<tr><th>zoom</th><td>touch with two fingers + pinch</td></tr>\r\n\t\t<tr><th>rotate / tilt</th><td>touch with two fingers + rotate / move up/down</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tThis map has been generated with &#9829; using <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "es.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Menú",
+            "tooltip": "Menú"
+        },
+        "maps": {
+            "title": "Mapas",
+            "button": "Mapas",
+            "tooltip": "Lista de mapas"
+        },
+        "markers": {
+            "title": "Marcadores",
+            "button": "Marcadores",
+            "tooltip": "Lista de marcadores",
+            "marker": "marcador | marcadores",
+            "markerSet": "Conjunto de marcadores | Conjuntos de marcadores",
+            "searchPlaceholder": "Buscar...",
+            "followPlayerTitle": "Seguir jugador"
+        },
+        "settings": {
+            "title": "Ajustes",
+            "button": "Ajustes"
+        },
+        "goFullscreen": {
+            "button": "Pantalla completa"
+        },
+        "resetCamera": {
+            "button": "Restablecer cámara",
+            "tooltip": "Restablecer cámara y posición"
+        },
+        "updateMap": {
+            "button": "Actualizar mapa",
+            "tooltip": "Limpiar caché"
+        },
+        "lighting": {
+            "title": "Iluminación",
+            "dayNightSwitch": {
+                "tooltip": "Día/Noche"
+            },
+            "sunlight": "Luz solar",
+            "ambientLight": "Luz ambiental"
+        },
+        "resolution": {
+            "title": "Resolución",
+            "high": "Alta (SSAA x2)",
+            "normal": "Normal (Nativa x1)",
+            "low": "Baja (Ampliada x0.5)"
+        },
+        "freeFlightControls": {
+            "title": "Controles de vuelo libre",
+            "mouseSensitivity": "Sensibilidad del ratón",
+            "invertMouseY": "Invertir eje Y del ratón"
+        },
+        "renderDistance": {
+            "title": "Distancia de renderizado",
+            "hiresLayer": "Capa de alta resolución",
+            "lowersLayer": "Capa de baja resolución"
+        },
+        "theme": {
+            "title": "Tema",
+            "default": "Predeterminado (Sistema/Navegador)",
+            "dark": "Oscuro",
+            "light": "Claro"
+        },
+        "debug": {
+            "button": "Debug"
+        },
+        "resetAllSettings": {
+            "button": "Restablecer todos los ajustes"
+        },
+        "players": {
+            "title": "Jugadores",
+            "tooltip": "Lista de jugadores"
+        },
+        "compass": {
+            "tooltip": "Brújula / Norte"
+        },
+        "screenshot": {
+            "title": "Captura de pantalla",
+            "button": "Tomar captura de pantalla",
+            "clipboard": "Copiar al portapapeles"
+        },
+        "controls": {
+            "title": "Vista / Controles",
+            "perspective": {
+                "button": "Perspectiva",
+                "tooltip": "Vista en perspectiva"
+            },
+            "flatView": {
+                "button": "Plano",
+                "tooltip": "Ortográfica / Vista plana"
+            },
+            "freeFlight": {
+                "button": "Vuelo libre",
+                "tooltip": "Vuelo libre / Modo espectador"
+            }
+        },
+        "language": {
+            "title": "Idioma"
+        },
+        "blockTooltip": {
+            "block": "Bloque",
+            "position": "Posición",
+            "chunk": "Chunk",
+            "region": {
+                "region": "Región",
+                "file": "Archivo"
+            },
+            "light": {
+                "light": "Iluminación",
+                "sun": "Sol",
+                "block": "Bloque"
+            }
+        },
+        "info": {
+            "title": "Información",
+            "button": "Información",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Control con ratón:</h2>\r\n\t<table>\r\n\t\t<tr><th>movimiento</th><td><kbd>clic izquierdo</kbd> + arrastrar</td></tr>\r\n\t\t<tr><th>zoom</th><td><kbd>rueda del ratón</kbd> (desplazar)</td></tr>\r\n\t\t<tr><th>rotar / inclinar</th><td><kbd>clic derecho</kbd> + arrastrar</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Control con teclado:</h2>\r\n\t<table>\r\n\t\t<tr><th>movimiento</th><td><kbd>wasd</kbd> / <kbd>flechas de desplazamiento</kbd></td></tr>\r\n\t\t<tr><th>zoom</th><td>Pad numérico: <kbd>+</kbd>/<kbd>-</kbd> ó <kbd>Insertar</kbd>/<kbd>Inicio</kbd></td></tr>\r\n\t\t<tr><th>rotar / inclinar</th><td><kbd>Alt izquierdo</kbd> + <kbd>wasd</kbd> / <kbd>flechas de desplazamiento</kbd> ó <kbd>Supr</kbd>/<kbd>Fin</kbd>/<kbd>Re pág</kbd>/<kbd>Av Pág</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Control con panel táctil:</h2>\r\n\t<table>\r\n\t\t<tr><th>movimiento</th><td>pulsa + arrastrar</td></tr>\r\n\t\t<tr><th>zoom</th><td>pulsa con dos dedos + junta</td></tr>\r\n\t\t<tr><th>rotar / inclinar</th><td>pulsa con dos dedos + rotar / desliza arriba/abajo</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tEste mapa ha sido generado con &#9829; usando <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "fi.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Valikko",
+            "tooltip": "Valikko"
+        },
+        "map": {
+            "unloaded": "Ei karttaa ladattuna.",
+            "loading": "Ladataan karttaa...",
+            "errored": "Karttaa ladatessa ilmeni ongelmia!"
+        },
+        "maps": {
+            "title": "Kartat",
+            "button": "Kartat",
+            "tooltip": "Karttalista"
+        },
+        "markers": {
+            "title": "Merkit",
+            "button": "Merkit",
+            "tooltip": "Merkkilista",
+            "marker": "merkki | merkkiä",
+            "markerSet": "merkkisetti | merkkisettiä",
+            "searchPlaceholder": "Etsi...",
+            "followPlayerTitle": "Seuraa pelaajaa",
+            "sort": {
+                "title": "Järjestys",
+                "by": {
+                    "default": "oletus",
+                    "label": "nimi",
+                    "distance": "etäisyys"
+                }
+            }
+        },
+        "settings": {
+            "title": "Asetukset",
+            "button": "Asetukset"
+        },
+        "goFullscreen": {
+            "button": "Mene kokoruudun tilaan"
+        },
+        "resetCamera": {
+            "button": "Nollaa kamera",
+            "tooltip": "Nolla kamera ja sijainti"
+        },
+        "updateMap": {
+            "button": "Päivitä kartta",
+            "tooltip": "Tyhjennä välimuisti"
+        },
+        "lighting": {
+            "title": "Valaistus",
+            "dayNightSwitch": {
+                "tooltip": "Päivä/Yö"
+            },
+            "sunlight": "Auringonvalo",
+            "ambientLight": "Ympäristön valo"
+        },
+        "resolution": {
+            "title": "Resoluutio",
+            "high": "Korkea (SSAA x2)",
+            "normal": "Normaali (Natiivi x1)",
+            "low": "Alhainen (Skaalaus x0.5)"
+        },
+        "mapControls": {
+            "title": "Kartan ohjaimet",
+            "showZoomButtons": "Näytä zoomauksen nappulat"
+        },
+        "freeFlightControls": {
+            "title": "Vapaan lennon ohjaimet",
+            "mouseSensitivity": "Hiiren herkkyys",
+            "invertMouseY": "Käännä hiiren Y-akseli"
+        },
+        "renderDistance": {
+            "title": "Näköetäisyys",
+            "hiresLayer": "Korkealaatuinen kerros",
+            "lowersLayer": "Matalalaatuinen kerros",
+            "loadHiresWhileMoving": "Lataa korkealaatuinen kerros liikkuessa",
+            "off": "Pois"
+        },
+        "theme": {
+            "title": "Teema",
+            "default": "Oletus (Järjestelmä/Selain)",
+            "dark": "Tumma",
+            "light": "Vaalea",
+            "contrast": "Kontrasti"
+        },
+        "chunkBorders": {
+            "button": "Näytä lohkojen rajat"
+        },
+        "debug": {
+            "button": "Debug"
+        },
+        "resetAllSettings": {
+            "button": "Nollaa kaikki asetukset"
+        },
+        "players": {
+            "title": "Pelaajat",
+            "tooltip": "Pelaajalista"
+        },
+        "compass": {
+            "tooltip": "Kompassi / Katso pohjoiseen"
+        },
+        "screenshot": {
+            "title": "Kuvankaappaus",
+            "button": "Ota kuvankaappaus",
+            "clipboard": "Kopioi leikepöydälle"
+        },
+        "controls": {
+            "title": "Näkymä / Ohjaus",
+            "perspective": {
+                "button": "Perspektiivi",
+                "tooltip": "Perspektiivi näkymä"
+            },
+            "flatView": {
+                "button": "Tasainen",
+                "tooltip": "Ortografinen  / Tasainen näkymä"
+            },
+            "freeFlight": {
+                "button": "Vapaa lento",
+                "tooltip": "Vapaa lento / Katsojatila"
+            }
+        },
+        "language": {
+            "title": "Kieli"
+        },
+        "blockTooltip": {
+            "block": "Kuutio",
+            "position": "Sijainti",
+            "chunk": "Lohko",
+            "region": {
+                "region": "Alue",
+                "file": "Tiedosto"
+            },
+            "light": {
+                "light": "Valo",
+                "sun": "Aurinko",
+                "block": "Kuutio"
+            },
+            "clipboard": "napsauta kopioidaksesi"
+        },
+        "info": {
+            "title": "Tiedot",
+            "button": "Tiedot",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Hiiriasetukset:</h2>\r\n\t<table>\r\n\t\t<tr><th>liiku</th><td><kbd>vasen painallus</kbd> + vedä</td></tr>\r\n\t\t<tr><th>zoomaa</th><td><kbd>hiiren rulla</kbd> (rullaa)</td></tr>\r\n\t\t<tr><th>käänny / kallista</th><td><kbd>oikea painallus</kbd> + vedä</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Näppäimistöasetukset:</h2>\r\n\t<table>\r\n\t\t<tr><th>liiku</th><td><kbd>wasd</kbd> / <kbd>nuolinäppäimet</kbd></td></tr>\r\n\t\t<tr><th>zoomaa</th><td>Numero näppäimistö: <kbd>+</kbd>/<kbd>-</kbd> tai <kbd>Ins-näppäin</kbd>/<kbd>Home-näppäin</kbd></td></tr>\r\n\t\t<tr><th>käänny / kallista</th><td><kbd>Vasen-Alt</kbd> + <kbd>wasd</kbd> / <kbd>nuolinäppäimet</kbd> tai <kbd>Delete-näppäin</kbd>/<kbd>End-näppäin</kbd>/<kbd>Page Up -näppäin</kbd>/<kbd>Page Down -näppäin</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Kosketusasetukset:</h2>\r\n\t<table>\r\n\t\t<tr><th>liiku</th><td>kosketa + vedä</td></tr>\r\n\t\t<tr><th>zoomaa</th><td>kosketa kahdella sormella + nipistä</td></tr>\r\n\t\t<tr><th>käänny / kallista</th><td>kosketa kahdella sormella + käännä / liiku ylös/alas</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n    Tämä kartta on tehty rakkaudella &#9829; käyttäen <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version} -ohjelmaa\r\n</p>\r\n"
+        }
+    },
+    "fr.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Menu",
+            "tooltip": "Menu"
+        },
+        "map": {
+            "unloaded": "Pas de carte chargée.",
+            "loading": "Chargement de la carte...",
+            "errored": "Il y a eu une erreur lors du chargement de la carte !"
+        },
+        "maps": {
+            "title": "Cartes",
+            "button": "Cartes",
+            "tooltip": "Liste des cartes"
+        },
+        "markers": {
+            "title": "Balises",
+            "button": "Balises",
+            "tooltip": "Liste des balises",
+            "marker": "balise | balises",
+            "markerSet": "Collection de balises | Collections de balises",
+            "searchPlaceholder": "Rechercher...",
+            "followPlayerTitle": "Suivre ce Joueur",
+            "sort": {
+                "title": "Trier par",
+                "by": {
+                    "default": "défaut",
+                    "label": "nom",
+                    "distance": "distance"
+                }
+            }
+        },
+        "settings": {
+            "title": "Paramètres",
+            "button": "Paramètres"
+        },
+        "goFullscreen": {
+            "button": "Plein Écran"
+        },
+        "resetCamera": {
+            "button": "Réinitialiser la Caméra",
+            "tooltip": "Réinitialiser la Caméra et la Position"
+        },
+        "updateMap": {
+            "button": "Mettre à jour la Carte",
+            "tooltip": "Nettoyer le Cache des Tuiles"
+        },
+        "lighting": {
+            "title": "Lumière",
+            "dayNightSwitch": {
+                "tooltip": "Jour/Nuit"
+            },
+            "sunlight": "Lumière du Soleil",
+            "ambientLight": "Lumière Ambiante"
+        },
+        "resolution": {
+            "title": "Résolution",
+            "high": "Haute (SSAA x2)",
+            "normal": "Normale (Native x1)",
+            "low": "Basse (Upscaling x0.5)"
+        },
+        "mapControls": {
+            "title": "Contrôles de la Carte",
+            "showZoomButtons": "Montrer les Boutons de Zoom"
+        },
+        "freeFlightControls": {
+            "title": "Contrôles du Vol Libre",
+            "mouseSensitivity": "Sensibilité de la Souris",
+            "invertMouseY": "Inverser l'Y de la Souris"
+        },
+        "renderDistance": {
+            "title": "Distance de Rendu",
+            "hiresLayer": "Couche Haute Définition",
+            "lowersLayer": "Couche Basse Définition",
+            "loadHiresWhileMoving": "Charger la haute définition en bougeant",
+            "off": "Désactivé"
+        },
+        "theme": {
+            "title": "Thème",
+            "default": "Par Défaut (Système/Navigateur)",
+            "dark": "Sombre",
+            "light": "Clair",
+            "contrast": "Contrasté"
+        },
+        "debug": {
+            "button": "Debogage"
+        },
+        "resetAllSettings": {
+            "button": "Réinitialiser tous les Paramètres"
+        },
+        "players": {
+            "title": "Joueurs",
+            "tooltip": "Liste des Joueurs"
+        },
+        "compass": {
+            "tooltip": "Boussole / Pointer le Nord"
+        },
+        "screenshot": {
+            "title": "Capture d'écran",
+            "button": "Prendre une Capture d'écran",
+            "clipboard": "Copier la Capture"
+        },
+        "controls": {
+            "title": "Vue / Contrôles",
+            "perspective": {
+                "button": "Perspective",
+                "tooltip": "Vue en Perspective"
+            },
+            "flatView": {
+                "button": "Plate",
+                "tooltip": "Orthographique / Vue Plate"
+            },
+            "freeFlight": {
+                "button": "Vol Libre",
+                "tooltip": "Vol Libre / Mode Spectateur"
+            }
+        },
+        "language": {
+            "title": "Langue"
+        },
+        "blockTooltip": {
+            "block": "Bloc",
+            "position": "Position",
+            "chunk": "Tronçon",
+            "region": {
+                "region": "Région",
+                "file": "Fichier"
+            },
+            "light": {
+                "light": "Lumière",
+                "sun": "Soleil",
+                "block": "Bloc"
+            }
+        },
+        "info": {
+            "title": "Info",
+            "button": "Info",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Contrôles de la Souris :</h2>\r\n\t<table>\r\n\t\t<tr><th>déplacer</th><td><kbd>clic-gauche</kbd> + glisser</td></tr>\r\n\t\t<tr><th>zoomer</th><td><kbd>molette</kbd> (défiler)</td></tr>\r\n\t\t<tr><th>tourner / incliner</th><td><kbd>clic-droit</kbd> + glisser</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Contrôles du Clavier :</h2>\r\n\t<table>\r\n\t\t<tr><th>déplacer</th><td><kbd>zqsd</kbd> / <kbd>flèches directionnelles</kbd></td></tr>\r\n\t\t<tr><th>zoomer</th><td>Pavé Numérique : <kbd>+</kbd>/<kbd>-</kbd> ou <kbd>Inser</kbd>/<kbd>Début</kbd></td></tr>\r\n\t\t<tr><th>tourner / incliner</th><td><kbd>Alt-Gauche</kbd> + <kbd>zqsd</kbd> / <kbd>flèches</kbd> ou <kbd>Suppr</kbd>/<kbd>Fin</kbd>/<kbd>Page Haut</kbd>/<kbd>Page Bas</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Contrôles Tactiles :</h2>\r\n\t<table>\r\n\t\t<tr><th>déplacer</th><td>toucher + glisser</td></tr>\r\n\t\t<tr><th>zoomer</th><td>toucher avec 2 doigts + pincement</td></tr>\r\n\t\t<tr><th>tourner / incliner</th><td>toucher avec 2 doigts + tourner / haut/bas</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tCette carte a été générée avec &#9829; par <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "hi.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "मेन्यू",
+            "tooltip": "मेन्यू"
+        },
+        "maps": {
+            "title": "नक्शे",
+            "button": "नक्शे",
+            "tooltip": "मानचित्र-सूची"
+        },
+        "markers": {
+            "title": "मार्करों",
+            "button": "मार्करों",
+            "tooltip": "मार्कर-सूची",
+            "marker": "मार्कर | मार्करों",
+            "markerSet": "मार्कर-सेट | मार्कर-सेट",
+            "searchPlaceholder": "खोज...",
+            "followPlayerTitle": "प्लेयर को फॉलो करें"
+        },
+        "settings": {
+            "title": "सेटिंग्स",
+            "button": "सेटिंग्स"
+        },
+        "goFullscreen": {
+            "button": "पूर्णस्क्रीन मोड"
+        },
+        "resetCamera": {
+            "button": "कैमरा रीसेट करें",
+            "tooltip": "कैमरा और स्थिति रीसेट करें"
+        },
+        "updateMap": {
+            "button": "नक्शा अपडेट करें",
+            "tooltip": "टाइल कैश साफ़ करें"
+        },
+        "lighting": {
+            "title": "प्रकाश",
+            "dayNightSwitch": {
+                "tooltip": "दिन हो या रात"
+            },
+            "sunlight": "सूरज की रोशनी",
+            "ambientLight": "परिवेश प्रकाश"
+        },
+        "resolution": {
+            "title": "संकल्प",
+            "high": "उच्च (SSAA x2)",
+            "normal": "सामान्य (देशी x1)",
+            "low": "कम (अप स्केलिंग x0.5)"
+        },
+        "freeFlightControls": {
+            "title": "मुक्त उड़ान नियंत्रण",
+            "mouseSensitivity": "माउस-संवेदनशीलता",
+            "invertMouseY": "माउस-संवेदनशीलता"
+        },
+        "renderDistance": {
+            "title": "रेंडर दूरी",
+            "hiresLayer": "परत काम देता है",
+            "lowersLayer": "निचली परत"
+        },
+        "theme": {
+            "title": "थीम",
+            "default": "डिफ़ॉल्ट (सिस्टम / ब्राउज़र)",
+            "dark": "डार्क",
+            "light": "प्रकाश"
+        },
+        "debug": {
+            "button": "डिबग"
+        },
+        "resetAllSettings": {
+            "button": "सभी सेटिंग्स रीसेट करें"
+        },
+        "players": {
+            "title": "खिलाड़ी",
+            "tooltip": "प्लेयर-सूची"
+        },
+        "compass": {
+            "tooltip": "कम्पास / फेस नॉर्थ"
+        },
+        "controls": {
+            "title": "देखें / नियंत्रण",
+            "perspective": {
+                "button": "परिप्रेक्ष्य",
+                "tooltip": "परिप्रेक्ष्य-दृश्य"
+            },
+            "flatView": {
+                "button": "फ्लैट",
+                "tooltip": "ऑर्थोग्राफिक / फ्लैट-व्यू"
+            },
+            "freeFlight": {
+                "button": "फ्री-फ्लाइट",
+                "tooltip": "फ्री-फ्लाइट / दर्शक मोड"
+            }
+        },
+        "language": {
+            "title": "भाषा"
+        },
+        "blockTooltip": {
+            "block": "ब्लॉक",
+            "position": "स्थिति",
+            "chunk": "चंक",
+            "region": {
+                "region": "क्षेत्र",
+                "file": "फ़ाइल"
+            },
+            "light": {
+                "light": "प्रकाश",
+                "sun": "सूर्य",
+                "block": "ब्लॉक"
+            }
+        },
+        "info": {
+            "title": "जानकारी",
+            "button": "जानकारी",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>माउस-नियंत्रण:</h2>\r\n\t<table>\r\n\t\t<tr><th>कदम</th><td><kbd>बाएँ क्लिक करें</kbd> + खींचें</td></tr>\r\n\t\t<tr><th>ज़ूम</th><td><kbd>माउसव्हील</kbd> (स्क्रॉल)</td></tr>\r\n\t\t<tr><th>घुमाएँ / झुकाव</th><td><kbd>राइट-क्लिक करें</kbd> + खींचें</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>कीबोर्ड पर नियंत्रण:</h2>\r\n\t<table>\r\n\t\t<tr><th>कदम</th><td><kbd>wasd</kbd> / <kbd>तीर कुंजी</kbd></td></tr>\r\n\t\t<tr><th>ज़ूम</th><td>Numpad: <kbd>या</kbd>/<kbd>इन</kbd> होम <kbd>इन</kbd>/<kbd>होम</kbd></td></tr>\r\n\t\t<tr><th>घुमाएँ / झुकाव</th><td><kbd>बाईं-Alt</kbd> + <kbd>wasd</kbd> / <kbd>तीर कुंजी</kbd> या <kbd>हटाएं</kbd>/<kbd>अंत</kbd>/<kbd>पृष्ठ</kbd>/<kbd>पृष्ठ के नीचे</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>स्पर्श नियंत्रण:</h2>\r\n\t<table>\r\n\t\t<tr><th>कदम</th><td>टच + खींचें</td></tr>\r\n\t\t<tr><th>ज़ूम</th><td>दो उंगलियों के साथ स्पर्श + चुटकी</td></tr>\r\n\t\t<tr><th>घुमाएँ / झुकाव</th><td>दो उंगलियों के साथ टच + घुमाएँ/ऊपर / नीचे ले जाएँ</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tका उपयोग कर उत्पन्न <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "hu.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Menü",
+            "tooltip": "Menü"
+        },
+        "maps": {
+            "title": "Térképek",
+            "button": "Térképek",
+            "tooltip": "Térképlista"
+        },
+        "markers": {
+            "title": "Jelölők",
+            "button": "Jelölők",
+            "tooltip": "Jelölőlista",
+            "marker": "jelölő | jelölők",
+            "markerSet": "jelölőkészlet | jelölőkészletek",
+            "searchPlaceholder": "Keresés...",
+            "followPlayerTitle": "Játékos követése"
+        },
+        "settings": {
+            "title": "Beállítások",
+            "button": "Beállítások"
+        },
+        "goFullscreen": {
+            "button": "Teljes képernyős mód bekapcsolása"
+        },
+        "resetCamera": {
+            "button": "Kamera visszaállítása",
+            "tooltip": "Kamera & pozíció visszaállítása"
+        },
+        "updateMap": {
+            "button": "Térkép frissítése",
+            "tooltip": "Csempe gyorsítótárának törlése"
+        },
+        "lighting": {
+            "title": "Villámlás",
+            "dayNightSwitch": {
+                "tooltip": "Reggel/Éjszaka"
+            },
+            "sunlight": "Napfény",
+            "ambientLight": "Háttérvilágítás"
+        },
+        "resolution": {
+            "title": "Felbontás",
+            "high": "Magas (SSAA x2)",
+            "normal": "Normál (Native x1)",
+            "low": "Alacsony (Upscaling x0.5)"
+        },
+        "freeFlightControls": {
+            "title": "Szabadrepülési vezérlők",
+            "mouseSensitivity": "Egér érzékenység",
+            "invertMouseY": "Egér Y tengelyének invertálása"
+        },
+        "renderDistance": {
+            "title": "Látótávolság",
+            "hiresLayer": "Hires réteg",
+            "lowersLayer": "Lowres réteg"
+        },
+        "theme": {
+            "title": "Téma",
+            "default": "Alapértelmezett (Rendszer/Böngésző)",
+            "dark": "Sötét",
+            "light": "Világos"
+        },
+        "debug": {
+            "button": "Hibakeresés"
+        },
+        "resetAllSettings": {
+            "button": "Minden beállítás alaphelyzetbe állítása"
+        },
+        "players": {
+            "title": "Játékosok",
+            "tooltip": "Játékos lista"
+        },
+        "compass": {
+            "tooltip": "Iránytű / Északra fordulás"
+        },
+        "controls": {
+            "title": "Nézet / Vezérlés",
+            "perspective": {
+                "button": "Perspektivikus",
+                "tooltip": "Perspektivikus nézet"
+            },
+            "flatView": {
+                "button": "Lapos",
+                "tooltip": "Orthographic / Lapos nézet"
+            },
+            "freeFlight": {
+                "button": "Szabadrepülés",
+                "tooltip": "Szabadrepülési / Szemlélő mód"
+            }
+        },
+        "language": {
+            "title": "Nyelv"
+        },
+        "blockTooltip": {
+            "block": "Blokk",
+            "position": "Pozíció",
+            "chunk": "Chunk",
+            "region": {
+                "region": "Régió",
+                "file": "Fájl"
+            },
+            "light": {
+                "light": "Fény",
+                "sun": "Nap",
+                "block": "Blokk"
+            }
+        },
+        "info": {
+            "title": "Infó",
+            "button": "Infó",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Egeres vezérlés:</h2>\r\n\t<table>\r\n\t\t<tr><th>mozgatás</th><td><kbd>bal klikk</kbd> + húzás</td></tr>\r\n\t\t<tr><th>zoomolás</th><td><kbd>görgő</kbd> (görgetés)</td></tr>\r\n\t\t<tr><th>elforgatás / döntés</th><td><kbd>jobb klikk</kbd> + húzás</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Billentyűzetes vezérlés:</h2>\r\n\t<table>\r\n\t\t<tr><th>mozgatás</th><td><kbd>wasd</kbd> / <kbd>nyilak</kbd></td></tr>\r\n\t\t<tr><th>zoomolás</th><td>Numpad: <kbd>+</kbd>/<kbd>-</kbd> or <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>elforgatás / döntés</th><td><kbd>Bal alt</kbd> + <kbd>wasd</kbd> / <kbd>arrow-keys</kbd> vagy <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Érintéses vezérlés:</h2>\r\n\t<table>\r\n\t\t<tr><th>mozgatás</th><td>érintés + húzás</td></tr>\r\n\t\t<tr><th>zoomolás</th><td>két ujjal érintés + csípés</td></tr>\r\n\t\t<tr><th>elforgatás / döntés</th><td>két ujjal érintés + forgatás / felfele/lefele mozgatás</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tEz a térkép &#9829; a <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version} segítségével lett generálva\r\n</p>\r\n"
+        }
+    },
+    "id.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": "  ",
+        "map": "  ",
+        "maps": "  ",
+        "markers": "  ",
+        "settings": "  ",
+        "goFullscreen": "  ",
+        "resetCamera": "  ",
+        "updateMap": "  ",
+        "lighting": "  ",
+        "resolution": "  ",
+        "mapControls": "  ",
+        "freeFlightControls": "  ",
+        "renderDistance": "  ",
+        "theme": "  ",
+        "chunkBorders": "  ",
+        "debug": "  ",
+        "resetAllSettings": "  ",
+        "players": "  ",
+        "compass": "  ",
+        "screenshot": "  ",
+        "controls": "  ",
+        "language": "  ",
+        "blockTooltip": "  ",
+        "info": "  "
+    },
+    "it.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Menu",
+            "tooltip": "Menu"
+        },
+        "maps": {
+            "title": "Mappe",
+            "button": "Mappe",
+            "tooltip": "Map-List"
+        },
+        "markers": {
+            "title": "Marcatori",
+            "button": "Marcatori",
+            "tooltip": "Lista-Marcatori",
+            "marker": "marcatore | marcatori",
+            "markerSet": "set-di-marcatori | sets-di-marcatori"
+        },
+        "settings": {
+            "title": "Impostazioni",
+            "button": "Impostazioni"
+        },
+        "goFullscreen": {
+            "button": "Metti Lo Schermo Pieno"
+        },
+        "resetCamera": {
+            "button": "Resetta La Telecamera",
+            "tooltip": "Resetta La Telecamera E La Posizione"
+        },
+        "updateMap": {
+            "button": "Aggiorna Mappa",
+            "tooltip": "Pulisci La Chace Delle Caselle"
+        },
+        "lighting": {
+            "title": "Illuminazione",
+            "dayNightSwitch": {
+                "tooltip": "Giorno/Notte"
+            },
+            "sunlight": "Luce",
+            "ambientLight": "Luce-Ambientale"
+        },
+        "resolution": {
+            "title": "Risoluzione",
+            "high": "Alta (SSAA x2)",
+            "normal": "Normale (Nativa x1)",
+            "low": "Bassa (Upscaling x0.5)"
+        },
+        "freeFlightControls": {
+            "title": "Controlli Free-Flight",
+            "mouseSensitivity": "Sensitivita-Mouse",
+            "invertMouseY": "Inverti Y Del Mouse"
+        },
+        "renderDistance": {
+            "title": "Distanza Rendering",
+            "hiresLayer": "Layer Alta Risoluzione",
+            "lowersLayer": "Layer Bassa Risoluzione"
+        },
+        "theme": {
+            "title": "Tema",
+            "default": "Default (Sistema/Browser)",
+            "dark": "Scuro",
+            "light": "Chiaro"
+        },
+        "debug": {
+            "button": "Debug"
+        },
+        "resetAllSettings": {
+            "button": "Ripristina Impostazioni"
+        },
+        "players": {
+            "title": "Giocatori",
+            "tooltip": "Lista-Giocatori"
+        },
+        "compass": {
+            "tooltip": "Compasso / Verso Nord"
+        },
+        "controls": {
+            "title": "Visuale / Controlli",
+            "perspective": {
+                "button": "Prospettiva",
+                "tooltip": "Visuale-Prospettiva"
+            },
+            "flatView": {
+                "button": "Piatta",
+                "tooltip": "Ortografica / Visuale-Piatta"
+            },
+            "freeFlight": {
+                "button": "Free-Flight",
+                "tooltip": "Free-Flight / Modalita Spettatore"
+            }
+        },
+        "language": {
+            "title": "Lingua"
+        },
+        "blockTooltip": {
+            "block": "Blocco",
+            "position": "Posizione",
+            "chunk": "Chunk",
+            "region": {
+                "region": "Regione",
+                "file": "File"
+            },
+            "light": {
+                "light": "Luminosita",
+                "sun": "Sole",
+                "block": "Blocco"
+            }
+        },
+        "info": {
+            "title": "Informazioni",
+            "button": "Informazioni",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Controlli-Mouse:</h2>\r\n\t<table>\r\n\t\t<tr><th>movimento</th><td><kbd>tasto-sinistro</kbd> + scorrimento</td></tr>\r\n\t\t<tr><th>zoom</th><td><kbd>rotellina</kbd> (scroll)</td></tr>\r\n\t\t<tr><th>rotazione / inclinazione</th><td><kbd>tasto-destro</kbd> + scorrimento</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Controlli-Tastiera:</h2>\r\n\t<table>\r\n\t\t<tr><th>movimento</th><td><kbd>wasd</kbd> / <kbd>tasti-direzionali</kbd></td></tr>\r\n\t\t<tr><th>zoom</th><td>Numpad: <kbd>+</kbd>/<kbd>-</kbd> or <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>rotazione / inclinazione</th><td><kbd>Alt-Sinistro</kbd> + <kbd>wasd</kbd> / <kbd>tasti-direzionali</kbd> or <kbd>Rimuovi</kbd>/<kbd>End</kbd>/<kbd>Pagina Su</kbd>/<kbd>Pagina Giu</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Touch-Controls:</h2>\r\n\t<table>\r\n\t\t<tr><th>movimento</th><td>tocco + scorrimento</td></tr>\r\n\t\t<tr><th>zoom</th><td>tocco con due dita + pizzico</td></tr>\r\n\t\t<tr><th>rotazione / inclinazione</th><td>tocco con due dita + rotazione / muovi in alto/basso</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tQuesta mappa e' stata generata con &#9829; usando <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "ja.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "メニュー",
+            "tooltip": "メニューを表示"
+        },
+        "map": {
+            "unloaded": "マップがロードされていません。",
+            "loading": "マップをロードしています…",
+            "errored": "このマップのロード中にエラーが発生しました！"
+        },
+        "maps": {
+            "title": "マップ",
+            "button": "マップ",
+            "tooltip": "マップ一覧"
+        },
+        "markers": {
+            "title": "マーカー",
+            "button": "マーカー",
+            "tooltip": "マーカー一覧",
+            "marker": "マーカー | マーカー",
+            "markerSet": "マーカーグループ | マーカーグループ",
+            "searchPlaceholder": "検索…",
+            "followPlayerTitle": "プレイヤーを追跡",
+            "sort": {
+                "title": "並べ替え",
+                "by": {
+                    "default": "デフォルト",
+                    "label": "名前",
+                    "distance": "距離"
+                }
+            }
+        },
+        "settings": {
+            "title": "設定",
+            "button": "設定"
+        },
+        "goFullscreen": {
+            "button": "フルスクリーン"
+        },
+        "resetCamera": {
+            "button": "カメラをリセット",
+            "tooltip": "カメラの位置と角度をリセット"
+        },
+        "updateMap": {
+            "button": "地形情報を更新",
+            "tooltip": "キャッシュを削除して最新情報に更新する"
+        },
+        "lighting": {
+            "title": "明るさ",
+            "dayNightSwitch": {
+                "tooltip": "昼夜切り替え"
+            },
+            "sunlight": "時間帯",
+            "ambientLight": "明るさ"
+        },
+        "resolution": {
+            "title": "解像度",
+            "high": "高 (SSAA x2)",
+            "normal": "標準 (ネイティブ x1)",
+            "low": "低 (アップスケーリング x0.5)"
+        },
+        "mapControls": {
+            "title": "マップ",
+            "showZoomButtons": "ズームボタンを表示"
+        },
+        "freeFlightControls": {
+            "title": "スペクテイターモード",
+            "mouseSensitivity": "マウス感度",
+            "invertMouseY": "Y軸の反転"
+        },
+        "renderDistance": {
+            "title": "描画距離",
+            "hiresLayer": "高品質レイヤー",
+            "lowersLayer": "低品質レイヤー",
+            "loadHiresWhileMoving": "移動中に高品質レイヤーをロード",
+            "off": "オフ"
+        },
+        "theme": {
+            "title": "テーマ",
+            "default": "デフォルト (システム/ブラウザ)",
+            "dark": "ダーク",
+            "light": "ライト",
+            "contrast": "ハイコントラスト"
+        },
+        "chunkBorders": {
+            "button": "チャンクの境界を表示"
+        },
+        "debug": {
+            "button": "デバッグ情報を表示"
+        },
+        "resetAllSettings": {
+            "button": "すべての設定をリセット"
+        },
+        "players": {
+            "title": "プレイヤー",
+            "tooltip": "プレイヤー一覧"
+        },
+        "compass": {
+            "tooltip": "方角 / クリックで方角をリセット"
+        },
+        "screenshot": {
+            "title": "スクリーンショット",
+            "button": "スクリーンショットを撮る",
+            "clipboard": "クリップボードにコピー"
+        },
+        "controls": {
+            "title": "視点",
+            "perspective": {
+                "button": "立体",
+                "tooltip": "立体表示"
+            },
+            "flatView": {
+                "button": "平面",
+                "tooltip": "平面表示"
+            },
+            "freeFlight": {
+                "button": "スペクテイター",
+                "tooltip": "スペクテイターモード"
+            }
+        },
+        "language": {
+            "title": "言語"
+        },
+        "blockTooltip": {
+            "block": "ブロック",
+            "position": "座標",
+            "chunk": "チャンク",
+            "region": {
+                "region": "リージョン",
+                "file": "ファイル"
+            },
+            "light": {
+                "light": "明るさ",
+                "sun": "太陽光",
+                "block": "光源"
+            },
+            "clipboard": "クリックしてコピー"
+        },
+        "info": {
+            "title": "情報",
+            "button": "情報",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>マウス操作:</h2>\r\n\t<table>\r\n\t\t<tr><th>移動</th><td><kbd>左クリック</kbd> + ドラッグ</td></tr>\r\n\t\t<tr><th>ズーム</th><td><kbd>マウスホイール</kbd> (スクロール)</td></tr>\r\n\t\t<tr><th>回転 / 傾き</th><td><kbd>右クリック</kbd> + ドラッグ</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>キーボード操作:</h2>\r\n\t<table>\r\n\t\t<tr><th>移動</th><td><kbd>wasd</kbd> / <kbd>矢印キー</kbd></td></tr>\r\n\t\t<tr><th>ズーム</th><td>テンキー: <kbd>+</kbd>/<kbd>-</kbd> または <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>回転 / 傾き</th><td><kbd>左Alt</kbd> + <kbd>wasd</kbd> / <kbd>矢印キー</kbd> または <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>タッチ操作:</h2>\r\n\t<table>\r\n\t\t<tr><th>移動</th><td>1本指でタッチしてドラッグ</td></tr>\r\n\t\t<tr><th>ズーム</th><td>2本指でタッチしてピンチ</td></tr>\r\n\t\t<tr><th>回転 / 傾き</th><td>2本指でドラッグ + 回転 / 昇降</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tこのマップは&#9829;を込めて<a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}で生成されています\r\n</p>\r\n"
+        }
+    },
+    "ko.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "메뉴",
+            "tooltip": "메뉴를 표시"
+        },
+        "map": {
+            "unloaded": "맵이 로드되지 않았습니다.",
+            "loading": "맵을 로드하는 중입니다…",
+            "errored": "이 맵을 로드하는 중에 오류가 발생했습니다!"
+        },
+        "maps": {
+            "title": "맵",
+            "button": "맵",
+            "tooltip": "맵 목록"
+        },
+        "markers": {
+            "title": "마커",
+            "button": "마커",
+            "tooltip": "마커 목록",
+            "marker": "마커 | 마커",
+            "markerSet": "마커 그룹 | 마커 그룹",
+            "searchPlaceholder": "검색…",
+            "followPlayerTitle": "플레이어 따라가기",
+            "sort": {
+                "title": "정렬 기준",
+                "by": {
+                    "default": "기본",
+                    "label": "이름",
+                    "distance": "거리"
+                }
+            }
+        },
+        "settings": {
+            "title": "설정",
+            "button": "설정"
+        },
+        "goFullscreen": {
+            "button": "전체화면"
+        },
+        "resetCamera": {
+            "button": "카메라 리셋",
+            "tooltip": "카메라 위치와 각도를 리셋"
+        },
+        "updateMap": {
+            "button": "맵 정보 갱신",
+            "tooltip": "맵 타일 캐시를 삭제합니다."
+        },
+        "lighting": {
+            "title": "광원",
+            "dayNightSwitch": {
+                "tooltip": "낮/밤 전환"
+            },
+            "sunlight": "자연광",
+            "ambientLight": "주변광"
+        },
+        "resolution": {
+            "title": "해상도",
+            "high": "높음 (SSAA x2)",
+            "normal": "표준 (네이티브 x1)",
+            "low": "낮음 (업스케일링 x0.5)"
+        },
+        "mapControls": {
+            "title": "맵",
+            "showZoomButtons": "확대/축소 버튼 표시"
+        },
+        "freeFlightControls": {
+            "title": "자유 이동 조작",
+            "mouseSensitivity": "마우스 감도",
+            "invertMouseY": "마우스 Y축 반전"
+        },
+        "renderDistance": {
+            "title": "렌더 거리",
+            "hiresLayer": "고해상도 레이어",
+            "lowersLayer": "저해상도 레이어",
+            "loadHiresWhileMoving": "이동 중 고해상도 레이어 로딩",
+            "off": "끄기"
+        },
+        "theme": {
+            "title": "테마",
+            "default": "기본값 (시스템/브라우저)",
+            "dark": "어두운",
+            "light": "밝은",
+            "contrast": "고대비"
+        },
+        "chunkBorders": {
+            "button": "청크 경계 표시"
+        },
+        "debug": {
+            "button": "디버그 정보 표시"
+        },
+        "resetAllSettings": {
+            "button": "설정값 재설정"
+        },
+        "players": {
+            "title": "플레이어",
+            "tooltip": "플레이어 목록"
+        },
+        "compass": {
+            "tooltip": "나침반 / 북쪽 보기"
+        },
+        "screenshot": {
+            "title": "스크린샷",
+            "button": "스크린샷 찍기",
+            "clipboard": "클립보드에 복사"
+        },
+        "controls": {
+            "title": "시점 / 컨트롤",
+            "perspective": {
+                "button": "투시",
+                "tooltip": "투시로 보기"
+            },
+            "flatView": {
+                "button": "평면",
+                "tooltip": "직각투영 / 평면으로 보기"
+            },
+            "freeFlight": {
+                "button": "자유 이동",
+                "tooltip": "자유 이동 / 관전모드로 보기"
+            }
+        },
+        "language": {
+            "title": "언어"
+        },
+        "blockTooltip": {
+            "block": "블록",
+            "position": "위치",
+            "chunk": "청크",
+            "region": {
+                "region": "지역",
+                "file": "파일"
+            },
+            "light": {
+                "light": "광원",
+                "sun": "자연",
+                "block": "블럭"
+            },
+            "clipboard": "클릭하여 복사"
+        },
+        "info": {
+            "title": "정보",
+            "button": "정보",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>마우스 조작:</h2>\r\n\t<table>\r\n\t\t<tr><th>이동</th><td><kbd>좌클릭</kbd> + 끌기</td></tr>\r\n\t\t<tr><th>확대</th><td><kbd>마우스 휠</kbd> (스크롤)</td></tr>\r\n\t\t<tr><th>회전 / 기울이기</th><td><kbd>우클릭</kbd> + 끌기</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>키보드 조작:</h2>\r\n\t<table>\r\n\t\t<tr><th>이동</th><td><kbd>wasd</kbd> / <kbd>화살표 키</kbd></td></tr>\r\n\t\t<tr><th>확대</th><td>넘버패드: <kbd>+</kbd>/<kbd>-</kbd> 또는 <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>회전 / 기울이기</th><td><kbd>왼쪽 Alt</kbd> + <kbd>wasd</kbd> / <kbd>화살표 키</kbd> 또는 <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>터치 조작:</h2>\r\n\t<table>\r\n\t\t<tr><th>이동</th><td>터치 + 끌기</td></tr>\r\n\t\t<tr><th>확대</th><td>두 손가락으로 터치 + 꼬집기</td></tr>\r\n\t\t<tr><th>회전 / 기울이기</th><td>두 손가락으로 터치 + 회전 / 위/아래로 끌기</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\t이 맵은 &#9829;을 담아 <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version} 을 이용해 제작되었습니다\r\n</p>\r\n"
+        }
+    },
+    "lv.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Izvēlne",
+            "tooltip": "Izvēlne"
+        },
+        "maps": {
+            "title": "Kartes",
+            "button": "Kartes",
+            "tooltip": "Karšu Saraksts"
+        },
+        "markers": {
+            "title": "Marķieri",
+            "button": "Marķieri",
+            "tooltip": "Marķieru Saraksts",
+            "marker": "Marķieris | Marķieri",
+            "markerSet": "Marķieru Kopa | Marķieru Kopas",
+            "searchPlaceholder": "Meklēt..."
+        },
+        "settings": {
+            "title": "Iestatījumi",
+            "button": "Iestatījumi"
+        },
+        "goFullscreen": {
+            "button": "Pilnekrāna Režīms"
+        },
+        "resetCamera": {
+            "button": "Atiestatīt Kameru",
+            "tooltip": "Atiestatīt Kameru & Pozīciju"
+        },
+        "updateMap": {
+            "button": "Atjaunot Karti",
+            "tooltip": "Notīrīt Kartes Kešatmiņu"
+        },
+        "lighting": {
+            "title": "Apgaismojums",
+            "dayNightSwitch": {
+                "tooltip": "Diena/Nakts"
+            },
+            "sunlight": "Saules Gaisma",
+            "ambientLight": "Gaisma No Blokiem"
+        },
+        "resolution": {
+            "title": "Ižšķirtspēja",
+            "high": "Augsta (SSAA x2)",
+            "normal": "Vidēja (Iebūvētā x1)",
+            "low": "Zema (Palielināšana x0.5)"
+        },
+        "freeFlightControls": {
+            "title": "Brīvā Lidojuma Vadība",
+            "mouseSensitivity": "Peles Jūtība",
+            "invertMouseY": "Izvērst Peli Y Asī"
+        },
+        "renderDistance": {
+            "title": "Renderēšanas Attālums",
+            "hiresLayer": "Augstās Kval. Slānis",
+            "lowersLayer": "Zemās Kval. Slānis"
+        },
+        "theme": {
+            "title": "Motīvs",
+            "default": "Noklusētais (Sistēma/Pārlūks)",
+            "dark": "Tumšs",
+            "light": "Gaišs"
+        },
+        "debug": {
+            "button": "Atķļūdošana"
+        },
+        "resetAllSettings": {
+            "button": "Atjaunot Iestatījumus"
+        },
+        "players": {
+            "title": "Spēlētāji",
+            "tooltip": "Spēlētāju Saraksts"
+        },
+        "compass": {
+            "tooltip": "Kompass / Pagriezt Uz Ziemeļiem"
+        },
+        "controls": {
+            "title": "Skats / Vadība",
+            "perspective": {
+                "button": "Perspektīvā Projekcija",
+                "tooltip": "3D / Perspektīvā Projekcija"
+            },
+            "flatView": {
+                "button": "Plakans",
+                "tooltip": "Ortogrāfiskais / Plakanais Skats"
+            },
+            "freeFlight": {
+                "button": "Brīvais Lidojums",
+                "tooltip": "Brīvais Lidojums / Skatītāja Režīms"
+            }
+        },
+        "language": {
+            "title": "Valoda"
+        },
+        "blockTooltip": {
+            "block": "Bloks",
+            "position": "Pozīcija",
+            "chunk": "Gabals",
+            "region": {
+                "region": "Reģions",
+                "file": "Fails"
+            },
+            "light": {
+                "light": "Gaisma",
+                "sun": "Saule",
+                "block": "Bloks"
+            }
+        },
+        "info": {
+            "title": "Informācija",
+            "button": "Informācija",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Peles Vadība:</h2>\r\n\t<table>\r\n\t\t<tr><th>Pārvietošana</th><td><kbd>Kreisais Peles Klikšķis</kbd> + drag</td></tr>\r\n\t\t<tr><th>Pietuvināšana</th><td><kbd>Peles Rullītis</kbd> (scroll)</td></tr>\r\n\t\t<tr><th>Rotācija / Sašķiebšana</th><td><kbd>Labais Peles Klikšķis</kbd> + drag</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Klaviatūras Vadība::</h2>\r\n\t<table>\r\n\t\t<tr><th>Pārvietošana</th><td><kbd>WASD</kbd> / <kbd>Bultiņu Taustiņi</kbd></td></tr>\r\n\t\t<tr><th>Pietuvināšana</th><td>Numurtaustiņi <kbd>+</kbd>/<kbd>-</kbd> vai <kbd>Insert</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>Rotācija / Sašķiebšana</th><td><kbd>Kreisais-Alt</kbd> + <kbd>WASD</kbd> / <kbd>Bultiņu Taustiņi</kbd> vai <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Pieskārienu Vadība:</h2>\r\n\t<table>\r\n\t\t<tr><th>Pārvietošana</th><td>Pieskāriens + Vilkšana</td></tr>\r\n\t\t<tr><th>Pietuvināšana</th><td>Pieskarieties Ar Diviem Pirkstiem + Satvert</td></tr>\r\n\t\t<tr><th>Rotācija / Sašķiebšana</th><td>Pieskarieties Ar Diviem Pirkstiem + Rotācija / Uz Augšu/Leju</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tŠī karte veidota ar &#9829; <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "nb.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Meny",
+            "tooltip": "Meny"
+        },
+        "maps": {
+            "title": "Kart",
+            "button": "Kart",
+            "tooltip": "Kartliste"
+        },
+        "markers": {
+            "title": "Markører",
+            "button": "Markører",
+            "tooltip": "Markørliste",
+            "marker": "markør | markører",
+            "markerSet": "markørsett | markørsett",
+            "searchPlaceholder": "Søk...",
+            "followPlayerTitle": "Følg spiller"
+        },
+        "settings": {
+            "title": "Innstillinger",
+            "button": "Innstillinger"
+        },
+        "goFullscreen": {
+            "button": "Fullskjerm"
+        },
+        "resetCamera": {
+            "button": "Tilbakestill kamera",
+            "tooltip": "Tilbakestill kamera og posisjon"
+        },
+        "updateMap": {
+            "button": "Oppdater kart",
+            "tooltip": "Slett rutebuffer"
+        },
+        "lighting": {
+            "title": "Belysning",
+            "dayNightSwitch": {
+                "tooltip": "Dag/natt"
+            },
+            "sunlight": "Sollys",
+            "ambientLight": "Bakgrunnsbelysning"
+        },
+        "resolution": {
+            "title": "Oppløsning",
+            "high": "Høy (SSAA x2)",
+            "normal": "Normal (Opprinnelig oppløsning x1)",
+            "low": "Lav (Oppskalert x0.5)"
+        },
+        "freeFlightControls": {
+            "title": "Friflyvningskontroller",
+            "mouseSensitivity": "Mussensitivitet",
+            "invertMouseY": "Snu mus Y"
+        },
+        "renderDistance": {
+            "title": "Innlastningsavstand",
+            "hiresLayer": "Høyoppløsningslag",
+            "lowersLayer": "Lavoppløsningslag",
+            "loadHiresWhileMoving": "Last inn høyoppløsning under bevegelse",
+            "off": "Av"
+        },
+        "theme": {
+            "title": "Tema",
+            "default": "Standard (System/Nettleser)",
+            "dark": "Mørk",
+            "light": "Lys"
+        },
+        "debug": {
+            "button": "Feilsøk"
+        },
+        "resetAllSettings": {
+            "button": "Tilbakestill alle innstillinger"
+        },
+        "players": {
+            "title": "Spillere",
+            "tooltip": "Spillerliste"
+        },
+        "compass": {
+            "tooltip": "Kompass / Pek nord"
+        },
+        "screenshot": {
+            "title": "Skjermbilde",
+            "button": "Ta skjermbilde",
+            "clipboard": "Kopier til utklippstavle"
+        },
+        "controls": {
+            "title": "Visning / Kontroller",
+            "perspective": {
+                "button": "Perspektiv",
+                "tooltip": "Perpektivvisning"
+            },
+            "flatView": {
+                "button": "Flat",
+                "tooltip": "Ortografisk / Flatvisning"
+            },
+            "freeFlight": {
+                "button": "Friflyvning",
+                "tooltip": "Friflyvning / Tilskuermodus"
+            }
+        },
+        "language": {
+            "title": "Språk"
+        },
+        "blockTooltip": {
+            "block": "Blokk",
+            "position": "Posisjon",
+            "chunk": "Bit",
+            "region": {
+                "region": "Region",
+                "file": "Fil"
+            },
+            "light": {
+                "light": "Lys",
+                "sun": "Sol",
+                "block": "Blokk"
+            }
+        },
+        "info": {
+            "title": "Informasjon",
+            "button": "Informasjon",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Mouse-Controls:</h2>\r\n\t<table>\r\n\t\t<tr><th>move</th><td><kbd>left-click</kbd> + drag</td></tr>\r\n\t\t<tr><th>zoom</th><td><kbd>mousewheel</kbd> (scroll)</td></tr>\r\n\t\t<tr><th>rotate / tilt</th><td><kbd>right-click</kbd> + drag</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Keyboard-Controls:</h2>\r\n\t<table>\r\n\t\t<tr><th>move</th><td><kbd>wasd</kbd> / <kbd>arrow-keys</kbd></td></tr>\r\n\t\t<tr><th>zoom</th><td>Numpad: <kbd>+</kbd>/<kbd>-</kbd> or <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>rotate / tilt</th><td><kbd>Left-Alt</kbd> + <kbd>wasd</kbd> / <kbd>arrow-keys</kbd> or <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Touch-Controls:</h2>\r\n\t<table>\r\n\t\t<tr><th>move</th><td>touch + drag</td></tr>\r\n\t\t<tr><th>zoom</th><td>touch with two fingers + pinch</td></tr>\r\n\t\t<tr><th>rotate / tilt</th><td>touch with two fingers + rotate / move up/down</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p>\r\n\tThis map has been generated with &#9829; using <a href=\"https://bluecolo.red/bluemap\">BlueMap</a>.\r\n</p>\r\n"
+        }
+    },
+    "nl.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Menu",
+            "tooltip": "Menu"
+        },
+        "map": {
+            "unloaded": "Geen kaart geladen.",
+            "loading": "Kaart laden...",
+            "errored": "Er is een probleem opgetreden tijdens het laden van deze kaart!"
+        },
+        "maps": {
+            "title": "Kaarten",
+            "button": "Kaarten",
+            "tooltip": "Kaartenlijst"
+        },
+        "markers": {
+            "title": "Markers",
+            "button": "Markers",
+            "tooltip": "Markerlijst",
+            "marker": "marker | markers",
+            "markerSet": "markerset | markersets",
+            "searchPlaceholder": "Zoek...",
+            "followPlayerTitle": "Volg Speler",
+            "sort": {
+                "title": "Sorteer op",
+                "by": {
+                    "default": "standaard",
+                    "label": "naam",
+                    "distance": "afstand"
+                }
+            }
+        },
+        "settings": {
+            "title": "Instellingen",
+            "button": "Instellingen"
+        },
+        "goFullscreen": {
+            "button": "Volledig scherm modus"
+        },
+        "resetCamera": {
+            "button": "Camera terugzetten",
+            "tooltip": "Camera & Positie terugzetten"
+        },
+        "updateMap": {
+            "button": "Kaart verversen",
+            "tooltip": "Leeg de kaarten-cache"
+        },
+        "lighting": {
+            "title": "Belichting",
+            "dayNightSwitch": {
+                "tooltip": "Dag/Nacht"
+            },
+            "sunlight": "Zonlicht",
+            "ambientLight": "Omgevingslicht"
+        },
+        "resolution": {
+            "title": "Resolutie",
+            "high": "Hoog (SSAA x2)",
+            "normal": "Normaal (Standaard x1)",
+            "low": "Laag (Opgeschaald x0.5)"
+        },
+        "mapControls": {
+            "title": "Kaartbesturing",
+            "showZoomButtons": "Laat zoomknoppen zien"
+        },
+        "freeFlightControls": {
+            "title": "Vrije camera",
+            "mouseSensitivity": "Muis gevoeligheid",
+            "invertMouseY": "Muis Y omdraaien"
+        },
+        "renderDistance": {
+            "title": "Renderafstand",
+            "hiresLayer": "Hires-Laag",
+            "lowersLayer": "Lowres-Laag",
+            "loadHiresWhileMoving": "Laad hires tijdens het bewegen",
+            "off": "Uit"
+        },
+        "theme": {
+            "title": "Kleurmodus",
+            "default": "Standaard (Systeem/Browser)",
+            "dark": "Donker",
+            "light": "Licht",
+            "contrast": "Contrast"
+        },
+        "chunkBorders": {
+            "button": "Laat chunk grenzen zien"
+        },
+        "debug": {
+            "button": "Debug"
+        },
+        "resetAllSettings": {
+            "button": "Instellingen terugzetten"
+        },
+        "players": {
+            "title": "Spelers",
+            "tooltip": "Spelerlijst"
+        },
+        "compass": {
+            "tooltip": "Kompas / Naar het noorden richten"
+        },
+        "screenshot": {
+            "title": "Schermafdruk",
+            "button": "Schermafdruk nemen",
+            "clipboard": "Kopieer naar klembord"
+        },
+        "controls": {
+            "title": "Aanzicht / Besturing",
+            "perspective": {
+                "button": "Perspectief",
+                "tooltip": "Perspectief aanzicht"
+            },
+            "flatView": {
+                "button": "Plat",
+                "tooltip": "Orthografisch / Plat aanzicht"
+            },
+            "freeFlight": {
+                "button": "Vrije vlucht",
+                "tooltip": "Vrije vlucht / Toeschouwersmodus"
+            }
+        },
+        "language": {
+            "title": "Taal"
+        },
+        "blockTooltip": {
+            "block": "Blok",
+            "position": "Positie",
+            "chunk": "Chunk",
+            "region": {
+                "region": "Regio",
+                "file": "Datum"
+            },
+            "light": {
+                "light": "Licht",
+                "sun": "Zon",
+                "block": "Blok"
+            },
+            "clipboard": "klik om te kopiëren"
+        },
+        "info": {
+            "title": "Info",
+            "button": "Info",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Muisbediening:</h2>\r\n\t<table>\r\n\t\t<tr><th>Bewegen</th><td><kbd>Linkerklik</kbd> + slepen</td></tr>\r\n\t\t<tr><th>Zoomen</th><td><kbd>Muiswiel</kbd> (scrollen)</td></tr>\r\n\t\t<tr><th>Draaien / Kantelen</th><td><kbd>Rechterklik</kbd> + slepen</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Toetsenbordbediening:</h2>\r\n\t<table>\r\n\t\t<tr><th>Bewegen</th><td><kbd>wasd</kbd> / <kbd>Pijltjestoetsen</kbd></td></tr>\r\n\t\t<tr><th>Zoomen</th><td>Numeriek toetsenbord: <kbd>+</kbd>/<kbd>-</kbd> of <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>Draaien / Kantelen</th><td><kbd>Alt</kbd> + <kbd>wasd</kbd> / <kbd>Pijltjestoetsen</kbd> of <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Aanraakbediening:</h2>\r\n\t<table>\r\n\t\t<tr><th>Bewegen</th><td>Aanraken + vegen</td></tr>\r\n\t\t<tr><th>Zoomen</th><td>Met twee vingers aanraken + knijpen</td></tr>\r\n\t\t<tr><th>Draaien / Kantelen</th><td>Met twee vingers aanraken + draaien / naar boven/onder slepen</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tDeze kaart is met &#9829; door <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version} gegenereerd\r\n</p>\r\n"
+        }
+    },
+    "pl.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Menu",
+            "tooltip": "Menu"
+        },
+        "maps": {
+            "title": "Mapy",
+            "button": "Mapy",
+            "tooltip": "Lista map"
+        },
+        "markers": {
+            "title": "Znaczniki",
+            "button": "Znaczniki",
+            "tooltip": "Lista znaczników",
+            "marker": "znacznik | znaczniki",
+            "markerSet": "zbiór znaczników | zbiory znaczników",
+            "searchPlaceholder": "Wyszukaj...",
+            "followPlayerTitle": "Śledzenie gracza"
+        },
+        "settings": {
+            "title": "Ustawienia",
+            "button": "Ustawienia"
+        },
+        "goFullscreen": {
+            "button": "Tryb pełnoekranowy"
+        },
+        "resetCamera": {
+            "button": "Wyśrodkuj kamerę",
+            "tooltip": "Zresetuj pozycję kamery"
+        },
+        "updateMap": {
+            "button": "Załaduj mapę ponownie",
+            "tooltip": "Wyczyść pamięć podręczną mapy"
+        },
+        "lighting": {
+            "title": "Oświetlenie",
+            "dayNightSwitch": {
+                "tooltip": "Dzień/Noc"
+            },
+            "sunlight": "Światło słoneczne",
+            "ambientLight": "Światło otoczenia"
+        },
+        "resolution": {
+            "title": "Rozdzielczość",
+            "high": "Wysoka (SSAA x2)",
+            "normal": "Normalna (Natywna x1)",
+            "low": "Niska (Skalowanie x0.5)"
+        },
+        "freeFlightControls": {
+            "title": "Sterowanie w locie swobodnym",
+            "mouseSensitivity": "Czułość myszy",
+            "invertMouseY": "Odwróć oś pionową myszy"
+        },
+        "renderDistance": {
+            "title": "Odległość renderowania",
+            "hiresLayer": "Warstwa wysokiej rozdzielczości",
+            "lowersLayer": "Warstwa niskiej rozdzielczości"
+        },
+        "theme": {
+            "title": "Motyw",
+            "default": "Domyślny (według ustawień systemowych)",
+            "dark": "Tryb ciemny",
+            "light": "Tryb jasny",
+            "contrast": "Wysoki kontrast"
+        },
+        "debug": {
+            "button": "Debugowanie"
+        },
+        "resetAllSettings": {
+            "button": "Przywróć ustawienia domyślne"
+        },
+        "players": {
+            "title": "Gracze",
+            "tooltip": "Lista graczy"
+        },
+        "compass": {
+            "tooltip": "Kompas / zwroć na północ"
+        },
+        "screenshot": {
+            "title": "Zrzut ekranu",
+            "button": "Wykonaj zrzut ekranu",
+            "clipboard": "Skopiuj do schowka"
+        },
+        "controls": {
+            "title": "Widok",
+            "perspective": {
+                "button": "Perspektywa",
+                "tooltip": "Widok z perspektywy"
+            },
+            "flatView": {
+                "button": "Płaski",
+                "tooltip": "Widok płaski"
+            },
+            "freeFlight": {
+                "button": "Lot swobodny",
+                "tooltip": "Tryb widza"
+            }
+        },
+        "language": {
+            "title": "Język"
+        },
+        "blockTooltip": {
+            "block": "Blok",
+            "position": "Pozycja",
+            "chunk": "Chunk",
+            "region": {
+                "region": "Region",
+                "file": "Plik"
+            },
+            "light": {
+                "light": "Oświetlenie",
+                "sun": "Słońce",
+                "block": "Blok"
+            }
+        },
+        "info": {
+            "title": "Informacje",
+            "button": "Informacje i skróty klawiszowe",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Sterowanie myszką</h2>\r\n\t<table>\r\n\t\t<tr><th>Poruszanie się</th><td><kbd>lewy przycisk</kbd> + przeciągnięcie</td></tr>\r\n\t\t<tr><th>Zbliżenie i oddalenie</th><td><kbd>kółko myszy</kbd> (przewijanie)</td></tr>\r\n\t\t<tr><th>Obrót i pochylenie</th><td><kbd>prawy przycisk</kbd> + przeciągnięcie</td></tr>\r\n\t</table>\r\n</p>\r\n<br />\r\n<p>\r\n\t<h2>Sterowanie klawiaturą</h2>\r\n\t<table>\r\n\t\t<tr>\r\n\t\t\t<th>Poruszanie się</th>\r\n\t\t\t<td>\r\n\t\t\t\t<kbd>Klawisze WASD</kbd>\r\n\t\t\t\t<br />\r\n\t\t\t\talbo <kbd>Strzałki</kbd>\r\n\t\t\t</td>\r\n\t\t</tr>\r\n\t\t<tr>\r\n\t\t\t<th>Zbliżenie i oddalenie</th>\r\n\t\t\t<td>\r\n\t\t\t\tKlawiatura numeryczna: <kbd>+</kbd> / <kbd>-</kbd>\r\n\t\t\t\t<br />\r\n\t\t\t\tlub <kbd>Insert (Ins)</kbd> / <kbd>Home</kbd>\r\n\t\t\t</td>\r\n\t\t</tr>\r\n\t\t<tr>\r\n\t\t\t<th>Obrót i pochylenie</th>\r\n\t\t\t<td>\r\n\t\t\t\t<kbd>Lewy ALT</kbd> + <kbd>WASD</kbd>\r\n\t\t\t\t<br />\r\n\t\t\t\t<kbd>Lewy ALT</kbd> + <kbd>Strzałki</kbd>\r\n\t\t\t\t<br /><br />\r\n\t\t\t\tAlternatywnie: <kbd>Delete</kbd> / <kbd>End</kbd> / <kbd>Page Up</kbd> / <kbd>Page Down</kbd>\r\n\t\t\t</td>\r\n\t\t</tr>\r\n\t</table>\r\n</p>\r\n<br />\r\n<p>\r\n\t<h2>Sterowanie dotykowe (telefon)</h2>\r\n\t<table>\r\n\t\t<tr><th>Poruszanie się</th><td>Przeciąganie jednym palcem po ekranie</td></tr>\r\n\t\t<tr><th>Zbliżenie i oddalenie</th><td>Uszczypnięcie dwoma palcami</td></tr>\r\n\t\t<tr><th>Obrót</th><td>Przeciąganie palca po ekranie jednocześnie trzymając mapę drugim palcem</td></tr>\r\n\t\t<tr><th>Pochylenie</th><td>Przeciąganie dwoma palcami po ekranie w pionie</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\nTa mapa została wygenerowana z &#9829; za pomocą <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}</p>\r\n"
+        }
+    },
+    "pt-PT.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Menu",
+            "tooltip": "Menu"
+        },
+        "map": {
+            "unloaded": "Nenhum mapa carregado.",
+            "loading": "A carregar o mapa...",
+            "errored": "Houve um erro ao tentar carregar este mapa!"
+        },
+        "maps": {
+            "title": "Mapas",
+            "button": "Mapas",
+            "tooltip": "Lista de mapas"
+        },
+        "markers": {
+            "title": "Marcadores",
+            "button": "Marcadores",
+            "tooltip": "Lista de marcadores",
+            "marker": "marcador | marcadores",
+            "markerSet": "colocar marcador | colocar marcadores",
+            "searchPlaceholder": "Procurar...",
+            "followPlayerTitle": "Seguir Jogador",
+            "sort": {
+                "title": "Organizar por",
+                "by": {
+                    "default": "Padrão",
+                    "label": "Nome",
+                    "distance": "Distância"
+                }
+            }
+        },
+        "settings": {
+            "title": "Definições",
+            "button": "Definições"
+        },
+        "goFullscreen": {
+            "button": "Tela Cheia"
+        },
+        "resetCamera": {
+            "button": "Redefinir Câmara",
+            "tooltip": "Redefinir Câmara e Posição"
+        },
+        "updateMap": {
+            "button": "Atualizar mapa",
+            "tooltip": "Limpar cache de tiles"
+        },
+        "lighting": {
+            "title": "Luminosidade",
+            "dayNightSwitch": {
+                "tooltip": "Dia/Noite"
+            },
+            "sunlight": "Luz do dia",
+            "ambientLight": "Luz ambiental"
+        },
+        "resolution": {
+            "title": "Resolução",
+            "high": "Alta (SSAA x2)",
+            "normal": "Normal (Nativo x1)",
+            "low": "Baixa (Upscaling x0.5)"
+        },
+        "mapControls": {
+            "title": "Controlos do mapa",
+            "showZoomButtons": "Mostrar botões de Zoom"
+        },
+        "freeFlightControls": {
+            "title": "Controlos de voo-livre",
+            "mouseSensitivity": "Sensibilidade do rato",
+            "invertMouseY": "Inverter rato Y"
+        },
+        "renderDistance": {
+            "title": "Distância de renderização",
+            "hiresLayer": "Camada de alta resolução",
+            "lowersLayer": "Camada de baixa resolução",
+            "loadHiresWhileMoving": "Carregar alta resolução em movimento",
+            "off": "Desligar"
+        },
+        "theme": {
+            "title": "Tema",
+            "default": "Padrão (Sistema/Browser)",
+            "dark": "Escuro",
+            "light": "Claro",
+            "contrast": "Contraste"
+        },
+        "debug": {
+            "button": "Debug"
+        },
+        "resetAllSettings": {
+            "button": "Redefinir todas as configurações"
+        },
+        "players": {
+            "title": "Jogadores",
+            "tooltip": "Lista de jogadores"
+        },
+        "compass": {
+            "tooltip": "Compasso / Apontar para norte"
+        },
+        "screenshot": {
+            "title": "Captura de ecrã",
+            "button": "Tirar captura de ecrã",
+            "clipboard": "Copiar para a área de transferência"
+        },
+        "controls": {
+            "title": "Visão / Controlos",
+            "perspective": {
+                "button": "Perspetiva",
+                "tooltip": "Visão de perspetiva"
+            },
+            "flatView": {
+                "button": "Plano",
+                "tooltip": "Visão plana"
+            },
+            "freeFlight": {
+                "button": "Voo-livre",
+                "tooltip": "Voo-livre / Modo espectador"
+            }
+        },
+        "language": {
+            "title": "Língua"
+        },
+        "blockTooltip": {
+            "block": "Bloco",
+            "position": "Posição",
+            "chunk": "Chunk",
+            "region": {
+                "region": "Região",
+                "file": "Ficheiro"
+            },
+            "light": {
+                "light": "Luz",
+                "sun": "Sol",
+                "block": "Bloco"
+            }
+        },
+        "info": {
+            "title": "Informação",
+            "button": "Informação",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Controlos do rato:</h2>\r\n\t<table>\r\n\t\t<tr><th>mover</th><td><kbd>click-esquerdo</kbd> + arrastar</td></tr>\r\n\t\t<tr><th>zoom</th><td><kbd>botão do meio</kbd> (scroll)</td></tr>\r\n\t\t<tr><th>rodar / inclinar</th><td><kbd>click-direito</kbd> + arrastar</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Controlos do teclado:</h2>\r\n\t<table>\r\n\t\t<tr><th>mover</th><td><kbd>wasd</kbd> / <kbd>setas</kbd></td></tr>\r\n\t\t<tr><th>zoom</th><td>Numpad: <kbd>+</kbd>/<kbd>-</kbd> ou <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>rodar / inclinar</th><td><kbd>Alt-esquerdo</kbd> + <kbd>wasd</kbd> / <kbd>setas</kbd> ou <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Controlos táteis:</h2>\r\n\t<table>\r\n\t\t<tr><th>mover</th><td>tocar + arrastar</td></tr>\r\n\t\t<tr><th>zoom</th><td>tocar com 2 dedos + afastar / aproximar os dedos</td></tr>\r\n\t\t<tr><th>rodar / inclinar</th><td>tocar com 2 dedos + rodar / mover para cima / baixo</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tEste mapa foi gerado com &#9829; usando o <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "ru.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Меню",
+            "tooltip": "Меню"
+        },
+        "map": {
+            "unloaded": "Карта не загружена.",
+            "loading": "Карта загружается...",
+            "errored": "При загрузке этой карты произошла ошибка!"
+        },
+        "maps": {
+            "title": "Карта",
+            "button": "Карта",
+            "tooltip": "Список карт"
+        },
+        "markers": {
+            "title": "Маркеры",
+            "button": "Маркеры",
+            "tooltip": "Список маркеров",
+            "marker": "маркер | маркеры",
+            "markerSet": "набор маркеров | наборы маркеров",
+            "searchPlaceholder": "Поиск...",
+            "followPlayerTitle": "Следовать за игроком",
+            "sort": {
+                "title": "Сортировать по",
+                "by": {
+                    "default": "умолчанию",
+                    "label": "имени",
+                    "distance": "расстоянию"
+                }
+            }
+        },
+        "settings": {
+            "title": "Настройки",
+            "button": "Настройки"
+        },
+        "goFullscreen": {
+            "button": "Полноэкранный режим"
+        },
+        "resetCamera": {
+            "button": "Сброс настроек камеры",
+            "tooltip": "Сброс настроек и положения камеры"
+        },
+        "updateMap": {
+            "button": "Обновить карту",
+            "tooltip": "Очистить кэш карты"
+        },
+        "lighting": {
+            "title": "Освещение",
+            "dayNightSwitch": {
+                "tooltip": "День/Ночь"
+            },
+            "sunlight": "Солнечный свет",
+            "ambientLight": "Свет от блоков"
+        },
+        "resolution": {
+            "title": "Разрешение",
+            "high": "Высокое (SSAA x2)",
+            "normal": "Нормальное (Нативное x1)",
+            "low": "Низкое (Апскейл x0.5)"
+        },
+        "mapControls": {
+            "title": "Управление картой",
+            "showZoomButtons": "Показать кнопки масштаба"
+        },
+        "freeFlightControls": {
+            "title": "Управление свободным полётом",
+            "mouseSensitivity": "Чувствительность мыши",
+            "invertMouseY": "Инвертировать мышь по оси Y"
+        },
+        "renderDistance": {
+            "title": "Дальность прорисовки",
+            "hiresLayer": "Высокой чёткости",
+            "lowersLayer": "Низкой чёткости",
+            "loadHiresWhileMoving": "Выс. чёткость при движении",
+            "off": "Откл"
+        },
+        "theme": {
+            "title": "Тема",
+            "default": "По умолчанию (Системная/Браузера)",
+            "dark": "Тёмная",
+            "light": "Светлая",
+            "contrast": "Контрастная"
+        },
+        "chunkBorders": {
+            "button": "Показывать границы чанков"
+        },
+        "debug": {
+            "button": "Отладка"
+        },
+        "resetAllSettings": {
+            "button": "Сбросить все настройки"
+        },
+        "players": {
+            "title": "Игроки",
+            "tooltip": "Список игроков"
+        },
+        "compass": {
+            "tooltip": "Компас / Указать на север"
+        },
+        "screenshot": {
+            "title": "Скриншот",
+            "button": "Сделать Скриншот",
+            "clipboard": "Скопировать в буфер обмена"
+        },
+        "controls": {
+            "title": "Вид / Управление",
+            "perspective": {
+                "button": "Перспективная проекция",
+                "tooltip": "3D / Перспективная проекция"
+            },
+            "flatView": {
+                "button": "Ортографическая проекция",
+                "tooltip": "Плоская / Ортографическая проекция"
+            },
+            "freeFlight": {
+                "button": "Свободный полёт",
+                "tooltip": "Свободный полёт / Режим наблюдателя"
+            }
+        },
+        "language": {
+            "title": "Язык"
+        },
+        "blockTooltip": {
+            "block": "Блок",
+            "position": "Координаты",
+            "chunk": "Чанк",
+            "region": {
+                "region": "Регион",
+                "file": "Файл"
+            },
+            "light": {
+                "light": "Освещение",
+                "sun": "Небо",
+                "block": "Блоки"
+            }
+        },
+        "info": {
+            "title": "Информация",
+            "button": "Информация",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Управление мышью:</h2>\r\n\t<table>\r\n\t\t<tr><th>перемещение</th><td>зажать <kbd>ЛКМ</kbd></td></tr>\r\n\t\t<tr><th>приближение</th><td>прокрутить <kbd>колёсико</kbd></td></tr>\r\n\t\t<tr><th>поворот / наклон</th><td>зажать <kbd>ПКМ</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Управление клавиатурой:</h2>\r\n\t<table>\r\n\t\t<tr><th>перемещение</th><td><kbd>WASD</kbd> / <kbd>стрелки</kbd></td></tr>\r\n\t\t<tr><th>приближение</th><td>Нампад: <kbd>+</kbd>/<kbd>-</kbd> или <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>поворот / наклон</th><td><kbd>Левый Alt</kbd> + <kbd>WASD</kbd> / <kbd>стрелки</kbd> или <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Управление сенсором:</h2>\r\n\t<table>\r\n\t\t<tr><th>перемещение</th><td>коснуться и переместить</td></tr>\r\n\t\t<tr><th>приближение</th><td>коснуться двумя пальцами и ущипнуть</td></tr>\r\n\t\t<tr><th>поворот / наклон</th><td>коснуться двумя пальцами и повернуть / переместить вверх/вниз</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tЭта карта сгенерирована с &#9829; <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "settings.conf": {
+        "default": "en",
+        "useBrowserLanguage": true,
+        "languages": [
+            {
+                "locale": "id",
+                "name": "Bahasa Indonesia"
+            },
+            {
+                "locale": "cs",
+                "name": "Čeština"
+            },
+            {
+                "locale": "de",
+                "name": "Deutsch"
+            },
+            {
+                "locale": "en",
+                "name": "English"
+            },
+            {
+                "locale": "es",
+                "name": "Español"
+            },
+            {
+                "locale": "fr",
+                "name": "Français"
+            },
+            {
+                "locale": "hi",
+                "name": "हिन्दी"
+            },
+            {
+                "locale": "it",
+                "name": "Italiano"
+            },
+            {
+                "locale": "lv",
+                "name": "Latviešu"
+            },
+            {
+                "locale": "hu",
+                "name": "Magyar"
+            },
+            {
+                "locale": "nl",
+                "name": "Nederlands"
+            },
+            {
+                "locale": "nb",
+                "name": "Norsk bokmål"
+            },
+            {
+                "locale": "pl",
+                "name": "Polski"
+            },
+            {
+                "locale": "pt-PT",
+                "name": "Português (Portugal)"
+            },
+            {
+                "locale": "ru",
+                "name": "Русский"
+            },
+            {
+                "locale": "sr-Latn-RS",
+                "name": "Srpski (latinica)"
+            },
+            {
+                "locale": "sr-Cyrl-RS",
+                "name": "Српски (ћирилица)"
+            },
+            {
+                "locale": "fi",
+                "name": "Suomi"
+            },
+            {
+                "locale": "sv",
+                "name": "Svenska"
+            },
+            {
+                "locale": "tr",
+                "name": "Türkçe"
+            },
+            {
+                "locale": "th",
+                "name": "ภาษาไทย"
+            },
+            {
+                "locale": "tt",
+                "name": "Татарча"
+            },
+            {
+                "locale": "ua",
+                "name": "Українська"
+            },
+            {
+                "locale": "ja",
+                "name": "日本語"
+            },
+            {
+                "locale": "zh-CN",
+                "name": "简体中文 (中国大陆)"
+            },
+            {
+                "locale": "zh-TW",
+                "name": "繁體中文 (台灣)"
+            },
+            {
+                "locale": "zh-HK",
+                "name": "繁體中文 (香港特別行政區)"
+            },
+            {
+                "locale": "ko",
+                "name": "한국어"
+            },
+            {
+                "locale": "vi",
+                "name": "Tiếng Việt"
+            }
+        ]
+    },
+    "sr-Cyrl-RS.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Мени",
+            "tooltip": "Мени"
+        },
+        "map": {
+            "unloaded": "Није учитана мапа.",
+            "loading": "Учитава се мапа...",
+            "errored": "Дошло је до грешке при покушају учитавања ове мапе!"
+        },
+        "maps": {
+            "title": "Мапе",
+            "button": "Мапе",
+            "tooltip": "Листа мапа"
+        },
+        "markers": {
+            "title": "Маркери",
+            "button": "Маркери",
+            "tooltip": "Листа маркера",
+            "marker": "маркер | маркери",
+            "markerSet": "сет маркера | сетови маркера",
+            "searchPlaceholder": "Претражите...",
+            "followPlayerTitle": "Прати играча",
+            "sort": {
+                "title": "Сортирај по",
+                "by": {
+                    "default": "подразумијевано",
+                    "label": "име",
+                    "distance": "удаљеност"
+                }
+            }
+        },
+        "settings": {
+            "title": "Подешавања",
+            "button": "Подешавања"
+        },
+        "goFullscreen": {
+            "button": "Уђите у режим цијелог екрана"
+        },
+        "resetCamera": {
+            "button": "Ресетуј камеру",
+            "tooltip": "Ресетуј камеру и положај"
+        },
+        "updateMap": {
+            "button": "Ажурирај мапу",
+            "tooltip": "Обриши кеш плочица"
+        },
+        "lighting": {
+            "title": "Освјетљење",
+            "dayNightSwitch": {
+                "tooltip": "Дан/Ноћ"
+            },
+            "sunlight": "Сунчева свијетлост",
+            "ambientLight": "Амбијентално свијетло"
+        },
+        "resolution": {
+            "title": "Резолуција",
+            "high": "Висока (SSAA x2)",
+            "normal": "Нормална (Основно x1)",
+            "low": "Ниска (Повећање x0.5)"
+        },
+        "mapControls": {
+            "title": "Контроле за мапу",
+            "showZoomButtons": "Прикажи дугмад за зумирање"
+        },
+        "freeFlightControls": {
+            "title": "Контроле слободног лијета",
+            "mouseSensitivity": "Осјетљивост миша",
+            "invertMouseY": "Обрни миш по Y оси"
+        },
+        "renderDistance": {
+            "title": "Видљивост",
+            "hiresLayer": "Слој високе резолуције",
+            "lowersLayer": "Слој ниске резолуције",
+            "loadHiresWhileMoving": "Учитавајте високу резолуцију док се крећете",
+            "off": "Угашено"
+        },
+        "theme": {
+            "title": "Тема",
+            "default": "Подразумијевана (Систем/Прегледач)",
+            "dark": "Тамна",
+            "light": "Свијетла",
+            "contrast": "Контраст"
+        },
+        "chunkBorders": {
+            "button": "Прикажи границе чанкова"
+        },
+        "debug": {
+            "button": "Отклањање грешака"
+        },
+        "resetAllSettings": {
+            "button": "Ресетуј сва подешавања"
+        },
+        "players": {
+            "title": "Играчи",
+            "tooltip": "Листа играча"
+        },
+        "compass": {
+            "tooltip": "Компас / Окрените се према сјеверу"
+        },
+        "screenshot": {
+            "title": "Снимак екрана",
+            "button": "Направите снимак екрана",
+            "clipboard": "Копирајте у међуспремник"
+        },
+        "controls": {
+            "title": "Поглед / Контроле",
+            "perspective": {
+                "button": "Перспективан",
+                "tooltip": "Перспективан поглед"
+            },
+            "flatView": {
+                "button": "Раван",
+                "tooltip": "Ортографски / Раван поглед"
+            },
+            "freeFlight": {
+                "button": "Слободан лет",
+                "tooltip": "Слободан лет / Посматрачки режим"
+            }
+        },
+        "language": {
+            "title": "Језик"
+        },
+        "blockTooltip": {
+            "block": "Блок",
+            "position": "Положај",
+            "chunk": "Чанк",
+            "region": {
+                "region": "Регион",
+                "file": "Датотека"
+            },
+            "light": {
+                "light": "Свијетлост",
+                "sun": "Сунце",
+                "block": "Блок"
+            }
+        },
+        "info": {
+            "title": "Информације",
+            "button": "Информације",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Контроле за миш:</h2>\r\n\t<table>\r\n\t\t<tr><th>помјерање</th><td><kbd>лијеви клик</kbd> + превуците</td></tr>\r\n\t\t<tr><th>зумирање</th><td><kbd>точак миша</kbd> (скрол)</td></tr>\r\n\t\t<tr><th>ротирање / нагињање</th><td><kbd>десни клик</kbd> + превуците</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Контроле за тастатуру:</h2>\r\n\t<table>\r\n\t\t<tr><th>помјерање</th><td><kbd>wasd</kbd> / <kbd>стрелице</kbd></td></tr>\r\n\t\t<tr><th>зумирање</th><td>Нумеричка тастатура: <kbd>+</kbd>/<kbd>-</kbd> или <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>ротирање / нагињање</th><td><kbd>Лијеви Alt</kbd> + <kbd>wasd</kbd> / <kbd>стрелице</kbd> или <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Контроле за додир:</h2>\r\n\t<table>\r\n\t\t<tr><th>помјерање</th><td>додирните + превуците</td></tr>\r\n\t\t<tr><th>зумирање</th><td>додирните са 2 прста + уштините</td></tr>\r\n\t\t<tr><th>ротирање / нагињање</th><td>додирните са 2 прста + окрените / помјерите горе/доље</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tОва мапа је генерисана са &#9829; користећи <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "sr-Latn-RS.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Meni",
+            "tooltip": "Meni"
+        },
+        "map": {
+            "unloaded": "Nije učitana mapa.",
+            "loading": "Učitava se mapa...",
+            "errored": "Došlo je do greške pri pokušaju učitavanja ove mape!"
+        },
+        "maps": {
+            "title": "Mape",
+            "button": "Mape",
+            "tooltip": "Lista mapa"
+        },
+        "markers": {
+            "title": "Markeri",
+            "button": "Markeri",
+            "tooltip": "Lista markera",
+            "marker": "marker | markeri",
+            "markerSet": "set markera | setovi markera",
+            "searchPlaceholder": "Pretražite...",
+            "followPlayerTitle": "Prati igrača",
+            "sort": {
+                "title": "Sortiraj po",
+                "by": {
+                    "default": "podrazumijevano",
+                    "label": "ime",
+                    "distance": "udaljenost"
+                }
+            }
+        },
+        "settings": {
+            "title": "Podešavanja",
+            "button": "Podešavanja"
+        },
+        "goFullscreen": {
+            "button": "Uđite u režim cijelog ekrana"
+        },
+        "resetCamera": {
+            "button": "Resetuj kameru",
+            "tooltip": "Resetuj kameru i položaj"
+        },
+        "updateMap": {
+            "button": "Ažuriraj mapu",
+            "tooltip": "Obriši keš pločica"
+        },
+        "lighting": {
+            "title": "Osvjetljenje",
+            "dayNightSwitch": {
+                "tooltip": "Dan/Noć"
+            },
+            "sunlight": "Sunčeva svijetlost",
+            "ambientLight": "Ambijentalno svijetlo"
+        },
+        "resolution": {
+            "title": "Rezolucija",
+            "high": "Visoka (SSAA x2)",
+            "normal": "Normalna (Osnovno x1)",
+            "low": "Niska (Povećanje x0.5)"
+        },
+        "mapControls": {
+            "title": "Kontrole za mapu",
+            "showZoomButtons": "Prikaži dugmad za zumiranje"
+        },
+        "freeFlightControls": {
+            "title": "Kontrole slobodnog lijeta",
+            "mouseSensitivity": "Osjetljivost miša",
+            "invertMouseY": "Obrni miš po Y osi"
+        },
+        "renderDistance": {
+            "title": "Vidljivost",
+            "hiresLayer": "Sloj visoke rezolucije",
+            "lowersLayer": "Sloj niske rezolucije",
+            "loadHiresWhileMoving": "Učitavajte visoku rezoluciju dok se krećete",
+            "off": "Ugašeno"
+        },
+        "theme": {
+            "title": "Tema",
+            "default": "Podrazumijevana (Sistem/Pregledač)",
+            "dark": "Tamna",
+            "light": "Svijetla",
+            "contrast": "Kontrast"
+        },
+        "chunkBorders": {
+            "button": "Prikaži granice čankova"
+        },
+        "debug": {
+            "button": "Otklanjanje grešaka"
+        },
+        "resetAllSettings": {
+            "button": "Resetuj sva podešavanja"
+        },
+        "players": {
+            "title": "Igrači",
+            "tooltip": "Lista igrača"
+        },
+        "compass": {
+            "tooltip": "Kompas / Okrenite se prema sjeveru"
+        },
+        "screenshot": {
+            "title": "Snimak ekrana",
+            "button": "Napravite snimak ekrana",
+            "clipboard": "Kopirajte u međuspremnik"
+        },
+        "controls": {
+            "title": "Pogled / Kontrole",
+            "perspective": {
+                "button": "Perspektivan",
+                "tooltip": "Perspektivан pogled"
+            },
+            "flatView": {
+                "button": "Ravan",
+                "tooltip": "Ortografski / Ravan pogled"
+            },
+            "freeFlight": {
+                "button": "Slobodan let",
+                "tooltip": "Slobodan let / Posmatrački režim"
+            }
+        },
+        "language": {
+            "title": "Jezik"
+        },
+        "blockTooltip": {
+            "block": "Blok",
+            "position": "Položaj",
+            "chunk": "Čank",
+            "region": {
+                "region": "Region",
+                "file": "Datoteka"
+            },
+            "light": {
+                "light": "Svijetlost",
+                "sun": "Sunce",
+                "block": "Blok"
+            }
+        },
+        "info": {
+            "title": "Informacije",
+            "button": "Informacije",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Kontrole za miš:</h2>\r\n\t<table>\r\n\t\t<tr><th>pomjeranje</th><td><kbd>lijevi klik</kbd> + prevucite</td></tr>\r\n\t\t<tr><th>zumiranje</th><td><kbd>točak miša</kbd> (skrol)</td></tr>\r\n\t\t<tr><th>rotiranje / naginjanje</th><td><kbd>desni klik</kbd> + prevucite</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Kontrole za tastaturu:</h2>\r\n\t<table>\r\n\t\t<tr><th>pomjeranje</th><td><kbd>wasd</kbd> / <kbd>strelice</kbd></td></tr>\r\n\t\t<tr><th>zumiranje</th><td>Numerička tastatura: <kbd>+</kbd>/<kbd>-</kbd> ili <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>rotiranje / naginjanje</th><td><kbd>Lijevi Alt</kbd> + <kbd>wasd</kbd> / <kbd>strelice</kbd> ili <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Kontrole za dodir:</h2>\r\n\t<table>\r\n\t\t<tr><th>pomjeranje</th><td>dodirnite + prevucite</td></tr>\r\n\t\t<tr><th>zumiranje</th><td>dodirnite sa 2 prsta + uštinite</td></tr>\r\n\t\t<tr><th>rotiranje / naginjanje</th><td>dodirnite sa 2 prsta + okrenite / pomjerite gore/dolje</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tOva mapa je generisana sa &#9829; koristeći <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "sv.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Meny",
+            "tooltip": "Meny"
+        },
+        "map": {
+            "unloaded": "Ingen karta laddad.",
+            "loading": "Laddar karta...",
+            "errored": "Ett fel uppstod när kartan skulle laddas!"
+        },
+        "maps": {
+            "title": "Kartor",
+            "button": "Kartor",
+            "tooltip": "Kartlista"
+        },
+        "markers": {
+            "title": "Markörer",
+            "button": "Markörer",
+            "tooltip": "Markörslista",
+            "marker": "Markör | Markörer",
+            "markerSet": "Placera markör | Placera markör",
+            "searchPlaceholder": "Sök...",
+            "followPlayerTitle": "Följ spelare",
+            "sort": {
+                "title": "Sortering",
+                "by": {
+                    "default": "standard",
+                    "label": "namn",
+                    "distance": "distans"
+                }
+            }
+        },
+        "settings": {
+            "title": "Inställningar",
+            "button": "Inställningar"
+        },
+        "goFullscreen": {
+            "button": "Öppna i helskärm"
+        },
+        "resetCamera": {
+            "button": "Återställ kamera",
+            "tooltip": "Återställ kamera och position"
+        },
+        "updateMap": {
+            "button": "Uppdatera karta",
+            "tooltip": "Rensa cacheminne"
+        },
+        "lighting": {
+            "title": "Ljus",
+            "dayNightSwitch": {
+                "tooltip": "Dag/Natt"
+            },
+            "sunlight": "Solljus",
+            "ambientLight": "Ljussättning"
+        },
+        "resolution": {
+            "title": "Upplösning",
+            "high": "Hög (SSAA x2)",
+            "normal": "Normal (Ursprunglig x1)",
+            "low": "Låg (Uppskalning x0.5)"
+        },
+        "mapControls": {
+            "title": "Kartkontroller",
+            "showZoomButtons": "Visa zoom-knappar"
+        },
+        "freeFlightControls": {
+            "title": "Kontroller för fri flygning",
+            "mouseSensitivity": "Muskänslighet",
+            "invertMouseY": "Invertera mus Y"
+        },
+        "renderDistance": {
+            "title": "Renderings avstånd",
+            "hiresLayer": "Högupplösningslager",
+            "lowersLayer": "Lågupplösningslager",
+            "loadHiresWhileMoving": "Ladda högupplösningslager under rörelse",
+            "off": "Off"
+        },
+        "theme": {
+            "title": "Teman",
+            "default": "Standard (System/Webbläsare)",
+            "dark": "Mörkt",
+            "light": "Ljust",
+            "contrast": "Kontrast"
+        },
+        "chunkBorders": {
+            "button": "Visa chunkgränser"
+        },
+        "debug": {
+            "button": "Felsökning"
+        },
+        "resetAllSettings": {
+            "button": "Återställ alla inställningar"
+        },
+        "players": {
+            "title": "Spelare",
+            "tooltip": "Spelarlista"
+        },
+        "compass": {
+            "tooltip": "Kompass / Vänd mot norr"
+        },
+        "screenshot": {
+            "title": "Skärmdump",
+            "button": "Ta en skärmdump",
+            "clipboard": "Kopiera till urklipp"
+        },
+        "controls": {
+            "title": "Visningsläge",
+            "perspective": {
+                "button": "Perspektiv",
+                "tooltip": "Perspektiv-vy"
+            },
+            "flatView": {
+                "button": "Platt",
+                "tooltip": "Ortografisk / platt vy"
+            },
+            "freeFlight": {
+                "button": "Fri flygning",
+                "tooltip": "Fri flygning / Åskådarläge"
+            }
+        },
+        "language": {
+            "title": "Språk"
+        },
+        "blockTooltip": {
+            "block": "Block",
+            "position": "Position",
+            "chunk": "Chunk",
+            "region": {
+                "region": "Område",
+                "file": "Fil"
+            },
+            "light": {
+                "light": "Ljus",
+                "sun": "Sol",
+                "block": "Block"
+            }
+        },
+        "info": {
+            "title": "Info",
+            "button": "Info",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Muskontroller:</h2>\r\n\t<table>\r\n\t\t<tr><th>Styra</th><td><kbd>vänster klick</kbd> + dra</td></tr>\r\n\t\t<tr><th>Zoom</th><td><kbd>mushjul</kbd> (scroll)</td></tr>\r\n\t\t<tr><th>Rotera / luta</th><td><kbd>Höger klick</kbd> + dra</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Tangentbordskontroller:</h2>\r\n\t<table>\r\n\t\t<tr><th>Styra</th><td><kbd>wasd</kbd> / <kbd>piltangenter</kbd></td></tr>\r\n\t\t<tr><th>Zoom</th><td><kbd>+</kbd>/<kbd>-</kbd> eller <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>Rotera / luta</th><td><kbd>Vänster-Alt</kbd> + <kbd>wasd</kbd> / <kbd>piltangenter</kbd> eller <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Pekkontroller:</h2>\r\n\t<table>\r\n\t\t<tr><th>Styra</th><td>rör + dra</td></tr>\r\n\t\t<tr><th>Zoom</th><td>rör med två fingrar + nypa</td></tr>\r\n\t\t<tr><th>Rotera / luta</th><td>rör med två fingrar + rotera / flytta upp / ner</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tDenna karta har blivit genererad med &#9829; med hjälp av <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "th.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "เมนู",
+            "tooltip": "เมนู"
+        },
+        "map": {
+            "unloaded": "ไม่มีแผนที่โหลด",
+            "loading": "กำลังโหลดแผนที่...",
+            "errored": "เกิดข้อผิดพลาดในขณะโหลดแผนที่"
+        },
+        "maps": {
+            "title": "แผนที่",
+            "button": "แผนที่",
+            "tooltip": "รายชื่อ-แผนที่"
+        },
+        "markers": {
+            "title": "จุดมาร์ค",
+            "button": "จุดมาร์ค",
+            "tooltip": "รายชื่อ-จุดมาร์ค",
+            "marker": "จุดมาร์ค | จุดมาร์ค",
+            "markerSet": "ตั้งจุดมาร์ค | ตั้งจุดมาร์ค",
+            "searchPlaceholder": "ค้นหา...",
+            "followPlayerTitle": "ติดตามผู้เล่น",
+            "sort": {
+                "title": "เรียงตาม",
+                "by": {
+                    "default": "ค่าเริ่มต้น",
+                    "label": "ชื่อ",
+                    "distance": "ระยะทาง"
+                }
+            }
+        },
+        "settings": {
+            "title": "ตั้งค่า",
+            "button": "ตั้งค่า"
+        },
+        "goFullscreen": {
+            "button": "ไปแบบเต็มหน้าจอ"
+        },
+        "resetCamera": {
+            "button": "รีเซ็ตกล้อง",
+            "tooltip": "รีเซ็ตกล้องและตำแหน่ง"
+        },
+        "updateMap": {
+            "button": "อัพเดทแผนที่",
+            "tooltip": "ล้างแคชไทล์"
+        },
+        "lighting": {
+            "title": "แสง",
+            "dayNightSwitch": {
+                "tooltip": "กลางวัน/กลางคืน"
+            },
+            "sunlight": "แสงแดด",
+            "ambientLight": "แสงบรรยกาศ"
+        },
+        "resolution": {
+            "title": "ความละเอียด",
+            "high": "สูง (SSAA x2)",
+            "normal": "ธรรมดา (Native x1)",
+            "low": "ต่ำ (Upscaling x0.5)"
+        },
+        "mapControls": {
+            "title": "การควบคุมแผนที่",
+            "showZoomButtons": "แสดงปุ่มซูม"
+        },
+        "freeFlightControls": {
+            "title": "การควบคุมการบินอิสระ",
+            "mouseSensitivity": "ความไวของเมาส์",
+            "invertMouseY": "กลับเมาส์แกน Y"
+        },
+        "renderDistance": {
+            "title": "ระยะเรนเดอร์",
+            "hiresLayer": "ชั้นหลัก",
+            "lowersLayer": "ชั้นคุณภาพน้อย",
+            "loadHiresWhileMoving": "โหลดชั้นกลางในขณะเคลื่อนที่",
+            "off": "ปิด"
+        },
+        "theme": {
+            "title": "ธีม",
+            "default": "ค่าเริ่มต้น (ระบบ/เบราว์เซอร์)",
+            "dark": "มืด",
+            "light": "สว่าง",
+            "contrast": "มืดสนิด"
+        },
+        "debug": {
+            "button": "ดีบัก"
+        },
+        "resetAllSettings": {
+            "button": "รีเซ็ตการตั้งค่าทั้งหมด"
+        },
+        "players": {
+            "title": "ผู้เล่น",
+            "tooltip": "รายชื่อ-ผู้เล่น"
+        },
+        "compass": {
+            "tooltip": "เข็มทิศ / หันหน้าไปทางทิศเหนือ"
+        },
+        "screenshot": {
+            "title": "ภาพหน้าจอ",
+            "button": "ถ่ายภาพหน้าจอ",
+            "clipboard": "คัดลอกไปยังคลิปบอร์ด"
+        },
+        "controls": {
+            "title": "ดู / ควบคุม",
+            "perspective": {
+                "button": "มุมมอง",
+                "tooltip": "มุมมอง"
+            },
+            "flatView": {
+                "button": "แบน",
+                "tooltip": "ออร์โธกราฟิก / มุมมองแบน"
+            },
+            "freeFlight": {
+                "button": "บินอิสระ",
+                "tooltip": "บินอิสระ / โหมดผู้ชม"
+            }
+        },
+        "language": {
+            "title": "ภาษา"
+        },
+        "blockTooltip": {
+            "block": "บล็อก",
+            "position": "ตำแหน่ง",
+            "chunk": "ชังก์",
+            "region": {
+                "region": "กลุ่มชังก์",
+                "file": "ไฟล์"
+            },
+            "light": {
+                "light": "แสงสว่าง",
+                "sun": "ดวงอาทิตย์",
+                "block": "บล็อก"
+            }
+        },
+        "info": {
+            "title": "ข้อมูล",
+            "button": "ข้อมูล",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>การควบคุมเมาส์:</h2>\r\n\t<table>\r\n\t\t<tr><th>เคลื่อนไหว</th><td><kbd>คลิกซำย</kbd> + ลาก</td></tr>\r\n\t\t<tr><th>ซูม</th><td><kbd>ลูกกลิ้งเมาส์</kbd> (เหลื่อน)</td></tr>\r\n\t\t<tr><th>หมุน / เอียง</th><td><kbd>คลิกขวา</kbd> + ลาก</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>แป้นพิมพ์ควบคุม:</h2>\r\n\t<table>\r\n\t\t<tr><th>เคลื่อนไหว</th><td><kbd>wasd</kbd> / <kbd>ปุ่มลูกศร</kbd></td></tr>\r\n\t\t<tr><th>ซูม</th><td>แป้นตัวเลข: <kbd>+</kbd>/<kbd>-</kbd> หรือ <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>หมุน / เอียง</th><td><kbd>Alt ซ้าย</kbd> + <kbd>wasd</kbd> / <kbd>ปุ่มลูกศร</kbd> หรือ <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>สัมผัสหน้าจอควบคุม:</h2>\r\n\t<table>\r\n\t\t<tr><th>เคลื่อนไหว</th><td>แตะ + ลาก</td></tr>\r\n\t\t<tr><th>ซูม</th><td>แตะด้วยสองนิ้ว + หยิก</td></tr>\r\n\t\t<tr><th>หมุน / เอียง</th><td>สัมผัสด้วยสองนิ้ว + หมุน / เลื่อนขึ้น / ลง</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tแผนที่นี้ถูกสร้างขึ้นด้วย &#9829; <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "tr.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Menü",
+            "tooltip": "Menü"
+        },
+        "map": {
+            "unloaded": "Haritalar yüklenmedi.",
+            "loading": "Harita yükleniyor...",
+            "errored": "Haritayı yüklerken bir hata oluştu!"
+        },
+        "maps": {
+            "title": "Haritalar",
+            "button": "Haritalar",
+            "tooltip": "Harita listesi"
+        },
+        "markers": {
+            "title": "Noktalar",
+            "button": "Noktalar",
+            "tooltip": "Nokta listesi",
+            "marker": "nokta | noktalar",
+            "markerSet": "nokta kur | noktalar kur",
+            "searchPlaceholder": "Ara...",
+            "followPlayerTitle": "Oyuncuyu takip et",
+            "sort": {
+                "title": "Sıralama türü",
+                "by": {
+                    "default": "varsayılan",
+                    "label": "isim",
+                    "distance": "uzaklık"
+                }
+            }
+        },
+        "settings": {
+            "title": "Ayarlar",
+            "button": "Ayarlar"
+        },
+        "goFullscreen": {
+            "button": "Tam ekran"
+        },
+        "resetCamera": {
+            "button": "Kamerayı sıfırla",
+            "tooltip": "Kamerayı ve pozisyonu sıfırla"
+        },
+        "updateMap": {
+            "button": "Haritayı güncele",
+            "tooltip": "Harita Parça önbelleğini temizle"
+        },
+        "lighting": {
+            "title": "Aydınlatma",
+            "dayNightSwitch": {
+                "tooltip": "Sabah/Akşam"
+            },
+            "sunlight": "Güneş ışığı",
+            "ambientLight": "Çevre ışığı"
+        },
+        "resolution": {
+            "title": "Çözünürlük",
+            "high": "Yüksek (SSAA x2)",
+            "normal": "Normal (Native x1)",
+            "low": "Düşük (Upscaling x0.5)"
+        },
+        "mapControls": {
+            "title": "Harita kontrolleri",
+            "showZoomButtons": "Yakınlaştırma tuşlarını göster"
+        },
+        "freeFlightControls": {
+            "title": "Serbest kamera kontrolleri",
+            "mouseSensitivity": "Fare hassasiyeti",
+            "invertMouseY": "Fareyi tersine çevir"
+        },
+        "renderDistance": {
+            "title": "Görüş mesafesi",
+            "hiresLayer": "Yüksek çözünürlük katmanı",
+            "lowersLayer": "Düşük çözünürlük Katmanı",
+            "loadHiresWhileMoving": "Haraket ettirirken yüklemeye devam et",
+            "off": "Kapalı"
+        },
+        "theme": {
+            "title": "Tema",
+            "default": "Varsayılan (Sistem/Tarayıcı)",
+            "dark": "Karanlık",
+            "light": "Aydınlık",
+            "contrast": "Kontrast"
+        },
+        "debug": {
+            "button": "Hata ayıklama"
+        },
+        "resetAllSettings": {
+            "button": "Tüm ayarları sıfırla"
+        },
+        "players": {
+            "title": "Oyuncular",
+            "tooltip": "Oyuncu listesi"
+        },
+        "compass": {
+            "tooltip": "Pusula / Kuzeye Dön"
+        },
+        "screenshot": {
+            "title": "Ekran görüntüsü",
+            "button": "Ekran görüntüsü Al",
+            "clipboard": "Panoya kaydet"
+        },
+        "controls": {
+            "title": "Görüş / Kontroller",
+            "perspective": {
+                "button": "Perspektif",
+                "tooltip": "Perspektif bakışı"
+            },
+            "flatView": {
+                "button": "Kuşbakışı",
+                "tooltip": "Ortografik / Kuşbakışı"
+            },
+            "freeFlight": {
+                "button": "Serbest kamera",
+                "tooltip": "Serbest kamera / Seyirci modu"
+            }
+        },
+        "language": {
+            "title": "Dil"
+        },
+        "blockTooltip": {
+            "block": "Blok",
+            "position": "Pozisyon",
+            "chunk": "Chunk",
+            "region": {
+                "region": "Bölge",
+                "file": "Dosya"
+            },
+            "light": {
+                "light": "Işık",
+                "sun": "Güneş",
+                "block": "Blok"
+            }
+        },
+        "info": {
+            "title": "Bilgi",
+            "button": "Bilgi",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Fare Kontrolleri:</h2>\r\n\t<table>\r\n\t\t<tr><th>Taşı</th><td><kbd>sol tık</kbd> + haraket ettir</td></tr>\r\n\t\t<tr><th>Yakınlaştır</th><td><kbd>fare tekerleği</kbd> (kaydır)</td></tr>\r\n\t\t<tr><th>Döndür / Eğilt</th><td><kbd>sağ tık</kbd> + haraket ettir</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Klavye Kontrolleri:</h2>\r\n\t<table>\r\n\t\t<tr><th>Taşı</th><td><kbd>wasd</kbd> / <kbd>ok tuşları</kbd></td></tr>\r\n\t\t<tr><th>Yakınlaştır</th><td>Numpad: <kbd>+</kbd>/<kbd>-</kbd> veya <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>Döndür / Eğim ver</th><td><kbd>Left-Alt</kbd> + <kbd>wasd</kbd> / <kbd>ok tuşları</kbd> veya <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Dokunmatik Kontrolleri:</h2>\r\n\t<table>\r\n\t\t<tr><th>Taşı</th><td>dokun + kaydır</td></tr>\r\n\t\t<tr><th>Yakınlaştır</th><td>iki parmaklarını birbirine yaklaştır/uzaklaştır</td></tr>\r\n\t\t<tr><th>Döndür / Eğim ver</th><td>iki parmağınla dokun + haraket ettir / aşağı/yukarı kaydır</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tBu harita &#9829; <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version} ile oluşturulmuştur\r\n</p>\r\n"
+        }
+    },
+    "tt.conf": {
+        "pageTitle": "BlueMap — {map}",
+        "menu": {
+            "title": "Меню",
+            "tooltip": "Меню"
+        },
+        "map": {
+            "unloaded": "Харита йөкләнмәде.",
+            "loading": "Харита йөкләнү...",
+            "errored": "Бу харита йөкләнгәндә хата булды!"
+        },
+        "maps": {
+            "title": "Хариталар",
+            "button": "Хариталар",
+            "tooltip": "Харита исемлеге"
+        },
+        "markers": {
+            "title": "Маркерлар",
+            "button": "Маркерлар",
+            "tooltip": "Маркер исемлеге",
+            "marker": "маркер",
+            "markerSet": "маркер җыелмасы",
+            "searchPlaceholder": "Эзләү...",
+            "followPlayerTitle": "Уенчыны күзәтү",
+            "sort": {
+                "title": "Тәртип рәвеше:",
+                "by": {
+                    "default": "гади",
+                    "label": "исем буенча",
+                    "distance": "ара буенча"
+                }
+            }
+        },
+        "settings": {
+            "title": "Көйләүләр",
+            "button": "Көйләүләр"
+        },
+        "goFullscreen": {
+            "button": "Тулы экран"
+        },
+        "resetCamera": {
+            "button": "Камераны ташлату",
+            "tooltip": "Камера һәм урын ташлату"
+        },
+        "updateMap": {
+            "button": "Хаританы яңартү",
+            "tooltip": "Кәшне чистарту"
+        },
+        "lighting": {
+            "title": "Табигый яктылык",
+            "dayNightSwitch": {
+                "tooltip": "Көн/төн"
+            },
+            "sunlight": "Кояш яктылыгы",
+            "ambientLight": "Мохит яктылыгы"
+        },
+        "resolution": {
+            "title": "Ачыклык",
+            "high": "Югары (SSAA ×2)",
+            "normal": "Гади (Төп ×1)",
+            "low": "Түбән (Зурайту ×0.5)"
+        },
+        "mapControls": {
+            "title": "Харита төймәләре",
+            "showZoomButtons": "Масштаб төймәләрен күрсәтү"
+        },
+        "freeFlightControls": {
+            "title": "Ирек очу төймәләре",
+            "mouseSensitivity": "Тыкчан сизгерлеге",
+            "invertMouseY": "Тычкан Y буенча инвертлау"
+        },
+        "renderDistance": {
+            "title": "Күрсәтеләчәк ара",
+            "hiresLayer": "Югары ачыклыклы катлам",
+            "lowersLayer": "Түбән ачыклыклы катлам",
+            "loadHiresWhileMoving": "Йөрелгәндә югары ачыклыкны йөкләү",
+            "off": "Сүнек"
+        },
+        "theme": {
+            "title": "Тема",
+            "default": "Гади (система/браузер)",
+            "dark": "Караңгы",
+            "light": "Ак",
+            "contrast": "Контраст"
+        },
+        "chunkBorders": {
+            "button": "Чанк чикләрен күрсәтү"
+        },
+        "debug": {
+            "button": "Төзәтү"
+        },
+        "resetAllSettings": {
+            "button": "Барлык көйләүләрне ташлату"
+        },
+        "players": {
+            "title": "Уенчылар",
+            "tooltip": "Уенчы исемлеге"
+        },
+        "compass": {
+            "tooltip": "Компас / төньякны күрсәтү"
+        },
+        "screenshot": {
+            "title": "Экран сурәте",
+            "button": "Экран сурәтен төшерү",
+            "clipboard": "Алмашу буферына күчереп алу"
+        },
+        "controls": {
+            "title": "Карау / төймәләр",
+            "perspective": {
+                "button": "Күренеш",
+                "tooltip": "Күренеш (Перспектива)"
+            },
+            "flatView": {
+                "button": "Тигез",
+                "tooltip": "Ортографик / тигез карау"
+            },
+            "freeFlight": {
+                "button": "Ирек очу",
+                "tooltip": "Ирек очу / күзәтү шарты"
+            }
+        },
+        "language": {
+            "title": "Тел"
+        },
+        "blockTooltip": {
+            "block": "Блок",
+            "position": "Урын",
+            "chunk": "Чанк",
+            "region": {
+                "region": "Регион",
+                "file": "Файл"
+            },
+            "light": {
+                "light": "Яктылык",
+                "sun": "Кояш",
+                "block": "Блок"
+            },
+            "clipboard": "күчереп алу өчен басыгыз"
+        },
+        "info": {
+            "title": "Мәгълүмат",
+            "button": "Мәгълүмат",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Тычкан идарәсе:</h2>\r\n\t<table>\r\n\t\t<tr><th>хәрәкәт</th><td><kbd>сул басу</kbd> + күчерү</td></tr>\r\n\t\t<tr><th>масштаб</th><td><kbd>тычкан тәгәрмәче</kbd> (әйләндерү)</td></tr>\r\n\t\t<tr><th>бору / авышу</th><td><kbd>уң басу</kbd> + күчерү</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Төймәсар идарәсе:</h2>\r\n\t<table>\r\n\t\t<tr><th>хәрәкәт</th><td><kbd>wasd</kbd> / <kbd>↑←↓→ (уклар)</kbd></td></tr>\r\n\t\t<tr><th>масштаб</th><td>Санлы төймәсар: <kbd>+</kbd>/<kbd>-</kbd> яки <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>бору / авышу</th><td><kbd>Сул Alt</kbd> + <kbd>wasd</kbd> / <kbd>↑←↓→ (уклар)</kbd> яки <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Тию идарә:</h2>\r\n\t<table>\r\n\t\t<tr><th>хәрәкәт</th><td>тию + күчерү</td></tr>\r\n\t\t<tr><th>масштаб</th><td>ике бармак ярдәмендә тию + аеру</td></tr>\r\n\t\t<tr><th>бору / авышу</th><td>ике бармак ярдәмендә тию + бору / өскә/аска этү</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\t<a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version} версиясе кулланган бу харита &#9829; белән ясалды.\r\n</p>\r\n"
+        }
+    },
+    "ua.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Меню",
+            "tooltip": "Меню"
+        },
+        "map": {
+            "unloaded": "Карта не завантажена.",
+            "loading": "Карта завантажується...",
+            "errored": "При завантаженні цієї карти сталася помилка!"
+        },
+        "maps": {
+            "title": "Карти",
+            "button": "Карти",
+            "tooltip": "Список карт"
+        },
+        "markers": {
+            "title": "Мітки",
+            "button": "Мітки",
+            "tooltip": "Список міток",
+            "marker": "маркер | маркери",
+            "markerSet": "набір маркерів | набори маркерів",
+            "searchPlaceholder": "Пошук...",
+            "followPlayerTitle": "Слідкувати за гравцем",
+            "sort": {
+                "title": "Сортувати за",
+                "by": {
+                    "default": "замовчуванням",
+                    "label": "імені",
+                    "distance": "відстані"
+                }
+            }
+        },
+        "settings": {
+            "title": "Налаштування",
+            "button": "Налаштування"
+        },
+        "goFullscreen": {
+            "button": "Перейти в повноекранний режим"
+        },
+        "resetCamera": {
+            "button": "Скинути налаштування камери",
+            "tooltip": "Скинути налаштування та позицію камери"
+        },
+        "updateMap": {
+            "button": "Оновити карту",
+            "tooltip": "Очистити кеш тайлів"
+        },
+        "lighting": {
+            "title": "Освітлення",
+            "dayNightSwitch": {
+                "tooltip": "День/Ніч"
+            },
+            "sunlight": "Сонячне світло",
+            "ambientLight": "Навколишнє світло"
+        },
+        "resolution": {
+            "title": "Роздільна здатність",
+            "high": "Висока (SSAA x2)",
+            "normal": "Нормальна (Системна x1)",
+            "low": "Низька (Апскейл x0.5)"
+        },
+        "mapControls": {
+            "title": "Керування мапою",
+            "showZoomButtons": "Показати кнопки масштабування"
+        },
+        "freeFlightControls": {
+            "title": "Налаштування вільного польоту",
+            "mouseSensitivity": "Чутливість миші",
+            "invertMouseY": "Вертикальне інвертування миші"
+        },
+        "renderDistance": {
+            "title": "Відстань промальовки",
+            "hiresLayer": "Високодеталізований шар",
+            "lowersLayer": "Низькодеталізований шар",
+            "loadHiresWhileMoving": "Вис. шар під час руху",
+            "off": "Вимк"
+        },
+        "theme": {
+            "title": "Тема",
+            "default": "За замовчуванням (Браузерна)",
+            "dark": "Темна",
+            "light": "Світла",
+            "contrast": "Контрастна"
+        },
+        "chunkBorders": {
+            "button": "Показувати межі чанків"
+        },
+        "debug": {
+            "button": "Відлагоджувальний режим"
+        },
+        "resetAllSettings": {
+            "button": "Скинути всі налаштування"
+        },
+        "players": {
+            "title": "Гравці",
+            "tooltip": "Список гравців"
+        },
+        "compass": {
+            "tooltip": "Компас / Повернути на північ"
+        },
+        "screenshot": {
+            "title": "Скріншот",
+            "button": "Зробити Скріншот",
+            "clipboard": "Скопіювати в буфер обміну"
+        },
+        "controls": {
+            "title": "Налаштування відображення",
+            "perspective": {
+                "button": "Перспектива",
+                "tooltip": "Перспективна проекція"
+            },
+            "flatView": {
+                "button": "Пласка карта",
+                "tooltip": "Ортографічна / Пласка проекція"
+            },
+            "freeFlight": {
+                "button": "Вільний політ",
+                "tooltip": "Вільний політ / \"Spectator mode\""
+            }
+        },
+        "language": {
+            "title": "Мова"
+        },
+        "blockTooltip": {
+            "block": "Блок",
+            "position": "Позиція",
+            "chunk": "Чанк",
+            "region": {
+                "region": "Регіон",
+                "file": "Файл"
+            },
+            "light": {
+                "light": "Освітлення",
+                "sun": "Сонце",
+                "block": "Блоки"
+            }
+        },
+        "info": {
+            "title": "Інформація",
+            "button": "Інформація",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Керування-мишею:</h2>\r\n\t<table>\r\n\t\t<tr><th>рух</th><td><kbd>лівий-клік</kbd> + пересування</td></tr>\r\n\t\t<tr><th>приближення</th><td><kbd>колесико-миші</kbd> (прокрутити)</td></tr>\r\n\t\t<tr><th>повернути / повернути</th><td><kbd>правий-клік</kbd> + пересування</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Керування-клавіатурою:</h2>\r\n\t<table>\r\n\t\t<tr><th>рух</th><td><kbd>wasd</kbd> / <kbd>стрілки-клавіатури</kbd></td></tr>\r\n\t\t<tr><th>приблизити</th><td>Цифроблок: <kbd>+</kbd>/<kbd>-</kbd> або <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>повернути / нахилити</th><td><kbd>Лівий-Alt</kbd> + <kbd>wasd</kbd> / <kbd>стрілки-клавіатури</kbd> або <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Сенсорна-панель:</h2>\r\n\t<table>\r\n\t\t<tr><th>рух</th><td>дотик + перетягування</td></tr>\r\n\t\t<tr><th>приблизити</th><td>дотик двома пальцями + зсув доверху</td></tr>\r\n\t\t<tr><th>поворот / нахил</th><td>дотик двома пальцями + поворот / зсув доверху / донизу</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tЦю карту було згенеровано з &#9829; використовуючи <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n\t\t"
+        }
+    },
+    "vi.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "Menu",
+            "tooltip": "Menu"
+        },
+        "map": {
+            "unloaded": "Không có bản đồ.",
+            "loading": "Đang tải bản đồ...",
+            "errored": "Có lỗi khi tải bản đồ!"
+        },
+        "maps": {
+            "title": "Bản đồ",
+            "button": "Bản đồ",
+            "tooltip": "Mọi bản đồ"
+        },
+        "markers": {
+            "title": "Đánh dấu",
+            "button": "Đánh dấu",
+            "tooltip": "Mọi đánh dấu",
+            "marker": "đánh dấu | các đánh dấu",
+            "markerSet": "cụm đánh dấu | các cụm đánh dấu",
+            "searchPlaceholder": "Tìm...",
+            "followPlayerTitle": "Bám theo",
+            "sort": {
+                "title": "Sắp xếp",
+                "by": {
+                    "default": "mặc định",
+                    "label": "tên",
+                    "distance": "khoảng cách"
+                }
+            }
+        },
+        "settings": {
+            "title": "Cài đặt",
+            "button": "Cài đặt"
+        },
+        "goFullscreen": {
+            "button": "Toàn màn hình"
+        },
+        "resetCamera": {
+            "button": "Đặt lại camera",
+            "tooltip": "Đặt lại camera và vị trí"
+        },
+        "updateMap": {
+            "button": "Cập nhật bản đồ",
+            "tooltip": "Xóa bộ nhớ đệm"
+        },
+        "lighting": {
+            "title": "Ánh sáng",
+            "dayNightSwitch": {
+                "tooltip": "Ngày/Đêm"
+            },
+            "sunlight": "Nhật quang",
+            "ambientLight": "Phát quang"
+        },
+        "resolution": {
+            "title": "Độ phân giải",
+            "high": "Cao (SSAA x2)",
+            "normal": "Thường (Native x1)",
+            "low": "Thấp (Upscaling x0.5)"
+        },
+        "mapControls": {
+            "title": "Điều khiển",
+            "showZoomButtons": "Hiện nút thu phóng"
+        },
+        "freeFlightControls": {
+            "title": "Chế độ bay",
+            "mouseSensitivity": "Độ nhạy chuột",
+            "invertMouseY": "Đảo trục dọc"
+        },
+        "renderDistance": {
+            "title": "Khoảng cách kết xuất",
+            "hiresLayer": "Vùng chất lượng cao",
+            "lowersLayer": "Vùng chất lượng thấp",
+            "loadHiresWhileMoving": "Tải vùng chất lượng cao khi di chuyển",
+            "off": "Tắt"
+        },
+        "theme": {
+            "title": "Giao diện",
+            "default": "Mặc định (hệ thống)",
+            "dark": "Tối",
+            "light": "Sáng",
+            "contrast": "Tương phản"
+        },
+        "chunkBorders": {
+            "button": "Hiện đường viền chunk"
+        },
+        "debug": {
+            "button": "Gỡ lỗi"
+        },
+        "resetAllSettings": {
+            "button": "Thiết đặt lại"
+        },
+        "players": {
+            "title": "Người chơi",
+            "tooltip": "Danh sách người chơi"
+        },
+        "compass": {
+            "tooltip": "Hướng / chỉ bắc"
+        },
+        "screenshot": {
+            "title": "Chụp màn hình",
+            "button": "Chụp màn hình",
+            "clipboard": "Sao chép"
+        },
+        "controls": {
+            "title": "Chế độ",
+            "perspective": {
+                "button": "Xung quanh",
+                "tooltip": "Góc nhìn xung quanh"
+            },
+            "flatView": {
+                "button": "Phẳng",
+                "tooltip": "Góc nhìn từ trên xuống"
+            },
+            "freeFlight": {
+                "button": "Bay",
+                "tooltip": "Góc nhìn chim bay"
+            }
+        },
+        "language": {
+            "title": "Ngôn ngữ"
+        },
+        "blockTooltip": {
+            "block": "Khối",
+            "position": "Vị trí",
+            "chunk": "Vùng",
+            "region": {
+                "region": "Khu vực",
+                "file": "Tập tin"
+            },
+            "light": {
+                "light": "Ánh sáng",
+                "sun": "Nhật quang",
+                "block": "Phát quang"
+            },
+            "clipboard": "Bấm để sao chép"
+        },
+        "info": {
+            "title": "Thông tin",
+            "button": "Thông tin",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>Điều khiển chuột:</h2>\r\n\t<table>\r\n\t\t<tr><th>Di chuyển</th><td><kbd>chuột trái</kbd> + kéo</td></tr>\r\n\t\t<tr><th>Thu phóng</th><td><kbd>lăn chuột</kbd></td></tr>\r\n\t\t<tr><th>Xoay/nghiêng</th><td><kbd>chuột phải</kbd> + kéo</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Điều khiển bàn phím:</h2>\r\n\t<table>\r\n\t\t<tr><th>Di chuyển</th><td><kbd>wasd</kbd> / <kbd>phím mũi tên</kbd></td></tr>\r\n\t\t<tr><th>Thu phóng</th><td>Bàn phím số: <kbd>+</kbd>/<kbd>-</kbd> or <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>Xoay/nghiêng</th><td><kbd>Alt trái</kbd> + <kbd>wasd</kbd> / <kbd>phím mũi tên</kbd> hoặc <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>Điều khiển cảm ứng:</h2>\r\n\t<table>\r\n\t\t<tr><th>Di chuyển</th><td>chạm + kéo</td></tr>\r\n\t\t<tr><th>Thu phóng</th><td>chạm 2 ngón + nhón</td></tr>\r\n\t\t<tr><th>Xoay/nghiêng</th><td>chạm 2 ngón + di chuyển / xoay</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\tTrang được tạo bằng &#9829; với <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "zh-CN.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "菜单",
+            "tooltip": "打开菜单"
+        },
+        "map": {
+            "unloaded": "未加载地图.",
+            "loading": "正在加载地图...",
+            "errored": "尝试加载此地图时出错！"
+        },
+        "maps": {
+            "title": "地图",
+            "button": "地图",
+            "tooltip": "地图列表"
+        },
+        "markers": {
+            "title": "标记",
+            "button": "标记",
+            "tooltip": "标记列表",
+            "marker": "标记 | 标记列表",
+            "markerSet": "标记集 | 标记集",
+            "searchPlaceholder": "搜索...",
+            "followPlayerTitle": "跟随玩家",
+            "sort": {
+                "title": "排序方式",
+                "by": {
+                    "default": "默认",
+                    "label": "名称",
+                    "distance": "距离"
+                }
+            }
+        },
+        "settings": {
+            "title": "设置",
+            "button": "打开设置"
+        },
+        "goFullscreen": {
+            "button": "全屏"
+        },
+        "resetCamera": {
+            "button": "重置镜头",
+            "tooltip": "重置镜头和位置"
+        },
+        "updateMap": {
+            "button": "更新地图",
+            "tooltip": "清除方块缓存"
+        },
+        "lighting": {
+            "title": "光照",
+            "dayNightSwitch": {
+                "tooltip": "昼/夜"
+            },
+            "sunlight": "日光",
+            "ambientLight": "环境光"
+        },
+        "resolution": {
+            "title": "抗锯齿",
+            "high": "高（SSAA x2）",
+            "normal": "普通（默认 x1）",
+            "low": "低（粗糙 x0.5）"
+        },
+        "mapControls": {
+            "title": "地图控制",
+            "showZoomButtons": "显示缩放按钮"
+        },
+        "freeFlightControls": {
+            "title": "自由飞行控制",
+            "mouseSensitivity": "鼠标灵敏度",
+            "invertMouseY": "反转鼠标 Y 轴"
+        },
+        "renderDistance": {
+            "title": "渲染距离",
+            "hiresLayer": "高分辨率",
+            "lowersLayer": "低分辨率",
+            "loadHiresWhileMoving": "移动时加载高清图像",
+            "off": "关闭"
+        },
+        "theme": {
+            "title": "主题",
+            "default": "默认（系统/浏览器）",
+            "dark": "深色模式",
+            "light": "浅色模式",
+            "contrast": "高对比模式"
+        },
+        "chunkBorders": "  ",
+        "debug": {
+            "button": "调试"
+        },
+        "resetAllSettings": {
+            "button": "重置所有设置"
+        },
+        "players": {
+            "title": "玩家",
+            "tooltip": "玩家列表"
+        },
+        "compass": {
+            "tooltip": "指南针 / 朝北"
+        },
+        "screenshot": {
+            "title": "截图",
+            "button": "截图",
+            "clipboard": "复制到剪贴板"
+        },
+        "controls": {
+            "title": "视野 / 控制",
+            "perspective": {
+                "button": "透视",
+                "tooltip": "透视视野"
+            },
+            "flatView": {
+                "button": "平视",
+                "tooltip": "正交视图 / 平坦视图"
+            },
+            "freeFlight": {
+                "button": "自由视野",
+                "tooltip": "自由视野 / 观察者模式"
+            }
+        },
+        "language": {
+            "title": "语言"
+        },
+        "blockTooltip": {
+            "block": "方块",
+            "position": "坐标",
+            "chunk": "区块",
+            "region": {
+                "region": "区域",
+                "file": "文件"
+            },
+            "light": {
+                "light": "光源",
+                "sun": "太阳",
+                "block": "方块"
+            }
+        },
+        "info": {
+            "title": "信息",
+            "button": "信息",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>鼠标控制:</h2>\r\n\t<table>\r\n\t\t<tr><th>移动</th><td><kbd>左键点击</kbd> + 拖动</td></tr>\r\n\t\t<tr><th>缩放</th><td><kbd>鼠标滚轮</kbd>（滚动）</td></tr>\r\n\t\t<tr><th>旋转 / 倾斜</th><td><kbd>右键点击</kbd> + 拖动</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>键盘控制:</h2>\r\n\t<table>\r\n\t\t<tr><th>移动</th><td><kbd>wasd</kbd> / <kbd>方向键</kbd></td></tr>\r\n\t\t<tr><th>缩放</th><td>小键盘: <kbd>+</kbd>/<kbd>-</kbd> 或者 <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>旋转 / 倾斜</th><td><kbd>左-Alt</kbd> + <kbd>wasd</kbd> / <kbd>方向键</kbd> 或 <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>触屏控制:</h2>\r\n\t<table>\r\n\t\t<tr><th>移动</th><td>触屏 + 拖动</td></tr>\r\n\t\t<tr><th>缩放</th><td>双指触屏 + 捏合</td></tr>\r\n\t\t<tr><th>旋转 / 倾斜</th><td>双指触屏 + 旋转 / 向上滑动 / 向下滑动</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\t本地图用 &#9829 制作，使用了 <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version} 程序。\r\n</p>\r\n"
+        }
+    },
+    "zh-HK.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "菜單",
+            "tooltip": "菜單"
+        },
+        "maps": {
+            "title": "地圖",
+            "button": "地圖",
+            "tooltip": "地圖列表"
+        },
+        "markers": {
+            "title": "標記",
+            "button": "標記",
+            "tooltip": "標記列表",
+            "marker": "標記 | 標記",
+            "markerSet": "標記設定 | 標記設定"
+        },
+        "settings": {
+            "title": "設定",
+            "button": "設定"
+        },
+        "goFullscreen": {
+            "button": "開啟全螢幕模式"
+        },
+        "resetCamera": {
+            "button": "重設鏡頭視角",
+            "tooltip": "重設鏡頭視角及位置"
+        },
+        "updateMap": {
+            "button": "重新讀取地圖",
+            "tooltip": "移除地圖快取"
+        },
+        "lighting": {
+            "title": "光影",
+            "dayNightSwitch": {
+                "tooltip": "日/夜"
+            },
+            "sunlight": "日光",
+            "ambientLight": "環境亮度"
+        },
+        "resolution": {
+            "title": "解像度",
+            "high": "高 (SSAA反鋸齒 x2)",
+            "normal": "普通 (預設 x1)",
+            "low": "低 (倍率 x0.5)"
+        },
+        "freeFlightControls": {
+            "title": "自由瀏覽飛行模式",
+            "mouseSensitivity": "滑鼠靈敏度",
+            "invertMouseY": "反轉Y軸"
+        },
+        "renderDistance": {
+            "title": "渲染距離",
+            "hiresLayer": "高解像度層",
+            "lowersLayer": "低解像度層"
+        },
+        "theme": {
+            "title": "顯示距離",
+            "default": "預設 (系統/瀏覽器)",
+            "dark": "黑暗",
+            "light": "光亮"
+        },
+        "debug": {
+            "button": "除錯"
+        },
+        "resetAllSettings": {
+            "button": "重設所有設定"
+        },
+        "players": {
+            "title": "玩家",
+            "tooltip": "玩家列表"
+        },
+        "compass": {
+            "tooltip": "指南針/朝北"
+        },
+        "controls": {
+            "title": "觀賞模式/控制",
+            "perspective": {
+                "button": "3D透視",
+                "tooltip": "3D透視-觀賞模式"
+            },
+            "flatView": {
+                "button": "平面",
+                "tooltip": "平面投射 / 平面-觀賞模式"
+            },
+            "freeFlight": {
+                "button": "自由瀏覽飛行模式",
+                "tooltip": "自由瀏覽 / 觀察者模式"
+            }
+        },
+        "language": {
+            "title": "語言"
+        },
+        "blockTooltip": {
+            "block": "方塊",
+            "position": "位置",
+            "chunk": "區塊",
+            "region": {
+                "region": "區域",
+                "file": "檔案"
+            },
+            "light": {
+                "light": "光亮度",
+                "sun": "太陽",
+                "block": "方塊"
+            }
+        },
+        "info": {
+            "title": "資訊",
+            "button": "資訊",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>滑鼠控制:</h2>\r\n\t<table>\r\n\t\t<tr><th>移動</th><td><kbd>左鍵</kbd> + 拖拉</td></tr>\r\n\t\t<tr><th>放大縮小</th><td><kbd>滑鼠滾輪</kbd> (滾動)</td></tr>\r\n\t\t<tr><th>旋轉 / 傾斜</th><td><kbd>右鍵</kbd> + 拖拉</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>鍵盤控制:</h2>\r\n\t<table>\r\n\t\t<tr><th>移動</th><td><kbd>wasd</kbd> / <kbd>箭嘴按鍵</kbd></td></tr>\r\n\t\t<tr><th>放大縮小</th><td>數字鍵: <kbd>+</kbd>/<kbd>-</kbd> 或 <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>旋轉 / 傾斜</th><td><kbd>左 Alt</kbd> + <kbd>wasd</kbd> / <kbd>arrow-keys</kbd> 或 <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>觸碰控制:</h2>\r\n\t<table>\r\n\t\t<tr><th>移動</th><td>觸碰 + 拖拉</td></tr>\r\n\t\t<tr><th>放大縮小</th><td>用兩隻手指觸碰 </td></tr>\r\n\t\t<tr><th>旋轉 / 傾斜</th><td>用兩隻手指觸碰 + 旋轉 或 同時向上／下</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\t此地圖是用 &#9829; 製作，地圖插件名稱是 <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version}\r\n</p>\r\n"
+        }
+    },
+    "zh-TW.conf": {
+        "pageTitle": "BlueMap - {map}",
+        "menu": {
+            "title": "選單",
+            "tooltip": "選單"
+        },
+        "map": {
+            "unloaded": "未載入任何地圖。",
+            "loading": "正在載入地圖...",
+            "errored": "載入地圖時發生錯誤！"
+        },
+        "maps": {
+            "title": "地圖",
+            "button": "地圖",
+            "tooltip": "地圖清單"
+        },
+        "markers": {
+            "title": "標記",
+            "button": "標記",
+            "tooltip": "標記清單",
+            "marker": "個標記 | 個標記",
+            "markerSet": "個標記組 | 個標記組",
+            "searchPlaceholder": "搜尋...",
+            "followPlayerTitle": "跟隨玩家",
+            "sort": {
+                "title": "排序方式",
+                "by": {
+                    "default": "預設",
+                    "label": "名稱",
+                    "distance": "距離"
+                }
+            }
+        },
+        "settings": {
+            "title": "設定",
+            "button": "設定"
+        },
+        "goFullscreen": {
+            "button": "全螢幕模式"
+        },
+        "resetCamera": {
+            "button": "重設相機",
+            "tooltip": "重設相機與位置"
+        },
+        "updateMap": {
+            "button": "更新地圖",
+            "tooltip": "清除暫存"
+        },
+        "lighting": {
+            "title": "光照",
+            "dayNightSwitch": {
+                "tooltip": "日 / 夜"
+            },
+            "sunlight": "陽光",
+            "ambientLight": "環境光"
+        },
+        "resolution": {
+            "title": "解析度",
+            "high": "高（SSAA 反鋸齒×2）",
+            "normal": "正常（原生×1）",
+            "low": "低（縮放×0.5）"
+        },
+        "mapControls": {
+            "title": "地圖控制",
+            "showZoomButtons": "顯示縮放按鈕"
+        },
+        "freeFlightControls": {
+            "title": "自由飛行控制",
+            "mouseSensitivity": "滑鼠靈敏度",
+            "invertMouseY": "反轉滑鼠 Y 軸"
+        },
+        "renderDistance": {
+            "title": "顯示距離",
+            "hiresLayer": "高解析度層",
+            "lowersLayer": "低解析度層",
+            "loadHiresWhileMoving": "移動時載入高解析度層",
+            "off": "關閉"
+        },
+        "theme": {
+            "title": "主題",
+            "default": "預設（系統 / 瀏覽器）",
+            "dark": "深色模式",
+            "light": "淺色模式",
+            "contrast": "對比模式"
+        },
+        "chunkBorders": {
+            "button": "顯示區塊邊界"
+        },
+        "debug": {
+            "button": "除錯模式"
+        },
+        "resetAllSettings": {
+            "button": "重設所有設定"
+        },
+        "players": {
+            "title": "玩家",
+            "tooltip": "玩家清單"
+        },
+        "compass": {
+            "tooltip": "指南針 / 面向北方"
+        },
+        "screenshot": {
+            "title": "螢幕擷取畫面",
+            "button": "擷圖",
+            "clipboard": "複製到剪貼板"
+        },
+        "controls": {
+            "title": "視角 / 控制",
+            "perspective": {
+                "button": "透視",
+                "tooltip": "透視視角"
+            },
+            "flatView": {
+                "button": "平面",
+                "tooltip": "正交 / 平面視角"
+            },
+            "freeFlight": {
+                "button": "自由飛行",
+                "tooltip": "自由飛行 / 旁觀模式"
+            }
+        },
+        "language": {
+            "title": "語言"
+        },
+        "blockTooltip": {
+            "block": "方塊",
+            "position": "位置",
+            "chunk": "區塊",
+            "region": {
+                "region": "區域",
+                "file": "檔案"
+            },
+            "light": {
+                "light": "亮度",
+                "sun": "日光",
+                "block": "方塊"
+            }
+        },
+        "info": {
+            "title": "資訊",
+            "button": "資訊",
+            "content": "\r\n<img src=\"assets/logo.png\" style=\"display: block; width: 40%; margin: 3em auto; border-radius: 50%\">\r\n<p>\r\n\t<h2>滑鼠控制：</h2>\r\n\t<table>\r\n\t\t<tr><th>移動</th><td><kbd>按下左鍵</kbd> + 拖曳</td></tr>\r\n\t\t<tr><th>縮放</th><td><kbd>滑鼠滾輪</kbd（滾動）</td></tr>\r\n\t\t<tr><th>旋轉 / 傾斜</th><td><kbd>按下右鍵</kbd> + 拖曳</td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>鍵盤控制：</h2>\r\n\t<table>\r\n\t\t<tr><th>移動</th><td><kbd>wasd</kbd> / <kbd>方向鍵</kbd></td></tr>\r\n\t\t<tr><th>縮放</th><td>Numpad（數字鍵盤）：<kbd>+</kbd>/<kbd>-</kbd> 或 <kbd>Ins</kbd>/<kbd>Home</kbd></td></tr>\r\n\t\t<tr><th>旋轉 / 傾斜</th><td><kbd>左 Alt</kbd> + <kbd>wasd</kbd> / <kbd>方向鍵</kbd> 或 <kbd>Delete</kbd>/<kbd>End</kbd>/<kbd>Page Up</kbd>/<kbd>Page Down</kbd></td></tr>\r\n\t</table>\r\n</p>\r\n<p>\r\n\t<h2>觸控控制：</h2>\r\n\t<table>\r\n\t\t<tr><th>移動</th><td>觸控 + 拖曳</td></tr>\r\n\t\t<tr><th>縮放</th><td>雙指觸控 + 開合</td></tr>\r\n\t\t<tr><th>旋轉/傾斜</th><td>雙指觸控 + 旋轉 / 上下移動</td></tr>\r\n\t</table>\r\n</p>\r\n<br><hr>\r\n<p class=\"info-footer\">\r\n\t這張地圖使用 <a href=\"https://bluecolo.red/bluemap\">BlueMap</a> {version} 充滿愛心 &#9829 地製作而成\r\n</p>\r\n"
+        }
+    }
+}

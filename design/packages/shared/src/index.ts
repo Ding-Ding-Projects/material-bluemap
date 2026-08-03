@@ -1,4 +1,11 @@
 export { Grid, type BiIntConsumer } from "./Grid.js";
+export {
+    HOCON_DEFAULT_MAX_DEPTH,
+    HOCON_DEFAULT_MAX_INPUT_LENGTH,
+    HoconParseError,
+    parseHocon,
+    type HoconParseOptions,
+} from "./hocon.js";
 export { Key } from "./Key.js";
 export type { Keyed } from "./Keyed.js";
 export { Registry } from "./Registry.js";

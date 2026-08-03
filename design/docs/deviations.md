@@ -56,10 +56,11 @@ Bug-for-bug-preserved oddities are NOT listed here — only actual changes.
   graph (`FollowingPlayerData` in map vs freeflight controls, `ColorLike` across marker
   modules). Resolved with explicit `export type` re-exports at the top of `BlueMap.ts`;
   these types do not exist upstream, so there is no JS-visible change.
-- **`Utils.ts` (package root)** — `fetchHocon` pulls in `hocon-parser@^1.0.1` as a direct
-  dependency of the viewer package (upstream declares it in the webapp `package.json`);
-  typed via the local ambient declaration `src/hocon-parser.d.ts` since the package ships
-  no types.
+- **`Utils.ts` (package root)** — `fetchHocon` no longer uses the `hocon-parser` package
+  that upstream declares in the webapp `package.json`; it calls `parseHocon` from
+  `@material-bluemap/shared` instead, because `hocon-parser` resolves substitutions with
+  `eval` and the app's CSP forbids that. See "HOCON is parsed by a hand-written subset
+  parser" under the shared package below.
 
 ### Lint-driven, behavior-identical mechanical changes
 
@@ -761,3 +762,54 @@ repeated here):
   so upstream skips such a file silently; pngjs' `PNG.sync.read` always throws. The texture
   is not loaded either way — the difference is one extra debug-log line, emitted by
   `ResourcePool#load` for a `DirectorySource` and by `Atlas#load` for a `SingleSource`.
+
+## Shared package (`packages/shared`)
+
+### HOCON is parsed by a hand-written subset parser, not a library
+
+Upstream reads `.conf` files with a JVM HOCON library on the server side, and the upstream
+webapp reads them in the browser with the `hocon-parser` npm package. The port replaces both
+with `packages/shared/src/hocon.ts` (`parseHocon`), a dependency-free tokenizer plus
+recursive-descent parser, and drops `hocon-parser` from `packages/ui` and `packages/viewer`.
+
+**Why.** `hocon-parser` resolves `${...}` substitutions by calling `eval` (its
+`index.js:311`). The Electron shell sets a deliberately strict Content Security Policy
+(`script-src 'self'`, no `unsafe-eval`, itself a documented deviation from upstream in
+`packages/app/src/main/index.ts`), so that call is refused at runtime with `EvalError`. The
+locale load threw before any messages were registered and the entire UI rendered blank
+(issue #16). Relaxing the CSP was rejected: the app loads content from remote BlueMap
+servers, so `unsafe-eval` would trade a real security property for a dependency's
+implementation detail. Precompiling the 30 bundled locales to JSON would not have been
+enough either, because `viewer/src/Utils.ts#fetchHocon` parses `.conf` files served by a
+*remote* server at runtime, where no build step can reach.
+
+**Supported subset.** Objects, braced or as an unbraced document root; `key = value`,
+`key : value`, and `key { ... }` with no separator; dotted-path keys expanding into nested
+objects; duplicate keys resolving the HOCON way (later wins, two objects deep-merge);
+quoted strings with the standard escapes plus `\uXXXX`; triple-quoted multi-line strings;
+unquoted strings; numbers, `true`, `false`, `null`; arrays with comma or newline separated
+elements; `#` and `//` comments; and concatenation of adjacent value parts on one line.
+
+**Deliberately not supported, and rejected with a thrown `HoconParseError` rather than
+guessed at:** `${...}` substitutions (the feature that needed `eval`), `include` directives,
+and `+=`. The parser contains no `eval`, no `new Function`, no dynamic `import()` and no
+other dynamic code path; a test asserts this against the source text. It is bounded against
+a hostile `.conf` from a remote server: input length is capped (4 MiB by default), nesting
+depth is capped (64 by default), every loop consumes at least one character before it can
+iterate again, and no regular expression it uses can backtrack super-linearly. A `__proto__`
+or `constructor` key is written with `Object.defineProperty` so a remote document cannot
+reach `Object.prototype`.
+
+**One deliberate behavioural difference from `hocon-parser`, in the port's favour.**
+`packages/shared/src/hocon.test.ts` proves the new parser byte-for-byte identical to
+`hocon-parser@1.0.1` on 28 of the 30 bundled locale files, against output captured from the
+old package before it was removed (`packages/shared/test-fixtures/hocon-locale-baseline.json`).
+The two exceptions are `id.conf` and `zh-CN.conf`, which indent with U+00A0 NO-BREAK SPACE.
+`hocon-parser` did not treat U+00A0 as whitespace, so a no-break space between a block's last
+value and its `}` started a new key, and its `}` branch returns that pending key *instead of
+the object it just parsed*. Indonesian lost 24 of its 25 top-level entries and Simplified
+Chinese lost `chunkBorders`; both rendered as raw message keys. The port treats U+00A0 as
+whitespace and parses both files correctly, so fixing the CSP crash also fixes those two
+locales. The divergence is asserted rather than tolerated: the test pins the exact set of
+differing paths, requires the old value at each to have been a whitespace-only string, and
+requires every other path in those two files to still match the baseline exactly.

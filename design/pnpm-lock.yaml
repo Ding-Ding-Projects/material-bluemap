@@ -96,15 +96,15 @@ importers:
 
   packages/ui:
     dependencies:
+      '@material-bluemap/shared':
+        specifier: workspace:*
+        version: link:../shared
       '@material-bluemap/viewer':
         specifier: workspace:*
         version: link:../viewer
       '@mdi/js':
         specifier: ^7.4.47
         version: 7.4.47
-      hocon-parser:
-        specifier: ^1.0.1
-        version: 1.0.1
       vue:
         specifier: ^3.5.40
         version: 3.5.40(typescript@5.9.3)
@@ -130,15 +130,15 @@ importers:
 
   packages/viewer:
     dependencies:
+      '@material-bluemap/shared':
+        specifier: workspace:*
+        version: link:../shared
       dompurify:
         specifier: ^3.4.12
         version: 3.4.12
       hammerjs:
         specifier: 2.0.8
         version: 2.0.8
-      hocon-parser:
-        specifier: ^1.0.1
-        version: 1.0.1
       three:
         specifier: 0.147.0
         version: 0.147.0
@@ -1814,9 +1814,6 @@ packages:
   he@1.2.0:
     resolution: {integrity: sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==}
     hasBin: true
-
-  hocon-parser@1.0.1:
-    resolution: {integrity: sha512-qMKuQh6pLPQc0gXsl91hAJEjD4JghV1VukO5gKOzjolCnupCbGHpERzMCkZLwVDLq7sL8xR6P4iWhcM1my3HtA==}
 
   hosted-git-info@4.1.0:
     resolution: {integrity: sha512-kyCuEOWjJqZuDbRHzL8V93NzQhwIB71oFWSyzVo+KPZI+pnQPPxucdkrOZvkLRnrf5URsQM+IJ09Dw29cRALIA==}
@@ -4581,8 +4578,6 @@ snapshots:
       function-bind: 1.1.2
 
   he@1.2.0: {}
-
-  hocon-parser@1.0.1: {}
 
   hosted-git-info@4.1.0:
     dependencies:
