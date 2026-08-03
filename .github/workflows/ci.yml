@@ -301,9 +301,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      # pnpm before setup-node, so the node cache can key off the lockfile.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
 
       - uses: actions/download-artifact@v4
         with:
@@ -345,6 +352,50 @@ jobs:
           fi
           sha256sum -c bluemap-jars.sha256.txt
           ls -la
+
+      # A GitHub release asset is capped at 2 GB, and a rendered world is tens of
+      # gigabytes of tiles. Anything over the cap is published as 1.7 GB parts beside a
+      # manifest and put back together by the consumer, so the splitter has to be built
+      # before the release is composed. `--ignore-scripts` skips Electron's binary
+      # download, which is the slow part of an install and is not needed to run `tsc`.
+      - name: Build the archive splitter
+        working-directory: design
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm --filter @material-bluemap/parts run build
+
+      # Nothing happens here on an ordinary build: every asset this release carries today
+      # is far under the cap, `split` stays 0, and the notes below say nothing about
+      # splitting. The step exists for the day a rendered world is attached.
+      - name: Split oversized release assets
+        id: split
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p split-out
+          split_any=0
+          split_names=()
+          for asset in installer-out/* jars-out/bluemap-*.jar world-out/*.zip; do
+            [ -f "$asset" ] || continue
+            size=$(stat -c%s "$asset")
+            if [ "$size" -le 2000000000 ]; then
+              continue
+            fi
+            echo "$asset is $size bytes, over the 2 GB release-asset cap; splitting it."
+            node scripts/split-parts.mjs "$asset" --out split-out
+            # The oversized original is removed so the publish globs below cannot pick
+            # it up and hand GitHub a file it is certain to refuse.
+            rm -f "$asset"
+            split_any=1
+            split_names+=("$(basename "$asset")")
+          done
+          if [ "$split_any" -eq 1 ]; then
+            ls -la split-out
+            printf 'names=%s\n' "$(IFS=,; echo "${split_names[*]}")" >> "$GITHUB_OUTPUT"
+          fi
+          echo "split=$split_any" >> "$GITHUB_OUTPUT"
 
       - name: Resolve release tag
         id: tag
@@ -399,6 +450,22 @@ jobs:
             echo "The seven \`bluemap-*.jar\` files are a separate download and are not needed to install the desktop application. Take one only to run BlueMap on a Minecraft server or from a command line; the table below says which is which."
             echo
             cat jars-out/bluemap-jars.md
+            if [ "${{ steps.split.outputs.split }}" = "1" ]; then
+              echo "## One download arrived in pieces"
+              echo
+              echo "A GitHub release asset cannot be larger than 2 GB, and this one is: \`${{ steps.split.outputs.names }}\`. It is published as \`<name>.001\`, \`<name>.002\`, ... beside a \`<name>.parts.json\` that carries the size and SHA-256 of every part and of the whole file."
+              echo
+              echo "**In the desktop application**, nothing has to be done: it finds the manifest, downloads every part with resume, checks each one, rejoins them and unpacks the result."
+              echo
+              echo "**By hand**, download every numbered part and the \`.parts.json\` into one directory, then run:"
+              echo
+              echo '```sh'
+              echo "node scripts/join-parts.mjs <name>.parts.json"
+              echo '```'
+              echo
+              echo "It verifies each part as it appends it and the whole file at the end, names the exact part if one is wrong, and picks up where it left off if it is interrupted."
+              echo
+            fi
             echo "## What is in this build"
             echo
             echo "Commit \`${GITHUB_SHA}\` on \`main\`, built and tested by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). This release exists only because lint, build and the full test suite passed first."
@@ -412,6 +479,10 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          # An asset that was split has been removed from its own directory, so without
+          # this a glob that now matches nothing would be passed to `gh` as a literal
+          # pattern and refused as a missing file.
+          shopt -s nullglob
           assets=(installer-out/*)
           # The jars, their digests and the machine-readable index of what each one is.
           # bluemap-jars.md is deliberately left out: its text is already the release
@@ -421,8 +492,15 @@ jobs:
           # real Minecraft save written in anvil format by this project, so anybody can
           # render it without owning Minecraft or downloading anything from Mojang.
           assets+=(world-out/*.zip)
+          # The parts and manifest of anything that was over the 2 GB cap, attached
+          # instead of the oversized file rather than beside it.
+          assets+=(split-out/*)
           if [ -d dim-sum-out ] && [ -n "$(ls -A dim-sum-out 2>/dev/null)" ]; then
             assets+=(dim-sum-out/*)
+          fi
+          if [ "${#assets[@]}" -eq 0 ]; then
+            echo "::error::no assets were resolved for the release"
+            exit 1
           fi
           gh release create "${{ steps.tag.outputs.tag }}" \
             --repo "$GITHUB_REPOSITORY" \

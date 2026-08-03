@@ -1,7 +1,9 @@
 # scripts
 
-Two release-time scripts. Both are plain Node with no dependencies beyond the standard library
-and `git`, so they run identically on a developer machine and on a CI runner.
+Release-time scripts. `count-lines.mjs` and `pick-dim-sum.mjs` are plain Node with no dependencies
+beyond the standard library and `git`, so they run identically on a developer machine and on a CI
+runner. `split-parts.mjs` and `join-parts.mjs` are thin command lines over the workspace package
+`@material-bluemap/parts`, which has to be built first; they say so and exit 2 when it is not.
 
 ## `count-lines.mjs`
 
@@ -77,3 +79,38 @@ Downloaded bytes are verified before anything ships them: PNG signature, termina
 chunk, and a byte length matching the catalog manifest. **Nothing is generated.** On any
 failure the script exits non-zero with the exact URL and status, and the release job reports
 that in the notes rather than substituting an image.
+
+## `split-parts.mjs` and `join-parts.mjs`
+
+A GitHub release asset is capped at **2 GB per file**, and a rendered world is tens of gigabytes of
+tiles. These two split an oversized asset into 1.7 GB parts beside a manifest, and put it back
+together again.
+
+```bash
+node scripts/split-parts.mjs big-world.zip                 # 1.7 GB parts, beside the source
+node scripts/split-parts.mjs big-world.zip --out release/  # parts somewhere else
+node scripts/split-parts.mjs --check big-world.zip         # would this be split? exits 0 either way
+
+node scripts/join-parts.mjs big-world.zip.parts.json       # rejoin, verifying as it goes
+node scripts/join-parts.mjs big-world.zip.parts.json --out ./worlds
+```
+
+Both are **thin**: every byte of the logic lives in `design/packages/parts`, is unit tested there,
+and is the same code the desktop application runs when it downloads what CI published. Build it
+first:
+
+```bash
+cd design && pnpm install && pnpm --filter @material-bluemap/parts run build
+```
+
+A file no larger than the part size is **passed through untouched** - nothing is written, and the
+report says so. Producing a one-part manifest for a 40 MB installer would make every consumer of
+every release learn the join format to open an asset that was never split.
+
+Rejoining verifies **each part** as it appends it and then the **whole file**, and names the exact
+part that is wrong rather than only reporting that the result is. A rejoin that skipped that check
+would produce a corrupt world which unzips cleanly and then surfaces as a rendering bug three layers
+away. An interrupted rejoin picks up from the last complete part, re-verifying the prefix it found
+rather than trusting it, and exits 1 with the part named if anything disagrees.
+
+Full documentation: [`docs/large-worlds.md`](../docs/large-worlds.md).
