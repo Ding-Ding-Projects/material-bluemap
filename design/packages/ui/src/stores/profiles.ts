@@ -23,6 +23,13 @@ function load(): ProfilesState {
     } catch {
         // fall through to defaults
     }
+    // The demo is offered, not opened. `activeId` is deliberately null on a fresh
+    // install: making somebody else's server the active default means every launch of
+    // every copy contacts a machine another person pays for, before the user has asked
+    // for anything. It is one click away in the profile list instead.
+    //
+    // This is also what the capture harness's offline guard catches, because a default
+    // that phones home is indistinguishable from a bug that does.
     return {
         profiles: [
             {
@@ -32,7 +39,7 @@ function load(): ProfilesState {
                 trustCustomizations: false,
             },
         ],
-        activeId: "demo",
+        activeId: null,
     };
 }
 
