@@ -19,7 +19,24 @@
  */
 
 import { existsSync } from "node:fs";
-import { delimiter, join } from "node:path";
+import { posix, win32 } from "node:path";
+
+/**
+ * Path handling for the platform being asked about, not the one we are running on.
+ *
+ * These functions take a `platform` argument, so they must not use node's native
+ * `join` and `delimiter`. On Linux the native delimiter is `:`, which splits a
+ * Windows `PATH` straight through its drive letters: `C:\jdkin` becomes `C` and
+ * `\jdkin`, and every candidate is nonsense. It is latent in the app, which only
+ * ever asks about the platform it is on, but it made the tests pass on Windows and
+ * fail on the CI runner, and a function that ignores its own parameter is a trap
+ * for whoever calls it next.
+ */
+function pathApi(platform: NodeJS.Platform): { join: (...parts: string[]) => string; delimiter: string } {
+    return platform === "win32"
+        ? { join: (...parts) => win32.join(...parts), delimiter: win32.delimiter }
+        : { join: (...parts) => posix.join(...parts), delimiter: posix.delimiter };
+}
 import type { JavaProbeReport, JavaRunner } from "./probe.js";
 import { execFileRunner, probeJava } from "./probe.js";
 import { provisionedJavaExecutable } from "./installation.js";
@@ -101,10 +118,11 @@ export function javaOnPath(
     exists: (path: string) => boolean,
 ): string | null {
     const name = executableName(platform);
-    for (const entry of pathVariable(env).split(delimiter)) {
+    const path = pathApi(platform);
+    for (const entry of pathVariable(env).split(path.delimiter)) {
         const directory = entry.trim().replace(/^"(.*)"$/, "$1");
         if (directory.length === 0) continue;
-        const candidate = join(directory, name);
+        const candidate = path.join(directory, name);
         if (exists(candidate)) return candidate;
     }
     return null;
@@ -119,7 +137,7 @@ export function javaFromHome(
     const home = env["JAVA_HOME"];
     if (typeof home !== "string" || home.trim().length === 0) return null;
 
-    const executable = join(home.trim(), "bin", executableName(platform));
+    const executable = pathApi(platform).join(home.trim(), "bin", executableName(platform));
     if (!exists(executable)) return { executable, missing: home.trim() };
     return { executable, missing: null };
 }

@@ -1,18 +1,29 @@
-import { delimiter, join } from "node:path";
+import { posix, win32 } from "node:path";
 import { describe, expect, it } from "vitest";
 import { describeDiscoveryFailure, discoverJava, javaFromHome, javaOnPath } from "./discovery.js";
 import type { JavaProbeOutput, JavaRunner } from "./probe.js";
 import { probeJava } from "./probe.js";
 
 /**
- * Fixtures are built with `join` and `delimiter` rather than written as literal
- * strings, because both differ between Windows and everything else and a test that
- * hard-codes either only passes on one of them.
+ * Fixtures are built with the path flavour of the platform **under test**, never with
+ * node's native `join` and `delimiter`.
+ *
+ * Using the native ones looks platform-agnostic and is the opposite: on Linux the
+ * delimiter is `:`, so a Windows `PATH` fixture splits through its drive letters and
+ * `C:\jdkin` becomes `C` and `\jdkin`, while `join` produces the mixed
+ * `C:\jdkin/java.exe`. Both pass on Windows and fail on the CI runner.
  */
-const jdkBinary = (home: string, platform: NodeJS.Platform = "linux"): string =>
-    join(home, "bin", platform === "win32" ? "java.exe" : "java");
+const flavour = (platform: NodeJS.Platform) => (platform === "win32" ? win32 : posix);
 
-const pathOf = (...directories: string[]): string => directories.join(delimiter);
+/** Every bare `join` below builds a POSIX fixture path; Windows ones say `win32` outright. */
+const join = posix.join;
+
+const jdkBinary = (home: string, platform: NodeJS.Platform = "linux"): string =>
+    flavour(platform).join(home, "bin", platform === "win32" ? "java.exe" : "java");
+
+const pathOf = (...directories: string[]): string => directories.join(posix.delimiter);
+
+const winPathOf = (...directories: string[]): string => directories.join(win32.delimiter);
 
 const banner = (version: string) =>
     `openjdk version "${version}" 2026-04-21 LTS\nOpenJDK Runtime Environment Temurin-${version}+9 (build ${version}+9-LTS)\n`;
@@ -100,8 +111,8 @@ describe("javaOnPath", () => {
     });
 
     it("honours a lower-case Path, which is what Windows often provides", () => {
-        const expected = join("C:\\jdk\\bin", "java.exe");
-        const env = { Path: pathOf("C:\\Windows", "C:\\jdk\\bin") };
+        const expected = win32.join("C:\\jdk\\bin", "java.exe");
+        const env = { Path: winPathOf("C:\\Windows", "C:\\jdk\\bin") };
         expect(javaOnPath(env, "win32", existsIn([expected]))).toBe(expected);
     });
 

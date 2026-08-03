@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, posix } from "node:path";
+
+// `join` stays native where it builds a real temporary directory on this machine.
+// Fixtures describing a Linux installation use `posix.join`, because `ensureJava`
+// is being told `platform: "linux"` and now honours that: building `/opt/...` with
+// the native join produced `\opt\...` on Windows and matched nothing.
 import { afterAll, describe, expect, it } from "vitest";
 import type { FetchText } from "./adoptium.js";
 import type { FetchBinary, HttpBinaryResponse } from "./download.js";
@@ -110,7 +115,7 @@ function runnerFor(versions: Record<string, string | null>): { runner: JavaRunne
 describe("ensureJava", () => {
     it("uses a suitable JVM already on the machine and downloads nothing", async () => {
         const dataDir = dataDirectory();
-        const { runner } = runnerFor({ [join("/opt/jdk-25", "bin", "java")]: "25.0.3" });
+        const { runner } = runnerFor({ [posix.join("/opt/jdk-25", "bin", "java")]: "25.0.3" });
         const { fetchText, calls: apiCalls } = adoptiumApi();
         const { fetchBinary, calls: downloadCalls } = archiveServer();
 
@@ -118,7 +123,7 @@ describe("ensureJava", () => {
             dataDir,
             platform: "linux",
             env: { JAVA_HOME: "/opt/jdk-25" },
-            exists: (path) => path === join("/opt/jdk-25", "bin", "java"),
+            exists: (path) => path === posix.join("/opt/jdk-25", "bin", "java"),
             allowProvisioning: true,
             runner,
             fetchText,
@@ -133,7 +138,7 @@ describe("ensureJava", () => {
 
     it("refuses to download unless it was allowed to, and explains what it checked", async () => {
         const dataDir = dataDirectory();
-        const { runner } = runnerFor({ [join("/opt/jdk-17", "bin", "java")]: "17.0.9" });
+        const { runner } = runnerFor({ [posix.join("/opt/jdk-17", "bin", "java")]: "17.0.9" });
         const { fetchText, calls } = adoptiumApi();
 
         // 200 MB leaving the machine is a decision, not a side effect of a lookup.
@@ -141,7 +146,7 @@ describe("ensureJava", () => {
             dataDir,
             platform: "linux",
             env: { JAVA_HOME: "/opt/jdk-17" },
-            exists: (path) => path === join("/opt/jdk-17", "bin", "java"),
+            exists: (path) => path === posix.join("/opt/jdk-17", "bin", "java"),
             runner,
             fetchText,
         }).catch((thrown: unknown) => thrown);
