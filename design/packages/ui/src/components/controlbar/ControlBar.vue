@@ -171,7 +171,15 @@ function resetCamera(): void {
  */
 .mb-cb {
     position: fixed;
-    top: 0;
+    /*
+     * Below the application's own title bar, not over it. AppTitleBar publishes
+     * --mb-titlebar-height on the document element in the desktop build (the same
+     * property #map-container reads); anchored at a literal 0 this bar floated over
+     * the window chrome - the menu button covered the logo and title, and the
+     * top-right cluster sat exactly on the minimize/maximize/close buttons.
+     * A browser build sets no property and keeps the whole viewport.
+     */
+    top: var(--mb-titlebar-height, 0px);
     right: 0;
     left: 0;
     z-index: 3;
