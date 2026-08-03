@@ -334,3 +334,264 @@ repeated here):
   constructor overload, packing pngjs' straight-alpha RGBA bytes into ARGB ints.
   `GenericMath.clamp` is a local helper; the array is an `Int32Array` rather than
   `number[]`.
+
+### resources/pack foundations (`Pack`, `PackMeta`, `PackExtension`, `ResourcePool`)
+
+- **`Pack` browses the `vfs` instead of `java.nio`.** Upstream mounts a zip/jar with
+  `FileSystems.newFileSystem(root, null)` and walks it as `Path`s; the port uses
+  `resources/pack/vfs` (`PackPath` / `ZipFileSystem` / `DirFileSystem`, already recorded
+  as a port-addition), so `loadResourcePath`, `loadResources`, `Pack.list` and
+  `Pack.walk` are `async` and take/return `PackPath`. `Pack.list`/`Pack.walk` return
+  arrays instead of a `Stream<Path>`; `Pack.walk` reproduces `FileHelper.walk`'s
+  depth-first pre-order (start-path included, vanished entries ignored).
+- **No `Thread.interrupted()` poll.** `loadResourcePath` opens upstream with
+  `if (Thread.interrupted()) throw new InterruptedException();`. There is no thread to
+  interrupt here, so the check is dropped (the call-site comment marks the spot) and
+  `loadResources`/`loadResourcePath` declare no `InterruptedException` equivalent.
+- **`Pack#enabledFeatures` containment is by `Key#getFormatted()`.** Upstream's
+  `Set<Key>#containsAll` compares with `Key#equals`; a js `Set` compares by identity, so
+  the constructor additionally keeps the formatted strings of the enabled features and
+  the feature-gate tests against those. The `Set<Key>` itself is returned unchanged by
+  `getEnabledFeatures()`.
+- **`PackMeta.Pack` is named `PackMetaPack`.** Java nests it inside `PackMeta`, where it
+  does not collide with the `Pack` base-class of the same package; TypeScript has no
+  nested classes, so the class is declared top-level under a non-colliding name and
+  re-exposed as `PackMeta.Pack` (as are `PackMeta.Overlay(s)`, `PackMeta.Features` and
+  `PackMeta.VersionRange`), matching the `BlockRendererType.Impl` precedent.
+- **`PackMeta` deserialization is explicit, and an explicit `null` member keeps the
+  default.** Upstream is a reflective-gson POJO
+  (`FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES`); each ported class carries a
+  `fromJson` reading the same member names. Gson's reflective adapter *assigns* `null`
+  to a field whose json member is explicitly `null`; the port treats explicit `null`
+  like an absent member and keeps the field-initializer default, so no `@Getter`-typed
+  member can come back null where upstream's type says it cannot.
+- **`ResourcePool` is a plain `Map`, like upstream's plain `HashMap`.** Upstream uses a
+  non-concurrent `HashMap` even though `ResourcePack` loads its packs in parallel; that
+  is a real (if benign in practice) race in Java, and it cannot occur here because
+  javascript has no preemption — the map is only ever mutated between `await` points, so
+  no synchronization is added. The map is keyed by `Key#getFormatted()` (the same
+  value-equality trick `Registry` uses) with the `Key` kept alongside, and `values()`,
+  `keySet()` and `entrySet()` return snapshot arrays rather than upstream's live views
+  (`entrySet()` yields `[Key, T]` tuples). `ResourcePool.Loader#load` may return a
+  promise, so both `load` overloads are `async`.
+- **`PackExtension`'s two interface-defaults become optional members plus invoker
+  statics.** Both upstream members are `default … {}`, so an implementation may override
+  none, some or all of them. A TS interface carries no implementation, so
+  `loadResources`/`bake` are declared optional and the no-op default is applied by
+  `PackExtension.loadResources(extension, roots)` / `PackExtension.bake(extension)` —
+  the same const-object-static shape used for `BlockColorCalculator`'s 2-arg
+  interface-default. Call-sites go through the statics so the default always applies.
+
+### resources: minecraft-version acquisition and the datapack (`MinecraftVersion`, `util/FileHelper`, `DataPack`, `DatapackBiome`, `DimensionTypeData`)
+
+- **`MinecraftVersion.load`'s download-consent flag is a required parameter with no
+  default, anywhere.** Upstream's `allowDownload` comes from the `accept-download`
+  core-config option (default `false`), whose configuration comment states that setting
+  it true indicates acceptance of Mojang's EULA and of downloading a Minecraft client
+  file. The port therefore refuses to give it a default value — including in tests,
+  which pass it explicitly and stub the network. Only the jar download is gated;
+  fetching the public version-manifest is not gated upstream and is not gated here.
+- **The network is the injectable `FetchFunction` `VersionManifest` already defines.**
+  `MinecraftVersion.load(id, dataRoot, allowDownload, fetchFunction?)` gains a fourth
+  parameter that defaults to the global `fetch` and is threaded into
+  `VersionManifest.getOrFetch`, `Version#fetchDetail` and `Download#createInputStream`,
+  so no test ever touches the real Mojang servers.
+- **`java.nio.Path` becomes an OS path-string** for `dataRoot`, `resourcePack` and
+  `dataPack`, and the client-jar is mounted through the pack-vfs `ZipFileSystem`
+  (`openFile` + `getRootDirectories`) instead of `FileSystems.newFileSystem`. Everything
+  the jar-reading path does is consequently `async`.
+- **`download()` streams through node's `crypto` SHA-1 instead of a
+  `DigestInputStream`.** The body is read chunk-by-chunk from the fetch-response,
+  each chunk updating the digest and being written to `<file>.unverified` through a
+  `FileHandle`, so memory stays bounded. The upstream control flow is kept exactly: a
+  failed or mismatching download is only *logged* (the `catch` returns rather than
+  rethrowing), the `finally` deletes the unverified file, and it is the later
+  `"Resource-File missing"` check that actually fails the call.
+- **`FileHelper` ports only `walk`, `createDirectories` and `atomicMove`** — the members
+  the resources layer needs. `createFilepartOutputStream`, `extractZipFile`, `copy` and
+  `awaitExistence` belong to the storage/webapp layers and arrive with them.
+  `atomicMove` is a single `fs.rename` (node has no separate non-atomic `Files.move` to
+  fall back to, and a copy+delete fallback would not be a move); a missing source is
+  swallowed exactly as upstream swallows `NoSuchFileException`, but a cross-device
+  rename now surfaces as an error instead of silently degrading to a copy.
+  `FileHelper.walk` returns a `Promise<string[]>` rather than a lazy `Stream<Path>` —
+  every upstream consumer drains the stream immediately — and keeps the
+  ignore-vanished-entries behaviour.
+- **`MinecraftVersion`'s nested `VersionInfo`/`PackVersions` read json explicitly.**
+  Without gson's reflective adapter and `FieldNamingPolicy`, `PackVersions.Adapter.read`
+  reads the `resource_major`/`resource_minor`/`data_major`/`data_minor` members, the
+  legacy `resource`/`data` aliases (upstream `@SerializedName(alternate = …)`) and the
+  bare-int form, and leaves everything absent at the `(4, 0)` field-initializer defaults
+  a jar without a `version.json` also yields.
+- **`DataPack` exports the lookup-surface as an `interface` plus the concrete
+  `Pack`-subclass as the value of the same name.** Upstream `DataPack` is one class, but
+  the `world/mca` layer (and its tests) was already written against the Phase C
+  placeholder's *structural* `DataPack` type and passes object-literal stand-ins for it.
+  Making the type nominal would break those call-sites, so the module keeps
+  `export interface DataPack { getDimensionType, getBiome ×2 }` and exports the class
+  `DataPackImpl` as `export const DataPack = DataPackImpl` — `new DataPack(version)`,
+  `DataPack.DIMENSION_OVERWORLD` and `dataPack: DataPack` all keep meaning exactly what
+  they meant, and everything upstream `DataPack` does is on the class. The private
+  `loadResources(Path)` overload is named `loadResourcesFromRoot` because TS cannot
+  overload a public and a private method under one name.
+- **`DatapackBiome.Data` and `Effects` are top-level exported classes** (`Data`,
+  `Effects`) rather than nested static ones, each with an explicit `fromJson` replacing
+  gson's reflective adapter; `Effects.fromJson` applies the `@PostDeserialize` hook
+  through the established `postDeserialize()` helper. The upstream aliasing is kept
+  bug-for-bug: an `Effects` that declares no colors hands out the *same* mutable `Color`
+  instances as `Biome.DEFAULT` (no copy), so the hook's `waterColor.a = 1` is a write to
+  the shared default — a no-op there, because that color's alpha is already 1.
+- **`DimensionTypeData` now exists at its upstream path, and temporarily twice.**
+  `resources/pack/datapack/dimension/DimensionTypeData.ts` is the real port and carries
+  the gson-side `fromJson` the datapack loader needs; the NBT-side copy and its
+  `ObjectSchema` still live in `world/mca/data/DimensionTypeDeserializer.ts` (see the
+  Phase C placeholder note above) until the wave that consolidates them lands. Both
+  spell the `@Accessors(fluent = true)` fields `skylight`/`ceiling`, because a TS class
+  cannot have a field and a method of the same name. Lombok `@Data`'s
+  `equals`/`hashCode`/`toString` are not ported — nothing in the port compares or prints
+  a `DimensionTypeData`.
+
+### resources/pack/resourcepack/blockstate (`BlockState`, `Variants`, `VariantSet`, `Variant`, `Multipart`, `BlockStateCondition`)
+
+- **`VariantSet.hashToFloat` is exported (upstream: `private static`)** so the port's test
+  can pin its arithmetic directly against values produced by running the upstream method
+  verbatim on a JDK. It is the position-based PRNG that decides which variant every block
+  in the world renders, so a silent divergence would mis-pick variants everywhere with no
+  visible failure. The implementation is a literal transcription of the java expression on
+  `BigInt` with `BigInt.asIntN(64, …)` at each step java wraps: the `int` operands widen
+  to `long` *before* the multiply, and `hash * (hash + 456149)` is a wrapping 64-bit
+  multiply. A `number` implementation is wrong twice over (the products are already
+  rounded doubles when `^` coerces them, and the square is far above 2^53). An
+  all-`Math.imul` implementation would in fact be exact — only the low 24 bits survive and
+  both operations are congruent mod 2^24 — but it stops looking like the java it ports;
+  the equivalence is pinned by a test so a later performance pass can rely on it.
+- **`VariantSet.totalWeight` is a plain left-to-right sum.** Upstream sums with
+  `DoubleStream#sum()`, which uses Kahan compensated summation. The two agree exactly for
+  the small integer weights resource packs actually use, and differ by at most an ulp
+  otherwise.
+- **`Variant.Adapter` and `blockstate/BlockState.Adapter` are port additions.** Neither
+  upstream class carries a `@JsonAdapter`; both are read by gson's reflective adapter
+  driven by `FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES` plus the type-adapters on
+  `ResourcesGson`. Each ported adapter reads the same member-names with the same per-type
+  adapters (`ResourcesGson.blockRendererType`, `ResourcePath.Adapter`, `Variants.Adapter`,
+  `Multipart.Adapter`), keeps the field-defaults for absent members and ignores unknown
+  ones — including `__comment`, which the reflective adapter also just skips.
+  `Variant.Adapter` applies the `@PostDeserialize` hook through the established
+  `postDeserialize()` helper; because the ported constructor already runs `init()`, the
+  hook recomputes an identical transform rather than being the first to compute it.
+- **`MISSING_BLOCK_MODEL` is declared in `Variant.ts`** (upstream:
+  `ResourcePack.MISSING_BLOCK_MODEL`, `new ResourcePath<>("bluemap", "block/missing")`),
+  the same way `model/Face.ts` declares `MISSING_TEXTURE`, until the full `ResourcePack`
+  port can carry the statics. It is a module-level singleton exactly like upstream's
+  `static final`: `ResourcePath` caches its resolved resource on the instance, so every
+  defaulted `Variant` has to share the one path-object.
+- **Constructor overloads collapse into defaulted/discriminated signatures.** `Variant`'s
+  three public constructors become one signature whose parameter-defaults *are* the
+  upstream field-initializers (so `new Variant(model)` and `new Variant(model, x, y, z)`
+  leave exactly the fields untouched they leave untouched upstream), plus a no-argument
+  form standing in for the private `@NoArgsConstructor`. `VariantSet`'s
+  `VariantSet(Variant...)` / `VariantSet(BlockStateCondition, Variant...)` pair becomes
+  one signature discriminated by `instanceof Variant`. `blockstate/BlockState` keeps its
+  `Variants`-or-`Multipart` forms and gains a documented two-argument form for the gson
+  field-assignment path, since upstream's reflective adapter writes both private fields
+  independently and a json carrying both members produces an object neither public
+  constructor can build.
+- **`BlockStateCondition` splits into an interface and a same-named const.** Upstream is a
+  `@FunctionalInterface` holding its implementations as nested classes and its factories
+  as interface-statics; TypeScript needs the type in the type-space and the classes and
+  factories in the value-space. The nested classes' constructors are consequently public
+  rather than private (the factories no longer live inside the class bodies), and the
+  `and`/`or`/`property` varargs become rest parameters — `property(key, ...values)` covers
+  both upstream `property` overloads, since java resolves a single string to the 2-arg
+  form and the varargs form delegates to it for a 1-element array. `MATCH_ALL`/`MATCH_NONE`
+  are module-level singletons so `Variants.Adapter`'s reference-identity comparisons
+  (upstream `==`, here `===`) against `all()`/`none()` keep working.
+- **`Preconditions.checkArgument` is a local helper** throwing a plain `Error` with the
+  upstream message instead of `IllegalArgumentException`.
+- **`Logger.global.logDebug`** for an unparseable variant-key uses the mca package's
+  `logDebug` console helper, as the other ported resources modules do.
+- **Rotation angles are read as doubles.** Upstream `Variant.x/y/z` are `float`; the port
+  reads them with `nextDouble` and keeps them as `number`, consistent with the already-
+  ported `MatrixM4f` (double throughout) and the `Vector*Adapter`s. Every rotation a
+  resource pack actually stores is an exact small multiple of 22.5, so no narrowing step
+  is observable.
+- **Member order comes from `Object.entries`.** `Variants` picks the *first* matching
+  condition and returns, so the order of the members in a blockstate-json is behaviour,
+  not decoration. The ported adapters iterate the parsed object with `Object.entries`,
+  which preserves insertion order for ordinary string keys but hoists integer-like keys
+  (`"0"`, `"12"`) to the front, ahead of gson's strict document order. No variant-key can
+  be integer-like — `Variants` keys either are empty/`default`/`normal` or contain an
+  `=`, and multipart `when` keys are minecraft property names — so the two orders agree
+  for every real resource pack.
+
+### resources/pack/resourcepack model, texture and entitystate packages (Wave C2b-2)
+
+- **Explicit `Adapter`s where upstream used gson's reflective adapter.** `Element`,
+  `Face`, `Rotation`, `Model`, `Part`, `EntityState` and `Texture` carry no gson
+  `@JsonAdapter` upstream — gson deserializes them reflectively. Without a reflective
+  gson each ported class exposes a `static readonly Adapter: JsonAdapter<T>` that reads
+  exactly the members gson's field-naming policy would map: the resource-pipeline types
+  under `FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES` (so `Element.lightEmission` reads
+  `light_emission`), and `Texture` under `FieldNamingPolicy.IDENTITY`, which is what
+  `map/TextureGallery`'s own gson instance uses (`key` still serializes as
+  `resourcePath`, per its `@SerializedName`). A json `null` member keeps the field
+  default, matching gson's reflective adapter for primitive fields. `TextureVariable`'s
+  and `AnimationMeta`'s hand-written upstream adapters are ported as-is, including
+  upstream's "Failed ot parse" message typo.
+- **`ResourcePool<T>` is a one-member placeholder interface** declared in
+  `model/Model.ts` (`get(key): T | null`), since `resources/pack/ResourcePool.java` is
+  not ported yet and every consumer in this wave — `TextureVariable.optimize`,
+  `Face.optimize`, `Element.optimize`, `Model.optimize/applyParent/calculateProperties` —
+  only performs that lookup. The full pool arrives with the `ResourcePack` port.
+- **`ResourcePack.MISSING_TEXTURE` and `MISSING_ENTITY_MODEL` are declared locally** in
+  `model/Face.ts` and `entitystate/Part.ts` respectively (same values as upstream:
+  `bluemap:block/missing` and `bluemap:entity/missing`), because the ported
+  `ResourcePack` is still a Phase C placeholder interface without the key-constants.
+- **`synchronized` is a no-op.** Every `synchronized` method/block of `Model`
+  (`optimize`, `applyParent`, `applyTextureVariable`, `calculateProperties`) and every
+  `synchronized (TextureVariable.class)` block (a *global* lock, shared by all
+  TextureVariable instances) is single-threaded in TS and survives only as a comment.
+- **`TextureVariable`'s `isReference`/`isResolving` fields are renamed** `reference` /
+  `resolving`: upstream has both a field `isReference` and a method `isReference()`,
+  which one TS class cannot carry (same situation as `Color.isPremultiplied`).
+- **Private constructors become callable overloads.** Upstream's gson-only
+  `@NoArgsConstructor(access = PRIVATE)` and the private copy-constructors of `Element`,
+  `Face` and `TextureVariable` are not expressible as private TS constructor overloads;
+  the no-args form is a public overload (the Adapters construct through it) and each
+  `copy()` builds a fresh instance and copies the fields, which is what the upstream
+  copy-constructor does. `Texture`'s three constructors stay `private` (its statics and
+  its Adapter are inside the class body).
+- **`Model`'s varargs constructors take an array.** `Model(Element @Nullable ...)` and
+  `Model(Map, Element @Nullable ...)` become `(elements: (Element | null)[])` /
+  `(textures, elements)`, because TS cannot overload a rest parameter against the
+  fixed-arity `(textures, elements, ambientocclusion)` forms. Upstream's bug of never
+  assigning the `ambientocclusion` constructor argument is kept bug-for-bug.
+- **`AnimationMeta.FrameMeta` is a sibling class** of the same module rather than a
+  static nested class, and gains a `setTime(int)` because upstream's adapter writes the
+  package-private `time` field directly when back-filling the default frame-time. The
+  `(int) in.nextDouble()` casts (`frametime` and a frame's `time`) go through a local
+  `javaIntCast` reproducing java's saturating narrowing cast.
+- **`Texture`'s decoded-image cache is a `WeakRef`**, standing in for upstream's
+  `SoftReference<BufferedImage>`; JS has no soft reference. The base64 string is always
+  retained, so a collected image is simply decoded again by the next `getTextureImage()`
+  call — upstream's exact behaviour with a more eager collector. `BufferedImage` itself
+  becomes pngjs' `PNG` (see `util/BufferedImageUtil`), so `getTextureImage()` and
+  `Texture.from` are synchronous and throw plain `Error`s instead of `IOException`.
+- **`Texture`'s animation does not survive a textures.json round-trip.** Upstream's
+  `AnimationMeta.Adapter` writes through gson's delegate (the bare AnimationMeta fields)
+  but reads the `<texture>.png.mcmeta` shape, which only looks at an `"animation"`
+  member — so a written animation reads back as the AnimationMeta defaults. Kept
+  bug-for-bug and covered by a test.
+- **`Rotation.getMatrix()` and `Part.getTransformMatrix()` return `MatrixM4f | null`**,
+  matching the upstream transient fields, which are null until `init()` runs. Every
+  construction path in this port runs `init()` (public constructors call it directly,
+  the Adapters apply the post-deserialize hook), so the null only appears for a bare
+  no-args construction — exactly as upstream.
+- **`Element`'s `EnumMap<Direction, Face>` is a plain Map filled in `Direction.values()`
+  order**, so it iterates like the upstream EnumMap (see the
+  `EnumMapInstanceCreator` note above). The package-private `Element.isFullCube()` and
+  `Face.init(...)` become public, as TS has no package-private visibility.
+- **`map/hires/entity/EntityRenderer.ts` still declares its own `Part` placeholder.**
+  The real `entitystate/Part` now exists, but `EntityRenderer.ts` belongs to the Phase D
+  renderer-type layer and is left untouched by this wave; the mesher wave replaces the
+  placeholder with an import of the real Part.
