@@ -67,6 +67,22 @@ jobs:
         working-directory: design
         run: pnpm build
 
+      # Every build must carry a version Squirrel can order, or installing a newer
+      # release over an older one silently does nothing: same version, nothing to do,
+      # no error and no upgrade. `0.1.<run number>` is monotonic, is valid semver, and
+      # is valid NuGet, which Squirrel requires.
+      - name: Stamp this build's version
+        id: version
+        shell: bash
+        working-directory: design/packages/app
+        run: |
+          set -euo pipefail
+          base=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
+          version="${base}.${GITHUB_RUN_NUMBER}"
+          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,4)+String.fromCharCode(10));" "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "building installer version $version"
+
       - name: Build Squirrel.Windows installer
         working-directory: design/packages/app
         run: pnpm run make
@@ -78,13 +94,15 @@ jobs:
           set -euo pipefail
           mkdir -p "$GITHUB_WORKSPACE/installer-out"
           found=0
-          # electron-builder writes to release/ or dist/ depending on config.
-          for dir in release dist ../../release ../../dist; do
+          # Only the Squirrel output directory. A plain `*.exe` sweep also picks up
+          # `win-unpacked/Material BlueMap.exe`, which is the unpacked binary: 204 MB,
+          # useless on its own, and the largest thing in the release.
+          for dir in release/squirrel-windows dist/squirrel-windows ../../release/squirrel-windows; do
             [ -d "$dir" ] || continue
             while IFS= read -r f; do
               cp "$f" "$GITHUB_WORKSPACE/installer-out/"
               found=1
-            done < <(find "$dir" -maxdepth 2 -type f \( -name '*.exe' -o -name '*.nupkg' -o -name 'RELEASES' \))
+            done < <(find "$dir" -maxdepth 1 -type f \( -name '*Setup.exe' -o -name '*.nupkg' -o -name 'RELEASES' -o -name 'Squirrel.exe' \))
           done
           if [ "$found" -eq 0 ]; then
             echo "::error::no installer artifacts were produced by electron-builder"
@@ -483,15 +501,65 @@ jobs:
           # this a glob that now matches nothing would be passed to `gh` as a literal
           # pattern and refused as a missing file.
           shopt -s nullglob
-          assets=(installer-out/*)
-          # The jars, their digests and the machine-readable index of what each one is.
-          # bluemap-jars.md is deliberately left out: its text is already the release
-          # notes above, and attaching it as well would publish the same words twice.
-          assets+=(jars-out/bluemap-*.jar jars-out/bluemap-jars.sha256.txt jars-out/bluemap-jars.json)
-          # A generated test world, zipped, with a different seed every build. It is a
-          # real Minecraft save written in anvil format by this project, so anybody can
-          # render it without owning Minecraft or downloading anything from Mojang.
-          assets+=(world-out/*.zip)
+          # A release should answer "what do I download" in one glance. The installer
+          # is that answer, so it is the only loose artefact besides the code-name
+          # photo, which has to stay a real image for the notes above to render it.
+          #
+          # Everything else - the seven server jars, their digests, the generated test
+          # world, and the Squirrel update files - goes into one archive. None of it is
+          # what a person arriving at the page wants first, and fifteen assets of which
+          # fourteen are for somebody else is a worse page than two and an archive.
+          shopt -s nullglob
+
+          # The seven server plugins get their own archive with their own name, rather
+          # than being buried inside a generic one. Somebody running a Paper server is
+          # looking for exactly this and should not have to guess which download holds
+          # it.
+          jars="bluemap-server-plugins-${{ needs.jars.outputs.version }}"
+          mkdir -p "$jars"
+          cp jars-out/bluemap-*.jar jars-out/bluemap-jars.sha256.txt jars-out/bluemap-jars.json "$jars/"
+          cat > "$jars/README.txt" <<TXT
+          BlueMap ${{ needs.jars.outputs.version }} server plugins
+
+          One jar per Minecraft server platform, built from the upstream source
+          vendored in this repository. Take only the one your server runs:
+
+            bluemap-*-paper.jar     Paper
+            bluemap-*-spigot.jar    Spigot
+            bluemap-*-fabric.jar    Fabric
+            bluemap-*-forge.jar     Forge
+            bluemap-*-neoforge.jar  NeoForge
+            bluemap-*-sponge.jar    Sponge
+            bluemap-*-cli.jar       command line renderer, no server needed
+
+          Verify with bluemap-jars.sha256.txt. These are builds of upstream BlueMap,
+          not a reimplementation.
+          TXT
+          zip -qr "$jars.zip" "$jars"
+
+          # Everything else that is not the installer and not the plugins.
+          extras="material-bluemap-${{ steps.tag.outputs.tag }}-extras"
+          mkdir -p "$extras"/{test-world,update}
+          cp world-out/*.zip "$extras/test-world/"
+          for f in installer-out/*.nupkg installer-out/RELEASES installer-out/Squirrel.exe; do
+            cp "$f" "$extras/update/"
+          done
+          cat > "$extras/README.txt" <<TXT
+          material-bluemap ${{ steps.tag.outputs.tag }} - extras
+
+          test-world/  A Minecraft save this project generated in anvil format, with
+                       the seed in its file name. No Minecraft installation and no
+                       Mojang download are needed to render it.
+          update/      Squirrel update files that accompany the installer. You do not
+                       need these to install; they are here so the set is complete.
+
+          The installer and the server plugins are separate downloads on the release
+          page.
+          TXT
+          zip -qr "$extras.zip" "$extras"
+          echo "server plugins: $(du -h "$jars.zip" | cut -f1)   extras: $(du -h "$extras.zip" | cut -f1)"
+
+          assets=(installer-out/*Setup.exe "$jars.zip" "$extras.zip")
           # The parts and manifest of anything that was over the 2 GB cap, attached
           # instead of the oversized file rather than beside it.
           assets+=(split-out/*)
