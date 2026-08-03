@@ -4,6 +4,14 @@ import type { ReactiveFactory } from "@material-bluemap/viewer";
 import App from "./App.vue";
 import { vuetify } from "./vuetify.js";
 import { i18nModule, loadLanguage, setLanguage } from "./i18n.js";
+// Roboto is what every MD3 typescale here names (Vuetify's md3 blueprint emits
+// `font-family: Roboto, sans-serif` and markers.scss matches it), and Windows ships no
+// Roboto - without these imports the entire chrome silently fell back to Arial. Bundled
+// locally through @fontsource so the CSP's `font-src 'self'` holds and nothing is fetched.
+import "@fontsource/roboto/300.css";
+import "@fontsource/roboto/400.css";
+import "@fontsource/roboto/500.css";
+import "@fontsource/roboto/700.css";
 import "./styles/global.scss";
 import "./styles/markers.scss";
 

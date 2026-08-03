@@ -21,3 +21,8 @@ Minecraft assets (block models, textures) are the property of Mojang AB.
 They are NOT distributed with this project; the application downloads the
 Minecraft client jar from Mojang's servers at runtime only after explicit
 user consent, mirroring upstream BlueMap's "accept-download" flow.
+
+Roboto - https://fonts.google.com/specimen/Roboto
+Copyright 2011 Google Inc. All Rights Reserved.
+Licensed under the Apache License, Version 2.0. Bundled locally (via the
+@fontsource/roboto npm packaging) so the application loads no remote fonts.
