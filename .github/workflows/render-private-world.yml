@@ -186,7 +186,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          jar=$(ls vendor/BlueMap/implementations/cli/build/libs/*-shadow.jar | head -1)
+          jar=$(find vendor/BlueMap/implementations/cli/build/libs -maxdepth 1 -name '*-shadow.jar' -print -quit)
+          if [ -z "$jar" ]; then
+            echo "::error::the Gradle build produced no shadow jar"
+            exit 1
+          fi
           mkdir -p cli-out
           cp "$jar" cli-out/bluemap-cli.jar
 

@@ -131,7 +131,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          jar=$(ls vendor/BlueMap/implementations/cli/build/libs/*-shadow.jar | head -1)
+          jar=$(find vendor/BlueMap/implementations/cli/build/libs -maxdepth 1 -name '*-shadow.jar' -print -quit)
+          if [ -z "$jar" ]; then
+            echo "::error::the Gradle build produced no shadow jar"
+            exit 1
+          fi
           echo "Built $jar ($(du -h "$jar" | cut -f1))"
           mkdir -p cli-out
           cp "$jar" cli-out/bluemap-cli.jar
@@ -231,7 +235,12 @@ jobs:
               else
                 gh release download "$RELEASE_TAG" --pattern "$RELEASE_ASSET" --dir . --clobber
               fi
-              archive=$(ls *.zip | head -1)
+              archive=$(find . -maxdepth 1 -name '*.zip' -print -quit)
+              if [ -z "$archive" ]; then
+                echo "::error::the release download produced no zip archive"
+                exit 1
+              fi
+              archive=${archive#./}
               echo "Downloaded $archive"
               unzip -q "$archive" -d world-in
               ;;

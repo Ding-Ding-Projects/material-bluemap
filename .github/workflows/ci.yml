@@ -35,7 +35,10 @@ jobs:
           curl -fsSL --retry 3 \
             "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz" \
             | tar -xz actionlint
-          # shellcheck is present on the runner, so the `run:` blocks get checked too.
+          # The runner already ships shellcheck, so the `run:` blocks get checked too.
+          # (That sentence must not begin with the word shellcheck: a comment starting
+          # "# shellcheck" is parsed as a shellcheck *directive*, and a malformed one
+          # fails the very lint step this comment sits in.)
           ./actionlint -color
 
   check:
@@ -564,9 +567,16 @@ jobs:
           extras="material-bluemap-${{ steps.tag.outputs.tag }}-extras"
           mkdir -p "$extras"/{test-world,update}
           cp world-out/*.zip "$extras/test-world/"
-          for f in installer-out/*.nupkg installer-out/RELEASES installer-out/Squirrel.exe; do
+          # The .nupkg and RELEASES are the update set and must exist - an unmatched
+          # glob or a missing file fails this loudly. Squirrel.exe is different:
+          # electron-builder keeps it inside the package, so no standalone copy exists
+          # to collect, and requiring one is why build.91's publish died.
+          for f in installer-out/*.nupkg installer-out/RELEASES; do
             cp "$f" "$extras/update/"
           done
+          if [ -e installer-out/Squirrel.exe ]; then
+            cp installer-out/Squirrel.exe "$extras/update/"
+          fi
           cat > "$extras/README.txt" <<TXT
           material-bluemap ${{ steps.tag.outputs.tag }} - extras
 
