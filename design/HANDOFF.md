@@ -1,5 +1,89 @@
 # Handoff
 
+## Plain-language summary (start here)
+
+This section is written in short, plain sentences on purpose. It defines every term it
+uses. Read it first. The rest of this document is a chronological log written for people
+who were there; this section is for anyone who was not, including a small language model
+with no other context.
+
+### What this project is
+
+Material BlueMap is a Windows desktop application. It shows 3D maps of Minecraft worlds.
+It is a TypeScript rewrite ("port") of an existing Java program called BlueMap. The
+original Java source code is kept in this repository at `vendor/BlueMap` as a git
+submodule. The port must behave exactly like the original, down to the byte, where the
+document says so.
+
+### Glossary
+
+| Term | Meaning |
+|---|---|
+| **The port** | Rewriting BlueMap's Java code as TypeScript, file by file |
+| **`design/`** | The folder holding all the TypeScript code, as a pnpm monorepo of 12 packages |
+| **The app** | The Electron desktop application (`design/packages/app` is the main process, `design/packages/ui` is the interface) |
+| **The engine / the mesher** | `design/packages/engine`. Turns Minecraft world files into 3D map tiles. This is the largest and hardest part of the port |
+| **Hires tile** | A 3D mesh file covering a small square of the world. Written in a binary format called **PRBM**, then gzipped. The file name looks like `tiles/0/x3/z7.prbm.gz` |
+| **Lowres tile** | A PNG image used when the camera is far away. Lower level of detail |
+| **`textures.json`** | A list of every block texture the map uses. Hires tiles refer to textures by their position (index) in this list |
+| **Phase D** | The project phase that ports the mesher. Phases are named A through J; their status is in `ROADMAP.md` |
+| **The gate** | Phase D's exit test: a whole world rendered by both engines must come out byte-identical (PRBM bytes equal, PNG pixels equal) |
+| **The oracle** | `tools/oracle/compare.mjs`. Renders one generated world twice (Java engine, then TypeScript engine) and reports every byte that differs. This is how the gate is measured |
+| **D17, D18** | Numbered project decisions, recorded in `design/docs/decisions.md`. D17: the app ships and uses the original Java engine until the TypeScript mesher passes the gate. D18: the six Minecraft server plugins are built and shipped too |
+| **Squirrel** | The Windows installer technology the app ships with |
+| **The contracts** | Product rules every user-facing surface must follow (regex builder on every search bar, browser-style tabs, appearance editors, language modes, super-confirmation for destructive actions). Tracked as GitHub issues #6 to #13 |
+| **The recurring defect** | "Built, tested, unreachable": code that works and has green tests, but no user can reach it, because nothing mounts it or wires it. It has happened at least four times in this project. An audit on 2026-08-03 found and fixed nine more cases |
+
+### What works right now
+
+- The app installs from a real Windows installer and opens with a working interface.
+- It can browse an existing BlueMap server and show its maps in 3D.
+- It can render a world locally by driving the original Java engine (per decision D17).
+- The interface includes: a world wizard (make a map in steps), a settings surface, a
+  seven-tab options editor for BlueMap config files, GitHub sign-in, release downloads,
+  a Java runtime settings row, notifications, and a custom window title bar. All of these
+  are reachable by clicking, and all have tests.
+- CI builds an installer, renders a test world, takes screenshots of the real app, and
+  publishes a GitHub release on every green push to `main`.
+
+### What does not work yet
+
+- **The TypeScript mesher does not yet match the Java engine.** The oracle ran its first
+  real comparison on 2026-08-03: 48 of 57 compared files differed. Three known problem
+  areas: the texture list is missing about 839 entries and formats numbers differently;
+  tile file paths split into folders differently; the TypeScript meshes contain roughly
+  half the geometry Java produces. Until the gate passes, local rendering uses the Java
+  engine and that is correct behaviour, not a bug.
+- Phases E, G, H, I are not started. Phase C has three unfinished exit checks.
+- The contract issues (#6 to #13) are open: regex builder everywhere, tabs, appearance
+  editors, language-mode completeness, the command palette, the changelog viewer, the
+  notification centre.
+
+### How to verify things yourself
+
+Run these from the repository root. All should succeed today.
+
+```bash
+cd design && npx vitest run          # every unit test (about 3000, under 30 seconds)
+node tools/oracle/selftest.mjs       # proves the byte-comparison gate can detect planted differences
+node tools/oracle/compare.mjs --seed 7 --size 200   # the real gate; currently reports divergences, exit 1
+```
+
+### If you are picking this up
+
+1. Read this section, then `ROADMAP.md`, then the newest dated section at the bottom of
+   this file.
+2. The active work is making the oracle comparison come out identical. Start from the
+   report at `tools/oracle/out/gate/report.json` and fix causes in
+   `design/packages/engine/src`, comparing against the Java source in
+   `vendor/BlueMap/core/src/main/java/de/bluecolored/bluemap/core/`.
+3. Never weaken a comparison to make it pass. If something cannot be verified, write that
+   it was not verified.
+4. Every change: run the tests, run the linter, commit with a message that says what
+   actually changed, push, and check CI.
+
+---
+
 ## State (2026-08-03, after decisions D17 and D18)
 
 Read in this order: `docs/decisions.md` (D17 and D18 changed which engine renders),
