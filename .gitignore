@@ -12,3 +12,10 @@ vendor/BlueMap/.gradle/
 # Generated test worlds.
 test-world/
 *.mca
+
+# BlueMap render output. The CLI resolves its storage root and its data folder
+# relative to the working directory, not the config folder, so running it from
+# the repository root drops tens of megabytes of tiles and a downloaded Mojang
+# client jar straight into the tree. Never commit either.
+/web/
+/data/
