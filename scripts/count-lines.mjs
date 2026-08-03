@@ -447,7 +447,11 @@ async function collect(options) {
     const head = git(repoRoot, ["rev-parse", "HEAD"]).trim();
     const headShort = head.slice(0, 8);
     const headDate = git(repoRoot, ["log", "-1", "--format=%cI", "HEAD"]).trim();
-    const dirty = git(repoRoot, ["status", "--porcelain"]).trim().length > 0;
+    // Only tracked changes make the numbers stop being a commit's numbers. In CI
+    // the release job downloads its artifacts into the workspace, and reporting
+    // "the working tree was dirty" because of `installer-out/` would be a false
+    // warning attached to an otherwise exact measurement.
+    const dirty = git(repoRoot, ["status", "--porcelain", "--untracked-files=no"]).trim().length > 0;
 
     const entries = trackedEntries(repoRoot);
     const exclusionCounts = EXCLUSIONS.map(() => 0);

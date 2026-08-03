@@ -99,6 +99,47 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  screenshots:
+    name: Screenshots
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      - name: Build workspace
+        working-directory: design
+        run: pnpm build
+
+      - name: Install Playwright browsers
+        working-directory: design/packages/app
+        run: pnpm exec playwright install-deps chromium
+
+      # Electron needs a display. xvfb gives it one without a desktop session.
+      - name: Capture
+        working-directory: design/packages/app
+        run: xvfb-run -a --server-args="-screen 0 1920x1080x24" pnpm run screenshots
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: design/packages/app/screenshots/
+          if-no-files-found: error
+          retention-days: 30
+
   release:
     name: Publish release
     needs: [check, package]

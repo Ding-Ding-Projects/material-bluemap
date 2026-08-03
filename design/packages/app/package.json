@@ -1,25 +1,27 @@
 {
-  "name": "@material-bluemap/app",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "description": "Electron desktop app",
-  "author": "Material BlueMap contributors",
-  "main": "./dist/main/index.js",
-  "scripts": {
-    "build": "node build.mjs",
-    "start": "electron .",
-    "test": "vitest run",
-    "package": "node build.mjs && electron-builder --dir --config electron-builder.config.cjs",
-    "make": "node build.mjs && electron-builder --win --config electron-builder.config.cjs --publish never"
-  },
-  "devDependencies": {
-    "electron": "^37.10.3",
-    "electron-builder": "^26.0.0",
-    "esbuild": "^0.25.12"
-  },
-  "dependencies": {
-    "@material-bluemap/server": "workspace:*",
-    "electron-store": "^10.1.0"
-  }
+    "name": "@material-bluemap/app",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "Electron desktop app",
+    "author": "Material BlueMap contributors",
+    "main": "./dist/main/index.js",
+    "scripts": {
+        "build": "node build.mjs",
+        "start": "electron .",
+        "test": "vitest run",
+        "package": "node build.mjs && electron-builder --dir --config electron-builder.config.cjs",
+        "make": "node build.mjs && electron-builder --win --config electron-builder.config.cjs --publish never",
+        "screenshots": "playwright test --config playwright.config.ts"
+    },
+    "devDependencies": {
+        "electron": "^37.10.3",
+        "electron-builder": "^26.0.0",
+        "esbuild": "^0.25.12",
+        "@playwright/test": "^1.50.0"
+    },
+    "dependencies": {
+        "@material-bluemap/server": "workspace:*",
+        "electron-store": "^10.1.0"
+    }
 }
