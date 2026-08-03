@@ -179,3 +179,109 @@ java -jar <absolute path to cli-shadow.jar> -c <absolute config dir>   # writes 
 # set accept-download: true in core.conf, and absolute paths everywhere
 java -jar <absolute path to cli-shadow.jar> -c <absolute config dir> -r -g
 ```
+
+---
+
+## Update, later on 2026-08-03
+
+Everything above still holds. What follows is what changed after it was written.
+
+### The packaged app never launched, and nothing said so
+
+The installer shipped **without the renderer**. `electron-builder` packaged only the app
+package's own `dist/` and `package.json`; the UI is a separate workspace package, so `files`
+could not reach it and the bundle was never in the installer. `resolveUiRoot` checked both
+candidates, found no `index.html`, and threw.
+
+That throw happened inside `createWindow`, invoked as `void createWindow()`. The rejection
+went nowhere: no log, no dialog, exit code 0. A process with no window, indistinguishable
+from the app failing to start.
+
+Fixed by shipping the bundle through `extraResources` into `resources/ui`, which is exactly
+where the second candidate already looked, and by giving startup failures an error dialog and
+a non-zero exit. **Verified by installing the real Squirrel installer**, not by reasoning: it
+lands in `%LOCALAPPDATA%\MaterialBlueMap` and opens a window titled
+`BlueMap - Overworld (Default Settings)`. The capture is `docs/screenshots/installed-app-1920x1200.png`.
+
+**Every release from `build.22` to `build.63` predates that fix and installs a non-launching
+app.** Do not treat any of them as a working artifact.
+
+The lesson worth keeping: the app was fine from source the whole time, which is why nothing
+caught it. Tests, the screenshot harness and every manual launch all used the dev tree, where
+the UI resolves through a relative path. Only the installer was broken, and only the installer
+is what a user runs.
+
+### The interface is now a real port rather than a shell
+
+All 24 upstream webapp components are ported to Material Design 3: compass, position input,
+controls switch, day/night, zoom buttons, mobile free-flight, the maps menu, the settings
+menu and the whole marker tree. `packages/ui` went from 3 components and 682 lines to 55 files
+and 8,111. Upstream's i18n keys are kept, so the 30 bundled locales work.
+
+The map used to be painted over the app bar and drawer, so every control was in the DOM and
+none was visible. Fixed in the same pass.
+
+### Rendering somebody else's world is no longer how screenshots are taken
+
+CI generates a 1000x1000 world with a different seed each push, renders it with the Java
+engine built in the same run, and serves that to the harness. The harness fails the job if the
+app reaches the public internet during capture. Closes the issue about leaning on
+`bluecolored.de`, whose bandwidth every push was consuming.
+
+### Rendering in GitHub Actions, including worlds too big for one job
+
+`.github/workflows/render-world.yml` plus `packages/render-actions`. Two traps were found by
+measuring rather than reasoning, and both would have shipped silently wrong maps:
+
+- **Shard cuts must land on block 32k+2, not on region boundaries**, because the hires grid is
+  `Grid(32, 2)`. Cutting at 512 lands inside tile 15; a two-shard render produced 31 tiles
+  twice, in differing versions, with nothing to indicate it.
+- **Shards erase each other.** `unrender` does not skip out-of-mask tiles; it deletes them and
+  writes transparent black at height zero with the same alpha as real terrain. 509,409 lod-1
+  pixels in a two-shard render were terrain in one shard and erasure in the other, so
+  first-writer-wins would have kept the erasures. The merge ranks terrain above erasure above
+  untouched, and lod 2 upward are rebuilt rather than unioned.
+
+Proven: 961 of 961 hires tiles byte-identical to an unsharded reference, zero differences
+across 6,024,024 lowres pixels, for two-shard and four-shard splits.
+
+### Two tests that only passed on the author's machine
+
+Both cost a red build and both are the same shape.
+
+- The HOCON locale baseline encoded the line endings of the machine that recorded it. The repo
+  checks out `text=auto`, so `.conf` files are CRLF on Windows and LF on Linux, and the parser
+  preserves line endings inside multi-line strings, correctly. 27 of 30 locales failed in CI.
+- `jars.test.ts` built its fixture root with `join("C:", "repo")`, which looks absolute and is
+  not on POSIX, so `resolve()` prefixed the runner's working directory and the upward walk
+  never found its anchor.
+
+CI running on a platform nobody develops on is the only reason either surfaced. When adding a
+test that touches paths or file contents, assume it will run somewhere else.
+
+### Dependencies install themselves
+
+`node scripts/bootstrap.mjs` installs and **verifies** node dependencies, the Electron binary,
+a JDK matching upstream's toolchain, Gradle, the seven BlueMap jars and the Playwright
+browsers. It verifies rather than checks for presence, which is not pedantry: Electron here
+had a `dist/` holding only `locales/`, and its own installer kept exiting 0 because the folder
+existed. The archive was fine and verified against Electron's published checksum; the
+*extractor* was silently dying partway through, so bootstrap extracts it another way.
+
+### In flight at the time of writing
+
+- **Phase D**, four agents: the tile model and byte-exact PRBM writer, the block renderers,
+  entity plus lowres plus renderstate plus masks, and `BmMap` plus file storage plus the
+  oracle harness. The gate is unchanged and now has a real oracle, because D17 made upstream's
+  engine a build input: `tools/oracle/` renders the same generated world both ways and
+  compares tiles byte for byte.
+- **Split release archives**: a GitHub release asset is capped at 2 GB, so large worlds and
+  rendered maps ship as 1.7 GB parts with per-part and whole-file SHA-256, and the GUI
+  downloads and rejoins them with resume.
+
+### Still not done
+
+The two agents killed by session limits in the mega wave left the planning-document refresh
+(landed later) and the test-world CI job (landed later). What genuinely remains: Phases E
+through I, the Phase C exit criteria, and the Phase J items listed above as unproven. See
+`ROADMAP.md`, which is the source of truth for status.
