@@ -2,26 +2,198 @@ name: CI
 
 on:
   push:
-    branches: [main, "claude/**"]
   pull_request:
+  workflow_dispatch:
+
+# A later push supersedes an in-flight run on the same ref, except on main where
+# every push is meant to produce its own release.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
 
 jobs:
-  build:
+  check:
+    name: Lint, build, test
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: design
     steps:
+      # The vendored BlueMap submodule is a large Java reference tree that
+      # nothing in the build reads, so it is deliberately not checked out.
       - uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
         with:
           version: 10
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: design/pnpm-lock.yaml
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm build
       - run: pnpm test
+
+  package:
+    name: Windows installer
+    needs: check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      # The app bundles the workspace packages, so they have to be built first.
+      - name: Build workspace
+        working-directory: design
+        run: pnpm build
+
+      - name: Build Squirrel.Windows installer
+        working-directory: design/packages/app
+        run: pnpm run make
+
+      - name: Collect installer artifacts
+        shell: bash
+        working-directory: design/packages/app
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/installer-out"
+          found=0
+          # electron-builder writes to release/ or dist/ depending on config.
+          for dir in release dist ../../release ../../dist; do
+            [ -d "$dir" ] || continue
+            while IFS= read -r f; do
+              cp "$f" "$GITHUB_WORKSPACE/installer-out/"
+              found=1
+            done < <(find "$dir" -maxdepth 2 -type f \( -name '*.exe' -o -name '*.nupkg' -o -name 'RELEASES' \))
+          done
+          if [ "$found" -eq 0 ]; then
+            echo "::error::no installer artifacts were produced by electron-builder"
+            exit 1
+          fi
+          ls -la "$GITHUB_WORKSPACE/installer-out"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: installer-out/
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish release
+    needs: [check, package]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # The line counter attributes surviving lines with `git blame`, so it
+      # needs the full history rather than a shallow clone.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: installer-out
+
+      - name: Resolve release tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./design/package.json').version")
+          tag="v${version}-build.${GITHUB_RUN_NUMBER}"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::tag $tag already exists; refusing to recycle a published release"
+            exit 1
+          fi
+          # The release ordinal drives the dim sum code name. It is monotonic, so
+          # a dish is never silently reused, and no ledger has to be committed
+          # back by CI, which would be an automation loop.
+          count=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --json tagName --jq 'length')
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "ordinal=$((count + 1))"
+          } >> "$GITHUB_OUTPUT"
+
+      # Not a gate: a release must never be blocked because the photo catalog is
+      # unavailable. A failure here is reported in the notes instead.
+      - name: Resolve dim sum code name
+        id: dish
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        run: node scripts/pick-dim-sum.mjs --ordinal "${{ steps.tag.outputs.ordinal }}" --out dim-sum-out
+
+      - name: Compose release notes
+        run: |
+          set -euo pipefail
+          {
+            if [ -n "${{ steps.dish.outputs.dish_name_en }}" ]; then
+              echo "**Code name: ${{ steps.dish.outputs.dish_name_en }} · ${{ steps.dish.outputs.dish_name_zh }}**"
+              echo
+              echo "![${{ steps.dish.outputs.dish_alt_en }}](https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ steps.tag.outputs.tag }}/${{ steps.dish.outputs.dish_file_name }})"
+              echo
+              echo "Photo from the public \`Ding-Ding-Projects/dim-sum-photos\` catalog, volume \`${{ steps.dish.outputs.dish_volume }}\`, downloaded unchanged at release time and verified to decode. It is not stored in this repository."
+            else
+              echo "> [!NOTE]"
+              echo "> No dim sum photo is attached to this release: resolving one from the photo catalog failed. The \`Resolve dim sum code name\` step in the run log has the exact URL and status. No substitute was generated."
+            fi
+            echo
+            echo "## Install"
+            echo
+            echo "Download the Squirrel.Windows installer below. Windows only for now; macOS and Linux packaging land in a later phase."
+            echo
+            echo "## What is in this build"
+            echo
+            echo "Commit \`${GITHUB_SHA}\` on \`main\`, built and tested by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). This release exists only because lint, build and the full test suite passed first."
+            echo
+            node scripts/count-lines.mjs --format=markdown
+          } > release-notes.md
+          echo "Composed $(wc -l < release-notes.md) lines of release notes"
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          assets=(installer-out/*)
+          if [ -d dim-sum-out ] && [ -n "$(ls -A dim-sum-out 2>/dev/null)" ]; then
+            assets+=(dim-sum-out/*)
+          fi
+          gh release create "${{ steps.tag.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "material-bluemap ${{ steps.tag.outputs.tag }}" \
+            --notes-file release-notes.md \
+            "${assets[@]}"
+          gh release view "${{ steps.tag.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --json isDraft,assets \
+            --jq 'if .isDraft then error("release was published as a draft") else "published with \(.assets | length) assets" end'

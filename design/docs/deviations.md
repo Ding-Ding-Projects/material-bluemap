@@ -288,3 +288,49 @@ repeated here):
   `resources/pack/datapack/dimension/DimensionTypeData`); its schema-registration
   yields to an already-registered `"DimensionTypeData"` token so the resources port
   can take the token over.
+- **`ResourcePack.getColormaps()`** — the Phase C placeholder interface grew the one
+  member `BlockColorCalculatorFactory.colorMap()` needs, typed as the structural
+  `{ get(key: Key): ColorMap | null }` instead of upstream's
+  `ResourcePool<ColorMap>` (lombok `@Getter`). The `ResourcePool` port arrives with the
+  full `ResourcePack` port. Nothing else on the placeholder was expanded.
+
+### map/hires renderer-type layer without the mesher (Phase D boundary)
+
+- **`BlockRendererType` / `EntityRendererType` factories throw when called.** Upstream
+  wires the concrete mesher renderers into the type constants
+  (`BlockRendererType.DEFAULT/LIQUID/MISSING` → `ResourceModelRenderer::new`,
+  `LiquidModelRenderer::new`, `MissingModelRenderer::new`;
+  `EntityRendererType.DEFAULT/MISSING` → `ResourceModelRenderer::new`,
+  `MissingModelRenderer::new`). Those renderers depend on `TileModelView`,
+  `ArrayTileModel`, the real `RenderSettings`, `Variant` and `Part`, none of which are
+  ported yet, so each `Impl` is constructed with a factory whose `create(...)` throws
+  `"<key> renderer is not ported yet (Phase D)"`. Key identity, the `isFallbackFor`
+  interface-default (`false`) and `REGISTRY` lookup — everything the Phase C
+  `ResourcesGson` registry-adapters consume — are fully ported and behave as upstream.
+  The mesher wave replaces the throwing factories with the real constructors.
+- **Phase D type placeholders introduced by that layer** — `map/hires/TileModelView.ts`
+  and `map/TextureGallery.ts` are one-member placeholder interfaces at their upstream
+  paths (rather than duplicated per-file declarations, since both renderer packages
+  need them), and `Variant` / `Part` are one-member placeholder interfaces declared in
+  the single file that mentions each (`map/hires/block/BlockRenderer.ts` and
+  `map/hires/entity/EntityRenderer.ts`). Each carries a `Phase D placeholder` banner
+  naming the upstream file that replaces it. The single member exists only so the
+  placeholder is not a structurally-empty (any-accepting) type.
+- **`BlockColorCalculatorFactory` interface-defaults** — upstream is a functional
+  interface, so java hands every lambda-implementation the combinators
+  (`withBiomeOverlay`, `withBiomeColorModifier`, `blended`, `blended(h, v)`, `with`)
+  for free. The port declares them on the interface and implements them once in
+  `Impl`; every factory this module produces (including the `fixed` / `biome` /
+  `colorMap` statics and the added `of(create)` lambda-form) is an `Impl`, so the
+  fluent chaining upstream relies on is preserved. `BlockColorCalculatorType.Impl`
+  spells out the lombok `@Delegate` forwarding of all six members explicitly.
+- **`BlockColorCalculator`'s 2-arg interface-default** — `getBlockColor(block, target)`
+  is exposed as `BlockColorCalculator.getBlockColor(calculator, block, target)` on the
+  module's const-object, since a TS interface carries no implementation.
+- **`ColorMap`'s image constructor** — upstream `ColorMap(BufferedImage)` builds the
+  `int[65536]` then calls `this(colorMap)` *after* statements, which is not legal java
+  and does not compile as written; the port implements the semantics (row-major
+  `getRGB(0, 0, 256, 256, …)` of the 256×256 map into a flat `Int32Array(65536)`) via a
+  constructor overload, packing pngjs' straight-alpha RGBA bytes into ARGB ints.
+  `GenericMath.clamp` is a local helper; the array is an `Int32Array` rather than
+  `number[]`.
