@@ -163,7 +163,9 @@ jobs:
         id: render
         run: |
           set -euo pipefail
-          jar=$(find jar -name '*.jar' | head -1)
+          # Absolute, because the render below runs from a different working directory
+          # and a relative jar path stops resolving the moment we cd.
+          jar=$(find "$GITHUB_WORKSPACE/jar" -name '*.jar' | head -1)
           world=$(find "$GITHUB_WORKSPACE/test-world" -maxdepth 1 -type d -name 'test-world-seed-*' | head -1)
           config="$GITHUB_WORKSPACE/render-config"
           out="$GITHUB_WORKSPACE/render-out"
