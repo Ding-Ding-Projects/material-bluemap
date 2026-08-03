@@ -285,3 +285,77 @@ The two agents killed by session limits in the mega wave left the planning-docum
 (landed later) and the test-world CI job (landed later). What genuinely remains: Phases E
 through I, the Phase C exit criteria, and the Phase J items listed above as unproven. See
 `ROADMAP.md`, which is the source of truth for status.
+
+---
+
+## Update, end of 2026-08-03
+
+### The options GUI was built and unreachable
+
+`App.vue` mounted neither the config screens nor the first-run setup. `ConfigScreen`,
+`MapsScreen`, `StoragesScreen`, `RunScreen` and `FirstRunSetup` all existed, all had tests, and
+nothing routed to them. A fresh install showed a centred grey line reading "No map loaded." and
+one floating button, with no way to create a map, render one, or reach any setting.
+
+The backend was complete the whole time: `startRender`, live progress, cancel, resume, storage
+directory, downloads, sign-in. None of it was wired to a button.
+
+This is the same failure as the installer that shipped without its renderer, and worth stating
+as a pattern rather than an incident: **green tests over something no user can reach**. Both
+passed everything and neither worked. A test suite proves a unit behaves; it does not prove the
+product has a door.
+
+### Three silent failures, all found by using the app rather than testing it
+
+- **The installer did nothing.** electron-builder took its version from `package.json`, which
+  never changed, so every release produced `app-0.1.0` and Squirrel correctly declined to install
+  a version already present. No error. Each build is now stamped `0.1.<run number>`.
+- **Copying from the map did nothing.** The viewer uses `navigator.clipboard`, and the permission
+  handler allowed only pointer lock and fullscreen. Inconsistent as well as broken: the app
+  already grants clipboard writes through IPC, so only the web API was shut.
+- **A fresh install contacted a third party.** The public BlueMap demo was the *active* profile,
+  so every launch of every copy fetched from a machine somebody else pays for before being asked.
+  The offline guard in the capture harness caught it. It is still listed, one click away, no
+  longer opened for you.
+
+### The viewer still looked like upstream from the inside
+
+`packages/ui/src/styles/markers.scss` is 179 lines with zero uses of `--md-sys-color-*`. The
+chrome around the map was ported to Material Design; the POI labels, popups and player name tags
+rendered inside it were not. Being rebuilt, keeping every `bm-*` class name exactly, because the
+viewer's TypeScript queries that DOM and a tidier name would break markers silently.
+
+### Delivery infrastructure the plan never described
+
+Sign-in (OAuth device flow), private-world rendering on public runners, rendering in GitHub
+Actions with sequential waves past the 256-job matrix cap, resumable renders, 1.7 GB split
+release archives with in-app download and rejoin, and a test-world generator. See `ROADMAP.md`.
+
+### Where Phase D actually stands
+
+The mesher is ported and PRBM output is byte-identical to the Java writer **at the unit level**,
+proven by building models with both out of the same jar. That is not the gate. The gate is a
+fully rendered world compared end to end, and `tools/oracle/` exists to run it. Until it runs
+green, Phase D is ported and not done, and no test here is named after a comparison it did not
+make.
+
+Four numeric findings from that work are worth keeping, because each was a byte:
+
+- `Math.toRadians` is not `angdeg / 180.0 * PI`. JDK 9 made it a single multiply, and the two
+  differ by an ulp at ordinary model rotations.
+- Float intermediates round per operator. Accumulating in double and narrowing once is a
+  different number.
+- A cast to int saturates where a bitwise or wraps: a degenerate face writes `0xFF`, not `0x00`.
+- `MatrixM3f` and `MatrixM4f` used `Math.sin`/`Math.cos` and double arithmetic where upstream
+  uses flow-math's quantized table in float. `rotateYXZ` bakes every rotated model, so this was
+  wrong for every rotated block; 30 of 52 liquid uv values differed.
+
+### Tests that only pass where they were written
+
+Three red builds came from this shape: a locale baseline that captured one machine's line
+endings, a repository root built with `join("C:", "repo")` which is not absolute on POSIX, and
+JDK discovery fixtures built with the native `join` while passing `"win32"`. The last one was a
+real implementation bug as well: functions that take a `platform` argument were using node's
+native `join` and `delimiter`, so a Windows PATH split through its drive letters.
+
+CI running on a platform nobody develops on is the only reason any of them surfaced.

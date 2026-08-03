@@ -45,17 +45,32 @@ exclusions **S2 and S4 are withdrawn**; S1 and S3 still stand.
 | B | shared utils, NBT, compression, MCA parsing 1.12.2→26.x incl. legacy Chunk_1_12, e2e synthetic-world proofs | **Done** |
 | C | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, textures.json) | Ported, exit criteria not yet proven |
 | J | **Java render path** (D17): toolchain discovery/provisioning, jar resolution, config writer, CLI runner, progress parser, provenance record, local map serving | Built, proven by hand on one machine; see below |
-| D | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks | Pending. No longer blocks the product; it is now the handover gate |
+| D | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks | **Ported.** PRBM output is byte-identical to the Java writer at the unit level, proven against the built jar. The gate is **not** closed: no fully rendered world has been compared end to end. `tools/oracle/` exists to do that |
 | E | RenderManager worker pool, watch re-render, full HTTP routes + SSE, config schema (every option), standalone server CLI + Dockerfile | Pending. The config schema half landed early in `packages/config` |
-| F | Full options GUI (all settings, map wizard, storage editors, config import) | In progress, out of order. Unblocked by D17: it writes BlueMap's own HOCON and invokes the CLI, so it never needed the TypeScript render manager |
+| F | Full options GUI (all settings, map wizard, storage editors, config import) | Built, and until now **unreachable**: `App.vue` mounted neither the config screens nor first-run setup. The shell that makes it reachable is in progress |
 | G | Docker hosting GUI (dockerode instance manager) | Pending |
 | H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | Pending |
 | I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending |
 | Contracts | Regex builder everywhere · full tab system · per-element appearance editors · EN/HK-Cantonese/bilingual + funny-level · super confirmation (see `docs/contracts/`) | Partly landed with F; the rest lands with G-I |
+| Delivery | Sign-in, private worlds, split archives, resumable renders, Actions rendering, packaging pipeline | **Landed.** Not a plan phase; see below |
 
 Phase **J** is not in `plan.md`: the plan had no Java render path because it had no JVM.
 It is numbered out of the alphabet deliberately so the original lettering keeps meaning what
 it meant.
+
+## Delivery, which the plan never described
+
+None of this is in `plan.md`, because the plan assumed a single desktop application rendering
+locally in TypeScript. All of it is on the branch and tested.
+
+| | |
+|---|---|
+| **Sign-in** | OAuth device flow, OAuth app by default with the GitHub app behind an override. Token in the OS credential store, refused rather than written in the clear when that is unavailable, never crossing the bridge, scrubbed from every error path |
+| **Rendering in GitHub Actions** | Worlds too large for one job split across a matrix, in sequential waves past the 256-job cap. 961 of 961 tiles byte-identical to an unsharded reference, zero differences across 6,024,024 lowres pixels |
+| **Private worlds** | Sealed with AES-256-GCM and rendered on public runners, opaque HMAC-keyed identifiers, output published only to the private repository, no artifacts |
+| **Resumable renders** | A crash, a shutdown or a six hour ceiling costs one wave rather than everything. Crash detection by app-instance id, not pid, which is reused |
+| **Large downloads** | A release asset is capped at 2 GB, so oversized archives ship as 1.7 GB parts with per-part and whole-file digests, and the app downloads and rejoins them with resume |
+| **Test worlds** | Generated in anvil format with no Minecraft and no network, a fresh seed every build, attached to every release |
 
 ## Phase J, what is built and what is proven
 
