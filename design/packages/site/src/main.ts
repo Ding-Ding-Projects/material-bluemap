@@ -275,9 +275,47 @@ function renderScreenshots(host: HTMLElement): void {
 /* Boot                                                                       */
 /* -------------------------------------------------------------------------- */
 
+/** The mount point index.html provides. */
+const ROOT_ID = "site-root";
+
+/**
+ * Renders the failure instead of leaving a blank page.
+ *
+ * A site that throws during boot shows nothing at all, and "nothing" is
+ * indistinguishable from a failed deploy, a network problem, or a browser with
+ * scripting disabled. Saying what broke is worth more than a clean console.
+ */
+function showBootFailure(error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    const host = document.getElementById(ROOT_ID) ?? document.body;
+    const notice = document.createElement("div");
+    notice.className = "mb-boot-error";
+    notice.setAttribute("role", "alert");
+
+    const heading = document.createElement("h1");
+    heading.textContent = "This page failed to start";
+    notice.appendChild(heading);
+
+    const detail = document.createElement("p");
+    detail.textContent = message;
+    notice.appendChild(detail);
+
+    const link = document.createElement("a");
+    link.href = "https://github.com/Ding-Ding-Projects/material-bluemap/issues";
+    link.textContent = "Report this";
+    link.rel = "noopener noreferrer";
+    notice.appendChild(link);
+
+    host.replaceChildren(notice);
+}
+
 function boot(): void {
-    const root = document.getElementById("app");
-    if (root === null) throw new Error("#app is missing from index.html");
+    const root = document.getElementById(ROOT_ID);
+    if (root === null) {
+        throw new Error(
+            `The mount point #${ROOT_ID} is missing from index.html, so there is nowhere to render.`
+        );
+    }
     root.replaceChildren();
 
     const prefs = new Preferences();
@@ -334,8 +372,17 @@ function boot(): void {
     maybeShowDimSum({ i18n, host: document.body });
 }
 
+function safeBoot(): void {
+    try {
+        boot();
+    } catch (error) {
+        showBootFailure(error);
+        throw error;
+    }
+}
+
 if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot, { once: true });
+    document.addEventListener("DOMContentLoaded", safeBoot, { once: true });
 } else {
-    boot();
+    safeBoot();
 }
