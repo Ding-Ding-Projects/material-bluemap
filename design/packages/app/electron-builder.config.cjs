@@ -34,6 +34,19 @@ module.exports = {
         // Source maps are build artefacts, not shipping artefacts.
         "!**/*.map",
     ],
+    // The renderer is a separate workspace package, so it is not under this app's
+    // directory and `files` cannot reach it. Without this the packaged app starts,
+    // fails to find the UI bundle, and shows nothing at all: `resolveUiRoot` throws
+    // inside `createWindow`, which is invoked as `void createWindow()`, so the
+    // rejection is swallowed and the window is never created. It looks exactly like
+    // the app not launching.
+    extraResources: [
+        {
+            from: "../ui/dist",
+            to: "ui",
+            filter: ["**/*"],
+        },
+    ],
     asar: true,
     // No native modules reach the packaged app — everything is bundled by esbuild.
     npmRebuild: false,

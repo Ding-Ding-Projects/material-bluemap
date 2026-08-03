@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, shell, clipboard } from "electron";
+import { app, BrowserWindow, ipcMain, session, shell, clipboard, dialog } from "electron";
 import {
     acceptDownload,
     completeFirstRun,
@@ -16,6 +16,10 @@ import {
     RemoteProxyHandler,
     type RemoteProfile,
 } from "@material-bluemap/server";
+import { LocalMapHandler, defaultStorageDirectory } from "./render/index.js";
+import { upstreamJavaEngine } from "./render/engine.js";
+import { installRenderIpc } from "./render/ipc.js";
+import type { RenderIpc } from "./render/ipc.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -34,9 +38,20 @@ function resolveUiRoot(): string {
 const authToken = randomBytes(24).toString("hex");
 const remoteProxy = new RemoteProxyHandler();
 
+/**
+ * Locally rendered maps, mounted at `/local/{renderId}/`.
+ *
+ * The local twin of `remoteProxy`: a render's output is a static web root, so pointing
+ * the viewer at this path makes it open a map this machine rendered exactly as it opens
+ * one on the internet. It is added before the static UI bundle for the same reason the
+ * remote proxy is - both own a path prefix, and the static handler is the fallback.
+ */
+const localMaps = new LocalMapHandler();
+
 async function startEmbeddedServer(): Promise<string> {
     const server = new HttpServer({ host: "127.0.0.1", port: 0, authToken });
     server.addHandler(remoteProxy);
+    server.addHandler(localMaps);
     server.addHandler(new StaticHandler(resolveUiRoot()));
     const address = await server.listen();
     app.on("will-quit", () => void server.close());
@@ -110,10 +125,46 @@ function registerIpc(): void {
     ipcMain.handle("firstRun:complete", () => completeFirstRun());
 }
 
+/**
+ * Local rendering, wired to the same server the viewer already talks to.
+ *
+ * `installRenderIpc` reads consent through `consent.ts` and never asks: a render without
+ * it fails with a typed reason the interface shows as "consent required", with a link to
+ * the settings row. Provisioning is deliberately left off, so a missing JDK is reported
+ * rather than answered with a two-hundred-megabyte download nobody asked for.
+ */
+let renderIpc: RenderIpc | null = null;
+
+function startRendering(): RenderIpc {
+    // `createWindow` runs again on macOS `activate`, and `ipcMain.handle` throws when a
+    // channel already has a handler. Registering once is the difference between
+    // reopening the window and crashing while reopening it.
+    if (renderIpc !== null) return renderIpc;
+
+    const userData = app.getPath("userData");
+    const storageDir = defaultStorageDirectory(userData);
+    const render = installRenderIpc({
+        storageDir,
+        defaultStorageDir: storageDir,
+        environment: { home: app.getPath("home"), appData: process.env.APPDATA },
+        mounts: localMaps,
+        resolveEngine: upstreamJavaEngine({
+            dataDir: userData,
+            resourcesPath: app.isPackaged ? process.resourcesPath : null,
+        }),
+        appVersion: app.getVersion(),
+    });
+    // Maps rendered in an earlier session are served again without re-rendering.
+    void render.restoreExisting();
+    renderIpc = render;
+    return render;
+}
+
 async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
     registerIpc();
+    startRendering();
 
     const window = new BrowserWindow({
         width: 1280,
@@ -141,10 +192,34 @@ async function createWindow(): Promise<void> {
     await window.loadURL(`${baseUrl}/?token=${authToken}`);
 }
 
+/**
+ * Starts the window, and if it cannot start, says so.
+ *
+ * `void createWindow()` swallowed every startup rejection. The packaged app shipped
+ * without the renderer bundle, `resolveUiRoot` threw, the promise was discarded, and
+ * the process sat there with no window and no message: indistinguishable from the
+ * app not launching. A failure the user cannot see is worse than a crash, because a
+ * crash at least tells them something happened.
+ */
+async function launch(): Promise<void> {
+    try {
+        await createWindow();
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error("[material-bluemap] startup failed:", error);
+        dialog.showErrorBox(
+            "Material BlueMap could not start",
+            `${message}\n\nThis is a bug. Please report it with this message at\n` +
+                `https://github.com/Ding-Ding-Projects/material-bluemap/issues`
+        );
+        app.exit(1);
+    }
+}
+
 app.whenReady().then(() => {
-    void createWindow();
+    void launch();
     app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0) void createWindow();
+        if (BrowserWindow.getAllWindows().length === 0) void launch();
     });
 });
 
