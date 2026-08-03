@@ -19,10 +19,107 @@ export { WatchService } from "./util/WatchService.js";
 // map (Phase C/D placeholders — replaced by the full ports)
 export { Mask } from "./map/mask/Mask.js";
 export type { RenderSettings } from "./map/hires/RenderSettings.js";
+export { TextureGallery } from "./map/TextureGallery.js";
 
-// resources (Phase C placeholders — replaced by the full ports)
+// resources
+export { BlockColorsConfig } from "./resources/BlockColorsConfig.js";
+export { BlockStateMapping } from "./resources/BlockStateMapping.js";
+export { MinecraftVersion } from "./resources/MinecraftVersion.js";
+export { MissingResourcesError } from "./resources/MissingResourcesError.js";
+export { ResourcePath } from "./resources/ResourcePath.js";
+export {
+    CONNECTION_TIMEOUT,
+    Download,
+    Downloads,
+    Latest,
+    Version,
+    VersionDetail,
+    VersionManifest,
+    type FetchFunction,
+    type HttpResponse,
+} from "./resources/VersionManifest.js";
+// (resources/BlockPropertiesConfig — the modern `resources/BlockPropertiesConfig.java` —
+// is aliased here because world/mca/legacy/BlockPropertiesMapper already exports a
+// same-named class above: the port of the LEGACY (v0.10.3-mc1.12) block-properties
+// config, which is a different upstream file with a different shape. The legacy one
+// keeps the plain name it was exported under before this wave.)
+export { BlockPropertiesConfig as ResourcesBlockPropertiesConfig } from "./resources/BlockPropertiesConfig.js";
+
+// resources/pack
+export { Pack, type Loader as PackLoader } from "./resources/pack/Pack.js";
+export { PackExtension } from "./resources/pack/PackExtension.js";
+export {
+    Features,
+    Overlay,
+    Overlays,
+    PackMeta,
+    PackMetaPack,
+    VersionRange,
+    VersionRangeAdapter,
+} from "./resources/pack/PackMeta.js";
+export {
+    PackVersion,
+    PackVersionAdapter,
+    PackVersionMaxAdapter,
+    PackVersionMinAdapter,
+} from "./resources/pack/PackVersion.js";
+export {
+    ResourcePool,
+    type BinaryOperator,
+    type Loader as ResourcePoolLoader,
+} from "./resources/pack/ResourcePool.js";
+
+// resources/pack/vfs
+export {
+    normalizePath,
+    PackPath,
+    type PackFileStats,
+    type PackFileSystem,
+} from "./resources/pack/vfs/PackFileSystem.js";
+export { DirFileSystem } from "./resources/pack/vfs/DirFileSystem.js";
+export { ZipFileSystem } from "./resources/pack/vfs/ZipFileSystem.js";
+
+// resources/pack/datapack
 export { DataPack } from "./resources/pack/datapack/DataPack.js";
-export type { ResourcePack } from "./resources/pack/resourcepack/ResourcePack.js";
+// (Data/Effects are nested classes of DatapackBiome upstream; they are prefixed here
+// because a barrel cannot carry names that generic)
+export {
+    DatapackBiome,
+    Data as DatapackBiomeData,
+    Effects as DatapackBiomeEffects,
+} from "./resources/pack/datapack/biome/DatapackBiome.js";
+// (the datapack DimensionTypeData is aliased because world/mca/data/DimensionTypeDeserializer
+// already exports a same-named class above — the NBT-side copy of the same upstream
+// @Data class, see docs/deviations.md)
+export { DimensionTypeData as DatapackDimensionTypeData } from "./resources/pack/datapack/dimension/DimensionTypeData.js";
+
+// resources/pack/resourcepack
+// Value export, not `export type`: this was a placeholder interface until wave C3
+// replaced it with the real class, and a type-only export would leave every
+// consumer able to name a ResourcePack but unable to construct one.
+export { ResourcePack } from "./resources/pack/resourcepack/ResourcePack.js";
+// (the resourcepack BlockState — `blockstate/BlockState.java`, a blockstate-FILE — is
+// aliased because world/BlockState, the in-world block state, already owns the plain
+// name above; upstream keeps them apart by package)
+export { BlockState as ResourcePackBlockState } from "./resources/pack/resourcepack/blockstate/BlockState.js";
+export { BlockStateCondition } from "./resources/pack/resourcepack/blockstate/BlockStateCondition.js";
+export { Multipart } from "./resources/pack/resourcepack/blockstate/Multipart.js";
+export { MISSING_BLOCK_MODEL, Variant } from "./resources/pack/resourcepack/blockstate/Variant.js";
+export { hashToFloat, VariantSet } from "./resources/pack/resourcepack/blockstate/VariantSet.js";
+export { Variants } from "./resources/pack/resourcepack/blockstate/Variants.js";
+export { Element } from "./resources/pack/resourcepack/model/Element.js";
+export { Face } from "./resources/pack/resourcepack/model/Face.js";
+// (Model.ts declares its own minimal `ResourcePool` interface for the model-pool it
+// resolves against; the real resources/pack/ResourcePool is exported above, so only the
+// Model class itself is re-exported here)
+export { Model } from "./resources/pack/resourcepack/model/Model.js";
+export { Rotation } from "./resources/pack/resourcepack/model/Rotation.js";
+export { TextureVariable } from "./resources/pack/resourcepack/model/TextureVariable.js";
+export { AnimationMeta, FrameMeta } from "./resources/pack/resourcepack/texture/AnimationMeta.js";
+export { ColorMap } from "./resources/pack/resourcepack/texture/ColorMap.js";
+export { Texture } from "./resources/pack/resourcepack/texture/Texture.js";
+export { EntityState } from "./resources/pack/resourcepack/entitystate/EntityState.js";
+export { Part } from "./resources/pack/resourcepack/entitystate/Part.js";
 
 // world/block
 export type { BlockAccess } from "./world/block/BlockAccess.js";

@@ -595,3 +595,169 @@ repeated here):
   The real `entitystate/Part` now exists, but `EntityRenderer.ts` belongs to the Phase D
   renderer-type layer and is left untouched by this wave; the mesher wave replaces the
   placeholder with an import of the real Part.
+- **`TextureGallery`'s textures-file I/O is string-based.** Upstream's
+  `writeTexturesFile(OutputStream)` / `readTexturesFile(InputStream)` become a
+  `writeTexturesFile(): string` and a `static readTexturesFile(json: string)`; the utf-8
+  encoding and the gzip wrapping are the (not-yet-ported) map-storage layer's job, so the
+  two names it stores under are exposed as `TextureGallery.TEXTURES_FILE_NAME`
+  (`textures.json`) and `TextureGallery.TEXTURES_FILE_NAME_GZIP` (`textures.json.gz`),
+  standing in for upstream's `"textures.json" + Compression#getFileSuffix()` in
+  `storage/file/FileMapStorage`.
+- **`TextureGallery`'s json is written by `JSON.stringify`.** gson html-escapes `=`, `<`,
+  `>`, `&` and `'` inside string values by default, so upstream writes a texture's base64
+  `=` padding as `\u003d`; `JSON.stringify` emits those characters literally. The parsed
+  json value is identical, only its spelling differs. Reading goes through the strict
+  `JSON.parse` rather than `adapter/JsonMapper`'s lenient parser, because the gallery's
+  gson instance is `ResourcesGson.addAdapter(new GsonBuilder())` *without* the
+  `setLenient()` that `ResourcesGson.INSTANCE` adds.
+- **`TextureGallery` declares `ResourcePack.MISSING_TEXTURE` locally**, the same way
+  `model/Face.ts` and `entitystate/Part.ts` do, instead of importing it from
+  `ResourcePack` — that import would pull the whole pack-loader into the gallery for one
+  constant. Nothing upstream ever calls `setResource` on that path, so its
+  `getResource()` is always null and a separate instance behaves identically: the gallery
+  keys by `Key#getFormatted()`, which is value-equal across instances.
+- **`TextureGallery`'s `Map<Key, TextureMapping>` is keyed by `Key#getFormatted()`** with
+  the `Key` kept alongside the mapping (a js `Map` keys objects by identity), the same
+  shape `resources/pack/ResourcePool` uses. `TextureMapping` is a module-local class
+  rather than a package-private static nested one, and the `synchronized` on both `put`
+  overloads survives only as a comment (js has no preemption).
+- **The engine barrel aliases three Phase-C exports** whose plain names were already
+  taken by earlier waves, since `index.ts` is one flat namespace where upstream has
+  packages: `resources/BlockPropertiesConfig` is exported as
+  `ResourcesBlockPropertiesConfig` (the legacy v0.10.3 config from
+  `world/mca/legacy/BlockPropertiesMapper` keeps `BlockPropertiesConfig`),
+  `resources/pack/datapack/dimension/DimensionTypeData` as `DatapackDimensionTypeData`
+  (the NBT-side copy in `world/mca/data/DimensionTypeDeserializer` keeps
+  `DimensionTypeData`), and `resources/pack/resourcepack/blockstate/BlockState` as
+  `ResourcePackBlockState` (the in-world `world/BlockState` keeps `BlockState`).
+  `Pack.Loader` and `ResourcePool.Loader` — nested interfaces upstream — become
+  `PackLoader` and `ResourcePoolLoader`, and `DatapackBiome`'s nested `Data`/`Effects`
+  become `DatapackBiomeData`/`DatapackBiomeEffects`.
+- **`ResourcePack#loadResources` takes an optional `AbortSignal`.** Upstream polls
+  `Thread.interrupted()` between every one of its five phases (and between the four steps
+  of `bake`) and throws `InterruptedException`; javascript has no thread-interruption to
+  poll, so the method accepts an `AbortSignal` and checks it at exactly those points,
+  throwing the signal's reason (a `DOMException` named `AbortError` when the caller aborted
+  without one). Passing no signal is the "never interrupted" case. The `synchronized` on
+  the method is a no-op in single-threaded js and is kept only as a comment.
+- **`ResourcePack`'s seven parallel loaders are `await Promise.all`.** Upstream fans
+  atlases, blockstates, entitystates, models, colormaps, `blockColors.json` and
+  `blockProperties.json` out as `CompletableFuture.runAsync(..., BlueMap.THREAD_POOL)` and
+  `join()`s them; here they are seven async functions awaited together. No two of them
+  write the same pool or config, and javascript has no preemption, so `ResourcePool`'s
+  plain (non-concurrent) Map is exactly as safe here as upstream's `HashMap` is there —
+  and the sequential loop inside each loader keeps the "don't load already present
+  resources" first-wins ordering. Upstream's `catch (RuntimeException) -> IOException`
+  rewrap around the `join()` has no analogue: the port has one exception type, and every
+  throw inside the loaders is already caught by `ResourcePool#load` or by the config
+  loaders' own try/catch.
+- **`ResourcePack` reads `blockColors.json` / `blockProperties.json` through
+  `loadFromString`.** Upstream passes the `Path` to `BlockColorsConfig#load(Path)` /
+  `BlockPropertiesConfig#load(Path)`, which open it with `Files.newBufferedReader`; a
+  `PackPath` may live inside a zip, so the pack-loader reads the text through the vfs and
+  hands it to the `loadFromString` split-out those two configs already provide.
+- **`ResourcePack`'s two caffeine `LoadingCache`s become `lru-cache` instances keyed by a
+  canonical string.** Upstream keys `blockStateCache` / `blockPropertiesCache` on the world
+  `BlockState` itself, which hashes and compares by its id plus its *sorted* property
+  array; a js Map compares by identity, so the key is the equivalent
+  `namespace:value[k=v,…]` serialization with the properties sorted. `maximumSize(10000)`
+  becomes `max: 10000` and `expireAfterAccess(1, MINUTES)` becomes `ttl: 60_000` with
+  `updateAgeOnGet`. Like caffeine, a null loader-result is returned but not recorded, so
+  `getBlockState` keeps returning `null` for a blockstate the pack has no resources for.
+- **`ResourcePack.MISSING_BLOCK_MODEL` is the object `blockstate/Variant` already holds;
+  `MISSING_TEXTURE` and `MISSING_ENTITY_MODEL` are not.** A `ResourcePath` caches its
+  resolved resource per instance, so upstream's `static final`s have to stay single
+  objects. `Variant` exports its `MISSING_BLOCK_MODEL` and `ResourcePack` re-exposes that
+  very instance. `model/Face` and `entitystate/Part`, however, hold their own module-level
+  `MISSING_TEXTURE` / `MISSING_ENTITY_MODEL`: importing them from `ResourcePack` would
+  close an import cycle (`ResourcePack` -> `Model` -> `Element` -> `Face`) whose top-level
+  `const` initializers would hit the temporal dead zone. Both are only ever used as *keys*
+  on those two paths, so the duplicated resource-cache is unobservable.
+- **`ResourcePack.Extension` is a module-level interface plus a same-named const.** A TS
+  interface cannot be nested in a class, so the upstream nested
+  `Extension<T extends ResourcePackExtension>` is exported from the module and its
+  `Registry<Extension<?>>` lives on the const; `ResourcePack.Extension` is a static alias
+  of that const, so upstream's `ResourcePack.Extension.REGISTRY` call-sites keep their
+  spelling. `getExtension` returns `T | null` (upstream's `Map#get` result).
+- **`ResourcePackExtension`'s interface-defaults become optional members plus
+  invoker-statics**, exactly like `PackExtension` above it: `collectUsedTextureKeys`,
+  `getBlockStateKey` and `getBlockProperties` are optional on the interface and the
+  `ResourcePackExtension` const-object applies upstream's defaults (`Set.of()`, the key
+  unchanged, and a no-op) at the call-sites.
+- **`ResourcePack#collectUsedTextureKeys` de-duplicates by `Key#getFormatted()`** — a java
+  `HashSet<Key>` compares by `Key#equals`, a js Set by identity — and the texture-filter
+  predicate handed to the atlas compares the same way. Upstream adds
+  `textureVariable.getTexturePath()` to the set even when it is null (a resolved reference
+  that found nothing); a null entry can never match a lookup, so it is skipped here
+  instead of keyed.
+
+### resources/pack/resourcepack/atlas (`Atlas`, `Source`, `SourceType`, `SingleSource`, `DirectorySource`, `UnstitchSource`, `PalettedPermutationsSource`) — Wave C3-2
+
+- **The file-system separator dance is dropped.** `Source#getFile` replaces every `/` of a
+  key's value with `root.getFileSystem().getSeparator()`, and `DirectorySource#load`
+  translates its `source` into that separator and the walked relative path back out of it,
+  because a java zip-filesystem separates with `/` while the OS one may separate with `\`.
+  `PackPath` is posix-style everywhere, so all three replacements are no-ops and are simply
+  not ported.
+- **The polymorphic source-adapter lives in `SourceType.ts`, not in `Source.ts`.** Upstream
+  annotates `Source` with `@JsonAdapter(Source.Adapter.class)`, and that adapter references
+  `SourceType.REGISTRY`, which references the concrete subclasses, which extend `Source`.
+  As ES modules that is a cycle `Source → SourceType → SingleSource → Source`, and whenever
+  `Source.ts` is evaluated first the subclass module runs its `extends` clause while the
+  base class is still in its temporal dead zone. The two-pass reader is therefore
+  `SourceType.Adapter`; what stays on the base class is upstream's *delegate* adapter
+  (gson's reflective adapter for `Source.class`, which reads nothing but `type`), named
+  `Source.DelegateAdapter` so a subclass' own `Adapter` does not shadow it as an inherited
+  static.
+- **`SourceType.Impl` carries the concrete adapter instead of a `Class<? extends Source>`.**
+  Upstream's class-literal exists only to be handed to
+  `gson.getDelegateAdapter(TypeToken.get(type))`; without gson's reflective registry the
+  registry-entry holds that adapter directly, and `getType()` becomes `getAdapter()`. The
+  five registered keys are unchanged, `minecraft:filter` included — it maps onto the plain
+  `Source`, i.e. onto a deliberate no-op, and re-parses the element with
+  `Source.DelegateAdapter`.
+- **A source without a `type` throws a `JsonParseError`.** Upstream reaches
+  `SourceType.REGISTRY.get(null)`, which is a `ConcurrentHashMap#get(null)` and therefore a
+  `NullPointerException` out of the parse; the port throws its own error in the same place
+  rather than dereferencing null.
+- **`Atlas`' `LinkedHashSet<Source>` becomes a `Map` keyed by `Source#equalityKey()`,** since
+  a js Set de-duplicates by identity. The key reproduces what upstream's equality actually
+  amounts to, which is *not* structural: `Source#equals` returns false as soon as
+  `getClass() != Source.class`, and every subclass guards its own comparison with
+  `if (!super.equals(object)) return false`. So only a bare `Source` (an unknown or
+  `minecraft:filter` source) ever de-duplicates — by its type — while two structurally
+  identical `SingleSource`s are kept apart. Each subclass therefore overrides
+  `equalityKey()` with a per-instance identity, and a test pins both halves of that
+  behaviour. `getSources()` returns a snapshot array where upstream returns the live set.
+- **`UnstitchSource#regions`, `PalettedPermutationsSource#textures` and
+  `PalettedPermutationsSource#permutations` become ordered arrays / a `Map`.** They are
+  gson-materialised `LinkedHashSet`s and a `LinkedHashMap` upstream, so the adapters
+  de-duplicate on the way in (structurally for `Region`, by formatted key for the texture
+  list) and keep the insertion order. `Region` is a sibling class of the same module rather
+  than a static nested class, and — unlike the sources — it really does compare
+  structurally, so its `equalityKey()` is the real thing.
+- **A json-`null` region element is dropped at parse-time.** Upstream keeps it as a null
+  entry of the `LinkedHashSet` and skips it again with `if (region == null) continue` in
+  `bake`; the port drops it in the adapter, which is the same observable behaviour without
+  a nullable element type.
+- **`getSubimage` copies, and the awt exceptions get stand-ins.**
+  `BufferedImage#getSubimage` returns a *view* onto the parent raster; pngjs has no such
+  thing, so each unstitched region is copied out pixel-for-pixel (upstream materialises the
+  copy immediately afterwards anyway, when `Texture.from` writes the base64 png). Its
+  bounds-checks are reproduced explicitly and throw a `RasterFormatError` standing in for
+  `RasterFormatException`, which is what `UnstitchSource#bake` catches to log and skip an
+  out-of-bounds region; any other error is re-thrown. Likewise `PalettedPermutationsSource`
+  checks the palette coordinates itself and throws an `ArrayIndexOutOfBoundsError` where
+  `BufferedImage#getRGB` would throw `ArrayIndexOutOfBoundsException`, because pngjs would
+  silently read `undefined` past the end of a too-small permutation palette instead of
+  failing — that exception is precisely what upstream catches to log and skip the
+  permutation.
+- **`load` and `bake` are asynchronous** (upstream: `throws IOException`), because every
+  `PackPath` operation is, and `Atlas#load`/`Atlas#bake` therefore await each source in
+  turn. Upstream's `forEach` catches `IOException`; the port catches every error, since JS
+  has no checked-exception distinction to make — the debug-log message is unchanged.
+- **An undecodable image throws instead of reading as `null`.** `ImageIO.read` returns null
+  when no reader recognises the bytes (and only throws for a corrupt but recognised image),
+  so upstream skips such a file silently; pngjs' `PNG.sync.read` always throws. The texture
+  is not loaded either way — the difference is one extra debug-log line, emitted by
+  `ResourcePool#load` for a `DirectorySource` and by `Atlas#load` for a `SingleSource`.
