@@ -98,6 +98,11 @@ Two details in that workflow are load-bearing and easy to lose:
 
 ## `oracle/`
 
-Gitignored working state: the Gradle user home for the vendored build and the default jar
-staging directory. Nothing in it is source, and it is safe to delete at the cost of a cold
-rebuild.
+The **Phase D gate** (`node tools/oracle/compare.mjs`) lives here: it renders one
+generated world with upstream's Java engine and with this project's TypeScript engine
+and compares the two outputs byte for byte. See [`oracle/README.md`](oracle/README.md).
+
+Beside it, `oracle/.gradle/` and `oracle/out/` are gitignored working state: the Gradle
+user home for the vendored build, the default jar staging directory, and the generated
+worlds and cached renders the gate works from. None of it is source, and it is safe to
+delete at the cost of a cold rebuild and one eighty-second reference render.

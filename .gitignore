@@ -19,3 +19,6 @@ test-world/
 # client jar straight into the tree. Never commit either.
 /web/
 /data/
+
+# Compiled classes and dumps of the unit-level PRBM reference capture.
+tools/oracle/prbm/out/

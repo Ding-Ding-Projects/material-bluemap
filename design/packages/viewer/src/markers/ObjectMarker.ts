@@ -128,11 +128,13 @@ export class LabelPopup extends CSS2DObject {
         this.element.style.opacity = "0";
         const inAnimation = animate((progress) => {
             this.element.style.opacity = (progress * targetOpacity).toString();
-        }, 300);
+        }, LabelPopup.fadeDurationMs());
 
         if (autoClose) {
             const removeHandler = (evt: Event) => {
                 if (evt.composedPath().includes(this.element)) return;
+                // A label popup may hold links; Tab has to be able to reach them.
+                if (Marker.isFocusNavigationEvent(evt)) return;
 
                 inAnimation.cancel();
                 this.close();
@@ -163,12 +165,21 @@ export class LabelPopup extends CSS2DObject {
             (progress) => {
                 this.element.style.opacity = (startOpacity - progress * startOpacity).toString();
             },
-            300,
+            LabelPopup.fadeDurationMs(),
             (completed) => {
                 if (remove && completed && this.parent) {
                     this.parent.remove(this);
                 }
             },
         );
+    }
+
+    /**
+     * The popup's fade, in milliseconds; zero when the user has asked for reduced motion.
+     * `animate` runs a zero-duration animation as one synchronous frame at full progress,
+     * so the popup still opens and still closes, without the travel.
+     */
+    private static fadeDurationMs(): number {
+        return Marker.prefersReducedMotion() ? 0 : 300;
     }
 }

@@ -25,6 +25,8 @@ import type { DownloadIpc } from "./download/ipc.js";
 import { installGitHubIpc } from "./github/ipc.js";
 import type { GitHubIpc } from "./github/ipc.js";
 import { openExternalHttps } from "./github/external.js";
+import { registerWorldHandlers } from "./world/index.js";
+import type { WorldIpc } from "./world/index.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -116,7 +118,24 @@ function hardenSession(baseUrl: string): void {
     });
 }
 
+/**
+ * Guards the stateless handlers below against a second registration.
+ *
+ * `ipcMain.handle` throws on a channel that already has a handler, and `createWindow` is
+ * not structurally once-only: the `activate` path calls it again whenever there are no
+ * windows left. This product ships for Windows, where `activate` does not fire, so the
+ * crash is unreachable today - but the guard costs a boolean, and the alternative is a
+ * function whose safety depends on a platform detail held nowhere near it.
+ *
+ * The three stateful subsystems (`startRendering`, `startDownloads`,
+ * `startWorldInspection`) each guard themselves the same way; this one did not.
+ */
+let ipcRegistered = false;
+
 function registerIpc(): void {
+    if (ipcRegistered) return;
+    ipcRegistered = true;
+
     ipcMain.handle("profiles:sync", (_event, profiles: RemoteProfile[]) => {
         const known = new Set<string>();
         for (const profile of profiles) {
@@ -231,12 +250,33 @@ function startGitHubSignIn(): GitHubIpc {
     return githubIpc;
 }
 
+/**
+ * Reading a folder well enough to tell a world from something that is not one.
+ *
+ * Registered once, for the same reason rendering, downloading and sign-in are:
+ * `ipcMain.handle` throws on a channel that already has a handler, and `createWindow`
+ * runs again on macOS `activate`.
+ *
+ * It holds nothing. The wizard asks about a folder, this reads that folder shallowly and
+ * answers, and a folder it cannot read is refused by name rather than reported as an
+ * empty one - which is the difference between sending somebody to look for a missing
+ * `level.dat` and sending them to look at the path they typed.
+ */
+let worldIpc: WorldIpc | null = null;
+
+function startWorldInspection(): WorldIpc {
+    if (worldIpc !== null) return worldIpc;
+    worldIpc = registerWorldHandlers(ipcMain);
+    return worldIpc;
+}
+
 async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
     registerIpc();
     startDownloads(startRendering());
     startGitHubSignIn();
+    startWorldInspection();
 
     const window = new BrowserWindow({
         width: 1280,

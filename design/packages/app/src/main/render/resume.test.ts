@@ -14,7 +14,13 @@ import {
     resumeRequestFor,
 } from "./resume.js";
 import type { SpawnCli } from "./runner.js";
-import { RenderSessionStore, newRenderSession, readRenderSession, sessionFile } from "./session.js";
+import {
+    RenderSessionStore,
+    newRenderSession,
+    readRenderSession,
+    sessionFile,
+    writeRenderSession,
+} from "./session.js";
 import type { RenderSession } from "./session.js";
 
 let root = "";
@@ -382,6 +388,86 @@ describe("planResume", () => {
             ],
         });
         expect(resumeRequestFor(many).maps).toHaveLength(2);
+    });
+
+    /**
+     * A map has ninety-odd settings and only a handful of them have a field on the
+     * request. The config body carries the rest, so it has to be in the comparison:
+     * without it somebody could dim the ambient light, resume, and get half a map lit
+     * one way and half the other with nothing anywhere to say so.
+     */
+    describe("the config body", () => {
+        const BODY = ['ambient-light: 0.12', 'sky-color: "#7dabff"', ""].join("\n");
+
+        function startedWith(config: string): RenderSession {
+            return {
+                ...newRenderSession({
+                    renderId: "world-abc123",
+                    maps: [{ id: "overworld", world: worldDir, name: "Overworld", config }],
+                    configDir: join(storageDir, "world-abc123", "config"),
+                    outputRoot: join(storageDir, "world-abc123", "web"),
+                    engine: "upstream-java",
+                    engineVersion: "5.22-27",
+                    javaVersion: "25.0.3",
+                    startedAt: "2026-08-03T10:00:00.000Z",
+                    ownerInstance: "instance-a",
+                    ownerPid: 4242,
+                }),
+                status: "interrupted",
+                reason: "cancelled",
+            };
+        }
+
+        it("refuses a resume whose body was edited", () => {
+            const decision = planResume(startedWith(BODY), {
+                maps: [
+                    {
+                        id: "overworld",
+                        world: worldDir,
+                        name: "Overworld",
+                        // One setting moved. Nothing the request's own fields can see.
+                        config: ['ambient-light: 0.9', 'sky-color: "#7dabff"', ""].join("\n"),
+                    },
+                ],
+            });
+
+            expect(decision.ok).toBe(false);
+            if (decision.ok) return;
+            expect(decision.code).toBe("config-changed");
+            expect(decision.message).toContain("half one and half the other");
+        });
+
+        it("allows a resume whose body is the same", () => {
+            const decision = planResume(startedWith(BODY), {
+                maps: [{ id: "overworld", world: worldDir, name: "Overworld", config: BODY }],
+            });
+            expect(decision.ok).toBe(true);
+        });
+
+        it("notices a body appearing where there was none", () => {
+            const decision = planResume(session({ status: "interrupted", reason: "cancelled" }), {
+                maps: [{ id: "overworld", world: worldDir, name: "Overworld", config: BODY }],
+            });
+            expect(decision.ok).toBe(false);
+            if (decision.ok) return;
+            expect(decision.code).toBe("config-changed");
+        });
+
+        it("carries the body into the resumed request", () => {
+            // Otherwise a resume renders the same map from a six-key file, arriving at
+            // the half-and-half outcome by itself rather than being refused for it.
+            expect(resumeRequestFor(startedWith(BODY)).maps[0]?.config).toBe(BODY);
+        });
+
+        it("survives being written to disk and read back", async () => {
+            const path = sessionFile(storageDir, "world-abc123");
+            await writeRenderSession(path, startedWith(BODY));
+            const stored = await readRenderSession(path);
+            expect(stored?.maps[0]?.config).toBe(BODY);
+            // And a session written before the field existed reads back as a render
+            // that had no body, which is the truth about it.
+            expect(resumeRequestFor(session()).maps[0]?.config).toBeUndefined();
+        });
     });
 });
 

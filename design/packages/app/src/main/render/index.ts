@@ -45,6 +45,7 @@ export {
 
 export {
     InvalidRenderRequestError,
+    MAX_MAP_CONFIG_LENGTH,
     defaultRenderThreads,
     hoconString,
     isValidMapId,

@@ -82,6 +82,61 @@ _map)` in controls, empty setter params in `CombinedCamera.ts`);
 - faithful `const self = this` / `const _this = this` aliases in `PRBMLoader.ts` and
   `CSS2DRenderer.ts` retained under targeted `eslint-disable-next-line` comments.
 
+### Material Design 3 marker surfaces
+
+The chrome around the map was ported to Material Design; the DOM the viewer paints *into*
+the map was not, so POI labels, marker popups, player name tags and the block-info popup
+were still upstream's design sitting inside a Material application. These deviations rebuild
+them. Everything here is presentation and accessibility; no marker data, geometry or
+anchoring semantics changes, and **every class name upstream emits is preserved** because
+the viewer's TypeScript builds and queries this DOM by class.
+
+- **`packages/ui/src/styles/markers.scss` is rewritten against `--md-sys-color-*`.** Upstream's
+  `--theme-*` bridge in `global.scss` stays for author-supplied marker HTML, but the marker
+  surfaces themselves now consume M3 roles declared at the top of `markers.scss` and derived
+  from Vuetify's `--v-theme-*`. Vuetify publishes a single `surface` role, so the container
+  tones, `outline`, `on-surface-variant` and `inverse-surface` are derived with `color-mix()`
+  (a neutral tonal step toward `on-surface` plus the M3 surface tint). `--md-sys-color-shadow`
+  is the one literal in the file, because M3 defines that role as neutral-0 in every scheme.
+- **`--md-sys-color-outline` is 60%, not M3's mid-tone N-V50.** This hairline is the edge of a
+  card drawn on terrain, and a mid grey is what grass and water already are. Leaning it away
+  from the scheme's own surface is what keeps a dark popup readable over dark water.
+- **Elevation is `filter: drop-shadow()`, not `box-shadow`.** The popups carry a CSS triangle
+  in `::after`; drop-shadow follows the composite alpha silhouette so card and pointer cast
+  one shadow. Upstream used the same mechanism for the same reason, with one flat shadow.
+- **Popups and player name tags are sized `width: max-content` with a `max-width` cap.** This
+  is a bug fix, not a style: a POI label is absolutely positioned inside `.bm-marker-html`,
+  whose width is its 32px icon, so shrink-to-fit sized the label against 32px. Upstream wrapped
+  it to its longest word; the added `overflow-wrap: anywhere` would have wrapped it to one
+  character per line. The cap keeps upstream's 15em reach and adds a `60vw` bound.
+- **Motion is opt-in under `@media (prefers-reduced-motion: no-preference)`,** so a reduced-motion
+  preference needs no `!important` to undo it. The popup fades that upstream runs from
+  javascript (`PopupMarker.open`/`close`, `ObjectMarker.LabelPopup.open`/`close`) read the same
+  preference through the new `Marker.prefersReducedMotion()` and collapse to a zero-duration
+  animation, which `animate` already runs as one synchronous frame at full progress.
+- **`PopupMarker`'s copy-to-clipboard groups are `<button type="button" class="group">`,** not
+  upstream's click-handled `<div>`. That is what makes them focusable, Enter/Space-operable and
+  announced as buttons. Each carries a visually hidden `<span class="bm-sr-only">` repeating the
+  `data-tooltip` text, because the visible hint is CSS generated content and `attr()` content is
+  not exposed to assistive technology. The class name, the attribute and the children are
+  unchanged, and `createGroup` still returns a plain `<div class="group">` for a null clipboard
+  text.
+- **Popups no longer dismiss on Tab.** `PopupMarker.removeHandler`, `LabelPopup`'s auto-close
+  handler and `PoiMarker.onClick`'s handler all close on any interaction outside themselves,
+  keydown included. Taken literally that made them unreachable by keyboard: Tab dismissed the
+  popup before focus could land in it, so the copy controls were mouse-only. `Marker.isFocusNavigationEvent`
+  exempts `keydown` of `Tab`/`Shift` only; every other key still dismisses, as upstream.
+- **Accessible names on the two marker images.** `PoiMarker` sets the icon's `alt` from the
+  marker's own label (upstream leaves the internal marker id there), taking the text of the
+  sanitized label because labels are author HTML. `PlayerMarker`'s head image becomes `alt=""`:
+  the player's name sits beside it as real text, so upstream's `alt="playerhead"` only made a
+  screen reader announce a word per player that names nothing.
+- **Not fixed, and deliberately so:** POI icons are still not individual tab stops. Making every
+  marker in a scene focusable would put an unbounded tab sequence in front of the map canvas;
+  the marker menu is the keyboard route to markers. A popup anchored near a viewport edge is
+  still clipped by the CSS2D layer's `overflow: hidden`, exactly as upstream, because the
+  surface is anchored to a point in the 3D scene and cannot be re-flowed away from it.
+
 ## NBT package (`packages/nbt`)
 
 Ported from the BlueNBT library (as vendored by upstream) plus BlueMap's

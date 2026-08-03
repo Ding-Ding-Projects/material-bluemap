@@ -1,0 +1,883 @@
+/*
+ * The content pages: home, documentation and screenshots.
+ *
+ * These pages had no stylesheet at all. Every class the page renderers and the block
+ * renderer emit landed on an unstyled element, which is most of why a landing page with
+ * eleven sections in it read as a stub: it was a wall of default-margin text.
+ *
+ * Everything here is scoped under `.mb-page`, which the page renderers wrap their content
+ * in. That is not decoration either: `.mb-section-title` is also a settings-page class, and
+ * scoping means the two cannot fight over import order.
+ *
+ * Nothing below declares a literal colour, and no size is pinned in px except hairlines.
+ * Colour, type, shape, elevation, motion and spacing all come from tokens.css, so light and
+ * dark, both densities and the appearance editor all reach these pages for free.
+ */
+
+.mb-page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-12);
+    color: var(--md-sys-color-on-surface);
+}
+
+/* ---- Hero ---------------------------------------------------------------------------- */
+
+.mb-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--md-sys-spacing-4);
+    padding: clamp(var(--md-sys-spacing-6), 4vw, var(--md-sys-spacing-12));
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    /*
+     * A tonal container rather than a picture. There is no hero image that would be honest
+     * here, and a gradient over a screenshot is how a landing page starts lying.
+     */
+    background: var(--md-sys-color-surface-container-low);
+}
+
+.mb-hero-title {
+    font-family: var(--md-sys-typescale-display-small-font);
+    /* Shrinks with the viewport so the longest title never pushes the page sideways. */
+    font-size: clamp(var(--md-sys-typescale-headline-medium-size), 6vw, var(--md-sys-typescale-display-small-size));
+    font-weight: var(--md-sys-typescale-display-small-weight);
+    line-height: 1.15;
+    letter-spacing: var(--md-sys-typescale-display-small-tracking);
+    overflow-wrap: anywhere;
+}
+
+.mb-hero-tagline {
+    max-width: var(--md-sys-measure);
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-title-medium-font);
+    font-size: var(--md-sys-typescale-title-medium-size);
+    line-height: var(--md-sys-typescale-title-medium-line-height);
+}
+
+.mb-hero-summary {
+    max-width: var(--md-sys-measure);
+    font-size: var(--md-sys-typescale-body-large-size);
+    line-height: var(--md-sys-typescale-body-large-line-height);
+}
+
+/* ---- Download ------------------------------------------------------------------------ */
+
+.mb-download-lead,
+.mb-download-detail,
+.mb-download-caveat {
+    max-width: var(--md-sys-measure);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+}
+
+.mb-download-lead {
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+.mb-download-heading {
+    font-family: var(--md-sys-typescale-title-medium-font);
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+}
+
+.mb-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: max(var(--md-sys-min-touch-target), calc(48px * var(--md-sys-density-scale)));
+    padding: 0 var(--md-sys-spacing-8);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
+    text-align: center;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    transition: background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.mb-download:hover {
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-on-primary) var(--md-sys-state-hover-opacity),
+        var(--md-sys-color-primary)
+    );
+}
+
+.mb-download-link {
+    align-self: flex-start;
+    min-height: var(--md-sys-min-touch-target);
+    display: inline-flex;
+    align-items: center;
+    color: var(--md-sys-color-primary);
+}
+
+/* ---- Sections ------------------------------------------------------------------------ */
+
+.mb-page .mb-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-4);
+}
+
+.mb-page .mb-section-title {
+    margin: 0;
+    font-family: var(--md-sys-typescale-headline-small-font);
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: var(--md-sys-typescale-headline-small-weight);
+    line-height: var(--md-sys-typescale-headline-small-line-height);
+    letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+}
+
+.mb-section-lede {
+    max-width: var(--md-sys-measure);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+.mb-page-title {
+    font-family: var(--md-sys-typescale-headline-large-font);
+    font-size: clamp(var(--md-sys-typescale-headline-small-size), 5vw, var(--md-sys-typescale-headline-large-size));
+    font-weight: var(--md-sys-typescale-headline-large-weight);
+    line-height: 1.2;
+}
+
+.mb-page-subtitle {
+    max-width: var(--md-sys-measure);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.mb-note {
+    max-width: var(--md-sys-measure);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+}
+
+/* ---- Statistics ---------------------------------------------------------------------- */
+
+.mb-stat-grid {
+    display: grid;
+    gap: var(--md-sys-spacing-3);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+
+.mb-stat {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-1);
+    min-width: 0;
+    padding: var(--md-sys-spacing-4);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-surface-container-lowest);
+}
+
+.mb-stat-value {
+    color: var(--md-sys-color-primary);
+    font-family: var(--md-sys-typescale-headline-medium-font);
+    /* A long value such as a version range has to shrink rather than overflow its card. */
+    font-size: clamp(var(--md-sys-typescale-title-large-size), 3.4vw, var(--md-sys-typescale-headline-medium-size));
+    font-weight: var(--md-sys-typescale-headline-medium-weight);
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+}
+
+.mb-stat-label {
+    font-family: var(--md-sys-typescale-title-small-font);
+    font-size: var(--md-sys-typescale-title-small-size);
+    font-weight: var(--md-sys-typescale-title-small-weight);
+}
+
+.mb-stat-detail {
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+}
+
+/* ---- The two engines ----------------------------------------------------------------- */
+
+.mb-engine-grid {
+    display: grid;
+    gap: var(--md-sys-spacing-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+}
+
+.mb-engine {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-3);
+    min-width: 0;
+    padding: var(--md-sys-spacing-5);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-surface-container-lowest);
+}
+
+/*
+ * The engine that actually runs is the single most misreadable thing on this page, so it
+ * is marked with a border rather than only with words. The words still say it: the flag
+ * below is text, not a colour.
+ */
+.mb-engine[data-runs="true"] {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-container);
+}
+
+.mb-engine-flag {
+    display: inline-flex;
+    align-self: flex-start;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 var(--md-sys-spacing-3);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-label-medium-font);
+    font-size: var(--md-sys-typescale-label-medium-size);
+    font-weight: var(--md-sys-typescale-label-medium-weight);
+    letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+}
+
+.mb-engine[data-runs="true"] .mb-engine-flag {
+    border-color: transparent;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+
+.mb-engine-name {
+    font-family: var(--md-sys-typescale-title-large-font);
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: var(--md-sys-typescale-title-large-weight);
+    line-height: var(--md-sys-typescale-title-large-line-height);
+    overflow-wrap: anywhere;
+}
+
+/* ---- Feature cards ------------------------------------------------------------------- */
+
+.mb-feature-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-3);
+}
+
+.mb-feature-group-title {
+    font-family: var(--md-sys-typescale-title-large-font);
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: var(--md-sys-typescale-title-large-weight);
+    line-height: var(--md-sys-typescale-title-large-line-height);
+}
+
+.mb-card-grid {
+    display: grid;
+    gap: var(--md-sys-spacing-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+}
+
+.mb-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-2);
+    min-width: 0;
+    padding: var(--md-sys-spacing-5);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-surface-container-lowest);
+}
+
+.mb-card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--md-sys-spacing-2);
+}
+
+.mb-card-title {
+    flex: 1 1 12rem;
+    min-width: 0;
+    font-family: var(--md-sys-typescale-title-medium-font);
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    line-height: var(--md-sys-typescale-title-medium-line-height);
+    overflow-wrap: anywhere;
+}
+
+.mb-card-body {
+    flex: 1 1 auto;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+.mb-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--md-sys-spacing-2);
+    margin-top: auto;
+    padding-top: var(--md-sys-spacing-2);
+}
+
+/*
+ * The card's own link into the documentation. It is a real control with a real hit target,
+ * because a card that looks clickable and is not is the defect this project keeps naming.
+ */
+.mb-card-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--md-sys-min-touch-target);
+    padding: 0 var(--md-sys-spacing-4);
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: transparent;
+    color: var(--md-sys-color-primary);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    text-align: start;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+
+.mb-card-link:hover {
+    background: color-mix(in srgb, var(--md-sys-color-primary) var(--md-sys-state-hover-opacity), transparent);
+}
+
+.mb-card-reading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--md-sys-spacing-1) var(--md-sys-spacing-4);
+    list-style: none;
+}
+
+.mb-card-reading a {
+    display: inline-flex;
+    align-items: center;
+    min-height: max(32px, calc(var(--md-sys-min-touch-target) * 0.75));
+    font-size: var(--md-sys-typescale-body-small-size);
+    overflow-wrap: anywhere;
+}
+
+/* ---- Status badges ------------------------------------------------------------------- */
+
+/*
+ * Never colour alone: every badge carries its own words, and the note under it says what
+ * the words mean for that subject. The colour is a second channel, not the only one.
+ */
+.mb-status {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    min-height: 26px;
+    padding: 0 var(--md-sys-spacing-3);
+    border: 1px solid transparent;
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-label-small-font);
+    font-size: var(--md-sys-typescale-label-small-size);
+    font-weight: var(--md-sys-typescale-label-small-weight);
+    letter-spacing: var(--md-sys-typescale-label-small-tracking);
+    white-space: nowrap;
+}
+
+.mb-status-shipped {
+    background: var(--md-sys-color-success-container);
+    color: var(--md-sys-color-on-success-container);
+}
+
+.mb-status-ported-unverified {
+    background: var(--md-sys-color-warning-container);
+    color: var(--md-sys-color-on-warning-container);
+}
+
+.mb-status-specified {
+    border-color: var(--md-sys-color-outline);
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* The phase table's own three states, on the same palette so one page reads one way. */
+.mb-phase-done {
+    background: var(--md-sys-color-success-container);
+    color: var(--md-sys-color-on-success-container);
+}
+
+.mb-phase-in-progress {
+    background: var(--md-sys-color-warning-container);
+    color: var(--md-sys-color-on-warning-container);
+}
+
+.mb-phase-pending {
+    border-color: var(--md-sys-color-outline);
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.mb-status-note {
+    max-width: var(--md-sys-measure);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+}
+
+/* ---- Screenshots --------------------------------------------------------------------- */
+
+.mb-shot-lead,
+.mb-shot {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-2);
+    min-width: 0;
+    margin: 0;
+}
+
+.mb-shot-image {
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-surface-container-high);
+    object-fit: contain;
+}
+
+/*
+ * Reserves the captured window's shape before a lazily loaded image arrives, so scrolling
+ * past a gallery does not shove the page around. The value is the shape of the window the
+ * harness drove, which its file name records, not a claim about the image's pixel size.
+ */
+.mb-shot-image[data-ratio="8 / 5"] {
+    aspect-ratio: 8 / 5;
+}
+
+.mb-shot-image[data-ratio="4 / 3"] {
+    aspect-ratio: 4 / 3;
+}
+
+.mb-shot-image[data-ratio="16 / 9"] {
+    aspect-ratio: 16 / 9;
+}
+
+.mb-shot-lead .mb-shot-image {
+    border-radius: var(--md-sys-shape-corner-large);
+    box-shadow: var(--md-sys-elevation-level1);
+}
+
+.mb-shot-caption {
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+}
+
+.mb-shot-caption strong {
+    display: block;
+    color: var(--md-sys-color-on-surface);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+}
+
+.mb-shot-strip,
+.mb-shot-grid {
+    display: grid;
+    gap: var(--md-sys-spacing-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+}
+
+/*
+ * Captures of differently shaped windows are differently tall, so their captions land at
+ * different heights and the row reads as ragged. Subgrid lines the caption row up across
+ * the whole row. Where it is unsupported the figures simply keep their own rows, which is
+ * the layout above and is still correct.
+ */
+@supports (grid-template-rows: subgrid) {
+    .mb-shot-strip,
+    .mb-shot-grid {
+        grid-template-rows: auto auto;
+        align-items: start;
+    }
+
+    .mb-shot-strip .mb-shot,
+    .mb-shot-grid .mb-shot {
+        display: grid;
+        grid-row: span 2;
+        grid-template-rows: subgrid;
+    }
+}
+
+/* ---- Documentation articles ---------------------------------------------------------- */
+
+.mb-article {
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-surface-container-lowest);
+    overflow: hidden;
+}
+
+.mb-article + .mb-article {
+    margin-top: var(--md-sys-spacing-3);
+}
+
+.mb-article-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--md-sys-spacing-3);
+    min-height: var(--md-sys-min-touch-target);
+    padding: var(--md-sys-spacing-4);
+    cursor: pointer;
+    list-style: none;
+}
+
+.mb-article-summary::-webkit-details-marker {
+    display: none;
+}
+
+.mb-article-summary:hover {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity), transparent);
+}
+
+.mb-article[open] > .mb-article-summary {
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.mb-article-title {
+    flex: 1 1 14rem;
+    min-width: 0;
+    font-family: var(--md-sys-typescale-title-medium-font);
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    overflow-wrap: anywhere;
+}
+
+.mb-article-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-3);
+    padding: var(--md-sys-spacing-5) var(--md-sys-spacing-4) var(--md-sys-spacing-6);
+}
+
+.mb-article-lede {
+    max-width: var(--md-sys-measure);
+    font-size: var(--md-sys-typescale-body-large-size);
+    line-height: var(--md-sys-typescale-body-large-line-height);
+}
+
+.mb-article-section {
+    margin-top: var(--md-sys-spacing-2);
+    font-family: var(--md-sys-typescale-title-small-font);
+    font-size: var(--md-sys-typescale-title-small-size);
+    font-weight: var(--md-sys-typescale-title-small-weight);
+    text-transform: uppercase;
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+/* ---- Prose, as emitted by the block renderer ----------------------------------------- */
+
+.mb-prose {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-3);
+    min-width: 0;
+}
+
+.mb-prose-p {
+    max-width: var(--md-sys-measure);
+    line-height: var(--md-sys-typescale-body-large-line-height);
+    overflow-wrap: break-word;
+}
+
+.mb-prose-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-2);
+    max-width: var(--md-sys-measure);
+    padding-inline-start: var(--md-sys-spacing-6);
+    line-height: var(--md-sys-typescale-body-large-line-height);
+}
+
+.mb-prose-list li::marker {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.mb-prose-definitions {
+    display: grid;
+    gap: var(--md-sys-spacing-1);
+    max-width: var(--md-sys-measure);
+}
+
+.mb-prose-definitions dt {
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    overflow-wrap: anywhere;
+}
+
+.mb-prose-definitions dd {
+    margin: 0 0 var(--md-sys-spacing-3);
+    padding-inline-start: var(--md-sys-spacing-4);
+    border-inline-start: 2px solid var(--md-sys-color-outline-variant);
+    color: var(--md-sys-color-on-surface-variant);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+.mb-page code {
+    padding: 0 var(--md-sys-spacing-1);
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    background: var(--md-sys-color-surface-container-high);
+    font-family: var(--md-ref-typeface-mono, ui-monospace, monospace);
+    font-size: 0.9em;
+    overflow-wrap: anywhere;
+}
+
+/* ---- Tables -------------------------------------------------------------------------- */
+
+/*
+ * A wide table scrolls inside its own box. The page body must never scroll sideways, and
+ * a table that is merely clipped loses its last column with nothing to say so.
+ */
+.mb-table-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+
+.mb-prose-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--md-sys-typescale-body-medium-size);
+}
+
+.mb-prose-table caption {
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-4);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small-size);
+    text-align: start;
+}
+
+.mb-prose-table th,
+.mb-prose-table td {
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-4);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    text-align: start;
+    vertical-align: top;
+}
+
+.mb-prose-table th {
+    background: var(--md-sys-color-surface-container-low);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    white-space: nowrap;
+}
+
+.mb-prose-table tbody tr:last-child th,
+.mb-prose-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.mb-phase-scope {
+    min-width: 18rem;
+}
+
+.mb-phase-note {
+    display: block;
+    margin-top: var(--md-sys-spacing-1);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+}
+
+/* ---- Code ---------------------------------------------------------------------------- */
+
+.mb-code-figure {
+    display: flex;
+    flex-direction: column;
+    max-width: 100%;
+    min-width: 0;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium);
+    overflow: hidden;
+}
+
+.mb-code-label {
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-label-medium-font);
+    font-size: var(--md-sys-typescale-label-medium-size);
+    font-weight: var(--md-sys-typescale-label-medium-weight);
+}
+
+.mb-code {
+    max-width: 100%;
+    margin: 0;
+    padding: var(--md-sys-spacing-4);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    background: var(--md-sys-color-surface-container-lowest);
+    font-family: var(--md-ref-typeface-mono, ui-monospace, monospace);
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: 1.6;
+    tab-size: 4;
+}
+
+.mb-code code {
+    padding: 0;
+    background: transparent;
+    font-size: inherit;
+    overflow-wrap: normal;
+}
+
+/* ---- Callouts ------------------------------------------------------------------------ */
+
+.mb-callout {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-2);
+    max-width: var(--md-sys-measure);
+    padding: var(--md-sys-spacing-4);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-inline-start: 4px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-surface-container-low);
+}
+
+.mb-callout-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--md-sys-spacing-2);
+    font-family: var(--md-sys-typescale-title-small-font);
+    font-size: var(--md-sys-typescale-title-small-size);
+    font-weight: var(--md-sys-typescale-title-small-weight);
+}
+
+/* The tone is a word before it is a colour, so it survives greyscale and colour blindness. */
+.mb-callout-tone {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 var(--md-sys-spacing-2);
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    background: var(--md-sys-color-surface-container-highest);
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-label-small-font);
+    font-size: var(--md-sys-typescale-label-small-size);
+    font-weight: var(--md-sys-typescale-label-small-weight);
+    text-transform: uppercase;
+    letter-spacing: var(--md-sys-typescale-label-small-tracking);
+}
+
+.mb-callout-note {
+    border-inline-start-color: var(--md-sys-color-primary);
+}
+
+.mb-callout-note .mb-callout-tone {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+
+.mb-callout-warning {
+    border-inline-start-color: var(--md-sys-color-warning);
+    background: color-mix(in srgb, var(--md-sys-color-warning-container) 40%, var(--md-sys-color-surface));
+}
+
+.mb-callout-warning .mb-callout-tone {
+    background: var(--md-sys-color-warning-container);
+    color: var(--md-sys-color-on-warning-container);
+}
+
+.mb-callout-not-implemented {
+    border-inline-start-color: var(--md-sys-color-outline);
+    background: var(--md-sys-color-surface-container);
+}
+
+.mb-callout .mb-prose-p {
+    max-width: none;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+/* ---- Link lists ---------------------------------------------------------------------- */
+
+.mb-link-list {
+    display: grid;
+    gap: var(--md-sys-spacing-1);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    list-style: none;
+}
+
+.mb-link-list a {
+    display: flex;
+    align-items: center;
+    min-height: var(--md-sys-min-touch-target);
+    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-3);
+    border-radius: var(--md-sys-shape-corner-small);
+    font-size: var(--md-sys-typescale-body-medium-size);
+    overflow-wrap: anywhere;
+}
+
+.mb-link-list a:hover {
+    background: color-mix(in srgb, var(--md-sys-color-primary) var(--md-sys-state-hover-opacity), transparent);
+}
+
+/* ---- Boot failure -------------------------------------------------------------------- */
+
+.mb-boot-error {
+    display: grid;
+    gap: var(--md-sys-spacing-3);
+    max-width: var(--md-sys-measure);
+    margin: var(--md-sys-spacing-16) auto;
+    padding: var(--md-sys-spacing-6);
+    border: 1px solid var(--md-sys-color-error);
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-error-container);
+    color: var(--md-sys-color-on-error-container);
+}
+
+/* ---- Narrow windows ------------------------------------------------------------------ */
+
+/*
+ * At 800 by 600, which is the narrowest window the application is checked at, the page has
+ * to lose its columns rather than its content. Everything above is already single-column
+ * capable through auto-fit; this only tightens the paddings that would otherwise eat the
+ * line length.
+ */
+@media (max-width: 40rem) {
+    .mb-page {
+        gap: var(--md-sys-spacing-8);
+    }
+
+    .mb-card,
+    .mb-engine,
+    .mb-stat {
+        padding: var(--md-sys-spacing-4);
+    }
+
+    .mb-article-body {
+        padding: var(--md-sys-spacing-4) var(--md-sys-spacing-3) var(--md-sys-spacing-5);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-download {
+        transition: none;
+    }
+}

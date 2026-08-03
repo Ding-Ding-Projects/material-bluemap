@@ -29,7 +29,7 @@ export const downloadCopy = {
     unavailableLinkHref: RELEASES_URL,
     /** Always shown, in both states. */
     caveat:
-        "The app can browse a remote BlueMap server. It cannot render a local world yet, and the installer is not code signed.",
+        "Windows only, and the installer is not code signed. Rendering a world of your own needs a Java runtime, which the app will fetch for itself, because a local render runs upstream BlueMap's Java engine rather than this project's own renderer.",
     releaseNotesLabel: "Release notes",
 } as const;
 

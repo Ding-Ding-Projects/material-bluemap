@@ -1,5 +1,6 @@
 import { HtmlMarker } from "./HtmlMarker";
 import type { HtmlMarkerData } from "./HtmlMarker";
+import { Marker } from "./Marker";
 import type { MarkerClickEvent } from "./ObjectMarker";
 import { sanitizeHtml } from "../util/sanitize";
 
@@ -45,6 +46,13 @@ export class PoiMarker extends HtmlMarker {
         this._lastIcon = null;
     }
 
+    /** The text of a sanitized HTML fragment, for use where only plain text is allowed. */
+    private static plainText(html: string): string {
+        const holder = document.createElement("div");
+        holder.innerHTML = sanitizeHtml(html);
+        return (holder.textContent || "").trim();
+    }
+
     override onClick(event: MarkerClickEvent): boolean {
         if (event.data.doubleTap) return false;
 
@@ -53,6 +61,9 @@ export class PoiMarker extends HtmlMarker {
 
         const eventHandler = (evt: Event) => {
             if (evt.composedPath().includes(this.element)) return;
+            // The expanded label is sanitized author HTML and may hold focusable content;
+            // Tab has to be able to reach it rather than collapsing the label first.
+            if (Marker.isFocusNavigationEvent(evt)) return;
 
             this.highlight = false;
 
@@ -100,6 +111,10 @@ export class PoiMarker extends HtmlMarker {
         // update label
         if (this.data.label !== markerData.label) {
             this.data.label = markerData.label || "";
+            // The icon's accessible name. Upstream leaves it as "POI Icon (<internal id>)",
+            // which is the one string a screen-reader user cannot act on; the marker's own
+            // label is what is meant. Labels are author HTML, so take the text of it.
+            this.iconElement.alt = PoiMarker.plainText(this.data.label) || `POI (${this.data.id})`;
         }
 
         //update sorting

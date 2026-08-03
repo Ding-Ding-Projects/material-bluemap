@@ -1,0 +1,337 @@
+<script setup lang="ts">
+import { computed, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import {
+    mdiAlertCircleOutline,
+    mdiCheckCircleOutline,
+    mdiChevronDown,
+    mdiChevronUp,
+    mdiMapSearchOutline,
+    mdiRefresh,
+    mdiStopCircleOutline,
+} from "@mdi/js";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VCardText,
+    VCardTitle,
+    VChip,
+    VIcon,
+    VProgressLinear,
+} from "vuetify/components";
+import { adviseOnFailure, formatDuration, phaseLabel } from "./renderRun.js";
+import type { RenderRun } from "./renderRun.js";
+import type { SettingsTarget } from "./worldBridge.js";
+
+/**
+ * A render, while it happens and after it ends.
+ *
+ * The progress is the engine's own: which phase, which map, what percentage, and
+ * the estimate it computed. It arrives pushed rather than polled because a render
+ * moves in ten-second steps over several minutes, and a spinner for four minutes
+ * is indistinguishable from a hang.
+ *
+ * The three endings are three different things on screen. Finished offers the map.
+ * Cancelled says the tiles are kept and carrying on later picks up where it
+ * stopped. Failed shows the engine's own sentence, what it means, and the one
+ * setting that fixes it, which for the two common failures is a real button
+ * rather than a stack trace.
+ */
+const props = defineProps<{ run: RenderRun }>();
+
+const emit = defineEmits<{
+    /** Opens the rendered map. */
+    open: [dataRoot: string, mapIds: readonly string[]];
+    /** Sends somebody to the setting that fixes a failure. */
+    settings: [target: SettingsTarget];
+    /** Clears the ended run so another can be started. */
+    again: [];
+}>();
+
+const { t } = useI18n();
+
+const logOpen = ref(false);
+const detailOpen = ref(false);
+
+const state = computed(() => props.run.state.value);
+const task = computed(() => props.run.task.value);
+
+const phaseText = computed(() => phaseLabel(props.run.phase.value, t));
+
+const percentText = computed(() => {
+    const current = task.value;
+    if (current === null) return "";
+    return `${current.percent.toFixed(1).replace(/\.0$/, "")}%`;
+});
+
+const etaText = computed(() => {
+    const current = task.value;
+    if (current === null) return "";
+    if (current.etaText !== null && current.etaText.trim() !== "") {
+        return t("world.run.etaText", "about {eta} left").replace("{eta}", current.etaText);
+    }
+    if (current.etaSeconds === null) return "";
+    return t("world.run.etaText", "about {eta} left").replace("{eta}", formatDuration(current.etaSeconds, t));
+});
+
+const durationText = computed(() => {
+    const ms = props.run.durationMs.value;
+    return ms === null ? "" : formatDuration(ms / 1000, t);
+});
+
+const advice = computed(() => {
+    const failure = props.run.failure.value;
+    return failure === null ? null : adviseOnFailure(failure, t);
+});
+
+const mapList = computed(() => props.run.mapIds.value.join(", "));
+
+function openMap(): void {
+    const root = props.run.dataRoot.value;
+    if (root === null) return;
+    emit("open", root, props.run.mapIds.value);
+}
+</script>
+
+<template>
+    <v-card v-if="state !== 'idle'" variant="tonal" class="mb-world-run">
+        <v-card-title class="mb-world-run__head">
+            <v-icon
+                :icon="
+                    state === 'finished'
+                        ? mdiCheckCircleOutline
+                        : state === 'failed'
+                          ? mdiAlertCircleOutline
+                          : mdiMapSearchOutline
+                "
+                :color="state === 'finished' ? 'success' : state === 'failed' ? 'error' : undefined"
+                size="20"
+                aria-hidden="true"
+            />
+            <span>
+                {{
+                    state === "starting"
+                        ? t("world.run.starting", "Starting the render")
+                        : state === "running"
+                          ? t("world.run.running", "Rendering")
+                          : state === "finished"
+                            ? t("world.run.finished", "Rendered")
+                            : state === "cancelled"
+                              ? t("world.run.cancelled", "Stopped")
+                              : t("world.run.failed", "The render did not finish")
+                }}
+            </span>
+            <v-chip v-if="mapList" size="x-small" variant="outlined">{{ mapList }}</v-chip>
+            <v-chip v-if="run.engine.value" size="x-small" variant="outlined">{{ run.engine.value.label }}</v-chip>
+        </v-card-title>
+
+        <v-card-text>
+            <template v-if="run.active.value">
+                <v-progress-linear
+                    :model-value="run.percent.value"
+                    :indeterminate="run.indeterminate.value"
+                    :aria-label="t('world.run.progressLabel', 'Render progress')"
+                    :aria-valuenow="run.indeterminate.value ? undefined : Math.round(run.percent.value)"
+                    color="primary"
+                    height="8"
+                    rounded
+                />
+                <p class="mb-world-run__line" role="status" aria-live="polite">
+                    <strong v-if="percentText">{{ percentText }}</strong>
+                    <span>{{ phaseText }}</span>
+                    <span v-if="task?.description">{{ task.description }}</span>
+                    <span v-if="etaText" class="mb-world-run__eta">{{ etaText }}</span>
+                </p>
+
+                <v-btn
+                    :prepend-icon="mdiStopCircleOutline"
+                    :disabled="run.cancelling.value"
+                    color="error"
+                    variant="tonal"
+                    size="small"
+                    class="mt-2"
+                    @click="run.cancel()"
+                >
+                    {{ run.cancelling.value ? t("world.run.stopping", "Stopping...") : t("world.run.stop", "Stop the render") }}
+                </v-btn>
+                <p class="mb-world-run__note">
+                    {{
+                        t(
+                            "world.run.stopNote",
+                            "Stopping keeps every tile already drawn. Carrying on later picks up from where it stopped rather than starting again.",
+                        )
+                    }}
+                </p>
+            </template>
+
+            <template v-else-if="state === 'finished'">
+                <p class="mb-world-run__line">
+                    {{
+                        t("world.run.finishedLine", "Finished in {duration}. The tiles are in {root}.")
+                            .replace("{duration}", durationText)
+                            .replace("{root}", run.dataRoot.value ?? "")
+                    }}
+                </p>
+                <div class="mb-world-run__actions">
+                    <v-btn
+                        :prepend-icon="mdiMapSearchOutline"
+                        :disabled="run.dataRoot.value === null"
+                        color="primary"
+                        variant="flat"
+                        size="small"
+                        @click="openMap"
+                    >
+                        {{ t("world.run.open", "Open the map") }}
+                    </v-btn>
+                    <v-btn :prepend-icon="mdiRefresh" variant="text" size="small" @click="emit('again')">
+                        {{ t("world.run.another", "Render another map") }}
+                    </v-btn>
+                </div>
+            </template>
+
+            <template v-else-if="state === 'cancelled'">
+                <p class="mb-world-run__line">
+                    {{
+                        t(
+                            "world.run.cancelledLine",
+                            "You stopped it. Every tile it had already drawn is still there, and starting this map again carries on from where it stopped.",
+                        )
+                    }}
+                </p>
+                <v-btn :prepend-icon="mdiRefresh" variant="text" size="small" @click="emit('again')">
+                    {{ t("world.run.startOver", "Set up another render") }}
+                </v-btn>
+            </template>
+
+            <template v-else-if="advice">
+                <v-alert type="error" density="compact" variant="tonal" role="alert">
+                    <p class="mb-world-run__failure">{{ advice.message }}</p>
+                    <p class="mb-world-run__note">{{ advice.explanation }}</p>
+                </v-alert>
+
+                <div class="mb-world-run__actions">
+                    <v-btn
+                        v-if="advice.remedy.settings && advice.remedy.actionKey"
+                        color="primary"
+                        variant="tonal"
+                        size="small"
+                        @click="emit('settings', advice.remedy.settings)"
+                    >
+                        {{ t(advice.remedy.actionKey, advice.remedy.actionFallback) }}
+                    </v-btn>
+                    <v-btn :prepend-icon="mdiRefresh" variant="text" size="small" @click="emit('again')">
+                        {{ t("world.run.tryAgain", "Set it up again") }}
+                    </v-btn>
+                    <v-btn
+                        v-if="advice.detail"
+                        :append-icon="detailOpen ? mdiChevronUp : mdiChevronDown"
+                        :aria-expanded="detailOpen ? 'true' : 'false'"
+                        variant="text"
+                        size="small"
+                        @click="detailOpen = !detailOpen"
+                    >
+                        {{ detailOpen ? t("world.run.hideDetail", "Hide the detail") : t("world.run.showDetail", "Show what the engine reported") }}
+                    </v-btn>
+                </div>
+
+                <pre v-if="detailOpen && advice.detail" class="mb-world-run__pre">{{ advice.detail }}</pre>
+            </template>
+
+            <div v-if="run.log.value.length > 0" class="mb-world-run__logs">
+                <v-btn
+                    :append-icon="logOpen ? mdiChevronUp : mdiChevronDown"
+                    :aria-expanded="logOpen ? 'true' : 'false'"
+                    variant="text"
+                    size="x-small"
+                    density="comfortable"
+                    @click="logOpen = !logOpen"
+                >
+                    {{
+                        logOpen
+                            ? t("world.run.hideLog", "Hide the engine's output")
+                            : t("world.run.showLog", "Show the engine's output ({n} lines)").replace("{n}", String(run.log.value.length))
+                    }}
+                </v-btn>
+                <pre v-if="logOpen" class="mb-world-run__pre">{{ run.log.value.map((line) => line.message).join("\n") }}</pre>
+            </div>
+        </v-card-text>
+    </v-card>
+</template>
+
+<style>
+.mb-world-run {
+    border-radius: 12px;
+    margin-block: 12px;
+}
+
+.mb-world-run__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 0.9375rem;
+}
+
+.mb-world-run__line {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-block-start: 8px;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+}
+
+.mb-world-run__line strong {
+    font-variant-numeric: tabular-nums;
+}
+
+.mb-world-run__eta {
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-world-run__failure {
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.mb-world-run__note {
+    margin-block-start: 6px;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-world-run__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-block-start: 12px;
+}
+
+.mb-world-run__logs {
+    margin-block-start: 12px;
+}
+
+.mb-world-run__pre {
+    margin-block-start: 8px;
+    padding: 8px;
+    max-height: 30vh;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    border-radius: 8px;
+    background: rgba(var(--v-theme-on-surface), 0.06);
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-world-run .v-progress-linear__indeterminate {
+        animation-duration: 0.01ms !important;
+    }
+}
+</style>

@@ -42,10 +42,12 @@ export class PlayerMarker extends Marker {
             yaw: 0,
         };
 
+        // The head is decorative: the name sits beside it as real text, so an alt of
+        // "playerhead" only makes a screen reader announce the word twice per player.
         this.elementObject = new CSS2DObject(
             htmlToElement(`
 <div id="bm-marker-${this.data.id}" class="bm-marker-${this.data.type}">
-    <img src="${this.data.playerHead}" alt="playerhead" draggable="false">
+    <img src="${this.data.playerHead}" alt="" draggable="false">
     <div class="bm-player-name"></div>
 </div>
         `),

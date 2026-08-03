@@ -34,8 +34,25 @@ export const DEVIATIONS_URL = repoFile("design/docs/deviations.md");
 export const CONTRACTS_URL = repoFile("design/docs/contracts/README.md");
 export const CONVENTIONS_URL = repoFile("design/docs/porting-conventions.md");
 export const SECURITY_POLICY_URL = repoFile("SECURITY.md");
+export const DECISIONS_URL = repoFile("design/docs/decisions.md");
 export const CI_WORKFLOW_URL = repoFile(".github/workflows/ci.yml");
 export const PAGES_WORKFLOW_URL = repoFile(".github/workflows/pages.yml");
+export const RENDER_WORLD_WORKFLOW_URL = repoFile(".github/workflows/render-world.yml");
+export const RENDER_SHARD_WAVE_WORKFLOW_URL = repoFile(".github/workflows/render-shard-wave.yml");
+export const RENDER_PRIVATE_WORKFLOW_URL = repoFile(".github/workflows/render-private-world.yml");
+export const BUILD_JARS_WORKFLOW_URL = repoFile(".github/workflows/build-jars.yml");
+
+/**
+ * The long-form documents in the repository's own `docs/` directory.
+ *
+ * The site's articles summarise these and link out to them rather than copying them: two
+ * copies of the same explanation drift apart, and the one in the repository is the one a
+ * contributor edits.
+ */
+export const RENDER_IN_ACTIONS_DOC_URL = repoFile("docs/render-in-actions.md");
+export const RESUMABLE_RENDERS_DOC_URL = repoFile("docs/resumable-renders.md");
+export const LARGE_WORLDS_DOC_URL = repoFile("docs/large-worlds.md");
+export const PRIVATE_WORLD_DOC_URL = repoFile("docs/private-world-rendering.md");
 
 /** Upstream BlueMap, the project this is a port of. */
 export const UPSTREAM_URL = "https://github.com/BlueMap-Minecraft/BlueMap";

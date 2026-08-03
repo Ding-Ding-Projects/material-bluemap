@@ -80,4 +80,32 @@ export class Marker extends Object3D {
         camera.getWorldDirection(Marker._cameraDirection);
         return Marker._posRelativeToCamera.dot(Marker._cameraDirection);
     }
+
+    /**
+     * Whether the user has asked for reduced motion. The marker popups fade in and out from
+     * javascript rather than from a CSS transition, so the media query has to be read here
+     * too; the stylesheet handles the transitions it owns.
+     *
+     * Guarded for non-browser hosts: this package's unit tests run under node, where there
+     * is no `window` at all.
+     */
+    static prefersReducedMotion(): boolean {
+        if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+        return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    }
+
+    /**
+     * Whether an event only moves keyboard focus.
+     *
+     * Popups close on any interaction that happens outside them, keydown included. Taken
+     * literally that makes them unreachable by keyboard: pressing Tab to move focus into a
+     * popup dismisses it before the focus lands, so a copy-to-clipboard control inside one
+     * can only ever be used with a mouse. Focus navigation is therefore exempt, and every
+     * other key still dismisses.
+     */
+    static isFocusNavigationEvent(evt: Event): boolean {
+        if (evt.type !== "keydown") return false;
+        const key = (evt as KeyboardEvent).key;
+        return key === "Tab" || key === "Shift";
+    }
 }

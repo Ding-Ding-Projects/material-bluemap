@@ -47,7 +47,7 @@ exclusions **S2 and S4 are withdrawn**; S1 and S3 still stand.
 | J | **Java render path** (D17): toolchain discovery/provisioning, jar resolution, config writer, CLI runner, progress parser, provenance record, local map serving | Built, proven by hand on one machine; see below |
 | D | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks | **Ported.** PRBM output is byte-identical to the Java writer at the unit level, proven against the built jar. The gate is **not** closed: no fully rendered world has been compared end to end. `tools/oracle/` exists to do that |
 | E | RenderManager worker pool, watch re-render, full HTTP routes + SSE, config schema (every option), standalone server CLI + Dockerfile | Pending. The config schema half landed early in `packages/config` |
-| F | Full options GUI (all settings, map wizard, storage editors, config import) | Built, and until now **unreachable**: `App.vue` mounted neither the config screens nor first-run setup. The shell that makes it reachable is in progress |
+| F | Full options GUI (all settings, map wizard, storage editors, config import) | **Reachable.** `App.vue` now mounts the Material title bar, the world wizard, first-run setup and the settings surface. Two gaps closed with it: the preload never exposed the window controls (a frameless window with no minimise or close), and only 6 of a map's 92 settings could reach a render |
 | G | Docker hosting GUI (dockerode instance manager) | Pending |
 | H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | Pending |
 | I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending |

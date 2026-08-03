@@ -18,6 +18,7 @@ import { worldReading } from "./world-reading.js";
 import { javaRenderPath } from "./java-render-path.js";
 import { resourcePacks } from "./resource-packs.js";
 import { releasePipeline } from "./release-pipeline.js";
+import { renderInActions } from "./render-in-actions.js";
 import { screenshotGallery } from "./screenshot-gallery.js";
 import { testWorldGenerator } from "./test-world-generator.js";
 import { contractRegexBuilder } from "./contract-regex-builder.js";
@@ -36,6 +37,7 @@ export const articles: readonly Article[] = [
     javaRenderPath,
     resourcePacks,
     install,
+    renderInActions,
     releasePipeline,
     screenshotGallery,
     testWorldGenerator,

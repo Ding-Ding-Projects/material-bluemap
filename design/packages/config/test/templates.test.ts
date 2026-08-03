@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve as resolvePath } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ConfigTemplate, formatConfigPath, UNSET_VARIABLE } from "../src/templates/template.js";
+import { ConfigTemplate, formatConfigPath, platformSeparator, UNSET_VARIABLE } from "../src/templates/template.js";
 import { CONFIG_TEMPLATES } from "../src/templates/sources.js";
 import { generateConfigSet, localTimestamp, suggestRenderThreadCount } from "../src/generate.js";
 
@@ -56,6 +56,20 @@ describe("ConfigTemplate", () => {
         // On a POSIX host a literal backslash in a name is not a separator, so it
         // survives as an escaped backslash rather than becoming a slash.
         expect(formatConfigPath("/srv/od\\d", "/")).toBe("/srv/od\\\\d");
+    });
+
+    it("works out the separator itself, without reaching for a Node builtin", () => {
+        // This used to be `import { sep } from "node:path"`, which is correct in
+        // Node and fatal in a browser bundle: the options GUI and the create-a-map
+        // wizard both render these templates in the renderer process, and bundling
+        // that import failed the build outright with `"sep" is not exported by
+        // "__vite-browser-external"`.
+        expect(platformSeparator()).toBe(process.platform === "win32" ? "\\" : "/");
+    });
+
+    it("uses that separator when a caller does not name one", () => {
+        const windows = "C:\\Users\\map";
+        expect(formatConfigPath(windows)).toBe(formatConfigPath(windows, platformSeparator()));
     });
 });
 

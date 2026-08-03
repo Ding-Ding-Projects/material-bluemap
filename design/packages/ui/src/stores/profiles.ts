@@ -3,10 +3,31 @@ import { reactive, watch } from "vue";
 export interface ServerProfile {
     id: string;
     name: string;
-    /** Base URL as entered by the user (remote BlueMap instance root). */
+    /** Base URL as entered by the user (remote BlueMap instance root). Empty for a local map. */
     url: string;
     /** Whether remote settings.json scripts[]/styles[] injection is trusted (default no). */
     trustCustomizations: boolean;
+    /**
+     * Where this map's data actually lives.
+     *
+     * A remote profile has none, and is served through the embedded server's proxy at
+     * `/remote/{id}`. A map this machine rendered has one - `/local/{renderId}`, which
+     * `LocalMapHandler` serves off the disk - and setting it is what lets a finished
+     * render be opened in the viewer through exactly the same switching, persistence and
+     * map-list machinery a remote server uses.
+     */
+    dataRoot?: string;
+}
+
+/**
+ * A locally rendered map, as opposed to somebody else's server.
+ *
+ * The distinction is load-bearing rather than cosmetic: only remote profiles are
+ * registered with the embedded server's proxy, because registering a local one would
+ * hand it an empty base URL to forward requests to.
+ */
+export function isLocalProfile(profile: ServerProfile): boolean {
+    return typeof profile.dataRoot === "string" && profile.dataRoot.length > 0;
 }
 
 interface ProfilesState {
@@ -45,10 +66,18 @@ function load(): ProfilesState {
 
 export const profilesStore = reactive<ProfilesState>(load());
 
-/** In the Electron app, keep the embedded server's remote proxy in sync. */
+/**
+ * In the Electron app, keep the embedded server's remote proxy in sync.
+ *
+ * Locally rendered maps are deliberately left out. They are served by `LocalMapHandler`
+ * straight off the disk, and registering one here would give the proxy an empty base URL
+ * to forward `/remote/{id}` requests to.
+ */
 function syncToBridge(): void {
     window.materialBluemap?.syncProfiles(
-        profilesStore.profiles.map((p) => ({ id: p.id, name: p.name, baseUrl: p.url })),
+        profilesStore.profiles
+            .filter((p) => !isLocalProfile(p))
+            .map((p) => ({ id: p.id, name: p.name, baseUrl: p.url })),
     );
 }
 
@@ -81,10 +110,32 @@ export function removeProfile(id: string): void {
 }
 
 /**
- * The data root the viewer should load from. In the Electron app / embedded server the
- * profile is mounted at /remote/{id}; the desktop shell registers profiles with the
- * embedded server so this path resolves same-origin.
+ * The data root the viewer should load from.
+ *
+ * A locally rendered map carries its own (`/local/{renderId}`, served off the disk by
+ * `LocalMapHandler`). Everything else is a remote server mounted at `/remote/{id}`, which
+ * the desktop shell registers with the embedded server so the path resolves same-origin.
  */
 export function profileDataRoot(profile: ServerProfile): string {
-    return `/remote/${profile.id}`;
+    return profile.dataRoot ?? `/remote/${profile.id}`;
+}
+
+/**
+ * Adds a finished local render to the map list and returns it.
+ *
+ * Reuses the id already in the data root rather than minting a new one, so opening the
+ * same render twice updates the existing entry instead of stacking duplicates up in the
+ * list every time somebody re-renders a world.
+ */
+export function addLocalMap(dataRoot: string, name: string): ServerProfile {
+    const id = dataRoot.split("/").filter(Boolean).pop() ?? crypto.randomUUID().slice(0, 8);
+    const existing = profilesStore.profiles.find((p) => p.id === id);
+    if (existing) {
+        existing.name = name;
+        existing.dataRoot = dataRoot;
+        return existing;
+    }
+    const created: ServerProfile = { id, name, url: "", trustCustomizations: false, dataRoot };
+    profilesStore.profiles.push(created);
+    return created;
 }

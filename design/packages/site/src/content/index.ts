@@ -61,3 +61,11 @@ export {
     groupCaptures,
     type CaptureGroup,
 } from "./screenshots.js";
+
+export {
+    repoCaptures,
+    featuredCaptures,
+    captureProvenance,
+    type RepoCapture,
+    type CaptureProvenance,
+} from "./captures.js";

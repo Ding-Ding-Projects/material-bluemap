@@ -7,13 +7,14 @@
  * and no user-facing string carries a character the project's copy rules forbid.
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
 import { articles, findArticle } from "./articles/index.js";
+import { captureProvenance, featuredCaptures, repoCaptures } from "./captures.js";
 import { releaseAvailability } from "./generated/release.js";
 import { screenshotAvailability } from "./generated/screenshots.js";
 import { home } from "./home.js";
@@ -22,7 +23,15 @@ import { searchIndex } from "./search.js";
 import { downloadCopy } from "./release.js";
 import { screenshotsCopy, groupCaptures, screenshotUrl, captureCaption } from "./screenshots.js";
 import { REQUIRED_SECTION_IDS } from "./types.js";
-import type { Article, Block, Inline, InlineContent, ScreenshotCapture } from "./types.js";
+import type {
+    Article,
+    Block,
+    FeatureStatus,
+    HomeLink,
+    Inline,
+    InlineContent,
+    ScreenshotCapture,
+} from "./types.js";
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                    */
@@ -191,19 +200,52 @@ describe("articles", () => {
 /* Copy rules                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/** Every feature card on the landing page, across its groups. */
+const homeFeatures = home.featureGroups.flatMap((group) => group.features);
+
+/** Every link the landing page points at, whichever shape it came in. */
+const homeLinks: readonly HomeLink[] = [
+    ...home.furtherReading,
+    ...homeFeatures.flatMap((feature) => feature.reading ?? []),
+    captureProvenance.directory,
+];
+
+/** Every section's title and lede, so headings are covered by the copy rules too. */
+const homeSections = [
+    home.statsSection,
+    home.enginesSection,
+    home.showcaseSection,
+    home.featuresSection,
+    home.notYetSection,
+    home.phasesSection,
+    home.buildSection,
+    home.readingSection,
+];
+
 describe("copy rules", () => {
     const everyString = [
         ...articles.flatMap(articleStrings),
         home.title,
         home.tagline,
-        ...home.worksToday,
+        home.summary,
         ...home.notYet,
-        ...home.highlights.flatMap((highlight) => [highlight.title, highlight.body]),
+        ...homeSections.flatMap((section) => [section.title, section.lede]),
+        ...home.stats.flatMap((stat) => [stat.value, stat.label, stat.detail]),
+        ...contentStrings(home.statsNote),
+        ...home.engines.flatMap((engine) => [engine.name, engine.role, ...contentStrings(engine.body)]),
+        ...contentStrings(home.enginesNote),
+        home.showcaseCaveat,
+        home.showcaseMoreLabel,
+        home.showcaseUnavailable,
+        ...home.featureGroups.flatMap((group) => [group.title, group.lede]),
+        ...homeFeatures.flatMap((feature) => [feature.title, feature.body, feature.statusNote]),
+        ...homeLinks.map((link) => link.label),
         ...home.intro.flatMap(blockStrings),
         ...home.buildIt.flatMap(blockStrings),
         ...home.phases.flatMap((phase) => [phase.phase, phase.scope, ...(phase.note === undefined ? [] : [phase.note])]),
         ...contentStrings(home.phaseNote),
         ...contentPages.flatMap((page) => [page.title, page.description]),
+        ...repoCaptures.flatMap((capture) => [capture.title, capture.configuration, capture.alt]),
         ...Object.values(downloadCopy),
         ...Object.values(screenshotsCopy),
     ];
@@ -224,6 +266,121 @@ describe("copy rules", () => {
         // out text with spaces rather than with the renderer.
         const blank = everyString.filter((value) => value !== " " && value.trim().length === 0);
         expect(blank).toEqual([]);
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The landing page                                                           */
+/* -------------------------------------------------------------------------- */
+
+describe("landing page", () => {
+    it("has a resolving article behind every feature card", () => {
+        expect(homeFeatures.length).toBeGreaterThan(0);
+        for (const feature of homeFeatures) {
+            expect(
+                findArticle(feature.articleId),
+                `the "${feature.title}" card points at ${feature.articleId}, which does not exist`
+            ).toBeDefined();
+        }
+    });
+
+    it("never lets a card claim more than the article behind it", () => {
+        // A card may be more cautious than its article. It may never be bolder: the page
+        // would then advertise as shipped something the documentation calls unbuilt, and
+        // the reader has no way to notice unless they open the article.
+        const rank: Readonly<Record<FeatureStatus, number>> = {
+            specified: 0,
+            "ported-unverified": 1,
+            shipped: 2,
+        };
+        for (const feature of homeFeatures) {
+            const article = findArticle(feature.articleId);
+            if (article === undefined) continue;
+            expect(
+                rank[feature.status],
+                `the "${feature.title}" card says ${feature.status} while ${article.id} says ${article.status}`
+            ).toBeLessThanOrEqual(rank[article.status]);
+        }
+    });
+
+    it("explains every status badge it prints", () => {
+        for (const feature of homeFeatures) {
+            expect(feature.statusNote.trim().length, `${feature.title} shows a badge and explains nothing`).toBeGreaterThan(20);
+        }
+    });
+
+    it("says where every headline figure comes from", () => {
+        expect(home.stats.length).toBeGreaterThan(0);
+        for (const stat of home.stats) {
+            expect(stat.value.trim().length).toBeGreaterThan(0);
+            expect(stat.detail.trim().length, `the "${stat.label}" figure cites nothing`).toBeGreaterThan(20);
+        }
+    });
+
+    it("says which engine renders, and names exactly one", () => {
+        // The single most misreadable fact on the page. Two engines exist, one renders,
+        // and a page that marks both or neither lets a reader conclude the port is done.
+        const running = home.engines.filter((engine) => engine.runsToday);
+        expect(running.map((engine) => engine.id)).toEqual(["java"]);
+        for (const engine of home.engines) {
+            expect(findArticle(engine.articleId), `${engine.id} points at a missing article`).toBeDefined();
+        }
+    });
+
+    it("keeps a list of what is not built, and links out only over https", () => {
+        expect(home.notYet.length).toBeGreaterThan(0);
+        expect(home.furtherReading.length).toBeGreaterThan(0);
+        for (const link of homeLinks) {
+            expect(link.label.trim().length).toBeGreaterThan(0);
+            expect(link.href.startsWith("https://"), `${link.label} points at ${link.href}`).toBe(true);
+        }
+    });
+
+    it("mirrors the phase table without inventing a status", () => {
+        const allowed = new Set(["done", "in-progress", "pending"]);
+        for (const phase of home.phases) {
+            expect(allowed.has(phase.status), `phase ${phase.phase} has status ${phase.status}`).toBe(true);
+        }
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Committed captures                                                         */
+/* -------------------------------------------------------------------------- */
+
+describe("committed captures", () => {
+    const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");
+
+    it("never claims a capture whose file is not in the repository", () => {
+        expect(repoCaptures.length).toBeGreaterThan(0);
+        for (const capture of repoCaptures) {
+            const path = resolve(repoRoot, "docs/screenshots", capture.file);
+            expect(existsSync(path), `${capture.file} is shown but is not at ${path}`).toBe(true);
+        }
+    });
+
+    it("gives every capture alt text that names the surface", () => {
+        for (const capture of repoCaptures) {
+            expect(capture.alt.length, `${capture.file} has no usable alt text`).toBeGreaterThan(40);
+            expect(capture.configuration.trim().length).toBeGreaterThan(0);
+        }
+    });
+
+    it("shows a subset of the committed set on the landing page", () => {
+        expect(featuredCaptures.length).toBeGreaterThan(1);
+        const all = new Set(repoCaptures.map((capture) => capture.file));
+        for (const capture of featuredCaptures) expect(all.has(capture.file)).toBe(true);
+    });
+
+    it("uses only aspect ratios the stylesheet can actually reserve", () => {
+        // The ratio is applied by an attribute selector, so a ratio the stylesheet has no
+        // rule for silently loses its reserved box and the gallery shifts as it loads.
+        const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "content.css"), "utf8");
+        for (const ratio of new Set(repoCaptures.map((capture) => capture.aspectRatio))) {
+            expect(css, `content.css has no rule for the ${ratio} ratio`).toContain(
+                `[data-ratio="${ratio}"]`
+            );
+        }
     });
 });
 

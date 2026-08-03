@@ -34,9 +34,16 @@ body {
  * (per-marker z-index up to the marker count) and the debug Stats panel (inline
  * z-index 10000) to their own stacking context. Drop it and they escape over the UI.
  * ------------------------------------------------------------------------- */
+/*
+ * The map starts below the application's own title bar, not behind it.
+ *
+ * `AppTitleBar` publishes --mb-titlebar-height on the document element when it mounts,
+ * which it only does in the desktop build. The 0px default is what a browser tab gets,
+ * where there is no title bar and the map should have the whole viewport.
+ */
 #map-container {
     position: fixed;
-    inset: 0;
+    inset: var(--mb-titlebar-height, 0px) 0 0 0;
     z-index: 0;
 }
 
@@ -82,8 +89,14 @@ body {
 
 /* v-main is the map viewport: it must stay click-through, so its floating children
    opt in individually with .mb-interactive. .v-overlay-container needs no rule here,
-   Vuetify already ships pointer-events:none on it with the scrim and content set to auto. */
+   Vuetify already ships pointer-events:none on it with the scrim and content set to auto.
+
+   It is also positioned, so that an `inset: 0` child covers the map area rather than the
+   whole viewport. Without this the world screen would start at the top of the window and
+   run underneath the title bar. Every existing floating control uses `position: fixed`
+   and is unaffected. */
 #app .v-main {
+    position: relative;
     pointer-events: none;
 }
 

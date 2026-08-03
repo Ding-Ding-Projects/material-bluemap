@@ -23,6 +23,7 @@
     "dependencies": {
         "@material-bluemap/parts": "workspace:*",
         "@material-bluemap/server": "workspace:*",
+        "@material-bluemap/shared": "workspace:*",
         "electron-store": "^10.1.0"
     }
 }

@@ -17,10 +17,20 @@ export type { ScreenshotAvailability, ScreenshotCapture };
 export const screenshotsCopy = {
     title: "Screenshots",
     lead: "Every image here is a capture of the real running application, taken by the project's Playwright harness in continuous integration. None is a mockup, a design file or a hand-edited picture.",
-    caveat: "The captures show the application shell. They do not show a rendered Minecraft world, because rendering a local world is not built yet. When a capture shows a broken or empty window, that is the state the build was in: the harness publishes what it found rather than hiding it.",
-    unavailableHeading: "Captures are not available for this build",
+    caveat: "The map under the interface is real and was rendered by the same workflow run: CI generates a world with a fresh seed on every push, renders it with upstream BlueMap's Java engine built in that run, and serves it to the harness, which fails the job if the application reaches the public internet while capturing. When a capture shows a broken or empty window, that is the state the build was in: the harness publishes what it found rather than hiding it.",
+    committedHeading: "Committed to this repository",
+    committedLead:
+        "These are tracked in git, so they travel with every clone and this page shows them whether or not a workflow artifact could be collected for the build. They are also what the landing page shows.",
+    committedSourceLabel: "Captured by",
+    committedMethodLabel: "How",
+    committedCommitLabel: "Commit",
+    committedRunLabel: "Workflow run",
+    committedDirectoryLabel: "The files live in",
+    ciHeading: "Collected from a recent workflow run",
+    ciLead: "Downloaded from the newest workflow run that still had an unexpired screenshot artifact when this site was built. Artifacts expire, so this set changes and the committed set above does not.",
+    unavailableHeading: "No workflow artifact was collected for this build",
     unavailableLead:
-        "No screenshot artifact could be collected when this site was built, so there is nothing to show. The reason is below. Nothing has been substituted for the missing images.",
+        "No screenshot artifact could be collected when this site was built, so there is no fetched set to show. The reason is below. Nothing has been substituted for the missing images.",
     unavailableLinkLabel: "Open the workflow run history",
     unavailableLinkHref: ACTIONS_URL,
     provenanceHeading: "Where these came from",

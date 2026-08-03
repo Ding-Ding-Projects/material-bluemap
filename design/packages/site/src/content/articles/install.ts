@@ -9,7 +9,7 @@ export const install: Article = {
     category: "delivery",
     status: "shipped",
     statusNote:
-        "The Windows installer is published by CI and the download button is wired to a verified release asset. Windows is the only packaged platform, and the app cannot render a local world yet.",
+        "The Windows installer is published by CI and the download button is wired to a verified release asset. Windows is the only packaged platform. Local rendering runs upstream BlueMap's Java engine and has been driven by hand on one Windows machine, not through the app's own orchestrator.",
 
     sections: [
         {
@@ -21,7 +21,7 @@ export const install: Article = {
                     tone: "warning",
                     title: "Know what you are installing",
                     content:
-                        "This installs a viewer that can browse a BlueMap server somebody else is running. It cannot render your own world: the mesher and the render pipeline do not exist yet. Install it to look at the shell and at remote maps, not to make a map.",
+                        "This installs the viewer, which browses a BlueMap server somebody else is running, and the local render path, which renders your own world using upstream BlueMap's Java engine as a child process and needs a Java runtime the app will fetch if the machine has none. That path has been driven end to end by hand on one Windows machine; it has not run in CI, on macOS or on Linux. The TypeScript renderer this project is porting is not what renders here yet.",
                 },
                 {
                     kind: "paragraph",
@@ -124,9 +124,9 @@ export const install: Article = {
                                 "A known class of defect, caused by the renderer being refused its own bundle or by a policy violation. Both are tracked in the issue tracker, and the Electron security article explains why the policy is not simply loosened.",
                         },
                         {
-                            term: "A local world does not appear",
+                            term: "A local render does not start",
                             description:
-                                "There is no local rendering. This is not a defect to report: it is Phases D and E, and they have not been built.",
+                                "Local rendering needs the Mojang download consent given at first run and a Java runtime, and it reports which of the two is missing rather than failing generically. The Java render path article lists every failure code and the setting that fixes it.",
                         },
                     ],
                 },
@@ -180,7 +180,11 @@ export const install: Article = {
         },
         {
             articleId: "viewer-remote-mode",
-            reason: "The one thing the installed app can do end to end today.",
+            reason: "What the installed app does with a BlueMap server somebody else is running.",
+        },
+        {
+            articleId: "java-render-path",
+            reason: "What happens when you ask the installed app to render a world of your own, and what it needs first.",
         },
         {
             articleId: "electron-security",

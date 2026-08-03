@@ -359,3 +359,117 @@ real implementation bug as well: functions that take a `platform` argument were 
 native `join` and `delimiter`, so a Windows PATH split through its drive letters.
 
 CI running on a platform nobody develops on is the only reason any of them surfaced.
+
+---
+
+## Update, later still on 2026-08-03 — the shell, and three things that were dead
+
+### Scope: this product is Windows only
+
+Stated by the user. There is no macOS or Linux desktop target: Squirrel.Windows is the
+installer and the only packaged artifact. CI already reflected this — the installer job is the
+sole `windows-latest` runner and everything else is `ubuntu-latest` — so nothing had to be
+removed.
+
+**Cross-platform correctness still matters, for a different reason.** Lint, build and test run
+on `ubuntu-latest`, so pure modules must behave on Linux even though the product never ships
+there. That is what caught the `platform`-argument path bug recorded above, and it is worth not
+"simplifying" away on the grounds that the app is Windows-only.
+
+### The door was still missing
+
+The previous entry named the pattern — *green tests over something no user can reach* — and
+then the fix for it did not land: the wizard was written, tested at 87 tests, and `App.vue` was
+never touched. A workflow reported success with one of its two agents having returned nothing.
+**A partially-failed fan-out reads exactly like a completed one unless the output is checked
+against the file system**, which is now the second time that has cost a session.
+
+`App.vue` now mounts, in this order: the Material title bar, the map view, the viewer chrome
+*only when there is a map*, the world wizard when there is not, first-run setup, and the
+settings surface. What was one grey line reading "No map loaded." is the screen that makes a
+map.
+
+### Locally rendered maps are profiles
+
+Rather than a second code path, a finished render becomes an entry in the same list a remote
+server uses: `ServerProfile` grew an optional `dataRoot`, which `LocalMapHandler` already serves
+at `/local/{renderId}`. The viewer needs no idea which kind it is looking at, and switching,
+persistence and the map list are reused rather than reimplemented.
+
+Two details that are load-bearing rather than cosmetic:
+
+- **Local profiles are excluded from `syncProfiles`.** That call registers a *remote proxy*
+  target; registering a local map would hand it an empty base URL to forward to.
+- **The list shows which kind each entry is.** A local map has no URL, so it would have rendered
+  a blank subtitle — and two entries whose only visible difference is that one has an empty
+  second row read as one of them being broken.
+
+### The preload was the missing half of three finished features
+
+Each of these had a complete main-process implementation and no way for the renderer to reach
+it. This is the same shape as the unreachable options GUI, one layer lower down:
+
+| Feature | Main process | Preload | Consequence |
+|---|---|---|---|
+| Window buttons | four `window:*` handlers + a `maximizedChanged` push | *nothing* | frameless window with no minimise or close — <kbd>Alt</kbd>+<kbd>F4</kbd> was the only exit |
+| World folder check | — | *nothing* | wizard could not tell a world from any other folder |
+| The map's 92 settings | `mapConf()` wrote 6 keys | no field to carry the rest | 86 settings collected by the wizard and silently discarded |
+
+The third is the worst of the three, because the interface *said* it had applied them. The
+request type now carries the whole `maps/<id>.conf` body as text, and the main process overrides
+only the structural keys (`world`, `dimension`, `storage`) — a render whose storage points
+somewhere the app does not serve produces tiles nobody can see.
+
+### `Render world` was undispatchable, and had been all along
+
+The workflow never appeared in the Actions list and `gh workflow run` reported it as not found.
+The cause: **GitHub caps `workflow_dispatch` at ten inputs and this file had twelve.**
+
+Going over the cap does not fail a run — it stops the workflow being *registered*, so the only
+symptom is a zero-second "workflow file issue" failure attached to unrelated pushes, and a
+feature that silently does not exist. The whole Actions rendering path — sequential waves,
+resumable shards, tree merges, everything in `docs/render-in-actions.md` — was unreachable.
+
+The three location fields are now one `world` field whose meaning follows `world-source`, which
+brings it to nine with a slot spare. For `release-asset` it accepts `tag/glob`, split on the
+**last** slash, because a release asset's file name cannot contain one and a tag like
+`release/1.4` can.
+
+> Worth generalising: a YAML file that parses is not a workflow that registers. `python -c
+> "yaml.safe_load(...)"` said this file was fine. Check `gh workflow list` for the workflow's
+> *name* after changing a trigger block.
+
+### `registerIpc()` could crash the app on reopen
+
+`ipcMain.handle` throws on a channel that already has a handler, and `registerIpc()` is called
+from `createWindow()`, which the `activate` path calls again when no windows are left. The three
+stateful subsystems each guard against this; this function did not. Unreachable on Windows, and
+fixed anyway — a function whose safety depends on a platform detail held nowhere near it is a
+trap for whoever reads it next.
+
+Found by a subagent reporting it as out-of-scope rather than fixing it silently, which is the
+behaviour worth keeping.
+
+### The viewer's own surfaces, and the landing page
+
+`markers.scss` went from 179 lines with zero `--md-sys-color-*` uses to ~470 with no literal
+colour but M3's own shadow token. POI labels, popups and player name tags are now opaque MD3
+cards; the copy-to-clipboard groups became real `<button>`s with screen-reader text, reachable
+by keyboard, and popups no longer dismiss on <kbd>Tab</kbd>. Verified against the **built**
+artifact in headless Chromium across 36 viewport/theme/motion combinations: zero page errors,
+worst-case text contrast 8.06:1.
+
+The landing page had **no stylesheet at all** — every `mb-*` class landed on an unstyled
+element, which is most of why it read as a stub. It now has one, plus honesty guards in the
+content tests: no feature card may claim more than the article behind it, and exactly one engine
+may be marked as running.
+
+### Still not done
+
+- **Phase D's gate.** Unchanged: unit-level PRBM byte-identity is not a rendered world compared
+  end to end. `tools/oracle/` exists to run it and has not been run green.
+- **Phase C exit criteria**, and Phases E, G, H, I.
+- **The remaining product contracts** — issues #6 through #13: the regex builder wired to every
+  search bar, tabs, per-element appearance editors, the super-confirmation gate, language modes
+  and funny-level sliders, the command palette, the changelog viewer, the notification centre.
+- **A day/night toggle logo and settings logos**, asked for and never started.

@@ -16,6 +16,32 @@ export interface FirstRunState {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Reading a world folder                                                     */
+/* -------------------------------------------------------------------------- */
+
+export interface WorldFolderEntry {
+    /** Relative to the folder that was read, forward slashes, no leading `./`. */
+    path: string;
+    directory: boolean;
+}
+
+/**
+ * A shallow reading of a folder somebody picked, for deciding whether it is a world.
+ *
+ * Region files are **counted, not listed**. A mature world holds tens of thousands of
+ * `.mca` files and their names answer no question the wizard asks; sending the list
+ * across the bridge would move megabytes to compute a number. The key is the directory
+ * holding them relative to the chosen folder (`region`, `DIM-1/region`), and the empty
+ * key is the chosen folder itself.
+ */
+export interface WorldFolderListing {
+    /** The folder that was read, absolute. */
+    folder: string;
+    entries: WorldFolderEntry[];
+    regionFiles: Record<string, number>;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Rendering                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -33,6 +59,22 @@ export interface RenderMapRequest {
     dimension?: string;
     sorting?: number;
     startPos?: { x: number; z: number };
+    /**
+     * The complete `maps/<id>.conf` body to render with, as HOCON.
+     *
+     * The five fields above are the ones this bridge understands well enough to
+     * validate. A map has ninety-odd more, and an interface that collects them all and
+     * then hands over five has quietly discarded the rest of what somebody asked for -
+     * which is worse than never offering them, because the settings screen said they
+     * were applied.
+     *
+     * So the whole body travels as text. The main process still owns the keys that are
+     * structural rather than cosmetic - `world`, `dimension`, `storage` - and overrides
+     * them, because a render whose storage points somewhere the app does not serve
+     * produces tiles nobody can see. Everything else is passed through exactly as
+     * written.
+     */
+    config?: string;
 }
 
 export interface RenderRequest {
@@ -414,6 +456,32 @@ export interface MaterialBlueMapBridge {
     getVersion(): Promise<string>;
 
     /**
+     * The window buttons, for the app's own title bar.
+     *
+     * The window is frameless, so the operating system draws no minimise, maximise or
+     * close. Without these the only way out of the application is Alt+F4, which is why
+     * they are part of the bridge rather than a nicety: a title bar that cannot close
+     * its window is not a title bar.
+     *
+     * Each acts on the window the call came from, resolved in the main process from the
+     * sender. The renderer never names a window, so one cannot reach another.
+     */
+    minimizeWindow(): Promise<void>;
+    /** Maximises, or restores if it already is. Returns the state it ended in. */
+    toggleMaximizeWindow(): Promise<boolean>;
+    closeWindow(): Promise<void>;
+    isWindowMaximized(): Promise<boolean>;
+    /**
+     * Subscribes to maximise-state changes. Returns the unsubscribe function.
+     *
+     * Pushed rather than polled because the state changes from outside the renderer
+     * too - a double-click on the drag region, Win+Up, the window manager - and a title
+     * bar showing the restore icon on a window that is not maximised is a button that
+     * lies about what it will do.
+     */
+    onWindowMaximizedChanged(listener: (maximized: boolean) => void): () => void;
+
+    /**
      * Mojang download consent.
      *
      * Asked once, during first-run setup, and remembered afterwards. Nothing in the
@@ -429,6 +497,16 @@ export interface MaterialBlueMapBridge {
     needsFirstRun(): Promise<boolean>;
     /** Called when setup finishes, whichever way consent was answered. */
     completeFirstRun(): Promise<FirstRunState>;
+
+    /**
+     * Reads a folder shallowly, so the wizard can say whether it is a world.
+     *
+     * Rejects when the folder cannot be read, rather than returning an empty listing:
+     * "no `level.dat` here" and "this folder does not exist" are different answers, and
+     * a wizard that reports the first when the second is true sends somebody looking
+     * for a file rather than for a typo in the path.
+     */
+    inspectWorldFolder(folder: string): Promise<WorldFolderListing>;
 
     /**
      * Renders a world locally, with upstream BlueMap's engine.
@@ -627,12 +705,27 @@ const bridge: MaterialBlueMapBridge = {
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
     getVersion: () => ipcRenderer.invoke("app:version"),
 
+    minimizeWindow: () => ipcRenderer.invoke("window:minimize"),
+    toggleMaximizeWindow: () => ipcRenderer.invoke("window:toggleMaximize"),
+    closeWindow: () => ipcRenderer.invoke("window:close"),
+    isWindowMaximized: () => ipcRenderer.invoke("window:isMaximized"),
+
+    onWindowMaximizedChanged: (listener) => {
+        const forward = (_event: IpcRendererEvent, maximized: boolean): void => listener(maximized);
+        ipcRenderer.on("window:maximizedChanged", forward);
+        return () => {
+            ipcRenderer.off("window:maximizedChanged", forward);
+        };
+    },
+
     readConsent: () => ipcRenderer.invoke("consent:read"),
     acceptDownload: () => ipcRenderer.invoke("consent:accept"),
     revokeDownloadConsent: () => ipcRenderer.invoke("consent:revoke"),
 
     needsFirstRun: () => ipcRenderer.invoke("firstRun:needed"),
     completeFirstRun: () => ipcRenderer.invoke("firstRun:complete"),
+
+    inspectWorldFolder: (folder) => ipcRenderer.invoke("world:inspect", folder),
 
     startRender: (request) => ipcRenderer.invoke("render:start", request),
     cancelRender: (renderId) => ipcRenderer.invoke("render:cancel", renderId),

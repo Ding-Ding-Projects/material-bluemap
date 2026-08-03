@@ -19,7 +19,29 @@
  * Source: `vendor/BlueMap/common/src/main/java/de/bluecolored/bluemap/common/config/ConfigTemplate.java`
  */
 
-import { sep } from "node:path";
+/**
+ * This platform's path separator, worked out without importing `node:path`.
+ *
+ * The import this replaces was `import { sep } from "node:path"`, which is
+ * correct in Node and fatal in a browser bundle. The options GUI and the
+ * create-a-map wizard both render these templates in the renderer process, and
+ * bundling a module that reaches into `node:path` fails the build outright:
+ * `"sep" is not exported by "__vite-browser-external"`. Nothing else in this
+ * package touches a Node builtin, so this one import was the only thing keeping
+ * the whole config model out of the interface that exists to edit it.
+ *
+ * Node answers from `process.platform`, which is exactly what `sep` reads. A
+ * renderer has no `process`, so it falls back to the user agent, and anything
+ * that is neither gets `/`, which is what BlueMap writes into its own configs
+ * anyway.
+ */
+export function platformSeparator(): string {
+    const platform = (globalThis as { process?: { platform?: string } }).process?.platform;
+    if (platform !== undefined) return platform === "win32" ? "\\" : "/";
+
+    const agent = (globalThis as { navigator?: { userAgent?: string } }).navigator?.userAgent;
+    return typeof agent === "string" && /windows|win32|win64/i.test(agent) ? "\\" : "/";
+}
 
 const TEMPLATE_VARIABLE = /\$\{([\w\-.]+)\}/g;
 const TEMPLATE_CONDITIONAL = /\$\{([\w\-.]+)<<([\s\S]*?)>>\}/g;
@@ -84,7 +106,7 @@ export class ConfigTemplate {
  *
  * @param separator the platform path separator, defaulting to this platform's
  */
-export function formatConfigPath(path: string, separator: string = sep): string {
+export function formatConfigPath(path: string, separator: string = platformSeparator()): string {
     const forwardSlashed = separator === "/" ? path : path.split(separator).join("/");
     return forwardSlashed.replace(/\\/g, "\\\\");
 }

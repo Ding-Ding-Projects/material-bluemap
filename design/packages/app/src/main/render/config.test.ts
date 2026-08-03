@@ -3,8 +3,10 @@ import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { parseHocon } from "@material-bluemap/shared";
 import {
     InvalidRenderRequestError,
+    MAX_MAP_CONFIG_LENGTH,
     defaultRenderThreads,
     hoconString,
     isValidMapId,
@@ -183,6 +185,222 @@ describe("writeRenderConfig", () => {
             InvalidRenderRequestError,
         );
         expect(existsSync(join(root, "config"))).toBe(false);
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* A supplied map config body                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A body of the shape the wizard produces: the settings a person actually tuned,
+ * plus the three keys the app owns, set deliberately *wrong* so that the override
+ * is the thing being tested rather than an agreement between two copies of the
+ * same value.
+ */
+const SUPPLIED = [
+    "# The wizard wrote this. Every key below is one somebody chose.",
+    'name: "Survival"',
+    "sorting: 7",
+    "ambient-light: 0.12",
+    'sky-color: "#7dabff"',
+    "render-edges: true",
+    "min-inhabited-time: 0",
+    "marker-sets {",
+    '    spawn { label: "Spawn" }',
+    "}",
+    'world: "/somewhere/the/app/never/pointed/at"',
+    'dimension: "minecraft:the_end"',
+    'storage: "somebody-elses-storage"',
+    "",
+].join("\n");
+
+async function readMapConf(id = "overworld"): Promise<string> {
+    return await readFile(join(root, "config", "maps", `${id}.conf`), "utf8");
+}
+
+describe("a map config the caller supplied", () => {
+    it("keeps every setting the body carried", async () => {
+        await writeRenderConfig(
+            options([{ id: "overworld", world: "/worlds/w", config: SUPPLIED }]),
+        );
+
+        const text = await readMapConf();
+        // Read back through the same parser the viewer uses, because what matters is
+        // what the file *means* to a HOCON reader, not which characters are in it.
+        const parsed = parseHocon(text);
+        expect(parsed["name"]).toBe("Survival");
+        expect(parsed["sorting"]).toBe(7);
+        expect(parsed["ambient-light"]).toBe(0.12);
+        expect(parsed["sky-color"]).toBe("#7dabff");
+        expect(parsed["render-edges"]).toBe(true);
+        expect(parsed["min-inhabited-time"]).toBe(0);
+        expect(parsed["marker-sets"]).toEqual({ spawn: { label: "Spawn" } });
+
+        // Passed through as written, comments included, rather than round-tripped
+        // through a parser that would drop them.
+        expect(text).toContain("# The wizard wrote this.");
+    });
+
+    it("overrides the three keys the app owns, whatever the body said", async () => {
+        await writeRenderConfig(
+            options([
+                {
+                    id: "overworld",
+                    world: "/worlds/w",
+                    dimension: "minecraft:the_nether",
+                    config: SUPPLIED,
+                },
+            ]),
+        );
+
+        const parsed = parseHocon(await readMapConf());
+        // Not the body's `/somewhere/the/app/never/pointed/at`.
+        expect(parsed["world"]).toBe("/worlds/w");
+        // Not the body's `minecraft:the_end`: the dimension the request asked for.
+        expect(parsed["dimension"]).toBe("minecraft:the_nether");
+        // Not the body's storage. A render whose tiles land somewhere the app does
+        // not serve is a render nobody can look at.
+        expect(parsed["storage"]).toBe("file");
+    });
+
+    it("beats an object value and a dotted path, which is what makes the append safe", async () => {
+        // HOCON's duplicate-key rule is later-wins except when *both* values are
+        // objects. Every override written here is a quoted string, so neither of
+        // these earlier forms survives it - the two cases that would break the
+        // whole approach if they did.
+        await writeRenderConfig(
+            options([
+                {
+                    id: "overworld",
+                    world: "/worlds/w",
+                    config: [
+                        "storage { storage-type: sql, dsn: \"jdbc:...\" }",
+                        "world.some.nested.key: 1",
+                        'dimension: "minecraft:the_end"',
+                        "",
+                    ].join("\n"),
+                },
+            ]),
+        );
+
+        const parsed = parseHocon(await readMapConf());
+        expect(parsed["storage"]).toBe("file");
+        expect(parsed["world"]).toBe("/worlds/w");
+        expect(parsed["dimension"]).toBe("minecraft:overworld");
+    });
+
+    it("refuses a body that cannot be parsed, before writing anything", async () => {
+        await expect(
+            writeRenderConfig(
+                options([{ id: "overworld", world: "/worlds/w", config: 'name: "unterminated\n' }]),
+            ),
+        ).rejects.toThrow(InvalidRenderRequestError);
+        // Not one file, and not even the directory: a Java stack trace from the CLI
+        // is not an error message anybody can act on, so this never reaches it.
+        expect(existsSync(join(root, "config"))).toBe(false);
+    });
+
+    it("names the map, and points at the body's own line", async () => {
+        // The overrides go after the body, so a problem inside it keeps the line
+        // number the caller wrote it on rather than being shifted by however many
+        // lines this module added.
+        await expect(
+            writeRenderConfig(
+                options([
+                    { id: "nether", world: "/worlds/w", config: 'a: 1\nb: "unterminated\nc: 3\n' },
+                ]),
+            ),
+        ).rejects.toThrow(/map config for 'nether'.*line 2/s);
+    });
+
+    it("refuses an include, which would read another file off this machine", async () => {
+        // Upstream's JVM parser supports `include`; this one does not, and that is
+        // what stops a body from the renderer pulling an arbitrary file into the
+        // settings a render is run from.
+        for (const directive of [
+            'include "other.conf"',
+            'include file("/etc/passwd")',
+            'include required(file("/etc/passwd"))',
+            'include classpath("x.conf")',
+            'include url("http://example.invalid/x.conf")',
+        ]) {
+            await expect(
+                writeRenderConfig(
+                    options([{ id: "overworld", world: "/worlds/w", config: `a: 1\n${directive}\n` }]),
+                ),
+            ).rejects.toThrow(/may not use 'include'/);
+            expect(existsSync(join(root, "config"))).toBe(false);
+        }
+    });
+
+    it("refuses a substitution, for the same reason the parser everywhere else does", async () => {
+        await expect(
+            writeRenderConfig(
+                options([{ id: "overworld", world: "/worlds/w", config: "a: ${b}\n" }]),
+            ),
+        ).rejects.toThrow(/substitutions/);
+    });
+
+    it("refuses a braced document, which nothing can be appended to", async () => {
+        await expect(
+            writeRenderConfig(
+                options([{ id: "overworld", world: "/worlds/w", config: '{ name: "x" }\n' }]),
+            ),
+        ).rejects.toThrow(/wraps its keys in braces/);
+    });
+
+    it("refuses an empty body rather than rendering a map that says nothing", async () => {
+        await expect(
+            writeRenderConfig(options([{ id: "overworld", world: "/worlds/w", config: "  \n\n" }])),
+        ).rejects.toThrow(/is empty/);
+    });
+
+    it("refuses a body past the size limit before parsing it", async () => {
+        const huge = `# ${"x".repeat(MAX_MAP_CONFIG_LENGTH)}`;
+        await expect(
+            writeRenderConfig(options([{ id: "overworld", world: "/worlds/w", config: huge }])),
+        ).rejects.toThrow(/past the limit/);
+    });
+
+    it("refuses a body that is not text at all, which is what IPC can deliver", async () => {
+        await expect(
+            writeRenderConfig(
+                options([
+                    // The type says string; the wire says whatever the sender put on it.
+                    { id: "overworld", world: "/worlds/w", config: 42 as unknown as string },
+                ]),
+            ),
+        ).rejects.toThrow(/is not text/);
+    });
+
+    it("writes exactly what it always wrote when no body was supplied", async () => {
+        await writeRenderConfig(options());
+        // Byte for byte, so the six-key path cannot drift while the new one is added
+        // beside it.
+        expect(await readMapConf()).toBe(
+            [
+                "# Written by Material BlueMap for a single render. Edits here are overwritten.",
+                'world: "C:\\\\worlds\\\\My World"',
+                'dimension: "minecraft:overworld"',
+                'name: "overworld"',
+                "sorting: 0",
+                'storage: "file"',
+                "",
+            ].join("\n"),
+        );
+    });
+
+    it("checks the body during validation, so a render reports it as a bad request", () => {
+        // `writeRenderConfig` calls this first, and so does the orchestrator - which
+        // is what turns "that config will not parse" into an invalid-request failure
+        // rather than into an unwritable-workspace one.
+        expect(() =>
+            validateMaps([{ id: "overworld", world: "/w", config: "a: [1, 2\n" }]),
+        ).toThrow(InvalidRenderRequestError);
+        expect(() =>
+            validateMaps([{ id: "overworld", world: "/w", config: SUPPLIED }]),
+        ).not.toThrow();
     });
 });
 

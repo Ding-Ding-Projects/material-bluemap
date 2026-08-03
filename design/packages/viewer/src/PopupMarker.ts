@@ -100,16 +100,37 @@ export class PopupMarker extends Marker {
      */
 
     /**
-     * <div class="group" data-tooltip="..." (click -> copy-to-clipboard)>
-     * A clipboardText of null creates a plain group without tooltip and click-handler.
+     * <button class="group" data-tooltip="..." (click -> copy-to-clipboard)> or, for a
+     * clipboardText of null, a plain <div class="group"> with no tooltip and no handler.
+     *
+     * Design deviation: a group that copies to the clipboard is a control, so it is a real
+     * <button> rather than upstream's click-handled <div>. That is what makes it focusable,
+     * operable with Enter and Space, and announced as a button. The class name, the
+     * data-tooltip attribute and the children are unchanged.
      */
-    private createGroup(clipboardText: string | null): HTMLDivElement {
-        const group = document.createElement("div");
-        group.className = "group";
-        if (clipboardText !== null) {
-            group.setAttribute("data-tooltip", i18n.t("blockTooltip.clipboard"));
-            group.addEventListener("click", () => PopupMarker.copyToClipboard(clipboardText));
+    private createGroup(clipboardText: string | null): HTMLElement {
+        if (clipboardText === null) {
+            const group = document.createElement("div");
+            group.className = "group";
+            return group;
         }
+
+        const group = document.createElement("button");
+        group.type = "button";
+        group.className = "group";
+
+        const tooltip = i18n.t("blockTooltip.clipboard");
+        group.setAttribute("data-tooltip", tooltip);
+        group.addEventListener("click", () => PopupMarker.copyToClipboard(clipboardText));
+
+        // The visible hint is drawn from data-tooltip by a CSS ::before, and generated
+        // content is not exposed to assistive technology. The same words go into the
+        // button's accessible name, ahead of the coordinates it will copy.
+        const hint = document.createElement("span");
+        hint.className = "bm-sr-only";
+        hint.textContent = tooltip;
+        group.appendChild(hint);
+
         return group;
     }
 
@@ -306,11 +327,12 @@ export class PopupMarker extends Marker {
         this.element.style.opacity = "0";
         this.animation = animate((progress) => {
             this.element.style.opacity = (progress * targetOpacity).toString();
-        }, 300);
+        }, PopupMarker.fadeDurationMs());
     }
 
     removeHandler = (evt: Event): void => {
         if (evt.composedPath().includes(this.element)) return;
+        if (Marker.isFocusNavigationEvent(evt)) return;
         this.close();
     };
 
@@ -324,11 +346,20 @@ export class PopupMarker extends Marker {
             (progress) => {
                 this.element.style.opacity = (startOpacity - progress * startOpacity).toString();
             },
-            300,
+            PopupMarker.fadeDurationMs(),
             (finished) => {
                 if (finished) this.visible = false;
             },
         );
+    }
+
+    /**
+     * The popup's fade, in milliseconds. A reduced-motion preference collapses it to zero,
+     * which `animate` handles as a single synchronous frame at full progress, so the popup
+     * still appears and still disappears - it just does not travel to get there.
+     */
+    private static fadeDurationMs(): number {
+        return Marker.prefersReducedMotion() ? 0 : 300;
     }
 
     get element(): HTMLDivElement {

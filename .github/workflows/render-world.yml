@@ -30,6 +30,11 @@ name: Render world
 on:
   workflow_dispatch:
     inputs:
+      # GitHub caps workflow_dispatch at TEN inputs, and exceeding it does not fail the
+      # run - it stops the workflow being registered at all, so it never appears in the
+      # Actions list and `gh workflow run` reports it as not found. This file had twelve
+      # and was therefore undispatchable. The three location fields are one field whose
+      # meaning follows `world-source`, which leaves a slot spare.
       world-source:
         description: Where the world comes from
         type: choice
@@ -38,22 +43,12 @@ on:
           - repository
           - url
           - release-asset
-      world-path:
-        description: 'repository: path to the world inside this repository'
+      world:
+        description: >-
+          repository: path in this repo · url: link to a .zip ·
+          release-asset: asset name or glob, optionally "tag/glob" (default tag: latest)
         type: string
         default: worlds/world
-      world-url:
-        description: 'url: link to a .zip holding the world'
-        type: string
-        default: ''
-      release-tag:
-        description: 'release-asset: release tag, or "latest"'
-        type: string
-        default: latest
-      release-asset:
-        description: 'release-asset: the asset file name, or a glob such as world*.zip'
-        type: string
-        default: ''
       dimension:
         description: Dimension to render
         type: choice
@@ -199,35 +194,36 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
           SOURCE: ${{ inputs.world-source }}
-          WORLD_PATH: ${{ inputs.world-path }}
-          WORLD_URL: ${{ inputs.world-url }}
-          RELEASE_TAG: ${{ inputs.release-tag }}
-          RELEASE_ASSET: ${{ inputs.release-asset }}
+          WORLD: ${{ inputs.world }}
         run: |
           set -euo pipefail
           mkdir -p world-in
+          if [ -z "$WORLD" ]; then
+            echo "::error::'world' is empty. It is the path, URL or asset name to render."
+            exit 1
+          fi
           case "$SOURCE" in
             repository)
-              if [ ! -d "$WORLD_PATH" ]; then
-                echo "::error::No such path in this repository: $WORLD_PATH"
+              if [ ! -d "$WORLD" ]; then
+                echo "::error::No such path in this repository: $WORLD"
                 exit 1
               fi
-              cp -r "$WORLD_PATH" world-in/
+              cp -r "$WORLD" world-in/
               ;;
             url)
-              if [ -z "$WORLD_URL" ]; then
-                echo "::error::world-source is 'url' but world-url is empty."
-                exit 1
-              fi
-              echo "Downloading $WORLD_URL"
-              curl -fSL --retry 3 --retry-delay 5 -o world.zip "$WORLD_URL"
+              echo "Downloading $WORLD"
+              curl -fSL --retry 3 --retry-delay 5 -o world.zip "$WORLD"
               unzip -q world.zip -d world-in
               ;;
             release-asset)
-              if [ -z "$RELEASE_ASSET" ]; then
-                echo "::error::world-source is 'release-asset' but release-asset is empty."
-                exit 1
-              fi
+              # "asset-glob", or "tag/asset-glob" to pin a release. A release asset's file
+              # name cannot contain a slash, so splitting on the LAST one is unambiguous
+              # and keeps a tag that has slashes in it - `release/1.4` - working.
+              case "$WORLD" in
+                */*) RELEASE_TAG="${WORLD%/*}"; RELEASE_ASSET="${WORLD##*/}" ;;
+                *)   RELEASE_TAG="latest";      RELEASE_ASSET="$WORLD" ;;
+              esac
+              echo "Release: $RELEASE_TAG   asset: $RELEASE_ASSET"
               if [ "$RELEASE_TAG" = "latest" ]; then
                 gh release download --pattern "$RELEASE_ASSET" --dir . --clobber
               else

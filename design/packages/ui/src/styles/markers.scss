@@ -1,179 +1,506 @@
 /*
- * Styles for the viewer's raw-DOM marker elements (CSS2D). Ported from upstream
- * webapp/src/scss/markers.scss; upstream's --theme-* custom properties are bridged to
- * the active Vuetify (MD3) theme in global.scss.
+ * Material Design 3 surfaces for the viewer's raw-DOM marker layer (CSS2D).
+ *
+ * These elements are built by `packages/viewer` as plain DOM inside #map-container, which
+ * sits outside the Vue tree, so Vuetify's component styles never reach them. Everything
+ * here is therefore hand-built from M3 tokens rather than inherited from a component.
+ *
+ * The class names are the viewer's public contract: `PoiMarker`, `HtmlMarker`,
+ * `ObjectMarker.LabelPopup`, `PlayerMarker` and `PopupMarker` build and query this DOM by
+ * class. Restyle freely, rename nothing.
+ *
+ * Marker *content* colours (POI icons, player heads, shape/line/extrude colours) are map
+ * data, chosen by whoever authored the map. Only the container around them is themed.
  */
 
+/* ---------------------------------------------------------------------------
+ * M3 token layer.
+ *
+ * Vuetify emits the active theme as `--v-theme-<role>` RGB triples on :root (and one class
+ * per theme), refreshed whenever the theme changes. It publishes a single `surface` role,
+ * so the M3 roles this layer needs are derived from it here:
+ *
+ *   - container tones are a neutral tonal step toward `on-surface` (what N98 -> N90 is in
+ *     a light scheme and N6 -> N24 in a dark one) plus the M3 surface tint, so a raised
+ *     surface reads as raised in either scheme;
+ *   - `outline` / `outline-variant` are the same step taken further, giving a mid-tone
+ *     hairline that survives being drawn over snow *and* over night terrain;
+ *   - `inverse-surface` lands near N20 in a light scheme and N90 in a dark one, which is
+ *     what M3 asks of a plain tooltip.
+ *
+ * Everything below consumes these; no literal colour appears past this block. `shadow` is
+ * the one exception, because M3 defines that role as neutral-0 in every scheme.
+ * ------------------------------------------------------------------------- */
+:root,
+.v-theme--dark,
+.v-theme--light,
+.v-theme--contrast {
+    --md-sys-color-surface: rgb(var(--v-theme-surface));
+    --md-sys-color-on-surface: rgb(var(--v-theme-on-surface));
+    --md-sys-color-primary: rgb(var(--v-theme-primary));
+    --md-sys-color-surface-tint: var(--md-sys-color-primary);
+    --md-sys-color-shadow: rgb(0 0 0);
+
+    --md-sys-color-on-surface-variant: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) 74%,
+        var(--md-sys-color-surface)
+    );
+    /*
+     * Pushed past M3's mid-tone N-V50 on purpose. This hairline is the edge of a card drawn
+     * on top of terrain, and a mid grey is exactly the tone that grass and water already
+     * are; leaning it away from the scheme's own surface is what keeps a dark popup legible
+     * against dark water and a light one against snow.
+     */
+    --md-sys-color-outline: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) 60%,
+        var(--md-sys-color-surface)
+    );
+    --md-sys-color-outline-variant: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) 22%,
+        var(--md-sys-color-surface)
+    );
+
+    --md-sys-color-surface-container: color-mix(
+        in srgb,
+        var(--md-sys-color-surface-tint) 3%,
+        color-mix(in srgb, var(--md-sys-color-on-surface) 4%, var(--md-sys-color-surface))
+    );
+    --md-sys-color-surface-container-high: color-mix(
+        in srgb,
+        var(--md-sys-color-surface-tint) 4%,
+        color-mix(in srgb, var(--md-sys-color-on-surface) 6%, var(--md-sys-color-surface))
+    );
+    --md-sys-color-surface-container-highest: color-mix(
+        in srgb,
+        var(--md-sys-color-surface-tint) 5%,
+        color-mix(in srgb, var(--md-sys-color-on-surface) 9%, var(--md-sys-color-surface))
+    );
+
+    --md-sys-color-inverse-surface: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) 88%,
+        var(--md-sys-color-surface)
+    );
+    --md-sys-color-inverse-on-surface: color-mix(
+        in srgb,
+        var(--md-sys-color-surface) 92%,
+        var(--md-sys-color-on-surface)
+    );
+
+    /*
+     * Elevation is expressed as `filter: drop-shadow(...)` rather than `box-shadow`, because
+     * the popups carry a CSS triangle in ::after. drop-shadow follows the composite alpha
+     * silhouette, so the card and its pointer cast one continuous shadow; box-shadow would
+     * shadow the rectangle and leave the pointer floating.
+     */
+    --md-sys-elevation-level1: drop-shadow(
+            0 1px 2px color-mix(in srgb, var(--md-sys-color-shadow) 30%, transparent)
+        )
+        drop-shadow(0 1px 3px color-mix(in srgb, var(--md-sys-color-shadow) 15%, transparent));
+    --md-sys-elevation-level2: drop-shadow(
+            0 1px 2px color-mix(in srgb, var(--md-sys-color-shadow) 30%, transparent)
+        )
+        drop-shadow(0 2px 6px color-mix(in srgb, var(--md-sys-color-shadow) 20%, transparent));
+
+    /* State-layer opacities, M3 spec. */
+    --md-sys-state-hover-opacity: 8%;
+    --md-sys-state-pressed-opacity: 10%;
+
+    --md-sys-shape-corner-extra-small: 4px;
+    --md-sys-shape-corner-small: 8px;
+    --md-sys-shape-corner-medium: 12px;
+
+    --md-sys-motion-duration-short4: 200ms;
+    --md-sys-motion-duration-medium2: 300ms;
+    --md-sys-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+
+    /*
+     * Matches Vuetify's own $body-font-family exactly, so the map layer and the chrome
+     * around it resolve to the same face on hosts that have neither.
+     */
+    --md-ref-typeface-plain: Roboto, sans-serif;
+
+    --md-sys-typescale-body-medium-size: 0.875rem;
+    --md-sys-typescale-body-medium-line-height: 1.25rem;
+    --md-sys-typescale-body-medium-tracking: 0.0156rem;
+    --md-sys-typescale-body-small-size: 0.75rem;
+    --md-sys-typescale-body-small-line-height: 1rem;
+    --md-sys-typescale-body-small-tracking: 0.025rem;
+    --md-sys-typescale-label-large-size: 0.875rem;
+    --md-sys-typescale-label-large-line-height: 1.25rem;
+    --md-sys-typescale-label-large-tracking: 0.00625rem;
+    --md-sys-typescale-label-large-weight: 500;
+    --md-sys-typescale-label-medium-size: 0.75rem;
+    --md-sys-typescale-label-medium-line-height: 1rem;
+    --md-sys-typescale-label-medium-tracking: 0.03125rem;
+    --md-sys-typescale-label-medium-weight: 500;
+}
+
 #map-container {
-  .bm-marker-html {
-    position: relative;
+    /* Half the height of a popup's pointer; also how far a popup is lifted off its anchor. */
+    --mb-marker-pointer: 0.5rem;
 
-    user-select: none;
-
-    .bm-marker-poi-label {
-      position: absolute;
-      top: 0;
-      left: 0;
-
-      opacity: 0;
-      transition: opacity 0.3s;
+    /*
+     * #map-container is a sibling of #app, so nothing in here inherits the application
+     * font. Without this the labels rendered in the browser's default serif.
+     */
+    .bm-marker-html,
+    .bm-marker-labelpopup,
+    .bm-marker-popup,
+    .bm-marker-player {
+        font-family: var(--md-ref-typeface-plain);
     }
 
-    .bm-marker-poi-icon {
-      opacity: 1;
-      transition: opacity 0.3s;
-      filter: drop-shadow(1px 1px 3px #0008);
+    /* Carries the accessible name of a control whose visible affordance is CSS-only. */
+    .bm-sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        padding: 0;
+        border: 0;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
     }
 
-    &.bm-marker-highlight {
-      .bm-marker-poi-label {
-        opacity: 1;
-      }
-
-      .bm-marker-poi-icon {
-        opacity: 0;
-      }
-    }
-  }
-
-  .bm-marker-html .bm-marker-poi-label,
-  .bm-marker-labelpopup,
-  .bm-marker-popup {
-    transform: translate(-50%, -100%) translate(0, -0.5em);
-
-    max-width: 15em;
-
-    color: var(--theme-fg);
-    background-color: var(--theme-bg);
-    filter: drop-shadow(1px 1px 3px #0008);
-    padding: 0.5em;
-    border-radius: 12px; /* MD3 shape token (small) */
-
-    > hr {
-      border: none;
-      border-bottom: solid 1px var(--theme-bg-light);
-      margin: 0.5em -0.5em;
-    }
-
-    &:after {
-      position: absolute;
-      bottom: calc(-1em + 1px);
-      left: 50%;
-      transform: translate(-50%, 0);
-
-      content: '';
-      border: solid 0.5em transparent;
-      border-top-color: var(--theme-bg);
-    }
-  }
-
-  .bm-marker-popup {
-    line-height: 1.2em;
-
-    .group {
-
-      &[data-tooltip] {
-
+    .bm-marker-html {
         position: relative;
 
-        pointer-events: auto;
         user-select: none;
-        cursor: pointer;
 
-        margin: -0.5em;
-        padding: 0.5em;
+        .bm-marker-poi-label {
+            position: absolute;
+            top: 0;
+            left: 0;
 
-        &:hover::before {
-          display: block;
-          position: absolute;
-          z-index: 1;
-
-          left: 50%;
-          bottom: calc(100% + 0.5em);
-          transform: translate(-50%, 0);
-
-          content: attr(data-tooltip);
-
-          background: var(--theme-bg);
-          color: var(--theme-fg-light);
-          filter: drop-shadow(1px 1px 3px #0008);
-          font-size: 0.75em;
-          line-height: 1em;
-          padding: .5em;
-          border-radius: 8px;
+            opacity: 0;
         }
 
-        &:active {
-          background-color: var(--theme-bg-light);
+        .bm-marker-poi-icon {
+            opacity: 1;
+            /* The icon itself is map data. Only its shadow is chrome. */
+            filter: var(--md-sys-elevation-level1);
         }
 
-      }
+        &.bm-marker-highlight {
+            .bm-marker-poi-label {
+                opacity: 1;
+            }
 
-      > .label {
+            .bm-marker-poi-icon {
+                opacity: 0;
+            }
+        }
+    }
+
+    /* ---------------------------------------------------------------------
+     * The three anchored surfaces: a POI's expanded label, an object marker's label
+     * popup, and the map-interaction popup.
+     *
+     * Each is anchored to a point in the 3D scene, so the only thing behind it is
+     * whatever terrain happens to be there. They are opaque M3 containers with a real
+     * elevation shadow and a mid-tone hairline, never a translucent panel: text over a
+     * 60%-alpha box is legible on water and unreadable on a birch forest.
+     * ------------------------------------------------------------------- */
+    .bm-marker-html .bm-marker-poi-label,
+    .bm-marker-labelpopup,
+    .bm-marker-popup {
+        box-sizing: border-box;
+        transform: translate(-50%, -100%) translate(0, calc(-1 * var(--mb-marker-pointer)));
+
+        /*
+         * `width: max-content` is load-bearing, not tidying. A POI label is absolutely
+         * positioned inside .bm-marker-html, whose width is its 32px icon, so shrink-to-fit
+         * sized the label against 32px and wrapped it into a one-word-per-line column 600px
+         * tall that ran off the top of the viewport. Sizing to the content and capping it
+         * with max-width is what a floating surface actually wants.
+         *
+         * The cap keeps upstream's 15em reach - a popup is anchored to a point in the scene
+         * and cannot be re-flowed away from it, so widening it only pushes more of it past
+         * the viewport edge - and adds a viewport-relative bound for narrow windows.
+         */
+        width: max-content;
+        max-width: min(15rem, 60vw);
+        overflow-wrap: anywhere;
+
+        padding: 0.75rem 1rem;
+        border-radius: var(--md-sys-shape-corner-medium);
+
+        background-color: var(--md-sys-color-surface-container-high);
+        color: var(--md-sys-color-on-surface);
+
+        font-size: var(--md-sys-typescale-body-medium-size);
+        line-height: var(--md-sys-typescale-body-medium-line-height);
+        letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+
+        box-shadow: inset 0 0 0 1px var(--md-sys-color-outline);
+        filter: var(--md-sys-elevation-level2);
+
+        > hr {
+            border: none;
+            border-top: 1px solid var(--md-sys-color-outline-variant);
+            margin: 0.5rem -1rem;
+        }
+
+        /*
+         * The pointer. Its top edge overlaps the card by 1px, which is what hides the seam
+         * where the card's inset hairline would otherwise cut across it.
+         */
+        &::after {
+            position: absolute;
+            bottom: calc(1px - 2 * var(--mb-marker-pointer));
+            left: 50%;
+            transform: translate(-50%, 0);
+
+            content: "";
+            border: solid var(--mb-marker-pointer) transparent;
+            border-top-color: var(--md-sys-color-surface-container-high);
+        }
+    }
+
+    .bm-marker-popup {
+        /* Menu-like: the container keeps the vertical rhythm and the rows go full-bleed. */
+        padding-block: 0.5rem;
+
+        .group {
+            &[data-tooltip] {
+                position: relative;
+
+                pointer-events: auto;
+                user-select: none;
+                cursor: pointer;
+
+                /*
+                 * A <button>, built by PopupMarker.ts. Strip the UA chrome so it inherits
+                 * the popup's own type and colour, then give it an M3 state layer.
+                 * box-sizing plus the explicit width keeps the state layer full-bleed
+                 * across the container's 1rem padding.
+                 */
+                display: block;
+                box-sizing: border-box;
+                width: calc(100% + 2rem);
+                margin: 0 -1rem;
+                padding: 0.25rem 1rem;
+                border: none;
+                border-radius: 0;
+                background: none;
+                color: inherit;
+                font: inherit;
+                letter-spacing: inherit;
+                text-align: inherit;
+                appearance: none;
+
+                &::-moz-focus-inner {
+                    border: 0;
+                }
+
+                &:hover {
+                    background-color: color-mix(
+                        in srgb,
+                        var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity),
+                        transparent
+                    );
+                }
+
+                &:active {
+                    background-color: color-mix(
+                        in srgb,
+                        var(--md-sys-color-on-surface) var(--md-sys-state-pressed-opacity),
+                        transparent
+                    );
+                }
+
+                &:focus-visible {
+                    outline: 2px solid var(--md-sys-color-primary);
+                    outline-offset: -2px;
+                }
+
+                /*
+                 * The hover hint. M3 plain tooltip: inverse surface, body-small, extra-small
+                 * shape. Shown on keyboard focus as well as hover, and duplicated into the
+                 * button's accessible name (PopupMarker.ts) because attr() content is not
+                 * exposed to assistive technology.
+                 */
+                &:hover::before,
+                &:focus-visible::before {
+                    display: block;
+                    position: absolute;
+                    z-index: 1;
+
+                    left: 50%;
+                    bottom: calc(100% + 0.25rem);
+                    transform: translate(-50%, 0);
+
+                    content: attr(data-tooltip);
+
+                    box-sizing: border-box;
+                    max-width: 12rem;
+                    width: max-content;
+                    text-align: center;
+                    overflow-wrap: anywhere;
+
+                    background-color: var(--md-sys-color-inverse-surface);
+                    color: var(--md-sys-color-inverse-on-surface);
+                    font-size: var(--md-sys-typescale-body-small-size);
+                    line-height: var(--md-sys-typescale-body-small-line-height);
+                    letter-spacing: var(--md-sys-typescale-body-small-tracking);
+                    padding: 0.25rem 0.5rem;
+                    border-radius: var(--md-sys-shape-corner-extra-small);
+                }
+            }
+
+            > .label {
+                display: block;
+                margin: 0 0 0.125rem;
+
+                font-size: var(--md-sys-typescale-label-medium-size);
+                line-height: var(--md-sys-typescale-label-medium-line-height);
+                letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+                font-weight: var(--md-sys-typescale-label-medium-weight);
+                color: var(--md-sys-color-on-surface-variant);
+            }
+
+            > .content {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 0 0.75rem;
+
+                > .entry {
+                    display: inline-flex;
+                    gap: 0.25rem;
+                    /* Coordinates change every click; stop the row jittering as they do. */
+                    font-variant-numeric: tabular-nums;
+
+                    > .label {
+                        color: var(--md-sys-color-on-surface-variant);
+                    }
+                }
+            }
+        }
+
+        .files {
+            font-size: var(--md-sys-typescale-body-small-size);
+            line-height: var(--md-sys-typescale-body-small-line-height);
+            letter-spacing: var(--md-sys-typescale-body-small-tracking);
+            color: var(--md-sys-color-on-surface-variant);
+            overflow-wrap: anywhere;
+        }
+    }
+
+    .bm-marker-player {
         position: relative;
-        top: 0;
-        left: 0.5em;
+        transform: translate(-50%, -50%);
+        /* One shadow for the head and its name tag together. */
+        filter: var(--md-sys-elevation-level1);
 
-        margin: 0 0.5em;
-
-        font-size: 0.8em;
-        color: var(--theme-fg-light);
-      }
-
-      > .content {
-        display: flex;
-        justify-content: center;
-
-        > .entry {
-          margin: 0 0.5em;
-
-          > .label {
-            color: var(--theme-fg-light);
-          }
+        img {
+            width: 32px;
+            /* Player heads are 8x8 source images and stay square, uncropped and unrounded:
+               they are data, not an avatar we get to restyle. */
+            image-rendering: pixelated;
         }
-      }
+
+        /*
+         * The hardest contrast case in the product: a name sitting directly on terrain, at
+         * label size, at any hour of the in-game day. Same answer as the popups - an opaque
+         * container one step brighter, a hairline, and a shadow.
+         */
+        .bm-player-name {
+            position: absolute;
+            top: calc(-1 * var(--mb-marker-pointer));
+            left: 50%;
+            transform: translate(-50%, -100%);
+
+            box-sizing: border-box;
+            /* Same reason as the popups: the containing block here is a 32px player head. */
+            width: max-content;
+            max-width: min(12rem, 40vw);
+            overflow-wrap: anywhere;
+            text-align: center;
+
+            padding: 0.125rem 0.5rem;
+            border-radius: var(--md-sys-shape-corner-small);
+
+            background-color: var(--md-sys-color-surface-container-highest);
+            color: var(--md-sys-color-on-surface);
+            box-shadow: inset 0 0 0 1px var(--md-sys-color-outline);
+
+            font-size: var(--md-sys-typescale-label-large-size);
+            line-height: var(--md-sys-typescale-label-large-line-height);
+            letter-spacing: var(--md-sys-typescale-label-large-tracking);
+            font-weight: var(--md-sys-typescale-label-large-weight);
+        }
+
+        &[distance-data="med"],
+        &[distance-data="far"] {
+            img {
+                width: 16px;
+            }
+
+            .bm-player-name {
+                opacity: 0;
+            }
+        }
     }
 
-    .files {
-      font-size: 0.8em;
-      color: var(--theme-fg-light);
-    }
-  }
+    /*
+     * Motion is opt-in rather than opt-out, so a reduced-motion preference needs no
+     * !important override to undo it. The matching JS fades (PopupMarker, LabelPopup) read
+     * the same preference through Marker.prefersReducedMotion().
+     */
+    @media (prefers-reduced-motion: no-preference) {
+        .bm-marker-html .bm-marker-poi-label,
+        .bm-marker-html .bm-marker-poi-icon {
+            transition: opacity var(--md-sys-motion-duration-medium2)
+                var(--md-sys-motion-easing-standard);
+        }
 
-  .bm-marker-player {
-    position: relative;
-    transform: translate(-50%, -50%);
-    filter: drop-shadow(1px 1px 3px #0008);
+        .bm-marker-popup .group[data-tooltip] {
+            transition: background-color var(--md-sys-motion-duration-short4)
+                var(--md-sys-motion-easing-standard);
+        }
 
-    img {
-      width: 32px;
-      image-rendering: pixelated;
+        .bm-marker-player img {
+            transition: width var(--md-sys-motion-duration-medium2)
+                var(--md-sys-motion-easing-standard);
+        }
 
-      transition: width 0.3s;
-    }
-
-    .bm-player-name {
-      position: absolute;
-      top: -0.5em;
-      left: 50%;
-      transform: translate(-50%, -100%);
-
-      padding: 0.25em;
-      background-color: #0008;
-      color: #fff;
-
-      transition: opacity 0.3s;
+        .bm-marker-player .bm-player-name {
+            transition: opacity var(--md-sys-motion-duration-medium2)
+                var(--md-sys-motion-easing-standard);
+        }
     }
 
-    &[distance-data="med"],
-    &[distance-data="far"] {
-      img {
-        width: 16px;
-      }
+    /*
+     * When the platform asks for more contrast, drop the tonal step and the tint (they cost
+     * contrast against the container's own text) and promote the hairline to full on-surface.
+     */
+    @media (prefers-contrast: more) {
+        .bm-marker-html .bm-marker-poi-label,
+        .bm-marker-labelpopup,
+        .bm-marker-popup,
+        .bm-marker-player .bm-player-name {
+            background-color: var(--md-sys-color-surface);
+            /* Still 1px: the pointer overlaps the card's bottom edge by exactly that much,
+               and a thicker ring would show as a line across the pointer's base. */
+            box-shadow: inset 0 0 0 1px var(--md-sys-color-on-surface);
+        }
 
-      .bm-player-name {
-        opacity: 0;
-      }
+        .bm-marker-html .bm-marker-poi-label::after,
+        .bm-marker-labelpopup::after,
+        .bm-marker-popup::after {
+            border-top-color: var(--md-sys-color-surface);
+        }
+
+        .bm-marker-popup .group > .label,
+        .bm-marker-popup .group > .content > .entry > .label,
+        .bm-marker-popup .files {
+            color: var(--md-sys-color-on-surface);
+        }
     }
-  }
 }

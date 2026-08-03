@@ -82,6 +82,20 @@ export interface RenderSessionMap {
     readonly world: string;
     readonly dimension: string;
     readonly name: string;
+    /**
+     * The complete `maps/<id>.conf` body the render was started with, when it had one.
+     *
+     * Kept because a resume is a re-run: it writes the config again and hands it to the
+     * engine again, so a session that remembered only the four fields above would carry
+     * on a ninety-key render with a six-key file. The tiles already on disk would then
+     * be from one description of the map and the new ones from another - the exact
+     * half-and-half outcome `config-changed` exists to prevent, arrived at by the resume
+     * itself rather than by anybody editing anything.
+     *
+     * Absent for a render started without one, which is what every session written
+     * before this field existed reads back as, and is the truth about them.
+     */
+    readonly config?: string;
 }
 
 /** The last progress line the engine printed before the session stopped moving. */
@@ -148,9 +162,16 @@ export function sessionFile(storageDir: string, renderId: string): string {
  * The hash a resume is checked against.
  *
  * What goes in is everything that changes what a tile contains: the map ids, the world
- * folders, the dimensions, the display names, the sort order and the start positions.
- * Change any of those and the tiles already on disk were rendered from a different
- * description of the map than the one about to be rendered on top of them.
+ * folders, the dimensions, the display names, the sort order, the start positions and
+ * the supplied config body. Change any of those and the tiles already on disk were
+ * rendered from a different description of the map than the one about to be rendered on
+ * top of them.
+ *
+ * The config body is in it whole rather than as a summary of the keys this module
+ * happens to know. It carries the other ninety-odd settings - lighting, sky colour,
+ * render bounds, markers - and every one of them changes what a tile contains, so
+ * hashing anything less would let somebody dim the ambient light and resume onto tiles
+ * rendered bright.
  *
  * What stays out, deliberately:
  *
@@ -179,11 +200,15 @@ export function renderConfigFingerprint(maps: readonly RenderMapRequest[]): stri
         // resolved value is what lands in the config file and what belongs in the hash.
         sorting: map.sorting ?? index,
         startPos: map.startPos === undefined ? null : { x: map.startPos.x, z: map.startPos.z },
+        config: map.config ?? null,
     }));
     // Sorted by id after resolving, so listing the same maps in a different order does
     // not read as a different config while a genuinely different sort order still does.
     canonical.sort((left, right) => (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
-    const payload = JSON.stringify({ fingerprintVersion: 1, maps: canonical });
+    // Version 2 added the config body. The number is bumped rather than left alone
+    // because the payload's shape genuinely changed, and a hash whose input shape moved
+    // without saying so is a hash nobody can reason about later.
+    const payload = JSON.stringify({ fingerprintVersion: 2, maps: canonical });
     return createHash("sha256").update(payload).digest("hex");
 }
 
@@ -215,6 +240,7 @@ export function newRenderSession(input: NewSessionInput): RenderSession {
             world: map.world,
             dimension: map.dimension ?? "minecraft:overworld",
             name: map.name ?? map.id,
+            ...(map.config === undefined ? {} : { config: map.config }),
         })),
         configDir: input.configDir,
         outputRoot: input.outputRoot,
@@ -259,11 +285,15 @@ function readMaps(value: unknown): RenderSessionMap[] {
         const id = readString(entry.id);
         const world = readString(entry.world);
         if (id === null || world === null) continue;
+        const config = readString(entry.config);
         maps.push({
             id,
             world,
             name: readString(entry.name) ?? id,
             dimension: readString(entry.dimension) ?? "minecraft:overworld",
+            // Absent rather than empty for a session written before this field existed,
+            // which is the truth about it: that render had no config body.
+            ...(config === null ? {} : { config }),
         });
     }
     return maps;

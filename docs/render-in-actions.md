@@ -33,15 +33,30 @@ Actions → **Render world** → Run workflow.
 | Input | What it does |
 | --- | --- |
 | `world-source` | `repository`, `url` or `release-asset` |
-| `world-path` | for `repository`: the path to the world inside this repository |
-| `world-url` | for `url`: a link to a `.zip` holding the world |
-| `release-tag` / `release-asset` | for `release-asset`: which release and which asset (a glob such as `world*.zip` works) |
+| `world` | where the world is, read according to `world-source` — see below |
 | `dimension` | overworld, nether or end |
 | `map-id` / `map-name` | the storage id used in paths, and the display name in the webapp |
 | `output` | `artifact`, or `artifact-and-pages` to also publish it |
 | `budget-minutes` | how long one job may spend rendering before the world is split (default 240) |
 | `max-jobs` | cap on parallel jobs (default 64; GitHub itself refuses more than 256) |
 | `force-shards` | skip the estimate and use exactly this many shards |
+
+### `world`, one field with three meanings
+
+| `world-source` | what `world` holds | example |
+| --- | --- | --- |
+| `repository` | a path inside this repository | `worlds/world` |
+| `url` | a link to a `.zip` holding the world | `https://example.com/world.zip` |
+| `release-asset` | an asset name or glob, optionally `tag/glob` | `world*.zip`, or `v1.4.0/world*.zip` |
+
+For `release-asset` the tag defaults to `latest`. The split is on the **last** slash, and a
+release asset's file name cannot contain one, so a tag that does — `release/1.4` — still
+works.
+
+> This used to be three separate inputs. GitHub caps `workflow_dispatch` at **ten**, and
+> going over does not fail a run: it stops the workflow being registered at all, so it
+> vanishes from the Actions list and `gh workflow run` reports it as not found. This file
+> had twelve and was undispatchable for exactly that reason.
 
 Whatever the source, the world is checked before anything is rendered: there has to be a
 `level.dat` and a region directory holding `.mca` files for the dimension you asked for.

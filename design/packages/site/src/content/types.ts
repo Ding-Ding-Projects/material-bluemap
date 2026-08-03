@@ -170,11 +170,80 @@ export interface Article {
 /* Landing page                                                               */
 /* -------------------------------------------------------------------------- */
 
-export interface HomeHighlight {
+/** A link out of the landing page, to an article or to a file in the repository. */
+export interface HomeLink {
+    readonly label: string;
+    readonly href: string;
+}
+
+/**
+ * A headline figure.
+ *
+ * Every one of these has to be countable by a reader who does not trust it, which is why
+ * `detail` is required rather than optional: a number with no stated source is a number
+ * nobody can check, and this page has no business printing one.
+ */
+export interface HomeStat {
+    readonly value: string;
+    readonly label: string;
+    readonly detail: string;
+}
+
+/**
+ * One of the two engines that can turn a world into tiles.
+ *
+ * `runsToday` is the load-bearing field. There are two engines in this project and only
+ * one of them renders; a page that lists both without saying which is which lets a reader
+ * conclude the TypeScript one is finished, which it is not.
+ */
+export interface EngineRow {
+    readonly id: string;
+    readonly name: string;
+    /** Short role line, e.g. "Renders your world today". */
+    readonly role: string;
+    readonly runsToday: boolean;
+    readonly body: InlineContent;
+    /** The article that documents this engine in full. Always resolves. */
+    readonly articleId: string;
+    /**
+     * Overrides the button's label.
+     *
+     * Both engines are documented in one article, and two buttons carrying the same
+     * article title read as the same destination for no reason. The label may say what
+     * the reader will find; it may not name an article that is not the one it opens.
+     */
+    readonly linkLabel?: string;
+}
+
+/**
+ * One capability card.
+ *
+ * `status` and `statusNote` are the same pair the articles carry, for the same reason: a
+ * landing page whose cards read identically for shipped and unbuilt work misleads by
+ * default, and a badge nobody explains is decoration.
+ */
+export interface HomeFeature {
     readonly title: string;
     readonly body: string;
-    /** Article the card links to, so every claim on the home page is followable. */
+    readonly status: FeatureStatus;
+    readonly statusNote: string;
+    /** The article this card opens. Always resolves to a real article. */
     readonly articleId: string;
+    /** Repository documents that go further than the article does. */
+    readonly reading?: readonly HomeLink[];
+}
+
+export interface HomeFeatureGroup {
+    readonly id: string;
+    readonly title: string;
+    readonly lede: string;
+    readonly features: readonly HomeFeature[];
+}
+
+/** A titled band of the landing page, so section headings are type-checked copy too. */
+export interface HomeSectionCopy {
+    readonly title: string;
+    readonly lede: string;
 }
 
 export interface PhaseRow {
@@ -193,13 +262,40 @@ export const PHASE_STATUS_LABELS: Readonly<Record<PhaseRow["status"], string>> =
 export interface HomeContent {
     readonly title: string;
     readonly tagline: string;
+    /** One sentence in the hero, above the download button. */
+    readonly summary: string;
     readonly intro: readonly Block[];
-    readonly worksToday: readonly string[];
+
+    readonly statsSection: HomeSectionCopy;
+    readonly stats: readonly HomeStat[];
+    readonly statsNote: InlineContent;
+
+    readonly enginesSection: HomeSectionCopy;
+    readonly engines: readonly EngineRow[];
+    readonly enginesNote: InlineContent;
+
+    readonly showcaseSection: HomeSectionCopy;
+    /** Said under the gallery: what these images are and are not. */
+    readonly showcaseCaveat: string;
+    readonly showcaseMoreLabel: string;
+    /** Shown in place of the gallery when no committed capture resolved. */
+    readonly showcaseUnavailable: string;
+
+    readonly featuresSection: HomeSectionCopy;
+    readonly featureGroups: readonly HomeFeatureGroup[];
+
+    readonly notYetSection: HomeSectionCopy;
     readonly notYet: readonly string[];
-    readonly highlights: readonly HomeHighlight[];
+
+    readonly phasesSection: HomeSectionCopy;
     readonly phases: readonly PhaseRow[];
     readonly phaseNote: InlineContent;
+
+    readonly buildSection: HomeSectionCopy;
     readonly buildIt: readonly Block[];
+
+    readonly readingSection: HomeSectionCopy;
+    readonly furtherReading: readonly HomeLink[];
 }
 
 /* -------------------------------------------------------------------------- */

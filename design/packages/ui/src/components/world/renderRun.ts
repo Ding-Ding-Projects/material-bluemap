@@ -1,0 +1,551 @@
+/**
+ * One render, watched from the interface.
+ *
+ * A render of a real world takes minutes and moves in ten-second steps, so the
+ * events are pushed rather than polled and this holds the latest of each: which
+ * phase, which map, how far, how long is left. A spinner for four minutes is
+ * indistinguishable from a hang, and a hang is what people conclude.
+ *
+ * The end states are kept apart on purpose. Finished, failed and cancelled are
+ * three different things, and a cancellation shown as a failure tells somebody
+ * who pressed Cancel that something went wrong when nothing did.
+ *
+ * Two failures get their own treatment because both are common and both are
+ * fixable in one place: missing Mojang download consent, and no Java runtime.
+ * Neither is re-asked here. Consent is answered once at first launch, so this
+ * says what is missing and points at the setting that owns it.
+ */
+
+import { computed, ref, type ComputedRef, type Ref } from "vue";
+import type {
+    EngineDescription,
+    RenderEvent,
+    RenderFailure,
+    RenderRequest,
+    RenderResult,
+    RenderTaskProgress,
+    SettingsTarget,
+    WorldBridge,
+} from "./worldBridge.js";
+import type { Translate } from "./worldFolder.js";
+
+export type RunState = "idle" | "starting" | "running" | "finished" | "failed" | "cancelled";
+
+/** How many log lines are kept. The engine is chatty and the panel is not a terminal. */
+export const LOG_LIMIT = 200;
+
+export interface RenderLogLine {
+    readonly id: number;
+    readonly level: string;
+    readonly message: string;
+    readonly at: string;
+}
+
+/** The engine's phases, in the order it goes through them. */
+export const RENDER_PHASES = [
+    "starting",
+    "downloading-resources",
+    "loading-resources",
+    "loading-maps",
+    "rendering",
+    "watching",
+    "stopping",
+    "finished",
+] as const;
+
+/** What a phase is called on screen. Unknown phases are shown as they arrive. */
+export function phaseLabel(phase: string | null, t: Translate): string {
+    switch (phase) {
+        case null:
+            return "";
+        case "starting":
+            return t("world.run.phase.starting", "Starting the engine");
+        case "downloading-resources":
+            return t("world.run.phase.downloading", "Downloading the Minecraft client files");
+        case "loading-resources":
+            return t("world.run.phase.loadingResources", "Loading textures and models");
+        case "loading-maps":
+            return t("world.run.phase.loadingMaps", "Reading the world");
+        case "rendering":
+            return t("world.run.phase.rendering", "Rendering tiles");
+        case "watching":
+            return t("world.run.phase.watching", "Watching the world for changes");
+        case "stopping":
+            return t("world.run.phase.stopping", "Finishing up");
+        case "finished":
+            return t("world.run.phase.finished", "Finished");
+        default:
+            return phase;
+    }
+}
+
+/**
+ * A duration in words.
+ *
+ * The engine sends its own `etaText` most of the time, which is used verbatim
+ * because it is the engine's own estimate in the engine's own words. This is for
+ * the times it sends only a number.
+ */
+export function formatDuration(seconds: number, t: Translate): string {
+    if (!Number.isFinite(seconds) || seconds < 0) return "";
+    const whole = Math.round(seconds);
+    if (whole < 60) return t("world.run.seconds", "{n} seconds").replace("{n}", String(whole));
+
+    const minutes = Math.floor(whole / 60);
+    if (minutes < 60) {
+        return t("world.run.minutes", "{n} minutes").replace("{n}", String(minutes));
+    }
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return t("world.run.hours", "{h} hours {m} minutes").replace("{h}", String(hours)).replace("{m}", String(rest));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Failures                                                                   */
+/* -------------------------------------------------------------------------- */
+
+export type FailureKind =
+    | "consent"
+    | "java"
+    | "engine-missing"
+    | "world"
+    | "storage"
+    | "request"
+    | "nothing-rendered"
+    | "cancelled"
+    | "engine-failed";
+
+/** Sorts a failure into the one of these it is, so each gets its own answer. */
+export function classifyFailure(failure: RenderFailure): FailureKind {
+    switch (failure.code) {
+        case "consent-required":
+            return "consent";
+        case "java-unavailable":
+            return "java";
+        case "cli-jar-missing":
+            return "engine-missing";
+        case "world-not-found":
+            return "world";
+        case "workspace-unwritable":
+            return "storage";
+        case "invalid-request":
+        case "already-running":
+            return "request";
+        case "no-maps-rendered":
+            return "nothing-rendered";
+        case "cancelled":
+            return "cancelled";
+        default:
+            return "engine-failed";
+    }
+}
+
+/** What to offer beside a failure, when a setting would fix it. */
+export interface FailureRemedy {
+    /** The settings row to open, or null when no setting helps. */
+    readonly settings: SettingsTarget | null;
+    /** Label for the button that opens it. Empty when there is none. */
+    readonly actionKey: string;
+    readonly actionFallback: string;
+}
+
+export interface FailureAdvice {
+    readonly kind: FailureKind;
+    /** The engine's own sentence, shown as written. */
+    readonly message: string;
+    /** What it means and what to do, in this app's terms. */
+    readonly explanation: string;
+    readonly remedy: FailureRemedy;
+    /** The engine's supporting evidence, behind a disclosure. Null when there is none. */
+    readonly detail: string | null;
+}
+
+/**
+ * What a failure means and where to fix it.
+ *
+ * The engine's own `message` is never rewritten or hidden: it is the most precise
+ * statement available and it is what a person would search for. The explanation
+ * sits beside it and says what this app can do about it.
+ */
+export function adviseOnFailure(failure: RenderFailure, t: Translate): FailureAdvice {
+    const kind = classifyFailure(failure);
+
+    const base = {
+        kind,
+        message: failure.message,
+        detail: failure.detail,
+    };
+
+    switch (kind) {
+        case "consent":
+            return {
+                ...base,
+                explanation: t(
+                    "world.run.fail.consent",
+                    "BlueMap builds its blocks from the Minecraft client files, which are downloaded from Mojang. That download is accepted once, in Settings, and it has not been. Nothing was started and nothing was written.",
+                ),
+                remedy: {
+                    settings: failure.settings ?? { surface: "settings", anchor: "mojang-download-consent", missing: true },
+                    actionKey: "world.run.fail.consentAction",
+                    actionFallback: "Open the download setting",
+                },
+            };
+        case "java":
+            return {
+                ...base,
+                explanation: t(
+                    "world.run.fail.java",
+                    "The BlueMap engine runs on Java, and no Java runtime new enough to run it was found on this machine. The app can fetch one for you, or you can point it at one you already have.",
+                ),
+                remedy: {
+                    settings: failure.settings ?? { surface: "settings", anchor: "java-runtime", missing: true },
+                    actionKey: "world.run.fail.javaAction",
+                    actionFallback: "Set up the Java runtime",
+                },
+            };
+        case "engine-missing":
+            return {
+                ...base,
+                explanation: t(
+                    "world.run.fail.engineMissing",
+                    "The BlueMap engine itself is not installed in this build, so there was nothing to run. The detail below lists the folders that were searched.",
+                ),
+                remedy: { settings: failure.settings, actionKey: "", actionFallback: "" },
+            };
+        case "world":
+            return {
+                ...base,
+                explanation: t(
+                    "world.run.fail.world",
+                    "The world folder could not be read when the render started. It may have been moved, renamed, or be on a drive that is not connected.",
+                ),
+                remedy: {
+                    settings: failure.settings,
+                    actionKey: "world.run.fail.worldAction",
+                    actionFallback: "Choose the world again",
+                },
+            };
+        case "storage":
+            return {
+                ...base,
+                explanation: t(
+                    "world.run.fail.storage",
+                    "The folder maps are written to could not be created or written. It may be read-only, full, or on a drive that is not connected.",
+                ),
+                remedy: {
+                    settings: failure.settings,
+                    actionKey: "world.run.fail.storageAction",
+                    actionFallback: "Change where maps are written",
+                },
+            };
+        case "request":
+            return {
+                ...base,
+                explanation: t(
+                    "world.run.fail.request",
+                    "The render was refused before anything ran, so nothing was written. The message above says exactly which part of the request was refused.",
+                ),
+                remedy: { settings: failure.settings, actionKey: "", actionFallback: "" },
+            };
+        case "nothing-rendered":
+            return {
+                ...base,
+                explanation: t(
+                    "world.run.fail.nothing",
+                    "The engine ran and finished without rendering a single map. That usually means the dimension chosen has no region files in this world, so there was nothing to draw.",
+                ),
+                remedy: {
+                    settings: failure.settings,
+                    actionKey: "world.run.fail.nothingAction",
+                    actionFallback: "Check the world and dimension",
+                },
+            };
+        case "cancelled":
+            return {
+                ...base,
+                explanation: t(
+                    "world.run.fail.cancelled",
+                    "You stopped it. The tiles already rendered are kept, and carrying on later picks up from where it stopped.",
+                ),
+                remedy: { settings: null, actionKey: "", actionFallback: "" },
+            };
+        case "engine-failed":
+            return {
+                ...base,
+                explanation: t(
+                    "world.run.fail.engine",
+                    "The engine started and then stopped with an error. Its own output is below; the last few lines are usually the ones that say why.",
+                ),
+                remedy: { settings: failure.settings, actionKey: "", actionFallback: "" },
+            };
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The run                                                                    */
+/* -------------------------------------------------------------------------- */
+
+export interface RenderRun {
+    readonly state: Ref<RunState>;
+    /** Learned from the engine, because the id is derived from the world folder. */
+    readonly renderId: Ref<string | null>;
+    readonly engine: Ref<EngineDescription | null>;
+    readonly phase: Ref<string | null>;
+    readonly task: Ref<RenderTaskProgress | null>;
+    readonly percent: ComputedRef<number>;
+    /** True while the engine is between phases and has reported no percentage yet. */
+    readonly indeterminate: ComputedRef<boolean>;
+    readonly mapIds: Ref<readonly string[]>;
+    readonly dataRoot: Ref<string | null>;
+    readonly durationMs: Ref<number | null>;
+    readonly failure: Ref<RenderFailure | null>;
+    readonly log: Ref<readonly RenderLogLine[]>;
+    readonly cancelling: Ref<boolean>;
+    readonly startedAt: Ref<string | null>;
+    /** True while a render is in flight, which is what disables the start control. */
+    readonly active: ComputedRef<boolean>;
+    /** True when this build cannot render at all. */
+    readonly available: boolean;
+
+    start(request: RenderRequest): Promise<RenderResult | null>;
+    /**
+     * Watches a render this panel did not start, by id.
+     *
+     * Resuming an interrupted render is the case: the bridge call resolves only
+     * when that render has ended, so without this the progress of a render that
+     * is already going would arrive with nowhere to be shown.
+     */
+    expect(renderId: string): void;
+    /** Applies a final result, for a render whose events said nothing at all. */
+    settle(result: RenderResult): void;
+    cancel(): Promise<boolean>;
+    /** Clears the finished, failed or cancelled state so another render can be started. */
+    reset(): void;
+    /** Stops listening. Called when the surface holding this goes away. */
+    dispose(): void;
+}
+
+export function createRenderRun(bridge: WorldBridge | null): RenderRun {
+    const state = ref<RunState>("idle");
+    const renderId = ref<string | null>(null);
+    const engine = ref<EngineDescription | null>(null);
+    const phase = ref<string | null>(null);
+    const task = ref<RenderTaskProgress | null>(null);
+    const mapIds = ref<readonly string[]>([]);
+    const dataRoot = ref<string | null>(null);
+    const durationMs = ref<number | null>(null);
+    const failure = ref<RenderFailure | null>(null);
+    const log = ref<readonly RenderLogLine[]>([]);
+    const cancelling = ref(false);
+    const startedAt = ref<string | null>(null);
+
+    let nextLogId = 1;
+    /**
+     * True between asking for a render and learning its id.
+     *
+     * The engine derives a stable render id from the world folder, which is what
+     * makes a second render of the same world carry on from the first rather than
+     * starting again. That means the interface does not know the id until the
+     * engine says it, and events start arriving before `startRender` resolves. So
+     * the first `started` event after asking is adopted, and everything else is
+     * matched against the id it carried.
+     */
+    let adopting = false;
+
+    const percent = computed(() => {
+        const current = task.value;
+        if (current === null) return 0;
+        return Math.max(0, Math.min(100, current.percent));
+    });
+
+    const indeterminate = computed(
+        () => (state.value === "starting" || state.value === "running") && task.value === null,
+    );
+
+    const active = computed(() => state.value === "starting" || state.value === "running");
+
+    function mine(event: RenderEvent): boolean {
+        if (renderId.value === null) {
+            if (!adopting) return false;
+            if (event.type !== "started") return false;
+            renderId.value = event.renderId;
+            adopting = false;
+            return true;
+        }
+        return event.renderId === renderId.value;
+    }
+
+    function append(level: string, message: string, at: string): void {
+        const line: RenderLogLine = { id: nextLogId++, level, message, at };
+        const next = [...log.value, line];
+        log.value = next.length > LOG_LIMIT ? next.slice(next.length - LOG_LIMIT) : next;
+    }
+
+    function handle(event: RenderEvent): void {
+        if (!mine(event)) return;
+
+        switch (event.type) {
+            case "started":
+                state.value = "running";
+                engine.value = event.engine;
+                mapIds.value = event.mapIds;
+                startedAt.value = event.at;
+                phase.value = "starting";
+                break;
+            case "phase":
+                phase.value = event.phase;
+                break;
+            case "progress":
+                phase.value = event.phase;
+                task.value = event.task;
+                break;
+            case "log":
+                append(event.level, event.message, event.at);
+                break;
+            case "finished":
+                state.value = "finished";
+                phase.value = "finished";
+                dataRoot.value = event.dataRoot;
+                mapIds.value = event.mapIds;
+                engine.value = event.engine;
+                durationMs.value = event.durationMs;
+                cancelling.value = false;
+                break;
+            case "failed":
+                state.value = "failed";
+                failure.value = event.failure;
+                cancelling.value = false;
+                break;
+            case "cancelled":
+                state.value = "cancelled";
+                cancelling.value = false;
+                break;
+        }
+    }
+
+    const unsubscribe = bridge === null ? () => undefined : bridge.onRenderEvent(handle);
+
+    function reset(): void {
+        if (active.value) return;
+        state.value = "idle";
+        renderId.value = null;
+        engine.value = null;
+        phase.value = null;
+        task.value = null;
+        mapIds.value = [];
+        dataRoot.value = null;
+        durationMs.value = null;
+        failure.value = null;
+        log.value = [];
+        cancelling.value = false;
+        startedAt.value = null;
+        adopting = false;
+    }
+
+    function expect(id: string): void {
+        if (active.value) return;
+        reset();
+        renderId.value = id;
+        state.value = "starting";
+    }
+
+    /**
+     * The backstop for a render whose events said nothing.
+     *
+     * A failure that happens before anything is spawned - a missing consent
+     * record, no Java runtime - emits no events at all, so the resolved result is
+     * the only place the reason exists. An outcome the events already reported is
+     * left alone rather than restated.
+     */
+    function settle(result: RenderResult): void {
+        renderId.value = result.renderId;
+
+        if (result.ok) {
+            if (state.value === "finished") return;
+            state.value = "finished";
+            dataRoot.value = result.dataRoot;
+            mapIds.value = result.mapIds;
+            engine.value = result.engine;
+            durationMs.value = result.durationMs;
+        } else if (result.failure.code === "cancelled") {
+            if (state.value !== "cancelled") state.value = "cancelled";
+        } else if (state.value !== "failed" && state.value !== "cancelled") {
+            state.value = "failed";
+            failure.value = result.failure;
+        }
+
+        cancelling.value = false;
+    }
+
+    async function start(request: RenderRequest): Promise<RenderResult | null> {
+        if (bridge === null || active.value) return null;
+
+        reset();
+        state.value = "starting";
+        adopting = true;
+
+        let result: RenderResult;
+        try {
+            result = await bridge.startRender(request);
+        } catch (error) {
+            // The bridge is documented never to reject, so this is a broken bridge
+            // rather than a failed render. Saying so is more useful than showing it
+            // as an engine failure it never got as far as.
+            adopting = false;
+            state.value = "failed";
+            failure.value = {
+                code: "bridge-failed",
+                message: error instanceof Error ? error.message : String(error),
+                settings: null,
+                detail: null,
+                exitCode: null,
+            };
+            return null;
+        }
+
+        adopting = false;
+        settle(result);
+        return result;
+    }
+
+    async function cancel(): Promise<boolean> {
+        const id = renderId.value;
+        if (bridge === null || id === null || !active.value) return false;
+        cancelling.value = true;
+        try {
+            return await bridge.cancelRender(id);
+        } catch {
+            cancelling.value = false;
+            return false;
+        }
+    }
+
+    function dispose(): void {
+        unsubscribe();
+    }
+
+    return {
+        state,
+        renderId,
+        engine,
+        phase,
+        task,
+        percent,
+        indeterminate,
+        mapIds,
+        dataRoot,
+        durationMs,
+        failure,
+        log,
+        cancelling,
+        startedAt,
+        active,
+        available: bridge !== null,
+        start,
+        expect,
+        settle,
+        cancel,
+        reset,
+        dispose,
+    };
+}

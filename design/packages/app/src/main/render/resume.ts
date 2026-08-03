@@ -235,7 +235,14 @@ export interface ResumeRefused {
 
 export type ResumeDecision = ResumePlan | ResumeRefused;
 
-/** The render request that continues a session: the same maps, and no `-f`. */
+/**
+ * The render request that continues a session: the same maps, and no `-f`.
+ *
+ * "The same maps" includes the config body each was started with. A resume rewrites the
+ * config directory and runs the engine over it again, so dropping the body here would
+ * carry a ninety-key render on with a six-key file - producing exactly the half-one,
+ * half-the-other map that `config-changed` refuses when a *person* changes the settings.
+ */
 export function resumeRequestFor(session: RenderSession): RenderRequest {
     return {
         renderId: session.renderId,
@@ -244,6 +251,7 @@ export function resumeRequestFor(session: RenderSession): RenderRequest {
             world: map.world,
             name: map.name,
             dimension: map.dimension,
+            ...(map.config === undefined ? {} : { config: map.config }),
         })),
         // Stated rather than left out. `-f` re-renders everything and would throw away
         // precisely the work this is here to keep.
@@ -257,8 +265,9 @@ export interface PlanResumeOptions {
      *
      * Omitted, the session's own maps are used and the check below is a formality that
      * always passes. Supplied, it is the real check: this is where a person who changed
-     * the dimension, renamed a map or pointed it at a different world folder since the
-     * render died gets told that those tiles and these settings do not belong together.
+     * the dimension, renamed a map, pointed it at a different world folder or edited any
+     * of the ninety-odd settings in its config body since the render died gets told that
+     * those tiles and these settings do not belong together.
      */
     readonly maps?: readonly RenderMapRequest[];
     /** True when a render is already in flight under this id. */
