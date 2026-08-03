@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { JarFs } from "./jars.js";
 import {
@@ -15,7 +15,15 @@ import {
     surveyBlueMapJars,
 } from "./jars.js";
 
-const REPO = join("C:", "repo");
+/**
+ * An absolute repository root that is absolute on **both** platforms.
+ *
+ * `join("C:", "repo")` looks absolute and is not one on POSIX, so `findRepoRoot`'s
+ * `resolve()` prefixed the runner's working directory, the walk never reached the
+ * anchor, and every assertion here returned null on Linux while passing on Windows.
+ * `resolve(sep, "repo")` gives `C:epo` on Windows and `/repo` on Linux.
+ */
+const REPO = resolve(sep, "repo");
 
 /** A filesystem described as directory -> [file, ...], with modification times. */
 function fakeFs(
