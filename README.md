@@ -11,14 +11,52 @@ Minecraft 3D map renderer and web viewer. It is built to ship as two things from
 Target world versions: Minecraft **1.12.2 through 26.x**. The renderer is pure
 TypeScript/Node, with no JVM and no Java sidecar.
 
-## Status: in development, nothing released yet
+## Status: in development, and honest about it
 
-There are **no releases, no installers, and no published download** for this project. Phases 0,
-A and B are complete and verified on the default branch. Phase C (the resource-pack pipeline) is
-in progress, and parts of it are committed as work in progress. At the current commit all eight
-packages still build and type-check clean; `design/HANDOFF.md` is where a known-red WIP state
-would be recorded, so check it there before treating a build failure as a regression. See
-[Phase status](#phase-status) below.
+**[Download the latest Windows installer](https://github.com/Ding-Ding-Projects/material-bluemap/releases/latest)**
+· [all releases](https://github.com/Ding-Ding-Projects/material-bluemap/releases)
+· [documentation site](https://ding-ding-projects.github.io/material-bluemap/)
+
+Every push to the default branch that passes lint, build and the full test suite publishes a real
+Squirrel.Windows installer with its own uniquely tagged release. Read what it can and cannot do
+before installing it.
+
+**What works today.** Browsing a **remote** BlueMap server end to end: the viewer, the three.js
+scene, markers, the token-gated embedded server and its reverse proxy. The whole world-reading
+layer (NBT, compression, region containers, chunk decoders for 1.12.2 through 26.x) and the
+resource-pack pipeline are ported and unit tested.
+
+> **Rendering a local world does not work yet.** The mesher is Phase D and has not been written,
+> so the app cannot turn a Minecraft save into a map. It can only display a map somebody else's
+> BlueMap server already rendered. Nothing in the app is a mock or a demo shell, which is why it
+> currently does less than a finished product would.
+
+Phases 0, A and B are complete and verified. Phase C is ported with its exit criteria not yet
+run. D through I are pending. See [Phase status](#phase-status).
+
+## Screenshots
+
+Captures of the real running application, taken by the project's Playwright harness in CI. None
+is a mockup. The world shown is served by a remote BlueMap server, not rendered by this project.
+
+<img src="docs/screenshots/shell-1280x800.png" alt="The application showing a Minecraft world in 3D with point, area, volume and line markers" width="900">
+
+<details>
+<summary><b>More captures</b> (every window size, display scale and colour scheme)</summary>
+
+| | |
+|---|---|
+| <img src="docs/screenshots/shell-1920x1080.png" alt="The application at 1920 by 1080" width="420"> | <img src="docs/screenshots/shell-800x600-narrow.png" alt="The application at 800 by 600" width="420"> |
+| 1920x1080 | 800x600, the narrowest supported width |
+| <img src="docs/screenshots/theme-light.png" alt="The application in the light colour scheme" width="420"> | <img src="docs/screenshots/theme-dark.png" alt="The application in the dark colour scheme" width="420"> |
+| Light scheme | Dark scheme |
+| <img src="docs/screenshots/shell-scale-1x.png" alt="The application at 100 percent display scale" width="420"> | <img src="docs/screenshots/shell-scale-2x.png" alt="The application at 200 percent display scale" width="420"> |
+| 100% display scale | 200% display scale |
+
+`docs/screenshots/manifest.json` records the commit, the CI run and the capture method for each
+set, so any image here can be traced back to the build it came from.
+
+</details>
 
 ## Build it
 
@@ -38,11 +76,29 @@ pnpm lint
 ```
 
 Everything except `plan.md` and repository metadata lives in `design/`, a pnpm workspace of
-eight packages.
+ten packages.
+
+Generate a test world without needing Minecraft, a server jar or a network connection:
+
+```sh
+node design/packages/worldgen/dist/cli.js --seed 1 --size 1000 --out ./test-world
+```
+
+That writes anvil format byte by byte: 3969 chunks across four region files, about 16 MB on disk
+and 8 MB zipped, in a few seconds. The same seed always produces byte-identical output.
+
+At the latest release the project is **97,723 lines** hand written across 607 files, or 112,977
+lines across 1,021 files counting bundled data. Every release publishes the full breakdown,
+generated at the tagged commit by `scripts/count-lines.mjs`.
 
 ## Documentation
 
-There is no published documentation site yet. The docs live in the repository:
+**[ding-ding-projects.github.io/material-bluemap](https://ding-ding-projects.github.io/material-bluemap/)**
+carries an article for every feature, each stating its behaviour, configuration, failure modes,
+security considerations and verification, with a visible badge saying whether the subject is
+shipped, ported but unverified, or only specified.
+
+The source of truth lives in the repository:
 
 | Document | What it covers |
 |---|---|
