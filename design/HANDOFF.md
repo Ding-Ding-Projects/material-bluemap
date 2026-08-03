@@ -476,6 +476,51 @@ element, which is most of why it read as a stub. It now has one, plus honesty gu
 content tests: no feature card may claim more than the article behind it, and exactly one engine
 may be marked as running.
 
+### The settings surface, and an honest empty state that is about to become real
+
+`AppSettings` is mounted and carries the four anchors a failed render points at. Three notes on
+what is real in it and what is not, because the distinction is the point:
+
+- **Mojang consent** mounts the *existing* `ConsentSettingsRow` rather than a copy of it.
+- **The storage folder** validates and writes, asking the bridge *before* the local store so a
+  refusal leaves neither side changed.
+- **The Java runtime** says plainly that this build cannot read it. `discoverJava()` exists and
+  is tested; there was simply no IPC handler and no preload method. The honest empty state was
+  the right answer over a fabricated version number — and `settingsBridge.ts` already mirrors the
+  exact shape (`javaRuntime(): Promise<JavaDiscovery>`, feature-detected, rendering written and
+  tested), so closing it is one handler plus one preload line. That wire is in flight.
+- **The world folder** is per-map, not global. The section says so instead of rendering a control
+  that would change nothing.
+
+### 69 messages were rendering with the value missing
+
+Found while building the settings surface, and it is worth stating carefully because **every
+test passed the whole time**.
+
+This codebase's fallback idiom is `t("some.key", "Rendered on: {engine}.")`, used because the
+locale files are upstream's and a shell-only key often has no entry. Interpolation was then done
+with `.replace("{engine}", value)`. That does not work:
+
+```
+broken idiom -> "The most recent render ran on: ."      // the value is gone
+named-args   -> "The most recent render ran on: BlueMap 5.22."
+```
+
+vue-i18n compiles the **default message** as a message format too, so it consumes `{engine}`
+before `.replace` ever runs. The correct call is the three-argument form,
+`t(key, { engine: value }, fallback)`.
+
+**69 call sites across 22 files** — 12 files in `components/config`, 7 in `components/world`,
+3 in `components/menu`. These are validation errors, render failure reasons, chunk counts,
+durations and file paths: the messages where a missing value turns *"Storage 'sql' is already
+defined"* into *"Storage '' is already defined"*, and a render failure into one that names
+nothing.
+
+Nothing caught it because **nothing ever asserted the rendered text of a fallback message**. A
+suite that mounts no component and reads no rendered string cannot see this class of bug at all;
+this repository had 187 test files and not one of them mounted a component until now. A guard
+is being added with the fix, and it has to fail against the pre-fix tree to count.
+
 ### Still not done
 
 - **Phase D's gate.** Unchanged: unit-level PRBM byte-identity is not a rendered world compared
@@ -485,3 +530,14 @@ may be marked as running.
   search bar, tabs, per-element appearance editors, the super-confirmation gate, language modes
   and funny-level sliders, the command palette, the changelog viewer, the notification centre.
 - **A day/night toggle logo and settings logos**, asked for and never started.
+- **No screenshot of the running window.** Issue #5 stays open for exactly this: the title bar
+  has lint, types, 13 unit tests and a clean build behind it, and no capture of the real
+  artifact. Claiming a visible fix without showing it is the gap this repository keeps finding.
+
+### In flight at the time of writing
+
+A workflow is fixing the 69 call sites (one agent per subsystem), wiring the Java runtime
+bridge, and building the regression guard, with three adversarial verifiers checking that no
+message changed meaning, that no site was missed, and that the guard actually fails on a
+deliberate reintroduction. Its result is not in this document yet, and nothing here claims it
+landed.
