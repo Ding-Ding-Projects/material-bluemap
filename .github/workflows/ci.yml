@@ -109,9 +109,121 @@ jobs:
     name: BlueMap jars
     uses: ./.github/workflows/build-jars.yml
 
+  # A world of our own, rendered by the Java engine, so the screenshot harness never
+  # touches somebody else's public demo server. Closes issue #17: every push used to
+  # pull map tiles from bluecolored.de, which is another person's bandwidth, made the
+  # captures depend on a third party's uptime, and let a screenshot of a fully rendered
+  # world imply this project had rendered it.
+  test-world:
+    name: Generate and render a test world
+    needs: [check, jars]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: bluemap-jar-cli
+          path: jar
+
+      - name: Install and build
+        working-directory: design
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      # A different seed every push, derived from the run id so it is fresh but
+      # recorded and reproducible rather than merely random.
+      - name: Generate the world
+        id: world
+        run: |
+          set -euo pipefail
+          seed=$(( GITHUB_RUN_ID % 2147483647 ))
+          echo "seed=$seed" >> "$GITHUB_OUTPUT"
+          echo "Generating a 1000x1000 world with seed $seed"
+          node design/packages/worldgen/dist/cli.js             --seed "$seed" --size 1000 --out "$GITHUB_WORKSPACE/test-world"
+          ls -la "$GITHUB_WORKSPACE/test-world"
+
+      - name: Render it with the Java engine
+        id: render
+        run: |
+          set -euo pipefail
+          jar=$(find jar -name '*.jar' | head -1)
+          world=$(find "$GITHUB_WORKSPACE/test-world" -maxdepth 1 -type d -name 'test-world-seed-*' | head -1)
+          config="$GITHUB_WORKSPACE/render-config"
+          out="$GITHUB_WORKSPACE/render-out"
+          mkdir -p "$out"
+
+          # Generate the config set, then point it at our world. Absolute paths
+          # throughout: the CLI resolves its storage root against the working
+          # directory, not the config folder it was given.
+          java -jar "$jar" -c "$config" || true
+          sed -i 's/^accept-download: false/accept-download: true/' "$config/core.conf"
+          sed -i "s|^world: .*|world: \"$world\"|" "$config/maps/overworld.conf"
+          mv "$config/maps/nether.conf" "$config/maps/nether.conf.off"
+          mv "$config/maps/end.conf" "$config/maps/end.conf.off"
+
+          cd "$out"
+          java -jar "$jar" -c "$config" -r -g
+          echo "tiles=$(find "$out/web/maps" -name '*.prbm*' | wc -l)" >> "$GITHUB_OUTPUT"
+          du -sh "$out/web"
+
+      - name: Record what rendered it
+        run: |
+          set -euo pipefail
+          cat > "$GITHUB_WORKSPACE/render-out/provenance.json" <<JSON
+          {
+            "engine": "upstream BlueMap Java engine, built from the vendored source",
+            "seed": ${{ steps.world.outputs.seed }},
+            "sizeBlocks": 1000,
+            "hiresTiles": ${{ steps.render.outputs.tiles }},
+            "commit": "${{ github.sha }}",
+            "run": "${{ github.run_id }}"
+          }
+          JSON
+          cat "$GITHUB_WORKSPACE/render-out/provenance.json"
+
+      - name: Package the world for the release
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE/test-world"
+          zip -qr "$GITHUB_WORKSPACE/test-world-seed-${{ steps.world.outputs.seed }}.zip" .
+          ls -la "$GITHUB_WORKSPACE"/test-world-seed-*.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-world
+          path: test-world-seed-*.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rendered-map
+          path: |
+            render-out/web
+            render-out/provenance.json
+          if-no-files-found: error
+          retention-days: 7
+
   screenshots:
     name: Screenshots
-    needs: check
+    needs: [check, test-world]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -134,13 +246,25 @@ jobs:
         working-directory: design
         run: pnpm build
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: rendered-map
+          path: rendered-map
+
       - name: Install Playwright browsers
         working-directory: design/packages/app
         run: pnpm exec playwright install-deps chromium
 
       # Electron needs a display. xvfb gives it one without a desktop session.
+      # `local` mode serves the map this run rendered, so the captures are
+      # self-contained and reproducible, and the network guard fails the job if the
+      # app reaches the public internet at all during capture.
       - name: Capture
         working-directory: design/packages/app
+        env:
+          MATERIAL_BLUEMAP_CAPTURE_MODE: local
+          MATERIAL_BLUEMAP_CAPTURE_MAP: ${{ github.workspace }}/rendered-map/web
+          MATERIAL_BLUEMAP_CAPTURE_PROVENANCE: ${{ github.workspace }}/rendered-map/provenance.json
         run: xvfb-run -a --server-args="-screen 0 1920x1080x24" pnpm run screenshots
 
       # Upload even when the capture failed: a diagnostic image of a broken
@@ -163,7 +287,7 @@ jobs:
 
   release:
     name: Publish release
-    needs: [check, package, jars]
+    needs: [check, package, jars, test-world]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -193,6 +317,13 @@ jobs:
           pattern: bluemap-jar-*
           merge-multiple: true
           path: jars-out
+
+      # A world anybody can render themselves, with the seed stated so the exact one
+      # in this release can be regenerated byte for byte.
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-world
+          path: world-out
 
       # Artifact upload and download is a round trip through someone else's storage, and
       # a jar that arrives short is a download that fails on a stranger's server rather
@@ -284,6 +415,10 @@ jobs:
           # bluemap-jars.md is deliberately left out: its text is already the release
           # notes above, and attaching it as well would publish the same words twice.
           assets+=(jars-out/bluemap-*.jar jars-out/bluemap-jars.sha256.txt jars-out/bluemap-jars.json)
+          # A generated test world, zipped, with a different seed every build. It is a
+          # real Minecraft save written in anvil format by this project, so anybody can
+          # render it without owning Minecraft or downloading anything from Mojang.
+          assets+=(world-out/*.zip)
           if [ -d dim-sum-out ] && [ -n "$(ls -A dim-sum-out 2>/dev/null)" ]; then
             assets+=(dim-sum-out/*)
           fi
