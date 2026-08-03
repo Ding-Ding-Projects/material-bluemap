@@ -1039,9 +1039,11 @@ pass.
 
 Two traps worth knowing before you report a result:
 
-- On Windows the `pnpm build` script currently matches no projects and **exits 0** (`cmd.exe`
-  keeps the single quotes around the `./packages/*` filter). A green exit code there is not
-  evidence of a build. Pass the filter quoted for your own shell and read the output.
+- A green `pnpm build` on Windows **is** evidence of a build again. It was not, until the filter
+  stopped being single-quoted: `cmd.exe` kept the quotes, pnpm matched no projects and exited 0.
+  The script now uses double quotes plus `--fail-if-no-match`, so a filter matching nothing
+  fails instead of passing. Still read the output — `Scope: 8 of 9 workspace projects` is the
+  line that says the workspace was actually selected.
 - Phase C work in progress may leave part of the tree red on known files, recorded in
   `design/HANDOFF.md`. Check whether that note is still accurate rather than assuming it, and
   never report a build as green because a failure looked familiar.

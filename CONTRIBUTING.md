@@ -49,13 +49,17 @@ then `pnpm test` on Ubuntu with Node 22, on every push to `main` or a `claude/**
 every pull request. **Lint runs before the type check**, so a single unused variable fails the
 job before tsc ever reports the real type errors underneath it. Run lint first locally too.
 
-> **Known issue, Windows only.** The `build` script in `design/package.json` is
-> `pnpm -r --filter './packages/*' run build`. `cmd.exe` does not strip the single quotes, so on
-> Windows the filter matches nothing: pnpm prints `No projects matched the filters` and **exits
-> 0**, which looks exactly like a successful build. Until that is fixed, verify a Windows build
-> with the filter quoted for your shell, for example
-> `pnpm -r --filter "./packages/*" run build` from Git Bash or PowerShell. CI runs on Ubuntu, so
-> the workspace does build there.
+> **Fixed: the Windows build that built nothing.** The `build` script used to quote its
+> workspace filter with single quotes. `cmd.exe` does not strip those, and npm-scripts on
+> Windows run through `cmd.exe`, so pnpm received the filter with the quotes still attached,
+> matched nothing, printed `No projects matched the filters` and **exited 0** — indistinguishable
+> from a successful build. POSIX `sh` does strip them, which is why Ubuntu CI never noticed.
+>
+> The script now uses double quotes, which both shells strip, and carries
+> `--fail-if-no-match`, so a filter that selects zero projects exits 1 instead of 0. `pnpm build`
+> is now trustworthy on Windows; if it ever prints `No projects matched the filters` again, it
+> will fail rather than pass. Do not "fix" the double quotes into bare `./packages/**` — `sh`
+> would expand the glob into one argument per package before pnpm ever saw it.
 
 Phase C is in progress and some of its files are committed as work in progress. Where that leaves
 the tree red, [`design/HANDOFF.md`](design/HANDOFF.md) records it. Check there before treating a
