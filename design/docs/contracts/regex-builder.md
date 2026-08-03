@@ -4,7 +4,7 @@
 
 Every new and existing project ships a usable regex builder. This requirement has no exemption for libraries, services, infrastructure, documentation, or configuration repositories. If a project does not have a builder, the next project-changing task includes it before completion.
 
-This repository demonstrates the contract with its local, worker-isolated [ECMAScript regex builder](../../regex-builder.html).
+This repository demonstrates the contract with its local, worker-isolated [ECMAScript regex builder](../../tools/regex-builder-reference/regex-builder.html).
 
 Expose the builder through the project’s natural interface. User-facing applications use an accessible screen, panel, drawer, or dialog. Non-UI projects provide a documented runnable CLI, TUI, or local web tool. Linking only to an unrelated external regex site is insufficient.
 
