@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import type { IpcMain, IpcMainInvokeEvent, OpenDialogOptions, OpenDialogReturnValue } from "electron";
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
@@ -464,9 +464,12 @@ describe("config:writeFiles", () => {
 
         // Windows opens `Maps` and `maps` as the same directory. Creating a second one
         // beside it would split a person's maps across two folders, only one of which
-        // BlueMap loads.
+        // BlueMap loads. Asserted through the directory listing rather than a lowercase
+        // `exists()` probe, because that probe answers "true" only on a case-insensitive
+        // filesystem - it tested Windows, not this module, and failed on the Linux CI.
         expect(await readFile(join(folder, "Maps", "overworld.conf"), "utf8")).toBe("in there");
-        expect(await exists(join(folder, "maps", "overworld.conf"))).toBe(true);
+        const spellings = (await readdir(folder)).filter((name) => name.toLowerCase() === "maps");
+        expect(spellings).toEqual(["Maps"]);
     });
 
     it.skipIf(!LINKS.directory)("refuses to write through a maps folder that is a link", async () => {
