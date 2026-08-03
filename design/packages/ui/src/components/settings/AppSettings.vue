@@ -331,18 +331,23 @@ function onDrawer(value: boolean): void {
         </template>
 
         <!--
-            `v-show`, not `v-if`. A section filtered out by the search must stay mounted:
-            its template ref is what `reveal()` acts on, and a render pointing at a
-            setting the query happens to be hiding would otherwise arrive at a null ref
-            and silently do nothing.
+            Named distinctly from the sheet around it. Two nested regions both called
+            "Settings" is what a screen reader would otherwise announce, which tells
+            somebody they have moved without telling them where to.
         -->
         <div
             ref="panel"
             class="mb-settings__body"
             tabindex="-1"
             role="region"
-            :aria-label="t('settings.title', 'Settings')"
+            :aria-label="t('settings.body', 'All settings')"
         >
+            <!--
+                `v-show`, not `v-if`. A section filtered out by the search must stay
+                mounted: its template ref is what `reveal()` acts on, and a render
+                pointing at a setting the query happens to be hiding would otherwise
+                arrive at a null ref and silently do nothing.
+            -->
             <SettingsSection
                 v-show="shows('mojang-download-consent')"
                 ref="consentSection"
