@@ -30,7 +30,6 @@ import {
 import { EMPTY_INVOCATION, type CliInvocation, type FieldMeta, type PlainValue } from "@material-bluemap/config";
 import ConfigApplyDialog from "./ConfigApplyDialog.vue";
 import ConfigFileForm from "./ConfigFileForm.vue";
-import ConfigNotifications from "./ConfigNotifications.vue";
 import ConfigSearchField from "./ConfigSearchField.vue";
 import MapsScreen from "./MapsScreen.vue";
 import RunScreen from "./RunScreen.vue";
@@ -50,7 +49,8 @@ import {
 } from "./configWorkspace.js";
 import { SCREENS, buildSettingIndex, groupMatchesByScreen, searchSettings, workspaceSampleText, type ScreenId } from "./configSearch.js";
 import { createBridgeConfigHost, hostMissingReason, provideConfigHost, useConfigHost, type ConfigHost } from "./configHost.js";
-import { createNoticeState, notify } from "./notifications.js";
+import { notify } from "./notifications.js";
+import { notices } from "../../stores/notices.js";
 
 /**
  * The whole options interface.
@@ -97,7 +97,13 @@ const resolvedHost = props.host === undefined ? createBridgeConfigHost() : props
 provideConfigHost(resolvedHost);
 const host = useConfigHost();
 
-const notices = createNoticeState();
+/*
+ * Everything this screen reports goes to the shell's one notification corner, which is
+ * mounted in `App.vue` and outlives this component. Two things follow from that, and both
+ * are the point rather than an accident: a save that closes the editor can still say where
+ * it wrote, and there is no `<ConfigNotifications>` in the template below, because a
+ * second mounted copy would paint a second fixed stack and show every notice twice.
+ */
 
 const workspace = shallowRef<ConfigWorkspace | null>(null);
 const activeScreen = ref<ScreenId>("core");
@@ -658,8 +664,6 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
             :failure="saveFailure"
             @confirm="confirmSave"
         />
-
-        <ConfigNotifications :state="notices" />
     </div>
 </template>
 

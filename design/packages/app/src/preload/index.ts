@@ -382,6 +382,79 @@ export interface JavaRuntimeSummary {
 }
 
 /* -------------------------------------------------------------------------- */
+/* The BlueMap config folder                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mirrors the types in `main/config/ipc.ts`, restated for the same reason the render
+ * types above are: the preload is bundled separately, and importing across that boundary
+ * would pull `node:fs` and the whole path-safety layer into the renderer's bundle.
+ *
+ * The options editor probes for every one of these before it offers a single control - a
+ * half-wired bridge would present a folder picker that throws the moment somebody clicks
+ * it - so this namespace is exposed whole or not at all.
+ */
+export interface ConfigFile {
+    /** Relative to the config folder, always forward slashes, e.g. `maps/overworld.conf`. */
+    path: string;
+    text: string;
+}
+
+export interface ConfigFolderContents {
+    /** The folder that was read, absolute. */
+    folder: string;
+    files: ConfigFile[];
+}
+
+export interface ConfigPickDirectoryOptions {
+    title: string;
+    /** Where the picker opens. Ignored unless it is a full path. */
+    startIn?: string;
+}
+
+export interface ConfigPickFileOptions {
+    title: string;
+    /** Extensions without the dot, e.g. `["jar"]`. */
+    extensions?: string[];
+    startIn?: string;
+}
+
+/** What the storages screen collects, mirroring `sqlStorageConfigSchema`. */
+export interface SqlProbeRequest {
+    connectionUrl: string;
+    /** `connection-properties`, which is where the user name and password live. */
+    properties: Record<string, string>;
+    dialect: string | null;
+    driverJar: string | null;
+    driverClass: string | null;
+}
+
+export interface SqlProbeResult {
+    ok: boolean;
+    /** One line for the user. On a driver failure this is the driver's own message. */
+    message: string;
+    /** Driver or dialect detail worth showing behind a disclosure. */
+    detail?: string;
+}
+
+export interface ConfigBridge {
+    /** Reads every config file in a folder and in its `maps` and `storages`. */
+    readFolder(folder: string): Promise<ConfigFolderContents>;
+    /** Creates the folder if needed and writes each file, replacing what is there. */
+    writeFiles(folder: string, files: ConfigFile[]): Promise<void>;
+    /** Deletes files by path relative to the folder. Missing files are not an error. */
+    deleteFiles(folder: string, paths: string[]): Promise<void>;
+    pickDirectory(options: ConfigPickDirectoryOptions): Promise<string | null>;
+    pickFile(options: ConfigPickFileOptions): Promise<string | null>;
+    /** Opens a real connection and reports what the driver said. */
+    testSqlConnection(request: SqlProbeRequest): Promise<SqlProbeResult>;
+    /** The folder the app would use if the user does not choose one. */
+    suggestConfigFolder(): Promise<string>;
+    /** `\\` on Windows, `/` elsewhere. Used only to build display paths. */
+    pathSeparator: string;
+}
+
+/* -------------------------------------------------------------------------- */
 /* GitHub sign-in                                                             */
 /* -------------------------------------------------------------------------- */
 
@@ -766,6 +839,19 @@ export interface MaterialBlueMapBridge {
 
     /** Subscribes to sign-in progress. Returns the unsubscribe function. */
     onGitHubAuthEvent(listener: (event: GitHubAuthEvent) => void): () => void;
+
+    /**
+     * Reading and writing a BlueMap config folder, for the options screen.
+     *
+     * A namespace rather than seven more methods on the bridge, because the editor
+     * feature-detects the whole capability at once: it presents no folder picker, no save
+     * and no connection test unless every one of these is really there, since a bridge
+     * that has half of them is a screen full of controls that throw.
+     *
+     * Nothing here caches. Each call reads or writes the folder it is given, so a config
+     * edited in another program is what Reload shows.
+     */
+    config: ConfigBridge;
 }
 
 const bridge: MaterialBlueMapBridge = {
@@ -849,6 +935,23 @@ const bridge: MaterialBlueMapBridge = {
         return () => {
             ipcRenderer.off("github:event", forward);
         };
+    },
+
+    config: {
+        readFolder: (folder) => ipcRenderer.invoke("config:readFolder", folder),
+        writeFiles: (folder, files) => ipcRenderer.invoke("config:writeFiles", folder, files),
+        deleteFiles: (folder, paths) => ipcRenderer.invoke("config:deleteFiles", folder, paths),
+        pickDirectory: (options) => ipcRenderer.invoke("config:pickDirectory", options),
+        pickFile: (options) => ipcRenderer.invoke("config:pickFile", options),
+        testSqlConnection: (request) => ipcRenderer.invoke("config:testSqlConnection", request),
+        suggestConfigFolder: () => ipcRenderer.invoke("config:suggestFolder"),
+
+        // Read from `process` rather than from `node:path`, because a sandboxed preload
+        // has no `node:path` to import: only the limited `process` Electron injects, the
+        // context bridge and `electron` itself are there. It is used to build display
+        // paths, never to resolve one - every real path is joined in the main process,
+        // where the separator is the platform's own.
+        pathSeparator: process.platform === "win32" ? "\\" : "/",
     },
 };
 

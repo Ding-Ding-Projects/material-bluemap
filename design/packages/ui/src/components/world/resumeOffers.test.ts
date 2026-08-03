@@ -47,6 +47,7 @@ function fakeBridge(overrides: Partial<WorldBridge> = {}): WorldBridge {
         cancelRender: async () => false,
         listRenders: async () => [],
         renderEngine: async () => null,
+        activeRenders: async () => [],
         interruptedRenders: async () => [summary()],
         resumeRender: async () => ({ started: false, refusal: { ok: false, renderId: "world-abc", code: "no-session", message: "" } }),
         dismissResume: async () => true,
@@ -86,6 +87,72 @@ describe("loading the offers", () => {
 
         expect(offers.available).toBe(false);
         expect(offers.offers.value).toEqual([]);
+        expect(offers.active.value).toEqual([]);
+    });
+});
+
+describe("renders that are going right now", () => {
+    it("keeps them in their own list rather than among the offers", async () => {
+        const offers = createResumeOffers(fakeBridge({ activeRenders: async () => ["world-live"] }));
+        await offers.load();
+
+        expect(offers.active.value).toEqual(["world-live"]);
+        // The interrupted one is still interrupted; the running one never joins it.
+        expect(offers.offers.value.map((offer) => offer.renderId)).toEqual(["world-abc"]);
+    });
+
+    it("never offers to carry on a render that has not stopped", async () => {
+        // A session file left saying "running" for a render that really is running would
+        // otherwise be offered for resuming while it ran - a button the main process
+        // could only answer with `already-running`.
+        const offers = createResumeOffers(
+            fakeBridge({
+                activeRenders: async () => ["world-abc"],
+                interruptedRenders: async () => [summary()],
+            }),
+        );
+        await offers.load();
+
+        expect(offers.active.value).toEqual(["world-abc"]);
+        expect(offers.offers.value).toEqual([]);
+    });
+
+    it("still shows the offers when this build cannot say what is running", async () => {
+        const offers = createResumeOffers(
+            fakeBridge({
+                activeRenders: async () => {
+                    throw new Error("no such channel");
+                },
+            }),
+        );
+        await offers.load();
+
+        expect(offers.active.value).toEqual([]);
+        expect(offers.offers.value).toHaveLength(1);
+        expect(offers.failure.value).toBeNull();
+    });
+
+    it("moves a resumed render between the two lists rather than out of both", async () => {
+        // `resumeRender` resolves only when the render has ENDED, which can be hours
+        // away. Until then the only honest thing to say about it is that it is going.
+        const started: ResumeResult = {
+            started: true,
+            result: {
+                ok: true,
+                renderId: "world-abc",
+                dataRoot: "/var/maps/world-abc",
+                mapIds: ["survival"],
+                engine: { id: "upstream-java", label: "BlueMap", version: "5.22", javaVersion: "25" },
+                durationMs: 1000,
+            },
+        };
+        const offers = createResumeOffers(fakeBridge({ resumeRender: async () => started }));
+        await offers.load();
+
+        await offers.resume("world-abc");
+
+        expect(offers.offers.value).toEqual([]);
+        expect(offers.active.value).toEqual(["world-abc"]);
     });
 });
 

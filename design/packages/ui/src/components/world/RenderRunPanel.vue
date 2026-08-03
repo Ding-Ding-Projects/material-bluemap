@@ -37,6 +37,12 @@ import type { SettingsTarget } from "./worldBridge.js";
  * stopped. Failed shows the engine's own sentence, what it means, and the one
  * setting that fixes it, which for the two common failures is a real button
  * rather than a stack trace.
+ *
+ * Every ending also names the engine that produced it, from the `render.json` the
+ * render itself wrote. The app promises it never switches renderer silently, and a
+ * promise nobody can check is only a promise; this is where the record is read out
+ * loud. A build with no record and no live description says nothing rather than
+ * naming an engine on the strength of what was expected.
  */
 const props = defineProps<{ run: RenderRun }>();
 
@@ -91,6 +97,27 @@ const advice = computed(() => {
 
 const mapList = computed(() => props.run.mapIds.value.join(", "));
 
+/**
+ * The engine that ran, preferring the record over the expectation.
+ *
+ * `render.json` is written by the render, so it names what actually produced the
+ * tiles; the description that arrived on the events is the same engine seen from
+ * this end, and stands in while the record is still being read or cannot be. Empty
+ * when neither exists, which is the case for a render refused before anything ran.
+ */
+const engineName = computed(() => props.run.provenance.value?.engine ?? props.run.engine.value?.label ?? "");
+
+const engineLine = computed(() => {
+    if (engineName.value === "" || props.run.active.value || state.value === "idle") return "";
+    // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n
+    // compiles the fallback as a message too and consumes `{engine}` as a named
+    // parameter of its own, so a later `replace` has nothing left to substitute and
+    // the one line that names the renderer names nothing at all.
+    return state.value === "finished"
+        ? t("world.run.engineLine", { engine: engineName.value }, "Rendered by: {engine}")
+        : t("world.run.engineRan", { engine: engineName.value }, "The engine that ran: {engine}");
+});
+
 function openMap(): void {
     const root = props.run.dataRoot.value;
     if (root === null) return;
@@ -127,7 +154,12 @@ function openMap(): void {
                 }}
             </span>
             <v-chip v-if="mapList" size="x-small" variant="outlined">{{ mapList }}</v-chip>
-            <v-chip v-if="run.engine.value" size="x-small" variant="outlined">{{ run.engine.value.label }}</v-chip>
+            <!-- While it runs, the chip is the only place the engine is named. Once it
+                 ends, the line below names it from the record instead, so the chip stands
+                 down rather than repeating the same string two rows apart. -->
+            <v-chip v-if="run.engine.value && run.active.value" size="x-small" variant="outlined">
+                {{ run.engine.value.label }}
+            </v-chip>
         </v-card-title>
 
         <v-card-text>
@@ -244,6 +276,8 @@ function openMap(): void {
                 <pre v-if="detailOpen && advice.detail" class="mb-world-run__pre">{{ advice.detail }}</pre>
             </template>
 
+            <p v-if="engineLine" class="mb-world-run__note mb-world-run__engine">{{ engineLine }}</p>
+
             <div v-if="run.log.value.length > 0" class="mb-world-run__logs">
                 <v-btn
                     :append-icon="logOpen ? mdiChevronUp : mdiChevronDown"
@@ -307,6 +341,10 @@ function openMap(): void {
     font-size: 0.75rem;
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-world-run__engine {
+    margin-block-start: 12px;
 }
 
 .mb-world-run__actions {

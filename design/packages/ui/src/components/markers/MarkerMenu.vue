@@ -14,6 +14,8 @@ import {
 } from "./markerFilter.js";
 import { MAX_SAMPLE_LENGTH } from "./regexEngine.js";
 import { useMarkerI18n } from "./i18nHelpers.js";
+import { MenuChoice } from "../menu/index.js";
+import type { MenuChoiceItem } from "../menu/MenuChoice.vue";
 import { useBlueMap } from "../menu/useBlueMap.js";
 import type { SearchMode, SortOrder } from "./markerFilter.js";
 import type {
@@ -223,6 +225,17 @@ const sortChoices = computed(() => [
     { id: "label" as SortOrder, name: t("markers.sort.by.label", "name") },
     { id: "distance" as SortOrder, name: t("markers.sort.by.distance", "distance") },
 ]);
+
+/**
+ * `MenuChoice` hands back the whole choice object, whose id is a plain string because the
+ * control knows nothing about sort orders. Looking the id up in the list it was built from
+ * narrows it honestly, where an assertion would let anything through and write a value
+ * `filterMarkers` has no branch for.
+ */
+function chooseOrder(choice: MenuChoiceItem): void {
+    const chosen = sortChoices.value.find((candidate) => candidate.id === choice.id);
+    if (chosen) order.value = chosen.id;
+}
 
 // ---------------------------------------------------------------- visibility
 
@@ -436,29 +449,18 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
                                 :sample-seed="sampleSeed"
                             />
 
-                            <div class="mb-marker-menu__sort">
-                                <span class="text-caption text-medium-emphasis">
-                                    {{ t("markers.sort.title", "Sort by") }}
-                                </span>
-                                <v-btn-group
-                                    divided
-                                    density="comfortable"
-                                    role="group"
-                                    :aria-label="t('markers.sort.title', 'Sort by')"
-                                >
-                                    <v-btn
-                                        v-for="choice of sortChoices"
-                                        :key="choice.id"
-                                        size="small"
-                                        :variant="order === choice.id ? 'flat' : 'text'"
-                                        :color="order === choice.id ? 'primary' : undefined"
-                                        :aria-pressed="order === choice.id"
-                                        @click="order = choice.id"
-                                    >
-                                        {{ choice.name }}
-                                    </v-btn>
-                                </v-btn-group>
-                            </div>
+                            <!--
+                                No role or aria-label here: MenuChoice's own toggle carries
+                                role="group" labelled by its title, and naming the group
+                                twice would nest one group inside another.
+                            -->
+                            <MenuChoice
+                                class="mb-marker-menu__sort"
+                                :title="t('markers.sort.title', 'Sort by')"
+                                :choices="sortChoices"
+                                :selection="order"
+                                @choice="chooseOrder"
+                            />
                         </div>
                     </div>
 
@@ -609,11 +611,14 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
     padding-top: 0.5rem;
 }
 
+/*
+ * The segmented control is `MenuChoice`, which pads itself for the side sheet's
+ * edge-to-edge rows; inside the filter body that inset is already there, so only the
+ * padding is overridden here. The label casing stays local too: these are three words
+ * naming an order, not commands, so they read as words rather than as SHOUTED buttons.
+ */
 .mb-marker-menu__sort {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
+    padding-inline: 0;
 }
 
 .mb-marker-menu__sort :deep(.v-btn) {

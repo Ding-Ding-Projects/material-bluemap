@@ -12,6 +12,7 @@ import type {
     RenderEvent,
     RenderFailure,
     RenderResult,
+    RenderSummary,
     WorldBridge,
 } from "./worldBridge.js";
 import type { Translate } from "./worldFolder.js";
@@ -46,8 +47,24 @@ function failure(code: string, extra: Partial<RenderFailure> = {}): RenderFailur
     };
 }
 
+/** What `render.json` says about a render, once it has ended. */
+const RECORD: RenderSummary = {
+    renderId: "world-abc",
+    outcome: "finished",
+    engine: "BlueMap engine (Java) 5.22-27 on Java 25.0.3",
+    engineId: "upstream-java",
+    maps: [{ id: "survival", name: "Survival", world: "/srv/world", dimension: "minecraft:overworld" }],
+    startedAt: "2026-08-03T09:14:00.000Z",
+    finishedAt: "2026-08-03T09:18:14.000Z",
+    durationMs: 254_000,
+    dataRoot: "/var/maps/world-abc",
+};
+
 /** A bridge whose render can be driven event by event from the test. */
-function fakeBridge(outcome: RenderResult, options: { readonly resolveNow?: boolean } = {}) {
+function fakeBridge(
+    outcome: RenderResult,
+    options: { readonly resolveNow?: boolean; readonly record?: RenderSummary | null } = {},
+) {
     const listeners: ((event: RenderEvent) => void)[] = [];
     let release: (() => void) | null = null;
 
@@ -62,7 +79,8 @@ function fakeBridge(outcome: RenderResult, options: { readonly resolveNow?: bool
         },
         cancelRender: vi.fn(async () => true),
         listRenders: async () => [],
-        renderEngine: async () => null,
+        renderEngine: async () => options.record ?? null,
+        activeRenders: async () => [],
         interruptedRenders: async () => [],
         resumeRender: async () => ({ started: false, refusal: { ok: false, renderId: "x", code: "no-session", message: "" } }),
         dismissResume: async () => true,
@@ -264,6 +282,68 @@ describe("watching a render", () => {
         expect(run.available).toBe(false);
         expect(await run.start({ maps: [] })).toBeNull();
         expect(run.state.value).toBe("idle");
+        run.dispose();
+    });
+
+    /**
+     * The record is what makes "this app never switches renderer silently" checkable.
+     * The events say which engine this process *started*; `render.json` is written by
+     * the render itself and says which one actually ran.
+     */
+    it("reads back the engine record once the render has ended", async () => {
+        const fake = fakeBridge(OK, { record: RECORD });
+        const run = createRenderRun(fake.bridge);
+
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        expect(run.provenance.value).toBeNull();
+
+        fake.emit({
+            type: "finished",
+            renderId: "world-abc",
+            dataRoot: "/var/maps/world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            durationMs: 254_000,
+            at: "t9",
+        });
+
+        await vi.waitFor(() => expect(run.provenance.value?.engine).toBe(RECORD.engine));
+        run.dispose();
+    });
+
+    it("reads it for a render that failed too, because that one also ran on something", async () => {
+        const failed: RenderResult = { ok: false, renderId: "world-abc", failure: failure("cli-failed") };
+        const fake = fakeBridge(failed, { resolveNow: true, record: { ...RECORD, outcome: "failed" } });
+        const run = createRenderRun(fake.bridge);
+
+        await run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+
+        await vi.waitFor(() => expect(run.provenance.value?.outcome).toBe("failed"));
+        run.dispose();
+    });
+
+    it("stays silent when there is no record to read rather than naming an engine anyway", async () => {
+        // What `resolveWorldBridge` hands a build whose preload has no `renderEngine`.
+        const fake = fakeBridge(OK, { resolveNow: true });
+        const run = createRenderRun(fake.bridge);
+
+        await run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+
+        expect(run.state.value).toBe("finished");
+        expect(run.provenance.value).toBeNull();
+        run.dispose();
+    });
+
+    it("forgets the record when the run is reset, so it cannot be shown against another render", async () => {
+        const fake = fakeBridge(OK, { resolveNow: true, record: RECORD });
+        const run = createRenderRun(fake.bridge);
+
+        await run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        await vi.waitFor(() => expect(run.provenance.value).not.toBeNull());
+
+        run.reset();
+        expect(run.provenance.value).toBeNull();
         run.dispose();
     });
 

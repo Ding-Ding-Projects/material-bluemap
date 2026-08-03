@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiMapPlus } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText } from "vuetify/components";
+import { mdiMapPlus, mdiProgressClock } from "@mdi/js";
+import { VAlert, VBtn, VCard, VCardText, VIcon } from "vuetify/components";
 import InterruptedRenders from "./InterruptedRenders.vue";
 import RenderRunPanel from "./RenderRunPanel.vue";
 import WorldWizard from "./WorldWizard.vue";
@@ -28,6 +28,14 @@ import { createBridgeConfigHost, provideConfigHost, type ConfigHost } from "../c
  * Three things live here and they are shown one at a time, because they are three
  * stages of the same job: renders that were cut off and can be carried on, the
  * wizard that makes a new map, and the render that is running or has just ended.
+ *
+ * A fourth is shown alongside rather than in turn: renders that are in flight right
+ * now and are not the one this screen is watching. That happens whenever a render
+ * outlives the window that started it - the app is closed and reopened, or a second
+ * window is opened - and without it the wizard would cheerfully offer to render a
+ * world that is already being drawn. They are deliberately kept apart from the
+ * interrupted ones: a running render has not stopped, and offering to carry it on
+ * would be offering to start it twice.
  *
  * Nothing here asks for Mojang download consent. It is answered once at first
  * launch and remembered; a render that lacks it comes back with a typed failure
@@ -86,7 +94,36 @@ const canInspect = computed(() => canInspectWorlds(optional));
  */
 const separator = computed(() => host?.separator ?? "/");
 
+/**
+ * Renders going on right now that this screen is not already showing.
+ *
+ * The panel below follows exactly one render, the one this screen started or was
+ * asked to watch. Anything else in flight would otherwise be invisible here, so it
+ * is named instead, with the one thing that is actually useful to do about it:
+ * follow it.
+ */
+const runningElsewhere = computed(() =>
+    offers.active.value.filter((renderId) => renderId !== run.renderId.value),
+);
+
+/**
+ * Points the panel at a render this screen did not start.
+ *
+ * Nothing is started, resumed or cancelled: the render is already going, and this
+ * only subscribes to the events it is emitting anyway. Refused while the panel is
+ * busy with a render of its own, because dropping one for another mid-flight would
+ * lose the progress of the first with nothing on screen to say so.
+ */
+function watchRender(renderId: string): void {
+    if (run.active.value) return;
+    run.expect(renderId);
+}
+
 onMounted(async () => {
+    // Asked for here rather than left to the interrupted-renders panel, which only
+    // mounts when there is a bridge and only renders when it has something to offer.
+    // What is running right now has to be known either way.
+    void offers.load();
     if (bridge !== null) {
         try {
             consentAccepted.value = (await bridge.readConsent()).accepted;
@@ -179,6 +216,42 @@ async function resume(renderId: string): Promise<void> {
 
 <template>
     <div class="mb-world-screen">
+        <section
+            v-if="runningElsewhere.length > 0"
+            class="mb-world-screen__running"
+            aria-labelledby="mb-world-screen-running-title"
+        >
+            <h3 id="mb-world-screen-running-title" class="mb-world-screen__running-title">
+                <v-icon :icon="mdiProgressClock" size="20" aria-hidden="true" />
+                {{ t("world.screen.runningTitle", "Renders going on right now") }}
+            </h3>
+            <p class="mb-world-screen__running-blurb">
+                {{
+                    t(
+                        "world.screen.runningBlurb",
+                        "These are being drawn on this machine at this moment. They are not waiting to be carried on, and starting one of them again would only be refused.",
+                    )
+                }}
+            </p>
+            <ul class="mb-world-screen__running-list">
+                <li v-for="renderId in runningElsewhere" :key="renderId" class="mb-world-screen__running-row">
+                    <span class="mb-world-screen__running-id">{{ renderId }}</span>
+                    <!-- The accessible name opens with the visible label and then names
+                         the render, so several identical buttons are told apart without
+                         the announced name diverging from the one on screen. -->
+                    <v-btn
+                        :disabled="run.active.value"
+                        :aria-label="t('world.screen.watchOne', { render: renderId }, 'Follow this render, {render}')"
+                        variant="text"
+                        size="small"
+                        @click="watchRender(renderId)"
+                    >
+                        {{ t("world.screen.watch", "Follow this render") }}
+                    </v-btn>
+                </li>
+            </ul>
+        </section>
+
         <InterruptedRenders v-if="offers.available" :offers="offers" @resume="resume" />
 
         <RenderRunPanel
@@ -263,5 +336,43 @@ async function resume(renderId: string): Promise<void> {
 
 .mb-world-screen__intro {
     margin-block-end: 8px;
+}
+
+.mb-world-screen__running {
+    margin-block: 12px;
+}
+
+.mb-world-screen__running-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.mb-world-screen__running-blurb {
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    text-wrap: pretty;
+}
+
+.mb-world-screen__running-list {
+    margin-block-start: 8px;
+    padding: 0;
+    list-style: none;
+}
+
+.mb-world-screen__running-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.mb-world-screen__running-id {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: 0.8125rem;
+    overflow-wrap: anywhere;
 }
 </style>

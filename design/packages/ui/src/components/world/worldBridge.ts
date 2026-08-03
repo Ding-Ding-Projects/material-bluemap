@@ -162,6 +162,15 @@ export interface WorldBridge {
     cancelRender(renderId: string): Promise<boolean>;
     listRenders(): Promise<readonly RenderSummary[]>;
     renderEngine(renderId: string): Promise<RenderSummary | null>;
+    /**
+     * The ids of renders in flight right now.
+     *
+     * A different question from {@link interruptedRenders}, and never folded into
+     * it. A render that is running has not stopped, so it is not something to carry
+     * on: offering to resume it would be offering to start a second copy of a render
+     * already going, which the main process can only refuse.
+     */
+    activeRenders(): Promise<readonly string[]>;
     interruptedRenders(): Promise<readonly InterruptedRenderSummary[]>;
     resumeRender(renderId: string, maps?: readonly RenderMapRequest[]): Promise<ResumeResult>;
     dismissResume(renderId: string): Promise<boolean>;
@@ -241,6 +250,10 @@ export function resolveWorldBridge(): WorldBridge | null {
         listRenders: () => complete.listRenders(),
         renderEngine: (renderId) =>
             isFunction(host.renderEngine) ? complete.renderEngine(renderId) : Promise.resolve(null),
+        // An empty list rather than a rejection, because "nothing is running" and "this
+        // build cannot tell you what is running" lead to the same screen: no in-flight
+        // renders named. What must not happen is a build inventing one.
+        activeRenders: () => (isFunction(host.activeRenders) ? complete.activeRenders() : Promise.resolve([])),
         interruptedRenders: () => complete.interruptedRenders(),
         resumeRender: (renderId, maps) => complete.resumeRender(renderId, maps),
         dismissResume: (renderId) =>

@@ -4,9 +4,10 @@
  * The renderer process has no `node:path` and no home directory, so the default cannot
  * simply be computed here. Two routes, in order:
  *
- *  1. the preload bridge, when it grows `defaultMapStorageDirectory()`. Then the field
- *     shows the real absolute path the main process resolved, which is the honest thing
- *     to show and the thing a person can paste into a file manager;
+ *  1. the preload bridge's `mapStorageDirectory()`, which answers with the folder maps
+ *     are written to now and the default, both already expanded. Then the field shows a
+ *     real absolute path, which is the honest thing to show and the thing a person can
+ *     paste into a file manager;
  *  2. failing that, the platform's own environment token (`%APPDATA%` on Windows,
  *     `~` elsewhere) followed by the rest of the path.
  *

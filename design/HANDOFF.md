@@ -571,3 +571,46 @@ The workflow described above as in flight completed, and its result is in the tr
 
 The suite at this commit: **198 files, 2968 passed, 2 skipped**, from `npx vitest run` in
 `design/`. The per-package table in `ROADMAP.md` is updated to match.
+
+---
+
+## Update, 2026-08-03, night — the audit, and the doors it found missing
+
+A 12-agent reachability audit (mount graph from `App.vue`, three-way IPC parity over all 35
+invoke channels, asset wiring) confirmed the recurring pattern at three layers at once:
+**9 of 72 components were orphans** (the whole `ConfigScreen` subtree, `ConfigNotifications`,
+`MenuChoice`), the **GitHub sign-in and release-download features were complete in main and
+preload with zero renderer lines**, the `window.materialBluemap.config` bridge the options
+GUI probes for **had never existed at all**, and the typefaces every stylesheet names —
+Roboto and Roboto Mono — were bundled nowhere, so the whole chrome rendered in Arial.
+
+Landed since, each verified and pushed separately:
+
+- **Roboto ships** (32 woff2 subsets via @fontsource, `@font-face` verified in dist,
+  Apache-2.0 in NOTICE). Roboto Mono is queued with the next wave.
+- **The `config:*` bridge exists end to end**: `main/config/ipc.ts` (seven channels,
+  75 tests, path-traversal/device-name/symlink refusals checked name-by-name before any
+  write, all-or-nothing batches), preload namespace with `pathSeparator`, `bridge.d.ts`
+  declaration. `testSqlConnection` is an honest feature-detected refusal: this build
+  carries no SQL client and says so; it never fakes `ok: true`.
+- **ConfigScreen has a door**: a third shell FAB opens it full-bleed over the shell, Escape
+  closes and returns focus, the wizard stays mounted behind it (`inert`), viewer chrome
+  yields while it is up. Its `consent` emit reuses the existing settings anchor; `saved`
+  raises a shell notice.
+- **Notices are shell-owned**: `stores/notices.ts` singleton, one `ConfigNotifications`
+  corner mounted at `v-app` level, ConfigScreen injects the shared state rather than
+  carrying a second corner.
+- **MenuChoice is real**: MarkerMenu's hand-rolled sort row became the shared control, and
+  MenuChoice itself gained `role="group"` + per-button `aria-pressed` (Vuetify marks
+  selection with a class only, which a screen reader cannot hear).
+- **The dead render wires are closed**: `firstRunFlow` now calls `mapStorageDirectory()`
+  (the method that exists) and prefills with `current`; every ended render names the engine
+  that produced it, preferring `render.json` as evidence over the event stream's
+  expectation; `activeRenders()` is wrapped and in-flight renders are surfaced beside the
+  interrupted ones without conflating the two.
+
+CI note for whoever reads a red X: the first run that ever reached the rewritten publish
+job died on `installer-out/Squirrel.exe`, a file electron-builder has never emitted, and
+the workflow lint died on its own step's comment — `# shellcheck is present…` parses as a
+malformed shellcheck *directive*. Both fixed; `.nupkg` + `RELEASES` stay hard requirements
+and the comment no longer opens with the magic word.

@@ -35,8 +35,15 @@ function pick(choices: MenuChoiceItem[], id: unknown): void {
 <template>
     <div class="mb-menu-choice">
         <span v-if="title" :id="titleId" class="mb-menu-choice__title">{{ title }}</span>
+        <!--
+            role="group" is what makes the aria-labelledby mean anything: Vuetify's toggle
+            root is a plain div, and a label on a role-less element is ignored. Likewise the
+            per-button aria-pressed - VBtn inside a VBtnToggle marks selection with a class
+            only, so without this a screen reader hears N unstated buttons.
+        -->
         <v-btn-toggle
             class="mb-menu-choice__group"
+            role="group"
             :model-value="selection"
             :aria-labelledby="title ? titleId : undefined"
             mandatory
@@ -45,7 +52,13 @@ function pick(choices: MenuChoiceItem[], id: unknown): void {
             variant="outlined"
             @update:model-value="pick(choices, $event)"
         >
-            <v-btn v-for="choice in choices" :key="choice.id" :value="choice.id" size="small">
+            <v-btn
+                v-for="choice in choices"
+                :key="choice.id"
+                :value="choice.id"
+                :aria-pressed="choice.id === selection"
+                size="small"
+            >
                 {{ choice.name }}
             </v-btn>
         </v-btn-toggle>

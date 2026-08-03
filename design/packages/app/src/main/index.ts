@@ -27,6 +27,8 @@ import type { GitHubIpc } from "./github/ipc.js";
 import { openExternalHttps } from "./github/external.js";
 import { registerJavaHandlers } from "./java/ipc.js";
 import type { JavaIpc } from "./java/ipc.js";
+import { registerConfigHandlers } from "./config/index.js";
+import type { ConfigIpc } from "./config/index.js";
 import { registerWorldHandlers } from "./world/index.js";
 import type { WorldIpc } from "./world/index.js";
 
@@ -289,6 +291,27 @@ function startJavaDiscovery(): JavaIpc {
     return javaIpc;
 }
 
+/**
+ * Reading and writing a BlueMap config folder, for the options screen.
+ *
+ * Registered once, for the same reason everything above it is. It holds nothing and
+ * caches nothing: every call reads or writes the folder it was handed, which is what lets
+ * somebody edit a config in another program, come back, press Reload and see what is
+ * really on disk.
+ *
+ * The folder is the capability, and the renderer does not get to widen it: a file name
+ * that escapes the chosen folder, or that is not one of the config files BlueMap loads, is
+ * refused rather than resolved. `dialog` is passed in rather than imported inside, so the
+ * whole layer - native pickers included - is exercised by tests with no Electron runtime.
+ */
+let configIpc: ConfigIpc | null = null;
+
+function startConfigEditing(): ConfigIpc {
+    if (configIpc !== null) return configIpc;
+    configIpc = registerConfigHandlers(ipcMain, { dataDir: app.getPath("userData"), dialog });
+    return configIpc;
+}
+
 async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
@@ -297,6 +320,7 @@ async function createWindow(): Promise<void> {
     startGitHubSignIn();
     startWorldInspection();
     startJavaDiscovery();
+    startConfigEditing();
 
     const window = new BrowserWindow({
         width: 1280,

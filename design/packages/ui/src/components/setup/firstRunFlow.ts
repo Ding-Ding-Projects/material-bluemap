@@ -67,17 +67,27 @@ export interface SetupBridge {
 }
 
 /**
- * Bridge methods that do not exist yet.
+ * The half of the bridge the storage step can work without.
  *
- * The storage step works today without them: it shows the platform's own default with
- * its environment token, which the main process expands when a render starts. When the
- * preload grows a real folder picker and a resolved default, the step picks both up by
- * feature detection and stops showing the token form. Nothing here fails when they are
- * absent, and nothing pretends to be a folder picker that is not one.
+ * `mapStorageDirectory` is the preload's own `render:storageDirectory`, and it exists
+ * today. `chooseMapStorageDirectory` does not exist anywhere yet, and is declared here
+ * so the step picks a real folder picker up on the day one lands rather than needing
+ * to be rewritten for it.
+ *
+ * Both are probed one at a time, and the step works with neither: it shows the
+ * platform's own default with its environment token, which the main process expands
+ * when a render starts. Nothing here fails when a method is absent, and nothing
+ * pretends to be a folder picker that is not one.
  */
 export interface OptionalStorageBridge {
-    /** The absolute path the main process would use, already expanded. */
-    defaultMapStorageDirectory?: () => Promise<string>;
+    /**
+     * Where maps are written now, and where they would be by default.
+     *
+     * Both already expanded by the main process, which is the point of asking: the
+     * renderer has no home directory, so on its own it can only ever show `%APPDATA%\...`
+     * or `~/...` and hope.
+     */
+    mapStorageDirectory?: () => Promise<{ current: string; default: string }>;
     /** Opens the platform folder picker. Resolves null when it is cancelled. */
     chooseMapStorageDirectory?: (current: string) => Promise<string | null>;
 }
@@ -147,6 +157,13 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
     const busy = ref(false);
     const failure = ref<string | null>(null);
     let completed = false;
+    /**
+     * The real absolute default, once the main process has said what it is.
+     *
+     * Held so "use the default" puts back the folder the app would actually write
+     * into, rather than reverting a resolved path to the token form of itself.
+     */
+    let resolvedDefault: string | null = null;
 
     const stepNumber = computed(() => SETUP_STEPS.indexOf(step.value) + 1);
     const storageProblem = computed(() => validateMapStorageDir(storageDir.value, platform));
@@ -178,10 +195,19 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
             // Not knowing the prior answer only means the question is asked as new.
         }
 
-        if (storageBridge?.defaultMapStorageDirectory && readMapStorageDir() === null) {
+        if (storageBridge?.mapStorageDirectory) {
             try {
-                const resolved = await storageBridge.defaultMapStorageDirectory();
-                if (resolved.trim().length > 0) storageDir.value = resolved;
+                const resolved = await storageBridge.mapStorageDirectory();
+                const fallback = resolved.default.trim();
+                if (fallback.length > 0) resolvedDefault = fallback;
+                // A stored answer is the person's own and is not overwritten by whatever
+                // the main process happens to be pointed at. Where there is none, `current`
+                // rather than `default`: it is the folder a render started this second
+                // would really write into, which is what this step claims to be showing.
+                if (readMapStorageDir() === null) {
+                    const shown = resolved.current.trim().length > 0 ? resolved.current.trim() : fallback;
+                    if (shown.length > 0) storageDir.value = shown;
+                }
             } catch {
                 // The token form is a working default; a failed lookup is not worth a stop.
             }
@@ -246,7 +272,7 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
     }
 
     function useDefaultStorage(): void {
-        storageDir.value = defaultMapStorageDir(platform);
+        storageDir.value = resolvedDefault ?? defaultMapStorageDir(platform);
     }
 
     async function finish(): Promise<boolean> {

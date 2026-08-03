@@ -347,12 +347,74 @@ describe("the map folder default", () => {
         const flow = createFirstRunController({
             bridge,
             storageBridge: {
-                defaultMapStorageDirectory: () => Promise.resolve("/home/you/.config/mb/maps"),
+                mapStorageDirectory: () =>
+                    Promise.resolve({
+                        current: "/home/you/.config/mb/maps",
+                        default: "/home/you/.config/mb/maps",
+                    }),
             },
             platform: "linux",
         });
         await flow.start();
         expect(flow.storageDir.value).toBe("/home/you/.config/mb/maps");
+        expect(flow.storageIsToken.value).toBe(false);
+    });
+
+    it("shows where maps are really written, not merely where they would be by default", async () => {
+        // The two are the same on a fresh install and diverge the moment anybody moves
+        // the folder. Showing the default then would describe a folder nothing writes to.
+        const flow = createFirstRunController({
+            bridge: fakeBridge(),
+            storageBridge: {
+                mapStorageDirectory: () =>
+                    Promise.resolve({ current: "/srv/bluemap/maps", default: "/home/you/.config/mb/maps" }),
+            },
+            platform: "linux",
+        });
+        await flow.start();
+        expect(flow.storageDir.value).toBe("/srv/bluemap/maps");
+    });
+
+    it("does not overwrite an answer somebody already gave", async () => {
+        setSetupStorage(memoryStorage({ "material-bluemap.maps.directory": "/srv/maps" }));
+        const flow = createFirstRunController({
+            bridge: fakeBridge(),
+            storageBridge: {
+                mapStorageDirectory: () =>
+                    Promise.resolve({ current: "/home/you/.config/mb/maps", default: "/home/you/.config/mb/maps" }),
+            },
+            platform: "linux",
+        });
+        await flow.start();
+        expect(flow.storageDir.value).toBe("/srv/maps");
+    });
+
+    it("sends 'use the default' to the resolved default rather than back to the token", async () => {
+        const flow = createFirstRunController({
+            bridge: fakeBridge(),
+            storageBridge: {
+                mapStorageDirectory: () =>
+                    Promise.resolve({ current: "/srv/bluemap/maps", default: "/home/you/.config/mb/maps" }),
+            },
+            platform: "linux",
+        });
+        await flow.start();
+        flow.storageDir.value = "/somewhere/else";
+        flow.useDefaultStorage();
+        expect(flow.storageDir.value).toBe("/home/you/.config/mb/maps");
+    });
+
+    it("keeps the token form when the lookup fails, rather than stopping setup over it", async () => {
+        const flow = createFirstRunController({
+            bridge: fakeBridge(),
+            storageBridge: {
+                mapStorageDirectory: () => Promise.reject(new Error("no ipc")),
+            },
+            platform: "linux",
+        });
+        expect(await flow.start()).toBe(true);
+        expect(flow.storageDir.value).toBe(defaultMapStorageDir("linux"));
+        expect(flow.failure.value).toBeNull();
     });
 });
 

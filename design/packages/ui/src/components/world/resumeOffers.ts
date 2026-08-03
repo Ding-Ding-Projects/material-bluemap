@@ -12,6 +12,12 @@
  * is the one that actually happens: the settings moved since the render died, and
  * carrying on would leave half the map drawn with the old ones and half with the
  * new. That is a real answer, not an error, and it says which choice is left.
+ *
+ * Renders that are going right now are read at the same time and kept in their own
+ * list, never merged into the offers. A running render has not stopped, so it is
+ * not something to carry on, and a single list that mixed the two would put a
+ * "carry on" button on a render already in flight - a button whose only possible
+ * answer is `already-running`.
  */
 
 import { ref, type Ref } from "vue";
@@ -26,6 +32,11 @@ import type { Translate } from "./worldFolder.js";
 
 export interface ResumeOffers {
     readonly offers: Ref<readonly InterruptedRenderSummary[]>;
+    /**
+     * The ids of renders in flight right now, which is not the same list as
+     * {@link offers} and is never merged into it.
+     */
+    readonly active: Ref<readonly string[]>;
     readonly loading: Ref<boolean>;
     /** A load that did not happen, stated rather than swallowed. */
     readonly failure: Ref<string | null>;
@@ -47,6 +58,7 @@ function describe(error: unknown): string {
 
 export function createResumeOffers(bridge: WorldBridge | null): ResumeOffers {
     const offers = ref<readonly InterruptedRenderSummary[]>([]);
+    const active = ref<readonly string[]>([]);
     const loading = ref(false);
     const failure = ref<string | null>(null);
     const refusals = ref<Readonly<Record<string, ResumeRefused>>>({});
@@ -55,8 +67,24 @@ export function createResumeOffers(bridge: WorldBridge | null): ResumeOffers {
     async function load(): Promise<void> {
         if (bridge === null || loading.value) return;
         loading.value = true;
+
+        let running: readonly string[] = [];
         try {
-            offers.value = await bridge.interruptedRenders();
+            running = await bridge.activeRenders();
+        } catch {
+            // Not knowing what is running is not worth failing the whole load over. The
+            // offers below are still worth showing, and the worst that follows is an
+            // offer to carry on a render that is already going, which the main process
+            // refuses with `already-running` rather than starting twice.
+        }
+        active.value = running;
+
+        try {
+            const interrupted = await bridge.interruptedRenders();
+            // A render cannot be both, so it is never shown as both. A session file left
+            // saying "running" for a render that really is running would otherwise be
+            // offered for resuming while it ran.
+            offers.value = interrupted.filter((offer) => !running.includes(offer.renderId));
             failure.value = null;
         } catch (error) {
             failure.value = describe(error);
@@ -75,6 +103,11 @@ export function createResumeOffers(bridge: WorldBridge | null): ResumeOffers {
                 // it off the list here rather than waiting for a reload keeps the
                 // offer from sitting under a progress bar for the same render.
                 offers.value = offers.value.filter((offer) => offer.renderId !== renderId);
+                // It moved between the two lists rather than out of both. Recording that
+                // here matters because `resumeRender` resolves only when the render has
+                // ENDED, which can be hours away, and until then the only honest thing to
+                // say about it is that it is going.
+                if (!active.value.includes(renderId)) active.value = [...active.value, renderId];
                 const rest: Record<string, ResumeRefused> = { ...refusals.value };
                 delete rest[renderId];
                 refusals.value = rest;
@@ -102,7 +135,7 @@ export function createResumeOffers(bridge: WorldBridge | null): ResumeOffers {
         }
     }
 
-    return { offers, loading, failure, refusals, busy, available: bridge !== null, load, resume, dismiss };
+    return { offers, active, loading, failure, refusals, busy, available: bridge !== null, load, resume, dismiss };
 }
 
 /**

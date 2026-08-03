@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiCog, mdiServerNetwork } from "@mdi/js";
+import { mdiCog, mdiFileCogOutline, mdiServerNetwork } from "@mdi/js";
 import type { MenuPage } from "@material-bluemap/viewer";
 import MapView from "./components/MapView.vue";
 import ProfileManager from "./components/ProfileManager.vue";
 import ZoomButtons from "./components/controls/ZoomButtons.vue";
 import FreeFlightMobileControls from "./components/controls/FreeFlightMobileControls.vue";
 import { ControlBar } from "./components/controlbar/index.js";
+import { ConfigNotifications, ConfigScreen } from "./components/config/index.js";
 import { MainMenu, provideBlueMap, useBlueMapTheme } from "./components/menu/index.js";
 import { MarkerMenu } from "./components/markers/index.js";
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
@@ -18,6 +19,7 @@ import { WorldScreen } from "./components/world/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
 import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js";
+import { notices, raiseNotice } from "./stores/notices.js";
 
 const { t } = useI18n();
 
@@ -83,6 +85,63 @@ function revealSetting(target: SettingsTarget): void {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Server configuration                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The options editor, which had no door until now.
+ *
+ * It is a workbench rather than a dialog: seven screens, a search that reaches every
+ * setting on all of them, and a save plan that states what is about to be written. So it
+ * gets the same full-bleed host the wizard has, and for the same reason - a surface that
+ * size inside a centred overlay is a surface read two lines at a time.
+ *
+ * Reachable in both shell states. Configuration is not a step in making the first map; it
+ * is how somebody points this at a folder BlueMap already uses, which is exactly the case
+ * where there is a map on screen already.
+ */
+const configOpen = ref(false);
+const configHost = ref<HTMLElement | null>(null);
+
+/**
+ * The button is found by id rather than by a template ref because it is a tooltip
+ * activator, and `v-bind="tooltipProps"` carries a `ref` of Vuetify's own that quietly
+ * wins over one written beside it - leaving the ref null and the focus on `<body>`. The id
+ * is generated rather than spelled out so nothing else in the document can collide with it.
+ */
+const configFabId = useId();
+
+function openConfig(): void {
+    configOpen.value = true;
+    // The host is focused so Escape works from the first keystroke. Left alone, focus stays
+    // on the button the surface has just covered, and the key that closes this only works
+    // once the user has clicked something inside it.
+    void nextTick(() => configHost.value?.focus());
+}
+
+/** Escape and a finished save both land here, and focus goes back to the button that opened it. */
+function closeConfig(): void {
+    configOpen.value = false;
+    void nextTick(() => document.getElementById(configFabId)?.focus());
+}
+
+/**
+ * A save happened, so the editor steps out of the way and says where it wrote.
+ *
+ * `saved(folder)` exists so a shell can offer to start a render, and this one deliberately
+ * does not: nothing yet takes a config folder to the render engine, and an offer that
+ * leads nowhere is worse than no offer. The folder is named because it is the one fact the
+ * user cannot recover once this surface closes over it.
+ */
+function configSaved(folder: string): void {
+    closeConfig();
+    raiseNotice(
+        "success",
+        t("config.saved", { folder }, "Saved the BlueMap configuration in {folder}."),
+    );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Viewer chrome                                                              */
 /* -------------------------------------------------------------------------- */
 
@@ -117,8 +176,12 @@ const mapStateMessage = computed(() =>
  * zoom, tilt or drop a marker on, so a control bar floating over it would be a row of
  * buttons that do nothing - which is the decorative-control failure this project keeps
  * finding, just at shell level.
+ *
+ * The options editor is excluded for the same reason and not quite the same one: there may
+ * well be a map behind it, but it is covered by an opaque full-bleed surface, so a control
+ * bar floating on top would be aiming at something nobody can see.
  */
-const showViewerChrome = computed(() => !showWorldScreen.value);
+const showViewerChrome = computed(() => !showWorldScreen.value && !configOpen.value);
 
 /**
  * `MenuPage` carries page data behind an index signature, so the marker set the page was
@@ -156,7 +219,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 events, and scrolls, because the wizard is taller than a short window and the
                 step buttons must never be the thing that ends up off-screen.
             -->
-            <div v-if="showWorldScreen" class="mb-world-host mb-interactive">
+            <div v-if="showWorldScreen" class="mb-world-host mb-interactive" :inert="configOpen">
                 <WorldScreen
                     @consent="openSettings('mojang-download-consent')"
                     @settings="revealSetting"
@@ -171,6 +234,29 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 aria-live="polite"
             >
                 {{ mapStateMessage }}
+            </div>
+
+            <!--
+                The options editor gets the same host, and sits after the wizard so it paints
+                over it. The wizard behind is left mounted and made inert rather than torn
+                down: somebody four steps into it who opens the configuration to check a
+                path should not come back to an empty first step. `tabindex="-1"` is what
+                lets the region hold focus, so Escape reaches it before anything inside has
+                been clicked.
+            -->
+            <div
+                v-if="configOpen"
+                ref="configHost"
+                class="mb-world-host mb-interactive"
+                tabindex="-1"
+                role="region"
+                :aria-label="t('config.title', 'Server configuration')"
+                @keydown.esc="closeConfig"
+            >
+                <ConfigScreen
+                    @consent="openSettings('mojang-download-consent')"
+                    @saved="configSaved"
+                />
             </div>
 
             <!--
@@ -230,6 +316,23 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         />
                     </template>
                 </v-tooltip>
+
+                <v-tooltip :text="t('config.title', 'Server configuration')" location="end">
+                    <template #activator="{ props: tooltipProps }">
+                        <v-btn
+                            :id="configFabId"
+                            v-bind="tooltipProps"
+                            class="mb-shell-fab mb-interactive"
+                            :icon="mdiFileCogOutline"
+                            color="surface"
+                            variant="flat"
+                            elevation="3"
+                            :aria-label="t('config.title', 'Server configuration')"
+                            :aria-expanded="configOpen"
+                            @click="configOpen ? closeConfig() : openConfig()"
+                        />
+                    </template>
+                </v-tooltip>
             </div>
 
             <v-overlay v-model="profilesOpen" class="align-center justify-center" contained>
@@ -250,6 +353,16 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             the only one in this application - is never a child of a click-through layer.
         -->
         <FirstRunSetup />
+
+        <!--
+            The one notification corner, mounted for the same reason and in the same place:
+            it is fixed to the bottom-right at z-index 2400 and must stack above everything,
+            never as a child of the click-through layer. It lives here rather than inside the
+            options editor so a message outlives the screen that raised it - a save that
+            closes that surface can still report where it wrote. Exactly one instance reads
+            the shared queue; a second would show every notice twice.
+        -->
+        <ConfigNotifications :state="notices" />
     </v-app>
 </template>
 

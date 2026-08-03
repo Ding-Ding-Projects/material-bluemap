@@ -14,6 +14,11 @@
  * fixable in one place: missing Mojang download consent, and no Java runtime.
  * Neither is re-asked here. Consent is answered once at first launch, so this
  * says what is missing and points at the setting that owns it.
+ *
+ * A render that has ended also reads back the `render.json` the render itself
+ * wrote, so the panel can name the engine that produced it. The app promises never
+ * to switch renderer silently; that record is what turns the promise into
+ * something a person can check.
  */
 
 import { computed, ref, type ComputedRef, type Ref } from "vue";
@@ -23,6 +28,7 @@ import type {
     RenderFailure,
     RenderRequest,
     RenderResult,
+    RenderSummary,
     RenderTaskProgress,
     SettingsTarget,
     WorldBridge,
@@ -294,6 +300,11 @@ export interface RenderRun {
     /** Learned from the engine, because the id is derived from the world folder. */
     readonly renderId: Ref<string | null>;
     readonly engine: Ref<EngineDescription | null>;
+    /**
+     * The record the render left behind, read once it has ended. Null until then,
+     * and null on a build whose bridge cannot answer for it.
+     */
+    readonly provenance: Ref<RenderSummary | null>;
     readonly phase: Ref<string | null>;
     readonly task: Ref<RenderTaskProgress | null>;
     readonly percent: ComputedRef<number>;
@@ -333,6 +344,7 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
     const state = ref<RunState>("idle");
     const renderId = ref<string | null>(null);
     const engine = ref<EngineDescription | null>(null);
+    const provenance = ref<RenderSummary | null>(null);
     const phase = ref<string | null>(null);
     const task = ref<RenderTaskProgress | null>(null);
     const mapIds = ref<readonly string[]>([]);
@@ -385,6 +397,33 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         log.value = next.length > LOG_LIMIT ? next.slice(next.length - LOG_LIMIT) : next;
     }
 
+    /**
+     * Reads back the record the render wrote about itself.
+     *
+     * `render.json` names the engine that actually ran, which is not the same claim
+     * as the one this process made when it started: the record is written by the
+     * render, so it is evidence rather than an expectation. It is read once the
+     * render has ended, because that is when the record is complete.
+     *
+     * A bridge with nothing to answer with resolves null - `resolveWorldBridge`
+     * substitutes exactly that for a preload without `renderEngine` - and a read
+     * that throws is left alone. Either way the panel falls back to the engine the
+     * events described and never invents one.
+     */
+    async function loadProvenance(): Promise<void> {
+        const id = renderId.value;
+        if (bridge === null || id === null) return;
+        try {
+            const record = await bridge.renderEngine(id);
+            // The run may have been reset and pointed at another render while this was
+            // in flight, and labelling that one with this one's engine would be a lie
+            // of exactly the kind the record exists to prevent.
+            if (record !== null && renderId.value === id) provenance.value = record;
+        } catch {
+            // Nothing to say: the live description is still on screen.
+        }
+    }
+
     function handle(event: RenderEvent): void {
         if (!mine(event)) return;
 
@@ -414,15 +453,18 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
                 engine.value = event.engine;
                 durationMs.value = event.durationMs;
                 cancelling.value = false;
+                void loadProvenance();
                 break;
             case "failed":
                 state.value = "failed";
                 failure.value = event.failure;
                 cancelling.value = false;
+                void loadProvenance();
                 break;
             case "cancelled":
                 state.value = "cancelled";
                 cancelling.value = false;
+                void loadProvenance();
                 break;
         }
     }
@@ -434,6 +476,7 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         state.value = "idle";
         renderId.value = null;
         engine.value = null;
+        provenance.value = null;
         phase.value = null;
         task.value = null;
         mapIds.value = [];
@@ -479,6 +522,7 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         }
 
         cancelling.value = false;
+        void loadProvenance();
     }
 
     async function start(request: RenderRequest): Promise<RenderResult | null> {
@@ -532,6 +576,7 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         state,
         renderId,
         engine,
+        provenance,
         phase,
         task,
         percent,

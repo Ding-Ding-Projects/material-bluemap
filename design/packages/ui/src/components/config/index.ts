@@ -4,12 +4,15 @@
  * Mount {@link ConfigScreen}; everything else is exported for tests and for a
  * shell that wants to compose the screens itself.
  *
- * The shell is expected to do two things. It supplies a {@link ConfigHost} (or
+ * The shell is expected to do three things. It supplies a {@link ConfigHost} (or
  * lets the bridge be probed automatically) so the editor can read and write a
- * config folder, and it handles the `consent` event by opening its own Mojang
- * download-consent setting. Nothing in here ever asks for that consent: it is
- * asked once at first launch and remembered, and this screen only reports the
- * state and points at the setting.
+ * config folder; it handles the `consent` event by opening its own Mojang
+ * download-consent setting; and it mounts exactly one
+ * `<ConfigNotifications :state="notices" />` (from `stores/notices.js`), outside
+ * any click-through layer - this screen no longer carries a corner of its own,
+ * because two mounted corners would show every notice twice. Nothing in here
+ * ever asks for that consent: it is asked once at first launch and remembered,
+ * and this screen only reports the state and points at the setting.
  */
 
 export { default as ConfigScreen } from "./ConfigScreen.vue";
