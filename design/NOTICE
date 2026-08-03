@@ -1,0 +1,23 @@
+material-bluemap
+================
+
+This project is a TypeScript port of BlueMap.
+
+BlueMap - https://github.com/BlueMap-Minecraft/BlueMap
+Copyright (c) Blue (Lukas Rieger) <https://bluecolored.de>
+Copyright (c) contributors
+Licensed under the MIT License.
+
+The code in this directory is derived from BlueMap at commit
+e664c1abdf697c64703401dca1d7e1956f755f65 (see vendor/BlueMap), with legacy
+Minecraft 1.12 support derived from BlueMap tag v0.10.3-mc1.12.
+
+BlueMapAPI - https://github.com/BlueMap-Minecraft/BlueMapAPI
+Copyright (c) Blue (Lukas Rieger) <https://bluecolored.de>
+Licensed under the MIT License. The marker and API wire formats implemented
+here are derived from BlueMapAPI at commit e20166d5ac93feab653392cf30a305a3e255754e.
+
+Minecraft assets (block models, textures) are the property of Mojang AB.
+They are NOT distributed with this project; the application downloads the
+Minecraft client jar from Mojang's servers at runtime only after explicit
+user consent, mirroring upstream BlueMap's "accept-download" flow.

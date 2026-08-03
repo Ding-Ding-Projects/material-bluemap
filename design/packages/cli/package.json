@@ -1,0 +1,13 @@
+{
+  "name": "@material-bluemap/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone BlueMap server CLI (render, watch, webserver)",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  }
+}

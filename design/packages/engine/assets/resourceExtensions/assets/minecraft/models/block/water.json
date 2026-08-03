@@ -1,0 +1,7 @@
+{
+  "textures": {
+    "particle": "block/water_still",
+    "still": "block/water_still",
+    "flow": "block/water_flow"
+  }
+}

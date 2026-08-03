@@ -1,0 +1,21 @@
+{
+  "name": "@material-bluemap/app",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Electron desktop app",
+  "main": "./dist/main/index.js",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "electron .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "electron": "^37.10.3",
+    "esbuild": "^0.25.12"
+  },
+  "dependencies": {
+    "@material-bluemap/server": "workspace:*",
+    "electron-store": "^10.1.0"
+  }
+}
