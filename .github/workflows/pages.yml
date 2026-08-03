@@ -1,0 +1,94 @@
+name: Pages
+
+# The documentation site is published from the default branch, and on request when a
+# content fix needs to go out without waiting for a code push.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# `contents` to read the tree, `pages` and `id-token` for the deployment, and `actions`
+# so the screenshot script can download the capture artifact the CI workflow uploaded.
+# Without `actions: read` that download is refused and the gallery reports itself
+# unavailable, which is honest but not the intended result.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+  actions: read
+
+# One deployment at a time. A queued run supersedes an older one rather than racing it,
+# but an in-flight deployment is allowed to finish so Pages is never left half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      # The vendored BlueMap submodule is a large Java reference tree that nothing in
+      # this build reads, so it is deliberately not checked out.
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      # Resolves the newest published release and proves a Squirrel installer is
+      # attached to it. On any failure it writes the unavailable state instead, and the
+      # site builds with no download button. That is why this step is not a gate.
+      - name: Resolve the installer download
+        working-directory: design/packages/site
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        run: node scripts/fetch-release.mjs --repo "$GITHUB_REPOSITORY"
+
+      # Downloads the `screenshots` artifact from the most recent successful CI run that
+      # still has one. Artifacts expire after 30 days; when none is available the gallery
+      # says so rather than showing placeholders, so this is not a gate either.
+      - name: Collect application screenshots
+        working-directory: design/packages/site
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        run: node scripts/fetch-screenshots.mjs --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main
+
+      # The site and whatever workspace packages it depends on, in dependency order.
+      - name: Build the site
+        working-directory: design
+        run: pnpm --filter "@material-bluemap/site..." run build
+
+      # The failure this catches is silent: a build configured with a root base emits
+      # absolute URLs, the deployment goes green, and every page 404s because the site
+      # is served from /material-bluemap/ and not from a domain root. This is a gate.
+      - name: Assert the built output carries the project subpath
+        working-directory: design/packages/site
+        run: node scripts/assert-base-path.mjs --dist dist --base /material-bluemap/
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: design/packages/site/dist
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

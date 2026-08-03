@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-density="comfortable" data-language="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#f8f9ff" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#101418" media="(prefers-color-scheme: dark)">
+    <meta name="description" content="material-bluemap: a Material Design 3 port of BlueMap. Documentation, features and release notes.">
+    <title>material-bluemap</title>
+    <script>
+        /*
+         * Read the two stored appearance choices before first paint so the page does not
+         * flash the wrong theme. This is deliberately the only logic duplicated outside
+         * src/theme/ThemeController.ts: it reads the raw stored value and sets an
+         * attribute, and the controller takes authority the moment the module loads.
+         */
+        (function () {
+            var root = document.documentElement;
+            var stored = null;
+            var density = null;
+            var language = null;
+            try {
+                stored = localStorage.getItem("mbm-site:theme.mode");
+                density = localStorage.getItem("mbm-site:theme.density");
+                language = localStorage.getItem("mbm-site:language.mode");
+            } catch (_) {
+                /* storage can be unavailable; the defaults below are correct then. */
+            }
+            var system = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+            root.dataset.theme = stored === "light" || stored === "dark" ? stored : system;
+            root.dataset.density = density === "compact" ? "compact" : "comfortable";
+            root.dataset.language = language === "yue" || language === "bilingual" ? language : "en";
+            root.lang = language === "yue" ? "zh-HK" : "en";
+        })();
+    </script>
+</head>
+<body>
+    <div id="site-root"></div>
+    <noscript>
+        <div class="noscript-notice">
+            <h1>material-bluemap</h1>
+            <p>
+                This site needs JavaScript to render its tabbed pages. Everything it runs is
+                bundled with the page: there are no external scripts, fonts, images or analytics.
+                The project source and its documentation are readable without it at
+                <a href="https://github.com/Ding-Ding-Projects/material-bluemap">the repository</a>.
+            </p>
+        </div>
+    </noscript>
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

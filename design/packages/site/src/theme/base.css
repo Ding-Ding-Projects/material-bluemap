@@ -1,0 +1,764 @@
+/*
+ * Base layer: element defaults plus the Material Design 3 component primitives every part
+ * of the site builds from. Nothing here declares a literal colour, size or duration; it all
+ * comes from tokens.css.
+ *
+ * Component tokens are declared on the component that owns them, prefixed --md-comp-, so a
+ * caller can override one component without reaching into the system layer.
+ */
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    /*
+     * Everything sizes in rem, so the browser's own font-size setting scales the whole page.
+     * Nothing is pinned in px except hairlines and shadows.
+     */
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light dark;
+}
+
+[data-theme="light"] {
+    color-scheme: light;
+}
+
+[data-theme="dark"] {
+    color-scheme: dark;
+}
+
+body {
+    margin: 0;
+    background: var(--md-sys-color-background);
+    color: var(--md-sys-color-on-background);
+    font-family: var(--md-sys-typescale-body-large-font);
+    font-size: var(--md-sys-typescale-body-large-size);
+    line-height: var(--md-sys-typescale-body-large-line-height);
+    letter-spacing: var(--md-sys-typescale-body-large-tracking);
+    -webkit-font-smoothing: antialiased;
+    /* A long page must never scroll sideways, whatever a child measures. */
+    overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+figure,
+blockquote,
+dl,
+dd {
+    margin: 0;
+}
+
+ul,
+ol {
+    margin: 0;
+    padding: 0;
+}
+
+img,
+svg,
+video {
+    display: block;
+    max-width: 100%;
+}
+
+a {
+    color: var(--md-sys-color-primary);
+    text-underline-offset: 0.2em;
+}
+
+a:hover {
+    text-decoration-thickness: 2px;
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+    color: inherit;
+}
+
+/* ---- Focus ------------------------------------------------------------------------- */
+
+/*
+ * One visible focus treatment for the whole site. It sits outside the element so it never
+ * changes layout, and it uses two rings so it stays visible on both a light and a dark
+ * container without the component having to know which it is on.
+ */
+:focus-visible {
+    outline: 3px solid var(--md-sys-color-primary);
+    outline-offset: 2px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
+}
+
+/* Only suppress the default ring where :focus-visible is genuinely handled above. */
+:focus:not(:focus-visible) {
+    outline: none;
+}
+
+.md-visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
+.md-skip-link {
+    position: absolute;
+    z-index: 100;
+    top: var(--md-sys-spacing-2);
+    left: var(--md-sys-spacing-2);
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-4);
+    transform: translateY(calc(-100% - var(--md-sys-spacing-4)));
+    border-radius: var(--md-sys-shape-corner-small);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    font: var(--md-sys-typescale-label-large-weight) var(--md-sys-typescale-label-large-size) /
+        var(--md-sys-typescale-label-large-line-height) var(--md-sys-typescale-label-large-font);
+    text-decoration: none;
+    transition: transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+.md-skip-link:focus-visible {
+    transform: translateY(0);
+}
+
+/* ---- Type scale utilities ---------------------------------------------------------- */
+
+.md-display-large,
+.md-display-medium,
+.md-display-small,
+.md-headline-large,
+.md-headline-medium,
+.md-headline-small,
+.md-title-large,
+.md-title-medium,
+.md-title-small,
+.md-body-large,
+.md-body-medium,
+.md-body-small,
+.md-label-large,
+.md-label-medium,
+.md-label-small {
+    font-family: var(--md-typescale-font);
+    font-size: var(--md-typescale-size);
+    font-weight: var(--md-typescale-weight);
+    line-height: var(--md-typescale-line-height);
+    letter-spacing: var(--md-typescale-tracking);
+}
+
+.md-display-large {
+    --md-typescale-font: var(--md-sys-typescale-display-large-font);
+    --md-typescale-size: var(--md-sys-typescale-display-large-size);
+    --md-typescale-line-height: var(--md-sys-typescale-display-large-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-display-large-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-display-large-tracking);
+}
+
+.md-display-medium {
+    --md-typescale-font: var(--md-sys-typescale-display-medium-font);
+    --md-typescale-size: var(--md-sys-typescale-display-medium-size);
+    --md-typescale-line-height: var(--md-sys-typescale-display-medium-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-display-medium-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-display-medium-tracking);
+}
+
+.md-display-small {
+    --md-typescale-font: var(--md-sys-typescale-display-small-font);
+    --md-typescale-size: var(--md-sys-typescale-display-small-size);
+    --md-typescale-line-height: var(--md-sys-typescale-display-small-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-display-small-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-display-small-tracking);
+}
+
+.md-headline-large {
+    --md-typescale-font: var(--md-sys-typescale-headline-large-font);
+    --md-typescale-size: var(--md-sys-typescale-headline-large-size);
+    --md-typescale-line-height: var(--md-sys-typescale-headline-large-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-headline-large-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-headline-large-tracking);
+}
+
+.md-headline-medium {
+    --md-typescale-font: var(--md-sys-typescale-headline-medium-font);
+    --md-typescale-size: var(--md-sys-typescale-headline-medium-size);
+    --md-typescale-line-height: var(--md-sys-typescale-headline-medium-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-headline-medium-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-headline-medium-tracking);
+}
+
+.md-headline-small {
+    --md-typescale-font: var(--md-sys-typescale-headline-small-font);
+    --md-typescale-size: var(--md-sys-typescale-headline-small-size);
+    --md-typescale-line-height: var(--md-sys-typescale-headline-small-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-headline-small-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-headline-small-tracking);
+}
+
+.md-title-large {
+    --md-typescale-font: var(--md-sys-typescale-title-large-font);
+    --md-typescale-size: var(--md-sys-typescale-title-large-size);
+    --md-typescale-line-height: var(--md-sys-typescale-title-large-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-title-large-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-title-large-tracking);
+}
+
+.md-title-medium {
+    --md-typescale-font: var(--md-sys-typescale-title-medium-font);
+    --md-typescale-size: var(--md-sys-typescale-title-medium-size);
+    --md-typescale-line-height: var(--md-sys-typescale-title-medium-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-title-medium-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-title-medium-tracking);
+}
+
+.md-title-small {
+    --md-typescale-font: var(--md-sys-typescale-title-small-font);
+    --md-typescale-size: var(--md-sys-typescale-title-small-size);
+    --md-typescale-line-height: var(--md-sys-typescale-title-small-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-title-small-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-title-small-tracking);
+}
+
+.md-body-large {
+    --md-typescale-font: var(--md-sys-typescale-body-large-font);
+    --md-typescale-size: var(--md-sys-typescale-body-large-size);
+    --md-typescale-line-height: var(--md-sys-typescale-body-large-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-body-large-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-body-large-tracking);
+}
+
+.md-body-medium {
+    --md-typescale-font: var(--md-sys-typescale-body-medium-font);
+    --md-typescale-size: var(--md-sys-typescale-body-medium-size);
+    --md-typescale-line-height: var(--md-sys-typescale-body-medium-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-body-medium-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-body-medium-tracking);
+}
+
+.md-body-small {
+    --md-typescale-font: var(--md-sys-typescale-body-small-font);
+    --md-typescale-size: var(--md-sys-typescale-body-small-size);
+    --md-typescale-line-height: var(--md-sys-typescale-body-small-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-body-small-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-body-small-tracking);
+}
+
+.md-label-large {
+    --md-typescale-font: var(--md-sys-typescale-label-large-font);
+    --md-typescale-size: var(--md-sys-typescale-label-large-size);
+    --md-typescale-line-height: var(--md-sys-typescale-label-large-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-label-large-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-label-large-tracking);
+}
+
+.md-label-medium {
+    --md-typescale-font: var(--md-sys-typescale-label-medium-font);
+    --md-typescale-size: var(--md-sys-typescale-label-medium-size);
+    --md-typescale-line-height: var(--md-sys-typescale-label-medium-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-label-medium-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-label-medium-tracking);
+}
+
+.md-label-small {
+    --md-typescale-font: var(--md-sys-typescale-label-small-font);
+    --md-typescale-size: var(--md-sys-typescale-label-small-size);
+    --md-typescale-line-height: var(--md-sys-typescale-label-small-line-height);
+    --md-typescale-weight: var(--md-sys-typescale-label-small-weight);
+    --md-typescale-tracking: var(--md-sys-typescale-label-small-tracking);
+}
+
+/*
+ * Bilingual secondary copy. The primary label keeps the surrounding type style and the
+ * Cantonese sits under it, smaller and in the variant colour, so both fit without the
+ * layout growing sideways. Long Cantonese strings wrap rather than clip.
+ */
+.i18n-secondary {
+    display: block;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.82em;
+    font-weight: 400;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.i18n-secondary--inline {
+    display: inline;
+    margin-inline-start: 0.5ch;
+}
+
+/* ---- Buttons ----------------------------------------------------------------------- */
+
+.md-button {
+    --md-comp-button-height: max(40px, calc(40px * var(--md-sys-density-scale)));
+    --md-comp-button-container: transparent;
+    --md-comp-button-label: var(--md-sys-color-primary);
+    --md-comp-button-outline: transparent;
+
+    display: inline-flex;
+    position: relative;
+    align-items: center;
+    justify-content: center;
+    gap: var(--md-sys-spacing-2);
+    min-width: 0;
+    height: var(--md-comp-button-height);
+    padding: 0 var(--md-sys-spacing-6);
+    overflow: hidden;
+    border: 1px solid var(--md-comp-button-outline);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-comp-button-container);
+    color: var(--md-comp-button-label);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    line-height: var(--md-sys-typescale-label-large-line-height);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+        background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+/*
+ * State layers are a translucent wash of the label colour over the container, exactly as
+ * M3 specifies. color-mix does the compositing so the wash is correct on any container.
+ */
+.md-button:hover:not(:disabled) {
+    background: color-mix(
+        in srgb,
+        var(--md-comp-button-label) var(--md-sys-state-hover-opacity),
+        var(--md-comp-button-container)
+    );
+}
+
+.md-button:active:not(:disabled) {
+    background: color-mix(
+        in srgb,
+        var(--md-comp-button-label) var(--md-sys-state-pressed-opacity),
+        var(--md-comp-button-container)
+    );
+}
+
+.md-button:disabled {
+    color: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity), transparent);
+    background: transparent;
+    border-color: transparent;
+    cursor: not-allowed;
+}
+
+.md-button--filled {
+    --md-comp-button-container: var(--md-sys-color-primary);
+    --md-comp-button-label: var(--md-sys-color-on-primary);
+}
+
+.md-button--filled:disabled {
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-disabled-container-opacity),
+        transparent
+    );
+}
+
+.md-button--tonal {
+    --md-comp-button-container: var(--md-sys-color-secondary-container);
+    --md-comp-button-label: var(--md-sys-color-on-secondary-container);
+}
+
+.md-button--tonal:disabled {
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-disabled-container-opacity),
+        transparent
+    );
+}
+
+.md-button--outlined {
+    --md-comp-button-outline: var(--md-sys-color-outline);
+}
+
+.md-button--outlined:disabled {
+    border-color: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-disabled-container-opacity),
+        transparent
+    );
+}
+
+.md-button--text {
+    padding: 0 var(--md-sys-spacing-3);
+}
+
+.md-button--danger {
+    --md-comp-button-container: var(--md-sys-color-error);
+    --md-comp-button-label: var(--md-sys-color-on-error);
+}
+
+.md-button .md-button__icon {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    fill: currentcolor;
+}
+
+/*
+ * Icon buttons keep a 44px pointer target even when the glyph is 24px, using padding
+ * rather than a larger visual box, so density never shrinks the target below the minimum.
+ */
+.md-icon-button {
+    display: inline-flex;
+    position: relative;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: var(--md-sys-min-touch-target);
+    height: var(--md-sys-min-touch-target);
+    padding: 0;
+    border: none;
+    border-radius: var(--md-sys-shape-corner-full);
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    cursor: pointer;
+    transition: background-color var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard);
+}
+
+.md-icon-button:hover:not(:disabled) {
+    background: color-mix(in srgb, currentcolor var(--md-sys-state-hover-opacity), transparent);
+}
+
+.md-icon-button:active:not(:disabled) {
+    background: color-mix(in srgb, currentcolor var(--md-sys-state-pressed-opacity), transparent);
+}
+
+.md-icon-button:disabled {
+    color: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity), transparent);
+    cursor: not-allowed;
+}
+
+.md-icon-button[aria-pressed="true"],
+.md-icon-button[aria-expanded="true"] {
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.md-icon-button svg {
+    width: 22px;
+    height: 22px;
+    fill: currentcolor;
+    pointer-events: none;
+}
+
+/* ---- Surfaces ---------------------------------------------------------------------- */
+
+.md-card {
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface);
+    padding: var(--md-sys-spacing-5);
+}
+
+.md-card--outlined {
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface);
+}
+
+.md-card--elevated {
+    box-shadow: var(--md-sys-elevation-level1);
+}
+
+.md-divider {
+    height: 1px;
+    margin: 0;
+    border: 0;
+    background: var(--md-sys-color-outline-variant);
+}
+
+/* ---- Chips ------------------------------------------------------------------------- */
+
+.md-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--md-sys-spacing-2);
+    min-height: 32px;
+    padding: 0 var(--md-sys-spacing-3);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-small);
+    background: var(--md-sys-color-surface-container-low);
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-label-medium-font);
+    font-size: var(--md-sys-typescale-label-medium-size);
+    font-weight: var(--md-sys-typescale-label-medium-weight);
+    letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+    white-space: nowrap;
+}
+
+.md-chip--accent {
+    border-color: transparent;
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+
+/* ---- Text fields ------------------------------------------------------------------- */
+
+.md-field {
+    display: grid;
+    gap: var(--md-sys-spacing-1);
+    min-width: 0;
+}
+
+.md-field__label {
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-label-medium-font);
+    font-size: var(--md-sys-typescale-label-medium-size);
+    font-weight: var(--md-sys-typescale-label-medium-weight);
+    letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+}
+
+.md-field__input,
+.md-field__select {
+    width: 100%;
+    min-width: 0;
+    min-height: max(40px, calc(48px * var(--md-sys-density-scale)));
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-3);
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-extra-small);
+    background: var(--md-sys-color-surface-container-lowest);
+    color: var(--md-sys-color-on-surface);
+    font-family: var(--md-sys-typescale-body-medium-font);
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+.md-field__input::placeholder {
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 1;
+}
+
+.md-field__input:focus-visible,
+.md-field__select:focus-visible {
+    border-color: var(--md-sys-color-primary);
+}
+
+.md-field__input[aria-invalid="true"] {
+    border-color: var(--md-sys-color-error);
+}
+
+.md-field__help {
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-body-small-font);
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+}
+
+.md-field__help--error {
+    color: var(--md-sys-color-error);
+}
+
+/* ---- Sliders ----------------------------------------------------------------------- */
+
+.md-slider {
+    width: 100%;
+    min-width: 0;
+    height: var(--md-sys-min-touch-target);
+    margin: 0;
+    background: transparent;
+    accent-color: var(--md-sys-color-primary);
+    cursor: pointer;
+}
+
+/* ---- Switch ------------------------------------------------------------------------ */
+
+.md-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--md-sys-spacing-3);
+    min-height: var(--md-sys-min-touch-target);
+    cursor: pointer;
+}
+
+.md-switch input {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--md-sys-color-primary);
+    cursor: pointer;
+}
+
+/* ---- Menus and popovers ------------------------------------------------------------ */
+
+/*
+ * Every overlay paints its own surface, border, elevation and shape. An undecorated
+ * overlay reads straight through to whatever sits behind it, so the decoration is part of
+ * the primitive rather than something a caller can forget.
+ *
+ * The height is bounded by the space actually available and the content scrolls inside it,
+ * because capping the height and hiding the overflow deletes the items past the cap with
+ * no scrollbar to say anything is missing.
+ */
+.md-surface-overlay {
+    position: fixed;
+    z-index: 60;
+    max-width: min(92vw, 26rem);
+    max-height: var(--md-comp-overlay-max-height, 70vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-surface-container-high);
+    box-shadow: var(--md-sys-elevation-level3);
+    color: var(--md-sys-color-on-surface);
+}
+
+.md-menu {
+    min-width: 14rem;
+    padding: var(--md-sys-spacing-2) 0;
+    list-style: none;
+}
+
+.md-menu__section-label {
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4) var(--md-sys-spacing-1);
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-label-small-font);
+    font-size: var(--md-sys-typescale-label-small-size);
+    font-weight: var(--md-sys-typescale-label-small-weight);
+    letter-spacing: var(--md-sys-typescale-label-small-tracking);
+    text-transform: uppercase;
+}
+
+.md-menu__item {
+    display: flex;
+    align-items: center;
+    gap: var(--md-sys-spacing-3);
+    width: 100%;
+    min-height: var(--md-sys-min-touch-target);
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-4);
+    border: none;
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    line-height: var(--md-sys-typescale-label-large-line-height);
+    text-align: start;
+    cursor: pointer;
+}
+
+.md-menu__item:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity), transparent);
+}
+
+.md-menu__item:disabled {
+    color: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity), transparent);
+    cursor: not-allowed;
+}
+
+.md-menu__item-label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/*
+ * The shortcut column. It is filled from the one shortcut registry that also binds the
+ * key, so a menu can never advertise a key that does nothing. Items with no shortcut show
+ * nothing rather than a placeholder.
+ */
+.md-menu__shortcut {
+    flex: none;
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-label-medium-font);
+    font-size: var(--md-sys-typescale-label-medium-size);
+    letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+    white-space: nowrap;
+}
+
+.md-menu__separator {
+    height: 1px;
+    margin: var(--md-sys-spacing-2) 0;
+    background: var(--md-sys-color-outline-variant);
+}
+
+.md-menu__swatch {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-full);
+}
+
+/* ---- Dialogs ----------------------------------------------------------------------- */
+
+/*
+ * Reserved for decisions the visitor must make before continuing. Anything that only
+ * informs goes to the notification system instead.
+ */
+.md-dialog {
+    width: min(92vw, 34rem);
+    max-height: 86vh;
+    padding: 0;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    background: var(--md-sys-color-surface-container-high);
+    box-shadow: var(--md-sys-elevation-level3);
+    color: var(--md-sys-color-on-surface);
+}
+
+.md-dialog::backdrop {
+    background: rgb(var(--md-sys-elevation-shadow-channels) / 42%);
+}
+
+.md-dialog__body {
+    display: grid;
+    gap: var(--md-sys-spacing-4);
+    max-height: 86vh;
+    padding: var(--md-sys-spacing-6);
+    overflow-y: auto;
+}
+
+.md-dialog__title {
+    color: var(--md-sys-color-on-surface);
+}
+
+.md-dialog__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--md-sys-spacing-2);
+    justify-content: flex-end;
+}
+
+/* ---- Scrollable regions ------------------------------------------------------------ */
+
+.md-scroll-x {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+}
+
+/* ---- noscript ---------------------------------------------------------------------- */
+
+.noscript-notice {
+    max-width: var(--md-sys-measure);
+    margin: var(--md-sys-spacing-16) auto;
+    padding: var(--md-sys-spacing-6);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-surface-container-low);
+}
+
+.noscript-notice h1 {
+    margin-bottom: var(--md-sys-spacing-3);
+    font-family: var(--md-sys-typescale-headline-small-font);
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: var(--md-sys-typescale-headline-small-weight);
+    line-height: var(--md-sys-typescale-headline-small-line-height);
+}

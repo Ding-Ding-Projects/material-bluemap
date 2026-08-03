@@ -9,7 +9,7 @@
  * The version committed to the repository is deliberately the unavailable one. A
  * fresh clone therefore builds a site with no download button and an honest note,
  * rather than one pointing at whatever release happened to be current when somebody
- * last ran the script. If you run the script locally, `git checkout` this file before
+ * last ran the script. If you run the script locally, restore this file before
  * committing so a stale pointer never lands on the default branch.
  */
 

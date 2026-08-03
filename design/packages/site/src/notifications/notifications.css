@@ -1,0 +1,191 @@
+/*
+ * Toasts and the notification centre.
+ *
+ * The region is anchored in the bottom-right corner and does not take pointer events, so it
+ * never swallows a click meant for the page behind it. Individual toasts do.
+ */
+
+.toast-region {
+    display: flex;
+    position: fixed;
+    z-index: 90;
+    right: var(--md-sys-spacing-4);
+    bottom: var(--md-sys-spacing-4);
+    flex-direction: column;
+    gap: var(--md-sys-spacing-3);
+    width: min(24rem, calc(100vw - var(--md-sys-spacing-8)));
+    pointer-events: none;
+}
+
+.notification {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--md-sys-spacing-3);
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-3) var(--md-sys-spacing-3) var(--md-sys-spacing-4);
+    border: 1px solid var(--md-comp-notification-outline);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-comp-notification-container);
+    box-shadow: var(--md-sys-elevation-level3);
+    color: var(--md-comp-notification-content);
+    pointer-events: auto;
+    animation: notification-enter var(--md-sys-motion-duration-medium2)
+        var(--md-sys-motion-easing-emphasized-decelerate) both;
+}
+
+@keyframes notification-enter {
+    from {
+        transform: translateY(var(--md-sys-spacing-3));
+        opacity: 0;
+    }
+}
+
+.notification--info {
+    --md-comp-notification-container: var(--md-sys-color-inverse-surface);
+    --md-comp-notification-content: var(--md-sys-color-inverse-on-surface);
+    --md-comp-notification-outline: transparent;
+}
+
+.notification--success {
+    --md-comp-notification-container: var(--md-sys-color-success-container);
+    --md-comp-notification-content: var(--md-sys-color-on-success-container);
+    --md-comp-notification-outline: transparent;
+}
+
+.notification--warning {
+    --md-comp-notification-container: var(--md-sys-color-warning-container);
+    --md-comp-notification-content: var(--md-sys-color-on-warning-container);
+    --md-comp-notification-outline: transparent;
+}
+
+.notification--error {
+    --md-comp-notification-container: var(--md-sys-color-error-container);
+    --md-comp-notification-content: var(--md-sys-color-on-error-container);
+    --md-comp-notification-outline: transparent;
+}
+
+.notification__icon {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    fill: currentcolor;
+}
+
+.notification__content {
+    display: grid;
+    flex: 1 1 auto;
+    gap: var(--md-sys-spacing-1);
+    min-width: 0;
+}
+
+.notification__title,
+.notification__body {
+    overflow-wrap: anywhere;
+}
+
+.notification__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--md-sys-spacing-1);
+    margin-top: var(--md-sys-spacing-1);
+    margin-left: calc(var(--md-sys-spacing-3) * -1);
+}
+
+.notification__action {
+    --md-comp-button-label: currentcolor;
+    --md-comp-button-height: 36px;
+}
+
+.notification__dismiss {
+    flex: none;
+    color: currentcolor;
+}
+
+/* ---- Notification centre ------------------------------------------------------------ */
+
+.notification-centre {
+    display: grid;
+    gap: var(--md-sys-spacing-3);
+    width: min(92vw, 24rem);
+    padding: var(--md-sys-spacing-4);
+}
+
+.notification-centre__header {
+    display: flex;
+    align-items: center;
+    gap: var(--md-sys-spacing-2);
+    justify-content: space-between;
+}
+
+.notification-centre__empty {
+    margin: var(--md-sys-spacing-2) 0;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.notification-centre__list {
+    display: grid;
+    gap: var(--md-sys-spacing-2);
+    list-style: none;
+}
+
+.notification-centre__item {
+    display: grid;
+    gap: var(--md-sys-spacing-1);
+    padding: var(--md-sys-spacing-3);
+    border-left: 3px solid var(--md-comp-centre-accent, var(--md-sys-color-outline));
+    border-radius: var(--md-sys-shape-corner-small);
+    background: var(--md-sys-color-surface-container-low);
+}
+
+.notification-centre__item--info {
+    --md-comp-centre-accent: var(--md-sys-color-primary);
+}
+
+.notification-centre__item--success {
+    --md-comp-centre-accent: var(--md-sys-color-success);
+}
+
+.notification-centre__item--warning {
+    --md-comp-centre-accent: var(--md-sys-color-warning);
+}
+
+.notification-centre__item--error {
+    --md-comp-centre-accent: var(--md-sys-color-error);
+}
+
+.notification-centre__head {
+    display: flex;
+    align-items: center;
+    gap: var(--md-sys-spacing-2);
+}
+
+.notification-centre__head .notification__icon {
+    margin-top: 0;
+    color: var(--md-comp-centre-accent, var(--md-sys-color-outline));
+}
+
+.notification-centre__title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.notification-centre__time {
+    flex: none;
+    color: var(--md-sys-color-on-surface-variant);
+    font-variant-numeric: tabular-nums;
+}
+
+.notification-centre__body {
+    color: var(--md-sys-color-on-surface-variant);
+    overflow-wrap: anywhere;
+}
+
+@media (width <= 600px) {
+    .toast-region {
+        right: var(--md-sys-spacing-2);
+        left: var(--md-sys-spacing-2);
+        bottom: var(--md-sys-spacing-2);
+        width: auto;
+    }
+}

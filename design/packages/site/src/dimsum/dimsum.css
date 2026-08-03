@@ -1,0 +1,75 @@
+/*
+ * The dim sum card. Bottom-left, so it never sits on top of the notification stack in the
+ * bottom-right corner, and never over the page's own controls.
+ */
+
+.dimsum {
+    display: flex;
+    position: fixed;
+    z-index: 80;
+    bottom: var(--md-sys-spacing-4);
+    left: var(--md-sys-spacing-4);
+    align-items: center;
+    gap: var(--md-sys-spacing-3);
+    width: min(22rem, calc(100vw - var(--md-sys-spacing-8)));
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-2) var(--md-sys-spacing-2) var(--md-sys-spacing-2);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-surface-container-high);
+    box-shadow: var(--md-sys-elevation-level2);
+    animation: dimsum-enter var(--md-sys-motion-duration-long1) var(--md-sys-motion-easing-emphasized-decelerate) both;
+}
+
+@keyframes dimsum-enter {
+    from {
+        transform: translateY(var(--md-sys-spacing-4));
+        opacity: 0;
+    }
+}
+
+.dimsum__photo {
+    flex: none;
+    width: 76px;
+    height: 76px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    object-fit: cover;
+}
+
+.dimsum__body {
+    display: grid;
+    flex: 1 1 auto;
+    gap: 2px;
+    min-width: 0;
+}
+
+.dimsum__eyebrow {
+    color: var(--md-sys-color-on-surface-variant);
+    text-transform: uppercase;
+}
+
+.dimsum__name {
+    color: var(--md-sys-color-on-surface);
+    overflow-wrap: anywhere;
+}
+
+.dimsum__dismiss {
+    flex: none;
+    align-self: flex-start;
+    width: 36px;
+    height: 36px;
+}
+
+.dimsum__dismiss svg {
+    width: 18px;
+    height: 18px;
+}
+
+@media (width <= 600px) {
+    .dimsum {
+        right: var(--md-sys-spacing-2);
+        left: var(--md-sys-spacing-2);
+        /* Sits above the toast stack on a narrow screen, so neither covers the other. */
+        bottom: calc(var(--md-sys-spacing-2) + 5.5rem);
+        width: auto;
+    }
+}

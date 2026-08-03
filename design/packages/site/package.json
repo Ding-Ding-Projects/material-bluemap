@@ -1,0 +1,20 @@
+{
+  "name": "@material-bluemap/site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Material Design 3 landing page and documentation site published to GitHub Pages",
+  "scripts": {
+    "dev": "node scripts/fetch-dim-sum-pool.mjs --tolerant && vite",
+    "build": "node scripts/fetch-dim-sum-pool.mjs --tolerant && vite build",
+    "build:strict": "node scripts/fetch-dim-sum-pool.mjs && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "fetch-dim-sum": "node scripts/fetch-dim-sum-pool.mjs"
+  },
+  "devDependencies": {
+    "pngjs": "^7.0.0",
+    "typescript": "^5.9.0",
+    "vite": "^6.4.3"
+  }
+}

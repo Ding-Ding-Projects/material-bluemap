@@ -1,0 +1,4 @@
+# The dim sum photo pool is downloaded at build time from the public
+# Ding-Ding-Projects/dim-sum-photos release volumes. Those images belong to that
+# repository and are never committed here.
+src/dimsum/generated/

@@ -1,0 +1,417 @@
+/*
+ * Tab strip, groups, panels and the bulk-close dialog.
+ *
+ * Nothing here truncates a label. Tabs wrap their text and grow taller rather than cutting it
+ * with an ellipsis, and a page that does not fit on the strip moves into the overflow menu by
+ * name instead of being clipped at the edge. The only element allowed to scroll is the pinned
+ * region, which scrolls rather than hides so a pinned page is always reachable.
+ */
+
+:root {
+    /* Group colours map onto system roles, so a group is never a literal colour. */
+    --md-comp-group-blue: var(--md-sys-color-primary);
+    --md-comp-group-green: var(--md-sys-color-success);
+    --md-comp-group-amber: var(--md-sys-color-warning);
+    --md-comp-group-purple: var(--md-sys-color-tertiary);
+    --md-comp-group-red: var(--md-sys-color-error);
+    --md-comp-group-grey: var(--md-sys-color-outline);
+}
+
+.tab-bar {
+    display: flex;
+    position: sticky;
+    z-index: 20;
+    top: 0;
+    align-items: stretch;
+    gap: var(--md-sys-spacing-2);
+    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-4);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container);
+}
+
+.tab-strip {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: stretch;
+    gap: var(--md-sys-spacing-2);
+    min-width: 0;
+}
+
+.tab-strip__pinned {
+    display: flex;
+    flex: 0 1 auto;
+    align-items: stretch;
+    gap: var(--md-sys-spacing-1);
+    max-width: 45%;
+    padding-right: var(--md-sys-spacing-2);
+    border-right: 1px solid var(--md-sys-color-outline-variant);
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+}
+
+.tab-strip__pinned[hidden] {
+    display: none;
+}
+
+.tab-strip__main {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: stretch;
+    column-gap: var(--md-sys-spacing-1);
+    min-width: 0;
+    overflow: hidden;
+}
+
+.tab-strip__empty {
+    align-self: center;
+    padding: var(--md-sys-spacing-2);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.tab-bar__actions {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--md-sys-spacing-1);
+}
+
+.tab-bar__overflow {
+    --md-comp-button-height: 36px;
+
+    flex: none;
+    padding: 0 var(--md-sys-spacing-2);
+}
+
+/* ---- A tab -------------------------------------------------------------------------- */
+
+.tab {
+    display: flex;
+    position: relative;
+    flex: none;
+    align-items: center;
+    gap: var(--md-sys-spacing-2);
+    min-height: max(var(--md-sys-min-touch-target), calc(48px * var(--md-sys-density-scale)));
+    max-width: 18rem;
+    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-1) var(--md-sys-spacing-1) var(--md-sys-spacing-3);
+    border-radius: var(--md-sys-shape-corner-medium) var(--md-sys-shape-corner-medium) 0 0;
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-title-small-font);
+    font-size: var(--md-sys-typescale-title-small-size);
+    font-weight: var(--md-sys-typescale-title-small-weight);
+    line-height: var(--md-sys-typescale-title-small-line-height);
+    letter-spacing: var(--md-sys-typescale-title-small-tracking);
+    cursor: pointer;
+    transition: background-color var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard);
+}
+
+.tab:hover {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity), transparent);
+}
+
+.tab.is-active {
+    background: var(--md-sys-color-surface);
+    color: var(--md-sys-color-primary);
+}
+
+/* The active page gets a visible indicator that is not only colour. */
+.tab.is-active::after {
+    content: "";
+    position: absolute;
+    right: var(--md-sys-spacing-2);
+    bottom: 0;
+    left: var(--md-sys-spacing-2);
+    height: 3px;
+    border-radius: var(--md-sys-shape-corner-full) var(--md-sys-shape-corner-full) 0 0;
+    background: var(--md-sys-color-primary);
+}
+
+.tab.is-dragging {
+    opacity: 0.5;
+}
+
+.tab.is-drop-target,
+.tab-group__header.is-drop-target {
+    outline: 2px dashed var(--md-sys-color-primary);
+    outline-offset: -2px;
+}
+
+.tab__icon,
+.tab__pin {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    fill: currentcolor;
+}
+
+/*
+ * Labels wrap. They are never cut with an ellipsis, because a truncated tab name is a name
+ * the visitor cannot read, and the overflow menu already exists for pages that do not fit.
+ */
+.tab__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.tab__close {
+    flex: none;
+    width: 28px;
+    height: 28px;
+    opacity: 0;
+}
+
+.tab:hover .tab__close,
+.tab:focus-within .tab__close,
+.tab.is-active .tab__close {
+    opacity: 1;
+}
+
+.tab__close svg {
+    width: 16px;
+    height: 16px;
+}
+
+.tab--pinned {
+    max-width: 12rem;
+    padding-right: var(--md-sys-spacing-3);
+}
+
+/*
+ * Pinned tabs compress to their icon on a narrow viewport. The accessible name stays the full
+ * page name, so nothing is lost; only the visible text is dropped, and only when there is an
+ * icon left to identify the page by.
+ */
+@media (width <= 720px) {
+    .tab--pinned:has(.tab__icon) .tab__label {
+        display: none;
+    }
+}
+
+/* ---- Groups ------------------------------------------------------------------------- */
+
+.tab-group {
+    display: flex;
+    flex: none;
+    align-items: stretch;
+    gap: var(--md-sys-spacing-1);
+    padding: 2px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: color-mix(in srgb, var(--md-comp-group-current) 14%, transparent);
+}
+
+.tab-group[data-colour="blue"] {
+    --md-comp-group-current: var(--md-comp-group-blue);
+}
+
+.tab-group[data-colour="green"] {
+    --md-comp-group-current: var(--md-comp-group-green);
+}
+
+.tab-group[data-colour="amber"] {
+    --md-comp-group-current: var(--md-comp-group-amber);
+}
+
+.tab-group[data-colour="purple"] {
+    --md-comp-group-current: var(--md-comp-group-purple);
+}
+
+.tab-group[data-colour="red"] {
+    --md-comp-group-current: var(--md-comp-group-red);
+}
+
+.tab-group[data-colour="grey"] {
+    --md-comp-group-current: var(--md-comp-group-grey);
+}
+
+.tab-group__header {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--md-sys-spacing-2);
+    min-height: var(--md-sys-min-touch-target);
+    max-width: 14rem;
+    padding: 0 var(--md-sys-spacing-2);
+    border: none;
+    border-radius: var(--md-sys-shape-corner-small);
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    cursor: pointer;
+}
+
+.tab-group__header:hover {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity), transparent);
+}
+
+.tab-group__dot {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-comp-group-current);
+}
+
+.tab-group__name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.tab-group__count {
+    flex: none;
+    padding: 0 var(--md-sys-spacing-2);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: color-mix(in srgb, var(--md-comp-group-current) 24%, transparent);
+    font-variant-numeric: tabular-nums;
+}
+
+.tab-group__chevron {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    fill: currentcolor;
+}
+
+.tab-group__tabs {
+    display: flex;
+    align-items: stretch;
+    gap: var(--md-sys-spacing-1);
+}
+
+.tab-group__tabs[hidden] {
+    display: none;
+}
+
+/* ---- Panels ------------------------------------------------------------------------- */
+
+.tab-panels {
+    padding: var(--md-sys-spacing-8) var(--md-sys-spacing-4) var(--md-sys-spacing-16);
+}
+
+.tab-panel {
+    max-width: var(--md-sys-page-max-width);
+    margin: 0 auto;
+}
+
+.tab-panel[hidden] {
+    display: none;
+}
+
+/* ---- Page list and prompts ----------------------------------------------------------- */
+
+.tab-list__header {
+    display: grid;
+    gap: var(--md-sys-spacing-1);
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-4) var(--md-sys-spacing-2);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.tab-list__filter-row {
+    display: flex;
+    gap: var(--md-sys-spacing-2);
+    align-items: center;
+}
+
+.tab-list__meta {
+    margin-left: var(--md-sys-spacing-2);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-label-small-size);
+}
+
+.tab-prompt {
+    display: grid;
+    gap: var(--md-sys-spacing-2);
+    width: min(90vw, 20rem);
+    padding: var(--md-sys-spacing-4);
+}
+
+/* ---- Bulk close ---------------------------------------------------------------------- */
+
+.bulk-close__scope {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.bulk-close__query {
+    display: flex;
+    gap: var(--md-sys-spacing-2);
+    align-items: center;
+}
+
+.bulk-close__query .md-field__input {
+    flex: 1 1 auto;
+}
+
+.bulk-close__builder {
+    flex: none;
+}
+
+.bulk-close__modes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--md-sys-spacing-4);
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.bulk-close__mode {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--md-sys-spacing-2);
+    min-height: var(--md-sys-min-touch-target);
+    cursor: pointer;
+}
+
+.bulk-close__radio {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--md-sys-color-primary);
+}
+
+.bulk-close__summary {
+    margin: 0;
+}
+
+.bulk-close__warning {
+    color: var(--md-sys-color-error);
+}
+
+.bulk-close__excluded {
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.bulk-close__preview {
+    display: grid;
+    gap: var(--md-sys-spacing-1);
+    max-height: 14rem;
+    padding: var(--md-sys-spacing-2);
+    overflow-y: auto;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-small);
+    list-style: none;
+}
+
+.bulk-close__item {
+    display: flex;
+    align-items: center;
+    gap: var(--md-sys-spacing-2);
+    overflow-wrap: anywhere;
+}
+
+.bulk-close__item .md-chip {
+    min-height: 24px;
+}
+
+.bulk-close__item .md-chip svg {
+    width: 14px;
+    height: 14px;
+    fill: currentcolor;
+}
+
+.bulk-close__empty {
+    color: var(--md-sys-color-on-surface-variant);
+}

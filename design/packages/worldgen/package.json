@@ -1,0 +1,23 @@
+{
+  "name": "@material-bluemap/worldgen",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic synthetic Minecraft world generator writing Anvil format directly",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "material-bluemap-worldgen": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@material-bluemap/nbt": "workspace:*",
+    "@material-bluemap/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@material-bluemap/engine": "workspace:*"
+  }
+}

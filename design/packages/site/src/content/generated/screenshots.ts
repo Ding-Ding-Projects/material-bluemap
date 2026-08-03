@@ -9,7 +9,8 @@
  * The version committed to the repository is deliberately the unavailable one, so a
  * fresh clone builds a gallery that says captures are not available rather than one
  * referencing images that are not in the tree. The images themselves are never
- * committed; see the `.gitignore` beside the public screenshots directory.
+ * committed; see the `.gitignore` beside the public screenshots directory. A committed
+ * available state with no images on disk is caught by `content.test.ts`.
  */
 
 import type { ScreenshotAvailability } from "../types.js";

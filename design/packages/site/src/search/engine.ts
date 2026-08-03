@@ -279,9 +279,15 @@ export function createRegexEngine(): RegexEngine {
  */
 export const regexEngine: RegexEngine = createRegexEngine();
 
-/** Escape a literal so `new RegExp(escapeRegExp(text))` matches exactly that text. */
+/**
+ * Escape a literal so `new RegExp(escapeRegExp(text), "u")` matches exactly that text.
+ *
+ * The set is deliberately the syntax characters only. Escaping extra punctuation such as `-`
+ * produces `\-`, which is a syntax error in Unicode mode outside a character class, so the two
+ * escaping rules that look interchangeable are not.
+ */
 export function escapeRegExp(text: string): string {
-    return text.replace(/[.*+?^${}()|[\]\\/-]/g, "\\$&");
+    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**

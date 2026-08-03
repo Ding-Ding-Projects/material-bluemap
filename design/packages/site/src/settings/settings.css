@@ -1,0 +1,1071 @@
+/*
+ * Layout for the settings surface, the appearance editors, and the colour picker.
+ *
+ * Component looks (buttons, fields, switches, sliders, menus) come from
+ * theme/base.css. What is here is the arrangement of those components plus the few
+ * things only these surfaces have: the continuous colour field, the swatch grid,
+ * the anchored editor's internal scrolling.
+ *
+ * Import once from the site entry:
+ *     import "./settings/settings.css";
+ *
+ * Every colour is a Material Design 3 system token, so light and dark, the three
+ * contrast levels, and any accent seed all follow without a second stylesheet.
+ * Nothing here loads a font, an image, or anything else over the network.
+ */
+
+/* ---- Root preferences -------------------------------------------------------------- */
+
+/*
+ * These rules are what make the settings on the Appearance and Accessibility tabs
+ * do something. Each one redefines a Material token from a `--mb-*` value written
+ * by `applyRootAppearance`, so a preference reaches every component that already
+ * reads the token rather than only the surfaces this module drew.
+ *
+ * The `[data-mb-appearance="on"]` guard is deliberate: without the settings surface
+ * mounted, none of the `--mb-*` values exist, and an unguarded rule would replace
+ * the token layer's typeface with this file's fallback for the whole site.
+ */
+:root[data-mb-appearance="on"] {
+    --md-ref-typeface-plain: var(--mb-font-family);
+    --md-ref-typeface-brand: var(--mb-font-family);
+    --md-ref-typeface-mono: var(--mb-mono-family);
+
+    --md-sys-shape-corner-extra-small: calc(4px * var(--mb-corner-scale, 1));
+    --md-sys-shape-corner-small: calc(8px * var(--mb-corner-scale, 1));
+    --md-sys-shape-corner-medium: calc(12px * var(--mb-corner-scale, 1));
+    --md-sys-shape-corner-large: calc(16px * var(--mb-corner-scale, 1));
+    --md-sys-shape-corner-extra-large: calc(28px * var(--mb-corner-scale, 1));
+
+    --md-sys-motion-duration-short1: calc(50ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-short2: calc(100ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-short3: calc(150ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-short4: calc(200ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-medium1: calc(250ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-medium2: calc(300ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-medium3: calc(350ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-medium4: calc(400ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-long1: calc(450ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-long2: calc(500ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-long3: calc(550ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-long4: calc(600ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-extra-long1: calc(700ms * var(--mb-motion-scale, 1));
+    --md-sys-motion-duration-extra-long2: calc(800ms * var(--mb-motion-scale, 1));
+}
+
+/*
+ * Text size scales the root font size rather than each type role, so the Material
+ * type ramp keeps its proportions and the browser's own font-size setting is still
+ * the baseline being scaled rather than being replaced.
+ */
+:root[data-mb-appearance="on"] {
+    font-size: calc(100% * var(--mb-font-scale, 1));
+}
+
+:root[data-mb-appearance="on"] body {
+    font-weight: var(--mb-font-weight, 400);
+    line-height: var(--mb-line-height, 1.5);
+    letter-spacing: var(--mb-letter-spacing, 0em);
+    word-spacing: var(--mb-word-spacing, 0em);
+}
+
+:root[data-mb-appearance="on"] p + p {
+    margin-block-start: var(--mb-paragraph-spacing, 1em);
+}
+
+:root[data-mb-appearance="on"] a {
+    text-decoration-line: var(--mb-link-decoration, underline);
+}
+
+:root[data-mb-appearance="on"] :focus-visible {
+    outline: var(--mb-focus-width, 3px) solid var(--mb-focus-color, var(--md-sys-color-primary));
+}
+
+:root[data-mb-appearance="on"] .md-button--outlined,
+:root[data-mb-appearance="on"] .md-field__input,
+:root[data-mb-appearance="on"] .md-field__select {
+    border-width: var(--mb-border-width, 1px);
+}
+
+/* Elevation off: outlines carry the separation instead, which some displays render
+   more cleanly than a soft shadow. */
+:root[data-mb-elevation="off"] .md-card--elevated,
+:root[data-mb-elevation="off"] .md-card,
+:root[data-mb-elevation="off"] .mbm-panel,
+:root[data-mb-elevation="off"] .mb-settings-group {
+    box-shadow: none;
+    border: max(1px, var(--mb-border-width, 1px)) solid var(--md-sys-color-outline-variant);
+}
+
+/* Surface tint off: the tinted container roles flatten onto the base surface, so
+   raised areas are separated by outline rather than by a shift towards the accent. */
+:root[data-surface-tint="off"] {
+    --md-sys-color-surface-container-lowest: var(--md-sys-color-surface);
+    --md-sys-color-surface-container-low: var(--md-sys-color-surface);
+    --md-sys-color-surface-container: var(--md-sys-color-surface);
+    --md-sys-color-surface-container-high: var(--md-sys-color-surface);
+    --md-sys-color-surface-container-highest: var(--md-sys-color-surface);
+    --md-sys-color-surface-tint: transparent;
+}
+
+/*
+ * Contrast levels. Each step promotes the lower-contrast roles to their stronger
+ * counterparts, which raises separation without inventing colours outside the
+ * palette the accent seed produced.
+ */
+:root[data-contrast="medium"] {
+    --md-sys-color-outline-variant: var(--md-sys-color-outline);
+    --md-sys-color-on-surface-variant: var(--md-sys-color-on-surface);
+}
+
+:root[data-contrast="high"] {
+    --md-sys-color-outline-variant: var(--md-sys-color-on-surface);
+    --md-sys-color-outline: var(--md-sys-color-on-surface);
+    --md-sys-color-on-surface-variant: var(--md-sys-color-on-surface);
+    --md-sys-color-surface-container-lowest: var(--md-sys-color-surface);
+    --md-sys-color-surface-container-low: var(--md-sys-color-surface);
+}
+
+/* ---- Shared bits ------------------------------------------------------------------- */
+
+.mb-help {
+    max-width: 68ch;
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.mb-capability-note {
+    max-width: 68ch;
+    margin: 4px 0 0;
+    padding: 8px 12px;
+    border-radius: var(--md-sys-shape-corner-small, 8px);
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+.mb-empty {
+    margin: 0;
+    padding: 16px;
+    border: 1px dashed var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+    color: var(--md-sys-color-on-surface-variant);
+    text-align: center;
+}
+
+.mb-section-title {
+    margin: 0 0 4px;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+/*
+ * The "look here" flash after a search result is followed. Reduced motion keeps the
+ * outline, which is the part that actually answers "which row was it", and drops
+ * only the movement.
+ */
+.mb-flash {
+    outline: var(--mb-focus-width, 3px) solid var(--md-sys-color-tertiary, var(--md-sys-color-primary));
+    outline-offset: 4px;
+    animation: mb-flash-pulse calc(900ms * var(--mb-motion-scale, 1)) ease-out 2;
+}
+
+@keyframes mb-flash-pulse {
+    0%,
+    100% {
+        outline-color: var(--md-sys-color-tertiary, var(--md-sys-color-primary));
+    }
+    50% {
+        outline-color: transparent;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-flash {
+        animation: none;
+    }
+}
+
+/* ---- Settings page ----------------------------------------------------------------- */
+
+.mb-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-width: 1100px;
+    margin-inline: auto;
+    padding: clamp(16px, 3vw, 32px);
+    color: var(--md-sys-color-on-surface);
+}
+
+.mb-settings-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mb-settings-title {
+    margin: 0;
+    font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+    line-height: 1.15;
+}
+
+.mb-settings-subtitle {
+    max-width: 70ch;
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.mb-settings-changed:empty {
+    display: none;
+}
+
+.mb-settings-changed {
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.85rem;
+}
+
+/* ---- Search ------------------------------------------------------------------------ */
+
+.mb-search-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+}
+
+.mb-search-row > .md-field__label {
+    flex: 1 0 100%;
+}
+
+.mb-search-field {
+    display: flex;
+    position: relative;
+    flex: 1 1 320px;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.mb-search-field .mb-search-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/*
+ * The regex builder's trigger is mounted here by the search module. The slot keeps
+ * its own space so the field does not jump when the builder attaches, and it
+ * collapses to nothing when nothing is mounted rather than leaving a dead gap.
+ */
+.mb-search-builder-slot:empty {
+    display: none;
+}
+
+.mb-search-summary:empty {
+    display: none;
+}
+
+.mb-search-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mb-search-othertab {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.88rem;
+}
+
+/* ---- Tabs -------------------------------------------------------------------------- */
+
+.mb-tabstrip {
+    display: flex;
+    gap: 4px;
+    /* Wide strips scroll inside themselves; the page never scrolls sideways. */
+    overflow-x: auto;
+    padding-bottom: 2px;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    scrollbar-width: thin;
+}
+
+.mb-tab {
+    display: inline-flex;
+    position: relative;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 6px;
+    min-height: max(var(--mb-min-target, 44px), 44px);
+    padding: 8px 16px;
+    border: 0;
+    border-radius: var(--md-sys-shape-corner-small, 8px) var(--md-sys-shape-corner-small, 8px) 0 0;
+    background: transparent;
+    color: var(--md-sys-color-on-surface-variant);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.mb-tab:hover {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+}
+
+.mb-tab[aria-selected="true"] {
+    color: var(--md-sys-color-primary);
+}
+
+.mb-tab[aria-selected="true"]::after {
+    position: absolute;
+    right: 12px;
+    bottom: 0;
+    left: 12px;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+    background: var(--md-sys-color-primary);
+    content: "";
+}
+
+.mb-tab-badge {
+    min-width: 1.6em;
+    padding: 1px 6px;
+    border-radius: var(--md-sys-shape-corner-full, 999px);
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+    font-size: 0.72rem;
+    line-height: 1.5;
+}
+
+.mb-settings-panel[hidden] {
+    display: none;
+}
+
+.mb-settings-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-top: 16px;
+}
+
+.mb-settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: clamp(12px, 2vw, 20px);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-large, 16px);
+    background: var(--md-sys-color-surface-container-low);
+}
+
+.mb-setting[hidden] {
+    display: none;
+}
+
+/* ---- Property rows ----------------------------------------------------------------- */
+
+.mb-property-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    padding: 6px 0;
+}
+
+.mb-row-head {
+    display: flex;
+    flex: 1 1 220px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+
+.mb-property-row > .mb-help,
+.mb-property-row > .mb-capability-note {
+    flex: 1 0 100%;
+    order: 5;
+}
+
+.mb-property-row[data-unsupported="true"] {
+    border-inline-start: 3px solid var(--md-sys-color-outline);
+    padding-inline-start: 10px;
+}
+
+.mb-control {
+    display: flex;
+    flex: 1 1 220px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.mb-stepper {
+    flex-wrap: nowrap;
+}
+
+.mb-stepper .mb-input-number {
+    width: 6.5em;
+    min-width: 0;
+}
+
+.mb-unit {
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.85rem;
+}
+
+.mb-slider {
+    flex-wrap: nowrap;
+}
+
+.mb-slider .md-slider {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.mb-range-readout {
+    min-width: 8ch;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.85rem;
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+}
+
+.mb-reset[disabled] {
+    opacity: var(--md-sys-state-disabled-content-opacity, 0.38);
+}
+
+.mb-input-mono {
+    font-family: var(--mb-mono-family, var(--md-ref-typeface-mono, monospace));
+}
+
+/* ---- Elements list ----------------------------------------------------------------- */
+
+.mb-elements {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mb-element-list,
+.mb-preset-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.mb-element-item,
+.mb-preset-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+    background: var(--md-sys-color-surface-container);
+}
+
+.mb-element-meta,
+.mb-preset-meta {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.mb-element-name,
+.mb-preset-name {
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.mb-element-status,
+.mb-preset-created {
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.8rem;
+}
+
+.mb-element-status[data-customised="true"] {
+    color: var(--md-sys-color-primary);
+}
+
+.mb-preset-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.mb-preset-save,
+.mb-preset-transfer,
+.mb-transfer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+}
+
+.mb-transfer {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+/* ---- Confirmation ------------------------------------------------------------------ */
+
+.mb-confirm {
+    max-width: min(480px, calc(100vw - 32px));
+    padding: 24px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-extra-large, 28px);
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+}
+
+.mb-confirm::backdrop {
+    background: color-mix(in srgb, var(--md-sys-color-scrim, #000) 48%, transparent);
+}
+
+.mb-confirm-title {
+    margin: 0 0 8px;
+    font-size: 1.3rem;
+}
+
+.mb-confirm-body {
+    margin: 0 0 8px;
+}
+
+.mb-confirm-warning {
+    margin: 0 0 16px;
+    color: var(--md-sys-color-error);
+    font-weight: 500;
+}
+
+.mb-confirm-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+/* ---- Appearance editor ------------------------------------------------------------- */
+
+.mb-appearance-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: min(420px, calc(100vw - 32px));
+    /* The panel bounds its own height; this makes the content scroll inside it
+       rather than being cut off past the bound with no scrollbar to say so. */
+    max-height: 100%;
+    padding: 16px;
+    overflow: hidden auto;
+}
+
+.mb-editor-head {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.mb-editor-title {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.mb-editor-preview {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+    background: var(--md-sys-color-surface-container);
+}
+
+.mb-editor-preview-label {
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.mb-editor-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.mb-editor-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mb-editor-section-title {
+    margin: 0;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    font-size: 0.95rem;
+}
+
+.mb-editor-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mb-editor-group-title {
+    margin: 8px 0 0;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.mb-scope {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0;
+    padding: 8px 12px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+}
+
+.mb-radio {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mb-editor-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.mb-shortcut-hint {
+    font-family: var(--mb-mono-family, monospace);
+}
+
+/* ---- Context menu ------------------------------------------------------------------ */
+
+.mb-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: min(260px, calc(100vw - 32px));
+    padding: 8px;
+}
+
+.mb-menu-list {
+    display: flex;
+    flex-direction: column;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+/*
+ * A zero-size anchor placed at the pointer, so a menu opened from a right-click
+ * gets the same placement, collision handling and focus return as one opened from
+ * a control.
+ */
+.mb-pointer-anchor {
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+
+/* ---- Font list --------------------------------------------------------------------- */
+
+.mb-font-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: min(320px, calc(100vw - 32px));
+    padding: 12px;
+}
+
+.mb-font-options {
+    display: flex;
+    flex-direction: column;
+    max-height: 45vh;
+    overflow-y: auto;
+}
+
+.mb-font-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 0;
+    border-radius: var(--md-sys-shape-corner-small, 8px);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+.mb-font-option:hover {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent);
+}
+
+.mb-font-option[aria-selected="true"] {
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.mb-font-name {
+    font-size: 1.05rem;
+}
+
+.mb-font-missing {
+    flex: 0 0 auto;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.72rem;
+}
+
+.mb-font-trigger {
+    min-height: max(var(--mb-min-target, 44px), 40px);
+    padding: 8px 12px;
+    border: var(--mb-border-width, 1px) solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-small, 8px);
+    background: var(--md-sys-color-surface-container-lowest);
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+/* ---- Colour picker ----------------------------------------------------------------- */
+
+.mb-color-picker {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: min(380px, calc(100vw - 32px));
+    max-width: 520px;
+    padding: 16px;
+}
+
+.mb-color-stage {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+}
+
+/*
+ * The continuous field. Two gradients give every saturation and brightness of the
+ * current hue; the thumb reads a floating-point position, so there is no grid of
+ * choices underneath and no colour it cannot reach.
+ */
+.mb-color-field {
+    position: relative;
+    flex: 1 1 auto;
+    height: 180px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+    background:
+        linear-gradient(to top, #000, transparent),
+        linear-gradient(to right, #fff, var(--mb-field-hue, #f00));
+    touch-action: none;
+    cursor: crosshair;
+}
+
+.mb-color-thumb {
+    position: absolute;
+    top: var(--mb-thumb-y, 0%);
+    left: var(--mb-thumb-x, 0%);
+    width: 22px;
+    height: 22px;
+    transform: translate(-50%, -50%);
+    border: 2px solid #fff;
+    border-radius: 50%;
+    outline: 1px solid rgb(0 0 0 / 0.6);
+    background: var(--mb-thumb-color, transparent);
+    cursor: grab;
+}
+
+.mb-color-thumb:focus-visible {
+    outline: var(--mb-focus-width, 3px) solid var(--mb-focus-color, var(--md-sys-color-primary));
+    outline-offset: 3px;
+}
+
+.mb-color-preview,
+.mb-swatch-preview,
+.mb-gamut-swatch,
+.mb-swatch {
+    /* The checkerboard shows through a translucent colour, so 20% alpha is visibly
+       different from 100% rather than merely a slightly different shade. */
+    background-color: var(--mb-swatch-color, transparent);
+    background-image:
+        linear-gradient(45deg, var(--md-sys-color-outline-variant) 25%, transparent 25%),
+        linear-gradient(-45deg, var(--md-sys-color-outline-variant) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, var(--md-sys-color-outline-variant) 75%),
+        linear-gradient(-45deg, transparent 75%, var(--md-sys-color-outline-variant) 75%);
+    background-position:
+        0 0,
+        0 4px,
+        4px -4px,
+        -4px 0;
+    background-size: 8px 8px;
+    background-blend-mode: normal;
+}
+
+.mb-color-preview {
+    flex: 0 0 72px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+}
+
+.mb-color-sliders {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mb-slider-row {
+    display: grid;
+    grid-template-columns: minmax(6ch, 10ch) 1fr minmax(6ch, 8ch);
+    align-items: center;
+    gap: 8px;
+}
+
+.mb-track-hue {
+    background: linear-gradient(
+        to right,
+        #f00 0%,
+        #ff0 17%,
+        #0f0 33%,
+        #0ff 50%,
+        #00f 67%,
+        #f0f 83%,
+        #f00 100%
+    );
+}
+
+.mb-track-alpha {
+    background:
+        linear-gradient(to right, transparent, var(--mb-alpha-color, #000)),
+        repeating-conic-gradient(
+            var(--md-sys-color-outline-variant) 0% 25%,
+            transparent 0% 50%
+        )
+        0 0 / 8px 8px;
+}
+
+.mb-color-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mb-color-heading {
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.mb-color-components {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 8px;
+}
+
+.mb-color-row {
+    display: grid;
+    grid-template-columns: minmax(7ch, 11ch) 1fr auto;
+    align-items: center;
+    gap: 6px;
+}
+
+.mb-color-row .mb-color-note {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: 0.75rem;
+}
+
+.mb-color-gamut {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+    background: var(--md-sys-color-surface-container-high);
+}
+
+.mb-color-gamut[hidden] {
+    display: none;
+}
+
+.mb-color-warning {
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.mb-gamut-compare {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.mb-gamut-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+}
+
+.mb-gamut-swatch {
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-extra-small, 4px);
+}
+
+.mb-color-contrast {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 12px;
+    padding: 8px 12px;
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+    background: var(--md-sys-color-surface-container);
+    font-size: 0.85rem;
+}
+
+.mb-contrast-label {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.mb-color-contrast[data-grade="fail"] .mb-contrast-verdict {
+    color: var(--md-sys-color-error);
+}
+
+.mb-color-contrast[data-grade="aa"] .mb-contrast-verdict,
+.mb-color-contrast[data-grade="aaa"] .mb-contrast-verdict {
+    color: var(--md-sys-color-success, var(--md-sys-color-primary));
+}
+
+.mb-swatch-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.mb-swatch {
+    width: max(28px, calc(var(--mb-min-target, 44px) * 0.64));
+    height: max(28px, calc(var(--mb-min-target, 44px) * 0.64));
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-small, 8px);
+    cursor: pointer;
+}
+
+.mb-swatch-preview {
+    width: 22px;
+    height: 22px;
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-extra-small, 4px);
+}
+
+.mb-swatch-preview[data-empty="true"] {
+    border-style: dashed;
+}
+
+.mb-color-control {
+    flex-wrap: wrap;
+}
+
+.mb-color-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: max(var(--mb-min-target, 44px), 40px);
+    padding: 6px 12px;
+    border: var(--mb-border-width, 1px) solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-small, 8px);
+    background: var(--md-sys-color-surface-container-lowest);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.mb-color-trigger-text {
+    font-family: var(--mb-mono-family, monospace);
+    font-size: 0.85rem;
+    overflow-wrap: anywhere;
+}
+
+/* ---- Focus, targets, motion -------------------------------------------------------- */
+
+.mb-settings :focus-visible,
+.mb-appearance-editor :focus-visible,
+.mb-color-picker :focus-visible,
+.mb-menu :focus-visible {
+    outline: var(--mb-focus-width, 3px) solid var(--mb-focus-color, var(--md-sys-color-primary));
+    outline-offset: 2px;
+}
+
+.mb-settings button,
+.mb-appearance-editor button,
+.mb-color-picker button {
+    min-height: max(var(--mb-min-target, 44px), 32px);
+}
+
+/* Narrow widths: the longest copy this site renders is bilingual, so these are the
+   layouts to check first. Nothing is hidden; rows stack instead. */
+@media (max-width: 719px) {
+    .mb-color-row,
+    .mb-slider-row {
+        grid-template-columns: 1fr;
+    }
+
+    .mb-property-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .mb-row-head,
+    .mb-control {
+        flex: 1 1 auto;
+    }
+
+    .mb-color-stage {
+        flex-direction: column;
+    }
+
+    .mb-color-preview {
+        flex: 0 0 44px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-settings *,
+    .mb-appearance-editor *,
+    .mb-color-picker * {
+        animation-duration: 1ms !important;
+        transition-duration: 1ms !important;
+    }
+}

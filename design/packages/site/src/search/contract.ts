@@ -29,6 +29,21 @@
  * The search module deliberately does not persist queries, patterns, or sample text. It persists
  * only per-field preferences (search mode and regex flags), and `resetSearchPreferences()` clears
  * them. See `preferences.ts`.
+ *
+ * There are two ways to meet this module, and a surface uses whichever fits:
+ *
+ *   1. `mountDocsSearch`, `mountSettingsSearch`, `createTabStripSearch`, `createTabGroupSearch`,
+ *      `createTabGroupNameSearch`, `createMasterTabSearch` and `createBulkCloseControls` build the
+ *      whole surface: field, anchored builder, results list and status line. They read through the
+ *      host interfaces below.
+ *   2. `attachRegexBuilder(input, options)` in `attachBuilder.ts` adds nothing but the builder to a
+ *      field another module already owns and renders. It binds a model to that exact input in both
+ *      directions and reports `{ query, mode, caseSensitive, flags, valid, message }` back on every
+ *      change, where `mode` is `"plain"` or `"regex"` to match the vocabulary the tab matcher
+ *      already uses. Use this for a search box, filter or bulk-close input that is not built here.
+ *
+ * Either way the rule holds: one builder per field, bound to that field, opened from an affordance
+ * beside it.
  */
 
 /** A single tab, as the tabs module presents it to search. */
