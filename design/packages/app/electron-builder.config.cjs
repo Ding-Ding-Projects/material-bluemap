@@ -39,6 +39,8 @@ module.exports = {
     npmRebuild: false,
     buildDependenciesFromSource: false,
     win: {
+        // Multi-size .ico (256px + 64px) derived from the tracked project logo.
+        icon: "build/icon.ico",
         target: [
             {
                 target: "squirrel",
@@ -51,6 +53,11 @@ module.exports = {
         name: "MaterialBlueMap",
         // Emitted next to RELEASES and the .nupkg in `release/`.
         artifactName: "MaterialBlueMap-${version}-Setup.${ext}",
+        // Squirrel refuses to build without this. It must be a URL, not a path:
+        // Squirrel fetches it at install time to draw the Add/Remove Programs entry
+        // and the shortcut. Pinned to main so a released installer keeps resolving.
+        iconUrl:
+            "https://raw.githubusercontent.com/Ding-Ding-Projects/material-bluemap/main/design/packages/app/build/icon.ico",
     },
     // Releases are published by the CI workflow via `gh release create`, never by
     // electron-builder itself.
