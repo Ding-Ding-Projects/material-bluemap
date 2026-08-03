@@ -166,3 +166,49 @@ erased types / missing reflection:
   corruption-rejection outcomes. Compressed block _content_ may differ from
   lz4-java's output for compressible data (different match search), which is fine —
   any spec-legal LZ4 block round-trips; RAW blocks and all framing are byte-identical.
+
+### world/mca (MCAWorld / ChunkGrid / MCAWorldRegionWatchService)
+
+- **Chunk-io is async** — upstream's caffeine `LoadingCache`s load synchronously on a
+  cache-miss (blocking the render-thread); js cannot block, so `ChunkGrid.getChunk`
+  returns a `Promise` (with explicit in-flight dedup so concurrent gets share one load,
+  like caffeine's per-key computation; invalidation drops in-flight loads, so their
+  results are not published — like caffeine discarding in-flight computations). The
+  synchronous `World` interface (`MCAWorld.getChunk`, cursor-based block access) is
+  served by `ChunkGrid.getCachedChunk`, which returns the cached chunk or — on a miss —
+  schedules the async load and returns the loader's *empty* chunk for now. Renderers
+  must therefore preload (`preloadRegionChunks`) the chunks they read; a miss shows up
+  as an empty chunk instead of upstream's on-demand load.
+- **Cache semantics approximated** — upstream: caffeine with `softValues` +
+  `maximumSize(32 regions / 10240 chunks)` + `expireAfterWrite(10min)` +
+  `expireAfterAccess(1min)`. Port: `lru-cache` with the same maximum sizes and
+  `ttl = 10min` (write-anchored, lazily evicted on access). The additional 1-minute
+  access-expiry is dropped (lru-cache has one ttl clock), and soft-references have no
+  js equivalent — the size-bound alone limits memory.
+- **Cache keys** — upstream interns `Vector2i` instances (`Vector2iCache`) to key the
+  caches by `equals`/`hashCode`; js maps key by SameValueZero, so packed `"x,z"`
+  strings replace the interned vectors.
+- **Region watch-service on chokidar** (upstream: `java.nio.file.WatchService`) —
+  (1) upstream's deferred registration (`ensureInitialization` +
+  `FileHelper.awaitExistence` watching the parent-folder) becomes a 1s existence-poll
+  that starts the chokidar watch once the region-folder exists (chokidar's own
+  not-yet-existing-path handling silently loses folders created during its initial
+  scan); (2) the blocking `poll(timeout, TimeUnit)`/`take()` become promises, with the
+  timeout in milliseconds; (3) java coalesces repeated watch-events per file into one
+  keyed event with a count — the port coalesces pending events per region-position and
+  drains all pending positions as one batch per poll/take; (4) watcher failures are
+  logged (debug) instead of surfacing as `IOException`s from poll/take.
+- **`Logger.global`** — the logger-package is not ported (yet); `logError`/`logDebug`/
+  `logWarning` calls in the mca-orchestration go to the console (see MCAUtil.ts).
+- **Errors** — `ChunkGrid.loadChunk`'s retry-loop cannot chain earlier attempts via
+  `addSuppressed` (js errors have no suppressed-list); only the last failure is logged.
+  The loop retries *all* thrown errors where upstream retries
+  `IOException | RuntimeException` (js cannot distinguish `Error` subtypes it doesn't
+  own).
+- **Legacy 1.12 extension-hook (not in upstream e664c1a)** — the modern upstream has no
+  `getExtendedBlockState`; it is resurrected from legacy `v0.10.3-mc1.12` for the
+  ported pre-1.13 chunk-format: `MCAWorld.getChunk` wraps `Chunk_1_12` instances in a
+  cached view that applies `applyLegacyExtensions` on `getBlockState`, with a
+  neighbor-callback resolving *raw* (unextended) block-states through the chunk-grid —
+  matching the legacy call-graph where extensions read neighbors via the legacy
+  `World#getBlockState` (which did not extend).
