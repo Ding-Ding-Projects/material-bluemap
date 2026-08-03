@@ -32,3 +32,47 @@ Decisions locked during planning (see `../../plan.md` for full context):
   metadata; MD3 forms generated from it; serializes JSON⇄HOCON (drives upstream Java servers too).
 - **D16 — Docker hosting**: `dockerode`; instance = container + managed volumes + ports;
   image selectable (ported image default, upstream `ghcr.io/bluemap-minecraft/bluemap` supported).
+
+## D17 — Java engine first for local rendering, TypeScript mesher as its replacement
+
+**Decided 2026-08-03, superseding the pure-TypeScript renderer position in D5.**
+
+Local world rendering runs upstream BlueMap's Java renderer, built from the vendored source at
+`vendor/BlueMap` and driven by the app. The TypeScript mesher in `packages/engine` continues to
+be written and replaces it once it proves byte-identical output.
+
+**Why.** D5 committed to a pure TypeScript mesher with no JVM. That decision is sound for the end
+state and wrong for the interval: until the mesher is finished the app cannot render anything at
+all, and the mesher is the largest and highest-risk part of the whole port. Driving upstream's
+renderer means a world can be rendered now, and it gives the mesher an exact oracle to be checked
+against rather than an approximation that looks plausible.
+
+**What this costs, stated rather than hidden.** A JDK becomes a requirement for local rendering.
+There are two rendering paths to maintain and test until the mesher lands. The project's headline
+claim of being JVM-free becomes conditional, and the README says so rather than implying
+otherwise.
+
+**How the mesher takes over.** The same gate Phase D always had: decompressed PRBM bytes
+identical to the Java engine's, and lowres PNGs identical pixel for pixel, across every fixture
+world. Nothing switches silently; the application states which engine rendered a map.
+
+**Consequences.**
+- The Java toolchain is provisioned into a repository-local, gitignored directory, so no
+  machine-wide toolchain is touched. See issue #3.
+- The oracle harness that D5 deferred is no longer optional infrastructure: it is the same build
+  the product uses, so it is exercised continuously rather than only when someone remembers.
+- The options GUI is unblocked ahead of schedule. It writes BlueMap's own HOCON configuration and
+  invokes the CLI, so it no longer waits for the TypeScript render manager in Phase E.
+
+## D18 — Port every implementation, including the six platform adapters
+
+**Decided 2026-08-03, superseding exclusions S2 and S4 in `plan.md`.**
+
+Everything upstream ships is ported, including the Spigot, Paper, Fabric, Forge, NeoForge and
+Sponge adapters and the Java addon loader, which the plan had excluded as meaningless outside a
+Minecraft server JVM.
+
+Since D17 puts a real JVM in the product, those adapters are no longer inert: the same build that
+produces the renderer produces them, and a user running a Minecraft server can take the plugin
+for their platform from the same release. What was excluded as unusable is now a shipping
+artifact.

@@ -1,0 +1,14 @@
+# Java toolchain and build state for the vendored upstream renderer.
+# Provisioned into the repository so no machine-wide toolchain is touched, and
+# ignored because it is over a gigabyte of downloaded Gradle and dependencies.
+tools/oracle/.gradle/
+tools/oracle/jdk/
+tools/oracle/out/
+
+# Built artefacts of the vendored upstream source.
+vendor/BlueMap/**/build/
+vendor/BlueMap/.gradle/
+
+# Generated test worlds.
+test-world/
+*.mca

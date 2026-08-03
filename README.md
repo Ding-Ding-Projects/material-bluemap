@@ -8,8 +8,14 @@ Minecraft 3D map renderer and web viewer. It is built to ship as two things from
 - a **standalone headless server** (`@material-bluemap/cli`) that renders and serves the map
   webapp to ordinary browsers.
 
-Target world versions: Minecraft **1.12.2 through 26.x**. The renderer is pure
-TypeScript/Node, with no JVM and no Java sidecar.
+Target world versions: Minecraft **1.12.2 through 26.x**.
+
+**How rendering works.** Local world rendering runs upstream BlueMap's own Java renderer, built
+from the vendored source and driven by the app, so a world can be rendered today rather than
+after the TypeScript mesher is finished. The TypeScript mesher is still being written and will
+replace it, gated on producing byte-identical output. Everything around the renderer, the
+viewer, the world reading layer, the resource-pack pipeline, the server and the whole interface,
+is TypeScript. See [Rendering engines](#rendering-engines).
 
 ## Status: in development, and honest about it
 
@@ -113,6 +119,7 @@ The source of truth lives in the repository:
 
 ## Contents
 
+- [Rendering engines](#rendering-engines)
 - [Phase status](#phase-status)
 - [Packages](#packages)
 - [Repository layout](#repository-layout)
@@ -123,6 +130,34 @@ The source of truth lives in the repository:
 - [Attribution](#attribution)
 
 ---
+
+<details id="rendering-engines">
+<summary><b>Rendering engines</b> (why there are two, and which one runs)</summary>
+
+Turning a Minecraft save into map tiles is the single largest and highest-risk part of this port.
+The project ships two paths to it.
+
+| | Java engine | TypeScript mesher |
+|---|---|---|
+| Status | **primary today** | in development |
+| Source | upstream BlueMap, built from `vendor/BlueMap` | `design/packages/engine` |
+| Needs a JDK | yes | no |
+| Correctness | upstream's own output, by definition | must match the Java engine byte for byte before it takes over |
+
+**Why the Java engine is primary.** It renders correctly today. Writing a mesher that produces
+byte-identical geometry is months of work, and until it is finished a pure TypeScript app cannot
+render anything at all. Driving upstream's renderer means a user can render a world now, and it
+gives the TypeScript mesher an exact oracle to be checked against rather than a plausible-looking
+approximation.
+
+**Why the TypeScript mesher still exists.** The Java path needs a JDK and carries a JVM's memory
+profile. When the mesher passes its gate, decompressed PRBM bytes identical to the Java engine's
+and lowres PNGs identical pixel for pixel across every fixture world, it becomes the default and
+the JDK requirement goes away.
+
+The app tells you which engine rendered a map. It does not silently switch.
+
+</details>
 
 <details id="phase-status">
 <summary><b>Phase status</b> (0/A/B done, C in progress, D through I pending)</summary>
