@@ -5,14 +5,14 @@
   const DEFAULT_PATTERN = "(?<word>[\\p{L}\\p{N}_]+)";
   const DEFAULT_SAMPLE = "Build 42 patterns\n砌 42 個規則";
   const FLAG_ORDER = ["d", "g", "i", "m", "s", "u", "v", "y"];
-  const LANGUAGE_STORAGE_KEY = "agm-regex-language";
+  const LANGUAGE_STORAGE_KEY = "material-bluemap-regex-language";
   const SUPPORTED_LANGUAGES = new Set(["en", "yue", "bilingual"]);
 
   const translations = {
     en: {
-      documentTitle: "Regex Builder · Agent Global Memory",
+      documentTitle: "Regex Builder · material-bluemap",
       skipLink: "Skip to builder",
-      homeLabel: "Agent Global Memory home",
+      homeLabel: "material-bluemap home",
       primaryNav: "Primary navigation",
       home: "Home",
       contract: "Feature contract",
@@ -97,9 +97,9 @@
       zeroWidthTitle: "Zero-width match at index {index}",
     },
     yue: {
-      documentTitle: "Regex 砌式器 · Agent Global Memory",
+      documentTitle: "Regex 砌式器 · material-bluemap",
       skipLink: "跳去砌式器",
-      homeLabel: "返 Agent Global Memory 主頁",
+      homeLabel: "返 material-bluemap 主頁",
       primaryNav: "主導覽",
       home: "主頁",
       contract: "功能規格",

@@ -32,7 +32,7 @@ export class DirFileSystem implements PackFileSystem {
         try {
             const stats = await stat(this.getOsPath(path));
             return { file: stats.isFile(), directory: stats.isDirectory(), size: stats.size };
-        } catch (_ex) {
+        } catch {
             return null;
         }
     }
@@ -40,7 +40,7 @@ export class DirFileSystem implements PackFileSystem {
     async list(path: string): Promise<string[]> {
         try {
             return await readdir(this.getOsPath(path));
-        } catch (_ex) {
+        } catch {
             return [];
         }
     }
