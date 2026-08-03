@@ -1,19 +1,7 @@
 import type { Color } from "@material-bluemap/shared";
+import type { Variant } from "../../../resources/pack/resourcepack/blockstate/Variant.js";
 import type { BlockNeighborhood } from "../../../world/block/BlockNeighborhood.js";
 import type { TileModelView } from "../TileModelView.js";
-
-/**
- * Phase D placeholder — replaced by the full port of
- * resources/pack/resourcepack/blockstate/Variant.java (renderer-type, model
- * resource-path, x/y/z rotation, uvlock, weight and the cached transform-matrix).
- *
- * Declared here because {@link BlockRenderer} is the only ported surface that mentions
- * it; the mesher wave replaces this with the real Variant port.
- */
-export interface Variant {
-    /** upstream: {@code double getWeight()} (lombok @Getter) */
-    getWeight(): number;
-}
 
 /** upstream: map/hires/block/BlockRenderer.java */
 export interface BlockRenderer {

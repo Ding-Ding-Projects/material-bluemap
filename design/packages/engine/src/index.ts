@@ -15,11 +15,123 @@ export { WorldLoaderType } from "./world/WorldLoaderType.js";
 // util
 export { Tristate } from "./util/Tristate.js";
 export { WatchService } from "./util/WatchService.js";
+export {
+    InstancePool,
+    type InstanceCreator,
+    type InstanceRecycler,
+} from "./util/InstancePool.js";
+export { compareInt, mergeSortInt, type IntComparator } from "./util/MergeSort.js";
+export {
+    floatToIntBits,
+    javaCastToInt,
+    javaCastToUnsignedByte,
+    toRadians,
+} from "./util/math/JavaMath.js";
 
-// map (Phase C/D placeholders — replaced by the full ports)
+// map
 export { Mask } from "./map/mask/Mask.js";
-export type { RenderSettings } from "./map/hires/RenderSettings.js";
+// RenderSettings is a value export as well as a type: the companion object carries the
+// bodies of java's interface-defaults (isInsideRenderBoundaries and friends)
+export { RenderSettings } from "./map/hires/RenderSettings.js";
 export { TextureGallery } from "./map/TextureGallery.js";
+export { MapSettings } from "./map/MapSettings.js";
+export type { TileMetaConsumer } from "./map/TileMetaConsumer.js";
+export {
+    BmMap,
+    type LowresTileManagerFactory,
+    type LowresTileManagerLike,
+    type MarkerSet,
+} from "./map/BmMap.js";
+export { MapSettingsSerializer } from "./map/MapSettingsSerializer.js";
+
+// map/hires (the tile-model and the binary tile writer)
+export { ArrayTileModel } from "./map/hires/ArrayTileModel.js";
+export { HiresModelManager } from "./map/hires/HiresModelManager.js";
+export { MaxCapacityReachedException } from "./map/hires/MaxCapacityReachedException.js";
+export { PRBMWriter, writeTileModelToPRBM } from "./map/hires/PRBMWriter.js";
+export { NOOP_TILE_META_CONSUMER, type RenderPass } from "./map/hires/RenderPass.js";
+export type { RenderPassFactory } from "./map/hires/RenderPassFactory.js";
+export { RenderPassType } from "./map/hires/RenderPassType.js";
+export type { TileModel } from "./map/hires/TileModel.js";
+export { TileModelView } from "./map/hires/TileModelView.js";
+export { VoidTileModel } from "./map/hires/VoidTileModel.js";
+
+// map/hires/block (the block mesher)
+export type { BlockRenderer } from "./map/hires/block/BlockRenderer.js";
+export type { BlockRendererFactory } from "./map/hires/block/BlockRendererFactory.js";
+export { BlockRendererType } from "./map/hires/block/BlockRendererType.js";
+export { BlockRenderPass } from "./map/hires/block/BlockRenderPass.js";
+export { BlockStateModelRenderer } from "./map/hires/block/BlockStateModelRenderer.js";
+export { LiquidModelRenderer } from "./map/hires/block/LiquidModelRenderer.js";
+export { MissingModelRenderer } from "./map/hires/block/MissingModelRenderer.js";
+export {
+    ResourceModelRenderer,
+    hashToFloat as blockOffsetHashToFloat,
+} from "./map/hires/block/ResourceModelRenderer.js";
+
+// map/hires/entity (the entity mesher)
+export type { EntityRenderer } from "./map/hires/entity/EntityRenderer.js";
+export type { EntityRendererFactory } from "./map/hires/entity/EntityRendererFactory.js";
+export { EntityRendererType } from "./map/hires/entity/EntityRendererType.js";
+export { EntityModelRenderer } from "./map/hires/entity/EntityModelRenderer.js";
+export { EntityRenderPass } from "./map/hires/entity/EntityRenderPass.js";
+// (upstream has a MissingModelRenderer and a ResourceModelRenderer in *both* the block
+// and the entity package; the block ones already own the plain names above, so the
+// entity twins are prefixed here)
+export { MissingModelRenderer as EntityMissingModelRenderer } from "./map/hires/entity/MissingModelRenderer.js";
+export {
+    ResourceModelRenderer as EntityResourceModelRenderer,
+    TintColorProvider,
+} from "./map/hires/entity/ResourceModelRenderer.js";
+
+// map/mask (the render-boundary masks)
+export { BlurMask } from "./map/mask/BlurMask.js";
+export { BoxMask } from "./map/mask/BoxMask.js";
+export { CombinedMask } from "./map/mask/CombinedMask.js";
+export { EllipseMask } from "./map/mask/EllipseMask.js";
+export { PolygonMask, type Shape } from "./map/mask/PolygonMask.js";
+
+// map/lowres (the LOD cascade)
+export { LowresLayer, type TileUpdateListener } from "./map/lowres/LowresLayer.js";
+export { LowresTile } from "./map/lowres/LowresTile.js";
+export { LowresTileManager } from "./map/lowres/LowresTileManager.js";
+
+// map/renderstate (what makes a re-render incremental)
+// (CellStorage.Cell is prefixed: storage/GridStorage already exports a `Cell`)
+export {
+    CellStorage,
+    type Cell as CellStorageCell,
+    type CellConsumer,
+} from "./map/renderstate/CellStorage.js";
+export {
+    ChunkInfoRegion,
+    CHUNK_INFO_REGION_TOKEN,
+    CHUNKS_PER_REGION,
+} from "./map/renderstate/ChunkInfoRegion.js";
+export { MapChunkState } from "./map/renderstate/MapChunkState.js";
+export { MapRegionState, type RegionStateConsumer } from "./map/renderstate/MapRegionState.js";
+export { MapTileState } from "./map/renderstate/MapTileState.js";
+export {
+    RegionInfoRegion,
+    REGION_INFO_REGION_TOKEN,
+    REGIONS_PER_REGION,
+} from "./map/renderstate/RegionInfoRegion.js";
+export {
+    Action,
+    ActionAndNextState,
+    BoundsSituation,
+    type TileActionResolver,
+} from "./map/renderstate/TileActionResolver.js";
+export {
+    TileInfo,
+    TileInfoRegion,
+    TILE_INFO_REGION_TOKEN,
+} from "./map/renderstate/TileInfoRegion.js";
+export {
+    TileState,
+    TILE_STATE_TOKEN,
+    TILE_STATE_ARRAY_TOKEN,
+} from "./map/renderstate/TileState.js";
 
 // resources
 export { BlockColorsConfig } from "./resources/BlockColorsConfig.js";
@@ -271,6 +383,25 @@ export {
     DIMENSION_TYPE_TOKEN,
     DIMENSION_TYPE_DATA_TOKEN,
 } from "./world/mca/data/DimensionTypeDeserializer.js";
+
+// storage
+export type { Storage } from "./storage/Storage.js";
+export { MapStorage, type DoublePredicate } from "./storage/MapStorage.js";
+// (GridStorage.Cell is a nested interface upstream; a barrel cannot carry a name that
+// generic, so it is exported here as GridCell. The class keeps its own name.)
+export {
+    GridStorageCell,
+    type Cell as GridCell,
+    type GridStorage,
+} from "./storage/GridStorage.js";
+export type { ItemStorage } from "./storage/ItemStorage.js";
+export { KeyedMapStorage } from "./storage/KeyedMapStorage.js";
+
+// storage/file
+export { FileStorage } from "./storage/file/FileStorage.js";
+export { FileMapStorage } from "./storage/file/FileMapStorage.js";
+export { FileGridStorage } from "./storage/file/FileGridStorage.js";
+export { FileItemStorage, fileExists } from "./storage/file/FileItemStorage.js";
 
 // storage/compression
 export { Compression } from "./storage/compression/Compression.js";

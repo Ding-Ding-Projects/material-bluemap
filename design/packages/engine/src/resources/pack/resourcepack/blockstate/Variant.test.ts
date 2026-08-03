@@ -16,10 +16,17 @@ function transformPoint(
     return [v.x, v.y, v.z];
 }
 
+/*
+ * 1e-6, not 1e-9: the transform matrix is 32-bit float and its rotation comes from
+ * flow-math's `TrigMath` — a quantized 2^22-entry sine table — so a 90-degree turn lands
+ * about 6e-8 off the exact answer. That residual is the reference implementation's, pinned
+ * bit-for-bit in `shared/math/flowMathOracle.test.ts` (which includes this very matrix
+ * shape); these assertions are about where the corners go, so they are given room for it.
+ */
 function expectPoint(actual: [number, number, number], x: number, y: number, z: number): void {
-    expect(actual[0]).toBeCloseTo(x, 9);
-    expect(actual[1]).toBeCloseTo(y, 9);
-    expect(actual[2]).toBeCloseTo(z, 9);
+    expect(actual[0]).toBeCloseTo(x, 6);
+    expect(actual[1]).toBeCloseTo(y, 6);
+    expect(actual[2]).toBeCloseTo(z, 6);
 }
 
 describe("Variant", () => {

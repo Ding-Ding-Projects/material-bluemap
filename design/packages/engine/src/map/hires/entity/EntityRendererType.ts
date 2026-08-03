@@ -4,6 +4,8 @@ import type { TextureGallery } from "../../TextureGallery.js";
 import type { RenderSettings } from "../RenderSettings.js";
 import type { EntityRenderer } from "./EntityRenderer.js";
 import type { EntityRendererFactory } from "./EntityRendererFactory.js";
+import { MissingModelRenderer } from "./MissingModelRenderer.js";
+import { ResourceModelRenderer } from "./ResourceModelRenderer.js";
 
 /** upstream: map/hires/entity/EntityRendererType.java */
 export interface EntityRendererType extends Keyed, EntityRendererFactory {
@@ -25,18 +27,29 @@ export interface EntityRendererType extends Keyed, EntityRendererFactory {
 }
 
 /**
- * PHASE D BOUNDARY — upstream passes the concrete mesher renderer's constructor into
- * each {@code Impl} ({@code ResourceModelRenderer::new}, {@code MissingModelRenderer::new}).
- * Those renderers need TileModelView, ArrayTileModel, the resource-pack Part/Model types
- * and the full RenderSettings, none of which are ported yet, so the factory throws when
- * it is *called*. The key-identity and the registry-lookup — everything the Phase C
- * ResourcesGson adapters need — work fully. The mesher wave replaces these with the real
- * renderer constructors.
+ * upstream: {@code ResourceModelRenderer::new} / {@code MissingModelRenderer::new} — a
+ * constructor-reference is a factory in java; here it is a one-method object.
+ *
+ * The two renderer modules import this one back (for {@code REGISTRY} / {@code DEFAULT}),
+ * so they are pulled in lazily rather than at module scope: `MissingModelRenderer` reads
+ * `EntityRendererType.REGISTRY` at *call* time, which would otherwise be a temporal dead
+ * zone during this module's own evaluation.
  */
-function phaseDRendererFactory(key: string): EntityRendererFactory {
+function rendererFactory(
+    load: () => new (
+        resourcePack: ResourcePack,
+        textureGallery: TextureGallery,
+        renderSettings: RenderSettings,
+    ) => EntityRenderer,
+): EntityRendererFactory {
     return {
-        create(): EntityRenderer {
-            throw new Error(`${key} renderer is not ported yet (Phase D)`);
+        create(
+            resourcePack: ResourcePack,
+            textureGallery: TextureGallery,
+            renderSettings: RenderSettings,
+        ): EntityRenderer {
+            const Renderer = load();
+            return new Renderer(resourcePack, textureGallery, renderSettings);
         },
     };
 }
@@ -65,13 +78,15 @@ class Impl implements EntityRendererType {
     }
 }
 
+/** upstream: {@code EntityRendererType DEFAULT = new Impl(Key.bluemap("default"), ResourceModelRenderer::new)} */
 const DEFAULT: EntityRendererType = new Impl(
     Key.bluemap("default"),
-    phaseDRendererFactory("bluemap:default"),
+    rendererFactory(() => ResourceModelRenderer),
 );
+/** upstream: {@code EntityRendererType MISSING = new Impl(Key.bluemap("missing"), MissingModelRenderer::new)} */
 const MISSING: EntityRendererType = new Impl(
     Key.bluemap("missing"),
-    phaseDRendererFactory("bluemap:missing"),
+    rendererFactory(() => MissingModelRenderer),
 );
 
 export const EntityRendererType = {

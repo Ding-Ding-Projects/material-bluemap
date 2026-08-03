@@ -18,6 +18,7 @@ export {
 
 export { Color } from "./math/Color.js";
 export { MatrixM3f } from "./math/MatrixM3f.js";
+export { TrigMath, genericMathFloor } from "./math/TrigMath.js";
 export { MatrixM4f } from "./math/MatrixM4f.js";
 export { Vector2d } from "./math/Vector2d.js";
 export { Vector2i } from "./math/Vector2i.js";

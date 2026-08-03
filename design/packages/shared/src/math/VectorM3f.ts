@@ -2,16 +2,25 @@ import type { MatrixM3f } from "./MatrixM3f.js";
 import { MatrixM4f } from "./MatrixM4f.js";
 import type { Vector3i } from "./Vector3i.js";
 
-/** Mutable, allocation-free 3d float-vector. */
+const fr = Math.fround;
+
+/**
+ * Mutable, allocation-free 3d float-vector.
+ *
+ * upstream: util/math/VectorM3f.java — the fields and every operand are java `float`s, so
+ * each arithmetic step rounds to 32-bit before the next one runs; `Math.fround` marks
+ * those steps (see docs/deviations.md). The one exception upstream makes is
+ * {@link lengthSquared}, which computes in `float` and *returns* a `double`.
+ */
 export class VectorM3f {
     x: number;
     y: number;
     z: number;
 
     constructor(x: number, y: number, z: number) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
+        this.x = fr(x);
+        this.y = fr(y);
+        this.z = fr(z);
     }
 
     set(x: number, y: number, z: number): VectorM3f;
@@ -19,64 +28,66 @@ export class VectorM3f {
     set(v: VectorM3f): VectorM3f;
     set(a: number | Vector3i | VectorM3f, b?: number, c?: number): VectorM3f {
         if (typeof a === "number") {
-            this.x = a;
-            this.y = b as number;
-            this.z = c as number;
+            this.x = fr(a);
+            this.y = fr(b as number);
+            this.z = fr(c as number);
         } else if (a instanceof VectorM3f) {
             this.x = a.x;
             this.y = a.y;
             this.z = a.z;
         } else {
-            this.x = a.getX();
-            this.y = a.getY();
-            this.z = a.getZ();
+            // upstream: the int components widen to float
+            this.x = fr(a.getX());
+            this.y = fr(a.getY());
+            this.z = fr(a.getZ());
         }
         return this;
     }
 
     mul(a: number): VectorM3f {
-        this.x *= a;
-        this.y *= a;
-        this.z *= a;
+        const fa = fr(a);
+        this.x = fr(this.x * fa);
+        this.y = fr(this.y * fa);
+        this.z = fr(this.z * fa);
         return this;
     }
 
     cross(v: VectorM3f): VectorM3f {
         return this.set(
-            this.y * v.z - this.z * v.y,
-            this.z * v.x - this.x * v.z,
-            this.x * v.y - this.y * v.x
+            fr(fr(this.y * v.z) - fr(this.z * v.y)),
+            fr(fr(this.z * v.x) - fr(this.x * v.z)),
+            fr(fr(this.x * v.y) - fr(this.y * v.x))
         );
     }
 
     transform(t: MatrixM3f | MatrixM4f): VectorM3f {
         if (t instanceof MatrixM4f) {
             return this.set(
-                t.m00 * this.x + t.m01 * this.y + t.m02 * this.z + t.m03,
-                t.m10 * this.x + t.m11 * this.y + t.m12 * this.z + t.m13,
-                t.m20 * this.x + t.m21 * this.y + t.m22 * this.z + t.m23
+                fr(fr(fr(fr(t.m00 * this.x) + fr(t.m01 * this.y)) + fr(t.m02 * this.z)) + t.m03),
+                fr(fr(fr(fr(t.m10 * this.x) + fr(t.m11 * this.y)) + fr(t.m12 * this.z)) + t.m13),
+                fr(fr(fr(fr(t.m20 * this.x) + fr(t.m21 * this.y)) + fr(t.m22 * this.z)) + t.m23)
             );
         }
         return this.set(
-            t.m00 * this.x + t.m01 * this.y + t.m02 * this.z,
-            t.m10 * this.x + t.m11 * this.y + t.m12 * this.z,
-            t.m20 * this.x + t.m21 * this.y + t.m22 * this.z
+            fr(fr(fr(t.m00 * this.x) + fr(t.m01 * this.y)) + fr(t.m02 * this.z)),
+            fr(fr(fr(t.m10 * this.x) + fr(t.m11 * this.y)) + fr(t.m12 * this.z)),
+            fr(fr(fr(t.m20 * this.x) + fr(t.m21 * this.y)) + fr(t.m22 * this.z))
         );
     }
 
     rotateAndScale(t: MatrixM4f): VectorM3f {
         return this.set(
-            t.m00 * this.x + t.m01 * this.y + t.m02 * this.z,
-            t.m10 * this.x + t.m11 * this.y + t.m12 * this.z,
-            t.m20 * this.x + t.m21 * this.y + t.m22 * this.z
+            fr(fr(fr(t.m00 * this.x) + fr(t.m01 * this.y)) + fr(t.m02 * this.z)),
+            fr(fr(fr(t.m10 * this.x) + fr(t.m11 * this.y)) + fr(t.m12 * this.z)),
+            fr(fr(fr(t.m20 * this.x) + fr(t.m21 * this.y)) + fr(t.m22 * this.z))
         );
     }
 
     normalize(): VectorM3f {
         const length = this.length();
-        this.x /= length;
-        this.y /= length;
-        this.z /= length;
+        this.x = fr(this.x / length);
+        this.y = fr(this.y / length);
+        this.z = fr(this.z / length);
         return this;
     }
 
@@ -87,16 +98,19 @@ export class VectorM3f {
         return this;
     }
 
+    /** upstream returns a `float` (the double sqrt narrowed) */
     length(): number {
-        return Math.sqrt(this.lengthSquared());
+        return fr(Math.sqrt(this.lengthSquared()));
     }
 
+    /** upstream computes in `float` and returns a `double` */
     lengthSquared(): number {
-        return this.x * this.x + this.y * this.y + this.z * this.z;
+        return fr(fr(fr(this.x * this.x) + fr(this.y * this.y)) + fr(this.z * this.z));
     }
 
+    /** upstream returns a `float` */
     dot(v: VectorM3f): number {
-        return this.x * v.x + this.y * v.y + this.z * v.z;
+        return fr(fr(fr(this.x * v.x) + fr(this.y * v.y)) + fr(this.z * v.z));
     }
 
     max(): number {

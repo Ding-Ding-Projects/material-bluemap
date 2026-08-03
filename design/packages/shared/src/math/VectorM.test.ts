@@ -20,8 +20,8 @@ describe("VectorM2f", () => {
     it("rotate by a normalized direction (45 degrees)", () => {
         const s = Math.sqrt(0.5);
         const v = new VectorM2f(1, 0).rotate(s, s);
-        expect(v.x).toBeCloseTo(s, 9);
-        expect(v.y).toBeCloseTo(s, 9);
+        expect(v.x).toBeCloseTo(s, 6);
+        expect(v.y).toBeCloseTo(s, 6);
     });
 
     it("rotate by 90 degrees", () => {
@@ -41,13 +41,13 @@ describe("VectorM2f", () => {
         expect(new VectorM2f(3, 4).lengthSquared()).toBe(25);
         expect(new VectorM2f(3, 4).length()).toBe(5);
         const v = new VectorM2f(3, 4).normalize();
-        expect(v.x).toBeCloseTo(0.6, 9);
-        expect(v.y).toBeCloseTo(0.8, 9);
+        expect(v.x).toBeCloseTo(0.6, 6);
+        expect(v.y).toBeCloseTo(0.8, 6);
     });
 
     it("angleTo", () => {
         expect(new VectorM2f(1, 0).angleTo(1, 0)).toBeCloseTo(0, 9);
-        expect(new VectorM2f(1, 0).angleTo(0, 1)).toBeCloseTo(Math.PI / 2, 9);
+        expect(new VectorM2f(1, 0).angleTo(0, 1)).toBeCloseTo(Math.PI / 2, 6);
         expect(new VectorM2f(1, 0).angleTo(-1, 0)).toBeCloseTo(Math.PI, 6);
         expect(new VectorM2f(0, -1).angleTo(0, -1)).toBeCloseTo(0, 6);
     });
@@ -104,9 +104,9 @@ describe("VectorM3f", () => {
         expect(new VectorM3f(0, 3, 4).length()).toBe(5);
         expect(new VectorM3f(1, 2, 2).lengthSquared()).toBe(9);
         const v = new VectorM3f(0, 3, 4).normalize();
-        expect(v.x).toBeCloseTo(0, 9);
-        expect(v.y).toBeCloseTo(0.6, 9);
-        expect(v.z).toBeCloseTo(0.8, 9);
+        expect(v.x).toBeCloseTo(0, 6);
+        expect(v.y).toBeCloseTo(0.6, 6);
+        expect(v.z).toBeCloseTo(0.8, 6);
     });
 
     it("absolute / dot / max / min", () => {

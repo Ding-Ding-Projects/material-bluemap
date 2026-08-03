@@ -5,6 +5,9 @@ import type { TextureGallery } from "../../TextureGallery.js";
 import type { RenderSettings } from "../RenderSettings.js";
 import type { BlockRenderer } from "./BlockRenderer.js";
 import type { BlockRendererFactory } from "./BlockRendererFactory.js";
+import { LiquidModelRenderer } from "./LiquidModelRenderer.js";
+import { MissingModelRenderer } from "./MissingModelRenderer.js";
+import { ResourceModelRenderer } from "./ResourceModelRenderer.js";
 
 /** upstream: map/hires/block/BlockRendererType.java */
 export interface BlockRendererType extends Keyed, BlockRendererFactory {
@@ -25,23 +28,6 @@ export interface BlockRendererType extends Keyed, BlockRendererFactory {
      * (upstream interface-default: {@code false})
      */
     isFallbackFor(blockState: BlockState): boolean;
-}
-
-/**
- * PHASE D BOUNDARY — upstream passes the concrete mesher renderer's constructor into
- * each {@code Impl} ({@code ResourceModelRenderer::new}, {@code LiquidModelRenderer::new},
- * {@code MissingModelRenderer::new}). Those renderers need TileModelView, ArrayTileModel,
- * the resource-pack Variant/Model types and the full RenderSettings, none of which are
- * ported yet, so the factory throws when it is *called*. The key-identity and the
- * registry-lookup — everything the Phase C ResourcesGson adapters need — work fully.
- * The mesher wave replaces these with the real renderer constructors.
- */
-function phaseDRendererFactory(key: string): BlockRendererFactory {
-    return {
-        create(): BlockRenderer {
-            throw new Error(`${key} renderer is not ported yet (Phase D)`);
-        },
-    };
 }
 
 /** upstream: BlockRendererType.Impl */
@@ -68,18 +54,29 @@ class Impl implements BlockRendererType {
     }
 }
 
-const DEFAULT: BlockRendererType = new Impl(
-    Key.bluemap("default"),
-    phaseDRendererFactory("bluemap:default"),
-);
-const LIQUID: BlockRendererType = new Impl(
-    Key.bluemap("liquid"),
-    phaseDRendererFactory("bluemap:liquid"),
-);
-const MISSING: BlockRendererType = new Impl(
-    Key.bluemap("missing"),
-    phaseDRendererFactory("bluemap:missing"),
-);
+/*
+ * upstream: `new Impl(Key.bluemap("default"), ResourceModelRenderer::new)` and friends.
+ *
+ * A TypeScript arrow standing in for the java constructor-reference. The renderer modules
+ * form an import cycle with this one — `MissingModelRenderer` reads
+ * {@link BlockRendererType.REGISTRY}, and `blockstate/Variant` defaults its renderer to
+ * {@link BlockRendererType.DEFAULT} — but nothing dereferences a binding from the other
+ * side of the cycle at module-evaluation time, so the live bindings are all initialized
+ * long before the first `create` call. That is the same laziness a java method-reference
+ * gives, kept without a dynamic import.
+ */
+const DEFAULT: BlockRendererType = new Impl(Key.bluemap("default"), {
+    create: (resourcePack, textureGallery, renderSettings) =>
+        new ResourceModelRenderer(resourcePack, textureGallery, renderSettings),
+});
+const LIQUID: BlockRendererType = new Impl(Key.bluemap("liquid"), {
+    create: (resourcePack, textureGallery, renderSettings) =>
+        new LiquidModelRenderer(resourcePack, textureGallery, renderSettings),
+});
+const MISSING: BlockRendererType = new Impl(Key.bluemap("missing"), {
+    create: (resourcePack, textureGallery, renderSettings) =>
+        new MissingModelRenderer(resourcePack, textureGallery, renderSettings),
+});
 
 export const BlockRendererType = {
     DEFAULT,

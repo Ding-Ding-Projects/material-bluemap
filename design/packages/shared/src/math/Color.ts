@@ -1,5 +1,13 @@
+const fr = Math.fround;
+
 /**
  * Mutable, allocation-free color.
+ *
+ * upstream: util/math/Color.java — `r`, `g`, `b` and `a` are java `float`s, so every
+ * blend step rounds to 32-bit before the next one runs. `Math.fround` marks each of those
+ * steps: this color is what the mesher accumulates per block and what the lowres tiles are
+ * built from, so a double intermediate that is only rounded at the end changes pixels
+ * (see docs/deviations.md).
  *
  * Note: upstream Java has both a public field {@code premultiplied} and a method
  * {@code premultiplied()}; JavaScript cannot have both on one class, so the boolean
@@ -35,28 +43,28 @@ export class Color {
         }
 
         if (typeof gOrPremultiplied === "number") {
-            this.r = colorOrR;
-            this.g = gOrPremultiplied;
-            this.b = b as number;
-            this.a = a as number;
+            this.r = fr(colorOrR);
+            this.g = fr(gOrPremultiplied);
+            this.b = fr(b as number);
+            this.a = fr(a as number);
             this.isPremultiplied = premultiplied as boolean;
             return this;
         }
 
         const color = colorOrR | 0;
-        this.r = ((color >> 16) & 0xff) / 255;
-        this.g = ((color >> 8) & 0xff) / 255;
-        this.b = (color & 0xff) / 255;
-        this.a = ((color >> 24) & 0xff) / 255;
+        this.r = fr(((color >> 16) & 0xff) / 255);
+        this.g = fr(((color >> 8) & 0xff) / 255);
+        this.b = fr((color & 0xff) / 255);
+        this.a = fr(((color >> 24) & 0xff) / 255);
         this.isPremultiplied = gOrPremultiplied ?? false;
         return this;
     }
 
     getInt(): number {
-        const r = Math.trunc(this.r * 255) & 0xff;
-        const g = Math.trunc(this.g * 255) & 0xff;
-        const b = Math.trunc(this.b * 255) & 0xff;
-        const a = Math.trunc(this.a * 255) & 0xff;
+        const r = Math.trunc(fr(this.r * 255)) & 0xff;
+        const g = Math.trunc(fr(this.g * 255)) & 0xff;
+        const b = Math.trunc(fr(this.b * 255)) & 0xff;
+        const a = Math.trunc(fr(this.a * 255)) & 0xff;
         return (a << 24) | (r << 16) | (g << 8) | b;
     }
 
@@ -67,22 +75,23 @@ export class Color {
 
         this.premultiplied();
 
-        this.r += color.r;
-        this.g += color.g;
-        this.b += color.b;
-        this.a += color.a;
+        this.r = fr(this.r + color.r);
+        this.g = fr(this.g + color.g);
+        this.b = fr(this.b + color.b);
+        this.a = fr(this.a + color.a);
 
         return this;
     }
 
+    /** upstream takes an `int` divisor */
     div(divisor: number): Color {
         this.premultiplied();
 
-        const p = 1 / divisor;
-        this.r *= p;
-        this.g *= p;
-        this.b *= p;
-        this.a *= p;
+        const p = fr(1 / divisor);
+        this.r = fr(this.r * p);
+        this.g = fr(this.g * p);
+        this.b = fr(this.b * p);
+        this.a = fr(this.a * p);
 
         return this;
     }
@@ -91,10 +100,10 @@ export class Color {
         if (color.isPremultiplied) this.premultiplied();
         else this.straight();
 
-        this.r *= color.r;
-        this.g *= color.g;
-        this.b *= color.b;
-        this.a *= color.a;
+        this.r = fr(this.r * color.r);
+        this.g = fr(this.g * color.g);
+        this.b = fr(this.b * color.b);
+        this.a = fr(this.a * color.a);
 
         return this;
     }
@@ -105,11 +114,11 @@ export class Color {
 
         this.premultiplied();
 
-        const p = 1 - color.a;
-        this.a = p * this.a + color.a;
-        this.r = p * this.r + color.r;
-        this.g = p * this.g + color.g;
-        this.b = p * this.b + color.b;
+        const p = fr(1 - color.a);
+        this.a = fr(fr(p * this.a) + color.a);
+        this.r = fr(fr(p * this.r) + color.r);
+        this.g = fr(fr(p * this.g) + color.g);
+        this.b = fr(fr(p * this.b) + color.b);
 
         return this;
     }
@@ -120,11 +129,11 @@ export class Color {
 
         this.premultiplied();
 
-        const p = 1 - this.a;
-        this.a = p * color.a + this.a;
-        this.r = p * color.r + this.r;
-        this.g = p * color.g + this.g;
-        this.b = p * color.b + this.b;
+        const p = fr(1 - this.a);
+        this.a = fr(fr(p * color.a) + this.a);
+        this.r = fr(fr(p * color.r) + this.r);
+        this.g = fr(fr(p * color.g) + this.g);
+        this.b = fr(fr(p * color.b) + this.b);
 
         return this;
     }
@@ -133,10 +142,10 @@ export class Color {
         if (this.a === 1) return this;
 
         if (this.isPremultiplied && this.a > 0) {
-            const m = 1 / this.a;
-            this.r *= m;
-            this.g *= m;
-            this.b *= m;
+            const m = fr(1 / this.a);
+            this.r = fr(this.r * m);
+            this.g = fr(this.g * m);
+            this.b = fr(this.b * m);
         }
 
         this.a = 1;
@@ -146,9 +155,9 @@ export class Color {
 
     premultiplied(): Color {
         if (!this.isPremultiplied) {
-            this.r *= this.a;
-            this.g *= this.a;
-            this.b *= this.a;
+            this.r = fr(this.r * this.a);
+            this.g = fr(this.g * this.a);
+            this.b = fr(this.b * this.a);
             this.isPremultiplied = true;
         }
         return this;
@@ -157,10 +166,10 @@ export class Color {
     straight(): Color {
         if (this.isPremultiplied) {
             if (this.a > 0) {
-                const m = 1 / this.a;
-                this.r *= m;
-                this.g *= m;
-                this.b *= m;
+                const m = fr(1 / this.a);
+                this.r = fr(this.r * m);
+                this.g = fr(this.g * m);
+                this.b = fr(this.b * m);
             }
             this.isPremultiplied = false;
         }
@@ -209,10 +218,10 @@ export class Color {
     toString(): string {
         return (
             "Color{" +
-            "r=" + this.r + " (" + Math.trunc(this.r * 255) + ")" +
-            ", g=" + this.g + " (" + Math.trunc(this.g * 255) + ")" +
-            ", b=" + this.b + " (" + Math.trunc(this.b * 255) + ")" +
-            ", a=" + this.a + " (" + Math.trunc(this.a * 255) + ")" +
+            "r=" + this.r + " (" + Math.trunc(fr(this.r * 255)) + ")" +
+            ", g=" + this.g + " (" + Math.trunc(fr(this.g * 255)) + ")" +
+            ", b=" + this.b + " (" + Math.trunc(fr(this.b * 255)) + ")" +
+            ", a=" + this.a + " (" + Math.trunc(fr(this.a * 255)) + ")" +
             ", premultiplied=" + this.isPremultiplied +
             "}"
         );

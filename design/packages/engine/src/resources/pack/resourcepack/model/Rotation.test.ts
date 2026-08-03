@@ -57,6 +57,14 @@ describe("Rotation", () => {
         });
     });
 
+    /*
+     * The tolerances below are 1e-5, not 1e-9. `MatrixM4f` is 32-bit float arithmetic and
+     * its rotations go through flow-math's `TrigMath` — a quantized 2^22-entry sine table
+     * — so a 90-degree turn of a 16-unit block lands about 1e-6 off the exact answer. That
+     * residual is the reference implementation's, pinned bit-for-bit in
+     * `shared/math/flowMathOracle.test.ts`; these assertions test the geometry, so they
+     * are given room for it rather than asserting an accuracy the port must not have.
+     */
     describe("matrix", () => {
         it("rotates around the origin without rescaling", () => {
             const rotation = read('{"origin": [8, 8, 8], "axis": "y", "angle": 90}');
@@ -65,19 +73,19 @@ describe("Rotation", () => {
 
             // the origin is a fixed point
             const origin = transform(matrix as MatrixM4f, 8, 8, 8);
-            expect(origin.x).toBeCloseTo(8, 6);
-            expect(origin.y).toBeCloseTo(8, 6);
-            expect(origin.z).toBeCloseTo(8, 6);
+            expect(origin.x).toBeCloseTo(8, 5);
+            expect(origin.y).toBeCloseTo(8, 5);
+            expect(origin.z).toBeCloseTo(8, 5);
 
             // a 90 degree turn around Y maps +x onto -z
             const point = transform(matrix as MatrixM4f, 16, 8, 8);
-            expect(point.x).toBeCloseTo(8, 6);
-            expect(point.y).toBeCloseTo(8, 6);
-            expect(point.z).toBeCloseTo(0, 6);
+            expect(point.x).toBeCloseTo(8, 5);
+            expect(point.y).toBeCloseTo(8, 5);
+            expect(point.z).toBeCloseTo(0, 5);
 
             // a plain rotation keeps the unit-length of the axis-vectors
             const axisVector = new VectorM3f(1, 0, 0).rotateAndScale(matrix as MatrixM4f);
-            expect(axisVector.length()).toBeCloseTo(1, 6);
+            expect(axisVector.length()).toBeCloseTo(1, 5);
         });
 
         it("rescale inserts the measured scale between translate and rotate", () => {
@@ -89,27 +97,27 @@ describe("Rotation", () => {
 
             // sX = sZ = 1 / cos(45deg) = sqrt(2), sY = 1 -> the linear part becomes
             // [[1, 0, 1], [0, 1, 0], [-1, 0, 1]]
-            expect(matrix.m00).toBeCloseTo(1, 6);
-            expect(matrix.m01).toBeCloseTo(0, 6);
-            expect(matrix.m02).toBeCloseTo(1, 6);
-            expect(matrix.m10).toBeCloseTo(0, 6);
-            expect(matrix.m11).toBeCloseTo(1, 6);
-            expect(matrix.m12).toBeCloseTo(0, 6);
-            expect(matrix.m20).toBeCloseTo(-1, 6);
-            expect(matrix.m21).toBeCloseTo(0, 6);
-            expect(matrix.m22).toBeCloseTo(1, 6);
+            expect(matrix.m00).toBeCloseTo(1, 5);
+            expect(matrix.m01).toBeCloseTo(0, 5);
+            expect(matrix.m02).toBeCloseTo(1, 5);
+            expect(matrix.m10).toBeCloseTo(0, 5);
+            expect(matrix.m11).toBeCloseTo(1, 5);
+            expect(matrix.m12).toBeCloseTo(0, 5);
+            expect(matrix.m20).toBeCloseTo(-1, 5);
+            expect(matrix.m21).toBeCloseTo(0, 5);
+            expect(matrix.m22).toBeCloseTo(1, 5);
 
             // the origin stays a fixed point
             const origin = transform(matrix, 8, 8, 8);
-            expect(origin.x).toBeCloseTo(8, 6);
-            expect(origin.y).toBeCloseTo(8, 6);
-            expect(origin.z).toBeCloseTo(8, 6);
+            expect(origin.x).toBeCloseTo(8, 5);
+            expect(origin.y).toBeCloseTo(8, 5);
+            expect(origin.z).toBeCloseTo(8, 5);
 
             // the rescaled rotation stretches the block back out to full width
             const corner = transform(matrix, 0, 0, 0);
-            expect(corner.x).toBeCloseTo(-8, 6);
-            expect(corner.y).toBeCloseTo(0, 6);
-            expect(corner.z).toBeCloseTo(8, 6);
+            expect(corner.x).toBeCloseTo(-8, 5);
+            expect(corner.y).toBeCloseTo(0, 5);
+            expect(corner.z).toBeCloseTo(8, 5);
         });
 
         it("rescale differs from the plain rotation", () => {
@@ -119,7 +127,7 @@ describe("Rotation", () => {
             ).getMatrix() as MatrixM4f;
 
             expect(plain.m00).toBeCloseTo(Math.SQRT1_2, 6);
-            expect(rescaled.m00).toBeCloseTo(1, 6);
+            expect(rescaled.m00).toBeCloseTo(1, 5);
             expect(rescaled.m00 / plain.m00).toBeCloseTo(Math.SQRT2, 6);
         });
     });
@@ -131,8 +139,8 @@ describe("Rotation", () => {
             expect(rotation.getMatrix()).not.toBeNull();
 
             const point = transform(rotation.getMatrix() as MatrixM4f, 1, 0, 0);
-            expect(point.x).toBeCloseTo(0, 6);
-            expect(point.y).toBeCloseTo(1, 6);
+            expect(point.x).toBeCloseTo(0, 5);
+            expect(point.y).toBeCloseTo(1, 5);
         });
 
         it("(origin, x, y, z, rescale) runs init", () => {

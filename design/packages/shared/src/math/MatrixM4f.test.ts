@@ -3,7 +3,8 @@ import { MatrixM3f } from "./MatrixM3f.js";
 import { MatrixM4f } from "./MatrixM4f.js";
 import { VectorM3f } from "./VectorM3f.js";
 
-function expectVector(v: VectorM3f, x: number, y: number, z: number, digits = 9): void {
+// float precision: the matrices and vectors are 32-bit, so ~7 significant digits
+function expectVector(v: VectorM3f, x: number, y: number, z: number, digits = 6): void {
     expect(v.x).toBeCloseTo(x, digits);
     expect(v.y).toBeCloseTo(y, digits);
     expect(v.z).toBeCloseTo(z, digits);

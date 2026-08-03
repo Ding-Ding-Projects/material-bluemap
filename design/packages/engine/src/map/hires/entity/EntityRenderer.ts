@@ -1,20 +1,7 @@
-import type { Vector3f } from "@material-bluemap/shared";
+import type { Part } from "../../../resources/pack/resourcepack/entitystate/Part.js";
 import type { Entity } from "../../../world/Entity.js";
 import type { BlockNeighborhood } from "../../../world/block/BlockNeighborhood.js";
 import type { TileModelView } from "../TileModelView.js";
-
-/**
- * Phase D placeholder — replaced by the full port of
- * resources/pack/resourcepack/entitystate/Part.java (renderer-type, model
- * resource-path, position, rotation and the cached transform-matrix).
- *
- * Declared here because {@link EntityRenderer} is the only ported surface that mentions
- * it; the mesher wave replaces this with the real Part port.
- */
-export interface Part {
-    /** upstream: {@code Vector3f getPosition()} (lombok @Getter) */
-    getPosition(): Vector3f;
-}
 
 /** upstream: map/hires/entity/EntityRenderer.java */
 export interface EntityRenderer {

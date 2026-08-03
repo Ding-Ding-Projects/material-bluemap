@@ -870,3 +870,319 @@ instead of a second pipeline. Nothing in `ResourcePack`, `Pack` or the atlas-lay
   in 1.12 resource packs that we ignore") reach the same fate by a different route: neither
   parses as a property, so both become the `none()` condition and are dropped. Both are
   pinned by test rather than assumed.
+
+## Storage layer and map assembler (`packages/engine/src/storage`, `.../map`)
+
+- **The storage layer is buffer-oriented, not stream-oriented.** Upstream's `ItemStorage`
+  and `GridStorage` hand out an `OutputStream` to write into and a `CompressedInputStream`
+  to read from, both closed by the caller. This port's `CompressedInputStream` was already
+  a `(Buffer, Compression)` pair when it landed in Phase B, and every upstream caller of
+  `write()` writes one complete document in one go, so the ported signatures are
+  `write(data: Uint8Array): Promise<void>` and `read(): Promise<CompressedInputStream | null>`.
+  The bytes on disk are the same either way; what is lost is upstream's ability to stream a
+  tile larger than memory, which no caller does. Every method is `async` for the same
+  reason the compression layer is.
+- **`Stream<T>` returns become arrays.** `Storage#mapIds` and `GridStorage#stream` return
+  `Promise<string[]>` / `Promise<Cell[]>`; every upstream consumer drains the stream
+  immediately, and `util/FileHelper#walk` already made the same choice.
+- **Caffeine `LoadingCache` becomes a plain `Map`.** `FileStorage#map` and
+  `FileMapStorage#lowresTiles` cache their sub-storages in a `Map` rather than a
+  size-bounded cache. Both caches are keyed by map-id and by lod, so they are bounded by
+  the configuration rather than by traffic — there is nothing for an eviction policy to do
+  (decision D6 covers the caches that genuinely need byte budgets).
+- **`FileGridStorage`'s item-path codec is imported, not re-ported.** `getItemPath` and the
+  `ITEM_PATH_PATTERN` parsing inside `stream()` live in `shared/TilePathCodec`, which the
+  webapp shares — it is the same codec, and it was ported once.
+- **`GridStorage.Cell` is exported from the engine barrel as `GridCell`.** It is a nested
+  interface upstream; a barrel cannot carry a name that generic. The class
+  `GridStorageCell` keeps its own name.
+- **`BmMap`'s constructor becomes the static async `BmMap.create`.** Upstream's constructor
+  loads the render-state and the texture gallery from storage and writes `settings.json`,
+  which a javascript constructor cannot do. `renderTile`, `unrenderTile` and every `save`
+  are `async` for the same reason.
+- **`synchronized void save()` becomes a promise chain.** Javascript has no preemption, so
+  most of upstream's `synchronized` needs no counterpart — but `save()` now awaits, and two
+  overlapping calls would interleave at those awaits. `BmMap#save` therefore queues itself
+  on a `saveChain` promise, which is the guarantee `synchronized` was giving.
+- **`BmMap#save(long minTimeSinceLastSave)` is named `saveIfDue`.** TypeScript cannot
+  overload one name across two different return types (`Promise<boolean>` and
+  `Promise<void>`) without a signature that lies about one of them.
+- **`BmMap#markerSets` cannot be serialized faithfully yet.** Upstream writes it with
+  `MarkerGson`, whose adapters are part of the markers API (Phase H). Until that lands
+  nothing can put a `MarkerSet` into the map — the element type is `never` — so the only
+  document `saveMarkerState` can produce is the `{}` that upstream also writes for a render
+  with no configured marker-sets.
+- **`BmMap` names `LowresTileManager` structurally while it is being written.** The two
+  files land in the same wave, so `BmMap.ts` declares `LowresTileManagerLike` with
+  upstream's members and upstream's signatures and takes the manager from a factory
+  parameter. The concrete class satisfies it without naming it; the interface and the
+  factory parameter are replaced by a plain `import type` and a direct `new` once
+  `map/lowres/LowresTileManager.ts` exists.
+- **`MapSettingsSerializer` builds the json object directly.** Upstream registers it as a
+  gson `JsonSerializer<BmMap>` on `BmMap.GSON`; this port calls it and hands the result to
+  `JSON.stringify`. The two nested values gson would delegate to a registered adapter
+  (`Vector2i`, `Color`) go through this port's `Vector2iAdapter` and `ColorAdapter`, so
+  they cannot drift from the rest of the resources layer.
+- **`settings.json` is compared by value, not byte for byte** (`tools/oracle`). Gson prints
+  a java `float` as `0.0` where `JSON.stringify` prints `0`, and gson html-escapes `=`,
+  `<`, `>`, `&` and `'` inside strings. Same document, different bytes. The same applies to
+  `live/markers.json` and `live/players.json`. The hires tiles — the actual mesh — are
+  compared byte for byte after decompression, and lowres PNGs pixel for pixel (decision
+  D3), which is the Phase D gate.
+
+## map/hires — the tile-model and the PRBM writer (Phase D wave 1)
+
+The .prbm bytes this package writes are compared byte for byte against the Java writer's
+output (see `packages/engine/src/map/hires/prbmOracleData.ts`, captured from
+`vendor/BlueMap/implementations/cli/build/libs/cli-5.22-27-shadow.jar`), so the notes
+below are all cases where the *shape* of the code differs while the numbers do not.
+
+- **`ArrayTileModel`'s attribute arrays are typed arrays, and float expressions carry
+  explicit `Math.fround`.** `float[]`/`byte[]`/`int[]` become
+  `Float32Array`/`Int8Array`/`Int32Array`, so every store narrows exactly as Java's does.
+  What a typed array cannot reproduce is Java rounding the *intermediate* results of a
+  multi-operator float expression, so `transform` rounds after every operator and every
+  `float` parameter is `Math.fround`ed on entry (Java narrowed it at the call site). This
+  is not theoretical: the `floatIntermediates` oracle case exists because accumulating
+  `m00*x + m01*y + m02*z` in double precision and narrowing once lands one ulp — one
+  byte — away from what upstream emits.
+- **`ArrayTileModel` has a field `size` and a method `size()`; javascript cannot.** The
+  field is `_size`, the method keeps the upstream name. The attribute arrays are
+  package-private upstream (PRBMWriter reads them directly) and are public-with-`@internal`
+  here, since javascript has no package scope.
+- **`ArrayTileModel.instancePool()` is created on first call**, not in a static
+  initialiser, so importing the module does not arm the pool's auto-clear timer. The
+  recycler's shrink logic (the `size / capacity > 1/1.5` check and the one-minute
+  `lastCapacityUse` window) is unchanged. `util/InstancePool`'s timer is `unref`'d,
+  because upstream's is a daemon thread and a pool used once must not keep a node process
+  alive.
+- **`PRBMWriter` writes into a growable buffer instead of wrapping an `OutputStream`.**
+  Upstream is constructed around the storage layer's stream; the ported storage layer is
+  buffer-oriented (see the `storage/ItemStorage` note above), so the writer accumulates
+  and `getBytes()` hands the result over. `close()` is kept for API parity and does
+  nothing. The byte counting the 4-byte attribute padding depends on is unchanged.
+- **`TileModel`'s Java overloads-by-type collapse into unions or arity overloads.**
+  `transform(int, int, MatrixM3f)` and `transform(int, int, MatrixM4f)` become one
+  union-typed signature (both implementations dispatch on the runtime class anyway), and
+  `invertOrientation(int)` vs. the interface-default `invertOrientation(int, int)` become
+  arity overloads. Same for `TileModelView.initialize`'s four overloads.
+- **`HiresModelManager` holds its render-passes as plain instance state, and saving is
+  async.** Upstream keeps them in a `ThreadLocal` because it renders tiles on a thread
+  pool; a javascript engine instance has one thread, so parallel tiles mean separate
+  workers each with their own manager. `save` becomes "serialize to bytes, then await the
+  storage write" for the same reason `PRBMWriter` does.
+- **`RenderPass.render`'s `tileMetaConsumer` is an optional parameter** rather than a
+  second interface-default overload; `NOOP_TILE_META_CONSUMER` is upstream's
+  `(x, z, c, h, l) -> {}` lambda.
+
+### flow-math's `TrigMath`, and the rest of the Java numerics
+
+`ArrayTileModel.rotate`/`rotateXYZ`/`rotateZYX`/`rotateYXZ` — and, upstream, `MatrixM3f`,
+`MatrixM4f`, `VectorM2f`, `LiquidModelRenderer` and `block/ResourceModelRenderer` — call
+`com.flowpowered.math.TrigMath`, which quantises the angle into a 2^22-entry table of
+`float`s. It is visibly coarser than libm: at a 7.5-degree half-angle its sine is 133 ulps
+from `(float) Math.sin`, and `cos(pi/2)` comes back as 4.37e-8 rather than 6.12e-17. A port
+that reached for `Math.sin` would emit different bytes for every rotated model.
+
+The port of it lives in `@material-bluemap/shared` (`math/TrigMath.ts`), because the
+matrices rotate with it too and there must only be one; its own deviations are recorded
+with that package. `map/hires/ArrayTileModel.ts` imports it, and
+`util/math/TrigMath.test.ts` pins the pairing the engine depends on — the exact half-angles
+`rotate*` computes, and flow-math's sine and cosine for them — against values captured from
+the oracle jar.
+
+The remaining Java primitives are `util/math/JavaMath.ts`:
+
+- **`toRadians` is a single multiply by `DEGREES_TO_RADIANS`**, which is what
+  `java.lang.Math` has done since JDK 9 (JDK-8145213). The Java 8 form
+  `angdeg / 180.0 * PI` differs by an ulp for some inputs — `toRadians(3)` and
+  `toRadians(999.75)` among them — and the oracle jar runs on a modern JDK. The test
+  pins all 26 reference half-angles against `Double.doubleToLongBits` of Java's own
+  result, so this is proven rather than assumed.
+- **`javaCastToInt` saturates rather than wrapping.** Javascript's `| 0` wraps modulo
+  2^32 where Java's `(int)` narrowing clamps at `Integer.MIN_VALUE`/`MAX_VALUE` and maps
+  NaN to 0. `PRBMWriter`'s normal encoding reaches that path on any degenerate
+  (zero-area) face, where the normalisation divides by zero.
+- **`floatToIntBits` collapses NaN to `0x7fc00000`**, which is what separates
+  `Float.floatToIntBits` from `floatToRawIntBits`; reinterpreting a `Float32Array` through
+  an `Int32Array` gives the raw form and would leak a NaN payload into the file.
+
+## util/math (shared) — 32-bit float arithmetic and flow-math trigonometry
+
+Upstream's `Color`, `VectorM2f`, `VectorM3f`, `MatrixM3f` and `MatrixM4f` are `float`
+throughout, and their rotations call **`com.flowpowered.math.TrigMath`**, not
+`java.lang.Math`. Both facts are load-bearing for the mesher, and both were reproduced
+here only after the reference implementation was run and its numbers compared: with
+double arithmetic and `Math.sin`, 30 of the 52 liquid uv-transform values differed from
+the jar's, and `MatrixM4f#rotateYXZ` — which `blockstate/Variant` and `model/Rotation`
+bake every rotated model with — was wrong by ~25 float-ulps at every angle.
+
+- **`Math.fround` marks every point java rounds to 32 bits.** A double intermediate
+  rounded only once at the end is a different float often enough to move a vertex. Where
+  upstream mixes widths the port follows exactly: `VectorM3f#lengthSquared` computes in
+  float and returns a double, and `VectorM2f#angleTo` divides a float numerator by a
+  double denominator before narrowing the `acos` result.
+- **`TrigMath`'s 2^22-entry sine table is evaluated on demand rather than materialized.**
+  Upstream fills `float[4194304]` in a static initializer with
+  `SIN_TABLE[i] = (float) Math.sin(i * TWO_PI / SIN_SIZE)`; this port evaluates that same
+  expression for the single index a call needs. Identical by construction, and it saves a
+  permanently-resident 16 MB `Float32Array`.
+- **`Math.sin` is assumed to agree with java's to within a double-ulp.** Both are
+  fdlibm-derived and faithfully rounded, and a disagreement only survives the narrowing to
+  float when the double lands within one double-ulp of a float boundary (~2^-29 per
+  index). Pinned against the real table in `flowMathOracle.test.ts`.
+- **`Math.toRadians` is duplicated in `shared` rather than imported from
+  `engine/util/math/JavaMath`,** because `shared` can not depend on `engine`. Both carry
+  the JDK 9+ single-multiply form (JDK-8145213); the java 8 form disagrees at `-337.5`,
+  `-247.5`, `-168.75` and `-123.75`, all ordinary model rotations, and there the ulp lands
+  on a different sine-table entry.
+- **Open gap: `Vector3f` and `Vector4f` still store doubles.** They are immutable holders
+  for json-parsed model values (`from`, `to`, `uv`), so the difference only bites if a
+  pack writes a coordinate that is not exactly representable as a float. The block mesher
+  narrows them with `Math.fround` where it reads them; the classes themselves are left for
+  whichever wave owns them.
+- The shared math tests were retargeted from double precision to float precision as part
+  of this: assertions that read `toBeCloseTo(x, 9)` were asserting an accuracy the ported
+  classes must *not* have.
+
+## map/hires/block (the block mesher)
+
+- **Caffeine `LoadingCache` becomes `lru-cache`,** with upstream's `Caches.build`
+  parameters (`maximumSize(10000)`, `expireAfterAccess(1 minute)`) — the same substitution
+  `resources/pack/resourcepack/ResourcePack` already makes. `BlockStateModelRenderer`'s and
+  `MissingModelRenderer`'s renderer caches are keyed by the `BlockRendererType` object,
+  which caffeine also compares by identity since that type overrides neither `equals` nor
+  `hashCode`. `MissingModelRenderer`'s static `BlockState`-keyed cache is keyed by the
+  block-state's canonical `id[sorted properties]` string instead, because a javascript Map
+  compares by identity where java's compares by `equals`/`hashCode`.
+- **`RenderSettings`' interface-defaults live on a companion object.** The abstract
+  members stay on the interface — which is what a defaulted java method looks like to a
+  caller — and the default *bodies* (`isRenderEdges`, `getEdgeLightStrength`,
+  `isIgnoreMissingLightData`, the three `isInsideRenderBoundaries` overloads and
+  `getCellRenderBoundariesFilter`) sit on `export const RenderSettings`, the shape this
+  port already uses for `BlockColorCalculator` and `MapSettings`. The boundary tests are
+  pure functions of `getRenderMask`, so they are *only* on the companion and callers write
+  `RenderSettings.isInsideRenderBoundaries(settings, x, z)`.
+- **`ResourceModelRenderer`'s two `getRotationRelativeBlock` overloads collapse into one.**
+  Upstream's `(Direction)` overload delegates through a `(Vector3i)` one that nothing else
+  calls with a raw vector.
+- **`buildModelElementResource`'s `blockModel` parameter is dropped** in favour of the
+  field it shadows. Upstream passes `blockModel.initialize()`, which returns the very same
+  view object, so the two are always identical.
+- **`| 0` folds javascript's `-0` back onto the int `0` java would have produced,** at the
+  three places a negation or a modulo can produce it: the face-rotation step count
+  (`Math.floorDiv(-360, 90) % 4`), `LiquidModelRenderer`'s flowing angle when the angle is
+  zero, and the `Math.round` of a rotation-relative neighbour offset. Only the first
+  changes behaviour — `rawUvs[-0]` is `undefined` where `rawUvs[0]` is a vector — but all
+  three are folded so the values stay java ints.
+- **A model's element array is `(Element | null)[]` here and `Element[]` upstream,**
+  because a json `null` element survives this port's parser. The renderer skips a null
+  element; upstream would throw, so no pack that renders at all can reach the difference.
+- **`testHarness.ts` is a port addition** — a hand-built world and resource-pack so the
+  block renderers can be driven without a Minecraft installation, in the same spirit as
+  `resources/pack/vfs/zipTestUtil.ts`.
+
+### map/mask, map/lowres, map/renderstate and map/hires/entity (Wave D-3)
+
+- **`Mask`'s two interface-defaults live on a companion object.** `submask` and `inverted`
+  stay required members of the `Mask` interface — which is what a defaulted java method
+  looks like to a caller — while their bodies sit on `export const Mask` as
+  `Mask.submask(mask, …)` / `Mask.inverted(mask)`, the same shape the port already uses for
+  `RenderSettings` and `BlockColorCalculator`. Every concrete mask delegates to them in a
+  one-line member. `Mask.ALL` is spelled `new InvertedMask(NONE)` rather than
+  `NONE.inverted()`, because at that point in module evaluation the companion holding the
+  default body is still in its temporal dead zone; the resulting object is the same one
+  upstream's `NONE.inverted()` produces, and `Mask.ALL.inverted() === Mask.NONE` still
+  holds.
+- **The overloaded `test` / `testXZ` methods become arity-dispatched implementations.**
+  Java overloads `test(int,int,int)` against `test(int,int,int,int,int,int)` and (in
+  `EllipseMask`/`PolygonMask`) `testXZ(x,z)` against `testXZ(minX,minZ,maxX,maxZ)`; all
+  parameters are numbers, so TypeScript declares the call-signatures and one implementation
+  branching on whether the later arguments were passed.
+- **`PolygonMask` declares its own minimal `Shape`.** Upstream takes
+  `de.bluecolored.bluemap.api.math.Shape`; the BlueMapAPI artifact is not part of the
+  engine port and the mask only reads `getPoints()`, so the file exports a
+  `{ getPoints(): readonly Vector2d[] }` seam. There is no `CircleMask` upstream — a circle
+  is `EllipseMask`'s four-argument constructor.
+- **`BlurMask.randomOffset` runs on `BigInt`.** Its `long` hash is the same 64-bit shape as
+  `VariantSet.hashToFloat` and `block/ResourceModelRenderer.hashToFloat`, so it uses the
+  same transcription with `BigInt.asIntN(64, …)` at every point java wraps, and
+  `Math.fround` on the float steps after the 24-bit mask. Its offsets are pinned in
+  `map/mask/Mask.test.ts` against values produced by running the upstream expression on a
+  JDK.
+- **The three `SHIFT` constants move from the `Map*State` classes to their region types.**
+  Upstream `TileInfoRegion` statically imports `MapTileState.SHIFT` while `MapTileState`
+  extends `CellStorage`, which the port must import the region types into (to register
+  their nbt-schemas). Keeping the java direction would make the ES module graph cyclic at
+  class-extends time, so `SHIFT` is declared in `TileInfoRegion` / `ChunkInfoRegion` /
+  `RegionInfoRegion` and re-exported as `MapTileState.SHIFT` / `MapChunkState.SHIFT` /
+  `MapRegionState.SHIFT`, so the upstream name still resolves.
+- **`TileActionResolver.ActionAndNextState`'s six statics are built lazily.** Upstream's
+  `static final` fields are initialized from `TileState`'s constants while those constants
+  are built from these — a cycle java resolves through class-initialization order and an ES
+  module would hit in the temporal dead zone. They are `get` accessors that construct once
+  and cache, so they stay the singletons upstream's reference comparisons rely on. The
+  record's canonical constructor is reachable as `ActionAndNextState.Impl`.
+- **The region types' nbt fields are public and carry an explicit `ObjectSchema`.** Upstream
+  reads them through BlueNBT's field-reflection over `@NBTName`/`@NBTPostDeserialize`; the
+  port's BlueNBT takes a spelled-out schema, which can only name public members. Same shape
+  and same reason as the already-ported `LevelData`. `modified` stays out of the schema,
+  exactly as `transient` keeps it out upstream.
+- **`CellStorage` is asynchronous and its cache is hand-rolled.** Every storage access
+  returns a promise (the compression layer decompresses asynchronously), so `cell`, `save`,
+  `forEachCell` and the `Map*State` accessors do too. Upstream's access-ordered
+  `LinkedHashMap` with a `removeEldestEntry` override becomes a `Map` keyed by the cell
+  position's string form (a javascript Map keys objects by identity, upstream relies on
+  `Vector2i`'s value-equality) plus an explicit re-insert on access and one eviction check
+  per insert.
+- **`CellStorage.forEach` is renamed `forEachCell`,** because `MapRegionState` *overloads*
+  it with a public `forEach(RegionStateConsumer)` and TypeScript can not tell two
+  function-typed parameters apart at runtime. Upstream's package-private one has exactly
+  one caller.
+- **`CellStorage#loadCell` splits its catch by *where* the failure happened,** not by
+  exception type. Upstream logs an `IOException` and moves on, but treats a
+  `RuntimeException` (BlueNBT's format errors) as a corrupt file and deletes it for
+  self-healing; javascript has no such distinction, so the read and the decode sit in
+  separate `try` blocks and only a decode failure deletes.
+- **`LowresTile` is a pngjs `PNG`, not a `BufferedImage`,** the same substitution the
+  resource-pack texture layer already makes: both are 8-bit straight-alpha RGBA, so
+  `getRGB`/`setRGB` map across directly, and `save()` returns the encoded bytes instead of
+  writing to an `OutputStream`. Upstream's `ReentrantReadWriteLock` has no counterpart.
+  `getHeight`'s sign-extension is kept bug-for-bug: upstream tests `height > 0x8000` rather
+  than `>=`, so the single value whose 16-bit form is exactly `0x8000` reads back positive.
+- **`LowresLayer` keeps one `lru-cache` where upstream keeps two caffeine caches.** The
+  weak-valued cache exists to guarantee that only one instance of a tile exists while
+  anything still references it; javascript has neither soft references nor a
+  deterministically readable weak-valued cache, so the port consults `pendingChanges`
+  first — which is the only thing that holds a tile alive between a write and its save, and
+  therefore exactly the case the weak cache is there for — and falls back to a size- and
+  time-bounded `lru-cache` in front of storage.
+- **`LowresTileManager.set` queues.** Upstream's is synchronous and `LowresTileManager
+  implements TileMetaConsumer`; here storage is asynchronous while a render-pass calls the
+  consumer from a synchronous loop. So `set` snapshots the colour (a render-pass hands over
+  one reused scratch instance per column — upstream mutates it to straight and never reads
+  it again, so the snapshot is unobservable), chains the write behind the previous one so
+  cells land in call order, and returns the tail. Calling it and dropping the promise is
+  therefore safe, which is how `BmMap` wires it; `save`/`discard` drain the queue first, and
+  `tileMetaConsumer()` hands out the function-shape upstream's `implements` gave it.
+- **`RenderPass#render` may return a promise, and `HiresModelManager` awaits it.** Upstream
+  returns `void`; `EntityRenderPass` can not, because the port's `World#iterateEntities`
+  reads the entity chunks from disk asynchronously. `BlockRenderPass` still returns
+  synchronously.
+- **`entity/ResourceModelRenderer`'s package-private `render(…, Model, TintColorProvider,
+  …)` overload is renamed `renderModel`.** Java overloads it against the public
+  `render(…, Part, …)` by parameter type, which TypeScript can not do for two plain objects.
+  `TintColorProvider` splits into an interface plus a same-named const holding `NO_TINT`.
+- **`entity/EntityModelRenderer` and `entity/MissingModelRenderer` use `lru-cache`** with
+  caffeine's `Caches.build` bounds (maximum size 10000, one-minute idle expiry).
+  `MissingModelRenderer`'s static entity-type cache is keyed by the key's formatted string
+  because a javascript Map keys objects by identity; the per-type renderer cache is keyed by
+  the `EntityRendererType` object, which caffeine also compares by identity.
+- **`EntityRendererType`'s factories load their renderer class through a thunk.**
+  `MissingModelRenderer` imports this module back for `REGISTRY`/`DEFAULT`, so the two
+  constructor references are `() => ResourceModelRenderer` / `() => MissingModelRenderer`,
+  evaluated when the factory is *called* rather than at module scope.
+- **Upstream's missing null-checks are kept.** `entity/ResourceModelRenderer.render`
+  dereferences an unresolvable part model and `EntityModelRenderer.render` dereferences an
+  entity-state with no `parts` member; both throw a `NullPointerException` upstream and a
+  `TypeError` here, at the same statement.

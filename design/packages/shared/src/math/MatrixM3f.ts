@@ -1,8 +1,19 @@
-/** Java Math.toRadians */
-function toRadians(angdeg: number): number {
-    return (angdeg / 180.0) * Math.PI;
-}
+import { TrigMath, toRadians } from "./TrigMath.js";
 
+const fr = Math.fround;
+
+/**
+ * upstream: util/math/MatrixM3f.java
+ *
+ * Two fidelity points that are easy to lose in a port and change rendered geometry:
+ *
+ * - every element and every operand is a java `float`, so each multiply/add rounds to
+ *   32-bit before the next one runs — `Math.fround` marks those steps;
+ * - the rotations use **flow-math's {@link TrigMath}**, a quantized 2^22-entry sine table,
+ *   not `Math.sin`/`Math.cos`. The two differ by up to ~1.5e-6 (~25 float-ulps), which is
+ *   far more than a rounding artifact. The quaternion itself is built in `double` and only
+ *   its four components are narrowed to `float`, exactly as upstream does.
+ */
 export class MatrixM3f {
     m00 = 1; m01 = 0; m02 = 0;
     m10 = 0; m11 = 1; m12 = 0;
@@ -13,9 +24,9 @@ export class MatrixM3f {
         m10: number, m11: number, m12: number,
         m20: number, m21: number, m22: number
     ): MatrixM3f {
-        this.m00 = m00; this.m01 = m01; this.m02 = m02;
-        this.m10 = m10; this.m11 = m11; this.m12 = m12;
-        this.m20 = m20; this.m21 = m21; this.m22 = m22;
+        this.m00 = fr(m00); this.m01 = fr(m01); this.m02 = fr(m02);
+        this.m10 = fr(m10); this.m11 = fr(m11); this.m12 = fr(m12);
+        this.m20 = fr(m20); this.m21 = fr(m21); this.m22 = fr(m22);
         return this;
     }
 
@@ -23,9 +34,15 @@ export class MatrixM3f {
         const det = this.determinant();
         const { m00, m01, m02, m10, m11, m12, m20, m21, m22 } = this;
         return this.set(
-            (m11 * m22 - m21 * m12) / det, -(m01 * m22 - m21 * m02) / det, (m01 * m12 - m02 * m11) / det,
-            -(m10 * m22 - m20 * m12) / det, (m00 * m22 - m20 * m02) / det, -(m00 * m12 - m10 * m02) / det,
-            (m10 * m21 - m20 * m11) / det, -(m00 * m21 - m20 * m01) / det, (m00 * m11 - m01 * m10) / det
+            fr(fr(fr(m11 * m22) - fr(m21 * m12)) / det),
+            fr(-fr(fr(m01 * m22) - fr(m21 * m02)) / det),
+            fr(fr(fr(m01 * m12) - fr(m02 * m11)) / det),
+            fr(-fr(fr(m10 * m22) - fr(m20 * m12)) / det),
+            fr(fr(fr(m00 * m22) - fr(m20 * m02)) / det),
+            fr(-fr(fr(m00 * m12) - fr(m10 * m02)) / det),
+            fr(fr(fr(m10 * m21) - fr(m20 * m11)) / det),
+            fr(-fr(fr(m00 * m21) - fr(m20 * m01)) / det),
+            fr(fr(fr(m00 * m11) - fr(m01 * m10)) / det)
         );
     }
 
@@ -54,15 +71,19 @@ export class MatrixM3f {
     }
 
     rotate(angle: number, axisX: number, axisY: number, axisZ: number): MatrixM3f {
-        // create quaternion
-        const halfAngle = toRadians(angle) * 0.5;
-        const q = Math.sin(halfAngle) / Math.sqrt(axisX * axisX + axisY * axisY + axisZ * axisZ);
+        const fAxisX = fr(axisX), fAxisY = fr(axisY), fAxisZ = fr(axisZ);
+
+        // create quaternion (upstream: all double, from TrigMath)
+        const halfAngle = toRadians(fr(angle)) * 0.5;
+        const q =
+            TrigMath.sin(halfAngle) /
+            Math.sqrt(fAxisX * fAxisX + fAxisY * fAxisY + fAxisZ * fAxisZ);
 
         //quaternion
-        let qx = axisX * q,
-            qy = axisY * q,
-            qz = axisZ * q,
-            qw = Math.cos(halfAngle);
+        let qx = fAxisX * q,
+            qy = fAxisY * q,
+            qz = fAxisZ * q,
+            qw = TrigMath.cos(halfAngle);
         const qLength = Math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw);
 
         // normalize quaternion
@@ -71,89 +92,90 @@ export class MatrixM3f {
         qz /= qLength;
         qw /= qLength;
 
-        return this.rotateByQuaternion(qx, qy, qz, qw);
+        return this.rotateByQuaternion(fr(qx), fr(qy), fr(qz), fr(qw));
     }
 
     rotateXYZ(pitch: number, yaw: number, roll: number): MatrixM3f {
-        const halfPitch = toRadians(pitch) * 0.5,
-            sx = Math.sin(halfPitch),
-            cx = Math.cos(halfPitch),
-            halfYaw = toRadians(yaw) * 0.5,
-            sy = Math.sin(halfYaw),
-            cy = Math.cos(halfYaw),
-            halfRoll = toRadians(roll) * 0.5,
-            sz = Math.sin(halfRoll),
-            cz = Math.cos(halfRoll),
+        const halfPitch = toRadians(fr(pitch)) * 0.5,
+            sx = TrigMath.sin(halfPitch),
+            cx = TrigMath.cos(halfPitch),
+            halfYaw = toRadians(fr(yaw)) * 0.5,
+            sy = TrigMath.sin(halfYaw),
+            cy = TrigMath.cos(halfYaw),
+            halfRoll = toRadians(fr(roll)) * 0.5,
+            sz = TrigMath.sin(halfRoll),
+            cz = TrigMath.cos(halfRoll),
             cycz = cy * cz,
             sysz = sy * sz,
             sycz = sy * cz,
             cysz = cy * sz;
 
         return this.rotateByQuaternion(
-            sx * cycz + cx * sysz,
-            cx * sycz - sx * cysz,
-            cx * cysz + sx * sycz,
-            cx * cycz - sx * sysz
+            fr(sx * cycz + cx * sysz),
+            fr(cx * sycz - sx * cysz),
+            fr(cx * cysz + sx * sycz),
+            fr(cx * cycz - sx * sysz)
         );
     }
 
     rotateZYX(pitch: number, yaw: number, roll: number): MatrixM3f {
-        const halfPitch = toRadians(pitch) * 0.5,
-            sx = Math.sin(halfPitch),
-            cx = Math.cos(halfPitch),
-            halfYaw = toRadians(yaw) * 0.5,
-            sy = Math.sin(halfYaw),
-            cy = Math.cos(halfYaw),
-            halfRoll = toRadians(roll) * 0.5,
-            sz = Math.sin(halfRoll),
-            cz = Math.cos(halfRoll),
+        const halfPitch = toRadians(fr(pitch)) * 0.5,
+            sx = TrigMath.sin(halfPitch),
+            cx = TrigMath.cos(halfPitch),
+            halfYaw = toRadians(fr(yaw)) * 0.5,
+            sy = TrigMath.sin(halfYaw),
+            cy = TrigMath.cos(halfYaw),
+            halfRoll = toRadians(fr(roll)) * 0.5,
+            sz = TrigMath.sin(halfRoll),
+            cz = TrigMath.cos(halfRoll),
             cycz = cy * cz,
             sysz = sy * sz,
             sycz = sy * cz,
             cysz = cy * sz;
 
         return this.rotateByQuaternion(
-            cx * cycz + sx * sysz,
-            sx * cycz - cx * sysz,
-            cx * sycz + sx * cysz,
-            cx * cysz - sx * sycz
+            fr(cx * cycz + sx * sysz),
+            fr(sx * cycz - cx * sysz),
+            fr(cx * sycz + sx * cysz),
+            fr(cx * cysz - sx * sycz)
         );
     }
 
     rotateYXZ(pitch: number, yaw: number, roll: number): MatrixM3f {
-        const halfPitch = toRadians(pitch) * 0.5,
-            sx = Math.sin(halfPitch),
-            cx = Math.cos(halfPitch),
-            halfYaw = toRadians(yaw) * 0.5,
-            sy = Math.sin(halfYaw),
-            cy = Math.cos(halfYaw),
-            halfRoll = toRadians(roll) * 0.5,
-            sz = Math.sin(halfRoll),
-            cz = Math.cos(halfRoll),
+        const halfPitch = toRadians(fr(pitch)) * 0.5,
+            sx = TrigMath.sin(halfPitch),
+            cx = TrigMath.cos(halfPitch),
+            halfYaw = toRadians(fr(yaw)) * 0.5,
+            sy = TrigMath.sin(halfYaw),
+            cy = TrigMath.cos(halfYaw),
+            halfRoll = toRadians(fr(roll)) * 0.5,
+            sz = TrigMath.sin(halfRoll),
+            cz = TrigMath.cos(halfRoll),
             cysx = cy * sx,
             sycx = sy * cx,
             sysx = sy * sx,
             cycx = cy * cx;
 
         return this.rotateByQuaternion(
-            cysx * cz + sycx * sz,
-            sycx * cz - cysx * sz,
-            cycx * sz - sysx * cz,
-            cycx * cz + sysx * sz
+            fr(cysx * cz + sycx * sz),
+            fr(sycx * cz - cysx * sz),
+            fr(cycx * sz - sysx * cz),
+            fr(cycx * cz + sysx * sz)
         );
     }
 
     rotateByQuaternion(qx: number, qy: number, qz: number, qw: number): MatrixM3f {
+        const x = fr(qx), y = fr(qy), z = fr(qz), w = fr(qw);
         return this.multiplyTo(
-            1 - 2 * qy * qy - 2 * qz * qz,
-            2 * qx * qy - 2 * qw * qz,
-            2 * qx * qz + 2 * qw * qy,
-            2 * qx * qy + 2 * qw * qz,
-            1 - 2 * qx * qx - 2 * qz * qz,
-            2 * qy * qz - 2 * qw * qx,
-            2 * qx * qz - 2 * qw * qy,
-            2 * qy * qz + 2 * qx * qw,
-            1 - 2 * qx * qx - 2 * qy * qy
+            fr(fr(1 - fr(fr(2 * y) * y)) - fr(fr(2 * z) * z)),
+            fr(fr(fr(2 * x) * y) - fr(fr(2 * w) * z)),
+            fr(fr(fr(2 * x) * z) + fr(fr(2 * w) * y)),
+            fr(fr(fr(2 * x) * y) + fr(fr(2 * w) * z)),
+            fr(fr(1 - fr(fr(2 * x) * x)) - fr(fr(2 * z) * z)),
+            fr(fr(fr(2 * y) * z) - fr(fr(2 * w) * x)),
+            fr(fr(fr(2 * x) * z) - fr(fr(2 * w) * y)),
+            fr(fr(fr(2 * y) * z) + fr(fr(2 * x) * w)),
+            fr(fr(1 - fr(fr(2 * x) * x)) - fr(fr(2 * y) * y))
         );
     }
 
@@ -162,16 +184,19 @@ export class MatrixM3f {
         m10: number, m11: number, m12: number,
         m20: number, m21: number, m22: number
     ): MatrixM3f {
+        const a00 = fr(m00), a01 = fr(m01), a02 = fr(m02);
+        const a10 = fr(m10), a11 = fr(m11), a12 = fr(m12);
+        const a20 = fr(m20), a21 = fr(m21), a22 = fr(m22);
         return this.set(
-            this.m00 * m00 + this.m01 * m10 + this.m02 * m20,
-            this.m00 * m01 + this.m01 * m11 + this.m02 * m21,
-            this.m00 * m02 + this.m01 * m12 + this.m02 * m22,
-            this.m10 * m00 + this.m11 * m10 + this.m12 * m20,
-            this.m10 * m01 + this.m11 * m11 + this.m12 * m21,
-            this.m10 * m02 + this.m11 * m12 + this.m12 * m22,
-            this.m20 * m00 + this.m21 * m10 + this.m22 * m20,
-            this.m20 * m01 + this.m21 * m11 + this.m22 * m21,
-            this.m20 * m02 + this.m21 * m12 + this.m22 * m22
+            fr(fr(fr(this.m00 * a00) + fr(this.m01 * a10)) + fr(this.m02 * a20)),
+            fr(fr(fr(this.m00 * a01) + fr(this.m01 * a11)) + fr(this.m02 * a21)),
+            fr(fr(fr(this.m00 * a02) + fr(this.m01 * a12)) + fr(this.m02 * a22)),
+            fr(fr(fr(this.m10 * a00) + fr(this.m11 * a10)) + fr(this.m12 * a20)),
+            fr(fr(fr(this.m10 * a01) + fr(this.m11 * a11)) + fr(this.m12 * a21)),
+            fr(fr(fr(this.m10 * a02) + fr(this.m11 * a12)) + fr(this.m12 * a22)),
+            fr(fr(fr(this.m20 * a00) + fr(this.m21 * a10)) + fr(this.m22 * a20)),
+            fr(fr(fr(this.m20 * a01) + fr(this.m21 * a11)) + fr(this.m22 * a21)),
+            fr(fr(fr(this.m20 * a02) + fr(this.m21 * a12)) + fr(this.m22 * a22))
         );
     }
 
@@ -180,24 +205,29 @@ export class MatrixM3f {
         m10: number, m11: number, m12: number,
         m20: number, m21: number, m22: number
     ): MatrixM3f {
+        const a00 = fr(m00), a01 = fr(m01), a02 = fr(m02);
+        const a10 = fr(m10), a11 = fr(m11), a12 = fr(m12);
+        const a20 = fr(m20), a21 = fr(m21), a22 = fr(m22);
         return this.set(
-            m00 * this.m00 + m01 * this.m10 + m02 * this.m20,
-            m00 * this.m01 + m01 * this.m11 + m02 * this.m21,
-            m00 * this.m02 + m01 * this.m12 + m02 * this.m22,
-            m10 * this.m00 + m11 * this.m10 + m12 * this.m20,
-            m10 * this.m01 + m11 * this.m11 + m12 * this.m21,
-            m10 * this.m02 + m11 * this.m12 + m12 * this.m22,
-            m20 * this.m00 + m21 * this.m10 + m22 * this.m20,
-            m20 * this.m01 + m21 * this.m11 + m22 * this.m21,
-            m20 * this.m02 + m21 * this.m12 + m22 * this.m22
+            fr(fr(fr(a00 * this.m00) + fr(a01 * this.m10)) + fr(a02 * this.m20)),
+            fr(fr(fr(a00 * this.m01) + fr(a01 * this.m11)) + fr(a02 * this.m21)),
+            fr(fr(fr(a00 * this.m02) + fr(a01 * this.m12)) + fr(a02 * this.m22)),
+            fr(fr(fr(a10 * this.m00) + fr(a11 * this.m10)) + fr(a12 * this.m20)),
+            fr(fr(fr(a10 * this.m01) + fr(a11 * this.m11)) + fr(a12 * this.m21)),
+            fr(fr(fr(a10 * this.m02) + fr(a11 * this.m12)) + fr(a12 * this.m22)),
+            fr(fr(fr(a20 * this.m00) + fr(a21 * this.m10)) + fr(a22 * this.m20)),
+            fr(fr(fr(a20 * this.m01) + fr(a21 * this.m11)) + fr(a22 * this.m21)),
+            fr(fr(fr(a20 * this.m02) + fr(a21 * this.m12)) + fr(a22 * this.m22))
         );
     }
 
+    /** upstream returns a `float` */
     determinant(): number {
-        return (
-            this.m00 * (this.m11 * this.m22 - this.m12 * this.m21) -
-            this.m01 * (this.m10 * this.m22 - this.m12 * this.m20) +
-            this.m02 * (this.m10 * this.m21 - this.m11 * this.m20)
+        return fr(
+            fr(
+                fr(this.m00 * fr(fr(this.m11 * this.m22) - fr(this.m12 * this.m21))) -
+                    fr(this.m01 * fr(fr(this.m10 * this.m22) - fr(this.m12 * this.m20)))
+            ) + fr(this.m02 * fr(fr(this.m10 * this.m21) - fr(this.m11 * this.m20)))
         );
     }
 }

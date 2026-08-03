@@ -4,7 +4,7 @@ import { Color } from "./Color.js";
 describe("Color", () => {
     it("set from packed ARGB int", () => {
         const c = new Color().set(0x80ff0000 | 0);
-        expect(c.a).toBeCloseTo(128 / 255, 9);
+        expect(c.a).toBe(Math.fround(128 / 255));
         expect(c.r).toBe(1);
         expect(c.g).toBe(0);
         expect(c.b).toBe(0);
@@ -13,9 +13,21 @@ describe("Color", () => {
 
     it("set from components and from another color", () => {
         const c = new Color().set(0.1, 0.2, 0.3, 0.4, true);
-        expect([c.r, c.g, c.b, c.a, c.isPremultiplied]).toEqual([0.1, 0.2, 0.3, 0.4, true]);
+        expect([c.r, c.g, c.b, c.a, c.isPremultiplied]).toEqual([
+            Math.fround(0.1),
+            Math.fround(0.2),
+            Math.fround(0.3),
+            Math.fround(0.4),
+            true,
+        ]);
         const d = new Color().set(c);
-        expect([d.r, d.g, d.b, d.a, d.isPremultiplied]).toEqual([0.1, 0.2, 0.3, 0.4, true]);
+        expect([d.r, d.g, d.b, d.a, d.isPremultiplied]).toEqual([
+            Math.fround(0.1),
+            Math.fround(0.2),
+            Math.fround(0.3),
+            Math.fround(0.4),
+            true,
+        ]);
     });
 
     it("getInt packs back to ARGB (truncating like a Java int cast)", () => {
@@ -29,15 +41,15 @@ describe("Color", () => {
         // doc comment: #f16 becomes #ff1166 (with full alpha)
         const c = new Color().parse("#f16");
         expect(c.r).toBe(1);
-        expect(c.g).toBeCloseTo(0x11 / 255, 9);
-        expect(c.b).toBeCloseTo(0x66 / 255, 9);
+        expect(c.g).toBe(Math.fround(0x11 / 255));
+        expect(c.b).toBe(Math.fround(0x66 / 255));
         expect(c.a).toBe(1);
 
         const rgba = new Color().parse("#11223344");
-        expect(rgba.r).toBeCloseTo(0x11 / 255, 9);
-        expect(rgba.g).toBeCloseTo(0x22 / 255, 9);
-        expect(rgba.b).toBeCloseTo(0x33 / 255, 9);
-        expect(rgba.a).toBeCloseTo(0x44 / 255, 9);
+        expect(rgba.r).toBe(Math.fround(0x11 / 255));
+        expect(rgba.g).toBe(Math.fround(0x22 / 255));
+        expect(rgba.b).toBe(Math.fround(0x33 / 255));
+        expect(rgba.a).toBe(Math.fround(0x44 / 255));
     });
 
     it("parse integer strings, assuming full alpha when absent", () => {
@@ -76,8 +88,8 @@ describe("Color", () => {
 
         base.flatten();
         expect(base.a).toBe(1);
-        expect(base.r).toBeCloseTo(1 / 3, 9);
-        expect(base.g).toBeCloseTo(2 / 3, 9);
+        expect(base.r).toBeCloseTo(1 / 3, 6);
+        expect(base.g).toBeCloseTo(2 / 3, 6);
     });
 
     it("overlay/underlay/add reject straight translucent colors", () => {
@@ -117,6 +129,11 @@ describe("Color", () => {
     it("flatten on an already opaque color is a no-op", () => {
         const c = new Color().set(0.1, 0.2, 0.3, 1, false);
         c.flatten();
-        expect([c.r, c.g, c.b, c.a]).toEqual([0.1, 0.2, 0.3, 1]);
+        expect([c.r, c.g, c.b, c.a]).toEqual([
+            Math.fround(0.1),
+            Math.fround(0.2),
+            Math.fround(0.3),
+            1,
+        ]);
     });
 });
