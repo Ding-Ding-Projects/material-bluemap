@@ -30,9 +30,6 @@ export type JavaRunner = (
     args: readonly string[],
 ) => Promise<JavaProbeOutput>;
 
-import type { JavaVersionInfo } from "./version.js";
-import { parseJavaHome, parseJavaVersion } from "./version.js";
-
 /**
  * How long a version probe is given before it is treated as a failure.
  *

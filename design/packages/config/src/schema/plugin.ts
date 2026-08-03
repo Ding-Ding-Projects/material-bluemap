@@ -1,0 +1,277 @@
+/**
+ * `plugin.conf` — the settings that only exist when BlueMap runs inside a
+ * Minecraft server.
+ *
+ * The CLI never reads this file: it builds its config manager with
+ * `usePluginConfig(false)`, so `java -jar cli.jar -c <dir>` generates the other
+ * six and not this one. It is modelled in full anyway, because the six server
+ * platform adapters are being ported and every one of them reads it.
+ *
+ * Java source: `common/src/main/java/de/bluecolored/bluemap/common/config/PluginConfig.java`
+ * Template:    `common/src/main/resources/de/bluecolored/bluemap/config/plugin.conf`
+ */
+
+import { z } from "zod";
+import type { FieldMeta, GroupMeta } from "../meta.js";
+import { PLUGIN_TEMPLATE } from "../templates/sources.js";
+import { GAME_MODE_OPTIONS, hoconBoolean, hoconInt, integerControl, sliderControl, SWITCH } from "./common.js";
+import type { ConfigFileDescriptor } from "./descriptor.js";
+
+export const pluginConfigSchema = z.object({
+    "live-player-markers": hoconBoolean().default(true),
+    "hidden-game-modes": z.array(z.string()).default([]),
+    "hide-vanished": hoconBoolean().default(true),
+    "hide-invisible": hoconBoolean().default(true),
+    "hide-sneaking": hoconBoolean().default(false),
+    "hide-different-world": hoconBoolean().default(false),
+    "hide-below-sky-light": hoconInt().default(0),
+    "hide-below-block-light": hoconInt().default(0),
+    "write-markers-interval": hoconInt().default(0),
+    "write-players-interval": hoconInt().default(0),
+    "skin-download": hoconBoolean().default(true),
+    "player-render-limit": hoconInt().default(-1),
+});
+
+export type PluginConfig = z.infer<typeof pluginConfigSchema>;
+
+const GROUPS: readonly GroupMeta[] = [
+    { id: "players", label: "Player markers" },
+    { id: "hiding", label: "When to hide a player" },
+    { id: "storage", label: "Writing live data to storage" },
+    { id: "performance", label: "Server load" },
+];
+
+const LIGHT_DOC = [
+    "Hides the player if they are in a sky (or block) light level below the given number.",
+    "BOTH values have to be below the threshold for the player to be hidden!",
+    "E.g. if you set both to 1, then the player will be hidden on the map if they are in absolute darkness.",
+    "Or, if you want players only be visible on the surface, then set the sky threshold to something between",
+    "1 and 15 and the block threshold to 16.",
+    "Default is 0 (don't hide the player).",
+].join("\n");
+
+const FIELDS: readonly FieldMeta[] = [
+    {
+        path: "live-player-markers",
+        key: "live-player-markers",
+        segments: ["live-player-markers"],
+        javaField: "livePlayerMarkers",
+        label: "Show live player positions",
+        doc: ["If the server should send player positions to the webapp.", "This only works if the integrated webserver is enabled.", "Default is true"].join("\n"),
+        group: "players",
+        control: SWITCH,
+        default: true,
+        commentedOutInTemplate: false,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+    },
+    {
+        path: "hidden-game-modes",
+        key: "hidden-game-modes",
+        segments: ["hidden-game-modes"],
+        javaField: "hiddenGameModes",
+        label: "Hidden game modes",
+        doc: [
+            "A list of gamemodes that will prevent a player from appearing on the map.",
+            "Possible values are: survival, creative, spectator or adventure.",
+        ].join("\n"),
+        group: "hiding",
+        control: { kind: "list", itemLabel: "Game mode", unique: true, item: { kind: "select", allowCustom: false, options: GAME_MODE_OPTIONS } },
+        default: [],
+        templateValue: { value: ["spectator"], note: "The generated file hides spectators, although the Java field starts empty." },
+        commentedOutInTemplate: false,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+    },
+    {
+        path: "hide-vanished",
+        key: "hide-vanished",
+        segments: ["hide-vanished"],
+        javaField: "hideVanished",
+        label: "Hide vanished players",
+        doc: [
+            "If this is true, players that are vanished (by a plugin) will be hidden on the map.",
+            "(This only works with Spigot and Sponge based vanish plugins).",
+            "Default is true",
+        ].join("\n"),
+        group: "hiding",
+        control: SWITCH,
+        default: true,
+        commentedOutInTemplate: false,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+    },
+    {
+        path: "hide-invisible",
+        key: "hide-invisible",
+        segments: ["hide-invisible"],
+        javaField: "hideInvisible",
+        label: "Hide invisible players",
+        doc: ["If this is true, players that have an invisibility (potion-)effect will be hidden on the map.", "Default is true"].join("\n"),
+        group: "hiding",
+        control: SWITCH,
+        default: true,
+        commentedOutInTemplate: false,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+    },
+    {
+        path: "hide-sneaking",
+        key: "hide-sneaking",
+        segments: ["hide-sneaking"],
+        javaField: "hideSneaking",
+        label: "Hide sneaking players",
+        doc: ["If this is true, players that are sneaking will be hidden on the map.", "Default is false"].join("\n"),
+        group: "hiding",
+        control: SWITCH,
+        default: false,
+        commentedOutInTemplate: false,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+    },
+    {
+        path: "hide-below-sky-light",
+        key: "hide-below-sky-light",
+        segments: ["hide-below-sky-light"],
+        javaField: "hideBelowSkyLight",
+        label: "Hide below sky light",
+        doc: LIGHT_DOC,
+        group: "hiding",
+        control: sliderControl({ min: 0, max: 16, step: 1, integer: true }),
+        default: 0,
+        commentedOutInTemplate: false,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+    },
+    {
+        path: "hide-below-block-light",
+        key: "hide-below-block-light",
+        segments: ["hide-below-block-light"],
+        javaField: "hideBelowBlockLight",
+        label: "Hide below block light",
+        doc: LIGHT_DOC,
+        group: "hiding",
+        control: sliderControl({ min: 0, max: 16, step: 1, integer: true }),
+        default: 0,
+        commentedOutInTemplate: false,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+    },
+    {
+        path: "hide-different-world",
+        key: "hide-different-world",
+        segments: ["hide-different-world"],
+        javaField: "hideDifferentWorld",
+        label: "Hide players in another world",
+        doc: [
+            "If this is true, players that are on a different world than the viewed map will not appear on the player list.",
+            "Default is false",
+        ].join("\n"),
+        group: "hiding",
+        control: SWITCH,
+        default: false,
+        commentedOutInTemplate: false,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+    },
+    {
+        path: "write-markers-interval",
+        key: "write-markers-interval",
+        segments: ["write-markers-interval"],
+        javaField: "writeMarkersInterval",
+        label: "Write markers to storage every",
+        doc: [
+            "The interval in seconds at which the markers will be written to the map storage.",
+            "This is useful if you can't create a live connection between the server and the webapp",
+            "and the markers can only be updated via the map storage.",
+            "0 or lower means that the markers will never be written to the map storage.",
+            "Default is 0",
+        ].join("\n"),
+        group: "storage",
+        control: integerControl({ step: 1, unit: "seconds" }),
+        default: 0,
+        commentedOutInTemplate: true,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+    },
+    {
+        path: "write-players-interval",
+        key: "write-players-interval",
+        segments: ["write-players-interval"],
+        javaField: "writePlayersInterval",
+        label: "Write players to storage every",
+        doc: [
+            "The interval in seconds at which the players will be written to the map storage.",
+            "This is useful if you can't create a live connection between the server and the webapp",
+            "and the players can only be updated via the map storage.",
+            "0 or lower means that the players will never be written to the map storage.",
+            "Default is 0",
+        ].join("\n"),
+        group: "storage",
+        control: integerControl({ step: 1, unit: "seconds" }),
+        default: 0,
+        commentedOutInTemplate: true,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+    },
+    {
+        path: "skin-download",
+        key: "skin-download",
+        segments: ["skin-download"],
+        javaField: "skinDownload",
+        label: "Download player skins",
+        doc: [
+            "Download the skin from mojang servers when a player joins your server, so it can be used for the player markers.",
+            "Default is true",
+        ].join("\n"),
+        group: "players",
+        control: SWITCH,
+        default: true,
+        commentedOutInTemplate: false,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+    },
+    {
+        path: "player-render-limit",
+        key: "player-render-limit",
+        segments: ["player-render-limit"],
+        javaField: "playerRenderLimit",
+        label: "Pause rendering above this many players",
+        doc: [
+            "The amount of players that is needed to pause BlueMap's render threads.",
+            "If this amount of players or more is online, BlueMap will stop rendering map updates until enough players have logged off again.",
+            "Setting this to 0 or -1 will disable this feature, which means BlueMap will not pause rendering.",
+            "Default is -1",
+        ].join("\n"),
+        group: "performance",
+        control: integerControl({ min: -1, step: 1, unit: "players" }),
+        default: -1,
+        commentedOutInTemplate: false,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+    },
+];
+
+export const pluginConfigDescriptor: ConfigFileDescriptor<PluginConfig> = {
+    id: "plugin",
+    title: "Server plugin",
+    description: "Live player markers and render throttling. Read by the server platform adapters; the CLI never generates or reads this file.",
+    location: { pattern: "plugin.conf", cardinality: "single" },
+    schema: pluginConfigSchema,
+    fields: FIELDS,
+    groups: GROUPS,
+    legacyKeys: [],
+    template: PLUGIN_TEMPLATE,
+};

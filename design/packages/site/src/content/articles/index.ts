@@ -12,10 +12,14 @@ import { install } from "./install.js";
 import { viewerRemoteMode } from "./viewer-remote-mode.js";
 import { embeddedServer } from "./embedded-server.js";
 import { electronSecurity } from "./electron-security.js";
+import { firstRunConsent } from "./first-run-consent.js";
+import { optionsGui } from "./options-gui.js";
 import { worldReading } from "./world-reading.js";
+import { javaRenderPath } from "./java-render-path.js";
 import { resourcePacks } from "./resource-packs.js";
 import { releasePipeline } from "./release-pipeline.js";
 import { screenshotGallery } from "./screenshot-gallery.js";
+import { testWorldGenerator } from "./test-world-generator.js";
 import { contractRegexBuilder } from "./contract-regex-builder.js";
 import { contractTabNavigation } from "./contract-tab-navigation.js";
 import { contractAppearanceEditors } from "./contract-appearance-editors.js";
@@ -26,11 +30,15 @@ export const articles: readonly Article[] = [
     viewerRemoteMode,
     embeddedServer,
     electronSecurity,
+    firstRunConsent,
+    optionsGui,
     worldReading,
+    javaRenderPath,
     resourcePacks,
     install,
     releasePipeline,
     screenshotGallery,
+    testWorldGenerator,
     contractRegexBuilder,
     contractTabNavigation,
     contractAppearanceEditors,

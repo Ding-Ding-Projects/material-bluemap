@@ -99,6 +99,16 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  # The renderer itself: all seven BlueMap implementations, built from the vendored
+  # upstream source. Decision D18 makes the six Minecraft-server adapters product
+  # artefacts alongside the CLI, so they are built on every push and attached to every
+  # release. It is a called workflow rather than a separate one on its own trigger,
+  # which is what puts its artifacts in this run where the release job can reach them.
+  # Independent of `check`, so it runs beside the TypeScript build instead of after it.
+  jars:
+    name: BlueMap jars
+    uses: ./.github/workflows/build-jars.yml
+
   screenshots:
     name: Screenshots
     needs: check
@@ -153,7 +163,7 @@ jobs:
 
   release:
     name: Publish release
-    needs: [check, package]
+    needs: [check, package, jars]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -173,6 +183,35 @@ jobs:
         with:
           name: windows-installer
           path: installer-out
+
+      # The seven jars were uploaded one artifact per implementation so a person can
+      # take only the one their server needs; here they are collected back into one
+      # directory, together with the checksums and the release-notes section the build
+      # wrote from the jars it had actually produced.
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bluemap-jar-*
+          merge-multiple: true
+          path: jars-out
+
+      # Artifact upload and download is a round trip through someone else's storage, and
+      # a jar that arrives short is a download that fails on a stranger's server rather
+      # than here. The digests were taken from the bytes the build produced, so checking
+      # them proves what is about to be published is what was actually built.
+      - name: Verify the jars survived the artifact round trip
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd jars-out
+          shopt -s nullglob
+          jars=(bluemap-*.jar)
+          if [ "${#jars[@]}" -ne 7 ]; then
+            echo "::error::expected all seven BlueMap jars, found ${#jars[@]}. A release must not ship a partial set."
+            ls -la
+            exit 1
+          fi
+          sha256sum -c bluemap-jars.sha256.txt
+          ls -la
 
       - name: Resolve release tag
         id: tag
@@ -224,6 +263,9 @@ jobs:
             echo
             echo "Download the Squirrel.Windows installer below. Windows only for now; macOS and Linux packaging land in a later phase."
             echo
+            echo "The seven \`bluemap-*.jar\` files are a separate download and are not needed to install the desktop application. Take one only to run BlueMap on a Minecraft server or from a command line; the table below says which is which."
+            echo
+            cat jars-out/bluemap-jars.md
             echo "## What is in this build"
             echo
             echo "Commit \`${GITHUB_SHA}\` on \`main\`, built and tested by [run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}). This release exists only because lint, build and the full test suite passed first."
@@ -238,6 +280,10 @@ jobs:
         run: |
           set -euo pipefail
           assets=(installer-out/*)
+          # The jars, their digests and the machine-readable index of what each one is.
+          # bluemap-jars.md is deliberately left out: its text is already the release
+          # notes above, and attaching it as well would publish the same words twice.
+          assets+=(jars-out/bluemap-*.jar jars-out/bluemap-jars.sha256.txt jars-out/bluemap-jars.json)
           if [ -d dim-sum-out ] && [ -n "$(ls -A dim-sum-out 2>/dev/null)" ]; then
             assets+=(dim-sum-out/*)
           fi

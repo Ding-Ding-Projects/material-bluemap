@@ -47,8 +47,17 @@ const VERSION_LINE = /(?:^|\n)[^\n"]*\bversion\s+"([^"]+)"/;
 /** `java.home = C:\Program Files\Eclipse Adoptium\jdk-25.0.3.9-hotspot` */
 const JAVA_HOME_PROPERTY = /(?:^|\n)[ \t]*java\.home[ \t]*=[ \t]*(.+?)[ \t]*(?:\r?\n|$)/;
 
-/** The runtime line, which carries the vendor build id worth reporting back. */
-const RUNTIME_LINE = /(?:^|\n)([^\n]*Runtime Environment[^\n]*)/;
+/**
+ * The runtime line, which carries the vendor build id worth reporting back:
+ * `OpenJDK Runtime Environment Temurin-25.0.3+9 (build 25.0.3+9-LTS)`.
+ *
+ * A `-XshowSettings:properties` dump also contains
+ * `java.runtime.name = OpenJDK Runtime Environment`, which matches on the words
+ * alone and is useless - it has no build id, which is the only reason to capture the
+ * line at all. Requiring the `(build ...)` suffix keeps the banner and rejects the
+ * property.
+ */
+const RUNTIME_LINE = /(?:^|\n)([^\n=]*Runtime Environment[^\n]*\(build[^\n]*\))/;
 
 /**
  * Turns a version string into its feature number.

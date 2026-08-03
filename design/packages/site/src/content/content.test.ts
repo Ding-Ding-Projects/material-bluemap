@@ -213,8 +213,17 @@ describe("copy rules", () => {
         expect(offenders).toEqual([]);
     });
 
-    it("has no empty strings", () => {
-        expect(everyString.filter((value) => value.trim().length === 0)).toEqual([]);
+    it("has no blank strings, allowing a single space as a separator", () => {
+        // Inline content is a sequence of runs, so the space between two element runs
+        // has nowhere to live except its own string: `{strong: "..."}, " ", {code: "..."}`
+        // renders as "text code" and dropping it renders as "textcode". A single space
+        // is therefore real content, not an oversight.
+        //
+        // Everything else that trims to nothing still fails: the empty string, and any
+        // longer whitespace run, which is always either a mistake or an attempt to lay
+        // out text with spaces rather than with the renderer.
+        const blank = everyString.filter((value) => value !== " " && value.trim().length === 0);
+        expect(blank).toEqual([]);
     });
 });
 

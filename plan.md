@@ -1,5 +1,12 @@
 # Plan: Full Port of BlueMap into `design/` — Electron App + Standalone Server (Material Design 3)
 
+> **Amended 2026-08-03.** Decisions D17 and D18 reversed two positions this plan takes:
+> local rendering now runs upstream BlueMap's Java engine while the TypeScript mesher is
+> finished, and exclusions S2 and S4 no longer hold. The original text below is kept as
+> written; the statements those decisions falsified are marked in place and the reasoning,
+> the cost and the exit gate are recorded in [Amendment 1](#amendment-1--2026-08-03-java-engine-first-d17-and-d18).
+> Read that section before treating any sentence here as current.
+
 ## Context
 
 `material-bluemap` is a fresh skeleton: two commits, no code, only an uninitialized
@@ -9,6 +16,11 @@ standalone BlueMap server, supporting Minecraft worlds from **1.12.2 → 26.x (l
 
 User decisions (confirmed):
 1. **Engine**: full TypeScript rewrite — 100% runs in Electron/Node. No JVM, no sidecar.
+   **Amended by D17 (2026-08-03):** the TypeScript rewrite is still the end state and still
+   the thing being built, but it is no longer what renders today. Local rendering runs
+   upstream's Java engine, driven by the app, until the mesher proves byte-identical output.
+   A JDK is therefore a requirement for local rendering, and the app provisions one into its
+   own `userData` when the machine has none. See [Amendment 1](#amendment-1--2026-08-03-java-engine-first-d17-and-d18).
 2. **UI**: Material Design 3 from the start (rebuild, don't reproduce the old look).
 3. **Use case**: both — render local worlds fully offline AND act as a desktop client for
    remote BlueMap servers.
@@ -189,9 +201,17 @@ design/
 │                 # hardened: contextIsolation+sandbox, strict CSP, nav lock, electron-store
 ├── fixtures/     # tiny per-version worlds (1.12.2, 1.13, 1.15, 1.16, 1.18, 1.20.5-lz4,
 │                 # 1.21, 26.x) + golden outputs
-└── tools/oracle/ # dev-only: dockerized upstream Java CLI (e664c1a; v0.10.3-mc1.12 for the
-                  # 1.12 fixture) generating reference outputs + diff harness
+└── tools/oracle/ # upstream Java CLI (e664c1a; v0.10.3-mc1.12 for the 1.12 fixture)
+                  # generating reference outputs + diff harness
 ```
+
+**Amended by D17:** `tools/oracle/` is no longer dev-only and is no longer dockerized. The
+jars are built from the vendored source with Gradle (`GRADLE_USER_HOME` pointed at
+`tools/oracle/.gradle`, gitignored, so nothing machine-wide is touched), and the resulting
+`cli-<version>-shadow.jar` is the engine the shipped app drives as well as the oracle the
+mesher is checked against. That is a feature rather than an inconvenience: the reference
+implementation is now exercised on every local render instead of only when someone
+remembers to run the harness.
 
 Dependency direction: `shared ← nbt ← engine ← server ← (cli, app)`; `shared ← viewer ← ui ← app`.
 `viewer` never imports `engine` — it only speaks the HTTP wire contract, which is what makes
@@ -261,11 +281,11 @@ Key decisions (one each):
 | `common/live/**`, `plugin/skins/**`, `plugin/` lifecycle | Port 1:1 (chokidar for watching) |
 | `common/commands/**` (3.3k LOC in-game tree) + bluecommands subset | Port as command module: same tree (`status`, `update`, `purge`, `freeze`, `troubleshoot`, …) driven from CLI stdin and the in-app command palette |
 | `common/api/**` + `api/` submodule | Port as public TS API + MarkerGson-compatible codecs in `shared`. Java BlueMapAPI artifact itself not shipped (JVM plugin API) — **signoff S1** |
-| `common/addons/**` (jar classloading) | Java jar loading impossible without JVM. Ported equivalent **ships in this plan**: JS/ESM addon loader against the TS API — **signoff S2** (Java-jar compat only) |
+| `common/addons/**` (jar classloading) | ~~Java jar loading impossible without JVM. Ported equivalent **ships in this plan**: JS/ESM addon loader against the TS API — **signoff S2** (Java-jar compat only)~~ **S2 withdrawn by D18 (2026-08-03):** there is a JVM in the product now, so the Java addon loader is built and shipped from the vendored source alongside the JS/ESM addon loader, which still ships as planned |
 | `common/metrics` | Ported, flipped to **opt-in** (desktop norm) — **signoff S3** |
 | `common/debug/StateDumper` | Port (JSON dump via `troubleshoot`) |
-| `common/serverinterface/**` + 6 platform adapters | Contract becomes TS `LiveDataProvider` SPI with three providers: `RemoteProvider` (passthrough), **`LocalLiveProvider` (new, beyond upstream: playerdata NBT + optional RCON/Query polling)**, `NoneProvider`. The Minecraft-server plugin glue itself has no desktop meaning — **signoff S4** |
-| `implementations/cli` | Port 1:1 (`@bluemap/cli` = standalone server) |
+| `common/serverinterface/**` + 6 platform adapters | Contract becomes TS `LiveDataProvider` SPI with three providers: `RemoteProvider` (passthrough), **`LocalLiveProvider` (new, beyond upstream: playerdata NBT + optional RCON/Query polling)**, `NoneProvider`. ~~The Minecraft-server plugin glue itself has no desktop meaning — **signoff S4**~~ **S4 withdrawn by D18 (2026-08-03):** the same build that produces the render engine produces `fabric`, `forge`, `neoforge`, `paper`, `spigot` and `sponge`, so all six ship as release artifacts a user can drop into their own server. The TS SPI above is unaffected and still ships |
+| `implementations/cli` | Port 1:1 (`@bluemap/cli` = standalone server). **Since D17** the upstream `cli` shadow jar is also built and shipped, because it is what renders locally today |
 | Webapp `src/js` | Port to TS `viewer`, behavior-identical (three@0.147 pinned during the port; upgraded to current three.js in Phase H) |
 | Webapp `src/components` + scss | Rebuilt as MD3 `ui`; feature-parity checklist derived from all 24 components; 30 locales ported |
 | Gradle/buildSrc/Dockerfile | Replaced by pnpm/Vite/electron-builder + new server Dockerfile |
@@ -298,6 +318,11 @@ Key decisions (one each):
   file storage, masks. Exit: golden gate — PRBM byte-identical (decompressed), lowres PNG
   pixel-identical, on all 1.13+ fixtures; 1.12.2 fixture renders correctly (snapshot +
   visual verification — no modern Java oracle exists for it).
+  **Amended by D17:** this gate is unchanged, but it is now a *handover* gate rather than
+  the moment rendering starts working. Local rendering already works on the Java engine, so
+  Phase D no longer blocks the product; passing this gate is what lets the TypeScript mesher
+  take over from it. Nothing switches silently: every render records which engine produced
+  it in `render.json`, and the app shows that.
 - **Phase E — Orchestration + server + CLI + local flow**: RenderManager pool + resumable
   tasks, MapUpdateService watch re-render, full HTTP routes + SSE tile events, service +
   **full config schema (D15: every option, zod, HOCON⇄JSON)**, `cli` (`-r -u -w`) =
@@ -311,6 +336,9 @@ Key decisions (one each):
   create/clone/delete wizard, validation + safe-apply (re-render prompts when a change
   invalidates tiles), one-click import of existing BlueMap config dirs. Exit: a user
   configures everything BlueMap supports without ever seeing a config file.
+  **Amended by D17: this phase no longer waits for E.** The GUI writes BlueMap's own HOCON
+  and invokes the CLI, so it needs the TypeScript render manager for nothing. Work on it
+  started early and it is being built out of order, against the Java engine.
 - **Phase G — Docker hosting GUI (D16)**: dockerode integration, instance manager screens
   (create wizard reusing the Phase-F config forms, status dashboard, live logs, start/stop/
   restart/remove, restart policy, health), volumes + port mapping, image choice (ported
@@ -330,8 +358,8 @@ Key decisions (one each):
   coordinate tools, waypoints/bookmarks (persisted, shareable via view links), screenshot
   gallery, scheduled renders (cron-like UI on the render manager), multi-server dashboard
   (all profiles + hosted Docker instances at a glance), update checker; then packaging
-  (win/mac/linux) + notarization, docs (usage, exclusions S1–S4, attribution, Mojang
-  consent). Exit: 1.0 candidate.
+  (win/mac/linux) + notarization, docs (usage, exclusions ~~S1–S4~~ **S1 and S3 only, per
+  D18**, attribution, Mojang consent). Exit: 1.0 candidate.
 
 Relative effort: 0: 3% · A: 15% · B: 14% · C: 12% · D: 24% · E: 10% · F: 6% · G: 4% ·
 H: 7% · I: 5%.
@@ -347,8 +375,10 @@ telemetry, big-world test early in E) · native deps (only better-sqlite3; prebu
 - **Unit (vitest)** per package: nbt round-trips vs BlueNBT-generated fixtures, compression
   cross-fixtures (Java-written gzip/zstd/lz4-block ↔ TS), path codec, PRBM writer↔ported
   PRBMLoader round-trip, mesher micro-fixtures.
-- **Golden/oracle (`tools/oracle`)**: dockerized upstream Java CLI (`e664c1a`; dev/CI only,
-  never shipped) renders `fixtures/` worlds → compare TS output: PRBM decompressed-byte-equal;
+- **Golden/oracle (`tools/oracle`)**: upstream Java CLI (`e664c1a`; ~~dev/CI only, never
+  shipped~~ **amended by D17: built from the vendored source with Gradle and shipped, because
+  it is the engine that renders locally today**) renders `fixtures/` worlds → compare TS
+  output: PRBM decompressed-byte-equal;
   PNG decoded-pixel-equal; settings/textures/markers/players JSON parse-equal (1e-6 float
   tolerance); renderstate NBT tag-equal. 1.12.2 fixture: chunk-decode probe vs `v0.10.3-mc1.12`
   oracle + rendered-output snapshot tests (no modern Java renderer exists for 1.12).
@@ -373,12 +403,85 @@ telemetry, big-world test early in E) · native deps (only better-sqlite3; prebu
   `claude/bluemap-design-port-8xs2dk` (`git push -u origin`, retry w/ backoff on network
   failure). One commit per milestone minimum; push after each phase.
 - Explicit-exclusion signoffs surfaced in README + plan: S1 Java BlueMapAPI artifact,
-  S2 Java jar addons (JS addon API instead), S3 metrics opt-in flip, S4 the six
-  Minecraft-server platform adapters. Everything else is ported or behavior-preserving-replaced
+  ~~S2 Java jar addons (JS addon API instead)~~, S3 metrics opt-in flip, ~~S4 the six
+  Minecraft-server platform adapters~~. Everything else is ported or behavior-preserving-replaced
   per the disposition table.
+  **Amended by D18 (2026-08-03): S2 and S4 are withdrawn.** Two signoffs remain, S1 and S3.
+  Everything upstream ships is ported, and the six platform adapters and the Java addon
+  loader are release artifacts rather than exclusions.
 - Never bundle Mojang-downloaded assets; consent flag mirrors upstream `accept-download`.
 - Reference sources for implementation: `vendor/BlueMap` @ `e664c1a` (+ tag `v0.10.3-mc1.12`,
   + nested `api/` submodule) — critical files: `core/.../map/hires/PRBMWriter.java`,
   `core/.../world/mca/MCAWorld.java`, `core/.../resources/pack/resourcepack/ResourcePack.java`,
   `common/.../rendermanager/RenderManager.java`, `common/.../web/MapStorageRequestHandler.java`,
   `common/webapp/src/js/BlueMapApp.js`, and (legacy) `ChunkAnvil112.java` + `mca/extensions/`.
+  **Amended by D17:** the same tree is now a *build* input as well as a reading reference.
+
+---
+
+## Amendments
+
+Everything above is the plan as approved. Nothing in it has been deleted; where a decision
+later reversed a statement, the statement is marked in place and the reasoning lives here.
+The canonical record of each decision is `design/docs/decisions.md`.
+
+### Amendment 1 — 2026-08-03, Java engine first (D17 and D18)
+
+**What changed.** Local world rendering runs upstream BlueMap's Java engine, built from the
+vendored source at `vendor/BlueMap` and driven by the app. The TypeScript mesher in
+`packages/engine` keeps being written and replaces it later, gated on byte-identical output.
+Every implementation is ported and shipped, including the six Minecraft-server platform
+adapters and the Java addon loader, so exclusions S2 and S4 are withdrawn.
+
+**Why.** Point 1 of the user decisions and D5 committed to a pure TypeScript mesher with no
+JVM. That is right for the end state and wrong for the interval. Until the mesher is
+finished the app cannot render anything at all, and the mesher is the largest and
+highest-risk part of the whole port: roughly 4.4k LOC of upstream Java whose output has to
+match byte for byte. Driving upstream's renderer means a world can be rendered now, and it
+gives the mesher an exact oracle rather than an approximation that looks plausible in a
+screenshot. D18 follows from D17 rather than standing on its own: the six platform adapters
+were excluded because they were inert without a JVM, and there is a JVM now, so the same
+build that produces the renderer produces them and a user running a Minecraft server can
+take the plugin for their platform from the same release.
+
+**What it is measured to do, on the machine this was decided on.** These are recorded
+because a plan amendment that says "it works" and nothing else is not evidence:
+
+| Fact | Measurement |
+|---|---|
+| Build | `./gradlew :cli:shadowJar` produces `implementations/cli/build/libs/cli-5.22-27-shadow.jar`, 6.4 MB, 34s warm |
+| Gradle project paths | bare: `:cli`, `:fabric`, `:forge`, `:neoforge`, `:paper`, `:spigot`, `:sponge` (not `:implementations:cli`) |
+| Toolchain | host Temurin 25.0.3; upstream pins `JavaLanguageVersion.of(25)` |
+| Nothing machine-wide | `GRADLE_USER_HOME` points at `tools/oracle/.gradle`, which is gitignored and already over a gigabyte |
+| Config generation | `java -jar <shadow.jar> -c <configDir>` writes `core.conf`, `webapp.conf`, `webserver.conf`, `maps/{overworld,nether,end}.conf`, `storages/{file,sql}.conf` |
+| Render | `-c <configDir> -r -g` over a generated 1000x1000 world produced **961 hires PRBM tiles** plus lowres PNGs and `textures.json.gz` in 80 seconds |
+| Progress output | `[11:28:40 INFO] updating map 'overworld': 25.663% (ETA: 47 seconds)`, ending `Your maps are now all up-to-date!` |
+
+**Sharp edges found while proving it, which the port has to defend against.** The CLI
+resolves its storage root and data folder relative to the **working directory**, not the
+config folder. Running it from the repository root dumped 47 MB of tiles into `/web` and a
+38 MB Mojang client jar into `/data` at the top of the tree. Every path the app writes into
+a config file is therefore absolute, and the child process is given a deliberate working
+directory inside the render workspace as a second line of defence. Rendering also requires
+`accept-download: true` in `core.conf`, which is Mojang EULA acceptance and is exactly why
+consent is a first-class persisted decision rather than a config default.
+
+**What this costs, stated rather than hidden.**
+
+- A JDK becomes a requirement for local rendering. The app provisions a verified Temurin
+  build into its own `userData` when the machine has none, so nobody is asked to install
+  one by hand, but the download is real and is a decision the person makes.
+- There are two rendering paths to maintain and test until the mesher lands.
+- The headline claim of being JVM-free becomes conditional. The README says so rather than
+  implying otherwise, and every rendered map records which engine produced it.
+- Two engines mean two answers to "why does this tile look like that", which is precisely
+  why `render.json` is written before a render starts and not only when one succeeds.
+
+**How the mesher takes over.** The gate Phase D always had, unchanged: decompressed PRBM
+bytes identical to the Java engine's, and lowres PNGs identical pixel for pixel, across
+every fixture world. Nothing switches silently.
+
+**What this amendment does not change.** The TypeScript port is still the goal and is still
+being written. `viewer`, `ui`, `server`, `shared`, `nbt` and the whole world-reading and
+resource-pack layer are unaffected. S1 (the Java BlueMapAPI artifact) and S3 (metrics
+flipped to opt-in) still stand.

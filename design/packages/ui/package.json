@@ -12,6 +12,7 @@
     "dev": "vite --host"
   },
   "dependencies": {
+    "@material-bluemap/config": "workspace:*",
     "@material-bluemap/shared": "workspace:*",
     "@material-bluemap/viewer": "workspace:*",
     "@mdi/js": "^7.4.47",

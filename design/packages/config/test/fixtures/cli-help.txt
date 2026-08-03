@@ -1,0 +1,59 @@
+usage: java -jar .\cli-5.22-27-shadow.jar [options]
+
+Options:
+ -a,--append                    Causes log save file to be appended rather
+                                than replaced.
+ -b,--verbose                   Causes the web-server to log requests to
+                                the console
+ -c,--config <config-folder>    Sets path of the folder containing the
+                                configuration-files to use (configurations
+                                will be generated here if they don't
+                                exist)
+ -e,--fix-edges                 Forces rendering the map-edges, instead of
+                                only rendering chunks that have been
+                                modified since the last render
+ -f,--force-render              Forces rendering everything, instead of
+                                only rendering chunks that have been
+                                modified since the last render
+ -g,--generate-webapp           Generates the files for the web-app to the
+                                folder configured in the 'webapp.conf'
+                                file
+ -h,--help                      Displays this message
+ -l,--log-file <file-name>      Sets a file to save the log to. If not
+                                specified, no log will be saved.
+ -m,--maps <arg>                A comma-separated list of map-id's that
+                                should be rendered. Example:
+                                'world,nether'
+    --markers                   Updates the map-markers based on the map
+                                configs
+ -n,--mods <mods-folder>        Sets path of the folder containing the
+                                mods that contain extra resources for
+                                rendering.
+ -r,--render                    Renders the maps configured in the
+                                'render.conf' file
+ -s,--generate-websettings      Updates the settings.json for the web-app
+ -u,--watch                     Watches for file-changes after rendering
+                                and updates the map
+ -v,--mc-version <mc-version>   Sets the minecraft-version, used e.g. to
+                                load resource-packs correctly. Defaults to
+                                the latest compatible version.
+ -V,--version                   Print the current BlueMap version
+ -w,--webserver                 Starts the web-server, configured in the
+                                'webserver.conf' file
+
+Examples:
+
+java -jar .\cli-5.22-27-shadow.jar -c './config/'
+Generates the default/example configurations in a folder named 'config' if
+they are not already present
+
+java -jar .\cli-5.22-27-shadow.jar -r
+Render the configured maps
+
+java -jar .\cli-5.22-27-shadow.jar -w
+Start only the webserver without doing anything else
+
+java -jar .\cli-5.22-27-shadow.jar -ru
+Render the configured maps and then keeps watching the world-files and
+updates the map once something changed.
+

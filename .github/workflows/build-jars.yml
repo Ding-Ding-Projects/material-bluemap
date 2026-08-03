@@ -1,0 +1,241 @@
+name: BlueMap jars
+
+# Builds all seven BlueMap implementations from the vendored upstream source and
+# uploads each one as its own artifact.
+#
+# Decision D17 runs local rendering on upstream's Java engine rather than waiting for
+# the TypeScript mesher, and decision D18 follows that to its conclusion: once a JVM is
+# in the product, the six Minecraft-server adapters upstream ships are shippable too, so
+# every one of them is a product artefact here. See design/docs/decisions.md.
+#
+# These jars are upstream BlueMap's code, built unmodified from the `vendor/BlueMap`
+# submodule. They are not this project's own renderer, and the release notes say so.
+#
+# This is a reusable workflow rather than one with its own push trigger. `ci.yml` calls
+# it, so the jars land in the same workflow run as the Windows installer and the release
+# job can attach both to one release; a separate workflow's artifacts would need
+# cross-run plumbing to reach it and would build the same jars twice on every push.
+
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: The upstream BlueMap version the jars were built from, e.g. 5.22-27.
+        value: ${{ jobs.build.outputs.version }}
+      upstream-commit:
+        description: The vendor/BlueMap commit the jars were built from.
+        value: ${{ jobs.build.outputs.upstream-commit }}
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the seven implementations
+    runs-on: ubuntu-latest
+    # A cold cache has to fetch Minecraft, Forge, NeoForge, Fabric and Paper artefacts
+    # and decompile against them. A warm one does none of that. The ceiling is generous
+    # so a first run on a new cache key is not killed halfway through populating it.
+    timeout-minutes: 120
+    outputs:
+      version: ${{ steps.upstream.outputs.version }}
+      upstream-commit: ${{ steps.upstream.outputs.commit }}
+    steps:
+      # fetch-depth: 0 is not optional here. Upstream derives its version from
+      # `git describe`, and BlueMap carries its own BlueMapAPI submodule at api/ that
+      # the build includes, so both the full history and the recursive checkout are
+      # load-bearing. A shallow checkout produces jars that call themselves 0.0.
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # Upstream pins JavaLanguageVersion.of(25) in buildSrc/bluemap.java.gradle.kts,
+      # and the produced bytecode is class-file version 69, so 25 is what both the build
+      # and the resulting jars need.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      # Restores the dependency cache, the wrapper distribution and the local build
+      # cache into the Gradle user home, keyed on this job. That is what keeps a re-run
+      # from being a twenty minute build: the vendored source changes only when the
+      # submodule pointer moves, so almost every run is a cache hit on dependencies and,
+      # with --build-cache below, on the compiled task outputs too.
+      #
+      # The action writes the cache only from the default branch and reads it everywhere
+      # else, which is what we want: a pull request gets main's warm cache without being
+      # able to poison it. Note the Gradle user home is deliberately left at its default
+      # here rather than pointed at tools/oracle/.gradle the way a workstation build
+      # does; on a disposable runner the default is the path this action caches.
+      #
+      # validate-wrappers is the action's default, made explicit because it matters more
+      # than usual here: the wrapper jars are executable code arriving through a
+      # submodule from another organisation, and this is the one place a swapped one
+      # would still be catchable.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          validate-wrappers: true
+
+      - name: Resolve the upstream version
+        id: upstream
+        shell: bash
+        working-directory: vendor/BlueMap
+        run: |
+          set -euo pipefail
+
+          # Proven rather than assumed. Upstream's gitVersion() falls back to "0.0" when
+          # it finds no tags, so a checkout that lost them does not fail: it quietly
+          # builds jars named bluemap-0.0-paper.jar and publishes them. That is invisible
+          # until somebody downloads one, so it is caught here instead, before the build.
+          if [ -z "$(git tag)" ]; then
+            echo "The vendored checkout arrived without tags. Fetching them."
+            git fetch --tags --force origin
+          fi
+
+          tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          if [ -z "$tag" ]; then
+            echo "::error::vendor/BlueMap has no tags, so Gradle would stamp every jar as version 0.0. The submodule needs a full-history checkout."
+            exit 1
+          fi
+
+          commits=$(git rev-list --count "${tag}..HEAD")
+          branch=$(git branch --show-current)
+          commit=$(git rev-parse HEAD)
+
+          # The same arithmetic as vendor/BlueMap/buildSrc/src/main/kotlin/versioning.kt,
+          # so the version this workflow names the artifacts with and the version Gradle
+          # stamps on the jars cannot drift apart. describe-jars.mjs is handed this value
+          # with --expect-version and fails if they ever do.
+          version="${tag#v}"
+          if [ -n "$branch" ] && [ "$branch" != "master" ]; then
+            version="${version}-${branch//\//.}"
+          fi
+          if [ "$commits" != "0" ]; then
+            version="${version}-${commits}"
+          fi
+          if ! git update-index --refresh >/dev/null 2>&1 || [ -n "$(git diff-index HEAD --)" ]; then
+            echo "::warning::The vendored checkout is not clean, so upstream's build will mark the version -dirty."
+            version="${version}-dirty"
+          fi
+
+          echo "upstream BlueMap ${version} at ${commit}"
+          {
+            echo "version=${version}"
+            echo "commit=${commit}"
+          } >> "$GITHUB_OUTPUT"
+
+      # Bare project paths. Upstream's settings.gradle.kts includes each implementation
+      # at the root and then relocates its projectDir, so `:implementations:cli` does not
+      # exist and Gradle rejects it with "project not found".
+      - name: Build all seven shadow jars
+        working-directory: vendor/BlueMap
+        run: >
+          ./gradlew --build-cache --stacktrace
+          :cli:shadowJar
+          :fabric:shadowJar
+          :forge:shadowJar
+          :neoforge:shadowJar
+          :paper:shadowJar
+          :spigot:shadowJar
+          :sponge:shadowJar
+
+      # The staging and description scripts are dependency-free, so no install step.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Copies each implementation's shadow jar out of the vendored build tree and fails
+      # if any of the seven is absent. Same command that stages them on a workstation,
+      # minus the Gradle run that has already happened above.
+      - name: Stage the jars
+        run: node tools/build-jars.mjs --no-build --clean --stage "$GITHUB_WORKSPACE/jars-staging"
+
+      # Renames each jar to upstream's own release convention, parses it to prove it is
+      # a jar and not a truncated download, reads the supported Minecraft versions out of
+      # the vendored build files, and writes the release-notes section and checksums.
+      - name: Describe the jars
+        run: |
+          node tools/describe-jars.mjs \
+            --stage "$GITHUB_WORKSPACE/jars-staging" \
+            --out "$GITHUB_WORKSPACE/jars" \
+            --vendor "$GITHUB_WORKSPACE/vendor/BlueMap" \
+            --expect-version '${{ steps.upstream.outputs.version }}' \
+            --upstream-commit '${{ steps.upstream.outputs.commit }}' \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      # One artifact per implementation rather than a single 42 MB bundle: somebody
+      # running a Paper server should be able to take the 5 MB they need without
+      # downloading six jars they cannot load. The release job collects them back
+      # together with a pattern.
+      - name: Upload the command line renderer
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluemap-jar-cli
+          path: jars/bluemap-${{ steps.upstream.outputs.version }}-cli.jar
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload the Fabric server mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluemap-jar-fabric
+          path: jars/bluemap-${{ steps.upstream.outputs.version }}-fabric.jar
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload the Forge server mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluemap-jar-forge
+          path: jars/bluemap-${{ steps.upstream.outputs.version }}-forge.jar
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload the NeoForge server mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluemap-jar-neoforge
+          path: jars/bluemap-${{ steps.upstream.outputs.version }}-neoforge.jar
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload the Paper, Purpur and Folia plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluemap-jar-paper
+          path: jars/bluemap-${{ steps.upstream.outputs.version }}-paper.jar
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload the Spigot, Bukkit and CraftBukkit plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluemap-jar-spigot
+          path: jars/bluemap-${{ steps.upstream.outputs.version }}-spigot.jar
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload the Sponge plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluemap-jar-sponge
+          path: jars/bluemap-${{ steps.upstream.outputs.version }}-sponge.jar
+          if-no-files-found: error
+          retention-days: 30
+
+      # Checksums, the machine-readable index, and the release-notes section. The release
+      # job reads the markdown from here rather than composing it again, so what the
+      # notes claim about each jar and what was actually built cannot disagree.
+      - name: Upload the index and checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: bluemap-jar-index
+          path: |
+            jars/bluemap-jars.md
+            jars/bluemap-jars.json
+            jars/bluemap-jars.sha256.txt
+          if-no-files-found: error
+          retention-days: 30
