@@ -25,8 +25,16 @@ const localeFiles = readdirSync(LANG_DIR)
     .filter((name) => name.endsWith(".conf"))
     .sort();
 
+/**
+ * Line endings are normalised because this repository checks out with `text=auto`, so the
+ * same `.conf` file is CRLF on a Windows working tree and LF on a Linux CI runner. The parser
+ * preserves line endings verbatim inside multi-line strings, which is correct, and that makes
+ * the parsed value platform-dependent. The baseline was captured on one platform, so without
+ * this every locale carrying a multi-line block passes locally and fails in CI. Normalising
+ * both sides compares what the files actually say rather than which machine read them.
+ */
 function readLocale(file: string): string {
-    return readFileSync(new URL(file, LANG_DIR), "utf8");
+    return readFileSync(new URL(file, LANG_DIR), "utf8").replace(/\r\n?/g, "\n");
 }
 
 /**
