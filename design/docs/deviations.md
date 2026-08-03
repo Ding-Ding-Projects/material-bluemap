@@ -212,3 +212,79 @@ erased types / missing reflection:
   neighbor-callback resolving *raw* (unextended) block-states through the chunk-grid —
   matching the legacy call-graph where extensions read neighbors via the legacy
   `World#getBlockState` (which did not extend).
+
+## Phase B consolidation (world model + MCA decoder integration)
+
+Deviations the Phase B waves left as in-code notes, consolidated (the compression,
+NBT-model and mca-orchestration deviations above are Phase B work too and are not
+repeated here):
+
+### world model (`packages/engine/src/world`)
+
+- **Interface-defaults → abstract classes / helpers** — `Chunk` and `Region` (upstream:
+  interfaces where every method has a default) are abstract classes so implementations
+  inherit the defaults; `WorldLoader`'s `worldDataPacks` interface-default is the
+  exported `worldDataPacks(loader, path, dimension)` helper (js interfaces cannot carry
+  implementations).
+- **Field/method name collisions** — Java allows a field and a method of the same name
+  on one class, js does not; upstream fields are renamed where they collide with their
+  accessor: `BlockState` `isAir/isWater/isWaterlogged` → `air/water/waterlogged`,
+  `Chunk_1_13/1_16/1_18` `hasWorldSurfaceHeights/hasOceanFloorHeights` →
+  `…HeightsPresent` (Chunk_1_12: `hasWorldSurface`), `BlockNeighborhood.thisIndex`
+  (field) → `thisIndexCache`. Method APIs are unchanged.
+- **`BlockProperties.Builder`** — a Java inner class mutating its outer instance;
+  ported as the separate `BlockPropertiesBuilder` class holding that instance and
+  reaching its private fields via element access.
+- **Anvil loader-registration site** — upstream defines
+  `WorldLoaderType.ANVIL = new Impl(Key.bluemap("anvil"), MCAWorld::load)` as a static
+  on the interface; the port defines `ANVIL` in `world/mca/MCAWorld.ts` and
+  self-registers it into `WorldLoaderType.REGISTRY` on module-load, so the
+  world-package carries no runtime-dependency on the mca-package. Key, lookup and
+  loader behavior are identical.
+
+### world/mca decoders
+
+- **Chunk_1_12 (not in upstream e664c1a)** — the pre-flattening chunk-format is
+  combined back from the legacy `ChunkAnvil112` (`v0.10.3-mc1.12`) into the modern
+  chunk-architecture (Chunk_1_13-style section array instead of the legacy fixed
+  `Section[32]`); legacy semantics kept (`LightPopulated`/`TerrainPopulated`,
+  `Level.HeightMap` as world-surface, no ocean-floor heights). In
+  `MCAChunkLoader`'s sorted loader-list the Chunk_1_13 floor is raised from upstream's
+  0 to 1344 and a Chunk_1_12 entry with floor 0 is appended, so DataVersions <= 1343
+  (or absent) dispatch to the legacy decoder instead of upstream's (1.13-assuming)
+  Chunk_1_13.
+- **Legacy mappings from bundled assets** — the legacy `BlockIdConfig`,
+  `BlockPropertiesConfig` and biome-table (upstream v0.10.3: user-editable configurate
+  nodes with optional "autopopulation" writing resolved fallbacks back to disk) are
+  backed by the bundled `assets/legacy/*.json` (extracted from the v0.10.3 default
+  configs); autopopulation is not ported, the in-memory fallback-caching is kept.
+- **Forge id-mappings are duck-typed** — the legacy `MCAWorld#getForgeBlockIdMapping`
+  (read from level.dat `FML/Registries`) does not exist on the modern `MCAWorld`;
+  `Chunk_1_12` consults it only if the world instance offers the method
+  (`ForgeBlockIdMappings` duck-type), otherwise numeral-id mapping alone is used.
+- **Explicit nbt-schemas** — upstream lets BlueNBT reflection derive the chunk/level
+  Data classes from `@NBTName` annotations; the port registers explicit `ObjectSchema`s
+  for every nbt-mapped mca-type in `MCAUtil.addCommonNbtSettings` (see the NBT-package
+  schema-model deviation above). `MCAUtil.BLUENBT` is initialized lazily to keep the
+  module-graph cycle (chunk-schemas register from `MCAUtil` while chunk-modules import
+  its helpers) initialization-order safe.
+- **`getValueFromLongStream` returns an int** — upstream returns a `long` that every
+  call-site `(int)`-casts; the port returns the value's low 32 bits directly, extracted
+  via an `Int32Array` view over the long-array's 32-bit halves (no per-element BigInt —
+  decisions D1). Same applies to `PackedIntArrayAccess.get`.
+
+### Phase C/D contract placeholders (replaced by the full ports)
+
+- `resources/pack/datapack/DataPack.ts`, `resources/pack/resourcepack/ResourcePack.ts`,
+  `map/hires/RenderSettings.ts` and `map/mask/Mask.ts` are minimal typed placeholders
+  declaring only the surface the world/mca layer consumes (dimension-type/biome
+  lookups, `getBlockProperties`, the ExtendedBlock render-settings subset, mask
+  `test`/`isEdge`/`submask` + `NONE`/`ALL`); the upstream key-constants on `DataPack`
+  are real. `util/Tristate.ts` and `util/WatchService.ts` are full ports (WatchService
+  with the promise-shape noted in its header: `poll(timeoutMs)`/`take()` return
+  promises, timeout in milliseconds instead of a `(timeout, TimeUnit)` pair).
+- `DimensionTypeData` lives in `world/mca/data/DimensionTypeDeserializer.ts` until the
+  resources-pack port lands (upstream:
+  `resources/pack/datapack/dimension/DimensionTypeData`); its schema-registration
+  yields to an already-registered `"DimensionTypeData"` token so the resources port
+  can take the token over.

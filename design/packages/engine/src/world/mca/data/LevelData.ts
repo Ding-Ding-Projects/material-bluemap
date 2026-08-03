@@ -8,6 +8,7 @@ import {
     type ObjectSchema,
 } from "@material-bluemap/nbt";
 import { Key, Vector3i } from "@material-bluemap/shared";
+import { DataPack } from "../../../resources/pack/datapack/DataPack.js";
 import { DimensionSettings, DIMENSION_SETTINGS_TOKEN } from "./DimensionSettings.js";
 import { KEY_TOKEN } from "./KeyDeserializer.js";
 import { VECTOR3I_TOKEN } from "./Vector3iDeserializer.js";
@@ -17,12 +18,9 @@ const DATA_TOKEN: TypeToken<Data> = TypeToken.of("LevelData.Data");
 const WG_SETTINGS_TOKEN: TypeToken<WGSettings> = TypeToken.of("LevelData.WGSettings");
 const SPAWN_TOKEN: TypeToken<Spawn> = TypeToken.of("LevelData.Spawn");
 
-/** upstream: DataPack.DIMENSION_OVERWORLD (the resources DataPack is not needed for the constant) */
-const DIMENSION_OVERWORLD: Key = new Key("minecraft", "overworld");
-
 /** upstream: LevelData.Spawn */
 class Spawn {
-    dimension: Key = DIMENSION_OVERWORLD;
+    dimension: Key = DataPack.DIMENSION_OVERWORLD;
     pos: Vector3i = Vector3i.ZERO;
     yaw = 0;
     pitch = 0;

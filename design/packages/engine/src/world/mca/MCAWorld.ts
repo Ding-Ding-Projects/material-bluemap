@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { BlueNBT, type TypeToken } from "@material-bluemap/nbt";
 import { Key, type Grid, type Vector2i } from "@material-bluemap/shared";
-import type { DataPack } from "../../resources/pack/datapack/DataPack.js";
+import { DataPack } from "../../resources/pack/datapack/DataPack.js";
 import { Compression } from "../../storage/compression/Compression.js";
 import type { WatchService } from "../../util/WatchService.js";
 import type { Biome } from "../biome/Biome.js";
@@ -31,12 +31,6 @@ import { MCAEntityChunkLoader } from "./entity/chunk/MCAEntityChunkLoader.js";
 import { applyLegacyExtensions } from "./legacy/extensions/BlockStateExtensions.js";
 import type { BlockStateAccess } from "./legacy/extensions/BlockStateExtension.js";
 import { addCommonNbtSettings, logWarning } from "./MCAUtil.js";
-
-// upstream: DataPack.DIMENSION_OVERWORLD / DIMENSION_THE_NETHER / DIMENSION_THE_END —
-// defined here until the resources datapack-port lands (see also data/LevelData.ts)
-const DIMENSION_OVERWORLD: Key = new Key("minecraft", "overworld");
-const DIMENSION_THE_NETHER: Key = new Key("minecraft", "the_nether");
-const DIMENSION_THE_END: Key = new Key("minecraft", "the_end");
 
 /** Files.isDirectory(path) */
 function isDirectory(path: string): boolean {
@@ -284,9 +278,9 @@ export class MCAWorld implements World {
     }
 
     private static legacyDimensionFolder(worldFolder: string, dimension: Key): string {
-        if (DIMENSION_OVERWORLD.equals(dimension)) return worldFolder;
-        if (DIMENSION_THE_NETHER.equals(dimension)) return join(worldFolder, "DIM-1");
-        if (DIMENSION_THE_END.equals(dimension)) return join(worldFolder, "DIM1");
+        if (DataPack.DIMENSION_OVERWORLD.equals(dimension)) return worldFolder;
+        if (DataPack.DIMENSION_THE_NETHER.equals(dimension)) return join(worldFolder, "DIM-1");
+        if (DataPack.DIMENSION_THE_END.equals(dimension)) return join(worldFolder, "DIM1");
         return join(worldFolder, "dimensions", dimension.getNamespace(), dimension.getValue());
     }
 
@@ -336,9 +330,9 @@ export class MCAWorld implements World {
 
         if (dimensionSettings != null) return dimensionSettings.getType();
 
-        if (DIMENSION_OVERWORLD.equals(dimension)) return DimensionType.OVERWORLD;
-        else if (DIMENSION_THE_NETHER.equals(dimension)) return DimensionType.NETHER;
-        else if (DIMENSION_THE_END.equals(dimension)) return DimensionType.END;
+        if (DataPack.DIMENSION_OVERWORLD.equals(dimension)) return DimensionType.OVERWORLD;
+        else if (DataPack.DIMENSION_THE_NETHER.equals(dimension)) return DimensionType.NETHER;
+        else if (DataPack.DIMENSION_THE_END.equals(dimension)) return DimensionType.END;
 
         logWarning(
             "The world-data does not contain any info about a dimension with the id '" +

@@ -13,7 +13,16 @@ export { worldDataPacks, type WorldLoader } from "./world/WorldLoader.js";
 export { WorldLoaderType } from "./world/WorldLoaderType.js";
 
 // util
+export { Tristate } from "./util/Tristate.js";
 export { WatchService } from "./util/WatchService.js";
+
+// map (Phase C/D placeholders — replaced by the full ports)
+export { Mask } from "./map/mask/Mask.js";
+export type { RenderSettings } from "./map/hires/RenderSettings.js";
+
+// resources (Phase C placeholders — replaced by the full ports)
+export { DataPack } from "./resources/pack/datapack/DataPack.js";
+export type { ResourcePack } from "./resources/pack/resourcepack/ResourcePack.js";
 
 // world/block
 export type { BlockAccess } from "./world/block/BlockAccess.js";
