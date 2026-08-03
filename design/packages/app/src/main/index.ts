@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, shell, clipboard, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, session, clipboard, dialog } from "electron";
 import {
     acceptDownload,
     completeFirstRun,
@@ -20,6 +20,11 @@ import { LocalMapHandler, defaultStorageDirectory } from "./render/index.js";
 import { upstreamJavaEngine } from "./render/engine.js";
 import { installRenderIpc } from "./render/ipc.js";
 import type { RenderIpc } from "./render/ipc.js";
+import { installDownloadIpc } from "./download/ipc.js";
+import type { DownloadIpc } from "./download/ipc.js";
+import { installGitHubIpc } from "./github/ipc.js";
+import type { GitHubIpc } from "./github/ipc.js";
+import { openExternalHttps } from "./github/external.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -116,6 +121,27 @@ function registerIpc(): void {
     });
     ipcMain.handle("app:version", () => app.getVersion());
 
+    // Window controls for the Material title bar. The window is frameless, so these are
+    // the only way it can be moved through its states: without them the app cannot be
+    // minimised or closed at all.
+    const focused = (event: Electron.IpcMainInvokeEvent): BrowserWindow | null =>
+        BrowserWindow.fromWebContents(event.sender);
+
+    ipcMain.handle("window:minimize", (event) => {
+        focused(event)?.minimize();
+    });
+    ipcMain.handle("window:toggleMaximize", (event) => {
+        const target = focused(event);
+        if (target === null) return false;
+        if (target.isMaximized()) target.unmaximize();
+        else target.maximize();
+        return target.isMaximized();
+    });
+    ipcMain.handle("window:close", (event) => {
+        focused(event)?.close();
+    });
+    ipcMain.handle("window:isMaximized", (event) => focused(event)?.isMaximized() ?? false);
+
     // Mojang download consent. Asked once during first-run setup and remembered
     // afterwards, so it never appears on top of a render somebody has started.
     ipcMain.handle("consent:read", () => readConsent());
@@ -160,16 +186,58 @@ function startRendering(): RenderIpc {
     return render;
 }
 
+/**
+ * Downloading worlds and rendered maps that a release published in pieces.
+ *
+ * Registered once, for the same reason rendering is: `ipcMain.handle` throws on a
+ * channel that already has a handler, and `createWindow` runs again on macOS `activate`.
+ *
+ * The storage directory is read through the render side rather than captured, so a
+ * download follows the folder somebody chose in setup instead of filling the one they
+ * moved away from.
+ */
+let downloadIpc: DownloadIpc | null = null;
+
+function startDownloads(render: RenderIpc): DownloadIpc {
+    if (downloadIpc !== null) return downloadIpc;
+    downloadIpc = installDownloadIpc({ storageDir: () => render.storageDirectory() });
+    return downloadIpc;
+}
+
+/**
+ * GitHub sign-in.
+ *
+ * Registered once, for the same reason rendering and downloading are. The session it
+ * holds is the only thing in the process that has the token: the renderer is told who is
+ * signed in and what that account may do, and never the credential itself.
+ */
+let githubIpc: GitHubIpc | null = null;
+
+function startGitHubSignIn(): GitHubIpc {
+    if (githubIpc !== null) return githubIpc;
+    githubIpc = installGitHubIpc();
+    return githubIpc;
+}
+
 async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
     registerIpc();
-    startRendering();
+    startDownloads(startRendering());
+    startGitHubSignIn();
 
     const window = new BrowserWindow({
         width: 1280,
         height: 800,
+        // 800x600 is the narrowest width the interface is validated at, so it is also
+        // the smallest the window may become. Below it, controls start overlapping.
+        minWidth: 800,
+        minHeight: 600,
         show: false,
+        // Frameless: the operating system's title bar is not this product's chrome. The
+        // renderer draws a Material one instead, which is the only way the window
+        // furniture can follow the app's own theme, density and language.
+        frame: false,
         autoHideMenuBar: true,
         backgroundColor: "#0B0E11",
         webPreferences: {
@@ -180,8 +248,24 @@ async function createWindow(): Promise<void> {
         },
     });
 
+    // Maximised state can change without the app asking: the OS keyboard shortcut, a
+    // drag to the top edge, a double click on the drag region. A title bar that only
+    // updated when it was the one to act would sit there showing "maximise" on a
+    // maximised window, so the state is pushed rather than polled.
+    const sendMaximized = (): void => {
+        if (!window.isDestroyed()) {
+            window.webContents.send("window:maximizedChanged", window.isMaximized());
+        }
+    };
+    window.on("maximize", sendMaximized);
+    window.on("unmaximize", sendMaximized);
+    window.on("enter-full-screen", sendMaximized);
+    window.on("leave-full-screen", sendMaximized);
+
+    // Every outward link, from here and from sign-in, goes through the same https-only
+    // guard. One door means one place to get the scheme check right; see github/external.ts.
     window.webContents.setWindowOpenHandler(({ url }) => {
-        if (url.startsWith("https://")) void shell.openExternal(url);
+        void openExternalHttps(url);
         return { action: "deny" };
     });
     window.webContents.on("will-navigate", (event, url) => {

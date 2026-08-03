@@ -29,6 +29,9 @@ import type {
 } from "./orchestrator.js";
 import { describeEngine, readRenderRecord } from "./provenance.js";
 import type { RenderRecord } from "./provenance.js";
+import { findInterruptedRenders, planResume } from "./resume.js";
+import type { InterruptedRenderSummary, ResumeRefused } from "./resume.js";
+import { RenderSessionStore } from "./session.js";
 import { expandStorageDirectory, listRenderIds, renderWorkspace } from "./workspace.js";
 
 /** The channel every progress, phase, log and outcome event arrives on. */
@@ -63,11 +66,39 @@ export interface RenderIpcOptions {
     readonly broadcast?: (event: RenderEvent) => void;
 }
 
+/**
+ * What `render:resume` answers with.
+ *
+ * Two shapes rather than one, because a refusal is not a render failure. A render that
+ * was refused never started, has no id in flight and no engine to name, and folding it
+ * into `RenderResult` would mean inventing a failure code for something that is not a
+ * failure of rendering at all. `started` says which of the two this is.
+ */
+export type ResumeIpcResult =
+    | { readonly started: true; readonly result: RenderResult }
+    | { readonly started: false; readonly refusal: ResumeRefused };
+
 export interface RenderIpc {
     readonly orchestrator: RenderOrchestrator;
     readonly mounts: LocalMapHandler;
-    /** Mounts every previously finished render so the viewer can open them at once. */
+    /** The session store the orchestrator writes through. */
+    readonly sessions: RenderSessionStore;
+    /**
+     * Where maps are being written right now.
+     *
+     * A function rather than a value because `render:setStorageDirectory` moves it while
+     * the application is running, and anything else that writes beside the maps - the
+     * release downloader in particular - has to follow it there rather than keep filling
+     * the folder somebody moved away from.
+     */
+    storageDirectory(): string;
+    /**
+     * Mounts every previously finished render so the viewer can open them at once, and
+     * reconciles any session left `running` by an app that did not come back.
+     */
     restoreExisting(): Promise<RenderSummary[]>;
+    /** Renders that were cut off and could be carried on, newest first. */
+    interruptedRenders(): Promise<InterruptedRenderSummary[]>;
     dispose(): void;
 }
 
@@ -94,6 +125,11 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
     // with nothing on screen to say the setting had not taken effect.
     let storageDir = options.storageDir;
 
+    // One store per install, constructed here so its instance id is fresh for this
+    // launch. That id is what makes a session left `running` by a previous launch
+    // recognisable as a render whose app is gone; see the note at the top of session.ts.
+    const sessions = new RenderSessionStore({ storageDir: () => storageDir });
+
     const orchestrator = new RenderOrchestrator({
         storageDir: () => storageDir,
         // Read through the existing module, every time, and never asked here. The
@@ -105,6 +141,7 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         mounts: options.mounts,
         onEvent: broadcast,
         appVersion: options.appVersion ?? null,
+        sessions,
     });
 
     ipcMain.handle("render:start", async (_event: IpcMainInvokeEvent, request: RenderRequest) => {
@@ -116,6 +153,61 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
     });
 
     ipcMain.handle("render:active", () => orchestrator.activeRenderIds());
+
+    /**
+     * Renders that were cut off, and how far each got.
+     *
+     * Reconciles as it reads, so a session left `running` by an app that crashed stops
+     * claiming to be running the first time anybody asks. Nothing here restarts anything:
+     * the answer is a list, and the decision is the person's.
+     */
+    ipcMain.handle("render:interrupted", async () => await interrupted());
+
+    /**
+     * Carries an interrupted render on from where it stopped.
+     *
+     * The same maps, the same config, and no `-f`, so BlueMap's own incremental storage
+     * skips every tile already on disk. Nothing is deleted: not the output, and above all
+     * not `rstate`, which is the record of what has already been done.
+     *
+     * The optional second argument is the maps the caller believes it is resuming. Pass
+     * it and a settings change since the render died is refused with a message that says
+     * so; omit it and the session's own settings are used, which is always consistent.
+     */
+    ipcMain.handle(
+        "render:resume",
+        async (
+            _event: IpcMainInvokeEvent,
+            renderId: unknown,
+            maps?: unknown,
+        ): Promise<ResumeIpcResult> => {
+            if (typeof renderId !== "string") {
+                return {
+                    started: false,
+                    refusal: {
+                        ok: false,
+                        renderId: "",
+                        code: "no-session",
+                        message: "A render id is needed to say which render to carry on.",
+                    },
+                };
+            }
+
+            const session = await sessions.read(renderId);
+            const decision = planResume(session, {
+                running: orchestrator.activeRenderIds().includes(renderId),
+                ...(Array.isArray(maps) ? { maps: maps as RenderRequest["maps"] } : {}),
+            });
+            if (!decision.ok) return { started: false, refusal: decision };
+            return { started: true, result: await orchestrator.render(decision.request) };
+        },
+    );
+
+    /** Declines the offer, so it is made once rather than at every launch. */
+    ipcMain.handle("render:dismissResume", async (_event: IpcMainInvokeEvent, renderId: unknown) => {
+        if (typeof renderId !== "string") return false;
+        return await sessions.dismiss(renderId);
+    });
 
     ipcMain.handle("render:list", async () => await summarise(storageDir, options.mounts));
 
@@ -152,10 +244,22 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         return { ok: true as const, directory: storageDir };
     });
 
+    async function interrupted(): Promise<InterruptedRenderSummary[]> {
+        const found = await findInterruptedRenders(sessions);
+        return found.map((entry) => entry.summary);
+    }
+
     return {
         orchestrator,
         mounts: options.mounts,
+        sessions,
+        storageDirectory: () => storageDir,
         async restoreExisting(): Promise<RenderSummary[]> {
+            // Done first, and on every launch: this is the moment a render that was
+            // running when the app died stops being described as running. The list it
+            // returns is dropped here because the interface asks for it over IPC; what
+            // matters is that the files on disk have been made honest.
+            await interrupted();
             const summaries: RenderSummary[] = [];
             for (const renderId of await listRenderIds(storageDir)) {
                 const record = await orchestrator.mountExisting(renderId);
@@ -163,6 +267,7 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
             }
             return summaries;
         },
+        interruptedRenders: interrupted,
         dispose(): void {
             for (const channel of RENDER_CHANNELS) ipcMain.removeHandler(channel);
         },
@@ -174,6 +279,9 @@ const RENDER_CHANNELS = [
     "render:start",
     "render:cancel",
     "render:active",
+    "render:interrupted",
+    "render:resume",
+    "render:dismissResume",
     "render:list",
     "render:engine",
     "render:storageDirectory",

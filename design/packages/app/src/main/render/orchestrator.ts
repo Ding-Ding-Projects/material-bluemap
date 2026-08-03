@@ -32,6 +32,7 @@ import {
 import type { RenderEngineId, RenderOutcome, RenderRecord } from "./provenance.js";
 import { CliRun } from "./runner.js";
 import type { SpawnCli } from "./runner.js";
+import type { RenderSessionStore } from "./session.js";
 import { renderIdForWorld, renderWorkspace } from "./workspace.js";
 import type { RenderWorkspace } from "./workspace.js";
 
@@ -180,6 +181,14 @@ export interface RenderOrchestratorOptions {
     readonly resolveEngine: () => Promise<ResolvedEngine>;
     /** Where a finished render is mounted for the viewer. */
     readonly mounts?: LocalMapHandler;
+    /**
+     * Where a render says it has started, how far it got, and how it ended.
+     *
+     * Optional, and everything below works without it: a render with no session store
+     * still renders, still reports, still records provenance. What is lost is only the
+     * ability to notice afterwards that it never finished. See `session.ts`.
+     */
+    readonly sessions?: RenderSessionStore;
     readonly onEvent?: (event: RenderEvent) => void;
     readonly appVersion?: string | null;
     readonly spawn?: SpawnCli;
@@ -323,6 +332,18 @@ export class RenderOrchestrator {
         const startedAt = this.timestamp();
         let record = this.newRecord(renderId, engine, request, startedAt);
         await this.saveRecord(workspace, record);
+        // Written before the process is spawned, so a crash one second later still leaves
+        // a record saying a render was running and where its output is.
+        await this.options.sessions?.start({
+            renderId,
+            maps: request.maps,
+            configDir: workspace.configDir,
+            outputRoot: workspace.webRoot,
+            engine: engine.engine,
+            engineVersion: engine.engineVersion,
+            javaVersion: engine.javaVersion,
+            startedAt,
+        });
 
         this.emit({
             type: "started",
@@ -363,6 +384,10 @@ export class RenderOrchestrator {
                             task: signal.progress,
                             at: this.timestamp(),
                         });
+                        // Not awaited: this runs on the stream the engine is writing to,
+                        // and a slow disk must never back that up. The store throttles
+                        // its own writes and swallows its own failures.
+                        void this.options.sessions?.progress(renderId, signal.progress);
                         break;
                     case "log":
                         this.emit({
@@ -393,6 +418,9 @@ export class RenderOrchestrator {
         if (result.cancelled) {
             record = { ...record, outcome: "cancelled", finishedAt, durationMs: result.durationMs };
             await this.saveRecord(workspace, record);
+            // Cancellation is an interruption with a reason, not a crash and not a
+            // failure. The tiles it finished are finished, so the resume is still offered.
+            await this.options.sessions?.interrupt(renderId, "cancelled", null);
             this.emit({ type: "cancelled", renderId, at: finishedAt });
             return { ok: false, renderId, failure: failures.cancelled(), record };
         }
@@ -407,11 +435,13 @@ export class RenderOrchestrator {
                 failureCode: failure.code,
             };
             await this.saveRecord(workspace, record);
+            await this.options.sessions?.interrupt(renderId, "failed", failure.code);
             return this.fail(renderId, failure, record);
         }
 
         record = { ...record, outcome: "finished", finishedAt, durationMs: result.durationMs };
         await this.saveRecord(workspace, record);
+        await this.options.sessions?.complete(renderId);
         this.mount(workspace, record);
 
         const dataRoot = LocalMapHandler.dataRoot(renderId);

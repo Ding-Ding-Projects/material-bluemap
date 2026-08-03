@@ -117,6 +117,44 @@ export {
     type RenderedMapRecord,
 } from "./provenance.js";
 
+export {
+    RENDER_SESSION_FILE,
+    RENDER_SESSION_VERSION,
+    RenderSessionStore,
+    listRenderSessions,
+    newRenderSession,
+    readRenderSession,
+    renderConfigFingerprint,
+    sessionFile,
+    writeRenderSession,
+    type NewSessionInput,
+    type RenderInterruptionReason,
+    type RenderSession,
+    type RenderSessionMap,
+    type RenderSessionProgress,
+    type RenderSessionStatus,
+    type RenderSessionStoreOptions,
+} from "./session.js";
+
+export {
+    describeInterrupted,
+    findInterruptedRenders,
+    isResumable,
+    observedStatus,
+    planResume,
+    reconcile,
+    resumeRequestFor,
+    toInterruptedSummary,
+    type FindInterruptedOptions,
+    type InterruptedRender,
+    type InterruptedRenderSummary,
+    type PlanResumeOptions,
+    type ResumeDecision,
+    type ResumePlan,
+    type ResumeRefusalCode,
+    type ResumeRefused,
+} from "./resume.js";
+
 export { LocalMapHandler, type LocalMapMount } from "./LocalMapHandler.js";
 
 export {

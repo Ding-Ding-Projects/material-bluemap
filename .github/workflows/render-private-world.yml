@@ -1,0 +1,587 @@
+name: Encrypted render
+
+# Renders a world that lives somewhere else, without that somewhere else being visible
+# from here.
+#
+# The arrangement, and why it is shaped like this, is written up in full at
+# docs/private-world-rendering.md - including the part that cannot be engineered away:
+# while a job runs, the decrypted world is on a machine this repository does not own.
+# Read that before deciding this is right for your world.
+#
+# What this file will and will not do:
+#
+#   - It fetches an encrypted payload from a repository named only in a secret, verifies
+#     it, decrypts it, renders it, encrypts the result and publishes that result back to
+#     the same place. Nothing rendered is kept here.
+#   - It never creates a release on this repository, and it never uploads world or map
+#     data as an Actions artifact. Artifacts belong to a run, and on a public repository
+#     a run's artifacts can be downloaded by anyone, which would undo the whole point.
+#     The only artifact here is the renderer jar, which is built from vendored public
+#     sources and holds no world data.
+#   - It fails closed. A missing secret, a key of the wrong length or a payload that does
+#     not authenticate stops the run. There is no path here that carries on in the clear.
+#
+# Every identifier that appears in a log is a keyed hash. The world's name, the
+# repository's name and the release tags are derived from a label that never leaves the
+# secret store, so a reader of this run learns that something was rendered and roughly
+# how large it was, and nothing else.
+#
+# Mojang's EULA: this workflow accepts it on behalf of the person who configured these
+# secrets, exactly as the public render workflow does. BlueMap downloads a Minecraft
+# client jar from Mojang for block models and textures and cannot render without one.
+# https://www.minecraft.net/eula
+# Set the repository variable BLUEMAP_ACCEPT_DOWNLOAD to "false" to refuse that instead.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dimension:
+        description: Dimension to render
+        type: choice
+        default: minecraft:overworld
+        options:
+          - minecraft:overworld
+          - minecraft:the_nether
+          - minecraft:the_end
+      budget-minutes:
+        description: Rendering minutes one job may spend before the world is split
+        type: string
+        default: '240'
+      max-jobs:
+        description: Cap on parallel render jobs (GitHub itself refuses more than 256)
+        type: string
+        default: '64'
+
+# Nothing here writes to this repository. The private side is reached with its own token,
+# which the workflow token has no relationship to.
+permissions:
+  contents: read
+
+concurrency:
+  group: encrypted-render
+  cancel-in-progress: false
+
+env:
+  MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
+  # Deliberately fixed rather than an input. A map id ends up in paths, in commands and
+  # therefore in this public log; a real world's name in that position would leak the one
+  # thing this whole arrangement exists to keep. The map can be renamed on the private
+  # side after it is downloaded.
+  MAP_ID: world
+  MAP_NAME: World
+
+jobs:
+  # ---------------------------------------------------------------------------------
+  # Prove the run can work before it starts, and set up somewhere to put the pieces.
+  #
+  # Discovering a missing secret three jobs in is expensive and, worse, happens after a
+  # world has already been decrypted onto a runner.
+  # ---------------------------------------------------------------------------------
+  preflight:
+    name: Preflight
+    runs-on: ubuntu-latest
+    outputs:
+      staging-tag: ${{ steps.ids.outputs.staging }}
+      release-tag: ${{ steps.ids.outputs.release }}
+      world-id: ${{ steps.ids.outputs.world }}
+      plan-id: ${{ steps.ids.outputs.plan }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the transport
+        working-directory: design
+        run: pnpm --filter "@material-bluemap/render-actions..." run build
+
+      # Reads the key, checks it is a real 32-byte key, and names any secret that is not
+      # set. Prints neither the key nor anything derived from the private side.
+      - name: Check the secrets
+        env:
+          PRIVATE_WORLD_KEY: ${{ secrets.PRIVATE_WORLD_KEY }}
+          PRIVATE_WORLD_REPO: ${{ secrets.PRIVATE_WORLD_REPO }}
+          PRIVATE_WORLD_TOKEN: ${{ secrets.PRIVATE_WORLD_TOKEN }}
+          PRIVATE_WORLD_LABEL: ${{ secrets.PRIVATE_WORLD_LABEL }}
+          PRIVATE_WORLD_SOURCE_TAG: ${{ secrets.PRIVATE_WORLD_SOURCE_TAG }}
+        run: |
+          set -euo pipefail
+          node design/packages/render-actions/dist/private/cli.js check \
+            --require PRIVATE_WORLD_REPO \
+            --require PRIVATE_WORLD_TOKEN \
+            --require PRIVATE_WORLD_LABEL \
+            --require PRIVATE_WORLD_SOURCE_TAG
+
+      # Every name this run uses, derived from one secret label. The run id is folded in
+      # so two runs of the same world never share a staging release and delete each
+      # other's assets halfway through.
+      - name: Derive the identifiers
+        id: ids
+        env:
+          PRIVATE_WORLD_KEY: ${{ secrets.PRIVATE_WORLD_KEY }}
+          PRIVATE_WORLD_LABEL: ${{ secrets.PRIVATE_WORLD_LABEL }}
+        run: |
+          set -euo pipefail
+          cli="node design/packages/render-actions/dist/private/cli.js"
+          {
+            echo "staging=$($cli id --label-env PRIVATE_WORLD_LABEL --staging "$GITHUB_RUN_ID")"
+            echo "release=r-$($cli id --label-env PRIVATE_WORLD_LABEL --suffix "release|$GITHUB_RUN_ID")"
+            echo "world=$($cli id --label-env PRIVATE_WORLD_LABEL --suffix source)"
+            echo "plan=$($cli id --label-env PRIVATE_WORLD_LABEL --suffix "plan|$GITHUB_RUN_ID")"
+          } >> "$GITHUB_OUTPUT"
+
+      # A prerelease, because it is scaffolding rather than a thing anybody should
+      # download, and it is deleted at the end of the run.
+      - name: Open a staging release on the private side
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_WORLD_TOKEN }}
+          PRIVATE_REPO: ${{ secrets.PRIVATE_WORLD_REPO }}
+          STAGING_TAG: ${{ steps.ids.outputs.staging }}
+        run: |
+          set -euo pipefail
+          gh release create "$STAGING_TAG" \
+            --repo "$PRIVATE_REPO" \
+            --title "Render scaffolding" \
+            --notes "Encrypted intermediate data for one render. Deleted when the run ends." \
+            --prerelease
+
+  # ---------------------------------------------------------------------------------
+  # The renderer, built from the vendored sources in this repository.
+  #
+  # This is the one artifact in the workflow, and it is deliberately one: the jar is
+  # built from public code and contains nothing about the private side, so the usual
+  # cheap transport is the right one for it.
+  # ---------------------------------------------------------------------------------
+  cli:
+    name: Build the renderer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build the shadow jar
+        working-directory: vendor/BlueMap
+        run: ./gradlew --no-daemon :cli:shadowJar
+
+      - name: Collect the jar
+        shell: bash
+        run: |
+          set -euo pipefail
+          jar=$(ls vendor/BlueMap/implementations/cli/build/libs/*-shadow.jar | head -1)
+          mkdir -p cli-out
+          cp "$jar" cli-out/bluemap-cli.jar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bluemap-cli
+          path: cli-out/bluemap-cli.jar
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------------
+  # Fetch the sealed world, prove it is a world, and decide how many jobs it needs.
+  #
+  # The plan is sealed and pushed to the staging release rather than passed between jobs
+  # in the open: it describes the world's extent in blocks, which is more than this run
+  # should say out loud. The shard count does reach the public side, because a matrix
+  # needs it. See the trust boundary section of the documentation.
+  # ---------------------------------------------------------------------------------
+  prepare:
+    name: Prepare
+    needs: preflight
+    runs-on: ubuntu-latest
+    outputs:
+      shard-ids: ${{ steps.plan.outputs.shard-ids }}
+      shard-count: ${{ steps.plan.outputs.shard-count }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the planner
+        working-directory: design
+        run: pnpm --filter "@material-bluemap/render-actions..." run build
+
+      - name: Fetch the sealed world
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_WORLD_TOKEN }}
+          PRIVATE_REPO: ${{ secrets.PRIVATE_WORLD_REPO }}
+          SOURCE_TAG: ${{ secrets.PRIVATE_WORLD_SOURCE_TAG }}
+          WORLD_ID: ${{ needs.preflight.outputs.world-id }}
+        run: |
+          set -euo pipefail
+          mkdir -p sealed-world
+          gh release download "$SOURCE_TAG" \
+            --repo "$PRIVATE_REPO" \
+            --pattern "$WORLD_ID.*" \
+            --dir sealed-world \
+            --clobber
+
+      # Verifies every part's authentication tag and the manifest's digests before a byte
+      # of it is treated as a world. A payload that fails is refused here, not rendered.
+      - name: Open it
+        env:
+          PRIVATE_WORLD_KEY: ${{ secrets.PRIVATE_WORLD_KEY }}
+          PRIVATE_WORLD_LABEL: ${{ secrets.PRIVATE_WORLD_LABEL }}
+        run: |
+          set -euo pipefail
+          node design/packages/render-actions/dist/private/cli.js open \
+            --in sealed-world \
+            --out world.tar \
+            --label-env PRIVATE_WORLD_LABEL \
+            --suffix source
+          mkdir -p world-in
+          tar -xf world.tar -C world-in
+          rm -f world.tar
+          rm -rf sealed-world
+
+      - name: Plan the render
+        id: plan
+        run: |
+          set -euo pipefail
+          node design/packages/render-actions/dist/cli.js plan \
+            --world world-in \
+            --dimension '${{ inputs.dimension }}' \
+            --map-id "$MAP_ID" \
+            --out shard-plan.json \
+            --budget-minutes '${{ inputs.budget-minutes }}' \
+            --max-jobs '${{ inputs.max-jobs }}' \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Seal the plan and stage it
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_WORLD_TOKEN }}
+          PRIVATE_REPO: ${{ secrets.PRIVATE_WORLD_REPO }}
+          PRIVATE_WORLD_KEY: ${{ secrets.PRIVATE_WORLD_KEY }}
+          PRIVATE_WORLD_LABEL: ${{ secrets.PRIVATE_WORLD_LABEL }}
+          STAGING_TAG: ${{ needs.preflight.outputs.staging-tag }}
+        run: |
+          set -euo pipefail
+          node design/packages/render-actions/dist/private/cli.js seal \
+            --in shard-plan.json \
+            --out sealed-plan \
+            --label-env PRIVATE_WORLD_LABEL \
+            --suffix "plan|$GITHUB_RUN_ID"
+          gh release upload "$STAGING_TAG" --repo "$PRIVATE_REPO" --clobber sealed-plan/*
+
+      # The runner is thrown away after this, but leaving a decrypted world lying around
+      # until it is costs nothing to avoid.
+      - name: Wipe the decrypted world
+        if: always()
+        run: rm -rf world-in world.tar sealed-world shard-plan.json
+
+  # ---------------------------------------------------------------------------------
+  # One job per shard. Each fetches the sealed world itself rather than being handed a
+  # decrypted copy: the only transport between jobs on this path is the private
+  # repository, and a job that wants a world downloads and verifies its own.
+  # ---------------------------------------------------------------------------------
+  render:
+    name: Render ${{ matrix.shard }}
+    needs: [preflight, cli, prepare]
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.prepare.outputs.shard-ids) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the planner
+        working-directory: design
+        run: pnpm --filter "@material-bluemap/render-actions..." run build
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: bluemap-cli
+          path: cli
+
+      - name: Fetch and open the world and the plan
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_WORLD_TOKEN }}
+          PRIVATE_REPO: ${{ secrets.PRIVATE_WORLD_REPO }}
+          PRIVATE_WORLD_KEY: ${{ secrets.PRIVATE_WORLD_KEY }}
+          PRIVATE_WORLD_LABEL: ${{ secrets.PRIVATE_WORLD_LABEL }}
+          SOURCE_TAG: ${{ secrets.PRIVATE_WORLD_SOURCE_TAG }}
+          STAGING_TAG: ${{ needs.preflight.outputs.staging-tag }}
+          WORLD_ID: ${{ needs.preflight.outputs.world-id }}
+          PLAN_ID: ${{ needs.preflight.outputs.plan-id }}
+        run: |
+          set -euo pipefail
+          cli="node design/packages/render-actions/dist/private/cli.js"
+
+          mkdir -p sealed-world sealed-plan
+          gh release download "$SOURCE_TAG" --repo "$PRIVATE_REPO" \
+            --pattern "$WORLD_ID.*" --dir sealed-world --clobber
+          gh release download "$STAGING_TAG" --repo "$PRIVATE_REPO" \
+            --pattern "$PLAN_ID.*" --dir sealed-plan --clobber
+
+          $cli open --in sealed-world --out world.tar \
+            --label-env PRIVATE_WORLD_LABEL --suffix source
+          mkdir -p world-in
+          tar -xf world.tar -C world-in
+          rm -f world.tar
+          rm -rf sealed-world
+
+          $cli open --in sealed-plan --out shard-plan.json \
+            --label-env PRIVATE_WORLD_LABEL --suffix "plan|$GITHUB_RUN_ID"
+          rm -rf sealed-plan
+
+      - name: Write this shard's config
+        run: |
+          set -euo pipefail
+          node design/packages/render-actions/dist/cli.js config \
+            --plan shard-plan.json \
+            --shard '${{ matrix.shard }}' \
+            --world "$GITHUB_WORKSPACE/world-in" \
+            --config-dir "$GITHUB_WORKSPACE/bluemap-config" \
+            --data-dir "$GITHUB_WORKSPACE/bluemap-data" \
+            --storage-root "$GITHUB_WORKSPACE/bluemap-out/maps" \
+            --web-root "$GITHUB_WORKSPACE/bluemap-out" \
+            --map-name "$MAP_NAME" \
+            --threads 4 \
+            --accept-download "$MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD"
+
+      - name: Render
+        run: java -Xmx10G -jar "$GITHUB_WORKSPACE/cli/bluemap-cli.jar" -c "$GITHUB_WORKSPACE/bluemap-config" -r -g
+
+      # Sealed and pushed to the staging release. This is where the private path differs
+      # most visibly from the public one, which uploads each shard as an artifact: an
+      # artifact of this repository's run would be a public copy of somebody's map.
+      - name: Seal what this shard produced and stage it
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_WORLD_TOKEN }}
+          PRIVATE_REPO: ${{ secrets.PRIVATE_WORLD_REPO }}
+          PRIVATE_WORLD_KEY: ${{ secrets.PRIVATE_WORLD_KEY }}
+          PRIVATE_WORLD_LABEL: ${{ secrets.PRIVATE_WORLD_LABEL }}
+          STAGING_TAG: ${{ needs.preflight.outputs.staging-tag }}
+        run: |
+          set -euo pipefail
+          tar -cf shard.tar -C bluemap-out/maps .
+          node design/packages/render-actions/dist/private/cli.js seal \
+            --in shard.tar \
+            --out sealed-shard \
+            --label-env PRIVATE_WORLD_LABEL \
+            --suffix "shard|${{ matrix.shard }}|$GITHUB_RUN_ID"
+          gh release upload "$STAGING_TAG" --repo "$PRIVATE_REPO" --clobber sealed-shard/*
+          rm -f shard.tar
+
+      # The webapp shell is identical from every shard, so exactly one of them sends it.
+      - name: Seal the webapp shell
+        if: matrix.shard == 0
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_WORLD_TOKEN }}
+          PRIVATE_REPO: ${{ secrets.PRIVATE_WORLD_REPO }}
+          PRIVATE_WORLD_KEY: ${{ secrets.PRIVATE_WORLD_KEY }}
+          PRIVATE_WORLD_LABEL: ${{ secrets.PRIVATE_WORLD_LABEL }}
+          STAGING_TAG: ${{ needs.preflight.outputs.staging-tag }}
+        run: |
+          set -euo pipefail
+          tar -cf webapp.tar --exclude=./maps -C bluemap-out .
+          node design/packages/render-actions/dist/private/cli.js seal \
+            --in webapp.tar \
+            --out sealed-webapp \
+            --label-env PRIVATE_WORLD_LABEL \
+            --suffix "webapp|$GITHUB_RUN_ID"
+          gh release upload "$STAGING_TAG" --repo "$PRIVATE_REPO" --clobber sealed-webapp/*
+          rm -f webapp.tar
+
+      - name: Wipe the decrypted world and map
+        if: always()
+        run: rm -rf world-in bluemap-out bluemap-data shard-plan.json shard.tar webapp.tar
+
+  # ---------------------------------------------------------------------------------
+  # Put the shards back together, prove nothing was lost, and send the map home.
+  # ---------------------------------------------------------------------------------
+  assemble:
+    name: Assemble
+    needs: [preflight, prepare, render]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the merger
+        working-directory: design
+        run: pnpm --filter "@material-bluemap/render-actions..." run build
+
+      - name: Collect every shard
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_WORLD_TOKEN }}
+          PRIVATE_REPO: ${{ secrets.PRIVATE_WORLD_REPO }}
+          PRIVATE_WORLD_KEY: ${{ secrets.PRIVATE_WORLD_KEY }}
+          PRIVATE_WORLD_LABEL: ${{ secrets.PRIVATE_WORLD_LABEL }}
+          STAGING_TAG: ${{ needs.preflight.outputs.staging-tag }}
+          PLAN_ID: ${{ needs.preflight.outputs.plan-id }}
+          SHARD_COUNT: ${{ needs.prepare.outputs.shard-count }}
+        run: |
+          set -euo pipefail
+          cli="node design/packages/render-actions/dist/private/cli.js"
+
+          mkdir -p sealed-plan
+          gh release download "$STAGING_TAG" --repo "$PRIVATE_REPO" \
+            --pattern "$PLAN_ID.*" --dir sealed-plan --clobber
+          $cli open --in sealed-plan --out shard-plan.json \
+            --label-env PRIVATE_WORLD_LABEL --suffix "plan|$GITHUB_RUN_ID"
+          rm -rf sealed-plan
+
+          mkdir -p shards
+          index=0
+          while [ "$index" -lt "$SHARD_COUNT" ]; do
+            id=$($cli id --label-env PRIVATE_WORLD_LABEL \
+              --suffix "shard|$index|$GITHUB_RUN_ID")
+            mkdir -p "sealed-shard-$index" "shards/shard-$index"
+            gh release download "$STAGING_TAG" --repo "$PRIVATE_REPO" \
+              --pattern "$id.*" --dir "sealed-shard-$index" --clobber
+            # Each part's tag is checked here, and the manifest's digests over the set.
+            # A shard that does not authenticate stops the assembly rather than being
+            # skipped, because a map missing a quarter of itself looks like a rendered map.
+            $cli open --in "sealed-shard-$index" --out "shard-$index.tar" \
+              --label-env PRIVATE_WORLD_LABEL --suffix "shard|$index|$GITHUB_RUN_ID"
+            tar -xf "shard-$index.tar" -C "shards/shard-$index"
+            rm -rf "sealed-shard-$index" "shard-$index.tar"
+            index=$((index + 1))
+          done
+
+          mkdir -p sealed-webapp site
+          webapp=$($cli id --label-env PRIVATE_WORLD_LABEL --suffix "webapp|$GITHUB_RUN_ID")
+          gh release download "$STAGING_TAG" --repo "$PRIVATE_REPO" \
+            --pattern "$webapp.*" --dir sealed-webapp --clobber
+          $cli open --in sealed-webapp --out webapp.tar \
+            --label-env PRIVATE_WORLD_LABEL --suffix "webapp|$GITHUB_RUN_ID"
+          tar -xf webapp.tar -C site
+          rm -rf sealed-webapp webapp.tar
+
+      # The same merge and the same verification the public path uses. Only the transport
+      # differs; the correctness argument for the merge is identical and lives in
+      # docs/render-in-actions.md.
+      - name: Merge the shards
+        run: |
+          set -euo pipefail
+          node design/packages/render-actions/dist/cli.js merge \
+            --shards shards \
+            --plan shard-plan.json \
+            --map-id "$MAP_ID" \
+            --out "site/maps/$MAP_ID"
+
+      - name: Verify the merge
+        run: |
+          set -euo pipefail
+          node design/packages/render-actions/dist/cli.js verify \
+            --plan shard-plan.json \
+            --shards shards \
+            --map-id "$MAP_ID" \
+            --merged "site/maps/$MAP_ID"
+
+      # The one output of the whole run, and it goes to the private repository. Nothing
+      # is published here, and nothing rendered stays here.
+      - name: Send the map home
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_WORLD_TOKEN }}
+          PRIVATE_REPO: ${{ secrets.PRIVATE_WORLD_REPO }}
+          PRIVATE_WORLD_KEY: ${{ secrets.PRIVATE_WORLD_KEY }}
+          PRIVATE_WORLD_LABEL: ${{ secrets.PRIVATE_WORLD_LABEL }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.release-tag }}
+        run: |
+          set -euo pipefail
+          tar -cf map.tar -C site .
+          node design/packages/render-actions/dist/private/cli.js seal \
+            --in map.tar \
+            --out sealed-map \
+            --label-env PRIVATE_WORLD_LABEL \
+            --suffix "release|$GITHUB_RUN_ID"
+
+          gh release create "$RELEASE_TAG" \
+            --repo "$PRIVATE_REPO" \
+            --title "Rendered map" \
+            --notes "Encrypted rendered map. Open it with the private transport CLI and the same key that sealed the world."
+          gh release upload "$RELEASE_TAG" --repo "$PRIVATE_REPO" --clobber sealed-map/*
+          rm -f map.tar
+
+      - name: Wipe the decrypted map
+        if: always()
+        run: rm -rf shards site map.tar shard-plan.json
+
+  # ---------------------------------------------------------------------------------
+  # Take the scaffolding down, however the run ended.
+  #
+  # A staging release left behind after a failure is a pile of encrypted intermediate
+  # data sitting in somebody's repository forever. It is encrypted, so it is not a leak,
+  # but it is litter and it makes the next failure harder to read.
+  # ---------------------------------------------------------------------------------
+  cleanup:
+    name: Clean up
+    needs: [preflight, assemble]
+    if: always() && needs.preflight.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete the staging release
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_WORLD_TOKEN }}
+          PRIVATE_REPO: ${{ secrets.PRIVATE_WORLD_REPO }}
+          STAGING_TAG: ${{ needs.preflight.outputs.staging-tag }}
+        run: |
+          set -euo pipefail
+          gh release delete "$STAGING_TAG" --repo "$PRIVATE_REPO" --yes --cleanup-tag

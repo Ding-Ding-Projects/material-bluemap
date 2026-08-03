@@ -21,6 +21,7 @@
         "@playwright/test": "^1.50.0"
     },
     "dependencies": {
+        "@material-bluemap/parts": "workspace:*",
         "@material-bluemap/server": "workspace:*",
         "electron-store": "^10.1.0"
     }
