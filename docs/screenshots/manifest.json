@@ -1,0 +1,19 @@
+{
+  "capturedBy": "design/packages/app/test/screenshots.spec.ts",
+  "method": "Playwright _electron against the packaged app entry point",
+  "commit": "f59ca091f2fd2c28f3aaf888a93b2db260e00a68",
+  "run": "30787162563",
+  "viewports": [
+    "1280x800",
+    "1920x1080",
+    "1024x768",
+    "800x600-narrow"
+  ],
+  "scales": [
+    1,
+    1.25,
+    1.5,
+    2
+  ],
+  "note": "Every image is a capture of the real running app. None is a mockup or a design file."
+}

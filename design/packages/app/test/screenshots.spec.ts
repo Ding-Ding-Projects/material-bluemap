@@ -73,8 +73,11 @@ test.beforeAll(async () => {
     // If mounting failed we still want a capture of the broken state.
     await page.waitForSelector("#app", { timeout: 30_000 });
 
+    // `.mb-app` is the class App.vue puts on its `<v-app>` root. Do NOT wait on
+    // `.v-application`: Vuetify 3.13 does not emit it, so that selector reports a
+    // perfectly mounted app as broken, and a false alarm here would mask a real one.
     const mounted = await page
-        .waitForSelector(".v-application", { timeout: 20_000 })
+        .waitForSelector(".mb-app", { timeout: 20_000 })
         .then(() => true)
         .catch(() => false);
 
