@@ -1,4 +1,11 @@
 import { app, BrowserWindow, ipcMain, session, shell, clipboard } from "electron";
+import {
+    acceptDownload,
+    completeFirstRun,
+    needsFirstRun,
+    readConsent,
+    revokeDownloadConsent,
+} from "./consent.js";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { randomBytes } from "node:crypto";
@@ -93,6 +100,14 @@ function registerIpc(): void {
         if (typeof text === "string") clipboard.writeText(text);
     });
     ipcMain.handle("app:version", () => app.getVersion());
+
+    // Mojang download consent. Asked once during first-run setup and remembered
+    // afterwards, so it never appears on top of a render somebody has started.
+    ipcMain.handle("consent:read", () => readConsent());
+    ipcMain.handle("consent:accept", () => acceptDownload());
+    ipcMain.handle("consent:revoke", () => revokeDownloadConsent());
+    ipcMain.handle("firstRun:needed", () => needsFirstRun());
+    ipcMain.handle("firstRun:complete", () => completeFirstRun());
 }
 
 async function createWindow(): Promise<void> {
