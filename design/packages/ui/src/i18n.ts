@@ -1,4 +1,5 @@
 import { parseHocon } from "@material-bluemap/shared";
+import { getLocalStorage } from "@material-bluemap/viewer";
 import { createI18n, type I18n } from "vue-i18n";
 
 /**
@@ -58,7 +59,13 @@ export async function setLanguage(
 
 export async function loadLanguage(i18n: I18n<Record<string, unknown>>): Promise<void> {
     await loadLanguageSettings();
-    let lang = localStorage.getItem("bluemap-lang") ?? navigator.language.split("-")[0] ?? "en";
+    // The viewer writes this key through `setLocalStorage`, which JSON-stringifies, so the
+    // raw stored value is `"en"` including the quote characters. Reading it with
+    // `localStorage.getItem` returned that verbatim, the `languages.some(...)` check below
+    // never matched, and the saved language silently fell back to the default on every load.
+    const stored = getLocalStorage("bluemap-lang");
+    let lang =
+        (typeof stored === "string" ? stored : null) ?? navigator.language.split("-")[0] ?? "en";
     if (!languages.some((l) => l.locale === lang)) lang = defaultLanguage;
     await setLanguage(i18n, lang);
 }

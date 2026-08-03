@@ -6,17 +6,115 @@
 .v-theme--dark,
 .v-theme--light,
 .v-theme--contrast {
-  --theme-bg: rgb(var(--v-theme-surface));
-  --theme-bg-light: rgba(var(--v-theme-on-surface), 0.12);
-  --theme-bg-hover: rgba(var(--v-theme-on-surface), 0.08);
-  --theme-fg: rgb(var(--v-theme-on-surface));
-  --theme-fg-light: rgba(var(--v-theme-on-surface), 0.7);
+    --theme-bg: rgb(var(--v-theme-surface));
+    --theme-bg-light: rgba(var(--v-theme-on-surface), 0.12);
+    --theme-bg-hover: rgba(var(--v-theme-on-surface), 0.08);
+    --theme-fg: rgb(var(--v-theme-on-surface));
+    --theme-fg-light: rgba(var(--v-theme-on-surface), 0.7);
 }
 
 html,
 body {
-  margin: 0;
-  overflow: hidden;
-  overscroll-behavior: none;
-  background: rgb(var(--v-theme-background));
+    margin: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+    background: rgb(var(--v-theme-background));
+}
+
+/* ---------------------------------------------------------------------------
+ * Stacking: the map canvas below, the chrome above.
+ *
+ * index.html renders #map-container and #app as siblings. #map-container is the
+ * viewer's own root: it is fixed and fills the viewport, and a positioned element
+ * paints above non-positioned in-flow content whatever the document order says. So
+ * with #app left static the entire Vue tree ended up underneath the canvas.
+ *
+ * Both get an explicit position and z-index instead of relying on paint order.
+ * Keep #map-container positioned: that is what confines the CSS2D marker layer
+ * (per-marker z-index up to the marker count) and the debug Stats panel (inline
+ * z-index 10000) to their own stacking context. Drop it and they escape over the UI.
+ * ------------------------------------------------------------------------- */
+#map-container {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+}
+
+#map-container canvas {
+    display: block;
+}
+
+/*
+ * The app layer covers the whole viewport but is click-through by default, so
+ * dragging the map through the gaps between controls still reaches the canvas.
+ * Every interactive leaf opts back in - upstream did the same thing.
+ */
+#app {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none;
+
+    /*
+   * Size of one free-flight touch arrow, and the gap between the two in a cluster. Shared
+   * rather than scoped to the component, because the shell has to lift its own bottom-left
+   * control clear of that cluster and the two numbers must not drift apart.
+   * Big enough for a thumb on a phone, capped so it never eats a desktop touchscreen.
+   */
+    --mb-ff-size: clamp(56px, 11vmin, 92px);
+    --mb-ff-gap: 8px;
+}
+
+/* Short viewports (landscape phones, 800x600, 4:3 tablets) get smaller clusters so two
+   stacked arrows plus the control bar never collide. 48px is still a full hit target. */
+@media (max-height: 620px) {
+    #app {
+        --mb-ff-size: clamp(48px, 9vmin, 64px);
+        --mb-ff-gap: 6px;
+    }
+}
+
+/* v-app-bar, v-navigation-drawer, v-footer and friends are direct children of the
+   Vuetify layout wrapper. They are real chrome and take pointer events. */
+#app .v-application__wrap > * {
+    pointer-events: auto;
+}
+
+/* v-main is the map viewport: it must stay click-through, so its floating children
+   opt in individually with .mb-interactive. .v-overlay-container needs no rule here,
+   Vuetify already ships pointer-events:none on it with the scrim and content set to auto. */
+#app .v-main {
+    pointer-events: none;
+}
+
+.mb-interactive {
+    pointer-events: auto;
+}
+
+/* v-app paints the theme background colour by default, which would hide the map. */
+.mb-app,
+.mb-app > .v-application__wrap {
+    background: transparent !important;
+}
+
+/* Focus must stay visible everywhere in the chrome. Vuetify's own focus treatment is a 12%
+   tint overlay, which is far too subtle over a busy map render, so every focusable control in
+   the app layer also gets a real outline. */
+#app .v-btn:focus-visible,
+#app .v-list-item:focus-visible,
+#app .v-slider-thumb:focus-visible,
+#app [role="button"]:focus-visible,
+#app a:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+}
+
+/* The user asked for no motion, so the chrome's transitions go too, not only the ones on the
+   floating controls. Vuetify already does this for v-main on its own. */
+@media (prefers-reduced-motion: reduce) {
+    #app,
+    #app * {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
 }
