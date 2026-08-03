@@ -1,6 +1,6 @@
 /**
- * The four settings a failed render can point at, and how the surface's own search
- * finds them.
+ * The four settings a failed render can point at, every section this surface renders,
+ * and how the surface's own search finds them.
  *
  * The anchor list is not a convenience: it is the contract `SettingsTarget.anchor`
  * carries across the bridge from the main process. A render that stops because there is
@@ -9,6 +9,13 @@
  * here and the strings in `world/worldBridge.ts` and in the preload are the same four
  * words, and {@link isSettingsAnchor} is what keeps a value that came from outside this
  * package from being trusted as one of them.
+ *
+ * **The surface shows more than those four.** GitHub sign-in lives here too, and nothing
+ * in the main process can send somebody to it, because no render stops for the want of a
+ * GitHub account in a way a `SettingsTarget` describes. Adding it to the bridge contract
+ * to make one list would be widening a contract to fit a layout; so the two lists are
+ * separate and {@link SETTINGS_SECTIONS} is the superset the surface actually renders,
+ * with the render-reachable four still their own closed set.
  *
  * Searching is done over the text a section actually renders — its title, its
  * explanation and its current values — rather than over a hand-written keyword list. A
@@ -36,9 +43,26 @@ export const SETTINGS_ANCHORS = [
  */
 export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
 
+/**
+ * Every section on the surface, in the order it lists them.
+ *
+ * The four render-reachable anchors first, because those are the ones somebody arrives
+ * at from a failure and expects to be looking straight at, then the sections that are
+ * only ever reached by opening Settings and reading.
+ */
+export const SETTINGS_SECTIONS = [...SETTINGS_ANCHORS, "github-account"] as const;
+
+/** A section this surface renders, whether or not a render can send somebody to it. */
+export type SettingsSectionAnchor = (typeof SETTINGS_SECTIONS)[number];
+
 /** True for one of the four anchors, for a value that arrived from outside this package. */
 export function isSettingsAnchor(value: unknown): value is SettingsAnchor {
     return typeof value === "string" && (SETTINGS_ANCHORS as readonly string[]).includes(value);
+}
+
+/** True for any section the surface renders, including the ones no render points at. */
+export function isSettingsSection(value: unknown): value is SettingsSectionAnchor {
+    return typeof value === "string" && (SETTINGS_SECTIONS as readonly string[]).includes(value);
 }
 
 /**
@@ -50,7 +74,7 @@ export function isSettingsAnchor(value: unknown): value is SettingsAnchor {
  * showing that path and not the section that showed it when the surface opened.
  */
 export interface SettingsSectionText {
-    readonly anchor: SettingsAnchor;
+    readonly anchor: SettingsSectionAnchor;
     readonly title: string;
     readonly description: string;
     /** Current values and any other text the section renders. */
@@ -75,7 +99,7 @@ export function sectionHaystack(section: SettingsSectionText): string {
 export function filterSections(
     sections: readonly SettingsSectionText[],
     matcher: SettingMatcher,
-): SettingsAnchor[] {
+): SettingsSectionAnchor[] {
     if (!matcher.active) return sections.map((section) => section.anchor);
     return sections
         .filter((section) => matcher.test(sectionHaystack(section)))

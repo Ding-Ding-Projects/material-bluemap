@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiClose } from "@mdi/js";
 import {
@@ -13,6 +13,8 @@ import {
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
+import GitHubAccountRow from "../github/GitHubAccountRow.vue";
+import { createGitHubAccount, githubSearchValues } from "../github/githubAccount.js";
 import ConsentSettingsRow from "../setup/ConsentSettingsRow.vue";
 import { consentSearchLabels } from "../setup/consentSearch.js";
 import { defaultMapStorageDir } from "../setup/mapStorage.js";
@@ -22,11 +24,17 @@ import StorageSettingRow from "./StorageSettingRow.vue";
 import WorldFolderRow from "./WorldFolderRow.vue";
 import { createJavaSetting, describeJavaRejections } from "./javaSetting.js";
 import { createMapStorageSetting } from "./mapStorageSetting.js";
-import { javaUnsupportedCopy, sectionCopy, worldFolderCopy } from "./settingsCopy.js";
+import {
+    githubSectionCopy,
+    javaUnsupportedCopy,
+    sectionCopy,
+    worldFolderCopy,
+} from "./settingsCopy.js";
 import {
     filterSections,
     sectionSample,
     type SettingsAnchor,
+    type SettingsSectionAnchor,
     type SettingsSectionText,
 } from "./settingsSections.js";
 
@@ -77,6 +85,14 @@ const { t } = useI18n();
  */
 const storage = createMapStorageSetting();
 const java = createJavaSetting();
+const github = createGitHubAccount();
+
+// The GitHub controller is the only one of the three that subscribes to a push channel,
+// so it is the only one with a subscription to give back. Left attached it would keep
+// answering events after the surface it draws has gone.
+onBeforeUnmount(() => {
+    github.dispose();
+});
 
 const panel = ref<HTMLElement | null>(null);
 const consentRow = ref<InstanceType<typeof ConsentSettingsRow> | null>(null);
@@ -127,6 +143,16 @@ const sections = computed<SettingsSectionText[]>(() => {
         storageValues.push(storage.resolved.value.current, storage.resolved.value.default);
     }
 
+    // The account's own words: the login somebody can see on screen, the kind of token,
+    // the scopes it reports. A build that cannot sign in contributes the sentence saying
+    // so instead, so searching for "GitHub" finds the section either way.
+    const githubCopy = githubSectionCopy(t);
+    const githubValues = [
+        ...githubSearchValues({ status: github.status.value, account: github.account.value }),
+        githubCopy.whatItIsFor,
+        github.supported ? "" : githubCopy.unsupported,
+    ];
+
     return [
         {
             anchor: "mojang-download-consent",
@@ -152,6 +178,12 @@ const sections = computed<SettingsSectionText[]>(() => {
             description: text["world-folder"].description,
             values: [worldCopy.perMap, worldCopy.where],
         },
+        {
+            anchor: "github-account",
+            title: text["github-account"].title,
+            description: text["github-account"].description,
+            values: githubValues,
+        },
     ];
 });
 
@@ -161,7 +193,7 @@ const visible = computed(() => filterSections(sections.value, matcher.value));
 
 const sample = computed(() => sectionSample(sections.value));
 
-function shows(anchor: SettingsAnchor): boolean {
+function shows(anchor: SettingsSectionAnchor): boolean {
     return visible.value.includes(anchor);
 }
 
@@ -255,6 +287,9 @@ watch(
         // somebody will act on.
         void storage.load();
         void java.load();
+        // Cheap: it reads stored metadata rather than the credential, so asking never
+        // prompts the operating system's credential store.
+        void github.load();
         scheduleReveal(props.anchor);
     },
     { immediate: true },
@@ -402,6 +437,22 @@ function onDrawer(value: boolean): void {
                 <WorldFolderRow
                     :missing="props.anchor === 'world-folder' && props.anchorMissing"
                 />
+            </SettingsSection>
+
+            <!--
+                No render can send somebody here: nothing in the bridge's `SettingsTarget`
+                names a GitHub account, because a render that cannot reach a private
+                repository fails on the repository rather than on the setting. So this
+                section is reached by opening Settings, and is listed and searched exactly
+                like the four that a failure can link to.
+            -->
+            <SettingsSection
+                v-show="shows('github-account')"
+                anchor="github-account"
+                :title="copy['github-account'].title"
+                :description="copy['github-account'].description"
+            >
+                <GitHubAccountRow :account="github" />
             </SettingsSection>
 
             <p v-if="visible.length === 0" class="mb-settings__empty" role="status">

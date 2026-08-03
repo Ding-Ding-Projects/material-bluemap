@@ -15,7 +15,7 @@
  * without mounting anything.
  */
 
-import type { SettingsAnchor } from "./settingsSections.js";
+import type { SettingsSectionAnchor } from "./settingsSections.js";
 
 /** `(key, English fallback) => string`, which is what `useI18n().t` narrows to here. */
 export type Translate = (key: string, fallback: string) => string;
@@ -26,13 +26,15 @@ export interface SectionCopy {
 }
 
 /**
- * The four sections, in the order the surface lists them.
+ * Every section, in the order the surface lists them.
  *
  * Consent is first because it is the one a fresh install is most likely to be sent here
- * for, and the world folder is last because it is the one that turns out not to be a
- * setting on this screen at all.
+ * for, and the world folder is last of the four that a render can point at because it is
+ * the one that turns out not to be a setting on this screen at all. GitHub sign-in comes
+ * after them: no render stops for the want of it in a way the bridge can describe, so it
+ * is reached by opening Settings rather than by following a link out of a failure.
  */
-export function sectionCopy(t: Translate): Readonly<Record<SettingsAnchor, SectionCopy>> {
+export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor, SectionCopy>> {
     return {
         "mojang-download-consent": {
             title: t("settings.consent.title", "Mojang download consent"),
@@ -62,6 +64,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsAnchor, Secti
                 "The Minecraft world a map is rendered from. This is set per map in the map wizard rather than once for the whole app, so there is no folder to change on this screen.",
             ),
         },
+        "github-account": {
+            title: t("settings.github.title", "GitHub account"),
+            description: t(
+                "settings.github.description",
+                "Signing in lets the app reach worlds in private repositories and download release assets that are not public. Everything public works without it, so this is optional. The token is held by the app itself and never shown on this screen.",
+            ),
+        },
     };
 }
 
@@ -85,6 +94,39 @@ export function javaUnsupportedCopy(t: Translate): JavaUnsupportedCopy {
         discoveryOrder: t(
             "settings.java.discoveryOrder",
             "When a render starts, the app looks at JAVA_HOME first, then java on PATH, then the copy it installed for itself, and runs each one before trusting it. A render that finds nothing suitable says so, and names every candidate it turned down.",
+        ),
+    };
+}
+
+export interface GitHubSectionCopy {
+    readonly unsupported: string;
+    readonly whatItIsFor: string;
+    readonly signedOut: string;
+}
+
+/**
+ * The GitHub section's prose, shared with the search for the same reason the Java
+ * section's is.
+ *
+ * `unsupported` is what a host with no preload says — a browser tab has no main process
+ * to hold a credential, so there is nothing to sign in *with* and the section says that
+ * rather than offering a button that cannot work. `whatItIsFor` is on screen in every
+ * state, because "why does a map renderer want my GitHub account" is the first question
+ * anybody reasonable asks and the answer is short.
+ */
+export function githubSectionCopy(t: Translate): GitHubSectionCopy {
+    return {
+        unsupported: t(
+            "settings.github.unsupported",
+            "This build cannot sign in to GitHub. Nothing is wrong with your account, and nothing was stored: the sign-in is held by the desktop app, and this build has no way to reach it.",
+        ),
+        whatItIsFor: t(
+            "settings.github.whatFor",
+            "Signing in is only needed for private repositories: rendering a world that lives in one, and downloading a release asset that is not public. Public worlds and public releases work signed out.",
+        ),
+        signedOut: t(
+            "settings.github.signedOut",
+            "Not signed in. Nothing is stored on this computer, and public repositories still work.",
         ),
     };
 }

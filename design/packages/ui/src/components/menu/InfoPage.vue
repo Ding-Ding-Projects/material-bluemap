@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { sanitizeHtml } from "@material-bluemap/viewer";
 import type { BlueMapApp } from "@material-bluemap/viewer";
@@ -10,15 +10,53 @@ import { useBlueMap } from "./useBlueMap";
  * `v-html`. That content is markup (a logo, three control tables, `<kbd>` keys and an
  * external link), so it has to be rendered rather than printed.
  *
- * Two deviations from upstream, both deliberate:
+ * Four deviations from upstream, all deliberate:
  *  - the markup goes through the port's shared sanitizer before it reaches the DOM;
  *  - external links get `target="_blank" rel="noopener noreferrer"`, because in the desktop
- *    shell an in-place navigation would replace the whole application window.
+ *    shell an in-place navigation would replace the whole application window;
+ *  - the locale's logo is given real alt text and pointed at the circular 512px copy of the
+ *    same mark (see {@link decorate});
+ *  - this is the port's About surface, so it also states the version of the *application*,
+ *    which is a different number from the one the locale footer prints (see below).
  */
 const props = defineProps<{ bluemap?: BlueMapApp | null }>();
 
 const app = useBlueMap(() => props.bluemap);
 const { t } = useI18n();
+
+/**
+ * The logo the locale markup carries, at the size and shape the page actually renders.
+ *
+ * Every `info.content` translation opens with `<img src="assets/logo.png">` styled to 40%
+ * of the sheet width with `border-radius: 50%`. That source is a 200px square, so the page
+ * upscales it and then throws its corners away; `logoCircle512.png` is the identical mark,
+ * already circular, at a resolution the display can use. Both ship in every build. The
+ * rewrite is deliberately exact - anything other than that one path is left alone, because
+ * a translation pointing somewhere else is pointing there on purpose.
+ */
+const LOCALE_LOGO = "assets/logo.png";
+const BUNDLED_LOGO = "assets/logoCircle512.png";
+
+/**
+ * Applies the port's edits to the sanitized fragment: link hardening, then the logo.
+ *
+ * The alt text matters as much as the source: upstream ships the image with no `alt` at
+ * all, which a screen reader reports by reading the file name aloud. It is named rather
+ * than marked decorative because it is the only thing on the page that identifies what the
+ * application is.
+ */
+function decorate(fragment: DocumentFragment): void {
+    for (const anchor of Array.from(fragment.querySelectorAll("a[href]"))) {
+        anchor.setAttribute("target", "_blank");
+        anchor.setAttribute("rel", "noopener noreferrer");
+    }
+    for (const image of Array.from(fragment.querySelectorAll("img"))) {
+        if (image.getAttribute("src") === LOCALE_LOGO) image.setAttribute("src", BUNDLED_LOGO);
+        if (!image.hasAttribute("alt")) {
+            image.setAttribute("alt", t("info.logoAlt", "The BlueMap logo"));
+        }
+    }
+}
 
 const content = computed(() => {
     const version = app.value?.settings?.version ?? "?";
@@ -27,11 +65,67 @@ const content = computed(() => {
 
     const template = document.createElement("template");
     template.innerHTML = sanitizeHtml(raw);
-    for (const anchor of Array.from(template.content.querySelectorAll("a[href]"))) {
-        anchor.setAttribute("target", "_blank");
-        anchor.setAttribute("rel", "noopener noreferrer");
-    }
+    decorate(template.content);
     return template.innerHTML;
+});
+
+/* -------------------------------------------------------------------------- */
+/* The application's own version                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `getVersion()` over the preload's `app:version` channel, when there is a preload.
+ *
+ * Two different versions meet on this page and they are not interchangeable. The locale
+ * footer prints `settings.version`, which is the version of BlueMap that generated the map
+ * data being viewed; this one is the version of the desktop application doing the viewing,
+ * and it is the number somebody quotes in a bug report.
+ *
+ * Feature-detected one method at a time, like every other bridge call in this package: a
+ * browser tab has no preload, and there the block renders nothing at all rather than an
+ * empty `Version:` label, which would read as "this build has no version" rather than
+ * "nobody here can be asked".
+ */
+interface VersionBridge {
+    getVersion?: () => Promise<string>;
+}
+
+function versionReader(): (() => Promise<string>) | null {
+    const bridge = (globalThis as { materialBluemap?: VersionBridge }).materialBluemap;
+    const read = bridge?.getVersion;
+    if (typeof read !== "function" || bridge === undefined) return null;
+    return () => read.call(bridge);
+}
+
+/**
+ * Electron's `ipcRenderer.invoke` re-wraps a handler's rejection as
+ * `Error invoking remote method 'app:version': Error: <message>`. The channel name and the
+ * doubled `Error:` are plumbing rather than the sentence anybody wrote, so they are
+ * stripped before the line renders, exactly as `settings/javaSetting.ts` strips them.
+ */
+function describe(error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
+    return message.replace(/^Error invoking remote method '[^']*':\s*(?:Error:\s*)?/, "");
+}
+
+const appVersion = ref<string | null>(null);
+const versionFailure = ref<string | null>(null);
+
+onMounted(() => {
+    const read = versionReader();
+    if (read === null) return;
+    void read()
+        .then((value) => {
+            // A shell that answers with a blank string has told us nothing, and printing
+            // "Material BlueMap" with a gap after it would be worse than staying quiet.
+            const trimmed = value.trim();
+            if (trimmed.length > 0) appVersion.value = trimmed;
+        })
+        .catch((error: unknown) => {
+            // A build that has the channel and fails on it has a real fault, and hiding it
+            // would leave the page looking like a browser tab. Say what happened instead.
+            versionFailure.value = describe(error);
+        });
 });
 </script>
 
@@ -40,6 +134,24 @@ const content = computed(() => {
     <div v-if="content" class="mb-info-page" v-html="content" />
     <p v-else class="mb-info-page__empty">
         {{ t("info.title", "Info") }}
+    </p>
+
+    <!--
+      Not a live region: the answer arrives one IPC round trip after mount, well before a
+      screen reader working down the page reaches the end of the control tables, and
+      announcing it would interrupt that reading for a line the reader is about to reach.
+    -->
+    <p v-if="appVersion !== null" class="mb-info-page__version">
+        {{ t("info.appVersion", { version: appVersion }, "Material BlueMap {version}") }}
+    </p>
+    <p v-else-if="versionFailure !== null" class="mb-info-page__version">
+        {{
+            t(
+                "info.appVersionFailed",
+                { reason: versionFailure },
+                "This build could not report its version: {reason}",
+            )
+        }}
     </p>
 </template>
 
@@ -110,6 +222,19 @@ const content = computed(() => {
 .mb-info-page__empty {
     padding: 12px 16px;
     font-size: 0.875rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+/*
+ * A sibling of the rendered content rather than a child of it, so the empty state keeps
+ * its own padding instead of nesting inside the page's. The inline padding matches both.
+ */
+.mb-info-page__version {
+    margin: 0;
+    padding: 0 16px 16px;
+    text-align: center;
+    font-size: 0.75rem;
+    overflow-wrap: anywhere;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

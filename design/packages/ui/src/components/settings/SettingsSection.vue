@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, useId } from "vue";
-import type { SettingsAnchor } from "./settingsSections.js";
+import type { SettingsSectionAnchor } from "./settingsSections.js";
 
 /**
  * One setting on the settings surface, and the thing a failed render actually lands on.
@@ -20,7 +20,11 @@ import type { SettingsAnchor } from "./settingsSections.js";
  * arrives, it just does not slide.
  */
 const props = defineProps<{
-    anchor: SettingsAnchor;
+    /**
+     * Any section the surface renders, not only the four a render can point at: the
+     * GitHub sign-in is listed and searched here and nothing in the bridge can link to it.
+     */
+    anchor: SettingsSectionAnchor;
     title: string;
     description: string;
 }>();

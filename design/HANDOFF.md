@@ -614,3 +614,29 @@ job died on `installer-out/Squirrel.exe`, a file electron-builder has never emit
 the workflow lint died on its own step's comment — `# shellcheck is present…` parses as a
 malformed shellcheck *directive*. Both fixed; `.nupkg` + `RELEASES` stay hard requirements
 and the comment no longer opens with the magic word.
+
+### The second wave: the two renderer-less features, and what the captures showed
+
+- **GitHub sign-in has a surface** (`components/github/`, a fifth settings section):
+  device-flow panel driven entirely by `onGitHubAuthEvent` (code shown large with a
+  spelled-out `aria-label`, countdown from events with no local clock, every terminal
+  state distinct), a personal-access-token path whose token goes from the field to the
+  bridge and is held nowhere, sign-out that says both what is deleted and what revocation
+  was attempted, and an honest no-bridge state with no controls at all. 47 tests.
+- **Release downloads have a surface** (`components/downloads/`, entered from the world
+  wizard's folder step): discovery of an asset's split parts, live rows from
+  `onDownloadEvent` with real byte counts, reconciliation with `activeDownloads()` on
+  open so a download started elsewhere is not invisible, cancel, and the honest
+  unsupported state. `githubCheckRepository` stays deliberately unused here — it belongs
+  to the private-render path when that is wired.
+- **The version reaches the Info page** (feature-detected, Electron plumbing stripped),
+  and **Roboto Mono ships** (400 + 500, the two weights the surfaces actually inherit).
+  The NOTICE entries for both faces were corrected to **OFL-1.1** — Roboto was relicensed,
+  and the earlier Apache-2.0 line described a version this repository does not bundle.
+- **The green run's own captures caught a real overlap**: the viewer's floating control
+  bar anchored at `top: 0` sat on the custom title bar — the menu button covered the logo
+  and title, and the top-right cluster covered minimize/maximize/close. It now reads
+  `--mb-titlebar-height`, the same property `#map-container` already consumes.
+
+Merged-tree verification for the wave: **app + ui 1245 tests green**, `vue-tsc`, `tsc`
+and `eslint` clean, both bundles built (12 Roboto Mono woff2 subsets in dist).

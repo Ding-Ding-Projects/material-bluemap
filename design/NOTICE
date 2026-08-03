@@ -23,6 +23,16 @@ Minecraft client jar from Mojang's servers at runtime only after explicit
 user consent, mirroring upstream BlueMap's "accept-download" flow.
 
 Roboto - https://fonts.google.com/specimen/Roboto
-Copyright 2011 Google Inc. All Rights Reserved.
-Licensed under the Apache License, Version 2.0. Bundled locally (via the
-@fontsource/roboto npm packaging) so the application loads no remote fonts.
+Copyright 2011 The Roboto Project Authors
+(https://github.com/googlefonts/roboto-classic)
+Licensed under the SIL Open Font License, Version 1.1. Bundled locally (via
+the @fontsource/roboto npm packaging, which ships it under that licence) so
+the application loads no remote fonts.
+
+Roboto Mono - https://fonts.google.com/specimen/Roboto+Mono
+Copyright 2015 The Roboto Mono Project Authors
+(https://github.com/googlefonts/robotomono)
+Licensed under the SIL Open Font License, Version 1.1. Bundled locally (via
+the @fontsource/roboto-mono npm packaging) so the application loads no remote
+fonts. It is the first family named by every monospace surface: file paths,
+config previews, engine logs, regex matches and keyboard keys.

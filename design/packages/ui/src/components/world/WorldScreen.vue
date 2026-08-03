@@ -21,6 +21,7 @@ import {
     type WorldBridge,
 } from "./worldBridge.js";
 import { createBridgeConfigHost, provideConfigHost, type ConfigHost } from "../config/configHost.js";
+import { provideSettingsOpener } from "../downloads/index.js";
 
 /**
  * The surface that turns "no map loaded" into a rendered map.
@@ -73,6 +74,18 @@ const bridge = props.bridge === undefined ? resolveWorldBridge() : props.bridge;
 const optional = props.optionalBridge === undefined ? resolveOptionalWorldBridge() : props.optionalBridge;
 const host = props.host === undefined ? createBridgeConfigHost() : props.host;
 provideConfigHost(host);
+
+/**
+ * The route from a failure deep inside the wizard to the setting that fixes it.
+ *
+ * The release downloader lives in the wizard's first step, several components below this
+ * one, and a download that cannot write names the storage setting as its remedy. This is
+ * the nearest screen that knows how to open one, and providing it here rather than
+ * threading an emit through every wizard step keeps the steps in between free of a concern
+ * none of them has. A surface mounted without this offer says the setting's name in words
+ * instead of showing a button that goes nowhere.
+ */
+provideSettingsOpener((target) => emit("settings", target));
 
 const run = createRenderRun(bridge);
 const offers = createResumeOffers(bridge);

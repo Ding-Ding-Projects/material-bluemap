@@ -1,9 +1,17 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiCheckCircleOutline, mdiFolderSearchOutline, mdiRefresh } from "@mdi/js";
+import {
+    mdiCheckCircleOutline,
+    mdiChevronDown,
+    mdiChevronUp,
+    mdiCloudDownloadOutline,
+    mdiFolderSearchOutline,
+    mdiRefresh,
+} from "@mdi/js";
 import { VAlert, VBtn, VChip, VProgressCircular, VTextField } from "vuetify/components";
 import { useConfigHost } from "../config/configHost.js";
+import { ReleaseDownloads, type DownloadBridge } from "../downloads/index.js";
 import { describeWorld, describeWorldProblem, type WorldInspection } from "./worldFolder.js";
 
 /**
@@ -17,6 +25,14 @@ import { describeWorld, describeWorldProblem, type WorldInspection } from "./wor
  *
  * When this build has no way to read a folder, the step says exactly that instead
  * of showing a tick it did not earn.
+ *
+ * This is also where somebody who has no world at all is standing, so it is where the
+ * release downloader belongs. A release of this project carries whole worlds and already
+ * rendered maps, published in checksummed parts because they are far past the size a
+ * single release asset may be, and a downloaded one is unpacked into a folder this step
+ * can take exactly as if it had been picked from disk. It stays folded away behind a
+ * disclosure: somebody who already has a world should not have to look at a repository
+ * name to get past step one.
  */
 const props = defineProps<{
     modelValue: string;
@@ -24,6 +40,12 @@ const props = defineProps<{
     inspecting: boolean;
     /** True when the app can actually look inside a folder. */
     canInspect: boolean;
+    /**
+     * Injected in tests. Left out, the downloads surface probes the Electron bridge
+     * itself, which is why this has no default: `undefined` means probe, `null` means
+     * there is deliberately no bridge and the honest unsupported state is shown.
+     */
+    downloadBridge?: DownloadBridge | null;
 }>();
 
 const emit = defineEmits<{
@@ -43,6 +65,30 @@ const path = computed<string>({
 const problems = computed(() => props.inspection.problems.map((problem) => describeWorldProblem(problem, t)));
 const summary = computed(() => describeWorld(props.inspection, t));
 const good = computed(() => props.inspection.ok && !props.inspection.unchecked);
+
+/**
+ * Whether the downloader is on screen.
+ *
+ * Closed to start with, and `v-if` rather than `v-show`, because mounting it is what makes
+ * it ask the main process what is already downloading. Doing that for everybody who opens
+ * the wizard would be work nobody asked for; doing it when somebody opens this is exactly
+ * when the answer matters.
+ */
+const downloadsOpen = ref(false);
+
+/**
+ * Takes a downloaded folder as the world, and checks it like any other.
+ *
+ * The archive is unpacked into a folder of its own, and what is inside is whatever was
+ * published: sometimes the world itself, sometimes a directory holding it. Nothing is
+ * assumed either way. The folder is put in the field and inspected exactly as a picked one
+ * is, so a downloaded archive that turns out to hold several worlds gets the same sentence
+ * as a `saves` directory picked by hand, rather than a special case that guesses.
+ */
+function useDownloaded(folder: string): void {
+    emit("update:modelValue", folder);
+    emit("inspect", folder);
+}
 
 async function browse(): Promise<void> {
     if (host === null) return;
@@ -161,6 +207,25 @@ async function browse(): Promise<void> {
                 </div>
             </v-alert>
         </template>
+
+        <div class="mb-world-step__downloads">
+            <v-btn
+                :prepend-icon="mdiCloudDownloadOutline"
+                :append-icon="downloadsOpen ? mdiChevronUp : mdiChevronDown"
+                :aria-expanded="downloadsOpen ? 'true' : 'false'"
+                variant="text"
+                size="small"
+                @click="downloadsOpen = !downloadsOpen"
+            >
+                {{
+                    downloadsOpen
+                        ? t("world.folder.hideDownloads", "Hide the release downloads")
+                        : t("world.folder.showDownloads", "No world on this machine? Download one from a release")
+                }}
+            </v-btn>
+
+            <ReleaseDownloads v-if="downloadsOpen" :bridge="downloadBridge" @use="useDownloaded" />
+        </div>
     </section>
 </template>
 
@@ -216,5 +281,11 @@ async function browse(): Promise<void> {
     margin-inline-start: 6px;
     font-variant-numeric: tabular-nums;
     opacity: 0.8;
+}
+
+.mb-world-step__downloads {
+    margin-block-start: 16px;
+    padding-block-start: 8px;
+    border-block-start: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 </style>

@@ -21,15 +21,32 @@ export { default as WorldFolderRow } from "./WorldFolderRow.vue";
 
 export {
     SETTINGS_ANCHORS,
+    SETTINGS_SECTIONS,
     filterSections,
     isSettingsAnchor,
+    isSettingsSection,
     sectionHaystack,
     sectionSample,
 } from "./settingsSections.js";
-export type { SettingsAnchor, SettingsSectionText } from "./settingsSections.js";
+export type {
+    SettingsAnchor,
+    SettingsSectionAnchor,
+    SettingsSectionText,
+} from "./settingsSections.js";
 
-export { javaUnsupportedCopy, sectionCopy, worldFolderCopy } from "./settingsCopy.js";
-export type { JavaUnsupportedCopy, SectionCopy, Translate, WorldFolderCopy } from "./settingsCopy.js";
+export {
+    githubSectionCopy,
+    javaUnsupportedCopy,
+    sectionCopy,
+    worldFolderCopy,
+} from "./settingsCopy.js";
+export type {
+    GitHubSectionCopy,
+    JavaUnsupportedCopy,
+    SectionCopy,
+    Translate,
+    WorldFolderCopy,
+} from "./settingsCopy.js";
 
 export {
     browseForFolder,

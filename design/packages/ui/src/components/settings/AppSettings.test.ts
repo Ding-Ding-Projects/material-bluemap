@@ -23,7 +23,12 @@ import ConsentSettingsRow from "../setup/ConsentSettingsRow.vue";
 import { currentPlatform, mapStorageExample, readMapStorageDir } from "../setup/mapStorage.js";
 import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
 import { reloadSetupLanguage } from "../setup/setupI18n.js";
-import { SETTINGS_ANCHORS, type SettingsAnchor } from "./settingsSections.js";
+import {
+    SETTINGS_ANCHORS,
+    SETTINGS_SECTIONS,
+    type SettingsAnchor,
+    type SettingsSectionAnchor,
+} from "./settingsSections.js";
 
 const scrollIntoView = vi.fn();
 
@@ -158,18 +163,18 @@ afterEach(() => {
     document.body.innerHTML = "";
 });
 
-function section(anchor: SettingsAnchor): HTMLElement {
+function section(anchor: SettingsSectionAnchor): HTMLElement {
     const element = document.querySelector<HTMLElement>(`#mb-setting-${anchor}`);
     if (element === null) throw new Error(`no section rendered for ${anchor}`);
     return element;
 }
 
 describe("every setting a render can point at", () => {
-    it("renders all four sections", async () => {
+    it("renders every section, including the ones no render can link to", async () => {
         open();
         await settle();
 
-        for (const anchor of SETTINGS_ANCHORS) {
+        for (const anchor of SETTINGS_SECTIONS) {
             expect(section(anchor).isConnected).toBe(true);
         }
     });
@@ -199,7 +204,7 @@ describe("every setting a render can point at", () => {
         const active = document.activeElement;
         expect(active).not.toBeNull();
         expect(document.querySelector(".mb-settings__body")).toBe(active);
-        for (const anchor of SETTINGS_ANCHORS) {
+        for (const anchor of SETTINGS_SECTIONS) {
             expect(section(anchor).contains(active)).toBe(false);
         }
     });
@@ -340,6 +345,37 @@ describe("the world folder", () => {
     });
 });
 
+describe("the GitHub account", () => {
+    /*
+     * The fake preload above has no GitHub namespace, which is exactly the build most
+     * people are running: the main process holds the whole flow and nothing exposes it
+     * yet. The section has to say that rather than offer a button that would throw.
+     */
+    it("says this build cannot sign in, and draws no control that would throw", async () => {
+        open();
+        await settle();
+
+        const element = section("github-account");
+        expect(element.textContent).toContain("cannot sign in to GitHub");
+        expect(element.textContent).toContain("private repositories");
+        expect(element.querySelectorAll("input")).toHaveLength(0);
+        expect(element.querySelectorAll("button")).toHaveLength(0);
+    });
+
+    it("is found by the surface's own search, like every other section", async () => {
+        open();
+        await settle();
+
+        const field = wrapper?.find(".mb-config-search input");
+        await field?.setValue("GitHub");
+        await settle();
+
+        expect(section("github-account").style.display).not.toBe("none");
+        expect(section("java-runtime").style.display).toBe("none");
+        expect(section("map-storage-directory").style.display).toBe("none");
+    });
+});
+
 describe("searching this surface", () => {
     it("is the shared settings search field, with its regex builder attached", async () => {
         open();
@@ -364,6 +400,7 @@ describe("searching this surface", () => {
         expect(section("mojang-download-consent").style.display).toBe("none");
         expect(section("map-storage-directory").style.display).toBe("none");
         expect(section("world-folder").style.display).toBe("none");
+        expect(section("github-account").style.display).toBe("none");
     });
 
     it("finds a section by a value that is on screen, not only by its title", async () => {
@@ -401,7 +438,7 @@ describe("searching this surface", () => {
         await field?.setValue("");
         await settle();
 
-        for (const anchor of SETTINGS_ANCHORS) {
+        for (const anchor of SETTINGS_SECTIONS) {
             expect(section(anchor).style.display).not.toBe("none");
         }
     });

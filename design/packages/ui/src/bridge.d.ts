@@ -74,6 +74,124 @@ interface BlueMapConfigBridge {
     pathSeparator: string;
 }
 
+/* -------------------------------------------------------------------------- */
+/* GitHub sign-in                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mirrors the GitHub types in the preload, which mirror `main/github/`.
+ *
+ * Every name here carries the `BlueMapGitHub` prefix for the same reason
+ * `MojangConsentRecord` and `BlueMapConfigFile` carry theirs: this file has no import and
+ * no export, so TypeScript reads it in script mode and each of these declarations is
+ * *global*. A bare `GitHubAccount` here would collide with any other ambient declaration
+ * of that name in the program, and the collision would be reported somewhere other than
+ * here.
+ *
+ * **No token appears in any of them.** The credential stays in the main process, which is
+ * the only side that talks to GitHub; the renderer learns who is signed in, what that
+ * account may do, and whether the sign-in was stored.
+ */
+interface BlueMapGitHubAccount {
+    login: string;
+    userId: number | null;
+    name: string | null;
+    scopes: string[];
+    /** False for a GitHub App token and a fine-grained token: neither reports scopes. */
+    scopesReported: boolean;
+    source: "github-app" | "oauth-app" | "personal-access-token";
+    signedInAt: string;
+    /** Null when the token does not expire, which is the normal OAuth App answer. */
+    expiresAt: string | null;
+    refreshable: boolean;
+    /** False when this machine has no credential store; the sign-in lasts this run only. */
+    persisted: boolean;
+    warnings: string[];
+}
+
+interface BlueMapGitHubFailure {
+    code: string;
+    message: string;
+    /** Populated for `insufficient-scopes`, so the interface can name them. */
+    missingScopes: string[];
+    /** True when signing in with the OAuth application instead would likely work. */
+    offerOAuthFallback: boolean;
+}
+
+type BlueMapGitHubSignInResult =
+    | { ok: true; account: BlueMapGitHubAccount }
+    | { ok: false; failure: BlueMapGitHubFailure };
+
+interface BlueMapGitHubSignOutResult {
+    signedOut: boolean;
+    /** True only when GitHub confirmed the revocation, never merely because it was asked. */
+    revoked: boolean;
+    reason: string | null;
+    manageUrl: string | null;
+}
+
+interface BlueMapGitHubStatus {
+    signedIn: boolean;
+    account: BlueMapGitHubAccount | null;
+    /** False when this build has no client configured; only the token path is available. */
+    clientConfigured: boolean;
+    clientKind: "app" | "oauth" | null;
+    encryptionAvailable: boolean;
+    requiredScopes: string[];
+    signingIn: boolean;
+}
+
+/**
+ * What the sign-in screen is told while it waits.
+ *
+ * The only channel the user code, the verification address, the countdown and the expiry
+ * arrive on. A device sign-in waits for as long as somebody takes to reach their phone,
+ * and none of that is available to a screen that can only ask "are we there yet".
+ */
+type BlueMapGitHubAuthEvent =
+    | {
+          type: "code";
+          /** Shown exactly as it arrives, hyphen included: it is what the person types. */
+          userCode: string;
+          verificationUri: string;
+          verificationUriComplete: string | null;
+          expiresAt: string;
+          expiresInSeconds: number;
+          intervalSeconds: number;
+          /** False when the browser could not be opened; show the address instead. */
+          browserOpened: boolean;
+      }
+    | { type: "waiting"; secondsRemaining: number; intervalSeconds: number }
+    | { type: "signed-in"; account: BlueMapGitHubAccount }
+    | { type: "failed"; failure: BlueMapGitHubFailure }
+    | { type: "cancelled" }
+    | { type: "signed-out" };
+
+/**
+ * Whether the signed-in account can reach a repository.
+ *
+ * `app-not-installed` is the case worth naming. GitHub answers 404 both for a repository
+ * that does not exist and for one a GitHub App was never given, so "not found" is the most
+ * misleading true thing the app could say.
+ */
+type BlueMapGitHubRepositoryAccess =
+    | { ok: true; fullName: string; private: boolean }
+    | {
+          ok: false;
+          failure: {
+              code:
+                  | "app-not-installed"
+                  | "not-found"
+                  | "forbidden"
+                  | "invalid-token"
+                  | "network"
+                  | "http";
+              message: string;
+              manageUrl: string | null;
+              offerOAuthFallback: boolean;
+          };
+      };
+
 interface MaterialBlueMapBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
@@ -94,6 +212,69 @@ interface MaterialBlueMapBridge {
     needsFirstRun(): Promise<boolean>;
     /** Called when setup finishes, whichever way consent was answered. */
     completeFirstRun(): Promise<FirstRunState>;
+
+    /**
+     * Who is signed in to GitHub, and what this machine can do about it.
+     *
+     * Reads stored metadata rather than the credential, so asking costs nothing and never
+     * prompts a credential store. `clientConfigured` false means the browser sign-in is
+     * unavailable in this build and only the token path is offered; `encryptionAvailable`
+     * false means a sign-in will not survive a restart, which the screen says *before*
+     * somebody signs in rather than at the next launch when they are signed out again.
+     *
+     * Declared here because this is the shell this interface ships with. `githubBridge.ts`
+     * still probes for every one of these separately and refuses a partial answer, and it
+     * is right to: a released shell can load a newer renderer than the one it was built
+     * beside, and a Sign in button that throws when pressed is worse than a sentence
+     * saying this build cannot sign in.
+     */
+    githubStatus(): Promise<BlueMapGitHubStatus>;
+
+    /**
+     * Starts the browser sign-in and resolves when it is over, whichever way it went.
+     *
+     * This takes as long as somebody takes to reach their phone, so watch
+     * {@link onGitHubAuthEvent} for the code, the countdown and the outcome. It never
+     * rejects: a refusal comes back `ok: false` with a typed `failure.code`.
+     *
+     * `useOAuthFallback` switches from the GitHub App to the OAuth application, and is
+     * offered when a failure comes back with `offerOAuthFallback` — which is what a GitHub
+     * App that was never installed on the wanted repository produces.
+     */
+    githubSignIn(options?: { useOAuthFallback?: boolean }): Promise<BlueMapGitHubSignInResult>;
+
+    /** Stops a sign-in that is waiting for approval. False when none is running. */
+    githubCancelSignIn(): Promise<boolean>;
+
+    /**
+     * Signs in with a personal access token, checking it before believing it.
+     *
+     * The token is verified against the API on the way in, so a wrong or under-scoped one
+     * is named here rather than at the first render. It crosses to the main process and is
+     * never handed back.
+     */
+    githubSignInWithToken(token: string): Promise<BlueMapGitHubSignInResult>;
+
+    /**
+     * Deletes the stored token and attempts to revoke it.
+     *
+     * `revoked` is true only when GitHub confirmed it. A desktop application holds no
+     * client secret and GitHub's revocation endpoint wants one, so on a shipped build the
+     * honest answer is usually false, with a reason and a link for finishing the job.
+     */
+    githubSignOut(): Promise<BlueMapGitHubSignOutResult>;
+
+    /** Whether the signed-in account can actually reach a repository. Ask before a render. */
+    githubCheckRepository(owner: string, repo: string): Promise<BlueMapGitHubRepositoryAccess>;
+
+    /**
+     * Subscribes to sign-in progress. Returns the unsubscribe function.
+     *
+     * Pushed rather than polled, and not a nicety: the user code, the verification address
+     * and the countdown exist nowhere else, so a sign-in surface without this has a
+     * spinner and nothing to type.
+     */
+    onGitHubAuthEvent(listener: (event: BlueMapGitHubAuthEvent) => void): () => void;
 
     /**
      * The config folder, for the options screen.

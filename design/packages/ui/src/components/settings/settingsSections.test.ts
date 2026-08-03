@@ -2,13 +2,20 @@ import { describe, expect, it } from "vitest";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import {
     SETTINGS_ANCHORS,
+    SETTINGS_SECTIONS,
     filterSections,
     isSettingsAnchor,
+    isSettingsSection,
     sectionHaystack,
     sectionSample,
     type SettingsSectionText,
 } from "./settingsSections.js";
-import { javaUnsupportedCopy, sectionCopy, worldFolderCopy } from "./settingsCopy.js";
+import {
+    githubSectionCopy,
+    javaUnsupportedCopy,
+    sectionCopy,
+    worldFolderCopy,
+} from "./settingsCopy.js";
 
 /** The translator the app passes in: key first, English fallback second. */
 const t = (_key: string, fallback: string): string => fallback;
@@ -37,6 +44,12 @@ const SECTIONS: SettingsSectionText[] = [
         title: "World folder",
         description: "Set per map in the map wizard.",
         values: [],
+    },
+    {
+        anchor: "github-account",
+        title: "GitHub account",
+        description: "Signing in lets the app reach private repositories.",
+        values: ["octocat", "oauth-app", "repo"],
     },
 ];
 
@@ -68,6 +81,56 @@ describe("the anchors a render can point at", () => {
     });
 });
 
+describe("every section the surface renders", () => {
+    /*
+     * The surface shows more than the bridge can point at. GitHub sign-in is here because
+     * it is an app-wide setting, and no render can link to it: a job that cannot reach a
+     * private repository fails on the repository, not on a settings row. Widening the
+     * bridge contract to make one list would be widening a contract to suit a layout.
+     */
+    it("is the four a render can point at, plus the ones only Settings reaches", () => {
+        expect([...SETTINGS_SECTIONS]).toEqual([
+            "mojang-download-consent",
+            "java-runtime",
+            "map-storage-directory",
+            "world-folder",
+            "github-account",
+        ]);
+    });
+
+    it("keeps the render-reachable anchors a closed set, GitHub included out of it", () => {
+        expect(isSettingsSection("github-account")).toBe(true);
+        expect(isSettingsAnchor("github-account")).toBe(false);
+        expect(isSettingsSection("appearance")).toBe(false);
+        expect(isSettingsSection(null)).toBe(false);
+    });
+
+    it("has copy for every section, not only the render-reachable ones", () => {
+        const copy = sectionCopy(t);
+        for (const anchor of SETTINGS_SECTIONS) {
+            expect(copy[anchor].title.length).toBeGreaterThan(0);
+            expect(copy[anchor].description.length).toBeGreaterThan(0);
+        }
+        expect(copy["github-account"].title).toContain("GitHub");
+    });
+
+    it("finds the GitHub section by the login on screen, and by the word GitHub", () => {
+        expect(filterSections(SECTIONS, createSettingMatcher("octocat", false, "im"))).toEqual([
+            "github-account",
+        ]);
+        expect(filterSections(SECTIONS, createSettingMatcher("github", false, "im"))).toEqual([
+            "github-account",
+        ]);
+    });
+
+    it("gives the GitHub row words the search will be asked for", () => {
+        const copy = githubSectionCopy(t);
+        expect(copy.unsupported).toContain("cannot sign in to GitHub");
+        expect(copy.whatItIsFor).toContain("private repositories");
+        expect(copy.signedOut).toContain("Not signed in");
+    });
+});
+
 describe("what a section can be found by", () => {
     it("includes the anchor, the title, the explanation and every current value", () => {
         const haystack = sectionHaystack(SECTIONS[1] as SettingsSectionText);
@@ -91,7 +154,7 @@ describe("what a section can be found by", () => {
 describe("filtering the surface", () => {
     it("shows every section when the search bar is empty", () => {
         const matcher = createSettingMatcher("", false, "im");
-        expect(filterSections(SECTIONS, matcher)).toEqual([...SETTINGS_ANCHORS]);
+        expect(filterSections(SECTIONS, matcher)).toEqual([...SETTINGS_SECTIONS]);
     });
 
     it("matches plain text case-insensitively, which is the default", () => {
