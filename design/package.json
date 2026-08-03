@@ -8,6 +8,8 @@
     },
     "packageManager": "pnpm@10.33.0",
     "scripts": {
+        "bootstrap": "node ../scripts/bootstrap.mjs",
+        "bootstrap:check": "node ../scripts/bootstrap.mjs --check",
         "build": "pnpm -r --fail-if-no-match --filter \"./packages/**\" run build",
         "test": "vitest run",
         "test:watch": "vitest",

@@ -74,8 +74,25 @@ git clone https://github.com/Ding-Ding-Projects/material-bluemap.git
 cd material-bluemap
 git submodule update --init --recursive
 
+node scripts/bootstrap.mjs
+```
+
+That one command installs and **verifies** everything: workspace dependencies, the
+Electron binary, a JDK matching upstream's toolchain, Gradle, the BlueMap jars built from the
+vendored source, and the Playwright browsers the screenshot harness drives. It asks nothing and
+needs no administrator rights, and every install is repository-local or user-scoped so no
+machine-wide toolchain is touched.
+
+It verifies rather than assumes, which is not pedantry: Electron once shipped a `dist/` folder
+containing only `locales/`, with no binary at all, and its own installer kept exiting 0 because
+the folder existed. A presence check passes that; running the binary does not. Where a
+dependency's own installer is the thing that is broken, bootstrap repairs it.
+
+```sh
+node scripts/bootstrap.mjs --check       # verify only, install nothing
+node scripts/bootstrap.mjs --skip-jars   # skip the slow first Gradle build
+
 cd design
-pnpm install
 pnpm build
 pnpm test
 pnpm lint
