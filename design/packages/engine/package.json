@@ -17,6 +17,12 @@
     "chokidar": "^4.0.3",
     "lru-cache": "^11.5.2",
     "lz4js": "^0.2.0",
-    "xxhash-wasm": "^1.1.0"
+    "pngjs": "^7.0.0",
+    "xxhash-wasm": "^1.1.0",
+    "yauzl-promise": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/pngjs": "^6.0.5",
+    "@types/yauzl-promise": "^4.0.1"
   }
 }

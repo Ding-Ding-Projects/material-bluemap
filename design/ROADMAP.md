@@ -6,8 +6,8 @@ Phases from `../plan.md`; status is updated as each phase lands on the branch.
 |---|---|---|
 | 0 | plan.md, submodules (+`v0.10.3-mc1.12` legacy tag), monorepo scaffold, CI | **Done** |
 | A | Viewer port (65 files → TS), MD3 shell, Electron shell, embedded server + remote proxy, live-demo verification | **Done** |
-| B | shared utils, NBT library, compression (gzip/deflate/zstd/lz4-block), MCA parsing 1.12.2→26.x incl. legacy `Chunk_1_12` + extensions, MCAWorld/ChunkGrid/watch | In progress |
-| C | Resource-pack pipeline (VFS, blockstates/models/atlases/textures, legacy compat, Mojang downloader + consent, baked-pack SAB) | Pending |
+| B | shared utils, NBT, compression, MCA parsing 1.12.2→26.x incl. legacy Chunk_1_12, e2e synthetic-world proofs | **Done** |
+| C | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, textures.json) | In progress |
 | D | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks | Pending |
 | E | RenderManager worker pool, watch re-render, full HTTP routes + SSE, config schema (every option), standalone server CLI + Dockerfile | Pending |
 | F | Full options GUI (all settings, map wizard, storage editors, config import) | Pending |

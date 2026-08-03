@@ -1,0 +1,34 @@
+{
+  "overlays": {
+    "entries": [
+      {
+        "formats": { "min_inclusive": 5 },
+        "directory": "mc1_15"
+      },
+      {
+        "formats": { "min_inclusive": 7 },
+        "directory": "mc1_17"
+      },
+      {
+        "formats": { "min_inclusive": 22 },
+        "directory": "mc1_20_3"
+      },
+      {
+        "formats": { "min_inclusive": 67 },
+        "directory": "mc1_21_9"
+      },
+      {
+        "formats": { "min_inclusive": 77 },
+        "directory": "mc26_1"
+      },
+      {
+        "formats": { "max_inclusive": 85 },
+        "directory": "beds"
+      },
+      {
+        "formats": { "max_inclusive": 86 },
+        "directory": "signs"
+      }
+    ]
+  }
+}
