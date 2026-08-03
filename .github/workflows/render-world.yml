@@ -1,0 +1,506 @@
+name: Render world
+
+# Renders a Minecraft world into a BlueMap map entirely on GitHub's runners. Nothing is
+# installed locally and no Java is needed on the machine that starts the run.
+#
+# When the world is too big for one job, the plan step splits it across a matrix and a
+# merge job puts the pieces back together. The interesting parts of that split live in
+# design/packages/render-actions, under test, rather than in this file; see
+# docs/render-in-actions.md for why the split is where it is and what makes it safe.
+#
+# Mojang's EULA: this workflow accepts it on behalf of the repository owner, who has
+# already accepted it in the desktop application. BlueMap downloads a Minecraft client
+# jar from Mojang to get the block models and textures and cannot render a map without
+# one. https://www.minecraft.net/eula
+# A fork that does not want that sets the repository variable BLUEMAP_ACCEPT_DOWNLOAD
+# to "false", and the render will refuse the download instead.
+
+on:
+  workflow_dispatch:
+    inputs:
+      world-source:
+        description: Where the world comes from
+        type: choice
+        default: repository
+        options:
+          - repository
+          - url
+          - release-asset
+      world-path:
+        description: 'repository: path to the world inside this repository'
+        type: string
+        default: worlds/world
+      world-url:
+        description: 'url: link to a .zip holding the world'
+        type: string
+        default: ''
+      release-tag:
+        description: 'release-asset: release tag, or "latest"'
+        type: string
+        default: latest
+      release-asset:
+        description: 'release-asset: the asset file name, or a glob such as world*.zip'
+        type: string
+        default: ''
+      dimension:
+        description: Dimension to render
+        type: choice
+        default: minecraft:overworld
+        options:
+          - minecraft:overworld
+          - minecraft:the_nether
+          - minecraft:the_end
+      map-id:
+        description: Storage id of the map (used in the output paths)
+        type: string
+        default: world
+      map-name:
+        description: Display name of the map in the webapp
+        type: string
+        default: World
+      output:
+        description: Where the rendered map goes
+        type: choice
+        default: artifact
+        options:
+          - artifact
+          - artifact-and-pages
+      budget-minutes:
+        description: Rendering minutes one job may spend before the world is split
+        type: string
+        default: '240'
+      max-jobs:
+        description: Cap on parallel render jobs (GitHub itself refuses more than 256)
+        type: string
+        default: '64'
+      force-shards:
+        description: Optional. Use exactly this many shards and skip the estimate.
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-world-${{ inputs.map-id }}
+  cancel-in-progress: false
+
+env:
+  # The repository owner has already accepted Mojang's EULA; a fork can set this variable
+  # to "false" and the render will refuse the client download rather than accept for them.
+  MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
+
+jobs:
+  # ---------------------------------------------------------------------------------
+  # The renderer itself, built once from the vendored BlueMap sources so every shard
+  # runs the exact version this repository targets rather than whatever is newest.
+  # ---------------------------------------------------------------------------------
+  cli:
+    name: Build the BlueMap CLI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Bare project paths: the vendored build declares the CLI as `:cli`, not
+      # `:implementations:cli`, and the wrong path fails with "project not found".
+      - name: Build the shadow jar
+        working-directory: vendor/BlueMap
+        run: ./gradlew --no-daemon :cli:shadowJar
+
+      - name: Collect the jar
+        shell: bash
+        run: |
+          set -euo pipefail
+          jar=$(ls vendor/BlueMap/implementations/cli/build/libs/*-shadow.jar | head -1)
+          echo "Built $jar ($(du -h "$jar" | cut -f1))"
+          mkdir -p cli-out
+          cp "$jar" cli-out/bluemap-cli.jar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bluemap-cli
+          path: cli-out/bluemap-cli.jar
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------------
+  # Fetch the world, prove it is a world, measure it, and decide how many jobs it needs.
+  # ---------------------------------------------------------------------------------
+  plan:
+    name: Measure and plan
+    runs-on: ubuntu-latest
+    outputs:
+      shard-ids: ${{ steps.plan.outputs.shard-ids }}
+      shard-count: ${{ steps.plan.outputs.shard-count }}
+      world-dir: ${{ steps.plan.outputs.world-dir }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the planner
+        working-directory: design
+        run: pnpm --filter "@material-bluemap/render-actions..." run build
+
+      - name: Fetch the world
+        id: fetch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+          SOURCE: ${{ inputs.world-source }}
+          WORLD_PATH: ${{ inputs.world-path }}
+          WORLD_URL: ${{ inputs.world-url }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+          RELEASE_ASSET: ${{ inputs.release-asset }}
+        run: |
+          set -euo pipefail
+          mkdir -p world-in
+          case "$SOURCE" in
+            repository)
+              if [ ! -d "$WORLD_PATH" ]; then
+                echo "::error::No such path in this repository: $WORLD_PATH"
+                exit 1
+              fi
+              cp -r "$WORLD_PATH" world-in/
+              ;;
+            url)
+              if [ -z "$WORLD_URL" ]; then
+                echo "::error::world-source is 'url' but world-url is empty."
+                exit 1
+              fi
+              echo "Downloading $WORLD_URL"
+              curl -fSL --retry 3 --retry-delay 5 -o world.zip "$WORLD_URL"
+              unzip -q world.zip -d world-in
+              ;;
+            release-asset)
+              if [ -z "$RELEASE_ASSET" ]; then
+                echo "::error::world-source is 'release-asset' but release-asset is empty."
+                exit 1
+              fi
+              if [ "$RELEASE_TAG" = "latest" ]; then
+                gh release download --pattern "$RELEASE_ASSET" --dir . --clobber
+              else
+                gh release download "$RELEASE_TAG" --pattern "$RELEASE_ASSET" --dir . --clobber
+              fi
+              archive=$(ls *.zip | head -1)
+              echo "Downloaded $archive"
+              unzip -q "$archive" -d world-in
+              ;;
+          esac
+          echo "Contents of world-in:"
+          ls -la world-in
+
+      # Validates that a level.dat and .mca region files really arrived, counts the
+      # chunks out of the region files' own location tables, and writes the shard plan.
+      # A world that is not a world fails here with a message naming what it found.
+      - name: Plan the render
+        id: plan
+        run: |
+          node design/packages/render-actions/dist/cli.js plan \
+            --world world-in \
+            --dimension '${{ inputs.dimension }}' \
+            --map-id '${{ inputs.map-id }}' \
+            --out shard-plan.json \
+            --budget-minutes '${{ inputs.budget-minutes }}' \
+            --max-jobs '${{ inputs.max-jobs }}' \
+            ${{ inputs.force-shards != '' && format('--force-shards {0}', inputs.force-shards) || '' }} \
+            --github-output "$GITHUB_OUTPUT" \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      # The world is uploaded once here rather than re-fetched by every shard, so a
+      # thirty-way split does not download the same archive thirty times from someone
+      # else's server.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: world
+          path: world-in
+          retention-days: 1
+          compression-level: 1
+
+      # Deliberately not named "shard-something": the merge job collects the shards with
+      # the pattern `shard-*`, and an artifact called shard-plan would be swept up with
+      # them and then fail as a shard with no map directory.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: render-plan
+          path: shard-plan.json
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------------
+  # One job per shard. Each renders its own slice into its own storage; nothing is
+  # shared, so nothing can race.
+  # ---------------------------------------------------------------------------------
+  render:
+    name: Render shard ${{ matrix.shard }}
+    needs: [cli, plan]
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shard-ids) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the planner
+        working-directory: design
+        run: pnpm --filter "@material-bluemap/render-actions..." run build
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: bluemap-cli
+          path: cli
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: world
+          path: world-in
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: render-plan
+
+      # Every path written here is absolute. The BlueMap CLI resolves its data directory
+      # and its storage root against the process working directory rather than against
+      # the config folder, so a relative path quietly puts the map somewhere else.
+      - name: Write this shard's BlueMap config
+        run: |
+          node design/packages/render-actions/dist/cli.js config \
+            --plan shard-plan.json \
+            --shard '${{ matrix.shard }}' \
+            --world "$GITHUB_WORKSPACE/world-in" \
+            --config-dir "$GITHUB_WORKSPACE/bluemap-config" \
+            --data-dir "$GITHUB_WORKSPACE/bluemap-data" \
+            --storage-root "$GITHUB_WORKSPACE/bluemap-out/maps" \
+            --web-root "$GITHUB_WORKSPACE/bluemap-out" \
+            --map-name '${{ inputs.map-name }}' \
+            --threads 4 \
+            --accept-download "$MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD"
+
+      # A standard runner has 16 GB. 10 GB of heap leaves enough for the OS and the
+      # runner agent; the render is disk- and CPU-bound long before it is heap-bound.
+      - name: Render
+        run: java -Xmx10G -jar "$GITHUB_WORKSPACE/cli/bluemap-cli.jar" -c "$GITHUB_WORKSPACE/bluemap-config" -r -g
+
+      - name: Report what this shard produced
+        shell: bash
+        run: |
+          set -euo pipefail
+          map="bluemap-out/maps/${{ inputs.map-id }}"
+          hires=$(find "$map/tiles/0" -type f 2>/dev/null | wc -l)
+          echo "### Shard ${{ matrix.shard }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- hires tiles: $hires" >> "$GITHUB_STEP_SUMMARY"
+          echo "- map size: $(du -sh "$map" | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$hires" -eq 0 ]; then
+            echo "::warning::Shard ${{ matrix.shard }} produced no hires tiles."
+          fi
+
+      # Only the map, so the merge job's download is the map and nothing else.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.shard }}
+          path: bluemap-out/maps
+          retention-days: 1
+          compression-level: 1
+
+      # The webapp shell is identical from every shard, so exactly one of them uploads it.
+      - uses: actions/upload-artifact@v4
+        if: matrix.shard == 0
+        with:
+          name: webapp
+          path: |
+            bluemap-out
+            !bluemap-out/maps
+          retention-days: 1
+
+  # ---------------------------------------------------------------------------------
+  # Put the shards back together and prove nothing was lost, duplicated or corrupted.
+  # This runs even for a single shard: the merge is then a no-op union, and running it
+  # anyway means the verification below covers every render rather than only split ones.
+  # ---------------------------------------------------------------------------------
+  merge:
+    name: Merge and verify
+    needs: [plan, render]
+    runs-on: ubuntu-latest
+    outputs:
+      verified: ${{ steps.verify.outcome }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the planner
+        working-directory: design
+        run: pnpm --filter "@material-bluemap/render-actions..." run build
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: render-plan
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: shard-*
+          path: shards
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: webapp
+          path: site
+
+      # Asserts every shard's textures.json is byte-identical before anything is copied.
+      # Tiles refer to textures by ordinal, so two shards that numbered their textures
+      # differently would produce a map that renders with the wrong textures and reports
+      # nothing wrong. See docs/render-in-actions.md.
+      - name: Merge the shards
+        run: |
+          node design/packages/render-actions/dist/cli.js merge \
+            --shards shards \
+            --plan shard-plan.json \
+            --map-id '${{ inputs.map-id }}' \
+            --out "site/maps/${{ inputs.map-id }}" \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Verify the merge
+        id: verify
+        run: |
+          node design/packages/render-actions/dist/cli.js verify \
+            --plan shard-plan.json \
+            --shards shards \
+            --map-id '${{ inputs.map-id }}' \
+            --merged "site/maps/${{ inputs.map-id }}" \
+            --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Say where the map went
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "## Output"
+            echo ""
+            echo "The rendered map is attached to this run as the **rendered-map** artifact."
+            echo "Unzip it and serve the folder over http; opening \`index.html\` from the file"
+            echo "system will not work, because the webapp fetches its tiles."
+            if [ "${{ inputs.output }}" = "artifact-and-pages" ]; then
+              echo ""
+              echo "> [!WARNING]"
+              echo "> This run was started with **artifact-and-pages**, so the map is also being"
+              echo "> published to GitHub Pages. This repository publishes its documentation site"
+              echo "> to Pages at /map/, alongside the documentation site rather than over it."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rendered-map
+          path: site
+          retention-days: 30
+
+      # The documentation site and a rendered map both want to be "the Pages site".
+      # Publishing the map on its own would take the docs down, and somebody
+      # rendering a world has no reason to expect that. So the docs are rebuilt here
+      # and the map is placed underneath them at /map/, and both survive.
+      - name: Build the documentation site to publish alongside the map
+        if: inputs.output == 'artifact-and-pages'
+        working-directory: design
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          pnpm --filter @material-bluemap/site build
+          node packages/site/scripts/assert-base-path.mjs
+
+      - name: Combine the site and the map
+        if: inputs.output == 'artifact-and-pages'
+        run: |
+          set -euo pipefail
+          rm -rf pages-root
+          cp -r design/packages/site/dist pages-root
+          if [ -d pages-root/map ]; then
+            echo "::error::the documentation site already publishes /map/; refusing to overwrite it"
+            exit 1
+          fi
+          mkdir -p pages-root/map
+          cp -r site/. pages-root/map/
+          echo "documentation site: $(find pages-root -maxdepth 1 -type f | wc -l) root files"
+          echo "rendered map:       $(find pages-root/map -type f | wc -l) files under /map/"
+
+      - uses: actions/upload-pages-artifact@v3
+        if: inputs.output == 'artifact-and-pages'
+        with:
+          path: pages-root
+
+  # ---------------------------------------------------------------------------------
+  # Optional publish. Shares the `pages` concurrency group with the documentation
+  # workflow so the two deployments queue rather than race. The artifact carries the
+  # documentation site with the rendered map nested at /map/, so publishing a map
+  # never takes the docs offline.
+  # ---------------------------------------------------------------------------------
+  publish:
+    name: Publish to Pages
+    needs: merge
+    if: inputs.output == 'artifact-and-pages'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

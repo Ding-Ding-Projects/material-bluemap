@@ -1,0 +1,19 @@
+{
+    "name": "@material-bluemap/render-actions",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "World measurement, shard planning, config generation and shard merging for rendering a BlueMap map across parallel GitHub Actions jobs",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "bin": {
+        "material-bluemap-render-actions": "./dist/cli.js"
+    },
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "test": "vitest run"
+    },
+    "devDependencies": {
+        "@material-bluemap/worldgen": "workspace:*"
+    }
+}
