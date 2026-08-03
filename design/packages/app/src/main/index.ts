@@ -41,6 +41,24 @@ function hardenSession(baseUrl: string): void {
         // pointer lock is needed by free-flight controls; fullscreen by the UI.
         callback(permission === "pointerLock" || permission === "fullscreen");
     });
+
+    // The embedded server rejects every unauthenticated request with 403. Only the
+    // main frame URL carries `?token=`, so without this the renderer's own bundle
+    // requests (`/assets/*.js`, `/assets/*.css`, and every later fetch and
+    // EventSource) are refused and the window stays blank. Attaching the token as a
+    // Bearer header here covers every resource type at the network layer, and keeps
+    // it out of the URLs that end up in the DOM.
+    session.defaultSession.webRequest.onBeforeSendHeaders(
+        { urls: [`${baseUrl}/*`] },
+        (details, callback) => {
+            callback({
+                requestHeaders: {
+                    ...details.requestHeaders,
+                    Authorization: `Bearer ${authToken}`,
+                },
+            });
+        }
+    );
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
         const headers = { ...details.responseHeaders };
         if (details.url.startsWith(baseUrl) && details.resourceType === "mainFrame") {
