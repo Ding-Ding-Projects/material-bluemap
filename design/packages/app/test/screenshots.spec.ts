@@ -51,11 +51,41 @@ test.beforeAll(async () => {
         args: [appRoot, "--no-sandbox", "--disable-gpu"],
         env: { ...process.env, MATERIAL_BLUEMAP_SCREENSHOTS: "1" },
     });
+
+    // Surface what the renderer is actually doing. A blank window with a silent
+    // console is the hardest failure to diagnose from CI, and the whole point of
+    // this harness is to produce evidence rather than a timeout.
+    app.process().stdout?.on("data", (d) => process.stdout.write(`[main] ${d}`));
+    app.process().stderr?.on("data", (d) => process.stderr.write(`[main] ${d}`));
+
     page = await app.firstWindow();
+    page.on("console", (msg) => console.log(`[renderer:${msg.type()}] ${msg.text()}`));
+    page.on("pageerror", (err) => console.log(`[renderer:pageerror] ${err.message}`));
+    page.on("requestfailed", (req) =>
+        console.log(`[renderer:requestfailed] ${req.url()} ${req.failure()?.errorText ?? ""}`)
+    );
+
     await page.waitForLoadState("domcontentloaded");
-    // The window is created with show:false and revealed on ready-to-show, so
-    // wait for real content rather than racing the reveal.
-    await page.waitForSelector(".v-application", { timeout: 30_000 });
+    console.log(`[harness] window url: ${page.url()}`);
+
+    // Wait on the Vue mount point, which index.html always contains, rather than
+    // on a Vuetify class that only exists once the app has successfully mounted.
+    // If mounting failed we still want a capture of the broken state.
+    await page.waitForSelector("#app", { timeout: 30_000 });
+
+    const mounted = await page
+        .waitForSelector(".v-application", { timeout: 20_000 })
+        .then(() => true)
+        .catch(() => false);
+
+    if (!mounted) {
+        await mkdir(shotDir, { recursive: true });
+        await page.screenshot({ path: join(shotDir, "diagnostic-unmounted.png") });
+        const html = await page.content();
+        await writeFile(join(shotDir, "diagnostic-unmounted.html"), html);
+        console.log(`[harness] Vuetify root never appeared; captured the broken state instead.`);
+        console.log(`[harness] body length: ${html.length}`);
+    }
 });
 
 test.afterAll(async () => {

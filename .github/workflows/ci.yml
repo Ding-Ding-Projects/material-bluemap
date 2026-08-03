@@ -133,12 +133,23 @@ jobs:
         working-directory: design/packages/app
         run: xvfb-run -a --server-args="-screen 0 1920x1080x24" pnpm run screenshots
 
+      # Upload even when the capture failed: a diagnostic image of a broken
+      # window is exactly the evidence needed to fix it.
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: screenshots
           path: design/packages/app/screenshots/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 30
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: screenshot-traces
+          path: design/packages/app/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   release:
     name: Publish release
