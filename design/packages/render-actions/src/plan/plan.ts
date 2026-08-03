@@ -3,6 +3,7 @@ import {
     GITHUB_MATRIX_JOB_LIMIT,
     HIRES_TILE_OFFSET,
     HIRES_TILE_SIZE,
+    MAX_PLANNED_SHARDS,
     REGION_BLOCKS,
     type BlockRange,
     type ClosedRange,
@@ -160,7 +161,12 @@ export function alignedCuts(splits: readonly ClosedRange[]): BlockRange[] {
  * user watching a workflow fan out into thirty jobs deserves to see the arithmetic.
  */
 export function planShards(measurement: WorldMeasurement, options: PlanOptions): ShardPlan {
-    const maxJobs = Math.max(1, Math.min(options.maxJobs ?? GITHUB_MATRIX_JOB_LIMIT, GITHUB_MATRIX_JOB_LIMIT));
+    // The ceiling is the number of shards the *workflow* can run, not the number one
+    // matrix can hold. A matrix caps at 256; a plan needing more than that is rendered in
+    // sequential waves of 256, so the plan is allowed to ask for them. See
+    // `resume/waves.ts` for the batching and `MAX_PLANNED_SHARDS` for where the real
+    // ceiling comes from.
+    const maxJobs = Math.max(1, Math.min(options.maxJobs ?? GITHUB_MATRIX_JOB_LIMIT, MAX_PLANNED_SHARDS));
     const budgetSeconds = Math.max(1, options.budgetSeconds);
 
     const estimate = estimateRenderSeconds({

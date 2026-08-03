@@ -14,6 +14,8 @@ export {
     LOD_COUNT,
     LOD_FACTOR,
     LOWRES_TILE_SIZE,
+    MAX_PLANNED_SHARDS,
+    RENDER_WAVE_SLOTS,
     lowresTileOfBlock,
     rangeLength,
     REGION_BLOCKS,
@@ -106,3 +108,6 @@ export {
     type VerifyOptions,
     type VerifyReport,
 } from "./merge/verify.js";
+
+// resuming an interrupted run, and rendering a world too large for one matrix
+export * from "./resume/index.js";

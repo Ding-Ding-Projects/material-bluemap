@@ -46,6 +46,23 @@ export const CHUNKS_PER_REGION = CHUNKS_PER_REGION_AXIS * CHUNKS_PER_REGION_AXIS
 /** GitHub refuses a workflow run whose matrix expands past this many jobs. */
 export const GITHUB_MATRIX_JOB_LIMIT = 256;
 
+/**
+ * How many sequential wave jobs the render workflow provides.
+ *
+ * A matrix caps at 256 entries, so a world needing more shards than that is rendered in
+ * waves: each wave is one matrix of at most 256, and wave N+1 `needs:` wave N. The
+ * workflow has to declare its wave jobs statically, because Actions has no way to
+ * generate a variable number of jobs, so this is how many it declares.
+ *
+ * Raising it means adding wave jobs to `.github/workflows/render-world.yml` to match.
+ * Nothing here silently truncates a plan to fit: a plan that needs more waves than the
+ * workflow has is reported as exactly that, with the number it needs.
+ */
+export const RENDER_WAVE_SLOTS = 6;
+
+/** The most shards a plan may lay out: every wave slot filled to the matrix limit. */
+export const MAX_PLANNED_SHARDS = GITHUB_MATRIX_JOB_LIMIT * RENDER_WAVE_SLOTS;
+
 /** An inclusive range of blocks along one axis, open at either end. */
 export interface BlockRange {
     /** inclusive lower bound, or null for unbounded */

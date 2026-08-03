@@ -116,18 +116,29 @@ than started, so a sparse or corridor-shaped world does not spend jobs rendering
 
 ### More than 256 jobs
 
-GitHub refuses a matrix that expands past 256 entries. When the estimate asks for more,
-the grid is capped and **each shard covers a larger area** — the world is never truncated.
-The run summary says this in as many words, gives the number of jobs the estimate wanted,
-and gives the per-shard time to expect instead of the budget:
+GitHub refuses a matrix that expands past 256 entries. A plan needing more shards than
+that is therefore rendered in **sequential waves** of at most 256, each wave a matrix that
+waits for the one before it. Nothing is truncated and no shard is silently enlarged to fit:
+600 shards become three waves of 256, 256 and 88.
+
+The workflow declares six wave jobs, so 1,536 shards. A plan needing more fails in the plan
+step with the number it needs rather than rendering part of the world. Every wave is
+independently resumable, so a run that dies in wave 7 costs that wave and not the six
+before it. [resumable-renders.md](resumable-renders.md) has the arithmetic, the caching and
+the completion markers that make it work.
+
+`--max-jobs` still caps the plan, and when the cap is what binds, **each shard covers a
+larger area** — the world is never truncated. The run summary says so in as many words,
+gives the number of jobs the estimate wanted, and gives the per-shard time to expect
+instead of the budget:
 
 > The estimate asked for 1350 jobs but only 256 fit inside the 256-job limit, so each
 > shard covers a larger area and is expected to take about 2h 11m rather than the 1h
 > budget. Nothing is being skipped; the jobs are simply longer.
 
-If those shards would exceed the six-hour job limit, raise `budget-minutes` so the
-arithmetic is honest, and split the render by dimension or by running twice over
-different parts of the world.
+If those shards would exceed the six-hour job limit, raise `max-jobs` so more shards are
+planned across more waves, or raise `budget-minutes` so the arithmetic is honest and split
+the render by dimension.
 
 ## Why shard edges land on block 32k+2
 
@@ -346,6 +357,12 @@ doing. Leaving it out makes the next render start from scratch: slow and correct
 than fast and wrong. The published map does not read it. The merge counts what it left
 out and says so.
 
+A shard's `rstate` **is** cached between runs, which does not contradict this: it is cached
+per shard, under a key nothing else can restore, and it goes back to the same shard
+rendering the same rectangle rather than into a merged map.
+[resumable-renders.md](resumable-renders.md#how-rstate-is-cached-without-reintroducing-the-merge-bug)
+sets the two side by side.
+
 ## Verification
 
 The merge is checked rather than assumed, because everything it can get wrong is silent:
@@ -428,8 +445,11 @@ world: it exercised no mods, no custom resource pack, and one flat generated ter
 - **The world travels as an artifact.** It is fetched once and uploaded, so a thirty-way
   split does not download the same archive thirty times. Artifact storage and the
   runner's ~14 GB of free disk are the practical ceiling on world size.
-- **Six hours per job.** The workflow sets a 350-minute timeout. If a shard would exceed
-  it, lower `budget-minutes` so more shards are planned.
+- **Six hours per job.** The workflow sets a 350-minute timeout and the render step a
+  300-minute one. A shard that exceeds it does not lose its work: its render state is
+  cached and a re-dispatched run carries it on. Lower `budget-minutes` so more shards are
+  planned if you would rather it did not happen at all. See
+  [resumable-renders.md](resumable-renders.md).
 - **Nether and end are rendered as separate runs**, one dimension per run, each with its
   own `map-id`.
 - **Markers, players and other live data are not rendered.** Placeholder `live/` files are
