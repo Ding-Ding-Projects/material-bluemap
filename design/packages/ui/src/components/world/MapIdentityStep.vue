@@ -67,7 +67,10 @@ const idError = computed(() => {
     const value = props.mapId.trim();
     if (value === "") return "";
     if (value.length > MAP_ID_MAX_LENGTH) {
-        return t("world.identity.idTooLong", "At most {max} characters.").replace("{max}", String(MAP_ID_MAX_LENGTH));
+        // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n
+        // compiles the fallback as a message too and consumes `{max}` as a named
+        // parameter of its own, leaving a limit message with no limit in it.
+        return t("world.identity.idTooLong", { max: MAP_ID_MAX_LENGTH }, "At most {max} characters.");
     }
     if (!MAP_ID_PATTERN.test(value)) {
         return t(
@@ -85,7 +88,7 @@ const dimensionItems = computed(() =>
         subtitle: dimension.custom
             ? t("world.identity.customDimension", "Added by a mod or datapack")
             : dimension.regionFiles > 0
-              ? t("world.identity.regionCount", "{n} region files on disk").replace("{n}", String(dimension.regionFiles))
+              ? t("world.identity.regionCount", { n: dimension.regionFiles }, "{n} region files on disk")
               : t("world.identity.notChecked", "Not checked"),
     })),
 );

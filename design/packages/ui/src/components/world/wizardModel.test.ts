@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createI18n } from "vue-i18n";
 import { findField } from "@material-bluemap/config";
 import { fieldValue } from "../config/configModel.js";
 import {
@@ -211,6 +212,34 @@ describe("stepping through", () => {
         const problem = wizard.problemsFor("identity")[0];
         expect(problem?.key).toBe("world.wizard.badId");
         expect(fillProblem(problem!, "the id {id} is wrong")).toBe("the id My World is wrong");
+    });
+
+    /**
+     * How `WorldWizard.vue` actually renders a problem, against the real vue-i18n
+     * with no locale loaded.
+     *
+     * The values go in as vue-i18n's named arguments and the English string goes to
+     * the third. Handing the string over as argument two instead lets vue-i18n's own
+     * compiler consume `{id}`, and a message whose whole job is to name the refused
+     * id names nothing — which is what shipped, past a test that filled the
+     * placeholder itself and never noticed.
+     */
+    it("renders a problem's vars through vue-i18n rather than after it", () => {
+        const wizard = answered();
+        wizard.mapId.value = "My World";
+        const problem = wizard.problemsFor("identity")[0]!;
+
+        const i18n = createI18n({
+            legacy: false,
+            locale: "none",
+            fallbackLocale: "none",
+            silentFallbackWarn: true,
+            messages: {},
+        });
+
+        expect(i18n.global.t(problem.key, problem.vars ?? {}, problem.fallback)).toBe(
+            "A map id may contain lower-case letters, digits, hyphens and underscores, and has to start with a letter or a digit. My World does not.",
+        );
     });
 
     it("refuses a relative storage folder but accepts an environment token", () => {

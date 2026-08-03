@@ -174,7 +174,10 @@ function escapeSelection(): void {
 async function copy(value: string, what: string): Promise<void> {
     try {
         await navigator.clipboard.writeText(value);
-        copyState.value = t("config.regex.copied", "Copied {what} exactly as it is written.").replace("{what}", what);
+        // `t(key, named, fallback)` throughout this file, never `t(key, fallback).replace(...)`:
+        // vue-i18n compiles the message itself, so it consumes `{what}` and the limit numbers
+        // as its own named parameters and a later `replace` finds nothing left to substitute.
+        copyState.value = t("config.regex.copied", { what }, "Copied {what} exactly as it is written.");
     } catch {
         copyState.value = t("config.regex.copyFailed", "Could not reach the clipboard.");
     }
@@ -273,27 +276,30 @@ async function copy(value: string, what: string): Promise<void> {
                     </template>
                     <template v-else>
                         {{
-                            t("config.regex.matchCount", "{count} matches in the sample").replace(
-                                "{count}",
-                                String(evaluation.matches.length),
+                            t(
+                                "config.regex.matchCount",
+                                { count: evaluation.matches.length },
+                                "{count} matches in the sample",
                             )
                         }}
                         <template v-if="evaluation.truncated">
-                            {{ t("config.regex.truncated", "(stopped at {max})").replace("{max}", String(MAX_MATCHES)) }}
+                            {{ t("config.regex.truncated", { max: MAX_MATCHES }, "(stopped at {max})") }}
                         </template>
                         <template v-if="evaluation.timedOut">
                             {{
-                                t("config.regex.timedOut", "(stopped after {ms} ms: the pattern is too slow)").replace(
-                                    "{ms}",
-                                    String(MAX_EVAL_MS),
+                                t(
+                                    "config.regex.timedOut",
+                                    { ms: MAX_EVAL_MS },
+                                    "(stopped after {ms} ms: the pattern is too slow)",
                                 )
                             }}
                         </template>
                         <template v-if="evaluation.sampleTruncated">
                             {{
-                                t("config.regex.sampleCut", "(only the first {n} characters were scanned)").replace(
-                                    "{n}",
-                                    String(MAX_SAMPLE_LENGTH),
+                                t(
+                                    "config.regex.sampleCut",
+                                    { n: MAX_SAMPLE_LENGTH },
+                                    "(only the first {n} characters were scanned)",
                                 )
                             }}
                         </template>
@@ -329,12 +335,14 @@ async function copy(value: string, what: string): Promise<void> {
                 {{
                     t(
                         "config.regex.limits",
+                        {
+                            pattern: MAX_PATTERN_LENGTH,
+                            sample: MAX_SAMPLE_LENGTH,
+                            matches: MAX_MATCHES,
+                            ms: MAX_EVAL_MS,
+                        },
                         "Limits: {pattern} characters of pattern, {sample} of sample, {matches} matches, {ms} ms per run.",
                     )
-                        .replace("{pattern}", String(MAX_PATTERN_LENGTH))
-                        .replace("{sample}", String(MAX_SAMPLE_LENGTH))
-                        .replace("{matches}", String(MAX_MATCHES))
-                        .replace("{ms}", String(MAX_EVAL_MS))
                 }}
             </p>
         </v-card-text>

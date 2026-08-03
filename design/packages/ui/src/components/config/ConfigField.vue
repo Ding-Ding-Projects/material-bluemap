@@ -80,9 +80,15 @@ const advisoryText = computed(() => props.field.advisory?.note ?? null);
 const templateNote = computed(() => {
     const template = props.field.templateValue;
     if (template === undefined) return null;
-    return t("config.field.templateNote", "A freshly generated file writes {value} here. {note}")
-        .replace("{value}", valueToText(template.value as PlainValue))
-        .replace("{note}", template.note);
+    // `t(key, named, fallback)` throughout this file, never `t(key, fallback).replace(...)`:
+    // vue-i18n compiles the message itself, so it consumes `{value}` as its own named
+    // parameter and a later `replace` finds nothing left to substitute. These rows exist to
+    // report what a value actually is, so the broken form states a default and omits it.
+    return t(
+        "config.field.templateNote",
+        { value: valueToText(template.value as PlainValue), note: template.note },
+        "A freshly generated file writes {value} here. {note}",
+    );
 });
 
 function set(next: PlainValue): void {
@@ -226,9 +232,10 @@ function set(next: PlainValue): void {
         <div class="mb-config-field__state">
             <span v-if="!explicit">
                 {{
-                    t("config.field.inherited", "Not set in this file, so BlueMap uses {value}.").replace(
-                        "{value}",
-                        valueToText(field.default as PlainValue) || t("config.field.nothing", "nothing"),
+                    t(
+                        "config.field.inherited",
+                        { value: valueToText(field.default as PlainValue) || t("config.field.nothing", "nothing") },
+                        "Not set in this file, so BlueMap uses {value}.",
                     )
                 }}
             </span>
@@ -237,9 +244,10 @@ function set(next: PlainValue): void {
             </span>
             <span v-else>
                 {{
-                    t("config.field.changed", "Set in this file. BlueMap's default is {value}.").replace(
-                        "{value}",
-                        valueToText(field.default as PlainValue) || t("config.field.nothing", "nothing"),
+                    t(
+                        "config.field.changed",
+                        { value: valueToText(field.default as PlainValue) || t("config.field.nothing", "nothing") },
+                        "Set in this file. BlueMap's default is {value}.",
                     )
                 }}
             </span>

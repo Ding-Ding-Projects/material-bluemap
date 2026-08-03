@@ -7,19 +7,19 @@ import { describeJavaRejections, type JavaSetting } from "./javaSetting.js";
 import { javaUnsupportedCopy } from "./settingsCopy.js";
 
 /**
- * The Java the app found — or, in this build, an honest account of why it cannot say.
+ * The Java the app found — or, where it cannot ask, an honest account of why not.
  *
- * The discovery itself is real: the main process looks at `JAVA_HOME`, then `java` on
- * `PATH`, then the copy the app provisioned for itself, and **runs each one** before
- * believing it, because a path is not evidence. What is missing is a way to ask from
- * here: there is no `java:*` IPC handler and no preload method, so this row reports that
- * plainly instead of printing a version nobody measured. A settings row that states an
+ * The discovery is real: the main process looks at `JAVA_HOME`, then `java` on `PATH`,
+ * then the copy the app provisioned for itself, and **runs each one** before believing
+ * it, because a path is not evidence. The desktop app answers over `java:runtime`; a
+ * browser tab has no main process to put the question to, and that state is reported
+ * plainly rather than as a version nobody measured. A settings row that states an
  * unmeasured fact is worse than one that admits the question cannot be put, because the
  * second can be acted on.
  *
- * One real fact is available today and is shown as exactly what it is. `listRenders()`
- * carries the engine line each render ran with, so the most recent one can be quoted —
- * labelled as a record of that render, never as a reading of this machine now.
+ * One further fact is shown as exactly what it is. `listRenders()` carries the engine
+ * line each render ran with, so the most recent one can be quoted — labelled as a record
+ * of that render, never as a reading of this machine now.
  */
 const props = defineProps<{
     setting: JavaSetting;
@@ -60,8 +60,8 @@ function onRefresh(): void {
         </v-alert>
 
         <!--
-            The state every build shipped so far is in. It is not an error and is not
-            styled as one: nothing failed, the question simply cannot be put from here.
+            Where a host without the preload lands. It is not an error and is not styled
+            as one: nothing failed, the question simply cannot be put from here.
         -->
         <template v-if="props.setting.state.value === 'unsupported'">
             <v-alert

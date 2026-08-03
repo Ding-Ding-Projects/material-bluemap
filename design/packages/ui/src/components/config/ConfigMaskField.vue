@@ -155,9 +155,10 @@ function nestedMasks(row: ShapeRow): PlainValue[] {
 
 function shapeSummary(row: ShapeRow): string {
     const name = row.shape?.label ?? row.typeKey;
-    return row.record["subtract"] === true
-        ? t("config.mask.subtracts", "{shape}, subtracted").replace("{shape}", name)
-        : name;
+    // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n compiles the
+    // message itself, so it consumes `{shape}` as its own named parameter and a later
+    // `replace` finds nothing left to substitute — the row would summarise as ", subtracted".
+    return row.record["subtract"] === true ? t("config.mask.subtracts", { shape: name }, "{shape}, subtracted") : name;
 }
 </script>
 
@@ -278,8 +279,9 @@ function shapeSummary(row: ShapeRow): string {
                             {{
                                 t(
                                     "config.mask.unknownShape",
+                                    { type: row.typeKey },
                                     'This file names a shape called "{type}", which this build does not know about. It is left exactly as it is; pick a shape above to replace it.',
-                                ).replace("{type}", row.typeKey)
+                                )
                             }}
                         </p>
                     </v-card-text>

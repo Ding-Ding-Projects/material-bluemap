@@ -141,12 +141,18 @@ function switchType(next: "file" | "sql" | null): void {
 
     emit("update:workspace", setStorageType(props.workspace, entry.key, next));
     probeResult.value = null;
+    // `t(key, named, fallback)` throughout this file, never `t(key, fallback).replace(...)`:
+    // vue-i18n compiles the message itself, so it consumes `{type}`, `{name}` and `{path}`
+    // as its own named parameters and a later `replace` finds nothing left to substitute.
+    // A storage is identified by its name, so the broken form leaves the delete gate and
+    // the "already defined" error naming no storage at all.
     emit(
         "notify",
         t(
             "config.storages.switched",
+            { type: next },
             "This storage is now {type}. The settings the other type used are still in the file; remove any the validator flags as unknown.",
-        ).replace("{type}", next),
+        ),
     );
 }
 
@@ -201,7 +207,7 @@ const createProblem = computed(() => {
     const name = createName.value.trim();
     if (name === "") return t("config.storages.needName", "Give the file a name. Maps refer to a storage by that name.");
     if (!isNameAvailable(props.workspace, "storage", name)) {
-        return t("config.storages.nameTaken", "There is already a storages/{name}.conf.").replace("{name}", name);
+        return t("config.storages.nameTaken", { name }, "There is already a storages/{name}.conf.");
     }
     if (createType.value === "file" && createRoot.value.trim() === "") {
         return t("config.storages.needRoot", "Say where the tiles go. Use the web app's own maps folder unless you have a reason not to.");
@@ -221,7 +227,7 @@ function confirmCreate(): void {
 
     emit("update:workspace", addStorage(props.workspace, name, createType.value, createRoot.value.trim()));
     emit("update:selectedKey", `storage:${name}`);
-    emit("notify", t("config.storages.created", "Added storages/{name}.conf. It is written when you save.").replace("{name}", name));
+    emit("notify", t("config.storages.created", { name }, "Added storages/{name}.conf. It is written when you save."));
 
     createOpen.value = false;
     createName.value = "";
@@ -244,13 +250,14 @@ const deleteAffected = computed(() => {
     const entry = selected.value;
     if (entry === undefined) return [];
 
-    const lines = [t("config.storages.deleteFile", "The file {path}").replace("{path}", entry.file.path)];
+    const lines = [t("config.storages.deleteFile", { path: entry.file.path }, "The file {path}")];
     if (usedBy.value.length > 0) {
         lines.push(
             t(
                 "config.storages.deleteBreaks",
+                { maps: usedBy.value.join(", ") },
                 "These maps name this storage and will stop loading until you point them somewhere else: {maps}",
-            ).replace("{maps}", usedBy.value.join(", ")),
+            ),
         );
     }
     lines.push(
@@ -266,7 +273,7 @@ function confirmDelete(): void {
     const entry = selected.value;
     if (entry === undefined) return;
     emit("update:workspace", removeEntry(props.workspace, entry.key));
-    emit("notify", t("config.storages.deleted", "{path} will be deleted when you save.").replace("{path}", entry.file.path));
+    emit("notify", t("config.storages.deleted", { path: entry.file.path }, "{path} will be deleted when you save."));
     emit("update:selectedKey", null);
 }
 </script>
@@ -339,7 +346,7 @@ function confirmDelete(): void {
                     </v-btn>
 
                     <v-chip v-if="usedBy.length > 0" size="small" variant="tonal">
-                        {{ t("config.storages.usedBy", "Used by {maps}").replace("{maps}", usedBy.join(", ")) }}
+                        {{ t("config.storages.usedBy", { maps: usedBy.join(", ") }, "Used by {maps}") }}
                     </v-chip>
 
                     <v-spacer />
@@ -347,9 +354,10 @@ function confirmDelete(): void {
                     <ConfigSuperConfirm
                         :title="t('config.storages.deleteTitle', 'Delete this storage config')"
                         :action="
-                            t('config.storages.deleteAction', 'This deletes {path} from the config folder when you save.').replace(
-                                '{path}',
-                                selected.file.path,
+                            t(
+                                'config.storages.deleteAction',
+                                { path: selected.file.path },
+                                'This deletes {path} from the config folder when you save.',
                             )
                         "
                         :affected="deleteAffected"
@@ -382,7 +390,7 @@ function confirmDelete(): void {
                     :file="selected.file"
                     :title="selected.name ?? ''"
                     :subtitle="
-                        t('config.storages.subtitle', 'Maps refer to this storage by the name {id}.').replace('{id}', selected.id ?? '')
+                        t('config.storages.subtitle', { id: selected.id ?? '' }, 'Maps refer to this storage by the name {id}.')
                     "
                     :highlight-path="highlightPath"
                     @set="onSet"

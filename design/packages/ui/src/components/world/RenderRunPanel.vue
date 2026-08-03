@@ -68,11 +68,15 @@ const percentText = computed(() => {
 const etaText = computed(() => {
     const current = task.value;
     if (current === null) return "";
+    // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n
+    // compiles the fallback as a message too and consumes `{eta}` as a named
+    // parameter of its own, so a later `replace` has nothing left to substitute and
+    // the estimate reads "about left" while the render sits there for four minutes.
     if (current.etaText !== null && current.etaText.trim() !== "") {
-        return t("world.run.etaText", "about {eta} left").replace("{eta}", current.etaText);
+        return t("world.run.etaText", { eta: current.etaText }, "about {eta} left");
     }
     if (current.etaSeconds === null) return "";
-    return t("world.run.etaText", "about {eta} left").replace("{eta}", formatDuration(current.etaSeconds, t));
+    return t("world.run.etaText", { eta: formatDuration(current.etaSeconds, t) }, "about {eta} left");
 });
 
 const durationText = computed(() => {
@@ -168,9 +172,11 @@ function openMap(): void {
             <template v-else-if="state === 'finished'">
                 <p class="mb-world-run__line">
                     {{
-                        t("world.run.finishedLine", "Finished in {duration}. The tiles are in {root}.")
-                            .replace("{duration}", durationText)
-                            .replace("{root}", run.dataRoot.value ?? "")
+                        t(
+                            "world.run.finishedLine",
+                            { duration: durationText, root: run.dataRoot.value ?? "" },
+                            "Finished in {duration}. The tiles are in {root}.",
+                        )
                     }}
                 </p>
                 <div class="mb-world-run__actions">
@@ -250,7 +256,7 @@ function openMap(): void {
                     {{
                         logOpen
                             ? t("world.run.hideLog", "Hide the engine's output")
-                            : t("world.run.showLog", "Show the engine's output ({n} lines)").replace("{n}", String(run.log.value.length))
+                            : t("world.run.showLog", { n: run.log.value.length }, "Show the engine's output ({n} lines)")
                     }}
                 </v-btn>
                 <pre v-if="logOpen" class="mb-world-run__pre">{{ run.log.value.map((line) => line.message).join("\n") }}</pre>

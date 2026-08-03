@@ -488,7 +488,8 @@ what is real in it and what is not, because the distinction is the point:
   is tested; there was simply no IPC handler and no preload method. The honest empty state was
   the right answer over a fabricated version number — and `settingsBridge.ts` already mirrors the
   exact shape (`javaRuntime(): Promise<JavaDiscovery>`, feature-detected, rendering written and
-  tested), so closing it is one handler plus one preload line. That wire is in flight.
+  tested), so closing it is one handler plus one preload line. That wire has since landed;
+  see "Landed since the sections above were written" at the end of this document.
 - **The world folder** is per-map, not global. The section says so instead of rendering a control
   that would change nothing.
 
@@ -519,7 +520,9 @@ nothing.
 Nothing caught it because **nothing ever asserted the rendered text of a fallback message**. A
 suite that mounts no component and reads no rendered string cannot see this class of bug at all;
 this repository had 187 test files and not one of them mounted a component until now. A guard
-is being added with the fix, and it has to fail against the pre-fix tree to count.
+landed with the fix and was proven to fail against a deliberate reintroduction of the
+broken idiom before the tree was restored byte-identically; the proof is recorded in the
+closing section of this document.
 
 ### Still not done
 
@@ -534,10 +537,37 @@ is being added with the fix, and it has to fail against the pre-fix tree to coun
   has lint, types, 13 unit tests and a clean build behind it, and no capture of the real
   artifact. Claiming a visible fix without showing it is the gap this repository keeps finding.
 
-### In flight at the time of writing
+### Landed since the sections above were written
 
-A workflow is fixing the 69 call sites (one agent per subsystem), wiring the Java runtime
-bridge, and building the regression guard, with three adversarial verifiers checking that no
-message changed meaning, that no site was missed, and that the guard actually fails on a
-deliberate reintroduction. Its result is not in this document yet, and nothing here claims it
-landed.
+The workflow described above as in flight completed, and its result is in the tree:
+
+- **All 69 broken fallback call sites are fixed** across 22 files in `packages/ui` (12 in
+  `components/config`, 7 in `components/world`, 3 in `components/menu`). The broken idiom
+  `t(key, "fallback with {arg}").replace("{arg}", v)` is replaced everywhere by the
+  three-argument form `t(key, { arg: v }, "fallback with {arg}")`. Adversarial verification
+  checked every site: no message changed wording, key, or meaning, and a whole-tree sweep
+  found zero residual sites outside the guard's own deliberate fixtures.
+- **The Java runtime wire is closed end to end.** `packages/app/src/main/java/ipc.ts` (with
+  `ipc.test.ts`) registers `java:runtime` in `main/index.ts`, the preload exposes it, and
+  `settingsBridge.ts` and `JavaRuntimeRow.vue` consume it. The settings row now shows the
+  measured runtime instead of the honest empty state.
+- **The regression guard exists and was proven the hard way.** `i18nFallback.test.ts`,
+  `configMessages.test.ts` and `RenderRunPanel.test.ts` mount components and assert the
+  rendered text of fallback messages — the assertion class this repository previously had
+  none of. Reintroducing the broken idiom at one covered site (`StoragesScreen.vue`) made
+  three guard tests fail, each naming that exact site; the file was then restored
+  byte-identically (hash-checked) and the guard went green again.
+- **Adversarial review then made the wire honest about paths.** Three real defects were
+  found and fixed before this ever shipped: the reason sanitizer stopped each match at
+  whitespace, so `C:\Program Files\…` leaked everything after the first space — including
+  half a username from a profile path; the drive pattern matched the `s://` inside
+  `https://`, mangling URLs that named no local path; and the 240-unit truncation could cut
+  a surrogate pair in half and render mojibake. The sanitizer now anchors path starts,
+  sweeps leftover backslash fragments, collapses repeated placeholders, and truncates on
+  code points — each behaviour pinned by its own test. On the UI side, Electron's
+  `Error invoking remote method 'java:runtime':` plumbing is stripped before a failure
+  renders, and discovery no longer queues behind the unrelated render-list read: the row
+  says `loading` from the first synchronous moment, so the button's guard actually guards.
+
+The suite at this commit: **198 files, 2968 passed, 2 skipped**, from `npx vitest run` in
+`design/`. The per-package table in `ROADMAP.md` is updated to match.

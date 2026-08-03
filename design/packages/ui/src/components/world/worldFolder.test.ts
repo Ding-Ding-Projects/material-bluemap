@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createI18n } from "vue-i18n";
 import {
     describeWorld,
     describeWorldProblem,
@@ -9,12 +10,22 @@ import {
     parentFolder,
     uncheckedWorld,
     unreadableWorld,
+    type Translate,
     type WorldFolderEntry,
     type WorldFolderListing,
 } from "./worldFolder.js";
 
-/** The fallback-returning translator, which is what a build with no locale uses. */
-const t = (_key: string, fallback: string): string => fallback;
+/**
+ * The fallback-returning translator, which is what a build with no locale uses.
+ *
+ * It interpolates the named values rather than dropping them, because vue-i18n
+ * does: a stub that ignored argument two would pass while the real app rendered a
+ * sentence with the folder name missing from it.
+ */
+const t: Translate = (_key: string, second: string | Readonly<Record<string, unknown>>, third?: string): string =>
+    typeof second === "string"
+        ? second
+        : Object.entries(second).reduce((text, [name, value]) => text.split(`{${name}}`).join(String(value)), third ?? "");
 
 function listing(
     folder: string,
@@ -222,5 +233,60 @@ describe("the summary line", () => {
         const text = describeWorld(inspectWorldFolder(listing("/tmp/empty", [])), t);
 
         expect(text).toContain("not a Minecraft world");
+    });
+});
+
+/**
+ * The same messages, rendered by the real vue-i18n with no locale loaded, which is
+ * the state the app starts in and the state a build with no translations stays in.
+ *
+ * The stub above can only show that a value was handed over. This shows it was
+ * handed over where vue-i18n reads it: the compiler eats a `{folder}` left in a
+ * fallback, so the earlier form rendered these sentences with the folder missing
+ * while every test on that stub still passed.
+ */
+describe("rendered by the real vue-i18n", () => {
+    const i18n = createI18n({
+        legacy: false,
+        locale: "none",
+        fallbackLocale: "none",
+        silentFallbackWarn: true,
+        messages: {},
+    });
+    const real: Translate = i18n.global.t;
+
+    it("keeps the folder in the sentence whose job is to name it", () => {
+        const inspection = inspectWorldFolder(listing("/home/me/Documents", ["notes.txt", "photos/"]));
+
+        expect(describeWorldProblem(inspection.problems[0]!, real).title).toBe(
+            "There is no level.dat in Documents, so it is not a Minecraft world.",
+        );
+    });
+
+    it("keeps the worlds it found inside a saves folder", () => {
+        const inspection = inspectWorldFolder(
+            listing("/home/me/.minecraft/saves", ["Bastion/level.dat", "Creative Test/level.dat"]),
+        );
+
+        expect(describeWorldProblem(inspection.problems[0]!, real).title).toBe(
+            "That folder holds several worlds rather than being one: Bastion, Creative Test.",
+        );
+    });
+
+    it("keeps a path containing $& intact, which the old substitution mangled", () => {
+        // `String.replace(str, str)` reads `$&` in the *replacement* as the whole
+        // match, so a folder with one in its name was corrupted on top of being
+        // dropped. Named arguments have no substitution syntax to trip over.
+        const inspection = inspectWorldFolder(listing("/srv/a$&b/world/region", [], { "": 812 }));
+
+        expect(describeWorldProblem(inspection.problems[0]!, real).fix).toBe(
+            "Go up one level and choose /srv/a$&b/world instead.",
+        );
+    });
+
+    it("keeps both counts in the summary line", () => {
+        expect(describeWorld(inspectWorldFolder(realWorld()), real)).toBe(
+            "A Minecraft world with 3 dimensions and 920 region files.",
+        );
     });
 });

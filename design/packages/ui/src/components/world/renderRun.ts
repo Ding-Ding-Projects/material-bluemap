@@ -89,15 +89,19 @@ export function phaseLabel(phase: string | null, t: Translate): string {
 export function formatDuration(seconds: number, t: Translate): string {
     if (!Number.isFinite(seconds) || seconds < 0) return "";
     const whole = Math.round(seconds);
-    if (whole < 60) return t("world.run.seconds", "{n} seconds").replace("{n}", String(whole));
+    // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n
+    // compiles the fallback as a message too and consumes `{n}` as a named parameter
+    // of its own, so a later `replace` has nothing left to substitute and a duration
+    // reads "seconds" with no number in front of it.
+    if (whole < 60) return t("world.run.seconds", { n: whole }, "{n} seconds");
 
     const minutes = Math.floor(whole / 60);
     if (minutes < 60) {
-        return t("world.run.minutes", "{n} minutes").replace("{n}", String(minutes));
+        return t("world.run.minutes", { n: minutes }, "{n} minutes");
     }
     const hours = Math.floor(minutes / 60);
     const rest = minutes % 60;
-    return t("world.run.hours", "{h} hours {m} minutes").replace("{h}", String(hours)).replace("{m}", String(rest));
+    return t("world.run.hours", { h: hours, m: rest }, "{h} hours {m} minutes");
 }
 
 /* -------------------------------------------------------------------------- */

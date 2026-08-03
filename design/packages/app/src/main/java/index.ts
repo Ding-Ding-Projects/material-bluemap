@@ -6,9 +6,10 @@
  * fetches and launches a JVM, and that locates the jars decisions D17 and D18 put at
  * the centre of local rendering.
  *
- * Deliberately free of any `electron` import so the whole layer is unit-testable
+ * Deliberately free of any `electron` value import so the whole layer is unit-testable
  * without an Electron runtime. The one thing it needs from Electron is the `userData`
- * directory, and that is a parameter.
+ * directory, and that is a parameter. `ipc.ts` names `IpcMain` as a *type* and takes it
+ * as a parameter too, so that import is erased at build time and the rule holds.
  *
  * ```ts
  * import { app } from "electron";
@@ -44,6 +45,21 @@ export {
     type JavaRejection,
     type JavaSource,
 } from "./discovery.js";
+
+export {
+    JAVA_CHANNELS,
+    MAX_REASON_LENGTH,
+    PATH_PLACEHOLDER,
+    registerJavaHandlers,
+    summariseDiscovery,
+    summariseReason,
+    type JavaInstallationSummary,
+    type JavaIpc,
+    type JavaIpcOptions,
+    type JavaRejectionSummary,
+    type JavaRuntimeSummary,
+    type JavaVersionSummary,
+} from "./ipc.js";
 
 export {
     downloadVerified,

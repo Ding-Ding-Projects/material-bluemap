@@ -25,6 +25,8 @@ import type { DownloadIpc } from "./download/ipc.js";
 import { installGitHubIpc } from "./github/ipc.js";
 import type { GitHubIpc } from "./github/ipc.js";
 import { openExternalHttps } from "./github/external.js";
+import { registerJavaHandlers } from "./java/ipc.js";
+import type { JavaIpc } from "./java/ipc.js";
 import { registerWorldHandlers } from "./world/index.js";
 import type { WorldIpc } from "./world/index.js";
 
@@ -270,6 +272,23 @@ function startWorldInspection(): WorldIpc {
     return worldIpc;
 }
 
+/**
+ * Reporting the Java the app would render with.
+ *
+ * Registered once, for the same reason everything above it is. Discovery is the same
+ * pass a render makes - `JAVA_HOME`, then `java` on `PATH`, then the copy the app
+ * provisioned - and it *runs* each candidate rather than believing a path, so the
+ * settings row can state a version somebody measured instead of one it inferred. It
+ * never provisions: asking what is installed must not download two hundred megabytes.
+ */
+let javaIpc: JavaIpc | null = null;
+
+function startJavaDiscovery(): JavaIpc {
+    if (javaIpc !== null) return javaIpc;
+    javaIpc = registerJavaHandlers(ipcMain, { dataDir: app.getPath("userData") });
+    return javaIpc;
+}
+
 async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
@@ -277,6 +296,7 @@ async function createWindow(): Promise<void> {
     startDownloads(startRendering());
     startGitHubSignIn();
     startWorldInspection();
+    startJavaDiscovery();
 
     const window = new BrowserWindow({
         width: 1280,

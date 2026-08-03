@@ -91,18 +91,21 @@ const shown = computed(() => rendered.value.reduce((sum, group) => sum + group.s
 
 const summary = computed(() => {
     if (matcher.value.error !== null) return t("world.options.badPattern", "The pattern is not valid, so nothing is shown.");
+    // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n
+    // compiles the fallback as a message too and consumes `{shown}` and `{total}` as
+    // its own named parameters, so a later `replace` has nothing to substitute and
+    // the counts vanish from the sentence that exists to state them.
     if (matcher.value.active) {
-        return t("world.options.matches", "{shown} of {total} settings match.")
-            .replace("{shown}", String(shown.value))
-            .replace("{total}", String(total.value));
+        return t("world.options.matches", { shown: shown.value, total: total.value }, "{shown} of {total} settings match.");
     }
     const hidden = total.value - shown.value;
     return hidden === 0
-        ? t("world.options.allShown", "All {total} settings are shown.").replace("{total}", String(total.value))
-        : t("world.options.someHidden", "Showing {shown} of {total} settings. {hidden} advanced ones are hidden.")
-              .replace("{shown}", String(shown.value))
-              .replace("{total}", String(total.value))
-              .replace("{hidden}", String(hidden));
+        ? t("world.options.allShown", { total: total.value }, "All {total} settings are shown.")
+        : t(
+              "world.options.someHidden",
+              { shown: shown.value, total: total.value, hidden },
+              "Showing {shown} of {total} settings. {hidden} advanced ones are hidden.",
+          );
 });
 
 const sample = computed(() => sampleTextFor(optionFields()));
@@ -163,7 +166,7 @@ function onQuery(value: string): void {
                 {{
                     changedCount === 0
                         ? t("world.options.noChanges", "Nothing changed yet")
-                        : t("world.options.resetAll", "Undo my {n} changes").replace("{n}", String(changedCount))
+                        : t("world.options.resetAll", { n: changedCount }, "Undo my {n} changes")
                 }}
             </v-btn>
         </div>

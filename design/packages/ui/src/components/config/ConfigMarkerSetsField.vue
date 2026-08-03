@@ -81,7 +81,10 @@ function addSet(): void {
     const id = newId.value.trim();
     if (id === "") return;
     if (Object.prototype.hasOwnProperty.call(props.modelValue ?? {}, id)) {
-        notice.value = t("config.markers.duplicate", "There is already a marker set called {id}.").replace("{id}", id);
+        // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n compiles
+        // the message itself, so it consumes `{id}` as its own named parameter and a later
+        // `replace` finds nothing left to substitute, leaving a refusal that names no set.
+        notice.value = t("config.markers.duplicate", { id }, "There is already a marker set called {id}.");
         return;
     }
     notice.value = null;
@@ -158,7 +161,7 @@ function commitMarkers(id: string, raw: string): void {
                 <v-expansion-panel-title>
                     <span class="mb-config-markers__title">{{ id }}</span>
                     <span class="mb-config-markers__count">
-                        {{ t("config.markers.count", "{n} markers").replace("{n}", String(markerCount(value))) }}
+                        {{ t("config.markers.count", { n: markerCount(value) }, "{n} markers") }}
                     </span>
                 </v-expansion-panel-title>
                 <v-expansion-panel-text>

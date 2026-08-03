@@ -125,16 +125,18 @@ Until those run, "ported" is the honest word and "done" is not.
 
 ## Test counts
 
-`npx vitest run` from `design/`, 2026-08-03: **143 files, 2157 passed, 2 skipped**.
+`npx vitest run` from `design/`, 2026-08-03 (later the same day): **198 files, 2968
+passed, 2 skipped**.
 
 | Package | Tests | Package | Tests |
 |---|---|---|---|
-| `engine` | 882 (1 skipped) | `app` | 286 |
-| `ui` | 311 | `shared` | 187 |
-| `config` | 175 (1 skipped) | `site` | 107 |
-| `render-actions` | 79 | `nbt` | 56 |
-| `viewer` | 52 | `worldgen` | 19 |
-| `server` | 5 | `cli` | none yet |
+| `engine` | 1135 (1 skipped) | `app` | 522 |
+| `ui` | 512 | `shared` | 196 |
+| `config` | 176 (1 skipped) | `render-actions` | 147 |
+| `site` | 118 | `viewer` | 57 |
+| `nbt` | 56 | `parts` | 25 |
+| `worldgen` | 19 | `server` | 5 |
+| `cli` | none yet | | |
 
 A green suite proves the ported code does what its tests say. It does not prove parity with
 upstream, which is what the phase exit criteria above are for.

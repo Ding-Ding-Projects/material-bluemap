@@ -103,14 +103,18 @@ function update(index: number, value: PlainValue): void {
                     :disabled="isDisabled"
                     @update:model-value="(value: PlainValue) => update(index, value)"
                 />
+                <!--
+                    `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n
+                    compiles the message itself and consumes `{item}` as its own named parameter,
+                    so a later `replace` finds nothing left to substitute. These are icon buttons
+                    whose accessible name is the whole label, so the broken form gives every row
+                    the same nameless "Move  up" and a screen reader cannot tell them apart.
+                -->
                 <div class="mb-config-list__actions">
                     <v-btn
                         :icon="mdiArrowUp"
                         :aria-label="
-                            t('config.list.moveUp', 'Move {item} up').replace(
-                                '{item}',
-                                `${control.itemLabel} ${index + 1}`,
-                            )
+                            t('config.list.moveUp', { item: `${control.itemLabel} ${index + 1}` }, 'Move {item} up')
                         "
                         :disabled="isDisabled || index === 0"
                         variant="text"
@@ -121,10 +125,7 @@ function update(index: number, value: PlainValue): void {
                     <v-btn
                         :icon="mdiArrowDown"
                         :aria-label="
-                            t('config.list.moveDown', 'Move {item} down').replace(
-                                '{item}',
-                                `${control.itemLabel} ${index + 1}`,
-                            )
+                            t('config.list.moveDown', { item: `${control.itemLabel} ${index + 1}` }, 'Move {item} down')
                         "
                         :disabled="isDisabled || index === items.length - 1"
                         variant="text"
@@ -135,9 +136,10 @@ function update(index: number, value: PlainValue): void {
                     <v-btn
                         :icon="mdiClose"
                         :aria-label="
-                            t('config.list.remove', 'Remove {item}').replace(
-                                '{item}',
-                                valueToText(item) || `${control.itemLabel} ${index + 1}`,
+                            t(
+                                'config.list.remove',
+                                { item: valueToText(item) || `${control.itemLabel} ${index + 1}` },
+                                'Remove {item}',
                             )
                         "
                         :disabled="isDisabled"
@@ -166,7 +168,7 @@ function update(index: number, value: PlainValue): void {
             class="mt-2"
             @click="add"
         >
-            {{ t("config.list.add", "Add {item}").replace("{item}", control.itemLabel.toLowerCase()) }}
+            {{ t("config.list.add", { item: control.itemLabel.toLowerCase() }, "Add {item}") }}
         </v-btn>
     </div>
 </template>

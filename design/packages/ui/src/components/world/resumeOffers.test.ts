@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createI18n } from "vue-i18n";
 import {
     createResumeOffers,
     describeInterruption,
@@ -11,8 +12,19 @@ import type {
     ResumeResult,
     WorldBridge,
 } from "./worldBridge.js";
+import type { Translate } from "./worldFolder.js";
 
-const t = (_key: string, fallback: string): string => fallback;
+/**
+ * The fallback-returning translator, which is what a build with no locale uses.
+ *
+ * It interpolates the named values rather than dropping them, because vue-i18n
+ * does: a stub that ignored argument two would say how far a render got here while
+ * the offer on screen said "It reached %."
+ */
+const t: Translate = (_key: string, second: string | Readonly<Record<string, unknown>>, third?: string): string =>
+    typeof second === "string"
+        ? second
+        : Object.entries(second).reduce((text, [name, value]) => text.split(`{${name}}`).join(String(value)), third ?? "");
 
 function summary(overrides: Partial<InterruptedRenderSummary> = {}): InterruptedRenderSummary {
     return {
@@ -208,5 +220,28 @@ describe("wording", () => {
             const text = describeRefusal({ ok: false, renderId: "world-abc", code, message: "m" }, t);
             expect(text.explanation.length).toBeGreaterThan(20);
         }
+    });
+
+    /**
+     * The same sentence through the real vue-i18n with no locale loaded, which is
+     * the state the app starts in.
+     *
+     * vue-i18n compiles the English fallback as a message format, so a `{percent}`
+     * left in one is consumed before anything else can substitute it and the offer
+     * to carry a render on reads "It reached %." — a number that decides whether
+     * resuming is worth it, gone. The stub above never compiles, so it cannot see it.
+     */
+    it("keeps the percentage and the task when vue-i18n is the one rendering it", () => {
+        const i18n = createI18n({
+            legacy: false,
+            locale: "none",
+            fallbackLocale: "none",
+            silentFallbackWarn: true,
+            messages: {},
+        });
+        const real: Translate = i18n.global.t;
+
+        expect(describeProgress(summary(), real)).toBe("It reached 88.6%, at survival.");
+        expect(describeProgress(summary({ description: null }), real)).toBe("It reached 88.6%.");
     });
 });

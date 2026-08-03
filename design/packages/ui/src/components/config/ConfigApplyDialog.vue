@@ -97,9 +97,11 @@ const reRenderCount = computed(() => props.plan.affectedMapIds.length);
                         {{ t("config.apply.files", "Files") }}
                         <v-chip size="x-small" variant="outlined">
                             {{
-                                t("config.apply.fileCount", "{writes} written, {deletes} deleted")
-                                    .replace("{writes}", String(plan.writes.length))
-                                    .replace("{deletes}", String(plan.deletes.length))
+                                t(
+                                    "config.apply.fileCount",
+                                    { writes: plan.writes.length, deletes: plan.deletes.length },
+                                    "{writes} written, {deletes} deleted",
+                                )
                             }}
                         </v-chip>
                     </h3>
@@ -154,8 +156,9 @@ const reRenderCount = computed(() => props.plan.affectedMapIds.length);
                             {{
                                 t(
                                     "config.apply.reRenderBody",
+                                    { maps: plan.affectedMapIds.join(", ") },
                                     "These maps have to be rendered again before what you see matches what you saved: {maps}. Saving does not start that render; it only changes the config.",
-                                ).replace("{maps}", plan.affectedMapIds.join(", "))
+                                )
                             }}
                         </p>
                         <ul class="mb-config-apply__reasons">

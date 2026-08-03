@@ -324,9 +324,14 @@ const matchCount = computed(
 
 const searchSummary = computed(() => {
     if (!search.query) return "";
-    return t("search.summary", "{shown} of {total}")
-        .replace("{shown}", String(matchCount.value))
-        .replace("{total}", String(searchable.value.length));
+    // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n compiles
+    // the fallback as a message too and consumes `{shown}` and `{total}` as its own named
+    // parameters, so a later `replace` finds nothing left and the counts vanish.
+    return t(
+        "search.summary",
+        { shown: matchCount.value, total: searchable.value.length },
+        "{shown} of {total}",
+    );
 });
 
 const viewOptionNames = computed(() => viewOptions.value.map((option) => option.name));

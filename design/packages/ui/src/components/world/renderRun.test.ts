@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createI18n } from "vue-i18n";
 import {
     adviseOnFailure,
     classifyFailure,
@@ -13,8 +14,19 @@ import type {
     RenderResult,
     WorldBridge,
 } from "./worldBridge.js";
+import type { Translate } from "./worldFolder.js";
 
-const t = (_key: string, fallback: string): string => fallback;
+/**
+ * The fallback-returning translator, which is what a build with no locale uses.
+ *
+ * It interpolates the named values rather than dropping them, because vue-i18n
+ * does: a stub that ignored argument two would report a duration correctly here
+ * while the panel rendered "seconds" with no number in front of it.
+ */
+const t: Translate = (_key: string, second: string | Readonly<Record<string, unknown>>, third?: string): string =>
+    typeof second === "string"
+        ? second
+        : Object.entries(second).reduce((text, [name, value]) => text.split(`{${name}}`).join(String(value)), third ?? "");
 
 const ENGINE: EngineDescription = {
     id: "upstream-java",
@@ -327,5 +339,32 @@ describe("wording", () => {
         expect(formatDuration(254, t)).toBe("4 minutes");
         expect(formatDuration(7_500, t)).toBe("2 hours 5 minutes");
         expect(formatDuration(Number.NaN, t)).toBe("");
+    });
+
+    /**
+     * The same durations through the real vue-i18n with no locale loaded, which is
+     * the state the app starts in.
+     *
+     * vue-i18n compiles the English fallback as a message format, so a `{n}` left in
+     * one is consumed before anything else can substitute it: the panel showed
+     * "about left" beside a progress bar that had stopped moving. The stub above
+     * cannot catch that, because it never compiles anything.
+     */
+    it("keeps the number in a duration when vue-i18n is the one rendering it", () => {
+        const i18n = createI18n({
+            legacy: false,
+            locale: "none",
+            fallbackLocale: "none",
+            silentFallbackWarn: true,
+            messages: {},
+        });
+        const real: Translate = i18n.global.t;
+
+        expect(formatDuration(42, real)).toBe("42 seconds");
+        expect(formatDuration(254, real)).toBe("4 minutes");
+        expect(formatDuration(7_500, real)).toBe("2 hours 5 minutes");
+        // A phase name carries no value, so it is the same either way. Asserted so a
+        // failure above is read as a lost value rather than a broken translator.
+        expect(phaseLabel("rendering", real)).toBe("Rendering tiles");
     });
 });

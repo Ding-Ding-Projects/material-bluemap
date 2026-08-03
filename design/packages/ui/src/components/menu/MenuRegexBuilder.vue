@@ -174,7 +174,12 @@ function escapeSelection(): void {
 async function copy(value: string, what: string): Promise<void> {
     try {
         await navigator.clipboard.writeText(value);
-        copyState.value = t("regexBuilder.copied", "Copied {what}").replace("{what}", what);
+        // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n compiles
+        // the fallback as a message too and consumes `{what}` as its own named parameter, so
+        // a later `replace` finds nothing left to substitute. Named args also spare the
+        // pattern text a second mangling, since `replace` reads `$&` in a copied regex as a
+        // substitution of its own.
+        copyState.value = t("regexBuilder.copied", { what }, "Copied {what}");
     } catch {
         copyState.value = t("regexBuilder.copyFailed", "Could not reach the clipboard");
     }
@@ -298,17 +303,19 @@ async function copy(value: string, what: string): Promise<void> {
                     </template>
                     <template v-else>
                         {{
-                            t("regexBuilder.matchCount", "{count} matches in the sample").replace(
-                                "{count}",
-                                String(evaluation.matches.length),
+                            t(
+                                "regexBuilder.matchCount",
+                                { count: evaluation.matches.length },
+                                "{count} matches in the sample",
                             )
                         }}
                         <template v-if="evaluation.truncated">
                             {{
                                 t(
                                     "regexBuilder.truncated",
+                                    { max: MAX_MATCHES },
                                     "(stopped at {max})",
-                                ).replace("{max}", String(MAX_MATCHES))
+                                )
                             }}
                         </template>
                         <template v-if="evaluation.timedOut">

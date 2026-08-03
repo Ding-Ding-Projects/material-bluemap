@@ -139,6 +139,54 @@ describe("a build that can report the runtime", () => {
         expect(setting.failure.value).toBe("handler missing");
         expect(setting.report.value).toBeNull();
     });
+
+    it("strips Electron's invoke plumbing from a failure before the row renders it", async () => {
+        // In the real app the rejection crosses ipcRenderer.invoke, which re-wraps it
+        // as "Error invoking remote method '<channel>': Error: <message>". The channel
+        // name and the doubled "Error:" are transport, not the sentence somebody wrote.
+        const bridge: SettingsBridge = {
+            javaRuntime: () =>
+                Promise.reject(
+                    new Error(
+                        "Error invoking remote method 'java:runtime': " +
+                            "Error: EACCES: permission denied, open '[a path]'",
+                    ),
+                ),
+        };
+        const setting = createJavaSetting({ bridge });
+
+        await setting.load();
+
+        expect(setting.state.value).toBe("failed");
+        expect(setting.failure.value).toBe("EACCES: permission denied, open '[a path]'");
+    });
+
+    it("answers discovery even while the render list is still hanging", async () => {
+        // The render list is a separate IPC that only decorates the section. A slow or
+        // hung listRenders must not delay the answer the row exists for, and the row
+        // must say `loading` from the first synchronous moment so the button's guard
+        // holds.
+        let resolveRenders: (value: RenderSummaryReadout[]) => void = () => {};
+        const bridge: SettingsBridge = {
+            listRenders: () =>
+                new Promise<RenderSummaryReadout[]>((resolve) => {
+                    resolveRenders = resolve;
+                }),
+            javaRuntime: () => Promise.resolve(FOUND),
+        };
+        const setting = createJavaSetting({ bridge });
+
+        const loading = setting.load();
+        expect(setting.state.value).toBe("loading");
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(setting.state.value).toBe("found");
+        expect(setting.lastRender.value).toBeNull();
+
+        resolveRenders(RENDERS);
+        await loading;
+        expect(setting.lastRender.value?.renderId).toBe("r-2");
+    });
 });
 
 describe("describing a discovery", () => {

@@ -132,11 +132,13 @@ export function describeProgress(summary: InterruptedRenderSummary, t: Translate
         return t("world.resume.noProgress", "It stopped before reporting any progress, so nothing is known about how far it got.");
     }
     const rounded = summary.percent.toFixed(1).replace(/\.0$/, "");
+    // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n
+    // compiles the fallback as a message too and consumes `{percent}` and `{what}`
+    // as its own named parameters, so a later `replace` finds nothing to substitute
+    // and the sentence about how far a render got says "It reached %."
     return summary.description === null
-        ? t("world.resume.progress", "It reached {percent}%.").replace("{percent}", rounded)
-        : t("world.resume.progressAt", "It reached {percent}%, at {what}.")
-              .replace("{percent}", rounded)
-              .replace("{what}", summary.description);
+        ? t("world.resume.progress", { percent: rounded }, "It reached {percent}%.")
+        : t("world.resume.progressAt", { percent: rounded, what: summary.description }, "It reached {percent}%, at {what}.");
 }
 
 /** What a refusal means and what is left to do about it. */

@@ -184,23 +184,29 @@ async function openFolderAt(folder: string): Promise<void> {
 
         const maps = loaded.entries.filter((entry) => entry.kind === "map").length;
         const storages = loaded.entries.filter((entry) => entry.kind === "storage").length;
+        // `t(key, named, fallback)` throughout this file, never `t(key, fallback).replace(...)`:
+        // vue-i18n compiles the message itself, so it consumes `{folder}` and the counts as
+        // its own named parameters and a later `replace` finds nothing left to substitute.
+        // These notifications exist to say which folder was read and how much was in it, so
+        // the broken form leaves a success toast that reports neither.
         notify(
             notices,
             "success",
-            t("config.shell.opened", "Read {files} config files from {folder}: {maps} maps and {storages} storages.")
-                .replace("{files}", String(contents.files.length))
-                .replace("{folder}", contents.folder)
-                .replace("{maps}", String(maps))
-                .replace("{storages}", String(storages)),
+            t(
+                "config.shell.opened",
+                { files: contents.files.length, folder: contents.folder, maps, storages },
+                "Read {files} config files from {folder}: {maps} maps and {storages} storages.",
+            ),
         );
 
         if (loaded.unknown.length > 0) {
             notify(
                 notices,
                 "info",
-                t("config.shell.unknownFiles", "{n} files in that folder are not BlueMap configs. They are left exactly as they are.").replace(
-                    "{n}",
-                    String(loaded.unknown.length),
+                t(
+                    "config.shell.unknownFiles",
+                    { n: loaded.unknown.length },
+                    "{n} files in that folder are not BlueMap configs. They are left exactly as they are.",
                 ),
                 loaded.unknown.join("\n"),
             );
@@ -209,7 +215,7 @@ async function openFolderAt(folder: string): Promise<void> {
         notify(
             notices,
             "error",
-            t("config.shell.openFailed", "Could not read {folder}.").replace("{folder}", folder),
+            t("config.shell.openFailed", { folder }, "Could not read {folder}."),
             error instanceof Error ? error.message : String(error),
         );
     } finally {
@@ -252,7 +258,7 @@ async function newFolder(): Promise<void> {
     notify(
         notices,
         "success",
-        t("config.shell.generated", "Generated a full config set for {folder}. Nothing is on disk until you save.").replace("{folder}", folder),
+        t("config.shell.generated", { folder }, "Generated a full config set for {folder}. Nothing is on disk until you save."),
     );
 }
 
@@ -325,11 +331,12 @@ const grouped = computed(() => (results.value.active ? groupMatchesByScreen(resu
 
 const searchSummary = computed(() => {
     if (results.value.error !== null) return t("config.shell.badPattern", "The pattern is not valid, so nothing is listed.");
-    if (!results.value.active) return t("config.shell.total", "{n} settings across every screen.").replace("{n}", String(index.value.length));
-    return t("config.shell.found", "{shown} of {total} settings match, across {screens} screens.")
-        .replace("{shown}", String(results.value.matches.length))
-        .replace("{total}", String(results.value.searched))
-        .replace("{screens}", String(grouped.value.length));
+    if (!results.value.active) return t("config.shell.total", { n: index.value.length }, "{n} settings across every screen.");
+    return t(
+        "config.shell.found",
+        { shown: results.value.matches.length, total: results.value.searched, screens: grouped.value.length },
+        "{shown} of {total} settings match, across {screens} screens.",
+    );
 });
 
 /** Opens the screen a result lives on, reveals its group and marks the row. */
@@ -374,10 +381,11 @@ async function confirmSave(): Promise<void> {
         notify(
             notices,
             "success",
-            t("config.shell.saved", "Wrote {writes} files and deleted {deletes} in {folder}.")
-                .replace("{writes}", String(currentPlan.writes.length))
-                .replace("{deletes}", String(currentPlan.deletes.length))
-                .replace("{folder}", current.folder),
+            t(
+                "config.shell.saved",
+                { writes: currentPlan.writes.length, deletes: currentPlan.deletes.length, folder: current.folder },
+                "Wrote {writes} files and deleted {deletes} in {folder}.",
+            ),
         );
 
         if (currentPlan.affectedMapIds.length > 0) {
@@ -386,8 +394,9 @@ async function confirmSave(): Promise<void> {
                 "warning",
                 t(
                     "config.shell.needsRender",
+                    { maps: currentPlan.affectedMapIds.join(", ") },
                     "These maps have to be rendered again before what you see matches what you saved: {maps}.",
-                ).replace("{maps}", currentPlan.affectedMapIds.join(", ")),
+                ),
             );
         }
 
@@ -447,7 +456,7 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
             <v-spacer />
 
             <v-chip v-if="errorCount > 0" size="small" color="error" variant="flat" class="mr-2">
-                {{ t("config.shell.errorCount", "{n} problems").replace("{n}", String(errorCount)) }}
+                {{ t("config.shell.errorCount", { n: errorCount }, "{n} problems") }}
             </v-chip>
             <v-chip v-if="dirty" size="small" color="primary" variant="tonal" class="mr-2">
                 {{ t("config.shell.unsaved", "Unsaved changes") }}

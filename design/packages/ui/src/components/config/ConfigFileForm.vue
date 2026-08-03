@@ -102,16 +102,23 @@ const summary = computed(() => {
     if (!matcher.value.active && showAdvanced.value) return "";
     if (!matcher.value.active) {
         const advanced = totalFields.value - shownFields.value;
+        // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n compiles
+        // the message itself, so it consumes the counts as its own named parameters and a
+        // later `replace` finds nothing left to substitute. A summary whose only content is
+        // its numbers then reads "Showing  of  settings."
         return advanced === 0
             ? ""
-            : t("config.form.advancedHidden", "Showing {shown} of {total} settings. {advanced} advanced ones are hidden.")
-                  .replace("{shown}", String(shownFields.value))
-                  .replace("{total}", String(totalFields.value))
-                  .replace("{advanced}", String(advanced));
+            : t(
+                  "config.form.advancedHidden",
+                  { shown: shownFields.value, total: totalFields.value, advanced },
+                  "Showing {shown} of {total} settings. {advanced} advanced ones are hidden.",
+              );
     }
-    return t("config.form.matches", "{shown} of {total} settings match.")
-        .replace("{shown}", String(shownFields.value))
-        .replace("{total}", String(totalFields.value));
+    return t(
+        "config.form.matches",
+        { shown: shownFields.value, total: totalFields.value },
+        "{shown} of {total} settings match.",
+    );
 });
 
 const sample = computed(() => sampleTextFor(descriptor.value.fields));
@@ -292,7 +299,7 @@ async function copyText(): Promise<void> {
 
         <p v-if="errors.length > 0" class="mb-config-form__errorline" role="status">
             <v-btn :prepend-icon="mdiAlertCircleOutline" variant="text" size="x-small" density="comfortable" disabled>
-                {{ t("config.form.errorCount", "{n} problems").replace("{n}", String(errors.length)) }}
+                {{ t("config.form.errorCount", { n: errors.length }, "{n} problems") }}
             </v-btn>
         </p>
     </section>

@@ -112,13 +112,20 @@ watch(
     { immediate: true },
 );
 
+// `t(key, named, fallback)` throughout this file, never `t(key, fallback).replace(...)`:
+// vue-i18n compiles the message itself, so it consumes `{name}`, `{id}` and `{path}` as
+// its own named parameters and a later `replace` finds nothing left to substitute. Half
+// the messages here are file names and validation errors, so the broken form turns
+// "There is already a maps/nether.conf" into a sentence that names no file at all.
 const searchSummary = computed(() =>
     matcher.value.error !== null
         ? t("config.maps.badPattern", "The pattern is not valid, so nothing is listed.")
         : matcher.value.active
-          ? t("config.maps.listSummary", "{shown} of {total} maps match.")
-                .replace("{shown}", String(listed.value.length))
-                .replace("{total}", String(maps.value.length))
+          ? t(
+                "config.maps.listSummary",
+                { shown: listed.value.length, total: maps.value.length },
+                "{shown} of {total} maps match.",
+            )
           : "",
 );
 
@@ -150,12 +157,13 @@ const createProblem = computed(() => {
     const name = createName.value.trim();
     if (name === "") return t("config.maps.needName", "Give the file a name. It becomes the map id.");
     if (!isNameAvailable(props.workspace, "map", name)) {
-        return t("config.maps.nameTaken", "There is already a maps/{name}.conf.").replace("{name}", name);
+        return t("config.maps.nameTaken", { name }, "There is already a maps/{name}.conf.");
     }
     if (maps.value.some((entry) => entry.id === createId.value)) {
-        return t("config.maps.idTaken", 'Another map file already becomes the id "{id}". BlueMap refuses to start when two do.').replace(
-            "{id}",
-            createId.value,
+        return t(
+            "config.maps.idTaken",
+            { id: createId.value },
+            'Another map file already becomes the id "{id}". BlueMap refuses to start when two do.',
         );
     }
     if (createWorld.value.trim() === "") return t("config.maps.needWorld", "Pick the world folder, the one that contains level.dat.");
@@ -164,9 +172,10 @@ const createProblem = computed(() => {
 
 const createIdNote = computed(() =>
     createName.value.trim() !== "" && createId.value !== createName.value.trim()
-        ? t("config.maps.idNote", 'BlueMap turns that file name into the map id "{id}", which is what appears in the tile URLs.').replace(
-              "{id}",
-              createId.value,
+        ? t(
+              "config.maps.idNote",
+              { id: createId.value },
+              'BlueMap turns that file name into the map id "{id}", which is what appears in the tile URLs.',
           )
         : "",
 );
@@ -200,7 +209,7 @@ function confirmCreate(): void {
         }),
     );
     emit("update:selectedKey", `map:${name}`);
-    emit("notify", t("config.maps.created", "Added maps/{name}.conf. It is written when you save.").replace("{name}", name));
+    emit("notify", t("config.maps.created", { name }, "Added maps/{name}.conf. It is written when you save."));
 
     createOpen.value = false;
     createName.value = "";
@@ -213,7 +222,7 @@ const cloneProblem = computed(() => {
     const name = cloneName.value.trim();
     if (name === "") return t("config.maps.needName", "Give the file a name. It becomes the map id.");
     if (!isNameAvailable(props.workspace, "map", name)) {
-        return t("config.maps.nameTaken", "There is already a maps/{name}.conf.").replace("{name}", name);
+        return t("config.maps.nameTaken", { name }, "There is already a maps/{name}.conf.");
     }
     return null;
 });
@@ -222,7 +231,7 @@ function openClone(): void {
     const entry = selected.value;
     if (entry === undefined) return;
     cloneName.value = `${entry.name ?? "map"}_copy`;
-    cloneDisplayName.value = t("config.maps.copyOf", "Copy of {name}").replace("{name}", entry.name ?? "");
+    cloneDisplayName.value = t("config.maps.copyOf", { name: entry.name ?? "" }, "Copy of {name}");
     cloneOpen.value = true;
 }
 
@@ -235,9 +244,11 @@ function confirmClone(): void {
     emit("update:selectedKey", `map:${name}`);
     emit(
         "notify",
-        t("config.maps.cloned", "Copied {from} to maps/{name}.conf, comments and all. It is written when you save.")
-            .replace("{from}", entry.file.path)
-            .replace("{name}", name),
+        t(
+            "config.maps.cloned",
+            { from: entry.file.path, name },
+            "Copied {from} to maps/{name}.conf, comments and all. It is written when you save.",
+        ),
     );
     cloneOpen.value = false;
 }
@@ -252,15 +263,16 @@ const deleteAffected = computed(() => {
     const storageId = storage === undefined ? null : String(fieldValue(entry.file, storage) ?? "");
 
     const lines = [
-        t("config.maps.deleteFile", "The file {path}").replace("{path}", entry.file.path),
-        t("config.maps.deleteId", 'The map id "{id}", so its tiles stop being served').replace("{id}", entry.id ?? ""),
+        t("config.maps.deleteFile", { path: entry.file.path }, "The file {path}"),
+        t("config.maps.deleteId", { id: entry.id ?? "" }, 'The map id "{id}", so its tiles stop being served'),
     ];
     if (storageId !== null && storageId !== "") {
         lines.push(
             t(
                 "config.maps.deleteTiles",
+                { storage: storageId },
                 'Already-rendered tiles in storage "{storage}" are NOT deleted. BlueMap leaves them where they are; remove them yourself if you want the space back.',
-            ).replace("{storage}", storageId),
+            ),
         );
     }
     return lines;
@@ -271,7 +283,7 @@ function confirmDelete(): void {
     if (entry === undefined) return;
 
     emit("update:workspace", removeEntry(props.workspace, entry.key));
-    emit("notify", t("config.maps.deleted", "{path} will be deleted when you save.").replace("{path}", entry.file.path));
+    emit("notify", t("config.maps.deleted", { path: entry.file.path }, "{path} will be deleted when you save."));
     emit("update:selectedKey", null);
 }
 
@@ -347,8 +359,9 @@ const storageOptions = computed(() => storageIds(props.workspace));
                         :action="
                             t(
                                 'config.maps.deleteAction',
+                                { path: selected.file.path },
                                 'This deletes {path} from the config folder when you save. It cannot be undone from here.',
-                            ).replace('{path}', selected.file.path)
+                            )
                         "
                         :affected="deleteAffected"
                         :confirm-label="t('config.maps.deleteConfirm', 'Delete the map config')"
@@ -363,7 +376,13 @@ const storageOptions = computed(() => storageIds(props.workspace));
 
                     <v-spacer />
                     <span class="mb-config-maps__storages">
-                        {{ t("config.maps.storagesAvailable", "Storages available: {list}").replace("{list}", storageOptions.join(", ") || "none") }}
+                        {{
+                            t(
+                                "config.maps.storagesAvailable",
+                                { list: storageOptions.join(", ") || "none" },
+                                "Storages available: {list}",
+                            )
+                        }}
                     </span>
                 </div>
 
@@ -371,9 +390,10 @@ const storageOptions = computed(() => storageIds(props.workspace));
                     :file="selected.file"
                     :title="selected.name ?? ''"
                     :subtitle="
-                        t('config.maps.subtitle', 'Map id {id}. Everything BlueMap reads about this map lives in this one file.').replace(
-                            '{id}',
-                            selected.id ?? '',
+                        t(
+                            'config.maps.subtitle',
+                            { id: selected.id ?? '' },
+                            'Map id {id}. Everything BlueMap reads about this map lives in this one file.',
                         )
                     "
                     :highlight-path="highlightPath"

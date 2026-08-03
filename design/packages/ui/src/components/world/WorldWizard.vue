@@ -9,7 +9,7 @@ import MapOptionsStep from "./MapOptionsStep.vue";
 import MapStorageStep from "./MapStorageStep.vue";
 import WizardReviewStep from "./WizardReviewStep.vue";
 import WorldFolderStep from "./WorldFolderStep.vue";
-import { createMapWizard, fillProblem, type RunOptions } from "./wizardModel.js";
+import { createMapWizard, type RunOptions } from "./wizardModel.js";
 import { WIZARD_STEPS, WIZARD_STEP_META, type WizardStep } from "./wizardSteps.js";
 import type { WorldInspection } from "./worldFolder.js";
 import type { RenderRequest } from "./worldBridge.js";
@@ -122,7 +122,12 @@ const steps = computed(() =>
 );
 
 const problems = computed(() =>
-    wizard.problemsFor(wizard.step.value).map((problem) => fillProblem(problem, t(problem.key, problem.fallback))),
+    // `t(key, named, fallback)`, and no filling afterwards: vue-i18n compiles the
+    // fallback as a message too, so it consumes `{id}` as a named parameter of its
+    // own and the id the message is complaining about is already gone by the time
+    // anything else could substitute it. The values have to go in before the
+    // message is compiled, which is what the third argument is for.
+    wizard.problemsFor(wizard.step.value).map((problem) => t(problem.key, problem.vars ?? {}, problem.fallback)),
 );
 
 const isLast = computed(() => wizard.step.value === "review");

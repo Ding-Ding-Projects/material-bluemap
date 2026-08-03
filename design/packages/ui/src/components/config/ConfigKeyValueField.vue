@@ -59,7 +59,11 @@ function rename(oldKey: string, nextKey: string): void {
     const trimmed = nextKey.trim();
     if (trimmed === "" || trimmed === oldKey) return;
     if (Object.prototype.hasOwnProperty.call(props.modelValue, trimmed)) {
-        notice.value = t("config.keyValue.duplicate", "There is already a property called {key}.").replace("{key}", trimmed);
+        // `t(key, named, fallback)` throughout this file, never `t(key, fallback).replace(...)`:
+        // vue-i18n compiles the message itself, so it consumes `{key}` as its own named
+        // parameter and a later `replace` finds nothing left to substitute. The rejection
+        // then names no property, which is the only thing it was there to say.
+        notice.value = t("config.keyValue.duplicate", { key: trimmed }, "There is already a property called {key}.");
         return;
     }
     notice.value = null;
@@ -82,7 +86,7 @@ function add(): void {
     const key = newKey.value.trim();
     if (key === "") return;
     if (Object.prototype.hasOwnProperty.call(props.modelValue, key)) {
-        notice.value = t("config.keyValue.duplicate", "There is already a property called {key}.").replace("{key}", key);
+        notice.value = t("config.keyValue.duplicate", { key }, "There is already a property called {key}.");
         return;
     }
     notice.value = null;
@@ -134,7 +138,7 @@ function toggleReveal(key: string): void {
             />
             <v-btn
                 :icon="mdiClose"
-                :aria-label="t('config.keyValue.remove', 'Remove {key}').replace('{key}', row.key)"
+                :aria-label="t('config.keyValue.remove', { key: row.key }, 'Remove {key}')"
                 :disabled="isDisabled"
                 variant="text"
                 size="small"
@@ -151,7 +155,7 @@ function toggleReveal(key: string): void {
         <div class="mb-config-kv__add">
             <v-text-field
                 v-model="newKey"
-                :label="t('config.keyValue.newKey', 'New {key}').replace('{key}', control.keyLabel.toLowerCase())"
+                :label="t('config.keyValue.newKey', { key: control.keyLabel.toLowerCase() }, 'New {key}')"
                 :disabled="isDisabled"
                 variant="outlined"
                 density="compact"
@@ -170,8 +174,9 @@ function toggleReveal(key: string): void {
             {{
                 t(
                     "config.keyValue.secretNote",
+                    { keys: control.secretKeys.join(", ") },
                     "Values for {keys} are treated as credentials: masked here, left out of search, and never written to a log or an exported diagnostic.",
-                ).replace("{keys}", control.secretKeys.join(", "))
+                )
             }}
         </p>
     </div>

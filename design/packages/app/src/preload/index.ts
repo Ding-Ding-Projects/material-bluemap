@@ -329,6 +329,59 @@ export interface DiscoveredRelease {
 }
 
 /* -------------------------------------------------------------------------- */
+/* The Java the app would render with                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mirrors the summary types in `main/java/ipc.ts`, restated for the same reason the
+ * render types above are: the preload is bundled separately, and importing across that
+ * boundary would pull `node:child_process` and the whole discovery layer into the
+ * renderer's bundle.
+ */
+export type JavaSource = "JAVA_HOME" | "PATH" | "provisioned";
+
+export interface JavaVersionSummary {
+    /** The feature release: 8, 17, 21, 25. Normalised across both numbering schemes. */
+    feature: number;
+    /** Exactly as the JVM printed it, e.g. `25.0.3`. */
+    version: string;
+    /** The runtime line, e.g. `OpenJDK Runtime Environment Temurin-25.0.3+9 (build ...)`. */
+    runtime: string | null;
+}
+
+export interface JavaInstallationSummary {
+    source: JavaSource;
+    executable: string;
+    /** The JVM's own `java.home`, when it reported one. */
+    home: string | null;
+    version: JavaVersionSummary;
+}
+
+/**
+ * A candidate that was looked at and turned down.
+ *
+ * `reason` is a sentence, not a code: it is shown as written, because "JAVA_HOME points
+ * at Java 17" is actionable and "no Java found" on a machine with three JDKs is
+ * baffling. The main process strips every absolute path out of it first - a rejected
+ * binary's own output can name files that have nothing to do with Java - so the one
+ * path that arrives is `executable`, which is the JDK's.
+ */
+export interface JavaRejectionSummary {
+    source: JavaSource;
+    executable: string;
+    reason: string;
+}
+
+export interface JavaRuntimeSummary {
+    /** The first candidate that ran and was new enough, or null. */
+    installation: JavaInstallationSummary | null;
+    /** Every candidate that was looked at and turned down, in the order tried. */
+    rejected: JavaRejectionSummary[];
+    /** The feature version that was being required, so a message can quote it. */
+    required: number;
+}
+
+/* -------------------------------------------------------------------------- */
 /* GitHub sign-in                                                             */
 /* -------------------------------------------------------------------------- */
 
@@ -575,6 +628,21 @@ export interface MaterialBlueMapBridge {
     ): Promise<{ ok: true; directory: string } | { ok: false; message: string }>;
 
     /**
+     * The Java the app would render with, measured rather than inferred.
+     *
+     * The same pass a render makes - `JAVA_HOME`, then `java` on `PATH`, then the copy
+     * the app provisioned - and each candidate is *run* before it is believed, because a
+     * path is not evidence: `JAVA_HOME` outlives the JDK it pointed at, and a folder
+     * named `jdk-25` can contain a JDK 17. Every rejection comes back with it, so a
+     * machine with no suitable Java can be told which of its three JDKs was wrong and
+     * why.
+     *
+     * Rejects when discovery itself failed. Nothing is downloaded: asking what is
+     * installed must never be the reason two hundred megabytes leave the machine.
+     */
+    javaRuntime(): Promise<JavaRuntimeSummary>;
+
+    /**
      * Subscribes to render progress. Returns the unsubscribe function.
      *
      * Pushed rather than polled because a render takes minutes and moves in ten-second
@@ -737,6 +805,8 @@ const bridge: MaterialBlueMapBridge = {
     renderEngine: (renderId) => ipcRenderer.invoke("render:engine", renderId),
     mapStorageDirectory: () => ipcRenderer.invoke("render:storageDirectory"),
     setMapStorageDirectory: (value) => ipcRenderer.invoke("render:setStorageDirectory", value),
+
+    javaRuntime: () => ipcRenderer.invoke("java:runtime"),
 
     onRenderEvent: (listener) => {
         // The renderer never sees the raw IpcRendererEvent: handing it across the

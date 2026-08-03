@@ -54,9 +54,10 @@ const shown = computed(() => groups.value.reduce((total, group) => total + group
 const summary = computed(() => {
     if (matcher.value.error !== null) return t("config.run.badPattern", "The pattern is not valid, so nothing is shown.");
     if (!matcher.value.active) return "";
-    return t("config.run.matches", "{shown} of {total} flags match.")
-        .replace("{shown}", String(shown.value))
-        .replace("{total}", String(CLI_FLAGS.length));
+    // `t(key, named, fallback)` throughout this file, never `t(key, fallback).replace(...)`:
+    // vue-i18n compiles the message itself, so it consumes the named parameters and a later
+    // `replace` finds nothing left to substitute.
+    return t("config.run.matches", { shown: shown.value, total: CLI_FLAGS.length }, "{shown} of {total} flags match.");
 });
 
 const actions = computed(() => resolveCliActions(props.invocation));
@@ -126,21 +127,22 @@ async function copyCommand(): Promise<void> {
                 <ul class="mb-config-run__list">
                     <li v-if="actions.render">
                         {{
-                            t("config.run.doRender", "Renders {maps}, {force}.")
-                                .replace(
-                                    "{maps}",
-                                    actions.render.maps === null
-                                        ? t("config.run.allMaps", "every map")
-                                        : t("config.run.onlyMaps", "only {list}").replace("{list}", actions.render.maps.join(", ")),
-                                )
-                                .replace(
-                                    "{force}",
-                                    actions.render.force === "all"
-                                        ? t("config.run.forceAll", "re-rendering everything")
-                                        : actions.render.force === "edge"
-                                          ? t("config.run.forceEdge", "re-rendering the map edges as well as changed chunks")
-                                          : t("config.run.forceNone", "only the chunks that changed"),
-                                )
+                            t(
+                                "config.run.doRender",
+                                {
+                                    maps:
+                                        actions.render.maps === null
+                                            ? t("config.run.allMaps", "every map")
+                                            : t("config.run.onlyMaps", { list: actions.render.maps.join(", ") }, "only {list}"),
+                                    force:
+                                        actions.render.force === "all"
+                                            ? t("config.run.forceAll", "re-rendering everything")
+                                            : actions.render.force === "edge"
+                                              ? t("config.run.forceEdge", "re-rendering the map edges as well as changed chunks")
+                                              : t("config.run.forceNone", "only the chunks that changed"),
+                                },
+                                "Renders {maps}, {force}.",
+                            )
                         }}
                     </li>
                     <li v-if="actions.render?.watch">{{ t("config.run.doWatch", "Then keeps watching for changes and keeps the map up to date.") }}</li>
@@ -187,7 +189,7 @@ async function copyCommand(): Promise<void> {
                 <v-icon :icon="mdiConsole" size="20" aria-hidden="true" />
                 {{ t("config.run.command", "The command") }}
                 <v-chip size="x-small" variant="outlined" class="ml-2">
-                    {{ t("config.run.argCount", "{n} arguments").replace("{n}", String(args.length)) }}
+                    {{ t("config.run.argCount", { n: args.length }, "{n} arguments") }}
                 </v-chip>
             </v-card-title>
             <v-card-text>

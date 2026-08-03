@@ -104,8 +104,19 @@ export interface WorldInspection {
     readonly unchecked: boolean;
 }
 
-/** The translator the message helpers take, so they work with or without vue-i18n. */
-export type Translate = (key: string, fallback: string) => string;
+/**
+ * The translator the message helpers take, so they work with or without vue-i18n.
+ *
+ * Both shapes are here because a message carrying a value needs the second one.
+ * vue-i18n compiles the fallback as a message too, so it consumes `{folder}` as a
+ * named parameter of its own and hands back a sentence with the folder already
+ * gone; substituting afterwards has nothing left to substitute. The value has to
+ * arrive as argument two, before the message is compiled.
+ */
+export type Translate = {
+    (key: string, fallback: string): string;
+    (key: string, named: Readonly<Record<string, unknown>>, fallback: string): string;
+};
 
 /** Normalises a path the way every other path in this app is normalised. */
 function normalize(path: string): string {
@@ -339,7 +350,10 @@ export function describeWorldProblem(problem: WorldProblem, t: Translate): World
                     "world.folder.regionFolder",
                     "That is the region folder from inside a world. It holds the map data, but not the world itself.",
                 ),
-                fix: t("world.folder.regionFolderFix", "Go up one level and choose {parent} instead.").replace("{parent}", detail),
+                // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: the
+                // folder is the whole point of the sentence, and the `replace` form
+                // loses it to vue-i18n's own compiler before it can be substituted.
+                fix: t("world.folder.regionFolderFix", { parent: detail }, "Go up one level and choose {parent} instead."),
             };
         case "dimension-folder":
             return {
@@ -347,21 +361,23 @@ export function describeWorldProblem(problem: WorldProblem, t: Translate): World
                     "world.folder.dimensionFolder",
                     "That is one dimension of a world rather than the world. BlueMap picks the dimension itself, from the world folder.",
                 ),
-                fix: t("world.folder.dimensionFolderFix", "Go up one level and choose {parent} instead.").replace("{parent}", detail),
+                fix: t("world.folder.dimensionFolderFix", { parent: detail }, "Go up one level and choose {parent} instead."),
             };
         case "saves-folder":
             return {
-                title: t("world.folder.savesFolder", "That folder holds several worlds rather than being one: {worlds}.").replace(
-                    "{worlds}",
-                    detail,
+                title: t(
+                    "world.folder.savesFolder",
+                    { worlds: detail },
+                    "That folder holds several worlds rather than being one: {worlds}.",
                 ),
                 fix: t("world.folder.savesFolderFix", "Open it and choose the one world you want a map of."),
             };
         case "no-level-dat":
             return {
-                title: t("world.folder.noLevelDat", "There is no level.dat in {folder}, so it is not a Minecraft world.").replace(
-                    "{folder}",
-                    detail,
+                title: t(
+                    "world.folder.noLevelDat",
+                    { folder: detail },
+                    "There is no level.dat in {folder}, so it is not a Minecraft world.",
                 ),
                 fix: t(
                     "world.folder.noLevelDatFix",
@@ -372,8 +388,9 @@ export function describeWorldProblem(problem: WorldProblem, t: Translate): World
             return {
                 title: t(
                     "world.folder.noRegionData",
+                    { folder: detail },
                     "{folder} is a world, but no dimension in it has any region files, so there is nothing to render yet.",
-                ).replace("{folder}", detail),
+                ),
                 fix: t(
                     "world.folder.noRegionDataFix",
                     "Load the world in Minecraft and visit it once, then choose it again. Region files appear as soon as terrain is generated.",
@@ -392,7 +409,9 @@ export function describeWorld(inspection: WorldInspection, t: Translate): string
         return first === undefined ? "" : describeWorldProblem(first, t).title;
     }
     const total = inspection.dimensions.reduce((sum, dimension) => sum + dimension.regionFiles, 0);
-    return t("world.folder.ok", "A Minecraft world with {dimensions} dimensions and {regions} region files.")
-        .replace("{dimensions}", String(inspection.dimensions.length))
-        .replace("{regions}", String(total));
+    return t(
+        "world.folder.ok",
+        { dimensions: inspection.dimensions.length, regions: total },
+        "A Minecraft world with {dimensions} dimensions and {regions} region files.",
+    );
 }

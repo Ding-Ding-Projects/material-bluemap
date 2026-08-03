@@ -44,9 +44,14 @@ const sample = computed(() => maps.value.map((map) => map.name).join("\n"));
 
 const summary = computed(() => {
     if (!search.query) return "";
-    return t("search.summary", "{shown} of {total}")
-        .replace("{shown}", String(visibleMaps.value.length))
-        .replace("{total}", String(maps.value.length));
+    // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n compiles
+    // the fallback as a message too and consumes `{shown}` and `{total}` as its own named
+    // parameters, so a later `replace` finds nothing left and the summary reads " of ".
+    return t(
+        "search.summary",
+        { shown: visibleMaps.value.length, total: maps.value.length },
+        "{shown} of {total}",
+    );
 });
 
 function skyStyle(sky: { r: number; g: number; b: number }): Record<string, string> {

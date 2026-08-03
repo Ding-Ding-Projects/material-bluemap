@@ -7,18 +7,16 @@
  * failure can be explained ("JAVA_HOME points at Java 17") rather than merely announced
  * ("no Java found"). `describeDiscoveryFailure()` is that explanation.
  *
- * None of it is reachable from a renderer. There is no `java:*` IPC handler and no
- * preload method, so **this build cannot report the Java runtime**, and the section says
- * exactly that. It does not print a version, guess from a path, or show an empty field
- * that reads as "none installed" — a settings row that reports a fact nobody measured is
- * worse than one that admits the question cannot be asked here, because the second can
- * be acted on and the first cannot.
+ * The desktop app reaches it over `java:runtime`, which {@link createJavaSetting} picks
+ * up by feature detection. A browser tab has no main process to ask, so there the section
+ * says **this build cannot report the Java runtime** and stops. It does not print a
+ * version, guess from a path, or show an empty field that reads as "none installed" — a
+ * settings row that reports a fact nobody measured is worse than one that admits the
+ * question cannot be asked here, because the second can be acted on and the first cannot.
  *
- * Two things are still real and are shown. If a later build grows `javaRuntime()` on the
- * preload, {@link createJavaSetting} picks it up by feature detection and reports the
- * whole discovery, rejections included. And `listRenders()` — which does exist today —
- * carries the engine line each render ran with, so the most recent one can be quoted as
- * what it is: a record of a past render, not a reading of this machine now.
+ * One further fact is shown wherever it is available. `listRenders()` carries the engine
+ * line each render ran with, so the most recent one can be quoted as what it is: a record
+ * of a past render, not a reading of this machine now.
  */
 
 import { computed, ref, type ComputedRef, type Ref } from "vue";
@@ -35,9 +33,8 @@ import {
 /**
  * What the section is currently able to say.
  *
- * `unsupported` is the state every build shipped so far is in, and it is a first-class
- * answer rather than an error: nothing failed, the question simply cannot be put from
- * here.
+ * `unsupported` is where a host without the preload lands, and it is a first-class answer
+ * rather than an error: nothing failed, the question simply cannot be put from here.
  */
 export type JavaSettingState = "unsupported" | "loading" | "found" | "missing" | "failed";
 
@@ -73,8 +70,15 @@ export interface JavaSetting {
     load(): Promise<void>;
 }
 
+/**
+ * Electron's `ipcRenderer.invoke` delivers a handler's rejection re-wrapped as
+ * `Error invoking remote method 'java:runtime': Error: <message>`. The channel name and
+ * the doubled `Error:` are plumbing, not the sentence the main process wrote, so they
+ * are stripped before the row renders the message. Anything else passes through as is.
+ */
 function describe(error: unknown): string {
-    return error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error);
+    return message.replace(/^Error invoking remote method '[^']*':\s*(?:Error:\s*)?/, "");
 }
 
 /**
@@ -140,11 +144,16 @@ export function createJavaSetting(options: JavaSettingOptions = {}): JavaSetting
     }
 
     async function load(): Promise<void> {
-        await loadRenders();
+        // The render list is a separate, slower IPC and only decorates the section.
+        // Discovery must not queue behind it: the state flips to `loading` before
+        // anything is awaited, so the row shows a spinner immediately and the "Look
+        // again" button's `loading` guard actually guards.
+        const renders = loadRenders();
 
         const discover = bridge?.javaRuntime;
         if (typeof discover !== "function") {
             state.value = "unsupported";
+            await renders;
             return;
         }
 
@@ -159,6 +168,7 @@ export function createJavaSetting(options: JavaSettingOptions = {}): JavaSetting
             failure.value = describe(error);
             state.value = "failed";
         }
+        await renders;
     }
 
     return {

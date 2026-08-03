@@ -155,7 +155,7 @@ async function browse(): Promise<void> {
                     >
                         {{ dimension.label }}
                         <span class="mb-world-step__count">
-                            {{ t("world.folder.regionCount", "{n} regions").replace("{n}", String(dimension.regionFiles)) }}
+                            {{ t("world.folder.regionCount", { n: dimension.regionFiles }, "{n} regions") }}
                         </span>
                     </v-chip>
                 </div>

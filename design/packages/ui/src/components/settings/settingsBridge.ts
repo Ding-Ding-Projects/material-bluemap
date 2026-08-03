@@ -9,13 +9,11 @@
  *
  * **Nothing here invents a capability.** Each method is optional and is feature-detected
  * one at a time, so a build whose preload has grown half of this shows the half that
- * works and says plainly, on screen, what the other half needs. That matters most for
- * {@link JavaRuntimeBridge}: the app's own Java discovery is real and thorough
- * (`packages/app/src/main/java/discovery.ts` runs every candidate before believing it),
- * but **no preload method exposes it today**, so the Java section reports that this
- * build cannot ask rather than printing a version number nobody measured. The shape
- * below is the shape that discovery already produces, so wiring it up later is a preload
- * method and an IPC handler, not a redesign here.
+ * works and says plainly, on screen, what the other half needs. {@link JavaRuntimeBridge}
+ * is the reason that matters: the desktop app now exposes `javaRuntime()` over the
+ * `java:runtime` channel and the section reports the real discovery, rejections included,
+ * while a browser tab - which has no main process to ask - still says so rather than
+ * printing a version number nobody measured.
  */
 
 /* -------------------------------------------------------------------------- */
@@ -91,11 +89,12 @@ export interface JavaRuntimeReadout {
 }
 
 /**
- * Reporting the Java the app found. **Not on the preload yet.**
+ * Reporting the Java the app found.
  *
- * The section works without it, and says so in as many words rather than showing a
- * version it did not measure. When the preload grows this method the section picks it up
- * by feature detection and starts reporting the real discovery, rejections included.
+ * Optional because a browser tab has no main process to put the question to, and the
+ * section works without it - saying so in as many words rather than showing a version it
+ * did not measure. Rejects when discovery itself failed, which the section shows as a
+ * failure rather than as "no Java installed"; those are different problems.
  */
 export interface JavaRuntimeBridge {
     javaRuntime?: () => Promise<JavaRuntimeReadout>;
@@ -148,7 +147,7 @@ export function canWriteStorageDirectory(bridge: SettingsBridge | null): boolean
     return isFunction(bridge?.setMapStorageDirectory) || isFunction(bridge?.setStorageDirectory);
 }
 
-/** True when this build can report the Java it found. False in every build shipped so far. */
+/** True when this build can report the Java it found. False in a browser tab. */
 export function canReportJava(bridge: SettingsBridge | null): boolean {
     return isFunction(bridge?.javaRuntime);
 }

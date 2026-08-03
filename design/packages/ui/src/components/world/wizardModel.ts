@@ -574,7 +574,16 @@ export function folderLeaf(path: string): string {
     return cut < 0 ? trimmed : trimmed.slice(cut + 1);
 }
 
-/** Fills `{name}` placeholders in a step problem, so the message reads as one sentence. */
+/**
+ * Fills `{name}` placeholders in a step problem, for a translator that does not
+ * interpolate them itself.
+ *
+ * vue-i18n does, given {@link StepProblem.vars} as its second argument, which is
+ * how the wizard renders these: by the time a translated string comes back,
+ * vue-i18n has compiled the message and consumed `{id}` as a named parameter of
+ * its own, so there is nothing left here to fill. This stays for a surface whose
+ * translator is a plain lookup.
+ */
 export function fillProblem(problem: StepProblem, text: string): string {
     let filled = text;
     for (const [name, value] of Object.entries(problem.vars ?? {})) {

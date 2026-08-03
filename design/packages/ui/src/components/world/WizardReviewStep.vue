@@ -238,8 +238,9 @@ async function copyConfig(): Promise<void> {
                     {{
                         t(
                             "world.review.carriedNote",
+                            { n: carried.length },
                             "These {n} settings are written into the map config file below. The local engine writes its own config for a single render and reads the world, dimension, name, sort order, starting position and storage from it, so it does not pick these up yet. Copy the file out to keep them.",
-                        ).replace("{n}", String(carried.length))
+                        )
                     }}
                 </v-alert>
                 <ul class="mb-world-review__list mb-world-review__list--muted">

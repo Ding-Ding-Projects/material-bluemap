@@ -71,7 +71,7 @@ export interface JavaUnsupportedCopy {
 }
 
 /**
- * What the Java section says in the state every build shipped so far is in.
+ * What the Java section says where it has no main process to ask — a browser tab.
  *
  * Shared with the search so that somebody who reads "JAVA_HOME" on this screen and then
  * types it into the search bar is not told there are no matches.
