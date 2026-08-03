@@ -30,11 +30,13 @@ name: Render world
 on:
   workflow_dispatch:
     inputs:
-      # GitHub caps workflow_dispatch at TEN inputs, and exceeding it does not fail the
-      # run - it stops the workflow being registered at all, so it never appears in the
-      # Actions list and `gh workflow run` reports it as not found. This file had twelve
-      # and was therefore undispatchable. The three location fields are one field whose
-      # meaning follows `world-source`, which leaves a slot spare.
+      # GitHub documents a cap of TEN workflow_dispatch inputs; this file had twelve. The
+      # three location fields are one field whose meaning follows `world-source`, which
+      # leaves a slot spare.
+      #
+      # (This was not what made the workflow undispatchable - that was an arithmetic
+      # expression further down, see the comment on the "Say where the map went" step.
+      # Being over a documented limit was worth fixing on its own.)
       world-source:
         description: Where the world comes from
         type: choice
@@ -652,8 +654,21 @@ jobs:
 
       - name: Say where the map went
         shell: bash
+        # GitHub's expression language has NO arithmetic operators - no `-`, no `+`. It
+        # only has comparison and logic. `fromJSON(x) - 1` is therefore a parse error, and
+        # a parse error anywhere in a workflow file stops the whole workflow from being
+        # registered: it vanishes from the Actions list, `gh workflow run` reports it as
+        # not found, and the only visible symptom is a zero-second "workflow file issue"
+        # failure hung on unrelated pushes. This file carried exactly that for its whole
+        # life, so `Render world` had never once been dispatchable.
+        #
+        # Bash does have arithmetic. The value crosses as an env var and the subtraction
+        # happens here, where a shell can actually do it.
+        env:
+          GROUP_COUNT: ${{ needs.plan.outputs.group-count }}
         run: |
           set -euo pipefail
+          last_group=$(( GROUP_COUNT - 1 ))
           {
             echo "## Output"
             echo ""
@@ -661,7 +676,7 @@ jobs:
             echo "in parts:"
             echo ""
             echo "- **map-lowres**: the webapp, the map metadata and the whole lowres pyramid."
-            echo "- **partial-hires-0** to **partial-hires-${{ fromJSON(needs.plan.outputs.group-count) - 1 }}**: the hires tiles, one artifact per merge group."
+            echo "- **partial-hires-0** to **partial-hires-${last_group}**: the hires tiles, one artifact per merge group."
             echo ""
             echo "Unzip **map-lowres**, then unzip each **partial-hires-N** into"
             echo "\`maps/${{ inputs.map-id }}/tiles/0/\` inside it. The hires parts never overlap,"

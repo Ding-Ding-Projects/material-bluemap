@@ -15,6 +15,29 @@ permissions:
   contents: read
 
 jobs:
+  # A workflow file with an invalid expression is not a workflow that fails - it is a
+  # workflow that never registers. It disappears from the Actions list, `gh workflow run`
+  # reports it as not found, and the only symptom is a zero-second "workflow file issue"
+  # hung on some unrelated push. `Render world` shipped in that state and nobody could
+  # have told from a green CI run, because nothing here ever read those files.
+  #
+  # This job reads them. It is deliberately first and deliberately cheap: it needs no
+  # checkout of anything but the workflows and no toolchain at all.
+  workflows:
+    name: Lint the workflow files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint
+        run: |
+          set -euo pipefail
+          version=1.7.7
+          curl -fsSL --retry 3 \
+            "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz" \
+            | tar -xz actionlint
+          # shellcheck is present on the runner, so the `run:` blocks get checked too.
+          ./actionlint -color
+
   check:
     name: Lint, build, test
     runs-on: ubuntu-latest

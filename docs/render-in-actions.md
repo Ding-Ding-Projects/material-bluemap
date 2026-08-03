@@ -53,10 +53,8 @@ For `release-asset` the tag defaults to `latest`. The split is on the **last** s
 release asset's file name cannot contain one, so a tag that does — `release/1.4` — still
 works.
 
-> This used to be three separate inputs. GitHub caps `workflow_dispatch` at **ten**, and
-> going over does not fail a run: it stops the workflow being registered at all, so it
-> vanishes from the Actions list and `gh workflow run` reports it as not found. This file
-> had twelve and was undispatchable for exactly that reason.
+> This used to be three separate inputs, consolidated because GitHub documents a cap of
+> **ten** `workflow_dispatch` inputs and this file had twelve.
 
 Whatever the source, the world is checked before anything is rendered: there has to be a
 `level.dat` and a region directory holding `.mca` files for the dimension you asked for.

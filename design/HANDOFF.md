@@ -423,21 +423,33 @@ somewhere the app does not serve produces tiles nobody can see.
 ### `Render world` was undispatchable, and had been all along
 
 The workflow never appeared in the Actions list and `gh workflow run` reported it as not found.
-The cause: **GitHub caps `workflow_dispatch` at ten inputs and this file had twelve.**
+Its only symptom was a zero-second "workflow file issue" failure hung on unrelated pushes. The
+whole Actions rendering path — sequential waves, resumable shards, tree merges, everything in
+`docs/render-in-actions.md` — was unreachable, and had never worked once.
 
-Going over the cap does not fail a run — it stops the workflow being *registered*, so the only
-symptom is a zero-second "workflow file issue" failure attached to unrelated pushes, and a
-feature that silently does not exist. The whole Actions rendering path — sequential waves,
-resumable shards, tree merges, everything in `docs/render-in-actions.md` — was unreachable.
+**The cause was a single expression:** `${{ fromJSON(needs.plan.outputs.group-count) - 1 }}`.
+GitHub's expression language has **no arithmetic operators** — only comparison and logic — so
+`- 1` is a parse error, and a parse error anywhere in the file stops the *whole workflow* from
+being registered. The value now crosses into the step as an env var and bash does the
+subtraction.
 
-The three location fields are now one `world` field whose meaning follows `world-source`, which
-brings it to nine with a slot spare. For `release-asset` it accepts `tag/glob`, split on the
+> **I got this wrong first, and the wrong answer was plausible.** I saw the file had twelve
+> `workflow_dispatch` inputs against a documented cap of ten, concluded that was the cause,
+> merged the three location fields into one, committed it, pushed — and the run failed in zero
+> seconds exactly as before. The input count was over the documented limit and reducing it was
+> defensible, but it was **not** what broke the file, and I had asserted that it was.
+>
+> What found the real cause was `actionlint`, in one line, immediately. `yaml.safe_load()` had
+> said the file was fine, because it *was* fine as YAML — the error was one level up, in the
+> expression language embedded inside a string. **A YAML file that parses is not a workflow that
+> registers**, and neither is one that a careful reading makes sense of.
+
+`actionlint` now runs in CI over every workflow, because this class of error is invisible
+locally and its only production symptom is a feature that quietly does not exist.
+
+The `world` field consolidation is kept: for `release-asset` it accepts `tag/glob`, split on the
 **last** slash, because a release asset's file name cannot contain one and a tag like
 `release/1.4` can.
-
-> Worth generalising: a YAML file that parses is not a workflow that registers. `python -c
-> "yaml.safe_load(...)"` said this file was fine. Check `gh workflow list` for the workflow's
-> *name* after changing a trigger block.
 
 ### `registerIpc()` could crash the app on reopen
 
