@@ -24,6 +24,37 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "0e4f831538a2d0b9f3b02e98a83fb0711dd905fe",
+        shortSha: "0e4f831538",
+        date: "2026-08-04T15:05:27-04:00",
+        subject: "Merge current default history into Pages continuation",
+        details: "The continuation now carries the project, history, repair, and runtime wiring that landed on the default branch while hosted runners were still in the queue.\n\nContinuation 而家食埋 default branch 最新嘅 project、history、repair 同 runtime wiring，等緊 hosted runner 唔代表我哋要停喺舊地圖。",
+        category: "shell",
+        areas: ["shell", "interface", "docs", "build"],
+        files: 72,
+        summarizes: 3,
+    },
+    {
+        sha: "55a6f414005f537b19380caff43fcaea3ad5e13a",
+        shortSha: "55a6f41400",
+        date: "2026-08-04T15:03:12-04:00",
+        subject: "Wire the project and the deeper history across to the renderer",
+        details: "Both subsystems were finished and unreachable: the main process could\nread a world's project, record a revision of it and compare any two\nrevisions of a config folder, and nothing on the other side of the\nbridge could ask.\n\nSix project calls and three history ones cross now. The history three\nare probed one at a time rather than all-or-nothing like the original\neight, so a shell built before them keeps a working panel: comparing\nfalls back to the parent diff and the raw patch, and the selective\nrestore controls simply are not drawn.\n\nTwo shapes here are deliberate and worth not flattening later. A world\nwith a project that will not open is `present` with a null name and a\nproblem sentence, because \"there is no project\" and \"there is a project\nand it is damaged\" are different things to tell somebody and a boolean\ncan only say one of them. And both sides of a compared file cross whole\nrather than as a patch, because the panel reports changed settings, and\na line diff calls a setting that merely moved a change while calling a\ncomment somebody added one too.\n\nRegistered in the main process beside the config history, deriving its\nrepository from the world folder on every call. Never a .git inside\nsomebody's world: that would put an object store next to their region\nfiles and change what every backup tool sees.\n\n---\n\n兩套嘢都做好晒但入唔到:主程序讀得到世界嘅 project、記得到一次修改、\n仲比較得到 config 資料夾任何兩個版本,但橋另一邊冇人問得到。\n\n而家六個 project 呼叫同三個 history 呼叫過得到橋。history 嗰三個係逐\n個試,唔似原本八個咁「一係全部一係冇」,所以舊 shell 都仲有個做得嘢\n嘅面板:比較會退返去同父版本比同睇原始 patch,選擇性還原就唔畫出嚟。\n\n有兩個形狀係特登嘅,將來唔好順手壓平。有 project 但開唔到嗰個世界,\n係 present、name 係 null、再加一句問題描述 —— 因為「冇 project」同\n「有 project 但爛咗」係兩件唔同嘅事,一個布林值只講得到一件。仲有,\n比較檔案係兩邊原文一齊過,唔係過個 patch:面板報嘅係「邊個設定變咗」,\n而 line diff 會將「只係搬咗位」當成有變,又會將「有人加咗句註解」當成\n設定變咗。",
+        category: "shell",
+        areas: ["shell", "interface"],
+        files: 3,
+    },
+    {
+        sha: "d7cbd34ab36616ec160a6bb7369366d43fdcaca5",
+        shortSha: "d7cbd34ab3",
+        date: "2026-08-04T14:56:18-04:00",
+        subject: "Render in a container or on this machine, and diagnose a failure before guessing at it",
+        details: "Three things land together because they share a spine: a project a world\ncarries, a runtime that can be local or Docker, and a repair pass that\nreads a failure before anyone reaches for a language model.\n\nThe project file at a world's root now has main-process hands: an atomic\nwrite through a temp file beside the target (not in %TEMP%, because a\nworld is often on another drive and a cross-device rename degrades to a\ncopy, which is the non-atomic write being avoided), a clobber guard that\nreads the existing file every time and refuses to overwrite one written\nby a newer app, and one history revision per save. Restore deliberately\nbypasses the guard, because the history layer has already snapshotted\nthe disk before calling it.\n\nRendering can now happen in a container. Three details in there are the\ndifference between working and appearing to:\n\nKilling the `docker run` client does not stop the container - it stops\nwatching it - so cancelling issues `docker stop`, and `--init` is in the\nlaunch because a JVM at PID 1 ignores SIGTERM and would otherwise render\non until the timeout.\n\nThe container's config binds 0.0.0.0, never 127.0.0.1. A container\nbinding its own loopback is unreachable from the host even with the port\npublished: it starts perfectly and answers nothing.\n\nAnd Docker is described honestly - isolation yes, a different Java yes,\nmore processors no, and on Windows usually slower through the virtual\nmachine's file sharing.\n\nThe repair pass decides ten failure classes with no model involved,\nevery pattern quoted from the vendored BlueMap source that prints it. A\nport already held, no Java, a Java too old, an unreadable world, an\nunwritable output folder, a download nobody accepted, a config the\nengine itself rejected. Exit 137 is read as an out-of-memory kill,\nbecause a container that runs out of memory prints no Java error at all.\n`1.8.0_452` parses as feature 8, not 1. A missing executable in Docker\nmode is never diagnosed as \"install Java\".\n\nOnly what remains unexplained reaches a coding agent, and it is fenced\nin before a file handle exists: the config folder of that run only,\nfiles the engine actually loads, deletion refused as a category, world\nfolders refused by name, and a file named twice writes nothing. The\nforbidden list is one constant used both to build the prompt and to\nenforce it, so the two cannot drift. Credentials are masked on the way\ninto the evidence, so nothing downstream ever holds an unmasked copy.\n\"I could not work out why this failed\" is a correct answer.\n\nThe history manager grew the thing it most needed: comparing any two\nrevisions rather than each against its parent, setting-level diffs\ninstead of line patches, and putting back one file or one setting.\n\n304 main-process tests and 218 history-panel tests green. None of them\nneed Docker, a coding agent, or a network.\n\n---\n\n三樣嘢一齊落地,因為佢哋同一條脊骨:世界自己帶住嘅 project、可以本機\n又可以 Docker 嘅執行方式,同埋一個「未搵語言模型之前先自己讀清楚」嘅\n修復流程。\n\nProject 檔而家有主程序嘅手:經隔籬嘅暫存檔做原子寫入(唔擺 %TEMP%,\n因為世界好多時喺第二隻碟,跨裝置 rename 會變成 copy,即係我哋想避開\n嗰種非原子寫入),每次都先讀返現有檔案,見到係新版本 app 寫嘅就唔覆蓋。\n\nContainer 入面有三個位,係「行到」同「睇落行到」嘅分別:殺咗 docker\nrun 個 client 唔等於停到個 container,所以取消係發 docker stop,而且\nlaunch 要有 --init,因為 PID 1 嘅 JVM 係唔理 SIGTERM 嘅。Container 嘅\nconfig 一定綁 0.0.0.0,唔可以綁自己嘅 127.0.0.1 —— 綁咗就算 port 有\npublish,喺 host 都撳唔到:開得靚仔,答你冇聲。\n\n修復流程用零個模型判斷十種失敗,每個 pattern 都係喺 vendored BlueMap\n源碼度抄返出嚟嘅。137 當作記憶體唔夠俾人殺咗,因為 container OOM 係\n一句 Java 錯都唔會印。1.8.0_452 讀做第 8 代,唔係第 1 代。\n\n真係解釋唔到嘅,先交俾 coding agent,而且喺開檔案之前已經圍死:只准\n今次嗰個 config 資料夾、只准引擎真係會讀嘅檔、刪嘢整類拒絕、世界資料夾\n點名拒絕。「我查唔到點解會死」係一個正確答案。",
+        category: "shell",
+        areas: ["shell", "interface", "docs", "build"],
+        files: 69,
+    },
+    {
         sha: "76153d0965556208e9095faf8bee43046801308a",
         shortSha: "76153d0965",
         date: "2026-08-04T14:56:49-04:00",
