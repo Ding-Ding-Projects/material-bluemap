@@ -107,7 +107,7 @@ function project(overrides: Partial<ProjectFile> = {}): ProjectFile {
 }
 
 function map(id: string, name: string, dimension: string): ProjectMap {
-    return { id, name, dimension, config: "", storage: "file", sorting: 0, enabled: true };
+    return { id, name, dimension, world: null, config: "", storage: "file", sorting: 0, enabled: true };
 }
 
 /* -------------------------------------------------------------------------- */

@@ -81,7 +81,13 @@ class Parser {
         this.skipTrivia(trailing);
         if (!this.eof()) this.fail(`Unexpected ${JSON.stringify(this.peek())} after the end of the root object`);
 
-        return { header, root, trailing, endsWithNewline: this.text.endsWith("\n") };
+        return {
+            header,
+            root,
+            trailing,
+            endsWithNewline: this.text.endsWith("\n"),
+            lineEnding: this.text.includes("\r\n") ? "\r\n" : "\n",
+        };
     }
 
     // ---- character helpers -------------------------------------------------

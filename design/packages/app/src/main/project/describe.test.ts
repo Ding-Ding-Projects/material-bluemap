@@ -35,6 +35,7 @@ function map(id: string, name: string, overrides: Partial<ProjectMap> = {}): Pro
         id,
         name,
         dimension: "minecraft:overworld",
+        world: null,
         config: "sky-color: #7dabff\n",
         storage: "file",
         sorting: 0,

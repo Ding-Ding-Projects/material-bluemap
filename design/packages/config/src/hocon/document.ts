@@ -112,6 +112,8 @@ export interface HoconDocument {
     /** Comments and blank lines after everything else in the file. */
     readonly trailing: readonly Trivia[];
     readonly endsWithNewline: boolean;
+    /** The file's original line ending, kept so a Windows save does not rewrite every line. */
+    readonly lineEnding: "\n" | "\r\n";
 }
 
 /** Thrown when a file cannot be parsed, or uses a HOCON feature we do not support. */

@@ -115,7 +115,8 @@ describe("generateConfigSet reproduces what the Java CLI writes", () => {
     it("writes plugin.conf when a server platform asks for it", () => {
         const withPlugin = generateConfigSet({ webroot: "web", dataFolder: "data", world: "world", version: "5.22-27", includePluginConfig: true, separator: "/" });
         expect(withPlugin.map((file) => file.path)).toContain("plugin.conf");
-        expect(withPlugin.find((file) => file.path === "plugin.conf")?.text).toBe(CONFIG_TEMPLATES.plugin);
+        const newline = process.platform === "win32" ? "\r\n" : "\n";
+        expect(withPlugin.find((file) => file.path === "plugin.conf")?.text).toBe(CONFIG_TEMPLATES.plugin.replaceAll("\n", newline));
     });
 });
 
