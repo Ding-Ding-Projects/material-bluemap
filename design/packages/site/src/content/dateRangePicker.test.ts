@@ -5,6 +5,7 @@ describe("changelog date range input", () => {
     it("accepts ISO and slash dates without discarding invalid text", () => {
         expect(formatDateInput(parseDateInput("2026-08-04")!)).toBe("2026-08-04");
         expect(formatDateInput(parseDateInput("08/04/2026")!)).toBe("2026-08-04");
+        expect(formatDateInput(parseDateInput("2026/08/04")!)).toBe("2026-08-04");
         expect(parseDateInput("2026-02-30")).toBeNull();
         expect(parseDateInput("not a date")).toBeNull();
     });

@@ -56,6 +56,7 @@ export function createDateRangePicker(i18n: I18n): DateRangePickerView {
     i18n.bindText(error, "site.dateInvalid");
 
     const monthInput = el("input", { class: "md-field__input", attrs: { type: "month" } });
+    i18n.bindAttr(monthInput, "aria-label", "site.datePickerTitle");
     const previous = el("button", { class: "md-icon-button", attrs: { type: "button" } });
     const next = el("button", { class: "md-icon-button", attrs: { type: "button" } });
     i18n.bindAttr(previous, "aria-label", "site.previousMonth");
@@ -215,6 +216,14 @@ export function parseDateInput(value: string): Date | null {
     if (iso !== null) {
         year = Number(iso[1]); month = Number(iso[2]); day = Number(iso[3]);
     } else {
+        const yearFirst = /^(\d{4})[\/]([0-9]{1,2})[\/]([0-9]{1,2})$/.exec(trimmed);
+        if (yearFirst !== null) {
+            year = Number(yearFirst[1]);
+            month = Number(yearFirst[2]);
+            day = Number(yearFirst[3]);
+            const result = new Date(year, month - 1, day);
+            return result.getFullYear() === year && result.getMonth() === month - 1 && result.getDate() === day ? result : null;
+        }
         const slash = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);
         if (slash === null) return null;
         const first = Number(slash[1]);
