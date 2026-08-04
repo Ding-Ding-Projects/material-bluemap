@@ -15,6 +15,7 @@ import type { Notifications } from "../notifications/Notifications.js";
 import type { Preferences } from "../platform/Preferences.js";
 import type { StringKey } from "../i18n/strings.js";
 import type { ThemeController } from "../theme/ThemeController.js";
+import { confirmDestructive } from "../settings/confirm.js";
 
 interface RadioGroupOptions<T extends string> {
     readonly i18n: I18n;
@@ -117,14 +118,19 @@ export function createAppearancePanel(deps: {
     i18n.bindText(densityHelp, "appearance.densityHelp");
     panel.append(densityHelp);
 
-    const reset = el("button", { class: "md-button md-button--outlined", attrs: { type: "button" } });
+    const reset = el("button", {
+        class: "md-button md-button--outlined",
+        attrs: { type: "button" },
+    });
     i18n.bindText(reset, "common.reset");
     reset.addEventListener("click", () => {
         theme.reset();
         for (const input of panel.querySelectorAll<HTMLInputElement>('input[name="site-theme"]')) {
             input.checked = input.value === theme.mode;
         }
-        for (const input of panel.querySelectorAll<HTMLInputElement>('input[name="site-density"]')) {
+        for (const input of panel.querySelectorAll<HTMLInputElement>(
+            'input[name="site-density"]',
+        )) {
             input.checked = input.value === theme.density;
         }
         notifications.notify({ severity: "success", title: { key: "appearance.resetDone" } });
@@ -212,7 +218,11 @@ export function createLanguagePanel(deps: {
 
         const ticks = el("datalist", { attrs: { id: `${id}-ticks` } });
         for (const level of FUNNY_LEVELS) {
-            ticks.append(el("option", { attrs: { value: String(level), label: i18n.levelName(level, language) } }));
+            ticks.append(
+                el("option", {
+                    attrs: { value: String(level), label: i18n.levelName(level, language) },
+                }),
+            );
         }
 
         wrapper.append(el("div", { class: "panel__slider-row" }, input, output), ticks);
@@ -234,16 +244,24 @@ export function createLanguagePanel(deps: {
     panel.append(disclosure);
 
     if (!prefs.available) {
-        const warning = el("p", { class: "md-body-small panel__warning", attrs: { role: "status" } });
+        const warning = el("p", {
+            class: "md-body-small panel__warning",
+            attrs: { role: "status" },
+        });
         i18n.bindText(warning, "language.storageWarning");
         panel.append(warning);
     }
 
-    const reset = el("button", { class: "md-button md-button--outlined", attrs: { type: "button" } });
+    const reset = el("button", {
+        class: "md-button md-button--outlined",
+        attrs: { type: "button" },
+    });
     i18n.bindText(reset, "common.reset");
     reset.addEventListener("click", () => {
         i18n.reset();
-        for (const input of panel.querySelectorAll<HTMLInputElement>('input[name="site-language"]')) {
+        for (const input of panel.querySelectorAll<HTMLInputElement>(
+            'input[name="site-language"]',
+        )) {
             input.checked = input.value === i18n.mode;
         }
         const ranges = panel.querySelectorAll<HTMLInputElement>('input[type="range"]');
@@ -275,9 +293,17 @@ export function createNotificationPanel(deps: {
     const title = el("h2", { class: "md-title-medium" });
     i18n.bindText(title, "notify.centreTitle");
 
-    const clearAll = el("button", { class: "md-button md-button--text", attrs: { type: "button" } });
+    const clearAll = el("button", {
+        class: "md-button md-button--text",
+        attrs: { type: "button" },
+    });
     i18n.bindText(clearAll, "notify.dismissAll");
-    clearAll.addEventListener("click", () => notifications.clearAll());
+    clearAll.addEventListener("click", async () => {
+        const confirmed = await confirmDestructive(
+            i18n.t("notify.clearAllConfirm", { count: notifications.list().length }),
+        );
+        if (confirmed) notifications.clearAll();
+    });
 
     panel.append(el("div", { class: "notification-centre__header" }, title, clearAll));
 

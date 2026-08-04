@@ -58,7 +58,7 @@ import { Notifications } from "./notifications/Notifications.js";
 import { Preferences } from "./platform/Preferences.js";
 import { RegexBuilderSlot } from "./platform/RegexBuilderSlot.js";
 import { ShortcutRegistry } from "./platform/shortcuts.js";
-import { createSettingsPage } from "./settings/index.js";
+import { confirmDestructive, createSettingsPage } from "./settings/index.js";
 import { appendInlineContent, renderBlocks } from "./shell/renderBlocks.js";
 import { TabModel } from "./tabs/TabModel.js";
 import { TabsController } from "./tabs/index.js";
@@ -82,7 +82,7 @@ import type { NotificationRecord } from "./notifications/Notifications.js";
 function el<K extends keyof HTMLElementTagNameMap>(
     tag: K,
     className?: string,
-    text?: string
+    text?: string,
 ): HTMLElementTagNameMap[K] {
     const node = document.createElement(tag);
     if (className !== undefined) node.className = className;
@@ -301,7 +301,11 @@ function renderShowcase(host: HTMLElement, navigation: PageNavigation): void {
  * It is a real control with a real hit target, and its label names the article rather than
  * saying "read more", so it still means something read out of context by a screen reader.
  */
-function articleButton(articleId: string, navigation: PageNavigation, label?: string): HTMLButtonElement {
+function articleButton(
+    articleId: string,
+    navigation: PageNavigation,
+    label?: string,
+): HTMLButtonElement {
     const article = findArticle(articleId);
     const button = el("button", "mb-card-link", label ?? `Read: ${article?.title ?? articleId}`);
     button.type = "button";
@@ -386,7 +390,9 @@ function renderPhases(host: HTMLElement): void {
         tr.appendChild(scope);
 
         const status = el("td");
-        status.appendChild(el("span", `mb-status mb-phase-${row.status}`, PHASE_STATUS_LABELS[row.status]));
+        status.appendChild(
+            el("span", `mb-status mb-phase-${row.status}`, PHASE_STATUS_LABELS[row.status]),
+        );
         tr.appendChild(status);
 
         tbody.appendChild(tr);
@@ -439,8 +445,8 @@ function renderDocs(host: HTMLElement): void {
         el(
             "p",
             "mb-page-subtitle",
-            contentPages.find((contentPage) => contentPage.id === "docs")?.description ?? ""
-        )
+            contentPages.find((contentPage) => contentPage.id === "docs")?.description ?? "",
+        ),
     );
 
     for (const category of articleCategoryOrder) {
@@ -527,7 +533,11 @@ function renderScreenshots(host: HTMLElement): void {
     // The committed set first, because it is the one that exists in every clone. The
     // fetched set below it may or may not have been collected for this build.
     if (repoCaptures.length > 0) {
-        const committed = section(root, screenshotsCopy.committedHeading, screenshotsCopy.committedLead);
+        const committed = section(
+            root,
+            screenshotsCopy.committedHeading,
+            screenshotsCopy.committedLead,
+        );
         const grid = el("div", "mb-shot-grid");
         for (const capture of repoCaptures) grid.appendChild(captureFigure(capture, "mb-shot"));
         committed.appendChild(grid);
@@ -537,7 +547,11 @@ function renderScreenshots(host: HTMLElement): void {
     if (!screenshotAvailability.available) {
         // Say plainly that the fetched captures are missing rather than showing
         // placeholders that would read as the product.
-        const missing = section(root, screenshotsCopy.unavailableHeading, screenshotsCopy.unavailableLead);
+        const missing = section(
+            root,
+            screenshotsCopy.unavailableHeading,
+            screenshotsCopy.unavailableLead,
+        );
         missing.appendChild(el("p", "mb-prose-p", screenshotAvailability.reason));
 
         const link = el("a", "mb-download-link", screenshotsCopy.unavailableLinkLabel);
@@ -613,7 +627,7 @@ function boot(): void {
     const root = document.getElementById(ROOT_ID);
     if (root === null) {
         throw new Error(
-            `The mount point #${ROOT_ID} is missing from index.html, so there is nowhere to render.`
+            `The mount point #${ROOT_ID} is missing from index.html, so there is nowhere to render.`,
         );
     }
     root.replaceChildren();
@@ -644,7 +658,8 @@ function boot(): void {
             });
             if (regexMode) model.setPattern(request.pattern);
             const unsubscribe = model.subscribe((snapshot) => {
-                if (request.field.value !== snapshot.fieldValue) request.field.value = snapshot.fieldValue;
+                if (request.field.value !== snapshot.fieldValue)
+                    request.field.value = snapshot.fieldValue;
                 request.onChange({ pattern: snapshot.pattern, flags: snapshot.flags });
             });
             const controller = createBuilderController({
@@ -670,7 +685,15 @@ function boot(): void {
     const notifications = new Notifications(i18n, notificationHost);
 
     const model = new TabModel(prefs, i18n);
-    const tabs = new TabsController({ i18n, model, notifications, shortcuts, regex, appearance });
+    const tabs = new TabsController({
+        i18n,
+        model,
+        notifications,
+        shortcuts,
+        regex,
+        appearance,
+        confirmDestructive,
+    });
     const settingsView = createSettingsPage({ prefs, appearance, theme });
     const tabLabelKey = {
         home: "site.homeTab",
@@ -703,14 +726,17 @@ function boot(): void {
             if (summary instanceof HTMLElement) summary.focus({ preventScroll: true });
             // Section results carry `article-id#section-id`. Land on the exact heading
             // instead of opening a long disclosure and asking the visitor to hunt again.
-            const sectionTarget = sectionId === undefined
-                ? null
-                : document.getElementById(`article-${articleId}-${sectionId}`);
+            const sectionTarget =
+                sectionId === undefined
+                    ? null
+                    : document.getElementById(`article-${articleId}-${sectionId}`);
             const destination = sectionTarget instanceof HTMLElement ? sectionTarget : target;
             if (offset !== undefined && sectionTarget === null) {
-                const textTarget = [...target.querySelectorAll<HTMLElement>(".mb-prose, .mb-article-lede")]
-                    .find((candidate) => candidate.textContent?.length !== 0);
-                if (textTarget !== undefined) destination.scrollIntoView({ block: "center", behavior: "auto" });
+                const textTarget = [
+                    ...target.querySelectorAll<HTMLElement>(".mb-prose, .mb-article-lede"),
+                ].find((candidate) => candidate.textContent?.length !== 0);
+                if (textTarget !== undefined)
+                    destination.scrollIntoView({ block: "center", behavior: "auto" });
             }
             const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
             destination.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
@@ -754,7 +780,14 @@ function boot(): void {
         label: { key: "site.searchTab" },
         closable: true,
         render: (host) => {
-            host.replaceChildren(createDiscoveryView({ tabs, settings: settingsView, i18n, openArticle: navigation.openArticle }));
+            host.replaceChildren(
+                createDiscoveryView({
+                    tabs,
+                    settings: settingsView,
+                    i18n,
+                    openArticle: navigation.openArticle,
+                }),
+            );
             decoratePage(host, "search", appearance);
         },
     });
@@ -762,7 +795,10 @@ function boot(): void {
         id: "changelog",
         label: { key: "site.changelogTab" },
         closable: true,
-        render: (host) => { host.replaceChildren(createChangelogView(i18n)); decoratePage(host, "changelog", appearance); },
+        render: (host) => {
+            host.replaceChildren(createChangelogView(i18n));
+            decoratePage(host, "changelog", appearance);
+        },
     });
     tabs.registerPage({
         id: "notifications",
@@ -775,7 +811,10 @@ function boot(): void {
             view.appendChild(title);
             const fields: readonly CandidateField<NotificationRecord, "title" | "body">[] = [
                 { name: "title", get: (record) => i18n.text(record.title) },
-                { name: "body", get: (record) => record.body === null ? "" : i18n.text(record.body) },
+                {
+                    name: "body",
+                    get: (record) => (record.body === null ? "" : i18n.text(record.body)),
+                },
             ];
             const search = createSearchSurface({
                 fieldId: "notifications.history",
@@ -790,10 +829,15 @@ function boot(): void {
                 renderResult: ({ item }) => {
                     const row = el("article", "notification-centre__item");
                     const heading = el("h2", "notification-centre__title", i18n.text(item.title));
-                    const time = el("time", "notification-centre__time", item.at.toLocaleTimeString());
+                    const time = el(
+                        "time",
+                        "notification-centre__time",
+                        item.at.toLocaleTimeString(),
+                    );
                     time.setAttribute("datetime", item.at.toISOString());
                     row.append(heading, time);
-                    if (item.body !== null) row.append(el("p", "notification-centre__body", i18n.text(item.body)));
+                    if (item.body !== null)
+                        row.append(el("p", "notification-centre__body", i18n.text(item.body)));
                     return row;
                 },
             });
@@ -808,13 +852,27 @@ function boot(): void {
             const status = el("p", "mb-help");
             status.setAttribute("role", "status");
             status.setAttribute("aria-live", "polite");
-            clearButton.addEventListener("click", () => {
+            clearButton.addEventListener("click", async () => {
+                const confirmed = await confirmDestructive(
+                    i18n.t("site.clearNotificationsConfirm", {
+                        count: notifications.list().length,
+                    }),
+                );
+                if (!confirmed) return;
                 notifications.clearAll();
                 i18n.bindText(status, "site.notificationsCleared");
             });
             exportButton.addEventListener("click", () => {
-                const lines = notifications.list().map((record) => `- ${record.at.toISOString()} [${record.severity}] ${i18n.text(record.title)}${record.body === null ? "" : ` — ${i18n.text(record.body)}`}`);
-                const blob = new Blob([`# ${i18n.t("site.notificationTitle")}\n\n${lines.join("\n")}\n`], { type: "text/markdown;charset=utf-8" });
+                const lines = notifications
+                    .list()
+                    .map(
+                        (record) =>
+                            `- ${record.at.toISOString()} [${record.severity}] ${i18n.text(record.title)}${record.body === null ? "" : ` — ${i18n.text(record.body)}`}`,
+                    );
+                const blob = new Blob(
+                    [`# ${i18n.t("site.notificationTitle")}\n\n${lines.join("\n")}\n`],
+                    { type: "text/markdown;charset=utf-8" },
+                );
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement("a");
                 link.href = url;
@@ -837,7 +895,17 @@ function boot(): void {
     const main = el("main", "mb-main");
     main.appendChild(tabs.strip.panels);
     root.appendChild(main);
-    document.body.appendChild(createShellPalette({ prefs, tabs, settingsView, shortcuts, i18n, appearance, openArticle: navigation.openArticle }));
+    document.body.appendChild(
+        createShellPalette({
+            prefs,
+            tabs,
+            settingsView,
+            shortcuts,
+            i18n,
+            appearance,
+            openArticle: navigation.openArticle,
+        }),
+    );
     tabs.activate("home");
 
     // 10% per load, non-blocking, never focus-stealing, and there is deliberately no
@@ -856,12 +924,21 @@ function decoratePage(host: HTMLElement, pageId: string, appearance: AppearanceC
     const candidates = appearanceElements(target);
     candidates.forEach((element, index) => {
         if (element.dataset.mbKind !== undefined) return;
-        const readable = element.getAttribute("aria-label") ?? element.textContent?.trim().replace(/\s+/g, " ").slice(0, 72);
-        registerAppearanceTarget(element, {
-            kind: "card",
-            instance: `page-${pageId}-${index}`,
-            instanceLabel: readable === undefined || readable === "" ? `${pageId} element ${index + 1}` : readable,
-        }, appearance);
+        const readable =
+            element.getAttribute("aria-label") ??
+            element.textContent?.trim().replace(/\s+/g, " ").slice(0, 72);
+        registerAppearanceTarget(
+            element,
+            {
+                kind: "card",
+                instance: `page-${pageId}-${index}`,
+                instanceLabel:
+                    readable === undefined || readable === ""
+                        ? `${pageId} element ${index + 1}`
+                        : readable,
+            },
+            appearance,
+        );
     });
 }
 
@@ -875,12 +952,48 @@ function createShellPalette(options: {
     readonly openArticle: (articleRef: string) => void;
 }): HTMLElement {
     const list = (): readonly PaletteCommand[] => [
-        { id: "open-home", label: options.i18n.t("site.openHome"), description: options.i18n.t("site.descriptionHome"), kind: "page", run: () => options.tabs.reveal("home") },
-        { id: "open-docs", label: options.i18n.t("site.openDocs"), description: options.i18n.t("site.descriptionDocs"), kind: "page", run: () => options.tabs.reveal("docs") },
-        { id: "open-search", label: options.i18n.t("site.openSearch"), description: options.i18n.t("site.descriptionSearch"), kind: "page", run: () => options.tabs.reveal("search") },
-        { id: "open-changelog", label: options.i18n.t("site.openChangelog"), description: options.i18n.t("site.descriptionChangelog"), kind: "page", run: () => options.tabs.reveal("changelog") },
-        { id: "open-notifications", label: options.i18n.t("site.openNotifications"), description: options.i18n.t("site.descriptionNotifications"), kind: "command", run: () => options.tabs.reveal("notifications") },
-        { id: "open-settings", label: options.i18n.t("site.openSettings"), description: options.i18n.t("site.descriptionSettings"), kind: "page", run: () => options.tabs.reveal("settings") },
+        {
+            id: "open-home",
+            label: options.i18n.t("site.openHome"),
+            description: options.i18n.t("site.descriptionHome"),
+            kind: "page",
+            run: () => options.tabs.reveal("home"),
+        },
+        {
+            id: "open-docs",
+            label: options.i18n.t("site.openDocs"),
+            description: options.i18n.t("site.descriptionDocs"),
+            kind: "page",
+            run: () => options.tabs.reveal("docs"),
+        },
+        {
+            id: "open-search",
+            label: options.i18n.t("site.openSearch"),
+            description: options.i18n.t("site.descriptionSearch"),
+            kind: "page",
+            run: () => options.tabs.reveal("search"),
+        },
+        {
+            id: "open-changelog",
+            label: options.i18n.t("site.openChangelog"),
+            description: options.i18n.t("site.descriptionChangelog"),
+            kind: "page",
+            run: () => options.tabs.reveal("changelog"),
+        },
+        {
+            id: "open-notifications",
+            label: options.i18n.t("site.openNotifications"),
+            description: options.i18n.t("site.descriptionNotifications"),
+            kind: "command",
+            run: () => options.tabs.reveal("notifications"),
+        },
+        {
+            id: "open-settings",
+            label: options.i18n.t("site.openSettings"),
+            description: options.i18n.t("site.descriptionSettings"),
+            kind: "page",
+            run: () => options.tabs.reveal("settings"),
+        },
         ...articlePaletteCommands(
             articles,
             (title) => options.i18n.t("site.openArticle", { title }),
@@ -891,17 +1004,34 @@ function createShellPalette(options: {
             label: setting.label,
             description: `${setting.description} · ${setting.valueText}`,
             kind: "setting" as const,
-            run: () => { options.tabs.reveal("settings"); options.settingsView.revealSetting(setting.id); },
+            run: () => {
+                options.tabs.reveal("settings");
+                options.settingsView.revealSetting(setting.id);
+            },
         })),
-        { id: "appearance-editor", label: options.i18n.t("site.editAppearance"), description: options.i18n.t("site.descriptionAppearance"), kind: "appearance", run: () => options.tabs.reveal("settings") },
+        {
+            id: "appearance-editor",
+            label: options.i18n.t("site.editAppearance"),
+            description: options.i18n.t("site.descriptionAppearance"),
+            kind: "appearance",
+            run: () => options.tabs.reveal("settings"),
+        },
     ];
     const palette = createCommandPalette({ prefs: options.prefs, i18n: options.i18n, list });
-    registerAppearanceTarget(palette.element, {
-        kind: "card",
-        instance: "command-palette",
-        instanceLabel: options.i18n.t("site.commandPalette"),
-    }, options.appearance);
-    options.shortcuts.register({ id: "palette.open", parts: ["Ctrl", "Shift", "F"], run: () => palette.open() });
+    registerAppearanceTarget(
+        palette.element,
+        {
+            kind: "card",
+            instance: "command-palette",
+            instanceLabel: options.i18n.t("site.commandPalette"),
+        },
+        options.appearance,
+    );
+    options.shortcuts.register({
+        id: "palette.open",
+        parts: ["Ctrl", "Shift", "F"],
+        run: () => palette.open(),
+    });
     return palette.element;
 }
 

@@ -25,6 +25,7 @@ import type { BulkClosePreview, TabModel } from "./TabModel.js";
 import type { I18n } from "../i18n/I18n.js";
 import type { Notifications } from "../notifications/Notifications.js";
 import type { RegexBuilderSlot } from "../platform/RegexBuilderSlot.js";
+import type { DestructiveGate } from "../settings/confirm.js";
 
 export interface BulkCloseScope {
     readonly kind: "all" | "group";
@@ -36,6 +37,7 @@ export interface BulkCloseDeps {
     readonly model: TabModel;
     readonly notifications: Notifications;
     readonly regex: RegexBuilderSlot;
+    readonly confirmDestructive: DestructiveGate;
 }
 
 export interface BulkCloseOpenOptions {
@@ -67,8 +69,12 @@ export function openBulkCloseDialog(deps: BulkCloseDeps, options: BulkCloseOpenO
 
     const scopeLine = el("p", { class: "md-body-small bulk-close__scope" });
     if (options.scope.kind === "group" && options.scope.groupId !== null) {
-        const group = model.listGroups().find((candidate) => candidate.id === options.scope.groupId);
-        i18n.bindText(scopeLine, "bulk.scope.group", { name: group?.name ?? options.scope.groupId });
+        const group = model
+            .listGroups()
+            .find((candidate) => candidate.id === options.scope.groupId);
+        i18n.bindText(scopeLine, "bulk.scope.group", {
+            name: group?.name ?? options.scope.groupId,
+        });
     } else {
         i18n.bindText(scopeLine, "bulk.scope.all");
     }
@@ -85,13 +91,22 @@ export function openBulkCloseDialog(deps: BulkCloseDeps, options: BulkCloseOpenO
     const queryRow = el("div", { class: "bulk-close__query" });
     const query = el("input", {
         class: "md-field__input",
-        attrs: { id: queryId, type: "text", autocomplete: "off", spellcheck: "false", maxlength: "2000" },
+        attrs: {
+            id: queryId,
+            type: "text",
+            autocomplete: "off",
+            spellcheck: "false",
+            maxlength: "2000",
+        },
     });
     queryRow.append(query);
 
     // The guided builder appears only when the search module has provided one. No provider
     // means no button, rather than a button that opens nothing.
-    const builderButton = el("button", { class: "md-button md-button--outlined bulk-close__builder", attrs: { type: "button" } });
+    const builderButton = el("button", {
+        class: "md-button md-button--outlined bulk-close__builder",
+        attrs: { type: "button" },
+    });
     i18n.bindText(builderButton, "bulk.builderButton");
     builderButton.addEventListener("click", () => {
         regex.open({
@@ -100,7 +115,10 @@ export function openBulkCloseDialog(deps: BulkCloseDeps, options: BulkCloseOpenO
             pattern: query.value,
             flags: caseToggle.checked ? "" : "i",
             mode,
-            sample: model.openIds().map((id) => model.label(id)).join("\n"),
+            sample: model
+                .openIds()
+                .map((id) => model.label(id))
+                .join("\n"),
             onChange: (next) => {
                 query.value = next.pattern;
                 if (mode !== "regex") setMode("regex");
@@ -118,7 +136,10 @@ export function openBulkCloseDialog(deps: BulkCloseDeps, options: BulkCloseOpenO
     i18n.bindText(help, "bulk.queryHelp");
     field.append(help);
 
-    const error = el("p", { class: "md-field__help md-field__help--error", attrs: { role: "alert" } });
+    const error = el("p", {
+        class: "md-field__help md-field__help--error",
+        attrs: { role: "alert" },
+    });
     field.append(error);
     body.append(field);
 
@@ -136,7 +157,13 @@ export function openBulkCloseDialog(deps: BulkCloseDeps, options: BulkCloseOpenO
         const id = `bulk-close-mode-${candidate}`;
         const input = el("input", {
             class: "bulk-close__radio",
-            attrs: { type: "radio", name: "bulk-close-mode", id, value: candidate, ...(candidate === "plain" ? { checked: true } : {}) },
+            attrs: {
+                type: "radio",
+                name: "bulk-close-mode",
+                id,
+                value: candidate,
+                ...(candidate === "plain" ? { checked: true } : {}),
+            },
         });
         input.addEventListener("change", () => {
             if (input.checked) setMode(candidate);
@@ -170,7 +197,10 @@ export function openBulkCloseDialog(deps: BulkCloseDeps, options: BulkCloseOpenO
     i18n.bindText(previewHeading, "bulk.previewHeading");
     body.append(previewHeading);
 
-    const summary = el("p", { class: "md-body-medium bulk-close__summary", attrs: { role: "status" } });
+    const summary = el("p", {
+        class: "md-body-medium bulk-close__summary",
+        attrs: { role: "status" },
+    });
     body.append(summary);
 
     const excluded = el("p", { class: "md-body-small bulk-close__excluded" });
@@ -187,7 +217,10 @@ export function openBulkCloseDialog(deps: BulkCloseDeps, options: BulkCloseOpenO
     cancel.addEventListener("click", () => dialog.close());
     actions.append(cancel);
 
-    const confirm = el("button", { class: "md-button md-button--danger", attrs: { type: "button" } });
+    const confirm = el("button", {
+        class: "md-button md-button--danger",
+        attrs: { type: "button" },
+    });
     i18n.bindText(confirm, "bulk.confirm");
     actions.append(confirm);
     body.append(actions);
@@ -229,7 +262,10 @@ export function openBulkCloseDialog(deps: BulkCloseDeps, options: BulkCloseOpenO
             } else {
                 i18n.bindText(error, "bulk.invalidPattern", { message: preview.matcher.message });
             }
-            query.setAttribute("aria-invalid", preview.matcher.reason === "empty" ? "false" : "true");
+            query.setAttribute(
+                "aria-invalid",
+                preview.matcher.reason === "empty" ? "false" : "true",
+            );
             confirm.disabled = true;
             return;
         }
@@ -249,7 +285,8 @@ export function openBulkCloseDialog(deps: BulkCloseDeps, options: BulkCloseOpenO
         }
 
         const excludedCount = preview.excludedPinned.length + preview.excludedProtected.length;
-        if (excludedCount > 0) i18n.bindText(excluded, "bulk.excludedPinned", { count: excludedCount });
+        if (excludedCount > 0)
+            i18n.bindText(excluded, "bulk.excludedPinned", { count: excludedCount });
 
         if (preview.willClose.length === 0) {
             const empty = el("li", { class: "bulk-close__empty" });
@@ -275,8 +312,15 @@ export function openBulkCloseDialog(deps: BulkCloseDeps, options: BulkCloseOpenO
         confirm.disabled = false;
     }
 
-    confirm.addEventListener("click", () => {
+    confirm.addEventListener("click", async () => {
         if (preview === null || preview.willClose.length === 0) return;
+        const confirmed = await deps.confirmDestructive(
+            i18n.t("bulk.closeConfirm", {
+                count: preview.willClose.length,
+                mode: i18n.t(mode === "regex" ? "bulk.mode.regex" : "bulk.mode.plain"),
+            }),
+        );
+        if (!confirmed) return;
         const result = model.applyBulkClose(preview);
         dialog.close();
         notifications.notify({

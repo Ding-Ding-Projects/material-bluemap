@@ -97,11 +97,23 @@ export const VOICED = {
         yue: ["外觀", "外觀", "外觀設定", "換個樣", "執靚佢"],
     },
     "shell.languageButton": {
-        en: ["Language and tone", "Language and tone", "Language and tone", "Language and how funny", "Language and silliness dial"],
+        en: [
+            "Language and tone",
+            "Language and tone",
+            "Language and tone",
+            "Language and how funny",
+            "Language and silliness dial",
+        ],
         yue: ["語言同語氣", "語言同語氣", "語言同語氣", "語言同幾好笑", "語言同搞笑旋鈕"],
     },
     "shell.notificationsButton": {
-        en: ["Notifications", "Notifications", "Notifications", "What the site told you", "The shouting box"],
+        en: [
+            "Notifications",
+            "Notifications",
+            "Notifications",
+            "What the site told you",
+            "The shouting box",
+        ],
         yue: ["通知", "通知", "通知", "個網頭先講咗咩", "叫嚷箱"],
     },
     "shell.tabListButton": {
@@ -109,7 +121,13 @@ export const VOICED = {
         yue: ["所有頁面", "所有頁面", "全部頁面", "有幾多頁都喺呢度", "成張頁面菜單"],
     },
     "appearance.title": {
-        en: ["Appearance", "Appearance", "Appearance", "How this should look", "Interior decorating"],
+        en: [
+            "Appearance",
+            "Appearance",
+            "Appearance",
+            "How this should look",
+            "Interior decorating",
+        ],
         yue: ["外觀", "外觀", "外觀設定", "想個樣點呢", "室內設計時間"],
     },
     "appearance.themeHelp": {
@@ -161,7 +179,13 @@ export const VOICED = {
         ],
     },
     "language.title": {
-        en: ["Language and tone", "Language and tone", "Language and tone", "Language and how funny", "Language and the silliness dial"],
+        en: [
+            "Language and tone",
+            "Language and tone",
+            "Language and tone",
+            "Language and how funny",
+            "Language and the silliness dial",
+        ],
         yue: ["語言同語氣", "語言同語氣", "語言同語氣", "語言同幾好笑", "語言同搞笑旋鈕"],
     },
     "language.modeHelp": {
@@ -245,7 +269,13 @@ export const VOICED = {
         ],
     },
     "notify.centreTitle": {
-        en: ["Notification centre", "Notification centre", "Notification centre", "Everything the site said", "The complaints department"],
+        en: [
+            "Notification centre",
+            "Notification centre",
+            "Notification centre",
+            "Everything the site said",
+            "The complaints department",
+        ],
         yue: ["通知中心", "通知中心", "通知中心", "個網講過嘅嘢", "投訴部"],
     },
     "notify.centreEmpty": {
@@ -256,7 +286,13 @@ export const VOICED = {
             "Empty. Either nothing happened or nothing went wrong. Both are fine.",
             "Completely empty. Suspiciously peaceful around here.",
         ],
-        yue: ["暫時未有通知。", "而家未有嘢報告。", "冇嘢報告，總算係好消息。", "空空如也。冇嘢發生或者冇嘢出錯，兩樣都唔錯。", "乾淨到得個桔。靜到有啲可疑。"],
+        yue: [
+            "暫時未有通知。",
+            "而家未有嘢報告。",
+            "冇嘢報告，總算係好消息。",
+            "空空如也。冇嘢發生或者冇嘢出錯，兩樣都唔錯。",
+            "乾淨到得個桔。靜到有啲可疑。",
+        ],
     },
     "notify.regionLabel": {
         en: ["Notifications", "Notifications", "Notifications", "Notifications", "Notifications"],
@@ -267,7 +303,13 @@ export const VOICED = {
         yue: ["網站分頁", "網站分頁", "網站分頁", "網站分頁", "網站分頁"],
     },
     "tabs.pinnedRegionLabel": {
-        en: ["Pinned pages", "Pinned pages", "Pinned pages", "Pages you nailed down", "Pages under lock and key"],
+        en: [
+            "Pinned pages",
+            "Pinned pages",
+            "Pinned pages",
+            "Pages you nailed down",
+            "Pages under lock and key",
+        ],
         yue: ["已釘選頁面", "已釘選頁面", "釘咗嘅頁面", "你釘死咗嘅頁面", "上晒鎖嘅頁面"],
     },
     "tabs.overflowButton": {
@@ -278,10 +320,22 @@ export const VOICED = {
             "{count} more that did not fit",
             "{count} more, squeezed out of the strip",
         ],
-        yue: ["仲有 {count} 頁", "仲有 {count} 頁", "仲有 {count} 頁匿喺呢度", "仲有 {count} 頁擺唔落", "仲有 {count} 頁畀人擠咗出嚟"],
+        yue: [
+            "仲有 {count} 頁",
+            "仲有 {count} 頁",
+            "仲有 {count} 頁匿喺呢度",
+            "仲有 {count} 頁擺唔落",
+            "仲有 {count} 頁畀人擠咗出嚟",
+        ],
     },
     "tabs.listHeading": {
-        en: ["All pages", "All pages", "Every page", "Every page there is", "The complete page inventory"],
+        en: [
+            "All pages",
+            "All pages",
+            "Every page",
+            "Every page there is",
+            "The complete page inventory",
+        ],
         yue: ["所有頁面", "所有頁面", "全部頁面", "有幾多頁都喺呢度", "全套頁面清單"],
     },
     "tabs.listFilterHelp": {
@@ -317,11 +371,29 @@ export const VOICED = {
         ],
     },
     "tabs.reopen": {
-        en: ["Reopen the last closed page", "Reopen the last closed page", "Bring back the last one", "Undo that last close", "Resurrect the last one"],
-        yue: ["重開最後關閉的頁面", "重開最後關咗嗰頁", "開返最後嗰頁", "撤銷頭先關咗嗰下", "翻生最後嗰頁"],
+        en: [
+            "Reopen the last closed page",
+            "Reopen the last closed page",
+            "Bring back the last one",
+            "Undo that last close",
+            "Resurrect the last one",
+        ],
+        yue: [
+            "重開最後關閉的頁面",
+            "重開最後關咗嗰頁",
+            "開返最後嗰頁",
+            "撤銷頭先關咗嗰下",
+            "翻生最後嗰頁",
+        ],
     },
     "tabs.recentlyClosed": {
-        en: ["Recently closed", "Recently closed", "Recently closed", "Recently shown the door", "The recently departed"],
+        en: [
+            "Recently closed",
+            "Recently closed",
+            "Recently closed",
+            "Recently shown the door",
+            "The recently departed",
+        ],
         yue: ["最近關閉", "最近關閉", "啱啱關咗嘅", "啱啱畀人踢走嘅", "最近往生嘅"],
     },
     "tabs.menu.closeContaining": {
@@ -332,7 +404,13 @@ export const VOICED = {
             "Close everything containing…",
             "Evict every page containing…",
         ],
-        yue: ["關閉名稱包含文字的頁面…", "關閉名包含某啲字嘅頁面…", "關閉個名含住某啲字嘅頁面…", "凡係含住呢啲字嘅通通關…", "含住呢啲字嘅一律趕走…"],
+        yue: [
+            "關閉名稱包含文字的頁面…",
+            "關閉名包含某啲字嘅頁面…",
+            "關閉個名含住某啲字嘅頁面…",
+            "凡係含住呢啲字嘅通通關…",
+            "含住呢啲字嘅一律趕走…",
+        ],
     },
     "tabs.menu.closeNotContaining": {
         en: [
@@ -351,15 +429,45 @@ export const VOICED = {
         ],
     },
     "tabs.group.newGroup": {
-        en: ["New group from this page…", "New group from this page…", "Start a group with this page…", "Start a new group here…", "Found a new dynasty here…"],
-        yue: ["以此頁建立新群組…", "用呢頁開個新群組…", "同呢頁開個群組…", "喺呢度開個新群組…", "喺呢度開山立派…"],
+        en: [
+            "New group from this page…",
+            "New group from this page…",
+            "Start a group with this page…",
+            "Start a new group here…",
+            "Found a new dynasty here…",
+        ],
+        yue: [
+            "以此頁建立新群組…",
+            "用呢頁開個新群組…",
+            "同呢頁開個群組…",
+            "喺呢度開個新群組…",
+            "喺呢度開山立派…",
+        ],
     },
     "tabs.group.namePrompt": {
-        en: ["Name for the new group", "Name for the new group", "What should this group be called?", "Give the group a name", "Name your new dynasty"],
-        yue: ["新群組名稱", "新群組個名", "呢個群組叫咩名好？", "畀個名個群組", "你個新門派叫咩名？"],
+        en: [
+            "Name for the new group",
+            "Name for the new group",
+            "What should this group be called?",
+            "Give the group a name",
+            "Name your new dynasty",
+        ],
+        yue: [
+            "新群組名稱",
+            "新群組個名",
+            "呢個群組叫咩名好？",
+            "畀個名個群組",
+            "你個新門派叫咩名？",
+        ],
     },
     "tabs.group.defaultName": {
-        en: ["Group {number}", "Group {number}", "Group {number}", "Group {number}", "Group {number}"],
+        en: [
+            "Group {number}",
+            "Group {number}",
+            "Group {number}",
+            "Group {number}",
+            "Group {number}",
+        ],
         yue: ["群組 {number}", "群組 {number}", "群組 {number}", "群組 {number}", "群組 {number}"],
     },
     "bulk.containingTitle": {
@@ -370,7 +478,13 @@ export const VOICED = {
             "Close everything that contains this",
             "Evict every page that contains this",
         ],
-        yue: ["關閉名稱包含文字的頁面", "關閉名包含某啲字嘅頁面", "關閉個名含住呢啲字嘅頁面", "凡係含住呢啲字嘅通通關", "含住呢啲字嘅一律趕走"],
+        yue: [
+            "關閉名稱包含文字的頁面",
+            "關閉名包含某啲字嘅頁面",
+            "關閉個名含住呢啲字嘅頁面",
+            "凡係含住呢啲字嘅通通關",
+            "含住呢啲字嘅一律趕走",
+        ],
     },
     "bulk.notContainingTitle": {
         en: [
@@ -412,11 +526,29 @@ export const VOICED = {
             "Yes, the pinned ones as well",
             "Take the pinned ones down too",
         ],
-        yue: ["包括已釘選的頁面", "連釘咗嘅頁面都計", "連釘咗嗰啲都計埋", "係，釘咗嗰啲都要", "連釘死咗嗰啲都拆埋佢"],
+        yue: [
+            "包括已釘選的頁面",
+            "連釘咗嘅頁面都計",
+            "連釘咗嗰啲都計埋",
+            "係，釘咗嗰啲都要",
+            "連釘死咗嗰啲都拆埋佢",
+        ],
     },
     "bulk.previewHeading": {
-        en: ["Pages that will close", "Pages that will close", "Pages that will close", "Pages about to go", "Pages on the way out"],
-        yue: ["將會關閉的頁面", "將會關閉嘅頁面", "會被關掉嘅頁面", "就嚟走嘅頁面", "準備出門口嘅頁面"],
+        en: [
+            "Pages that will close",
+            "Pages that will close",
+            "Pages that will close",
+            "Pages about to go",
+            "Pages on the way out",
+        ],
+        yue: [
+            "將會關閉的頁面",
+            "將會關閉嘅頁面",
+            "會被關掉嘅頁面",
+            "就嚟走嘅頁面",
+            "準備出門口嘅頁面",
+        ],
     },
     "bulk.emptyQuery": {
         en: [
@@ -515,7 +647,13 @@ export const VOICED = {
         ],
     },
     "dimsum.eyebrow": {
-        en: ["Dim sum", "A little dim sum", "A little dim sum, on the house", "Dim sum, unrequested", "Dim sum, arriving whether you ordered it or not"],
+        en: [
+            "Dim sum",
+            "A little dim sum",
+            "A little dim sum, on the house",
+            "Dim sum, unrequested",
+            "Dim sum, arriving whether you ordered it or not",
+        ],
         yue: ["點心", "少少點心", "少少點心，本店請客", "點心，冇人叫都上", "點心到，唔理你叫唔叫"],
     },
     "home.lede": {
@@ -574,7 +712,13 @@ export const VOICED = {
             "{label} has left the building.",
             "{label} has left the building, waving.",
         ],
-        yue: ["已關閉 {label}。", "已經關咗 {label}。", "{label} 關咗嘞。", "{label} 走咗喇。", "{label} 揮下手就走咗喇。"],
+        yue: [
+            "已關閉 {label}。",
+            "已經關咗 {label}。",
+            "{label} 關咗嘞。",
+            "{label} 走咗喇。",
+            "{label} 揮下手就走咗喇。",
+        ],
     },
     "tabs.pinnedNotice": {
         en: [
@@ -673,16 +817,52 @@ export const VOICED = {
         ],
     },
     "site.filteredCopied": {
-        en: ["Filtered changelog copied.", "Filtered changelog copied.", "Filtered changelog copied without drama.", "Filtered changelog copied; the clipboard behaved.", "Filtered changelog copied; tiny clipboard victory."],
-        yue: ["已複製篩選後的變更記錄。", "已複製篩選後嘅變更記錄。", "篩選後嘅變更記錄複製好，冇出花。", "篩選記錄複製成功，剪貼簿今次乖。", "篩選記錄複製成功，剪貼簿終於贏一局。"],
+        en: [
+            "Filtered changelog copied.",
+            "Filtered changelog copied.",
+            "Filtered changelog copied without drama.",
+            "Filtered changelog copied; the clipboard behaved.",
+            "Filtered changelog copied; tiny clipboard victory.",
+        ],
+        yue: [
+            "已複製篩選後的變更記錄。",
+            "已複製篩選後嘅變更記錄。",
+            "篩選後嘅變更記錄複製好，冇出花。",
+            "篩選記錄複製成功，剪貼簿今次乖。",
+            "篩選記錄複製成功，剪貼簿終於贏一局。",
+        ],
     },
     "site.clipboardFailed": {
-        en: ["Clipboard access failed; use Export Markdown instead.", "Clipboard access failed; Export Markdown is still available.", "The clipboard failed; Export Markdown will get you out.", "The clipboard tripped; use Export Markdown instead.", "The clipboard face-planted; Export Markdown is the reliable escape hatch."],
-        yue: ["剪貼簿存取失敗，請改用匯出 Markdown。", "剪貼簿存取失敗，但仲可以匯出 Markdown。", "剪貼簿跌低咗，匯出 Markdown 可以救場。", "剪貼簿跣親，改用匯出 Markdown。", "剪貼簿成個趴低，匯出 Markdown 係可靠出口。"],
+        en: [
+            "Clipboard access failed; use Export Markdown instead.",
+            "Clipboard access failed; Export Markdown is still available.",
+            "The clipboard failed; Export Markdown will get you out.",
+            "The clipboard tripped; use Export Markdown instead.",
+            "The clipboard face-planted; Export Markdown is the reliable escape hatch.",
+        ],
+        yue: [
+            "剪貼簿存取失敗，請改用匯出 Markdown。",
+            "剪貼簿存取失敗，但仲可以匯出 Markdown。",
+            "剪貼簿跌低咗，匯出 Markdown 可以救場。",
+            "剪貼簿跣親，改用匯出 Markdown。",
+            "剪貼簿成個趴低，匯出 Markdown 係可靠出口。",
+        ],
     },
     "site.filteredExported": {
-        en: ["Filtered changelog exported.", "Filtered changelog exported.", "Filtered changelog exported successfully.", "Filtered changelog packed and exported.", "Filtered changelog escaped into a Markdown file."],
-        yue: ["已匯出篩選後的變更記錄。", "已匯出篩選後嘅變更記錄。", "篩選後嘅變更記錄匯出成功。", "篩選記錄執好包匯出。", "篩選記錄成功逃入 Markdown 檔案。"],
+        en: [
+            "Filtered changelog exported.",
+            "Filtered changelog exported.",
+            "Filtered changelog exported successfully.",
+            "Filtered changelog packed and exported.",
+            "Filtered changelog escaped into a Markdown file.",
+        ],
+        yue: [
+            "已匯出篩選後的變更記錄。",
+            "已匯出篩選後嘅變更記錄。",
+            "篩選後嘅變更記錄匯出成功。",
+            "篩選記錄執好包匯出。",
+            "篩選記錄成功逃入 Markdown 檔案。",
+        ],
     },
 } as const satisfies Record<string, VoicedString>;
 
@@ -721,6 +901,10 @@ export const FIXED = {
 
     "notify.dismiss": { en: "Dismiss", yue: "關閉通知" },
     "notify.dismissAll": { en: "Clear all", yue: "全部清除" },
+    "notify.clearAllConfirm": {
+        en: "Clear all {count} notification records from this browser session? This cannot be undone.",
+        yue: "清除呢個瀏覽器工作階段入面全部 {count} 條通知記錄？呢個動作無法撤銷。",
+    },
     "notify.severity.info": { en: "Information", yue: "資訊" },
     "notify.severity.success": { en: "Success", yue: "成功" },
     "notify.severity.warning": { en: "Warning", yue: "警告" },
@@ -733,6 +917,18 @@ export const FIXED = {
     "tabs.menu.close": { en: "Close", yue: "關閉" },
     "tabs.menu.closeOthers": { en: "Close others", yue: "關閉其他" },
     "tabs.menu.closeRight": { en: "Close to the right", yue: "關閉右邊全部" },
+    "tabs.closeConfirm": {
+        en: "Close {label}? It will leave the open tab strip and can be reopened from Recently closed.",
+        yue: "關閉「{label}」？佢會離開目前分頁列，但可以喺最近關閉度重新開返。",
+    },
+    "tabs.closeOthersConfirm": {
+        en: "Close {count} other unpinned pages? Pinned pages stay open and the closed pages can be reopened from Recently closed.",
+        yue: "關閉其他 {count} 頁未釘選頁面？已釘選頁面會保留，關閉咗嘅頁面可以喺最近關閉度開返。",
+    },
+    "tabs.closeRightConfirm": {
+        en: "Close {count} unpinned pages to the right? They can be reopened from Recently closed.",
+        yue: "關閉右邊 {count} 頁未釘選頁面？佢哋可以喺最近關閉度開返。",
+    },
     "tabs.menu.addToGroup": { en: "Add to group", yue: "加入群組" },
     "tabs.menu.removeFromGroup": { en: "Remove from group", yue: "移出群組" },
     "tabs.menu.pageActions": { en: "Page actions", yue: "頁面操作" },
@@ -742,6 +938,10 @@ export const FIXED = {
     "tabs.group.expand": { en: "Expand group", yue: "展開群組" },
     "tabs.group.rename": { en: "Rename group…", yue: "重新命名群組…" },
     "tabs.group.remove": { en: "Remove group", yue: "移除群組" },
+    "tabs.removeGroupConfirm": {
+        en: "Remove group {name}? Its pages stay open and become ungrouped.",
+        yue: "移除群組「{name}」？入面嘅頁面會保留，但會變成未分組。",
+    },
     "tabs.group.colour": { en: "Group colour", yue: "群組顏色" },
     "tabs.group.actions": { en: "Group actions", yue: "群組操作" },
     "tabs.group.none": { en: "No group", yue: "唔屬於任何群組" },
@@ -759,6 +959,10 @@ export const FIXED = {
     "bulk.mode.regex": { en: "Regular expression", yue: "正規表示式" },
     "bulk.caseSensitive": { en: "Match case", yue: "區分大小寫" },
     "bulk.confirm": { en: "Close them", yue: "關閉佢哋" },
+    "bulk.closeConfirm": {
+        en: "Close {count} pages matched by this {mode} search? Pinned or protected pages outside the count stay open.",
+        yue: "關閉呢個 {mode} 搜尋搵到嘅 {count} 頁？唔計入數目嘅釘選或受保護頁面會保留。",
+    },
     "bulk.builderButton": { en: "Build the pattern", yue: "砌條式" },
     "bulk.scopeLabel": { en: "Scope", yue: "範圍" },
     "bulk.scope.all": { en: "All open pages", yue: "所有開啟中的頁面" },
@@ -791,7 +995,10 @@ export const FIXED = {
     "site.groupPrefix": { en: "Group: {name}", yue: "群組：{name}" },
     "site.changelogTitle": { en: "Changelog", yue: "變更記錄" },
     "site.searchChangelog": { en: "Search changelog", yue: "搜尋變更記錄" },
-    "site.searchChangelogPlaceholder": { en: "Search versions, changes, or commits", yue: "搜尋版本、變更或 commit" },
+    "site.searchChangelogPlaceholder": {
+        en: "Search versions, changes, or commits",
+        yue: "搜尋版本、變更或 commit",
+    },
     "site.changelogEntries": { en: "Changelog entries", yue: "變更記錄項目" },
     "site.commitLabel": { en: "commit", yue: "commit" },
     "site.commitMissing": { en: "Commit not recorded", yue: "未記錄 commit" },
@@ -810,20 +1017,36 @@ export const FIXED = {
     "site.nextMonth": { en: "Next month", yue: "下個月" },
     "site.selectStart": { en: "Select range start", yue: "選擇範圍開始" },
     "site.selectEnd": { en: "Select range end", yue: "選擇範圍結束" },
-    "site.dateInvalid": { en: "Enter a valid ISO date or a locale date such as 08/04/2026.", yue: "請輸入有效 ISO 日期，或者例如 08/04/2026 嘅本地日期。" },
+    "site.dateInvalid": {
+        en: "Enter a valid ISO date or a locale date such as 08/04/2026.",
+        yue: "請輸入有效 ISO 日期，或者例如 08/04/2026 嘅本地日期。",
+    },
     "site.copyFiltered": { en: "Copy filtered changelog", yue: "複製篩選後變更記錄" },
     "site.exportMarkdown": { en: "Export Markdown", yue: "匯出 Markdown" },
     "site.commandPalette": { en: "Command palette", yue: "指令面板" },
     "site.useFullWindow": { en: "Use full window", yue: "使用全視窗" },
     "site.useBoundedCard": { en: "Use bounded card", yue: "使用有界卡片" },
-    "site.paletteSearchLabel": { en: "Search commands, pages, settings, and appearance", yue: "搜尋指令、頁面、設定同外觀" },
-    "site.paletteSearchPlaceholder": { en: "Type a command or destination", yue: "輸入指令或目的地" },
+    "site.paletteSearchLabel": {
+        en: "Search commands, pages, settings, and appearance",
+        yue: "搜尋指令、頁面、設定同外觀",
+    },
+    "site.paletteSearchPlaceholder": {
+        en: "Type a command or destination",
+        yue: "輸入指令或目的地",
+    },
     "site.paletteResults": { en: "Command palette results", yue: "指令面板結果" },
     "site.notificationTitle": { en: "Notification centre", yue: "通知中心" },
     "site.searchNotifications": { en: "Search notifications", yue: "搜尋通知" },
-    "site.searchNotificationsPlaceholder": { en: "Search notification titles and details", yue: "搜尋通知標題同詳情" },
+    "site.searchNotificationsPlaceholder": {
+        en: "Search notification titles and details",
+        yue: "搜尋通知標題同詳情",
+    },
     "site.notificationEntries": { en: "Notification history", yue: "通知歷史" },
     "site.clearNotifications": { en: "Clear notification history", yue: "清除通知歷史" },
+    "site.clearNotificationsConfirm": {
+        en: "Clear all {count} notification records from this browser session? This cannot be undone.",
+        yue: "清除呢個瀏覽器工作階段入面全部 {count} 條通知記錄？呢個動作無法撤銷。",
+    },
     "site.exportNotifications": { en: "Export notification history", yue: "匯出通知歷史" },
     "site.notificationsCleared": { en: "Notification history cleared.", yue: "通知歷史已清除。" },
     "site.notificationsExported": { en: "Notification history exported.", yue: "通知歷史已匯出。" },
@@ -836,11 +1059,26 @@ export const FIXED = {
     "site.openArticle": { en: "Open article: {title}", yue: "開啟文章：{title}" },
     "site.descriptionHome": { en: "Return to the landing page", yue: "返回主頁" },
     "site.descriptionDocs": { en: "Read every feature article", yue: "閱讀全部功能文章" },
-    "site.descriptionSearch": { en: "Search docs, settings, tabs, groups, and bulk actions", yue: "搜尋文件、設定、分頁、群組同大量操作" },
-    "site.descriptionChangelog": { en: "Filter and export every recorded version", yue: "篩選同匯出所有記錄版本" },
-    "site.descriptionNotifications": { en: "Review dismissed notifications", yue: "查看已收起的通知" },
-    "site.descriptionSettings": { en: "Language, funny levels, appearance, and data", yue: "語言、搞笑程度、外觀同資料" },
-    "site.descriptionAppearance": { en: "Open the per-element Material appearance editor", yue: "開啟每個元素的 Material 外觀編輯器" },
+    "site.descriptionSearch": {
+        en: "Search docs, settings, tabs, groups, and bulk actions",
+        yue: "搜尋文件、設定、分頁、群組同大量操作",
+    },
+    "site.descriptionChangelog": {
+        en: "Filter and export every recorded version",
+        yue: "篩選同匯出所有記錄版本",
+    },
+    "site.descriptionNotifications": {
+        en: "Review dismissed notifications",
+        yue: "查看已收起的通知",
+    },
+    "site.descriptionSettings": {
+        en: "Language, funny levels, appearance, and data",
+        yue: "語言、搞笑程度、外觀同資料",
+    },
+    "site.descriptionAppearance": {
+        en: "Open the per-element Material appearance editor",
+        yue: "開啟每個元素的 Material 外觀編輯器",
+    },
     "site.editAppearance": { en: "Edit appearance…", yue: "編輯外觀…" },
 } as const satisfies Record<string, FixedString>;
 

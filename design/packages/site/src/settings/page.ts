@@ -93,16 +93,19 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
     const tabButtons = new Map<string, HTMLButtonElement>();
     const tabBadges = new Map<string, HTMLElement>();
     const panels = new Map<string, HTMLElement>();
-    const tabSearches = new Map<string, {
-        readonly input: HTMLInputElement;
-        readonly label: HTMLElement;
-        readonly hint: HTMLElement;
-        readonly clearButton: HTMLButtonElement;
-        readonly summary: HTMLElement;
-        query: string;
-        matcher: ((setting: SearchableSetting) => boolean) | null;
-        invalid: boolean;
-    }>();
+    const tabSearches = new Map<
+        string,
+        {
+            readonly input: HTMLInputElement;
+            readonly label: HTMLElement;
+            readonly hint: HTMLElement;
+            readonly clearButton: HTMLButtonElement;
+            readonly summary: HTMLElement;
+            query: string;
+            matcher: ((setting: SearchableSetting) => boolean) | null;
+            invalid: boolean;
+        }
+    >();
     const disposers: (() => void)[] = [];
 
     let activeTab = SETTINGS_TABS[0]?.id ?? "general";
@@ -128,7 +131,16 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
     });
     const changedNotice = el("p", { class: "mb-settings-changed", attrs: { role: "status" } });
 
-    root.append(el("header", { class: "mb-settings-header" }, heading, subtitle, storageNotice, changedNotice));
+    root.append(
+        el(
+            "header",
+            { class: "mb-settings-header" },
+            heading,
+            subtitle,
+            storageNotice,
+            changedNotice,
+        ),
+    );
 
     /* ---------------------------------------------------------- *
      * Search
@@ -146,20 +158,19 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         },
     });
     const builderSlot = el("span", { class: "mb-search-builder-slot" });
-    const searchField = el(
-        "div",
-        { class: "mb-search-field" },
-        searchInput,
-        builderSlot
-    );
+    const searchField = el("div", { class: "mb-search-field" }, searchInput, builderSlot);
     const searchLabel = el("label", { class: "md-field__label", attrs: { for: searchId } });
-    const searchHint = el("p", { class: "md-field__help mb-help", attrs: { id: `${searchId}-hint` } });
+    const searchHint = el("p", {
+        class: "md-field__help mb-help",
+        attrs: { id: `${searchId}-hint` },
+    });
     const searchSummary = el("div", { class: "mb-search-summary", attrs: { role: "status" } });
     const clearSearch = el("button", {
         class: "md-icon-button",
-        text: "Clear",
+        text: t("settings.searchClear"),
         attrs: { type: "button" },
     });
+    clearSearch.setAttribute("aria-label", t("settings.searchClear"));
     clearSearch.addEventListener("click", () => {
         searchInput.value = "";
         setQuery("");
@@ -172,10 +183,10 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             { class: "mb-search-row", data: { mbKind: "toolbar" } },
             searchLabel,
             searchField,
-            clearSearch
+            clearSearch,
         ),
         searchHint,
-        searchSummary
+        searchSummary,
     );
 
     searchInput.addEventListener("input", () => {
@@ -198,7 +209,10 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         fieldId: "settings.page",
         fieldLabel: "Search settings",
         container: builderSlot,
-        sampleProvider: () => searchableSettings().map((setting) => setting.label).join("\n"),
+        sampleProvider: () =>
+            searchableSettings()
+                .map((setting) => setting.label)
+                .join("\n"),
         onChange: (spec) => {
             if (spec.mode !== "regex") {
                 markInvalidPattern(false);
@@ -219,14 +233,16 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                     // false negatives as the same predicate is reused for visibility
                     // and result counts.
                     expression.lastIndex = 0;
-                    return expression.test([
-                        setting.label,
-                        setting.description,
-                        setting.valueText,
-                        setting.tabLabel,
-                        setting.sectionLabel ?? "",
-                        ...(setting.keywords ?? []),
-                    ].join(" "));
+                    return expression.test(
+                        [
+                            setting.label,
+                            setting.description,
+                            setting.valueText,
+                            setting.tabLabel,
+                            setting.sectionLabel ?? "",
+                            ...(setting.keywords ?? []),
+                        ].join(" "),
+                    );
                 });
             } catch {
                 markInvalidPattern(true);
@@ -284,8 +300,8 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                     instance: `settings-${tab.id}`,
                     instanceLabel: t(tab.labelKey),
                 },
-                options.appearance
-            )
+                options.appearance,
+            ),
         );
         tabButtons.set(tab.id, button);
         tabBadges.set(tab.id, badge);
@@ -402,7 +418,10 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             },
         });
         const label = el("label", { class: "md-field__label", attrs: { for: searchId } });
-        const hint = el("p", { class: "md-field__help mb-help", attrs: { id: `${searchId}-hint` } });
+        const hint = el("p", {
+            class: "md-field__help mb-help",
+            attrs: { id: `${searchId}-hint` },
+        });
         const builderSlot = el("span", { class: "mb-search-builder-slot" });
         const field = el("div", { class: "mb-search-field" }, input, builderSlot);
         const clearButton = el("button", {
@@ -445,10 +464,13 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             fieldId: `settings.tab.${tab.id}`,
             fieldLabel: t("settings.tabSearchLabel"),
             container: builderSlot,
-            sampleProvider: () => searchableSettings()
-                .filter((setting) => setting.tabId === tab.id)
-                .map((setting) => [setting.label, setting.description, setting.valueText].join(" "))
-                .join("\n"),
+            sampleProvider: () =>
+                searchableSettings()
+                    .filter((setting) => setting.tabId === tab.id)
+                    .map((setting) =>
+                        [setting.label, setting.description, setting.valueText].join(" "),
+                    )
+                    .join("\n"),
             onChange: (spec) => {
                 if (spec.mode !== "regex") {
                     state.invalid = false;
@@ -467,13 +489,15 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                     state.invalid = false;
                     state.matcher = (setting) => {
                         expression.lastIndex = 0;
-                        return expression.test([
-                            setting.label,
-                            setting.description,
-                            setting.valueText,
-                            setting.sectionLabel ?? "",
-                            ...(setting.keywords ?? []),
-                        ].join(" "));
+                        return expression.test(
+                            [
+                                setting.label,
+                                setting.description,
+                                setting.valueText,
+                                setting.sectionLabel ?? "",
+                                ...(setting.keywords ?? []),
+                            ].join(" "),
+                        );
                     };
                 } catch {
                     state.invalid = true;
@@ -674,7 +698,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             downloadFile(
                 `material-bluemap-settings-${stamp}.json`,
                 `${JSON.stringify({ version: 1, values: store.snapshot() }, null, 4)}\n`,
-                "application/json"
+                "application/json",
             );
         });
 
@@ -720,7 +744,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             exportHelp,
             el("div", { class: "mb-property-row" }, importLabel, importButton),
             importHelp,
-            status
+            status,
         );
         return wrapper;
     }
@@ -821,8 +845,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             for (const setting of settings) matched.add(setting.id);
         } else {
             for (const setting of settings) {
-                const hit =
-                    matcher !== null ? matcher(setting) : defaultMatch(setting, needle);
+                const hit = matcher !== null ? matcher(setting) : defaultMatch(setting, needle);
                 if (hit) matched.add(setting.id);
             }
         }
@@ -831,13 +854,16 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             const setting = settings.find((candidate) => candidate.id === id);
             const local = setting === undefined ? undefined : tabSearches.get(setting.tabId);
             const localNeedle = local?.query.trim().toLowerCase() ?? "";
-            const localActive = local !== undefined && (local.matcher !== null || localNeedle !== "");
+            const localActive =
+                local !== undefined && (local.matcher !== null || localNeedle !== "");
             const localVisible =
                 local === undefined ||
                 !localActive ||
                 local.invalid ||
                 (setting !== undefined &&
-                    (local.matcher !== null ? local.matcher(setting) : defaultMatch(setting, localNeedle)));
+                    (local.matcher !== null
+                        ? local.matcher(setting)
+                        : defaultMatch(setting, localNeedle)));
             const visible = (!active || invalidPattern || matched.has(id)) && localVisible;
             entry.container.hidden = !visible;
         }
@@ -849,24 +875,26 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             clear(local.summary);
             if (!localActive) continue;
             if (local.invalid) {
-                local.summary.append(el("p", { class: "md-field__help mb-help", text: t("settings.searchInvalid") }));
+                local.summary.append(
+                    el("p", { class: "md-field__help mb-help", text: t("settings.searchInvalid") }),
+                );
                 continue;
             }
             const localMatches = tabSettings.filter((setting) =>
-                local.matcher !== null ? local.matcher(setting) : defaultMatch(setting, localNeedle),
+                local.matcher !== null
+                    ? local.matcher(setting)
+                    : defaultMatch(setting, localNeedle),
             ).length;
             local.summary.append(
-                el(
-                    "p",
-                    {
-                        class: localMatches === 0 ? "mb-empty" : "md-field__help mb-help",
-                        text: localMatches === 0
+                el("p", {
+                    class: localMatches === 0 ? "mb-empty" : "md-field__help mb-help",
+                    text:
+                        localMatches === 0
                             ? t("settings.searchNoResults")
                             : localMatches === 1
-                                ? t("settings.searchResultsOne")
-                                : t("settings.searchResults", { count: localMatches }),
-                    },
-                ),
+                              ? t("settings.searchResultsOne")
+                              : t("settings.searchResults", { count: localMatches }),
+                }),
             );
         }
 
@@ -883,7 +911,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             const button = tabButtons.get(tabId);
             button?.setAttribute(
                 "aria-description",
-                show ? t("settings.searchOtherTab", { count, tab: labelForTab(tabId) }) : ""
+                show ? t("settings.searchOtherTab", { count, tab: labelForTab(tabId) }) : "",
             );
         }
 
@@ -898,21 +926,26 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
     function renderSummary(active: boolean, total: number, perTab: Map<string, number>): void {
         clear(searchSummary);
         if (invalidPattern) {
-            searchSummary.append(el("p", { class: "md-field__help mb-help", text: t("settings.searchInvalid") }));
+            searchSummary.append(
+                el("p", { class: "md-field__help mb-help", text: t("settings.searchInvalid") }),
+            );
             return;
         }
         if (!active) return;
         if (total === 0) {
             searchSummary.append(
-                el("p", { class: "mb-empty", text: t("settings.searchNoResults") })
+                el("p", { class: "mb-empty", text: t("settings.searchNoResults") }),
             );
             return;
         }
         searchSummary.append(
             el("p", {
                 class: "md-field__help mb-help",
-                text: total === 1 ? t("settings.searchResultsOne") : t("settings.searchResults", { count: total }),
-            })
+                text:
+                    total === 1
+                        ? t("settings.searchResultsOne")
+                        : t("settings.searchResults", { count: total }),
+            }),
         );
         // Matches on a tab the visitor is not looking at are named rather than left to
         // be discovered, which is the whole point of searching every tab at once.
@@ -936,8 +969,8 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                                 ? t("settings.searchOtherTabOne", { tab: labelForTab(tabId) })
                                 : t("settings.searchOtherTab", { count, tab: labelForTab(tabId) }),
                     }),
-                    jump
-                )
+                    jump,
+                ),
             );
         }
     }
@@ -966,7 +999,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         entry.container.scrollIntoView({ block: "center", behavior: "auto" });
         flashAttention(entry.container);
         const focusable = entry.container.querySelector<HTMLElement>(
-            "input, select, button:not(.mb-reset), textarea"
+            "input, select, button:not(.mb-reset), textarea",
         );
         focusable?.focus();
     }
@@ -977,6 +1010,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         fillPhrase(searchLabel, "settings.searchLabel");
         fillPhrase(searchHint, "settings.searchHint");
         searchInput.placeholder = t("settings.searchPlaceholder");
+        clearSearch.textContent = t("settings.searchClear");
         clearSearch.setAttribute("aria-label", t("settings.searchClear"));
 
         for (const local of tabSearches.values()) {
@@ -1054,14 +1088,18 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         store.subscribe(() => {
             syncLanguageFromSettings(store);
             refresh();
-        })
+        }),
     );
-    disposers.push(subscribeI18n(() => {
-        refresh();
-    }));
-    disposers.push(options.theme?.subscribe(() => {
-        refresh();
-    }) ?? (() => undefined));
+    disposers.push(
+        subscribeI18n(() => {
+            refresh();
+        }),
+    );
+    disposers.push(
+        options.theme?.subscribe(() => {
+            refresh();
+        }) ?? (() => undefined),
+    );
 
     syncLanguageFromSettings(store);
     activateTab(activeTab);
@@ -1075,9 +1113,10 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             listSettings: () => searchableSettings(),
             activeTabId: () => activeTab,
             revealSetting,
-            subscribe: (listener) => store.subscribe(() => {
-                listener();
-            }),
+            subscribe: (listener) =>
+                store.subscribe(() => {
+                    listener();
+                }),
         },
         setMatcher(next) {
             matcher = next;
@@ -1158,7 +1197,8 @@ function installBridges(store: SettingsStore, options: SettingsPageOptions): voi
     };
 
     store.bridge("language.mode", {
-        read: () => prefs.readOneOf<LanguageMode>("language.mode", ["en", "yue", "bilingual"], "en"),
+        read: () =>
+            prefs.readOneOf<LanguageMode>("language.mode", ["en", "yue", "bilingual"], "en"),
         write: (value) => {
             prefs.write("language.mode", String(value));
             notifyLanguage();
@@ -1210,5 +1250,7 @@ function syncLanguageFromSettings(store: SettingsStore): void {
     const mode = store.getString("language.mode");
     root.dataset["language"] = mode;
     root.lang = mode === "yue" ? "zh-HK" : "en";
-    root.dataset["secondaryInline"] = store.getBoolean("language.secondaryInline") ? "true" : "false";
+    root.dataset["secondaryInline"] = store.getBoolean("language.secondaryInline")
+        ? "true"
+        : "false";
 }

@@ -75,14 +75,28 @@
  * ============================================================================================
  */
 
-import { STRIP_ID, TabModel, type GroupSearchResult, type TabDefinition, type TabGroup, type TabSearchResult } from "./TabModel.js";
+import {
+    STRIP_ID,
+    TabModel,
+    type GroupSearchResult,
+    type TabDefinition,
+    type TabGroup,
+    type TabSearchResult,
+} from "./TabModel.js";
 import { TabStrip, type TabStripDeps } from "./TabStrip.js";
 import { openBulkCloseDialog, type BulkCloseScope } from "./BulkCloseDialog.js";
 import type { BulkClosePreview } from "./TabModel.js";
 import type { MatchSpec } from "./matcher.js";
 
 export { TabModel, TabStrip, STRIP_ID };
-export type { TabDefinition, TabGroup, TabSearchResult, GroupSearchResult, BulkCloseScope, BulkClosePreview };
+export type {
+    TabDefinition,
+    TabGroup,
+    TabSearchResult,
+    GroupSearchResult,
+    BulkCloseScope,
+    BulkClosePreview,
+};
 export { GROUP_COLOURS } from "./TabModel.js";
 export type { GroupColour, Segment } from "./TabModel.js";
 export { compileMatcher, MATCH_MODES, MAX_PATTERN_LENGTH, MAX_SUBJECT_LENGTH } from "./matcher.js";
@@ -137,7 +151,10 @@ export class TabsController {
         const outcome = this.model.searchTabs(this.model.openIds(), spec);
         const overflowed = new Set(this.strip.overflowedIds());
         return {
-            results: outcome.results.map((result) => ({ ...result, overflowed: overflowed.has(result.tabId) })),
+            results: outcome.results.map((result) => ({
+                ...result,
+                overflowed: overflowed.has(result.tabId),
+            })),
             error: outcome.matcher.ok ? null : outcome.matcher.message,
             timedOut: outcome.timedOut,
         };
@@ -194,6 +211,7 @@ export class TabsController {
                 model: this.model,
                 notifications: this.deps.notifications,
                 regex: this.deps.regex,
+                confirmDestructive: this.deps.confirmDestructive,
             },
             { invert, scope },
         );

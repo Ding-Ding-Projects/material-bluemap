@@ -40,6 +40,7 @@ import type { StringKey } from "../i18n/strings.js";
 import type { AppearanceController } from "../appearance/controller.js";
 import { openAppearanceEditor } from "../appearance/editor/appearanceEditor.js";
 import { t } from "../settings/i18n.js";
+import type { DestructiveGate } from "../settings/confirm.js";
 
 export interface TabStripDeps {
     readonly i18n: I18n;
@@ -49,6 +50,8 @@ export interface TabStripDeps {
     readonly regex: RegexBuilderSlot;
     /** The site-level appearance controller, shared with every tab's editor. */
     readonly appearance: AppearanceController;
+    /** The site-owned two-key gate for every action that removes tab structure. */
+    readonly confirmDestructive: DestructiveGate;
 }
 
 interface PanelRecord {
@@ -87,7 +90,10 @@ export class TabStrip {
         this.deps = deps;
         const { i18n, model, shortcuts } = deps;
 
-        this.pinnedRegion = el("div", { class: "tab-strip__pinned", attrs: { role: "presentation" } });
+        this.pinnedRegion = el("div", {
+            class: "tab-strip__pinned",
+            attrs: { role: "presentation" },
+        });
         this.mainRegion = el("div", { class: "tab-strip__main", attrs: { role: "presentation" } });
         this.strip = el(
             "div",
@@ -97,7 +103,10 @@ export class TabStrip {
         );
         i18n.bindAttr(this.strip, "aria-label", "tabs.stripLabel");
 
-        this.overflowButton = el("button", { class: "md-button md-button--text tab-bar__overflow", attrs: { type: "button" } });
+        this.overflowButton = el("button", {
+            class: "md-button md-button--text tab-bar__overflow",
+            attrs: { type: "button" },
+        });
         this.overflowButton.hidden = true;
         this.overflowButton.addEventListener("click", () => this.openOverflowMenu());
 
@@ -106,7 +115,12 @@ export class TabStrip {
         i18n.bindAttr(this.listButton, "aria-label", "shell.tabListButton");
         this.listButton.addEventListener("click", () => this.openTabListMenu());
 
-        this.actions = el("div", { class: "tab-bar__actions" }, this.overflowButton, this.listButton);
+        this.actions = el(
+            "div",
+            { class: "tab-bar__actions" },
+            this.overflowButton,
+            this.listButton,
+        );
         this.bar = el("div", { class: "tab-bar" }, this.strip, this.actions);
         this.panels = el("div", { class: "tab-panels" });
 
@@ -214,7 +228,9 @@ export class TabStrip {
         });
         header.append(el("span", { class: "tab-group__dot", attrs: { "aria-hidden": "true" } }));
         header.append(el("span", { class: "tab-group__name", text: group.name }));
-        header.append(el("span", { class: "tab-group__count", text: String(segment.members.length) }));
+        header.append(
+            el("span", { class: "tab-group__count", text: String(segment.members.length) }),
+        );
         header.append(icon(collapsed ? "chevronRight" : "expandMore", "tab-group__chevron"));
         header.addEventListener("click", () => {
             this.temporarilyRevealed.delete(group.id);
@@ -249,7 +265,10 @@ export class TabStrip {
         });
         wrapper.append(header);
 
-        const tabs = el("div", { class: "tab-group__tabs", attrs: { role: "presentation", id: tabsId } });
+        const tabs = el("div", {
+            class: "tab-group__tabs",
+            attrs: { role: "presentation", id: tabsId },
+        });
         tabs.hidden = collapsed;
         for (const id of segment.members) tabs.append(this.renderTab(id, false));
         wrapper.append(tabs);
@@ -297,7 +316,10 @@ export class TabStrip {
             // extra stop per tab would make arrowing through twenty pages take forty presses.
             // The keyboard route is Delete on the focused tab, the context menu, and the
             // Shift+Alt+W shortcut, all of which are listed in the menu with their keys.
-            const close = el("button", { class: "md-icon-button tab__close", attrs: { type: "button", tabindex: "-1" } });
+            const close = el("button", {
+                class: "md-icon-button tab__close",
+                attrs: { type: "button", tabindex: "-1" },
+            });
             close.append(icon("close"));
             close.setAttribute("aria-label", `${i18n.t("tabs.menu.close")}: ${model.label(id)}`);
             close.addEventListener("click", (event) => {
@@ -367,7 +389,12 @@ export class TabStrip {
             if (record === undefined) {
                 const node = el("section", {
                     class: "tab-panel",
-                    attrs: { role: "tabpanel", id: `panel-${id}`, "aria-labelledby": `tab-${id}`, tabindex: "0" },
+                    attrs: {
+                        role: "tabpanel",
+                        id: `panel-${id}`,
+                        "aria-labelledby": `tab-${id}`,
+                        tabindex: "0",
+                    },
                 });
                 record = { node, rendered: false, dispose: null };
                 this.panelRecords.set(id, record);
@@ -411,7 +438,9 @@ export class TabStrip {
         const budget = this.mainRegion.clientWidth;
 
         const activeIndex = children.findIndex(
-            (child) => child.matches('[aria-selected="true"]') || child.querySelector('[aria-selected="true"]') !== null,
+            (child) =>
+                child.matches('[aria-selected="true"]') ||
+                child.querySelector('[aria-selected="true"]') !== null,
         );
         let used = 0;
         const visible = new Set<number>();
@@ -444,7 +473,9 @@ export class TabStrip {
         this.overflowed = children
             .filter((child) => child.hidden)
             .flatMap((child) =>
-                child.dataset.tabId !== undefined ? [child] : [...child.querySelectorAll<HTMLElement>("[data-tab-id]")],
+                child.dataset.tabId !== undefined
+                    ? [child]
+                    : [...child.querySelectorAll<HTMLElement>("[data-tab-id]")],
             )
             .map((tab) => tab.dataset.tabId ?? "")
             .filter((id) => id.length > 0);
@@ -493,7 +524,8 @@ export class TabStrip {
 
         const entries: MenuEntry[] = [
             {
-                render: (label) => i18n.bindText(label, pinned ? "tabs.menu.unpin" : "tabs.menu.pin"),
+                render: (label) =>
+                    i18n.bindText(label, pinned ? "tabs.menu.unpin" : "tabs.menu.pin"),
                 shortcut: shortcuts.display("tabs.pin"),
                 onSelect: () => this.togglePin(id),
             },
@@ -515,7 +547,10 @@ export class TabStrip {
         ];
 
         if (groups.length > 0) {
-            entries.push({ kind: "heading", render: (label) => i18n.bindText(label, "tabs.menu.addToGroup") });
+            entries.push({
+                kind: "heading",
+                render: (label) => i18n.bindText(label, "tabs.menu.addToGroup"),
+            });
             for (const candidate of groups) {
                 entries.push({
                     render: (label) => {
@@ -551,15 +586,18 @@ export class TabStrip {
         });
         entries.push({ kind: "separator" });
         entries.push({
-            render: (label) => { label.textContent = t("editor.openTab"); },
+            render: (label) => {
+                label.textContent = t("editor.openTab");
+            },
             shortcut: "Shift + right-click",
-            onSelect: () => openAppearanceEditor({
-                anchor,
-                kind: "tab",
-                instance: id,
-                instanceLabel: model.label(id),
-                controller: this.deps.appearance,
-            }),
+            onSelect: () =>
+                openAppearanceEditor({
+                    anchor,
+                    kind: "tab",
+                    instance: id,
+                    instanceLabel: model.label(id),
+                    controller: this.deps.appearance,
+                }),
         });
         entries.push({
             render: (label) => i18n.bindText(label, "tabs.menu.closeContaining"),
@@ -586,11 +624,17 @@ export class TabStrip {
         const group = model.listGroups().find((candidate) => candidate.id === groupId);
         if (group === undefined) return;
         const segments = model.segments();
-        const index = segments.findIndex((segment) => segment.kind === "group" && segment.id === groupId);
+        const index = segments.findIndex(
+            (segment) => segment.kind === "group" && segment.id === groupId,
+        );
 
         const entries: MenuEntry[] = [
             {
-                render: (label) => i18n.bindText(label, group.collapsed ? "tabs.group.expand" : "tabs.group.collapse"),
+                render: (label) =>
+                    i18n.bindText(
+                        label,
+                        group.collapsed ? "tabs.group.expand" : "tabs.group.collapse",
+                    ),
                 onSelect: () => model.setGroupCollapsed(groupId, !group.collapsed),
             },
             {
@@ -622,15 +666,18 @@ export class TabStrip {
 
         entries.push({ kind: "separator" });
         entries.push({
-            render: (label) => { label.textContent = t("editor.openGroup"); },
+            render: (label) => {
+                label.textContent = t("editor.openGroup");
+            },
             shortcut: "Shift + right-click",
-            onSelect: () => openAppearanceEditor({
-                anchor,
-                kind: "tab-group",
-                instance: groupId,
-                instanceLabel: group.name,
-                controller: this.deps.appearance,
-            }),
+            onSelect: () =>
+                openAppearanceEditor({
+                    anchor,
+                    kind: "tab-group",
+                    instance: groupId,
+                    instanceLabel: group.name,
+                    controller: this.deps.appearance,
+                }),
         });
         entries.push({
             render: (label) => i18n.bindText(label, "tabs.menu.closeContaining"),
@@ -642,7 +689,7 @@ export class TabStrip {
         });
         entries.push({
             render: (label) => i18n.bindText(label, "tabs.group.remove"),
-            onSelect: () => model.removeGroup(groupId),
+            onSelect: () => this.removeGroup(groupId),
         });
 
         openContextMenu(anchor, x, y, {
@@ -676,7 +723,10 @@ export class TabStrip {
         });
         const filterRow = el("div", { class: "tab-list__filter-row" }, filter);
         if (regex.available) {
-            const builder = el("button", { class: "md-button md-button--outlined", attrs: { type: "button" } });
+            const builder = el("button", {
+                class: "md-button md-button--outlined",
+                attrs: { type: "button" },
+            });
             i18n.bindText(builder, "bulk.builderButton");
             builder.addEventListener("click", () => {
                 regex.open({
@@ -685,7 +735,10 @@ export class TabStrip {
                     pattern: filter.value,
                     flags: filterFlags,
                     mode: filterMode,
-                    sample: model.allIds().map((id) => model.label(id)).join("\n"),
+                    sample: model
+                        .allIds()
+                        .map((id) => model.label(id))
+                        .join("\n"),
                     onChange: (next) => {
                         filterMode = "regex";
                         filterFlags = next.flags;
@@ -709,9 +762,14 @@ export class TabStrip {
         });
 
         const rebuild = (): void => {
-            const spec = { query: filter.value, mode: filterMode, caseSensitive: !filterFlags.includes("i") };
+            const spec = {
+                query: filter.value,
+                mode: filterMode,
+                caseSensitive: !filterFlags.includes("i"),
+            };
             const matcher = compileMatcher(spec);
-            const keep = (label: string): boolean => filter.value.length === 0 || (matcher.ok && matcher.test(label));
+            const keep = (label: string): boolean =>
+                filter.value.length === 0 || (matcher.ok && matcher.test(label));
 
             const entries: MenuEntry[] = [];
             const open = model.openIds().filter((id) => keep(model.label(id)));
@@ -720,8 +778,10 @@ export class TabStrip {
                 entries.push({
                     render: (label) => {
                         i18n.applyTo(label, model.definition(id)?.label ?? { text: id });
-                        if (group !== null) label.append(el("span", { class: "tab-list__meta", text: group.name }));
-                        if (model.isPinned(id)) label.append(el("span", { class: "tab-list__meta", text: "•" }));
+                        if (group !== null)
+                            label.append(el("span", { class: "tab-list__meta", text: group.name }));
+                        if (model.isPinned(id))
+                            label.append(el("span", { class: "tab-list__meta", text: "•" }));
                     },
                     checked: model.active === id,
                     onSelect: () => this.reveal(id),
@@ -731,10 +791,14 @@ export class TabStrip {
             const closed = model.recentlyClosedIds().filter((id) => keep(model.label(id)));
             if (closed.length > 0) {
                 entries.push({ kind: "separator" });
-                entries.push({ kind: "heading", render: (label) => i18n.bindText(label, "tabs.recentlyClosed") });
+                entries.push({
+                    kind: "heading",
+                    render: (label) => i18n.bindText(label, "tabs.recentlyClosed"),
+                });
                 for (const id of closed) {
                     entries.push({
-                        render: (label) => i18n.applyTo(label, model.definition(id)?.label ?? { text: id }),
+                        render: (label) =>
+                            i18n.applyTo(label, model.definition(id)?.label ?? { text: id }),
                         onSelect: () => model.reopen(id),
                     });
                 }
@@ -787,13 +851,19 @@ export class TabStrip {
         const next = !model.isPinned(id);
         model.setPinned(id, next);
         if (next) {
-            notifications.notify({ title: { key: "tabs.pinnedNotice", vars: { label: model.label(id) } } });
+            notifications.notify({
+                title: { key: "tabs.pinnedNotice", vars: { label: model.label(id) } },
+            });
         }
     }
 
-    private closeTab(id: string): void {
+    private async closeTab(id: string): Promise<void> {
         const { model, notifications } = this.deps;
         const label = model.label(id);
+        const confirmed = await this.deps.confirmDestructive(
+            this.deps.i18n.t("tabs.closeConfirm", { label }),
+        );
+        if (!confirmed) return;
         if (!model.close(id)) return;
         notifications.notify({
             title: { key: "tabs.closedNotice", vars: { label } },
@@ -806,23 +876,44 @@ export class TabStrip {
         });
     }
 
-    private closeOthers(keepId: string): void {
+    private async closeOthers(keepId: string): Promise<void> {
         const { model } = this.deps;
-        for (const id of model.openIds()) {
-            if (id === keepId || model.isPinned(id)) continue;
-            model.close(id);
-        }
+        const closable = model
+            .openIds()
+            .filter((id) => id !== keepId && !model.isPinned(id) && model.isClosable(id));
+        if (closable.length === 0) return;
+        const confirmed = await this.deps.confirmDestructive(
+            this.deps.i18n.t("tabs.closeOthersConfirm", { count: closable.length }),
+        );
+        if (!confirmed) return;
+        for (const id of closable) model.close(id);
     }
 
-    private closeToTheRight(fromId: string): void {
+    private async closeToTheRight(fromId: string): Promise<void> {
         const { model } = this.deps;
-        const visible = model.segments().flatMap((segment) => (segment.kind === "tab" ? [segment.id] : segment.members));
+        const visible = model
+            .segments()
+            .flatMap((segment) => (segment.kind === "tab" ? [segment.id] : segment.members));
         const index = visible.indexOf(fromId);
         if (index < 0) return;
-        for (const id of visible.slice(index + 1)) {
-            if (model.isPinned(id)) continue;
-            model.close(id);
-        }
+        const closable = visible
+            .slice(index + 1)
+            .filter((id) => !model.isPinned(id) && model.isClosable(id));
+        if (closable.length === 0) return;
+        const confirmed = await this.deps.confirmDestructive(
+            this.deps.i18n.t("tabs.closeRightConfirm", { count: closable.length }),
+        );
+        if (!confirmed) return;
+        for (const id of closable) model.close(id);
+    }
+
+    private async removeGroup(groupId: string): Promise<void> {
+        const group = this.deps.model.listGroups().find((candidate) => candidate.id === groupId);
+        if (group === undefined) return;
+        const confirmed = await this.deps.confirmDestructive(
+            this.deps.i18n.t("tabs.removeGroupConfirm", { name: group.name }),
+        );
+        if (confirmed) this.deps.model.removeGroup(groupId);
     }
 
     private reopenLast(): void {
@@ -834,7 +925,10 @@ export class TabStrip {
 
     private openBulkClose(invert: boolean, scope: BulkCloseScope): void {
         const { i18n, model, notifications, regex } = this.deps;
-        openBulkCloseDialog({ i18n, model, notifications, regex }, { invert, scope });
+        openBulkCloseDialog(
+            { i18n, model, notifications, regex, confirmDestructive: this.deps.confirmDestructive },
+            { invert, scope },
+        );
     }
 
     private dropOnto(dragId: string, targetId: string): void {
@@ -851,9 +945,14 @@ export class TabStrip {
         model.setGroup(dragId, targetGroup?.id ?? null);
 
         if (targetGroup !== null) {
-            const segment = model.segments().find((s) => s.kind === "group" && s.id === targetGroup.id);
+            const segment = model
+                .segments()
+                .find((s) => s.kind === "group" && s.id === targetGroup.id);
             if (segment !== undefined && segment.kind === "group") {
-                model.moveTab(dragId, segment.members.indexOf(targetId) - segment.members.indexOf(dragId));
+                model.moveTab(
+                    dragId,
+                    segment.members.indexOf(targetId) - segment.members.indexOf(dragId),
+                );
             }
             return;
         }
@@ -866,33 +965,61 @@ export class TabStrip {
 
     private promptNewGroup(anchor: HTMLElement, tabId: string): void {
         const { i18n, model } = this.deps;
-        this.promptText(anchor, "tabs.group.namePrompt", i18n.t("tabs.group.defaultName", { number: model.nextGroupNumber() }), (name) => {
-            const groupId = model.createGroup(name);
-            model.setPinned(tabId, false);
-            model.setGroup(tabId, groupId);
-        });
+        this.promptText(
+            anchor,
+            "tabs.group.namePrompt",
+            i18n.t("tabs.group.defaultName", { number: model.nextGroupNumber() }),
+            (name) => {
+                const groupId = model.createGroup(name);
+                model.setPinned(tabId, false);
+                model.setGroup(tabId, groupId);
+            },
+        );
     }
 
     private promptRenameGroup(anchor: HTMLElement, groupId: string, current: string): void {
-        this.promptText(anchor, "tabs.group.rename", current, (name) => this.deps.model.renameGroup(groupId, name));
+        this.promptText(anchor, "tabs.group.rename", current, (name) =>
+            this.deps.model.renameGroup(groupId, name),
+        );
     }
 
     /** A small anchored text prompt, so renaming never leaves the page for a browser dialog. */
-    private promptText(anchor: HTMLElement, labelKey: StringKey, initial: string, onSubmit: (value: string) => void): void {
+    private promptText(
+        anchor: HTMLElement,
+        labelKey: StringKey,
+        initial: string,
+        onSubmit: (value: string) => void,
+    ): void {
         const { i18n } = this.deps;
         const inputId = "tab-prompt-input";
         const label = el("label", { class: "md-field__label", attrs: { for: inputId } });
         i18n.bindText(label, labelKey);
         const input = el("input", {
             class: "md-field__input",
-            attrs: { id: inputId, type: "text", value: initial, maxlength: "80", autocomplete: "off" },
+            attrs: {
+                id: inputId,
+                type: "text",
+                value: initial,
+                maxlength: "80",
+                autocomplete: "off",
+            },
         });
-        const cancel = el("button", { class: "md-button md-button--text", attrs: { type: "button" } });
+        const cancel = el("button", {
+            class: "md-button md-button--text",
+            attrs: { type: "button" },
+        });
         i18n.bindText(cancel, "common.cancel");
-        const apply = el("button", { class: "md-button md-button--filled", attrs: { type: "button" } });
+        const apply = el("button", {
+            class: "md-button md-button--filled",
+            attrs: { type: "button" },
+        });
         i18n.bindText(apply, "common.apply");
 
-        const overlay = new Overlay(anchor, { label: i18n.t(labelKey), initialFocus: input, role: "dialog" });
+        const overlay = new Overlay(anchor, {
+            label: i18n.t(labelKey),
+            initialFocus: input,
+            role: "dialog",
+        });
         const panel = el(
             "div",
             { class: "tab-prompt" },
