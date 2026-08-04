@@ -3,6 +3,8 @@ import type { SearchSurfaceView } from "../search/searchSurface.js";
 import type { CandidateField } from "../search/runSearch.js";
 import { el } from "../search/dom.js";
 import { changelogEntries, type ChangeEntry } from "./changelog.js";
+import type { I18n } from "../i18n/I18n.js";
+import { createDateRangePicker } from "./dateRangePicker.js";
 
 type ChangeField = "subject" | "body";
 
@@ -17,60 +19,38 @@ function dateValue(entry: ChangeEntry): number {
 }
 
 /** Render the complete released history with a bounded date range and searchable entries. */
-export function createChangelogView(): HTMLElement {
+export function createChangelogView(i18n: I18n): HTMLElement {
     const root = el("section", { class: "mb-changelog" });
-    root.append(
-        el("h1", { class: "mb-page-title", text: "Changelog" }),
-        el("p", {
-            class: "mb-page-subtitle",
-            text: "Every recorded version, date, category, and the commit that made it real.",
-        }),
-    );
+    const title = el("h1", { class: "mb-page-title" });
+    i18n.bindText(title, "site.changelogTitle");
+    const subtitle = el("p", { class: "mb-page-subtitle" });
+    i18n.bindText(subtitle, "site.changelogSubtitle");
+    root.append(title, subtitle);
 
-    const filter = el("div", { class: "mb-changelog-filters", attrs: { role: "group", "aria-label": "Changelog date filter" } });
-    const start = el("input", { class: "md-field__input", attrs: { type: "date", "aria-label": "Start date" } });
-    const end = el("input", { class: "md-field__input", attrs: { type: "date", "aria-label": "End date" } });
-    const preset = (label: string, days: number | null): HTMLButtonElement => {
-        const button = el("button", { class: "md-button md-button--outlined", text: label, attrs: { type: "button" } });
-        button.addEventListener("click", () => {
-            if (days === null) {
-                start.value = "";
-                end.value = "";
-            } else {
-                const now = new Date();
-                const from = new Date(now.getTime() - days * 86_400_000);
-                start.value = from.toISOString().slice(0, 10);
-                end.value = now.toISOString().slice(0, 10);
-            }
-            notify();
-        });
-        return button;
-    };
-    filter.append(
-        el("label", { class: "mb-changelog-date", children: [el("span", { text: "From" }), start] }),
-        el("label", { class: "mb-changelog-date", children: [el("span", { text: "To" }), end] }),
-        preset("All dates", null),
-        preset("Last 30 days", 30),
-        preset("Last 90 days", 90),
-    );
+    const filter = el("div", { class: "mb-changelog-filters", attrs: { role: "group" } });
+    i18n.bindAttr(filter, "aria-label", "site.changelogDateFilter");
+    const datePicker = createDateRangePicker(i18n);
+    filter.append(datePicker.element);
     root.append(filter);
 
     const listeners = new Set<() => void>();
     const notify = (): void => {
         for (const listener of [...listeners]) listener();
     };
-    start.addEventListener("change", notify);
-    end.addEventListener("change", notify);
+    const unsubscribeDates = datePicker.subscribe(notify);
 
     const view: SearchSurfaceView<ChangeEntry, ChangeField> = createSearchSurface({
         fieldId: "changelog.entries",
-        labelText: "Search changelog",
-        placeholder: "Search versions, changes, or commits",
-        resultsLabel: "Changelog entries",
+        labelText: i18n.t("site.searchChangelog"),
+        placeholder: i18n.t("site.searchChangelogPlaceholder"),
+        labelTextSource: () => i18n.t("site.searchChangelog"),
+        placeholderSource: () => i18n.t("site.searchChangelogPlaceholder"),
+        resultsLabel: i18n.t("site.changelogEntries"),
         fields: FIELDS,
         items: () => {
-            const from = start.value === "" ? Number.NEGATIVE_INFINITY : Date.parse(start.value);
-            const to = end.value === "" ? Number.POSITIVE_INFINITY : Date.parse(`${end.value}T23:59:59`);
+            const range = datePicker.range();
+            const from = range.start === "" ? Number.NEGATIVE_INFINITY : Date.parse(range.start);
+            const to = range.end === "" ? Number.POSITIVE_INFINITY : Date.parse(`${range.end}T23:59:59`);
             return changelogEntries.filter((entry) => {
                 const value = dateValue(entry);
                 return value >= from && value <= to;
@@ -94,48 +74,57 @@ export function createChangelogView(): HTMLElement {
             meta.append(metaChip(item.category));
             row.append(meta);
             if (item.commitUrl !== null) {
-                const link = el("a", { class: "mb-changelog-entry__commit", text: item.commit ?? "commit" });
+                const link = el("a", { class: "mb-changelog-entry__commit", text: item.commit ?? i18n.t("site.commitLabel") });
                 link.href = item.commitUrl;
                 link.target = "_blank";
                 link.rel = "noopener noreferrer";
-                link.setAttribute("aria-label", `Open commit ${item.commit ?? ""}`);
+                link.setAttribute("aria-label", i18n.t("site.openCommit", { commit: item.commit ?? i18n.t("site.commitLabel") }));
                 row.append(link);
             } else {
-                row.append(el("span", { class: "mb-changelog-entry__commit mb-changelog-entry__commit--missing", text: "Commit not recorded" }));
+                row.append(el("span", { class: "mb-changelog-entry__commit mb-changelog-entry__commit--missing", text: i18n.t("site.commitMissing") }));
             }
             return row;
         },
     });
     root.append(view.element);
+    i18n.subscribe(() => view.refresh());
 
     const actions = el("div", { class: "mb-changelog-actions" });
-    const copy = el("button", { class: "md-button md-button--outlined", text: "Copy filtered changelog", attrs: { type: "button" } });
-    const exportButton = el("button", { class: "md-button md-button--outlined", text: "Export Markdown", attrs: { type: "button" } });
+    const copy = el("button", { class: "md-button md-button--outlined", attrs: { type: "button" } });
+    i18n.bindText(copy, "site.copyFiltered");
+    const exportButton = el("button", { class: "md-button md-button--outlined", attrs: { type: "button" } });
+    i18n.bindText(exportButton, "site.exportMarkdown");
     const status = el("p", { class: "mb-help", attrs: { role: "status", "aria-live": "polite" } });
     const markdown = (): string => view.currentResults().map(({ item }) => `- ${item.subject} (${item.version}${item.commit === null ? "" : `, ${item.commit}`})`).join("\n");
     copy.addEventListener("click", () => {
         const clipboard = navigator.clipboard;
         if (clipboard === undefined) {
-            status.textContent = "Clipboard access is unavailable; use Export Markdown instead.";
+            i18n.bindText(status, "site.clipboardUnavailable");
             return;
         }
         void clipboard.writeText(markdown()).then(() => {
-            status.textContent = "Filtered changelog copied.";
+            i18n.bindText(status, "site.filteredCopied");
         }).catch(() => {
-            status.textContent = "Clipboard access failed; use Export Markdown instead.";
+            i18n.bindText(status, "site.clipboardFailed");
         });
     });
     exportButton.addEventListener("click", () => {
-        const blob = new Blob([`# Changelog export\n\n${markdown()}\n`], { type: "text/markdown;charset=utf-8" });
+        const blob = new Blob([`# ${i18n.t("site.changelogTitle")}\n\n${markdown()}\n`], { type: "text/markdown;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
         link.download = "material-bluemap-changelog.md";
         link.click();
         URL.revokeObjectURL(url);
-        status.textContent = "Filtered changelog exported.";
+        i18n.bindText(status, "site.filteredExported");
     });
     actions.append(copy, exportButton, status);
     root.append(actions);
+    // The page owns the picker, so destroying the view also removes its anchored panel and
+    // listener rather than leaving a stale calendar attached to document.body.
+    root.addEventListener("DOMNodeRemoved", () => {
+        unsubscribeDates();
+        datePicker.destroy();
+    }, { once: true });
     return root;
 }

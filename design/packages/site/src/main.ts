@@ -64,6 +64,7 @@ import { TabsController } from "./tabs/index.js";
 import { ThemeController } from "./theme/ThemeController.js";
 import { createCommandPalette, type PaletteCommand } from "./shell/commandPalette.js";
 import { registerAppearanceTarget } from "./appearance/editor/contextMenu.js";
+import { setSearchLocale } from "./search/strings.js";
 
 /* -------------------------------------------------------------------------- */
 /* Small DOM helpers                                                          */
@@ -168,7 +169,7 @@ function captureFigure(capture: RepoCapture, className: string): HTMLElement {
  */
 interface PageNavigation {
     /** Open the documentation tab, expand one article, and put focus on it. */
-    readonly openArticle: (articleId: string, offset?: number) => void;
+    readonly openArticle: (articleRef: string, offset?: number) => void;
     /** Open one of the content tabs by id. */
     readonly openPage: (pageId: string) => void;
 }
@@ -610,6 +611,12 @@ function boot(): void {
 
     const prefs = new Preferences();
     const i18n = new I18n(prefs);
+    // The search package owns its own builder copy, but the shell owns the persisted
+    // language/tone settings. Keep the two in lock-step from the first paint onward.
+    setSearchLocale({ mode: i18n.mode, funnyEn: i18n.funnyEn, funnyYue: i18n.funnyYue });
+    i18n.subscribe(() => {
+        setSearchLocale({ mode: i18n.mode, funnyEn: i18n.funnyEn, funnyYue: i18n.funnyYue });
+    });
     const theme = new ThemeController(prefs);
     const appearance = new AppearanceController(prefs);
     const shortcuts = new ShortcutRegistry();
@@ -622,6 +629,11 @@ function boot(): void {
     const model = new TabModel(prefs, i18n);
     const tabs = new TabsController({ i18n, model, notifications, shortcuts, regex });
     const settingsView = createSettingsPage({ prefs, appearance, theme });
+    const tabLabelKey = {
+        home: "site.homeTab",
+        docs: "site.docsTab",
+        screenshots: "site.screenshotsTab",
+    } as const;
 
     /*
      * Following a card from the landing page has to land the visitor on the exact article,
@@ -634,7 +646,9 @@ function boot(): void {
      */
     const navigation: PageNavigation = {
         openPage: (pageId) => tabs.reveal(pageId),
-        openArticle: (articleId, offset) => {
+        openArticle: (articleRef, offset) => {
+            const [articleIdPart, sectionId] = articleRef.split("#", 2);
+            const articleId = articleIdPart ?? articleRef;
             tabs.reveal("docs");
             const target = document.getElementById(articleElementId(articleId));
             if (!(target instanceof HTMLDetailsElement)) return;
@@ -644,17 +658,23 @@ function boot(): void {
             // it would be fixing.
             const summary = target.querySelector("summary");
             if (summary instanceof HTMLElement) summary.focus({ preventScroll: true });
-            if (offset !== undefined) {
+            // Section results carry `article-id#section-id`. Land on the exact heading
+            // instead of opening a long disclosure and asking the visitor to hunt again.
+            const sectionTarget = sectionId === undefined
+                ? null
+                : document.getElementById(`article-${articleId}-${sectionId}`);
+            const destination = sectionTarget instanceof HTMLElement ? sectionTarget : target;
+            if (offset !== undefined && sectionTarget === null) {
                 const textTarget = [...target.querySelectorAll<HTMLElement>(".mb-prose, .mb-article-lede")]
                     .find((candidate) => candidate.textContent?.length !== 0);
-                textTarget?.scrollIntoView({ block: "center", behavior: "auto" });
+                if (textTarget !== undefined) destination.scrollIntoView({ block: "center", behavior: "auto" });
             }
             const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-            target.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
+            destination.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
             // The same "look here" flash the search results use, so arriving from a card
             // and arriving from a search feel like the same thing.
-            target.classList.add("mb-flash");
-            window.setTimeout(() => target.classList.remove("mb-flash"), 2000);
+            destination.classList.add("mb-flash");
+            window.setTimeout(() => destination.classList.remove("mb-flash"), 2000);
         },
     };
 
@@ -667,7 +687,7 @@ function boot(): void {
         };
         tabs.registerPage({
             id: contentPage.id,
-            label: { text: contentPage.title },
+            label: { key: tabLabelKey[contentPage.id] },
             // Home is the one page a visitor should never be able to close themselves
             // out of, so it is pinned and excluded from bulk closes.
             pinned: contentPage.id === "home",
@@ -678,7 +698,7 @@ function boot(): void {
 
     tabs.registerPage({
         id: "settings",
-        label: { text: "Settings" },
+        label: { key: "site.settingsTab" },
         closable: true,
         render: (host) => {
             host.replaceChildren(settingsView.element);
@@ -688,26 +708,28 @@ function boot(): void {
 
     tabs.registerPage({
         id: "search",
-        label: { text: "Search" },
+        label: { key: "site.searchTab" },
         closable: true,
         render: (host) => {
-            host.replaceChildren(createDiscoveryView({ tabs, settings: settingsView, openArticle: navigation.openArticle }));
+            host.replaceChildren(createDiscoveryView({ tabs, settings: settingsView, i18n, openArticle: navigation.openArticle }));
             decoratePage(host, "search", appearance);
         },
     });
     tabs.registerPage({
         id: "changelog",
-        label: { text: "Changelog" },
+        label: { key: "site.changelogTab" },
         closable: true,
-        render: (host) => { host.replaceChildren(createChangelogView()); decoratePage(host, "changelog", appearance); },
+        render: (host) => { host.replaceChildren(createChangelogView(i18n)); decoratePage(host, "changelog", appearance); },
     });
     tabs.registerPage({
         id: "notifications",
-        label: { text: "Notifications" },
+        label: { key: "site.notificationsTab" },
         closable: true,
         render: (host) => {
             const view = el("div", "mb-page");
-            view.appendChild(el("h1", "mb-page-title", "Notification centre"));
+            const title = el("h1", "mb-page-title");
+            i18n.bindText(title, "site.notificationTitle");
+            view.appendChild(title);
             const list = el("div", "notification-centre");
             notifications.renderCentre(list);
             view.appendChild(list);
@@ -723,7 +745,7 @@ function boot(): void {
     const main = el("main", "mb-main");
     main.appendChild(tabs.strip.panels);
     root.appendChild(main);
-    document.body.appendChild(createShellPalette({ prefs, tabs, settingsView, shortcuts }));
+    document.body.appendChild(createShellPalette({ prefs, tabs, settingsView, shortcuts, i18n, appearance }));
     tabs.activate("home");
 
     // 10% per load, non-blocking, never focus-stealing, and there is deliberately no
@@ -734,11 +756,21 @@ function boot(): void {
 function decoratePage(host: HTMLElement, pageId: string, appearance: AppearanceController): void {
     const target = host.firstElementChild;
     if (!(target instanceof HTMLElement)) return;
-    registerAppearanceTarget(target, {
-        kind: "card",
-        instance: `page-${pageId}`,
-        instanceLabel: `${pageId} page`,
-    }, appearance);
+    const candidates = [
+        target,
+        ...target.querySelectorAll<HTMLElement>(
+            "section, article, header, figure, table, .mbm-surface, .mb-discovery-card, .mb-changelog-entry, .mb-command-palette__card, button, input, select, textarea, a",
+        ),
+    ];
+    candidates.forEach((element, index) => {
+        if (element.dataset.mbKind !== undefined) return;
+        const readable = element.getAttribute("aria-label") ?? element.textContent?.trim().replace(/\s+/g, " ").slice(0, 72);
+        registerAppearanceTarget(element, {
+            kind: "card",
+            instance: `page-${pageId}-${index}`,
+            instanceLabel: readable === undefined || readable === "" ? `${pageId} element ${index + 1}` : readable,
+        }, appearance);
+    });
 }
 
 function createShellPalette(options: {
@@ -746,14 +778,16 @@ function createShellPalette(options: {
     readonly tabs: TabsController;
     readonly settingsView: ReturnType<typeof createSettingsPage>;
     readonly shortcuts: ShortcutRegistry;
+    readonly i18n: I18n;
+    readonly appearance: AppearanceController;
 }): HTMLElement {
-    const commands: readonly PaletteCommand[] = [
-        { id: "open-home", label: "Open Home", description: "Return to the landing page", kind: "page", run: () => options.tabs.reveal("home") },
-        { id: "open-docs", label: "Open Documentation", description: "Read every feature article", kind: "page", run: () => options.tabs.reveal("docs") },
-        { id: "open-search", label: "Open Search everything", description: "Search docs, settings, tabs, groups, and bulk actions", kind: "page", run: () => options.tabs.reveal("search") },
-        { id: "open-changelog", label: "Open Changelog", description: "Filter and export every recorded version", kind: "page", run: () => options.tabs.reveal("changelog") },
-        { id: "open-notifications", label: "Open Notification centre", description: "Review dismissed notifications", kind: "command", run: () => options.tabs.reveal("notifications") },
-        { id: "open-settings", label: "Open Settings", description: "Language, funny levels, appearance, and data", kind: "page", run: () => options.tabs.reveal("settings") },
+    const list = (): readonly PaletteCommand[] => [
+        { id: "open-home", label: options.i18n.t("site.openHome"), description: options.i18n.t("site.descriptionHome"), kind: "page", run: () => options.tabs.reveal("home") },
+        { id: "open-docs", label: options.i18n.t("site.openDocs"), description: options.i18n.t("site.descriptionDocs"), kind: "page", run: () => options.tabs.reveal("docs") },
+        { id: "open-search", label: options.i18n.t("site.openSearch"), description: options.i18n.t("site.descriptionSearch"), kind: "page", run: () => options.tabs.reveal("search") },
+        { id: "open-changelog", label: options.i18n.t("site.openChangelog"), description: options.i18n.t("site.descriptionChangelog"), kind: "page", run: () => options.tabs.reveal("changelog") },
+        { id: "open-notifications", label: options.i18n.t("site.openNotifications"), description: options.i18n.t("site.descriptionNotifications"), kind: "command", run: () => options.tabs.reveal("notifications") },
+        { id: "open-settings", label: options.i18n.t("site.openSettings"), description: options.i18n.t("site.descriptionSettings"), kind: "page", run: () => options.tabs.reveal("settings") },
         ...options.settingsView.search.host.listSettings().map((setting) => ({
             id: `setting-${setting.id}`,
             label: setting.label,
@@ -761,9 +795,14 @@ function createShellPalette(options: {
             kind: "setting" as const,
             run: () => { options.tabs.reveal("settings"); options.settingsView.revealSetting(setting.id); },
         })),
-        { id: "appearance-editor", label: "Edit appearance…", description: "Open the per-element Material appearance editor from any target context menu", kind: "appearance", run: () => options.tabs.reveal("settings") },
+        { id: "appearance-editor", label: options.i18n.t("site.editAppearance"), description: options.i18n.t("site.descriptionAppearance"), kind: "appearance", run: () => options.tabs.reveal("settings") },
     ];
-    const palette = createCommandPalette({ prefs: options.prefs, list: () => commands });
+    const palette = createCommandPalette({ prefs: options.prefs, i18n: options.i18n, list });
+    registerAppearanceTarget(palette.element, {
+        kind: "card",
+        instance: "command-palette",
+        instanceLabel: options.i18n.t("site.commandPalette"),
+    }, options.appearance);
     options.shortcuts.register({ id: "palette.open", parts: ["Ctrl", "Shift", "F"], run: () => palette.open() });
     return palette.element;
 }

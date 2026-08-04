@@ -25,6 +25,9 @@ export interface SearchFieldOptions {
     /** The visible label. Search bars are labelled, never placeholder-only. */
     readonly labelText: string;
     readonly placeholder: string;
+    /** Optional live providers for shell-owned language settings. */
+    readonly labelTextSource?: (() => string) | undefined;
+    readonly placeholderSource?: (() => string) | undefined;
     /** Called whenever the query, pattern, flags or mode change. */
     readonly onChange: (snapshot: SearchQuerySnapshot) => void;
     readonly evaluator?: BoundedRegexEvaluator | undefined;
@@ -60,10 +63,13 @@ export function createSearchField(options: SearchFieldOptions): SearchFieldView 
 
     const root = el("div", { class: "mbm-search" });
 
+    const currentLabel = (): string => options.labelTextSource?.() ?? options.labelText;
+    const currentPlaceholder = (): string => options.placeholderSource?.() ?? options.placeholder;
+
     const labelEl = el("label", {
         class: "mbm-search__label",
         attrs: { for: inputId },
-        text: options.labelText,
+        text: currentLabel(),
     });
 
     const input = el("input", {
@@ -71,7 +77,7 @@ export function createSearchField(options: SearchFieldOptions): SearchFieldView 
         attrs: {
             id: inputId,
             type: "search",
-            placeholder: options.placeholder,
+            placeholder: currentPlaceholder(),
             autocomplete: "off",
             spellcheck: "false",
             "aria-describedby": `${statusId} ${hintId}`,
@@ -163,6 +169,7 @@ export function createSearchField(options: SearchFieldOptions): SearchFieldView 
         model,
         evaluator,
         fieldLabel: options.labelText,
+        fieldLabelSource: currentLabel,
         sampleProvider: options.sampleProvider,
         anchor: builderButton,
         returnFocusTo: input,
@@ -259,12 +266,15 @@ export function createSearchField(options: SearchFieldOptions): SearchFieldView 
 
     const unsubscribeModel = model.subscribe(sync);
     const unsubscribeLocale = onSearchLocaleChange(() => {
+        labelEl.textContent = currentLabel();
+        input.placeholder = currentPlaceholder();
         hint.textContent = label("searchModeTextHint");
-        clearButton.setAttribute("aria-label", label("clearSearch", { field: options.labelText }));
+        clearButton.setAttribute("aria-label", label("clearSearch", { field: currentLabel() }));
         builderButton.setAttribute(
             "aria-label",
-            label("builderOpenLabel", { field: options.labelText }),
+            label("builderOpenLabel", { field: currentLabel() }),
         );
+        builderButton.title = label("builderOpenLabel", { field: currentLabel() });
         modeGroup.setAttribute("aria-label", label("searchModeLegend"));
     });
 

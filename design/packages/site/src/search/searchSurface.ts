@@ -20,7 +20,7 @@ import { buildCandidateIndex, resolveHits, runSearch } from "./runSearch.js";
 import type { CandidateField, ResolvedHit } from "./runSearch.js";
 import { createSearchField } from "./searchField.js";
 import type { SearchFieldView } from "./searchField.js";
-import { label, phrase, secondaryPhrase } from "./strings.js";
+import { label, onSearchLocaleChange, phrase, secondaryPhrase } from "./strings.js";
 
 export interface SurfaceResult<TItem, TField extends string> {
     readonly item: TItem;
@@ -32,6 +32,8 @@ export interface SearchSurfaceOptions<TItem, TField extends string> {
     readonly fieldId: string;
     readonly labelText: string;
     readonly placeholder: string;
+    readonly labelTextSource?: (() => string) | undefined;
+    readonly placeholderSource?: (() => string) | undefined;
     /** The accessible name of the results list. */
     readonly resultsLabel: string;
     readonly fields: readonly CandidateField<TItem, TField>[];
@@ -73,6 +75,8 @@ export function createSearchSurface<TItem, TField extends string>(
         fieldId: options.fieldId,
         labelText: options.labelText,
         placeholder: options.placeholder,
+        labelTextSource: options.labelTextSource,
+        placeholderSource: options.placeholderSource,
         evaluator,
         sampleProvider: () =>
             options
@@ -206,6 +210,7 @@ export function createSearchSurface<TItem, TField extends string>(
     }
 
     const unsubscribe = options.subscribe?.(() => schedule(0)) ?? null;
+    const unsubscribeLocale = onSearchLocaleChange(() => schedule(0));
 
     schedule(0);
 
@@ -219,6 +224,7 @@ export function createSearchSurface<TItem, TField extends string>(
                 clearTimeout(debounce);
             }
             unsubscribe?.();
+            unsubscribeLocale();
             field.destroy();
         },
     };

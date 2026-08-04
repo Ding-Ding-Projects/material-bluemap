@@ -95,6 +95,7 @@ export interface RegexBuilderOptions {
     readonly evaluator: BoundedRegexEvaluator;
     /** The visible name of the field this builder belongs to. Used in its accessible name. */
     readonly fieldLabel: string;
+    readonly fieldLabelSource?: (() => string) | undefined;
     /** Optional real text from the surface being searched, used as the starting sample. */
     readonly sampleProvider?: (() => string) | undefined;
 }
@@ -107,6 +108,7 @@ export interface RegexBuilderView {
 
 export function createRegexBuilder(options: RegexBuilderOptions): RegexBuilderView {
     const { model, evaluator } = options;
+    const fieldLabel = (): string => options.fieldLabelSource?.() ?? options.fieldLabel;
     const root = el("div", { class: "mbm-builder" });
     const patternId = uniqueId("mbm-pattern");
     const sampleId = uniqueId("mbm-sample");
@@ -462,7 +464,7 @@ export function createRegexBuilder(options: RegexBuilderOptions): RegexBuilderVi
                     el("h2", { class: "mbm-builder__heading", text: phrase("builderTitle") }),
                     el("p", {
                         class: "mbm-builder__anchor-note",
-                        text: label("builderAnchoredNote", { field: options.fieldLabel }),
+                        text: label("builderAnchoredNote", { field: fieldLabel() }),
                     }),
                 ],
             }),
@@ -772,15 +774,19 @@ export function createBuilderController(
         readonly returnFocusTo: HTMLElement;
     },
 ): { toggle(): void; close(): void; destroy(): void; isOpen(): boolean } {
+    const fieldLabel = (): string => options.fieldLabelSource?.() ?? options.fieldLabel;
     let view: RegexBuilderView | null = null;
     const panel = new AnchoredPanel({
         anchor: options.anchor,
         returnFocusTo: options.returnFocusTo,
-        title: label("builderOpenLabel", { field: options.fieldLabel }),
+        title: label("builderOpenLabel", { field: fieldLabel() }),
         onClose: () => {
             view?.destroy();
             view = null;
         },
+    });
+    const unsubscribeLocale = onSearchLocaleChange(() => {
+        panel.element.setAttribute("aria-label", label("builderOpenLabel", { field: fieldLabel() }));
     });
 
     return {
@@ -799,6 +805,7 @@ export function createBuilderController(
         destroy() {
             view?.destroy();
             view = null;
+            unsubscribeLocale();
             panel.destroy();
         },
     };

@@ -6,7 +6,8 @@
 and appearance actions. Results teleport to the owning tab or setting. The palette is a persisted
 bounded card by default and can expand to a full-window view. The `Changelog` tab parses the
 repository's committed `CHANGELOG.md`, preserves version/date/category/subject/commit links,
-supports typed date bounds and named presets, and exports or copies the filtered rows.
+supports an anchored calendar with month/year jumps, 42-day range selection, typed ISO or slash
+dates, named presets, and exports or copies the filtered rows.
 
 ## Configuration
 
@@ -17,13 +18,14 @@ contains the visible commit short SHA when the source record has one.
 ## Failure modes and security
 
 An entry without a recorded commit is labelled rather than linked to a guessed SHA. Date filters
-are local and invalid ranges simply produce an empty, honest result set. The command palette
-executes registered actions only; it does not evaluate visitor-entered code.
+are local; invalid or partial typed dates stay visible and are reported inline. The command
+palette executes registered actions only; it does not evaluate visitor-entered code.
 
 ## Verification
 
-The parser has a focused Vitest test. The site type checker, full site Vitest suite (119 tests),
-and Vite production build pass in the clean Pages worktree.
+The parser and date-range helpers have focused Vitest tests. The site type checker, lint, focused
+site tests, and Vite production build pass in the clean linked worktree. The full monorepo suite
+still reports unrelated CRLF fixture and `@material-bluemap/nbt` resolution failures.
 
 ## Suggested articles
 

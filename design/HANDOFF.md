@@ -1,5 +1,36 @@
 # Handoff
 
+## Pages continuation checkpoint (2026-08-04)
+
+The fresh `pages-material3-continuation` linked worktree starts at `origin/main` `a23b540` and
+closes the next Pages contract gaps. The persisted shell language/tone settings now feed the
+search package, so every regex field refreshes its visible label, placeholder, builder title and
+results when the visitor changes mode or either funny slider. Search results carrying
+`article#section` now land on the exact documentation heading rather than reopening the article
+at its top. New Pages tabs and the command palette use live bilingual copy; the palette is also
+registered as an appearance target and its command inventory is rebuilt from current settings.
+
+The changelog date filter is now an anchored Material panel with month navigation, a 42-cell
+keyboard calendar, range selection, typed ISO or slash dates, inline validation, named presets,
+and copy/export status messages. `decoratePage` registers the page's semantic controls as
+instance appearance targets so the published Pages surface does not leave its new cards,
+searches, dialogs or controls outside the editor.
+
+Verification in this Gerk Tong Hui:
+
+- `pnpm --filter @material-bluemap/site typecheck` — passed.
+- Focused site tests — **35 passed** across content, date-range, changelog and search suites.
+- `pnpm lint` — passed.
+- `pnpm --filter @material-bluemap/site build` — passed (190 modules transformed).
+- `node scripts/build-changelog.mjs --check` — passed (40 versions, 97 entries).
+- The full monorepo `pnpm test` remains red for pre-existing repository-wide failures: CRLF
+  byte-exact HOCON fixture expectations and unresolved `@material-bluemap/nbt` package entry
+  resolution. Those failures are outside this Pages change and are recorded, not relabelled as
+  Pages success.
+
+This is source, type, focused-unit, lint and production-bundle evidence. A cheap headless
+Windows capture of the live GitHub Pages site remains a separate runtime/UI boundary.
+
 ## Pages rewrite checkpoint (2026-08-04)
 
 The linked Pages worktree `pages-material3-rewrite` rewired the site entry point so the existing
