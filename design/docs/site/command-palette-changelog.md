@@ -2,8 +2,10 @@
 
 ## Behaviour
 
-`Ctrl+Shift+F` opens a searchable command palette containing destinations, feature pages, settings,
-and appearance actions. Results teleport to the owning tab or setting. The palette is a persisted
+`Ctrl+Shift+F` opens a searchable command palette containing destinations, every documentation
+article, settings, and appearance actions. Article results teleport to the Documentation tab,
+expand the exact article, and return focus to its summary. Results teleport to the owning tab or
+setting. The palette is a persisted
 bounded card by default and can expand to a full-window view. The `Changelog` tab parses the
 repository's committed `CHANGELOG.md`, preserves version/date/category/subject/commit links,
 supports an anchored calendar with month/year jumps, 42-day range selection, typed ISO or slash
@@ -23,9 +25,10 @@ palette executes registered actions only; it does not evaluate visitor-entered c
 
 ## Verification
 
-The parser and date-range helpers have focused Vitest tests. The site type checker, lint, focused
-site tests, and Vite production build pass in the clean linked worktree. The full monorepo suite
-still reports unrelated CRLF fixture and `@material-bluemap/nbt` resolution failures.
+The parser, date-range helpers, and complete article command catalog have focused Vitest tests.
+The site type checker, lint, focused site tests, and Vite production build pass in the clean linked
+worktree. The full monorepo suite still reports unrelated repository failures, recorded in the
+handoff and roadmap.
 
 ## Suggested articles
 

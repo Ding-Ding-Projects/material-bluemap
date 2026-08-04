@@ -831,6 +831,7 @@ export const FIXED = {
     "site.openChangelog": { en: "Open Changelog", yue: "開啟變更記錄" },
     "site.openNotifications": { en: "Open Notification centre", yue: "開啟通知中心" },
     "site.openSettings": { en: "Open Settings", yue: "開啟設定" },
+    "site.openArticle": { en: "Open article: {title}", yue: "開啟文章：{title}" },
     "site.descriptionHome": { en: "Return to the landing page", yue: "返回主頁" },
     "site.descriptionDocs": { en: "Read every feature article", yue: "閱讀全部功能文章" },
     "site.descriptionSearch": { en: "Search docs, settings, tabs, groups, and bulk actions", yue: "搜尋文件、設定、分頁、群組同大量操作" },

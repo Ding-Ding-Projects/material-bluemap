@@ -13,15 +13,16 @@ registered as an appearance target and its command inventory is rebuilt from cur
 The changelog date filter is now an anchored Material panel with month navigation, a 42-cell
 keyboard calendar, range selection, typed ISO or slash dates, inline validation, named presets,
 and copy/export status messages. The notification centre now has its own localized search,
-explicit clear-history action, and Markdown export. `decoratePage` registers the page's semantic
-controls as instance appearance targets so the published Pages surface does not leave its new
-cards, searches, dialogs or controls outside the editor.
+explicit clear-history action, and Markdown export. The command palette now indexes every
+documentation article and teleports to its exact disclosure. `decoratePage` registers the page's
+semantic controls as instance appearance targets so the published Pages surface does not leave
+its new cards, searches, dialogs or controls outside the editor.
 
 Verification in this linked worktree:
 
 - `pnpm --filter @material-bluemap/site typecheck` — passed.
-- Focused site tests — **36 passed** across localization, content, date-range, changelog and
-  search suites.
+- Focused site tests — **38 passed** across localization, article-command, content, date-range,
+  changelog and search suites.
 - `pnpm lint` — passed.
 - `pnpm --filter @material-bluemap/site build` — passed (190 modules transformed).
 - `node scripts/build-changelog.mjs --check` — passed (40 versions, 97 entries).
