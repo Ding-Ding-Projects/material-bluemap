@@ -146,7 +146,7 @@ Run them with `npx vitest run packages/ui/src/components/palette` from `design/`
 
 - [The regex builder and the search bars it reaches](./regex-builder.md), which the palette's own
   search bar is one of.
-- [Language modes and funny levels](./language-and-tone.md), for the voice the palette's copy is
-  rendered in.
+- [Language modes and funny levels](./language-and-tone.md), whose catalogue does not carry the
+  palette's keys yet, so its copy still renders the English fallbacks at every setting.
 - [Notification centre](./notification-centre.md), the other surface built around finding
   something that has scrolled past.

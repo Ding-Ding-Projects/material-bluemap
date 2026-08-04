@@ -194,6 +194,41 @@ describe("articles", () => {
             expect(tones, `${article.id} never says it is unbuilt`).toContain("not-implemented");
         }
     });
+
+    it("lets no shipped article carry the callout that means unbuilt", () => {
+        // The counterpart of the two rules above, and the one that actually bites now that
+        // several features exist beside the contracts they only partly satisfy. A shipped
+        // article may say at length what it does not cover, and it says that in a warning;
+        // reaching for the not-implemented tone would put the badge and the callout in
+        // direct contradiction, and a reader has no way to know which of the two to believe.
+        for (const article of articles.filter((a) => a.status === "shipped")) {
+            const tones = article.sections
+                .flatMap((section) => section.blocks)
+                .filter((block) => block.kind === "callout")
+                .map((block) => block.tone);
+            expect(tones, `${article.id} is badged shipped and calls itself unbuilt`).not.toContain(
+                "not-implemented"
+            );
+        }
+    });
+
+    it("makes every shipped article qualify the badge rather than only assert it", () => {
+        // A status note that only lists what works is how "shipped" comes to mean nothing.
+        // Every subject badged that way here has something real that nobody has verified: a
+        // platform it has never run on, a surface nobody has captured, a clause of its own
+        // contract it does not reach. The note is where that belongs.
+        //
+        // A length floor is a weak proxy for saying so and it is the only mechanical one
+        // available, because no test can read a sentence and judge whether it was candid.
+        // What it does rule out is the one-clause note that asserts the badge and stops,
+        // which is the shape this rule exists to prevent; the reviewer does the rest.
+        for (const article of articles.filter((a) => a.status === "shipped")) {
+            expect(
+                article.statusNote.trim().length,
+                `${article.id} is badged shipped and explains nothing`
+            ).toBeGreaterThan(100);
+        }
+    });
 });
 
 /* -------------------------------------------------------------------------- */

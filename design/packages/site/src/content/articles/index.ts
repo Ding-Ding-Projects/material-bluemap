@@ -3,7 +3,18 @@
  *
  * Order is reading order, not alphabetical: application first because that is what a
  * visitor met on the landing page, then the engine underneath it, then how it is
- * built and delivered, then the contracts that are written down but not built.
+ * built and delivered, then the contracts, each of which is written down and only
+ * partly built.
+ *
+ * The cross-cutting application features sit together near the end of the application
+ * run rather than beside the surface each one happens to appear on, because they are
+ * the same shape of thing: one mechanism reached from everywhere. A reader who has
+ * just met the palette is far more likely to want the notification centre next than
+ * to want the Electron security posture.
+ *
+ * Each of those has a contract article as its counterpart. They are deliberately not
+ * merged: this run says what is built, the contract run says what was asked for, and
+ * collapsing the two would leave nowhere to record the difference between them.
  */
 
 import type { Article, ArticleCategory } from "../types.js";
@@ -24,6 +35,15 @@ import { releasePipeline } from "./release-pipeline.js";
 import { renderInActions } from "./render-in-actions.js";
 import { screenshotGallery } from "./screenshot-gallery.js";
 import { testWorldGenerator } from "./test-world-generator.js";
+import { commandPalette } from "./command-palette.js";
+import { notificationCentre } from "./notification-centre.js";
+import { changelogViewer } from "./changelog-viewer.js";
+import { tabbedShell } from "./tabbed-shell.js";
+import { appearanceEditor } from "./appearance-editor.js";
+import { destructiveActionGate } from "./destructive-action-gate.js";
+import { languageAndTone } from "./language-and-tone.js";
+import { regexBuilderSurfaces } from "./regex-builder-surfaces.js";
+import { legacyWorldSupport } from "./legacy-world-support.js";
 import { contractRegexBuilder } from "./contract-regex-builder.js";
 import { contractTabNavigation } from "./contract-tab-navigation.js";
 import { contractAppearanceEditors } from "./contract-appearance-editors.js";
@@ -39,7 +59,16 @@ export const articles: readonly Article[] = [
     optionsGui,
     releaseDownloads,
     githubSignIn,
+    tabbedShell,
+    commandPalette,
+    notificationCentre,
+    changelogViewer,
+    appearanceEditor,
+    destructiveActionGate,
+    regexBuilderSurfaces,
+    languageAndTone,
     worldReading,
+    legacyWorldSupport,
     javaRenderPath,
     resourcePacks,
     install,

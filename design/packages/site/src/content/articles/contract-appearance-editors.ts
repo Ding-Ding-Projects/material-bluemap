@@ -9,7 +9,7 @@ export const contractAppearanceEditors: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "Not implemented in the product. There is a single Material Design 3 theme configured in one file, no per-element editor and no persisted appearance state. The one colour picker in the application edits a BlueMap setting rather than the interface, which is data, not chrome. Tracked as issue 8.",
+        "The machinery is shipped and documented separately: the anchored non-modal editor, the continuous colour picker with its eleven-notation translator, the word-processor-depth typography editor, layered records, per-property reset, presets and theme export and import. It is wrapped around four elements today, which is a long way from the every element this contract requires, and tabs and tab groups are among the ones it does not reach. Partial credit does not apply, so this stays specified. Tracked as issue 8.",
 
     sections: [
         {
@@ -19,10 +19,19 @@ export const contractAppearanceEditors: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "This describes a requirement, not shipped behaviour",
+                    title: "This describes a requirement, and the hard clause is still unmet",
                     content: [
-                        "The interface configures one theme globally. Nothing can be customised per element, and ",
-                        "nothing about appearance is persisted. Progress is tracked as ",
+                        "It used to say nothing could be customised per element and nothing was persisted. Both ",
+                        "are now false, and what is built is documented in ",
+                        {
+                            link: "the appearance editor's own article",
+                            href: repoFile("docs/appearance-editors.md"),
+                            external: true,
+                        },
+                        ". What remains is the clause this contract is mostly about: every rendered element. The ",
+                        "wrapper that carries the feature is around four things today, the window title bar, the ",
+                        "tab bar, each server profile row and the editor's own chrome, and everything else the ",
+                        "application draws is not yet a target. Progress is tracked as ",
                         { link: "issue 8", href: issue(8), external: true },
                         ".",
                     ],
@@ -166,6 +175,10 @@ export const contractAppearanceEditors: Article = {
     ],
 
     suggested: [
+        {
+            articleId: "appearance-editor",
+            reason: "What is actually built against this contract, and the four elements it reaches.",
+        },
         {
             articleId: "contract-tab-navigation",
             reason: "Tabs and tab groups are the first decoration targets this editor has to cover.",

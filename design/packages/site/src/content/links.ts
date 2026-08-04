@@ -49,10 +49,20 @@ export const BUILD_JARS_WORKFLOW_URL = repoFile(".github/workflows/build-jars.ym
  * copies of the same explanation drift apart, and the one in the repository is the one a
  * contributor edits.
  */
+export const DOCS_INDEX_URL = repoFile("docs/README.md");
 export const RENDER_IN_ACTIONS_DOC_URL = repoFile("docs/render-in-actions.md");
 export const RESUMABLE_RENDERS_DOC_URL = repoFile("docs/resumable-renders.md");
 export const LARGE_WORLDS_DOC_URL = repoFile("docs/large-worlds.md");
 export const PRIVATE_WORLD_DOC_URL = repoFile("docs/private-world-rendering.md");
+export const CHANGELOG_VIEWER_DOC_URL = repoFile("docs/changelog-viewer.md");
+export const COMMAND_PALETTE_DOC_URL = repoFile("docs/command-palette.md");
+export const NOTIFICATION_CENTRE_DOC_URL = repoFile("docs/notification-centre.md");
+export const TABBED_NAVIGATION_DOC_URL = repoFile("docs/tabbed-navigation.md");
+export const APPEARANCE_EDITORS_DOC_URL = repoFile("docs/appearance-editors.md");
+export const SUPER_CONFIRMATION_DOC_URL = repoFile("docs/super-confirmation.md");
+export const LANGUAGE_AND_TONE_DOC_URL = repoFile("docs/language-and-tone.md");
+export const REGEX_BUILDER_DOC_URL = repoFile("docs/regex-builder.md");
+export const LEGACY_WORLDS_DOC_URL = repoFile("docs/legacy-1-12-worlds.md");
 
 /** Upstream BlueMap, the project this is a port of. */
 export const UPSTREAM_URL = "https://github.com/BlueMap-Minecraft/BlueMap";
