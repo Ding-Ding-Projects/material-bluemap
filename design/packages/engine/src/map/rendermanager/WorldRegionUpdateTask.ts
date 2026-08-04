@@ -101,7 +101,11 @@ export class WorldRegionUpdateTask implements MapRenderTask {
     #chunkHashes: Int32Array | null = null;
     #tileActions: (ActionAndNextState | undefined)[] = [];
 
-    constructor(map: BmMap, regionPos: Vector2i, force: TileUpdateStrategy = TileUpdateStrategy.FORCE_NONE) {
+    constructor(
+        map: BmMap,
+        regionPos: Vector2i,
+        force: TileUpdateStrategy = TileUpdateStrategy.FORCE_NONE,
+    ) {
         this.#map = map;
         this.#regionPos = regionPos;
         this.#force = force;
@@ -167,16 +171,13 @@ export class WorldRegionUpdateTask implements MapRenderTask {
         this.#chunkHashes = new Int32Array(this.#chunksSize.getX() * this.#chunksSize.getY());
         const hashes = this.#chunkHashes;
         try {
-            await world
-                .getRegion(this.#regionPos.getX(), this.#regionPos.getY())
-                .iterateAllChunks(
-                    ChunkConsumer.listOnly((x, z, lastModified) => {
-                        hashes[
-                            this.#chunkIndex(x - this.#chunkMin.getX(), z - this.#chunkMin.getY())
-                        ] = lastModified;
-                        world.invalidateChunkCache(x, z);
-                    }),
-                );
+            await world.getRegion(this.#regionPos.getX(), this.#regionPos.getY()).iterateAllChunks(
+                ChunkConsumer.listOnly((x, z, lastModified) => {
+                    hashes[this.#chunkIndex(x - this.#chunkMin.getX(), z - this.#chunkMin.getY())] =
+                        lastModified;
+                    world.invalidateChunkCache(x, z);
+                }),
+            );
         } catch (error) {
             // Upstream logs and cancels the task. Cancelling here would silently skip a
             // region and leave its tiles at whatever state they last had, which reads as
@@ -204,7 +205,10 @@ export class WorldRegionUpdateTask implements MapRenderTask {
                 // forced tile must not pay for the hash comparison.
                 const changed =
                     this.#force.test(tileState) || (await this.#checkChunksHaveChanges(tile));
-                const action = tileState.findActionAndNextState(changed, this.#checkTileBounds(tile));
+                const action = tileState.findActionAndNextState(
+                    changed,
+                    this.#checkTileBounds(tile),
+                );
                 this.#tileActions[this.#tileIndex(x, z)] = action;
                 if (action.action() === Action.RENDER) renderCount++;
                 if (action.action() === Action.DELETE) deleteCount++;
@@ -266,7 +270,11 @@ export class WorldRegionUpdateTask implements MapRenderTask {
         } finally {
             await this.#map
                 .getMapTileState()
-                .set(tile.getX(), tile.getY(), new TileInfo(Math.floor(Date.now() / 1000), resultState));
+                .set(
+                    tile.getX(),
+                    tile.getY(),
+                    new TileInfo(Math.floor(Date.now() / 1000), resultState),
+                );
         }
     }
 
@@ -284,7 +292,9 @@ export class WorldRegionUpdateTask implements MapRenderTask {
             this.#chunkHashes = null;
         }
 
-        const region = this.#map.getWorld().getRegion(this.#regionPos.getX(), this.#regionPos.getY());
+        const region = this.#map
+            .getWorld()
+            .getRegion(this.#regionPos.getX(), this.#regionPos.getY());
         if (region.exists()) {
             await this.#map
                 .getMapRegionState()
@@ -296,6 +306,9 @@ export class WorldRegionUpdateTask implements MapRenderTask {
         }
 
         this.#tileActions = [];
+        // upstream: `map.save(TimeUnit.MINUTES.toMillis(1))` — keep a long render's
+        // work durable without turning every region into a disk write.
+        await this.#map.saveIfDue(60_000);
     }
 
     #chunkIndex(x: number, z: number): number {
@@ -330,7 +343,10 @@ export class WorldRegionUpdateTask implements MapRenderTask {
                 ) {
                     const hash =
                         this.#chunkHashes?.[
-                            this.#chunkIndex(chunkX - this.#chunkMin.getX(), chunkZ - this.#chunkMin.getY())
+                            this.#chunkIndex(
+                                chunkX - this.#chunkMin.getX(),
+                                chunkZ - this.#chunkMin.getY(),
+                            )
                         ] ?? 0;
                     if ((await this.#map.getMapChunkState().get(chunkX, chunkZ)) !== hash)
                         return true;

@@ -216,7 +216,14 @@ export type FailureKind =
     | "request"
     | "nothing-rendered"
     | "cancelled"
-    | "engine-failed";
+    | "engine-failed"
+    /**
+     * The engine never started because the place it was asked to run in could not take it.
+     *
+     * Kept apart from `engine-failed` because nothing ran: there is no engine output to
+     * read, and the advice is about Docker or a folder rather than about a render.
+     */
+    | "runtime";
 
 /** Sorts a failure into the one of these it is, so each gets its own answer. */
 export function classifyFailure(failure: RenderFailure): FailureKind {
@@ -238,6 +245,9 @@ export function classifyFailure(failure: RenderFailure): FailureKind {
             return "nothing-rendered";
         case "cancelled":
             return "cancelled";
+        case "docker-unavailable":
+        case "container-mount-refused":
+            return "runtime";
         default:
             return "engine-failed";
     }
@@ -371,6 +381,16 @@ export function adviseOnFailure(failure: RenderFailure, t: Translate): FailureAd
                     "You stopped it. The tiles already rendered are kept, and carrying on later picks up from where it stopped.",
                 ),
                 remedy: { settings: null, actionKey: "", actionFallback: "" },
+            };
+        case "runtime":
+            // The message the main process built already names the real reason - which
+            // Docker state it found, or which folder it refused to mount and why. Falling
+            // through to the generic engine wording would replace a precise sentence with
+            // a vague one, so these carry their own text and add nothing to it.
+            return {
+                ...base,
+                explanation: failure.message,
+                remedy: { settings: failure.settings, actionKey: "", actionFallback: "" },
             };
         case "engine-failed":
             return {

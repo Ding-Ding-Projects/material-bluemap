@@ -786,6 +786,27 @@ describe("WorldRegionUpdateTask as a RenderTask", () => {
         expect(await map.getMapRegionState().get(0, 0)).toBeGreaterThan(0);
     });
 
+    it("checkpoints the map at the upstream one-minute cadence", async () => {
+        const map = await createMap("overworld", fakeWorld());
+        const saveIfDue = vi.spyOn(map, "saveIfDue");
+        const save = vi.spyOn(map, "save");
+
+        await drain(
+            new WorldRegionUpdateTask(map, new Vector2i(0, 0), TileUpdateStrategy.FORCE_ALL),
+        );
+        expect(saveIfDue).toHaveBeenCalledWith(60_000);
+        const savesAfterFirstRegion = save.mock.calls.length;
+
+        // A second region completion happens inside the same minute. The cadence gate is
+        // still visited, but the map's real save is not repeated just to make the disk
+        // lights feel included in the meeting.
+        await drain(
+            new WorldRegionUpdateTask(map, new Vector2i(0, 0), TileUpdateStrategy.FORCE_ALL),
+        );
+        expect(saveIfDue).toHaveBeenCalledTimes(2);
+        expect(save.mock.calls.length).toBe(savesAfterFirstRegion);
+    });
+
     it("deletes the region timestamp when the region no longer exists on disk", async () => {
         const map = await createMap("overworld", fakeWorld({ regionExists: false }));
         await map.getMapRegionState().set(0, 0, 777);
@@ -839,8 +860,16 @@ describe("WorldRegionUpdateTask as a RenderTask", () => {
 
     it("is equal by map id, region and strategy identity", async () => {
         const map = await createMap("overworld", fakeWorld());
-        const a = new WorldRegionUpdateTask(map, new Vector2i(1, 2), TileUpdateStrategy.fixed(true));
-        const b = new WorldRegionUpdateTask(map, new Vector2i(1, 2), TileUpdateStrategy.fixed(true));
+        const a = new WorldRegionUpdateTask(
+            map,
+            new Vector2i(1, 2),
+            TileUpdateStrategy.fixed(true),
+        );
+        const b = new WorldRegionUpdateTask(
+            map,
+            new Vector2i(1, 2),
+            TileUpdateStrategy.fixed(true),
+        );
 
         // this is the pair a per-call `fixed()` object would have broken, letting the
         // render manager queue the same region twice
@@ -957,7 +986,8 @@ describe("MapUpdateTask", () => {
         await drain(task);
 
         expect(renderCalls).toHaveLength(REGION_TILE_COUNT);
-        expect(events.filter((e) => e === "lowres.save")).toHaveLength(1);
+        // The region checkpoint and MapUpdateTask's trailing save are both real writes.
+        expect(events.filter((e) => e === "lowres.save")).toHaveLength(2);
         expect(task.estimateProgress()).toBe(1);
     });
 });

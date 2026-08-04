@@ -120,7 +120,7 @@ function dockerPlace(input: RunPlaceInput, t: Translate): RunPlace {
             state: "unsupported",
             reason: t(
                 "remote.place.docker.unsupported",
-                "This build has no way to hand a render to a container on this machine: the render channel takes no choice of where to run, so choosing this would quietly render locally instead. Docker's state is still reported below, and rendering on a remote host does use a container.",
+                "This build of the shell does not offer to hand a render to a container on this machine, so choosing it would render locally instead - which is why it is not offered. Docker's state is still reported below, and rendering on a remote host does use a container.",
             ),
             selectable: false,
         };

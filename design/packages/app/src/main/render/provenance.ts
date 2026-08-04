@@ -17,6 +17,7 @@
 
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
+import type { RuntimeMode } from "../runtime/plan.js";
 
 /** Bumped when the shape below changes incompatibly. */
 export const RENDER_RECORD_VERSION = 1;
@@ -58,6 +59,23 @@ export interface RenderRecord {
     readonly enginePath: string | null;
     /** The JVM that ran it, e.g. `25.0.3`. Null for an engine that needs none. */
     readonly javaVersion: string | null;
+    /**
+     * Where the engine actually ran: as a program on this computer, or in a container.
+     *
+     * The same question as "which engine rendered this", asked of the other axis. Two
+     * runtimes are one more way a difference in output can be attributable rather than
+     * mysterious, so a reader who wonders whether the container path was really used has
+     * a file to look at instead of a memory to trust.
+     *
+     * Optional **and** nullable, and both absences mean the same honest thing: this record
+     * does not say. A record written before this field existed, or written by something
+     * other than the orchestrator, is left unanswered rather than assumed local -
+     * "rendered locally" is exactly the kind of confidently wrong answer the note above
+     * refuses to invent. Bumping {@link RENDER_RECORD_VERSION} instead would have made
+     * every render already on disk unreadable and dropped every existing map out of the
+     * list, which is a far larger harm than one unanswered field.
+     */
+    readonly runtime?: RuntimeMode | null;
     readonly maps: readonly RenderedMapRecord[];
     readonly startedAt: string;
     readonly finishedAt: string | null;
@@ -116,6 +134,7 @@ export async function readRenderRecord(path: string): Promise<RenderRecord | nul
     if (engine !== "upstream-java" && engine !== "typescript") return null;
 
     const outcome = readString(parsed.outcome);
+    const runtime = readRuntime(parsed.runtime);
     return {
         recordVersion: RENDER_RECORD_VERSION,
         renderId,
@@ -123,6 +142,7 @@ export async function readRenderRecord(path: string): Promise<RenderRecord | nul
         engineVersion,
         enginePath: readString(parsed.enginePath),
         javaVersion: readString(parsed.javaVersion),
+        ...(runtime === undefined ? {} : { runtime }),
         maps: readMaps(parsed.maps),
         startedAt,
         finishedAt: readString(parsed.finishedAt),
@@ -131,6 +151,12 @@ export async function readRenderRecord(path: string): Promise<RenderRecord | nul
         durationMs: typeof parsed.durationMs === "number" ? parsed.durationMs : null,
         appVersion: readString(parsed.appVersion),
     };
+}
+
+/** Anything that is not one of the two known runtimes reads as "not recorded". */
+function readRuntime(value: unknown): RuntimeMode | null | undefined {
+    if (value === undefined) return undefined;
+    return value === "local" || value === "docker" ? value : null;
 }
 
 function isOutcome(value: string | null): value is RenderOutcome {

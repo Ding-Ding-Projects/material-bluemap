@@ -85,15 +85,15 @@ describe("what may be chosen", () => {
         expect(docker.reason).toMatch(/daemon is not running/i);
     });
 
-    it("refuses Docker outright when this build has no channel to hand a render to it", () => {
+    it("refuses Docker outright when this build of the shell does not offer it", () => {
         // The failure this prevents: a selectable Docker option that quietly renders
         // locally, leaving somebody certain they used a container when they did not.
         const docker = place({ canRenderInDocker: false }, "docker");
 
         expect(docker.selectable).toBe(false);
         expect(docker.state).toBe("unsupported");
-        expect(docker.reason).toMatch(/no way to hand a render to a container/i);
-        expect(docker.reason).toMatch(/quietly render locally/i);
+        expect(docker.reason).toMatch(/does not offer to hand a render to a container/i);
+        expect(docker.reason).toMatch(/render locally instead/i);
     });
 
     it("keeps Docker unselectable while its state is simply unknown", () => {

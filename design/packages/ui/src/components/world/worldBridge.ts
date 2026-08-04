@@ -44,6 +44,8 @@ export interface RenderMapRequest {
 
 export interface RenderRequest {
     readonly maps: readonly RenderMapRequest[];
+    /** Where to run the engine. Absent means on this computer. */
+    readonly runtime?: "local" | "docker";
     readonly renderId?: string;
     readonly force?: boolean;
     readonly fixEdges?: boolean;

@@ -38,6 +38,23 @@ export type RenderFailureCode =
     | "no-maps-rendered"
     /** The CLI exited non-zero, or could not be spawned at all. */
     | "cli-failed"
+    /**
+     * A container render was asked for and Docker cannot take one right now.
+     *
+     * Its own code because the answer is never "render it locally instead". A silent
+     * fallback would hand somebody a finished map and let them believe they had tested
+     * the container path; the first time they relied on it would be the first time they
+     * found out they never had. Nothing was spawned.
+     */
+    | "docker-unavailable"
+    /**
+     * A folder a container render needs may not be shared with a container.
+     *
+     * Separate from `world-not-found` because the folder is there - it is the *choice*
+     * that is refused. Pointing the world picker at a home directory one level too high
+     * would otherwise hand a container an entire profile.
+     */
+    | "container-mount-refused"
     /** The person cancelled it. */
     | "cancelled";
 
@@ -187,4 +204,37 @@ export function spawnFailed(detail: string): RenderFailure {
 
 export function cancelled(): RenderFailure {
     return failure("cancelled", "The render was cancelled.");
+}
+
+/**
+ * A container render was asked for and Docker will not take one.
+ *
+ * The probe's own sentence travels inside this one rather than being replaced by a
+ * generic "Docker is unavailable". Those two states - not installed, and installed with
+ * its daemon stopped - have completely different remedies, and the second one is the
+ * common one: telling somebody who has just closed Docker Desktop to go and install
+ * Docker sends them to download software they already have. `runtime/docker.ts` is what
+ * distinguishes the five states, and this is where its work reaches a person.
+ *
+ * `settings` is null. None of the anchors this file owns is where a render's runtime is
+ * chosen, and a link that opens the wrong screen at the exact moment somebody knows what
+ * they want to change is worse than no link.
+ */
+export function dockerUnavailable(message: string, detail: string | null): RenderFailure {
+    return failure(
+        "docker-unavailable",
+        `This render was asked to run in a container, and it cannot: ${message}`,
+        detail === null ? {} : { detail },
+    );
+}
+
+/**
+ * A folder may not be handed to a container. Carries `runtime/mounts.ts`'s own sentence.
+ *
+ * That sentence already names the folder and says what to choose instead, so it is shown
+ * as written rather than wrapped: rephrasing it here would produce two places to keep the
+ * explanation of a refusal correct, and they would drift.
+ */
+export function containerMountRefused(reason: string): RenderFailure {
+    return failure("container-mount-refused", reason);
 }

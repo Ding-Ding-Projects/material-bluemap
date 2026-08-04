@@ -19,8 +19,10 @@
 import { BrowserWindow, ipcMain } from "electron";
 import type { IpcMainInvokeEvent } from "electron";
 import { hasAcceptedDownload } from "../consent.js";
+import { ContainerHandoffStore } from "../runtime/handoff.js";
+import type { RuntimeMode } from "../runtime/plan.js";
 import { LocalMapHandler } from "./LocalMapHandler.js";
-import { RenderOrchestrator } from "./orchestrator.js";
+import { RENDER_RUNTIME_MODES, RenderOrchestrator } from "./orchestrator.js";
 import type {
     RenderEvent,
     RenderRequest,
@@ -48,6 +50,14 @@ export interface RenderSummary {
     readonly startedAt: string;
     readonly finishedAt: string | null;
     readonly durationMs: number | null;
+    /**
+     * Where the engine ran, or null when the record does not say.
+     *
+     * Null is a real answer here, not a missing one: records written before the app could
+     * render in a container do not claim to know, and the details surface should say
+     * nothing rather than assert "locally" on their behalf.
+     */
+    readonly runtime: RuntimeMode | null;
     /** Present only when the render finished and is being served. */
     readonly dataRoot: string | null;
 }
@@ -64,6 +74,23 @@ export interface RenderIpcOptions {
     readonly appVersion?: string | null;
     /** Overridable so a test can watch what was broadcast. Defaults to every window. */
     readonly broadcast?: (event: RenderEvent) => void;
+    /**
+     * Where a container's name is written down before the container is started.
+     *
+     * **Pass the same store the container reattacher is given.** Two stores means two
+     * instance ids, and a record written by one is a record the other reads as belonging
+     * to a dead app - so a container render still in flight is offered back to the person
+     * as one to pick up. One is created here when none is supplied, and it is exposed on
+     * {@link RenderIpc.containers} so the caller can hand that one to the reattacher
+     * instead of building a second.
+     */
+    readonly containers?: ContainerHandoffStore;
+    /** The `docker` binary a container render uses. Defaults to `docker` on the PATH. */
+    readonly docker?: string;
+    /** The image a container render uses. Defaults to `runtime/plan.ts`'s stock JRE. */
+    readonly dockerImage?: string;
+    /** The account's home directory, so a container mount of it is refused by name. */
+    readonly home?: string | null;
 }
 
 /**
@@ -83,6 +110,13 @@ export interface RenderIpc {
     readonly mounts: LocalMapHandler;
     /** The session store the orchestrator writes through. */
     readonly sessions: RenderSessionStore;
+    /**
+     * The container records the orchestrator writes through.
+     *
+     * Hand this to the container reattacher rather than constructing a second store; see
+     * the note on {@link RenderIpcOptions.containers} for what two of them cost.
+     */
+    readonly containers: ContainerHandoffStore;
     /**
      * Where maps are being written right now.
      *
@@ -130,6 +164,11 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
     // recognisable as a render whose app is gone; see the note at the top of session.ts.
     const sessions = new RenderSessionStore({ storageDir: () => storageDir });
 
+    // One per install, for the same reason and with the same instance-id contract as the
+    // session store above. See the note on the option for why passing one in matters.
+    const containers =
+        options.containers ?? new ContainerHandoffStore({ storageDir: () => storageDir });
+
     const orchestrator = new RenderOrchestrator({
         storageDir: () => storageDir,
         // Read through the existing module, every time, and never asked here. The
@@ -142,11 +181,33 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         onEvent: broadcast,
         appVersion: options.appVersion ?? null,
         sessions,
+        containers,
+        ...(options.docker === undefined ? {} : { docker: options.docker }),
+        ...(options.dockerImage === undefined ? {} : { dockerImage: options.dockerImage }),
+        ...(options.home === undefined ? {} : { home: options.home }),
     });
 
+    /**
+     * Starts a render, wherever the request says to run it.
+     *
+     * `request.runtime` crosses untouched and is checked on the other side: absent is
+     * local, `docker` is honoured or refused with the real reason, and anything else is an
+     * invalid request. Validating it here as well would mean two places deciding what a
+     * runtime mode is, and the far side is the one that has to be right.
+     */
     ipcMain.handle("render:start", async (_event: IpcMainInvokeEvent, request: RenderRequest) => {
         return await orchestrator.render(request);
     });
+
+    /**
+     * Where this build can actually run a render.
+     *
+     * A claim about the **build**, not about the machine: `runtime:modes` answers whether
+     * Docker is installed and running right now, and this answers whether choosing it would
+     * do anything. A surface that reads the first as the second offers a choice that
+     * renders locally anyway, which is worse than offering nothing.
+     */
+    ipcMain.handle("render:runtimeModes", (): readonly RuntimeMode[] => RENDER_RUNTIME_MODES);
 
     ipcMain.handle("render:cancel", (_event: IpcMainInvokeEvent, renderId: string) => {
         return typeof renderId === "string" && orchestrator.cancel(renderId);
@@ -253,6 +314,7 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         orchestrator,
         mounts: options.mounts,
         sessions,
+        containers,
         storageDirectory: () => storageDir,
         async restoreExisting(): Promise<RenderSummary[]> {
             // Done first, and on every launch: this is the moment a render that was
@@ -277,6 +339,7 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
 /** Every channel this module registers, so `dispose` cannot drift from `install`. */
 const RENDER_CHANNELS = [
     "render:start",
+    "render:runtimeModes",
     "render:cancel",
     "render:active",
     "render:interrupted",
@@ -308,6 +371,7 @@ function toSummary(record: RenderRecord, mounts: LocalMapHandler): RenderSummary
         startedAt: record.startedAt,
         finishedAt: record.finishedAt,
         durationMs: record.durationMs,
+        runtime: record.runtime ?? null,
         dataRoot: mounted ? LocalMapHandler.dataRoot(record.renderId) : null,
     };
 }

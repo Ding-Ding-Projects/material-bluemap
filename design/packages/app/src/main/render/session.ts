@@ -48,6 +48,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import type { RuntimeMode } from "../runtime/plan.js";
 import type { RenderMapRequest } from "./config.js";
 import type { RenderTaskProgress } from "./progress.js";
 import type { RenderEngineId } from "./provenance.js";
@@ -123,6 +124,19 @@ export interface RenderSession {
     readonly maps: readonly RenderSessionMap[];
     /** `<workspace>/config`, the folder the CLI was pointed at with `-c`. */
     readonly configDir: string;
+    /**
+     * Where the render was running: as a program on this computer, or in a container.
+     *
+     * Kept so that carrying an interrupted render on carries it on **in the same place**.
+     * Without it a container render that was cut off would silently resume locally, which
+     * is the quiet substitution the whole runtime choice exists to refuse - and the person
+     * would go on believing the container path had rendered their map.
+     *
+     * Optional, so a session file written before the field existed still reads. Those were
+     * all local renders and `resumeRequestFor` leaves the mode unstated for them, which is
+     * itself local.
+     */
+    readonly runtime?: RuntimeMode;
     /** `<workspace>/web`, the root the tiles and `rstate` live under. */
     readonly outputRoot: string;
     /**
@@ -222,6 +236,8 @@ export interface NewSessionInput {
     readonly renderId: string;
     readonly maps: readonly RenderMapRequest[];
     readonly configDir: string;
+    /** Omitted means local, exactly as it does on a render request. */
+    readonly runtime?: RuntimeMode;
     readonly outputRoot: string;
     readonly engine: RenderEngineId;
     readonly engineVersion: string;
@@ -243,6 +259,7 @@ export function newRenderSession(input: NewSessionInput): RenderSession {
             ...(map.config === undefined ? {} : { config: map.config }),
         })),
         configDir: input.configDir,
+        ...(input.runtime === undefined ? {} : { runtime: input.runtime }),
         outputRoot: input.outputRoot,
         configHash: renderConfigFingerprint(input.maps),
         engine: input.engine,
@@ -374,6 +391,11 @@ export async function readRenderSession(path: string): Promise<RenderSession | n
         renderId,
         maps,
         configDir,
+        // Anything other than the two known modes reads as absent, which is local - never
+        // as a mode this application would then be unable to resume in.
+        ...(parsed.runtime === "docker" || parsed.runtime === "local"
+            ? { runtime: parsed.runtime }
+            : {}),
         outputRoot,
         configHash,
         engine,

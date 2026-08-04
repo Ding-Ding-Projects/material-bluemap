@@ -13,15 +13,62 @@
  * somebody who has just chosen a world and pressed Render is how people learn to click
  * through consent screens without reading them. A render without consent reports what
  * is missing and points at the settings row that changes it.
+ *
+ * ## Two places a render can run, and one of them is the default
+ *
+ * {@link RenderRequest.runtime} chooses between running the engine as a program on this
+ * computer and running it in a container. **Absent means local**, so every caller written
+ * before the field existed - and every request stored by `session.ts` and replayed by
+ * `resume.ts` - keeps exactly the behaviour it already had, with no edit anywhere.
+ *
+ * The local path below is unchanged: the same `writeRenderConfig`, the same `CliRun`, the
+ * same arguments in the same order. It is the route with an end-to-end proof behind it,
+ * and a second mode is not worth one line of risk to it.
+ *
+ * Everything the *interface* sees is written once and shared. Both modes emit the same
+ * {@link RenderEvent}s from the same `RenderOutputTracker`, move through the same phases,
+ * are classified by the same {@link classifyRunFailure}, and are stopped by the same
+ * `cancel()`. That is not a promise kept by discipline; it is kept by there being no
+ * second code path for progress, failure or cancellation to differ on. What differs is
+ * three things and they are all here:
+ *
+ * ```
+ * which config is written   host paths (render/config.ts) vs container paths (runtime/config.ts)
+ * what is spawned           the JVM (render/runner.ts)    vs `docker run` (runtime/process.ts)
+ * what a cancel asks        the child process              vs the daemon, by container name
+ * ```
+ *
+ * ## Docker is refused, never quietly substituted
+ *
+ * If a container is asked for and Docker cannot take one, the render fails with the
+ * reason `runtime/docker.ts` gives - which distinguishes "not installed" from "installed,
+ * daemon stopped" - and nothing is spawned. Rendering locally instead would be worse than
+ * the refusal: the person gets a finished map, believes they have tested the container
+ * path, and finds out otherwise the first time they depend on it.
  */
 
 import { mkdir, stat } from "node:fs/promises";
+import { writeEngineConfig } from "../runtime/config.js";
+import { dockerUsable, probeDocker } from "../runtime/docker.js";
+import type { DockerReport, ProbeDockerOptions } from "../runtime/docker.js";
+import type { ContainerHandoffStore } from "../runtime/handoff.js";
+import { CONTAINER_DATA_DIR, CONTAINER_WEB_ROOT, MountRefusedError } from "../runtime/mounts.js";
+import {
+    DEFAULT_RUNTIME_MODE,
+    containerName,
+    containerWorldPathFor,
+    planDockerLaunch,
+} from "../runtime/plan.js";
+import type { EngineLaunch, RuntimeMode } from "../runtime/plan.js";
+import { EngineProcess } from "../runtime/process.js";
+import type { SpawnEngine } from "../runtime/process.js";
+import { CONTAINER_PREFIX } from "../runtime/reattach.js";
 import { writeRenderConfig, validateMaps, InvalidRenderRequestError } from "./config.js";
 import type { RenderMapRequest } from "./config.js";
 import * as failures from "./failure.js";
 import type { RenderFailure } from "./failure.js";
 import { LocalMapHandler } from "./LocalMapHandler.js";
-import type { RenderPhase, RenderTaskProgress, CliLogLevel } from "./progress.js";
+import type { RenderPhase, RenderSignal, RenderTaskProgress, CliLogLevel } from "./progress.js";
 import {
     RENDER_ENGINE_LABELS,
     RENDER_RECORD_VERSION,
@@ -48,8 +95,26 @@ export interface ResolvedEngine {
     readonly javaVersion: string | null;
 }
 
+/**
+ * The runtime modes {@link RenderOrchestrator.render} actually honours.
+ *
+ * Distinct from "which modes exist" and from "is Docker running on this machine", and the
+ * distinction is the reason the constant is exported. A surface that reads Docker's health
+ * as this build's capability offers a choice that renders locally anyway, which is worse
+ * than not offering it - the person believes they chose.
+ */
+export const RENDER_RUNTIME_MODES: readonly RuntimeMode[] = ["local", "docker"];
+
 export interface RenderRequest {
     readonly maps: readonly RenderMapRequest[];
+    /**
+     * Where to run the engine. **Absent means local**, which is the point of it being
+     * optional: every caller and every stored request written before this field existed
+     * keeps the behaviour it already had, with no edit and no migration.
+     *
+     * `docker` is honoured or refused, never approximated. See the note at the top.
+     */
+    readonly runtime?: RuntimeMode;
     /** Defaults to a stable id derived from the first map's world folder. */
     readonly renderId?: string;
     /** `-f`: re-render everything rather than only what changed since last time. */
@@ -60,6 +125,41 @@ export interface RenderRequest {
     /** Turn on upstream's metrics reporting. Off unless asked for. */
     readonly metrics?: boolean;
     readonly renderThreads?: number;
+}
+
+/**
+ * What one finished run reports, whichever mode produced it.
+ *
+ * `CliRunResult` and `EngineRunResult` both satisfy it, which is what lets
+ * {@link classifyRunFailure} - unchanged, and the file's sharpest piece of logic - decide
+ * a container render's outcome by exactly the rules it decides a local one by. A second
+ * classifier would be a second set of rules about what "finished" means, and the two would
+ * disagree the first time either was improved.
+ */
+export interface RenderRunOutcome {
+    readonly exitCode: number | null;
+    readonly signal: NodeJS.Signals | null;
+    readonly cancelled: boolean;
+    readonly upToDate: boolean;
+    readonly mapsScheduled: number | null;
+    readonly consentMissing: boolean;
+    readonly diagnostics: readonly string[];
+    readonly durationMs: number;
+}
+
+/**
+ * What the orchestrator needs of a run in flight.
+ *
+ * `cancel()` means the same thing to a caller in both modes and something different
+ * underneath: locally it signals the child, and in a container it asks the *daemon* to
+ * stop the container by name. `runtime/process.ts` owns that difference. Killing the
+ * `docker run` client instead would leave the container rendering into somebody's disk
+ * with nothing holding a handle to it - the orphan `runner.ts` refuses to create, made by
+ * another route.
+ */
+interface RenderRun {
+    start(): Promise<RenderRunOutcome>;
+    cancel(): void;
 }
 
 export interface EngineDescription {
@@ -193,6 +293,55 @@ export interface RenderOrchestratorOptions {
     readonly appVersion?: string | null;
     readonly spawn?: SpawnCli;
     readonly now?: () => Date;
+
+    /* ---- The container half. Every one of these is optional and local ignores them. ---- */
+
+    /**
+     * Whether Docker can take a container right now.
+     *
+     * Injected so every path below can be tested without a daemon anywhere near the test
+     * machine: available, not installed, daemon stopped, permission refused. Those states
+     * have different remedies and a test that can only produce one of them proves the
+     * refusal works for one of them.
+     */
+    readonly probeDocker?: (options?: ProbeDockerOptions) => Promise<DockerReport>;
+    /** The `docker` binary. A parameter so a test can name one that does not exist. */
+    readonly docker?: string;
+    /** The image a container render uses. Defaults to `runtime/plan.ts`'s stock JRE. */
+    readonly dockerImage?: string;
+    /**
+     * `--user` for a container render, e.g. `1000:1000`.
+     *
+     * On Linux a container writing as root leaves root-owned tiles in a folder the
+     * person's own account then cannot delete - a render that succeeds and leaves its
+     * output unusable. Null on Windows and macOS, where the sharing layer maps ownership.
+     */
+    readonly containerUser?: string | null;
+    /**
+     * The account's home directory, so a mount of it can be refused **by name**.
+     *
+     * Omitting it does not disable the mount refusals - a drive root and the system
+     * folders are still refused - but it does lose the one that matters most, because
+     * pointing the world picker one level too high at a home folder is the mistake that
+     * hands a container an entire profile.
+     */
+    readonly home?: string | null;
+    /**
+     * Where a container's name is written down before the container is started.
+     *
+     * Without it a container render still runs, still reports and still records its
+     * provenance; what is lost is the ability to find the container again after the app
+     * goes away, because `docker run` is a client and the daemon owns the container's
+     * lifetime. See `runtime/handoff.ts`.
+     */
+    readonly containers?: ContainerHandoffStore;
+    /** How a container is spawned. Injected so a test needs no Docker. */
+    readonly spawnEngine?: SpawnEngine;
+    /**
+     * How a container is asked to stop. Injected so a test can prove the *daemon* is
+     * asked rather than the client being killed.
+     */
+    readonly stopContainer?: (name: string) => Promise<void>;
 }
 
 /** Raised by `resolveEngine` when there is no usable JDK. Carries the explanation. */
@@ -210,7 +359,7 @@ export class EngineUnavailableError extends Error {
 
 export class RenderOrchestrator {
     private readonly options: RenderOrchestratorOptions;
-    private readonly running = new Map<string, CliRun>();
+    private readonly running = new Map<string, RenderRun>();
 
     constructor(options: RenderOrchestratorOptions) {
         this.options = options;
@@ -299,6 +448,36 @@ export class RenderOrchestrator {
             }
         }
 
+        // Absent means local, and an unrecognised value is refused rather than rounded
+        // down to local: a request that named a mode nobody knows is a request whose
+        // author believed something that is not true, and rendering it anyway hides that.
+        const mode = runtimeModeOf(request.runtime);
+        if (mode === null) {
+            return this.fail(
+                renderId,
+                failures.invalidRequest(
+                    `'${String(request.runtime)}' is not somewhere this application can run a render. ` +
+                        `The choices are ${RENDER_RUNTIME_MODES.join(" and ")}.`,
+                ),
+                null,
+            );
+        }
+
+        // Before the workspace, before the engine, and never followed by a local render.
+        // The answer distinguishes "Docker is not installed" from "Docker is installed and
+        // its daemon is stopped", which are the same sentence to a person only if the app
+        // refuses to tell them apart.
+        if (mode === "docker") {
+            const report = await this.checkDocker();
+            if (!dockerUsable(report)) {
+                return this.fail(
+                    renderId,
+                    failures.dockerUnavailable(report.message, report.detail),
+                    null,
+                );
+            }
+        }
+
         let engine: ResolvedEngine;
         try {
             engine = await this.options.resolveEngine();
@@ -311,37 +490,64 @@ export class RenderOrchestrator {
         }
 
         const workspace = renderWorkspace(this.storageDir(), renderId);
+
+        // Planned before anything is created. Deciding which folders a container may see
+        // is a decision about strings and can refuse - a home directory, a drive root - and
+        // a refusal that has already built a workspace leaves a directory on disk for a
+        // render that never happened.
+        let launch: EngineLaunch | null = null;
+        if (mode === "docker") {
+            try {
+                launch = this.planContainer(renderId, engine, request, workspace);
+            } catch (error) {
+                if (error instanceof MountRefusedError) {
+                    return this.fail(renderId, failures.containerMountRefused(error.message), null);
+                }
+                return this.fail(renderId, failures.invalidRequest(describe(error)), null);
+            }
+        }
+
         try {
             await mkdir(workspace.root, { recursive: true });
-            await writeRenderConfig({
-                configDir: workspace.configDir,
-                dataDir: workspace.dataDir,
-                webRoot: workspace.webRoot,
-                maps: request.maps,
-                acceptDownload: true,
-                ...(request.metrics === undefined ? {} : { metrics: request.metrics }),
-                ...(request.renderThreads === undefined
-                    ? {}
-                    : { renderThreads: request.renderThreads }),
-            });
+            if (launch === null) {
+                await writeRenderConfig({
+                    configDir: workspace.configDir,
+                    dataDir: workspace.dataDir,
+                    webRoot: workspace.webRoot,
+                    maps: request.maps,
+                    acceptDownload: true,
+                    ...(request.metrics === undefined ? {} : { metrics: request.metrics }),
+                    ...(request.renderThreads === undefined
+                        ? {}
+                        : { renderThreads: request.renderThreads }),
+                });
+            } else {
+                await this.writeContainerConfig(workspace, request);
+            }
         } catch (error) {
             return this.fail(renderId, failures.workspaceUnwritable(workspace.root, describe(error)), null);
         }
 
-        const description = describeEngineFor(engine);
+        const description = describeEngineFor(engine, mode);
         const startedAt = this.timestamp();
-        let record = this.newRecord(renderId, engine, request, startedAt);
+        let record = this.newRecord(renderId, engine, request, startedAt, mode, description);
         await this.saveRecord(workspace, record);
         // Written before the process is spawned, so a crash one second later still leaves
         // a record saying a render was running and where its output is.
         await this.options.sessions?.start({
             renderId,
             maps: request.maps,
-            configDir: workspace.configDir,
+            configDir: launch === null ? workspace.configDir : workspace.containerConfigDir,
+            // Recorded so that carrying this render on later carries it on in the same
+            // place rather than quietly moving it. See `resume.ts`.
+            runtime: mode,
             outputRoot: workspace.webRoot,
             engine: engine.engine,
             engineVersion: engine.engineVersion,
-            javaVersion: engine.javaVersion,
+            // The description's, not the resolved engine's: in a container the JVM that
+            // ran is the image's, and naming this machine's JDK beside those tiles would
+            // be a confident wrong answer. See `describeEngineFor`.
+            javaVersion: description.javaVersion,
             startedAt,
         });
 
@@ -353,63 +559,93 @@ export class RenderOrchestrator {
             at: startedAt,
         });
 
-        const run = new CliRun({
-            javaExecutable: engine.javaExecutable,
-            jarPath: engine.enginePath,
-            configDir: workspace.configDir,
-            // Deliberate, and the whole reason this directory exists: the CLI resolves
-            // relative paths against its working directory, so anything that somehow
-            // escaped being made absolute lands inside the render's own folder rather
-            // than wherever the app was started from.
-            cwd: workspace.root,
-            ...(request.force === undefined ? {} : { force: request.force }),
-            ...(request.fixEdges === undefined ? {} : { fixEdges: request.fixEdges }),
-            ...(request.jvmArgs === undefined ? {} : { jvmArgs: request.jvmArgs }),
-            ...(this.options.spawn === undefined ? {} : { spawn: this.options.spawn }),
-            onSignal: (signal) => {
-                switch (signal.kind) {
-                    case "phase":
-                        this.emit({
-                            type: "phase",
-                            renderId,
-                            phase: signal.phase,
-                            at: this.timestamp(),
-                        });
-                        break;
-                    case "progress":
-                        this.emit({
-                            type: "progress",
-                            renderId,
-                            phase: "rendering",
-                            task: signal.progress,
-                            at: this.timestamp(),
-                        });
-                        // Not awaited: this runs on the stream the engine is writing to,
-                        // and a slow disk must never back that up. The store throttles
-                        // its own writes and swallows its own failures.
-                        void this.options.sessions?.progress(renderId, signal.progress);
-                        break;
-                    case "log":
-                        this.emit({
-                            type: "log",
-                            renderId,
-                            level: signal.line.level,
-                            message: signal.line.message,
-                            at: this.timestamp(),
-                        });
-                        break;
-                    default:
-                        break;
-                }
-            },
-        });
+        /**
+         * One signal handler, shared. This is where "the interface cannot tell" is
+         * actually true rather than promised: both modes read their output through the
+         * same `RenderOutputTracker`, so the same signals arrive here and become the same
+         * events, in the same order, with the same phases.
+         */
+        const onSignal = (signal: RenderSignal): void => {
+            switch (signal.kind) {
+                case "phase":
+                    this.emit({
+                        type: "phase",
+                        renderId,
+                        phase: signal.phase,
+                        at: this.timestamp(),
+                    });
+                    break;
+                case "progress":
+                    this.emit({
+                        type: "progress",
+                        renderId,
+                        phase: "rendering",
+                        task: signal.progress,
+                        at: this.timestamp(),
+                    });
+                    // Not awaited: this runs on the stream the engine is writing to,
+                    // and a slow disk must never back that up. The store throttles
+                    // its own writes and swallows its own failures.
+                    void this.options.sessions?.progress(renderId, signal.progress);
+                    break;
+                case "log":
+                    this.emit({
+                        type: "log",
+                        renderId,
+                        level: signal.line.level,
+                        message: signal.line.message,
+                        at: this.timestamp(),
+                    });
+                    break;
+                default:
+                    break;
+            }
+        };
+
+        const run: RenderRun =
+            launch === null
+                ? new CliRun({
+                      javaExecutable: engine.javaExecutable,
+                      jarPath: engine.enginePath,
+                      configDir: workspace.configDir,
+                      // Deliberate, and the whole reason this directory exists: the CLI resolves
+                      // relative paths against its working directory, so anything that somehow
+                      // escaped being made absolute lands inside the render's own folder rather
+                      // than wherever the app was started from.
+                      cwd: workspace.root,
+                      ...(request.force === undefined ? {} : { force: request.force }),
+                      ...(request.fixEdges === undefined ? {} : { fixEdges: request.fixEdges }),
+                      ...(request.jvmArgs === undefined ? {} : { jvmArgs: request.jvmArgs }),
+                      ...(this.options.spawn === undefined ? {} : { spawn: this.options.spawn }),
+                      onSignal,
+                  })
+                : new EngineProcess({
+                      launch,
+                      onSignal,
+                      ...(this.options.spawnEngine === undefined
+                          ? {}
+                          : { spawn: this.options.spawnEngine }),
+                      ...(this.options.stopContainer === undefined
+                          ? {}
+                          : { stopContainer: this.options.stopContainer }),
+                  });
 
         this.running.set(renderId, run);
-        let result;
+        // The note goes down **before** `docker run`, not after it. The app can be killed
+        // in the gap, and a container started with no record beside it is a render nobody
+        // can find again: it keeps writing tiles into a bind-mounted folder with nothing
+        // watching it, and the next launch has no name to ask the daemon about.
+        if (launch !== null) await this.startHandoff(launch, renderId, request, workspace, description);
+
+        let result: RenderRunOutcome;
         try {
             result = await run.start();
         } finally {
             this.running.delete(renderId);
+            // Cleared in a `finally` for the same reason it was written early: whichever
+            // way the run ended - finished, failed, cancelled, crashed - the container is
+            // gone, and a record left behind is an offer to reattach to nothing.
+            if (launch !== null) await this.options.containers?.finish(renderId);
         }
 
         const finishedAt = this.timestamp();
@@ -466,6 +702,139 @@ export class RenderOrchestrator {
         };
     }
 
+    /**
+     * Asks Docker what it is, and never lets the asking become a fallback.
+     *
+     * A probe that fails in a way Docker itself never reports is still an answer, and it
+     * is still `unusable` - which refuses the render. The one outcome this must never
+     * produce is a thrown exception two frames above a `catch` that shrugs and renders
+     * locally.
+     */
+    private async checkDocker(): Promise<DockerReport> {
+        const probe = this.options.probeDocker ?? probeDocker;
+        const options: ProbeDockerOptions =
+            this.options.docker === undefined ? {} : { docker: this.options.docker };
+        try {
+            return await probe(options);
+        } catch (error) {
+            return {
+                status: "unusable",
+                clientVersion: null,
+                serverVersion: null,
+                message: "Docker could not be checked on this computer.",
+                detail: describe(error),
+            };
+        }
+    }
+
+    /**
+     * The whole `docker run`, mounts included. Throws `MountRefusedError` and nothing else.
+     *
+     * Nothing is created here and nothing is spawned; it is a decision about paths, which
+     * is what makes it safe to do before the workspace exists and testable without Docker.
+     */
+    private planContainer(
+        renderId: string,
+        engine: ResolvedEngine,
+        request: RenderRequest,
+        workspace: RenderWorkspace,
+    ): EngineLaunch {
+        const home = this.options.home;
+        return planDockerLaunch({
+            role: "render",
+            // The prefix the reattacher scans for. A container named any other way is a
+            // container this app cannot recognise as its own on the next launch.
+            containerName: containerName(CONTAINER_PREFIX, renderId),
+            jarPath: engine.enginePath,
+            hostConfigDir: workspace.containerConfigDir,
+            hostDataDir: workspace.dataDir,
+            hostWebRoot: workspace.webRoot,
+            worlds: request.maps.map((map) => ({ mapId: map.id, hostPath: map.world })),
+            // The `-Xmx` ceiling from `files/renderMemory.ts` travels here exactly as it
+            // does locally, as a **JVM flag**, and deliberately not as `docker run -m`.
+            // They are different controls with different failure modes: `-Xmx` is a heap
+            // the JVM will never exceed, so a render that wants more dies with an
+            // `OutOfMemoryError` somebody can read and retry with a bigger number, while
+            // `-m` is a cgroup limit the kernel enforces by killing the container - exit
+            // 137, no message, and nothing in the log to say why. Setting only the heap
+            // keeps the diagnosable failure.
+            ...(request.jvmArgs === undefined ? {} : { jvmArgs: request.jvmArgs }),
+            ...(request.force === undefined ? {} : { force: request.force }),
+            ...(request.fixEdges === undefined ? {} : { fixEdges: request.fixEdges }),
+            ...(this.options.dockerImage === undefined ? {} : { image: this.options.dockerImage }),
+            ...(this.options.docker === undefined ? {} : { docker: this.options.docker }),
+            ...(this.options.containerUser === undefined
+                ? {}
+                : { user: this.options.containerUser }),
+            // The `docker` client's own working directory, on this machine. The engine's
+            // is `/bluemap`, set inside the launch.
+            cwd: workspace.root,
+            ...(home === undefined ? {} : { mountOptions: { home } }),
+        });
+    }
+
+    /**
+     * The same config set, written with the paths the *container* will read.
+     *
+     * `C:\Users\me\saves\world` does not exist inside a Linux container and neither does
+     * the folder the tiles are meant to land in, so a containerised run gets `/worlds/<id>`
+     * and `/bluemap/web` written into a folder on this machine that is then mounted at
+     * `/bluemap/config`. `runtime/config.ts` is the authority on that; this only chooses
+     * the paths.
+     */
+    private async writeContainerConfig(
+        workspace: RenderWorkspace,
+        request: RenderRequest,
+    ): Promise<void> {
+        // Every bind mount's host side has to exist first. A missing source is not an
+        // error to Docker - it creates the directory, on Linux owned by root - and the
+        // render then writes tiles into a folder the person's own account cannot delete.
+        await mkdir(workspace.containerConfigDir, { recursive: true });
+        await mkdir(workspace.dataDir, { recursive: true });
+        await mkdir(workspace.storageRoot, { recursive: true });
+
+        await writeEngineConfig({
+            hostConfigDir: workspace.containerConfigDir,
+            engineDataDir: CONTAINER_DATA_DIR,
+            engineWebRoot: CONTAINER_WEB_ROOT,
+            maps: request.maps.map((map) => ({ ...map, world: containerWorldPathFor(map.id) })),
+            acceptDownload: true,
+            ...(request.metrics === undefined ? {} : { metrics: request.metrics }),
+            ...(request.renderThreads === undefined
+                ? {}
+                : { renderThreads: request.renderThreads }),
+            // False, always. The engine's paths here are the container's, and a `mkdir` of
+            // `/bluemap/web/maps` on Windows quietly produces `C:\bluemap\web\maps` - a
+            // render that reports an empty output folder nobody can find.
+            createEngineDirectories: false,
+        });
+    }
+
+    /** Writes the container's name down beside the render, before the container exists. */
+    private async startHandoff(
+        launch: EngineLaunch,
+        renderId: string,
+        request: RenderRequest,
+        workspace: RenderWorkspace,
+        engine: EngineDescription,
+    ): Promise<void> {
+        const name = launch.containerName;
+        if (name === null) return;
+        await this.options.containers?.start({
+            renderId,
+            containerName: name,
+            mode: "docker",
+            mapIds: request.maps.map((map) => map.id),
+            // The client that reaches this daemon, not the one inside the launch's args:
+            // stopping the container later means running this binary again.
+            docker: launch.command,
+            storageRoot: workspace.storageRoot,
+            webRoot: workspace.webRoot,
+            cwd: workspace.root,
+            engine,
+        });
+    }
+
     private mount(workspace: RenderWorkspace, record: RenderRecord): void {
         this.options.mounts?.setMount({
             renderId: workspace.renderId,
@@ -479,6 +848,8 @@ export class RenderOrchestrator {
         engine: ResolvedEngine,
         request: RenderRequest,
         startedAt: string,
+        runtime: RuntimeMode,
+        description: EngineDescription,
     ): RenderRecord {
         return {
             recordVersion: RENDER_RECORD_VERSION,
@@ -486,7 +857,10 @@ export class RenderOrchestrator {
             engine: engine.engine,
             engineVersion: engine.engineVersion,
             enginePath: engine.enginePath,
-            javaVersion: engine.javaVersion,
+            javaVersion: description.javaVersion,
+            // Recorded beside the engine and the JVM because it is the same kind of fact:
+            // how somebody can tell, months later, what actually produced these tiles.
+            runtime,
             maps: request.maps.map((map) => ({
                 id: map.id,
                 name: map.name ?? map.id,
@@ -583,14 +957,38 @@ export function classifyRunFailure(
     return null;
 }
 
-function describeEngineFor(engine: ResolvedEngine): EngineDescription {
+/**
+ * Reads the requested mode. `null` means "not a mode this application has".
+ *
+ * Absent is local, which is the whole compatibility promise of the field. Anything else
+ * unrecognised is refused rather than treated as absent: a request over IPC carrying
+ * `"container"` or `"remote"` was written by somebody who believed it would do something,
+ * and rendering locally would confirm that belief with a finished map.
+ */
+function runtimeModeOf(value: RuntimeMode | undefined): RuntimeMode | null {
+    if (value === undefined) return DEFAULT_RUNTIME_MODE;
+    return value === "local" || value === "docker" ? value : null;
+}
+
+/**
+ * The engine as it will be described on screen and in `render.json`.
+ *
+ * The Java version named here is the one that **ran**. In a container that is the image's,
+ * whose version this application has not asked for and does not know, so a container
+ * render names no Java version rather than naming the JDK sitting unused on this computer.
+ * Attributing container-rendered tiles to the host's JDK is exactly the confidently-wrong
+ * answer `provenance.ts` exists to refuse, and it is worse than saying nothing because it
+ * looks like knowledge.
+ */
+function describeEngineFor(engine: ResolvedEngine, mode: RuntimeMode): EngineDescription {
     const label = RENDER_ENGINE_LABELS[engine.engine];
-    const java = engine.javaVersion === null ? "" : ` on Java ${engine.javaVersion}`;
+    const javaVersion = mode === "docker" ? null : engine.javaVersion;
+    const java = javaVersion === null ? "" : ` on Java ${javaVersion}`;
     return {
         id: engine.engine,
         label: `${label} ${engine.engineVersion}${java}`,
         version: engine.engineVersion,
-        javaVersion: engine.javaVersion,
+        javaVersion,
     };
 }
 

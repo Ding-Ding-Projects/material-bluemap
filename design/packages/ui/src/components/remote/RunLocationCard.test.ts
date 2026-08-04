@@ -239,7 +239,7 @@ describe("Docker's five states on screen", () => {
         await flushPromises();
 
         expect(wrapper.find('[data-place="docker"]').attributes("data-state")).toBe("unsupported");
-        expect(wrapper.text()).toMatch(/quietly render locally instead/i);
+        expect(wrapper.text()).toMatch(/render locally instead/i);
     });
 
     it("offers it when the build says its render channel honours one", async () => {

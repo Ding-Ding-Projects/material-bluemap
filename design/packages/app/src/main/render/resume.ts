@@ -256,6 +256,13 @@ export function resumeRequestFor(session: RenderSession): RenderRequest {
         // Stated rather than left out. `-f` re-renders everything and would throw away
         // precisely the work this is here to keep.
         force: false,
+        // Carried, so a container render is carried on **in a container**. Leaving it out
+        // would resume it locally without saying so, which is exactly the silent
+        // substitution the runtime choice refuses everywhere else - and the tiles would be
+        // half one runtime's and half the other's with nothing on screen to say so.
+        // Absent on a session written before the field existed, and absent means local,
+        // which is what those renders were.
+        ...(session.runtime === undefined ? {} : { runtime: session.runtime }),
     };
 }
 

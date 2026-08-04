@@ -6,10 +6,18 @@
  * ```
  * <storageDir>/<renderId>/
  *   config/            core.conf, webapp.conf, webserver.conf, maps/*.conf, storages/file.conf
+ *   config-container/  the same set, written with the *container's* paths inside it
  *   data/              the Mojang client jar, extracted resources, the CLI's own log
  *   web/               settings.json and maps/<id>/... - what gets served
  *   render.json        which engine rendered this, when, and how it ended
  * ```
+ *
+ * The two config folders are deliberately separate rather than one folder rewritten per
+ * run. `config/` names `C:\Users\me\saves\world`; `config-container/` names
+ * `/worlds/overworld`, because those paths are what exist inside the container. Writing
+ * both into one directory would mean a local render after a container one reading a config
+ * full of Linux paths that do not exist on this machine, and reporting a missing world for
+ * a world that is right there.
  *
  * The runner also uses the workspace as the child process's working directory. That is
  * belt and braces rather than redundancy: the CLI resolves relative paths against its
@@ -29,6 +37,13 @@ export interface RenderWorkspace {
     /** `<storageDir>/<renderId>`, absolute. */
     readonly root: string;
     readonly configDir: string;
+    /**
+     * `<root>/config-container` - the config a containerised run reads.
+     *
+     * Written on this machine, mounted at `/bluemap/config`, and holding container paths.
+     * See the note at the top of the file for why it is not the same folder as `configDir`.
+     */
+    readonly containerConfigDir: string;
     readonly dataDir: string;
     readonly webRoot: string;
     /** `<webRoot>/maps` - the storage root the engine writes tiles into. */
@@ -44,6 +59,7 @@ export function renderWorkspace(storageDir: string, renderId: string): RenderWor
         renderId,
         root,
         configDir: join(root, "config"),
+        containerConfigDir: join(root, "config-container"),
         dataDir: join(root, "data"),
         webRoot,
         storageRoot: join(webRoot, "maps"),

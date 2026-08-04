@@ -62,6 +62,8 @@ export {
     cliFailed,
     cliJarMissing,
     consentRequired,
+    containerMountRefused,
+    dockerUnavailable,
     failedBeforeSpawning,
     invalidRequest,
     javaUnavailable,
@@ -85,6 +87,7 @@ export {
 
 export {
     EngineUnavailableError,
+    RENDER_RUNTIME_MODES,
     RenderOrchestrator,
     classifyRunFailure,
     type EngineDescription,
@@ -99,6 +102,7 @@ export {
     type RenderProgressEvent,
     type RenderRequest,
     type RenderResult,
+    type RenderRunOutcome,
     type RenderStartedEvent,
     type RenderSuccess,
     type ResolvedEngine,

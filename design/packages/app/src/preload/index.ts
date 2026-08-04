@@ -169,6 +169,14 @@ export interface RenderMapRequest {
 
 export interface RenderRequest {
     maps: RenderMapRequest[];
+    /**
+     * Where to run the engine. Absent means on this computer, as it always did.
+     *
+     * An unrecognised value is refused rather than rounded down to local: a request saying
+     * something this build does not know was written by somebody who believed something
+     * untrue, and rendering it anyway confirms the belief.
+     */
+    runtime?: "local" | "docker";
     renderId?: string;
     force?: boolean;
     fixEdges?: boolean;
@@ -1468,6 +1476,15 @@ interface MaterialBlueMapBridge {
     /* ---- Folders this application owns ---------------------------------- */
 
     /** Shows a path in Explorer. Refused unless it is inside a folder this app owns. */
+    /**
+     * The runtime modes `startRender` actually honours in this build.
+     *
+     * A claim about the build, not the machine. `runtimeModes()` says whether Docker is
+     * running right now; this says whether choosing it would do anything at all. Reading
+     * the first as the second offers a choice that renders locally anyway.
+     */
+    renderRuntimeModes(): readonly ("local" | "docker")[];
+
     revealPath(path: string): Promise<RevealResult>;
     /** Those folders, read fresh, so a storage directory somebody moved is the one allowed. */
     revealRoots(): Promise<RevealRootReadout[]>;
@@ -1665,6 +1682,8 @@ const bridge: MaterialBlueMapBridge = {
             ipcRenderer.off("update:event", forward);
         };
     },
+
+    renderRuntimeModes: () => ["local", "docker"] as const,
 
     revealPath: (path) => ipcRenderer.invoke("files:reveal", path),
     revealRoots: () => ipcRenderer.invoke("files:revealRoots"),

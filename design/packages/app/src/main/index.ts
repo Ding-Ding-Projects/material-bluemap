@@ -574,7 +574,11 @@ let remoteIpc: RemoteIpc | null = null;
 let containerHandoff: ContainerHandoffStore | null = null;
 
 function handoffStore(render: RenderIpc): ContainerHandoffStore {
-    containerHandoff ??= new ContainerHandoffStore({ storageDir: () => render.storageDirectory() });
+    // The render IPC builds one and uses it for container renders. Building a second here
+    // would give the two halves different instance ids, and a container render currently in
+    // flight would then appear in the "left behind by an earlier session" offer list -
+    // inviting somebody to reattach to a render that is already running in front of them.
+    containerHandoff ??= render.containers;
     return containerHandoff;
 }
 
