@@ -24,6 +24,26 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "0286c386b771f8e8eadd1e6f0b24490994006cdf",
+        shortSha: "0286c386b7",
+        date: "2026-08-04T01:54:30-04:00",
+        subject: "Exclude changelog-only maintenance commits",
+        details: "Generated records cannot cite the commit that rewrites them without chasing their own tail. The generator now skips commits that touch only its two outputs, while every source change remains linked.\\n\\nGenerated file 淨係改自己嗰兩份 output 嗰啲 commit，唔可以再寫入 changelog，否則每次寫完就自己令自己過期。依家 generator 跳過呢啲 housekeeping，真正改 source 嘅 commit 照樣有 SHA、有連結。",
+        category: "build",
+        areas: ["build"],
+        files: 1,
+    },
+    {
+        sha: "46456772c4baac6c5c0e6dfef2b405e20e483f09",
+        shortSha: "46456772c4",
+        date: "2026-08-04T01:53:46-04:00",
+        subject: "Refresh the generated changelog for Pages",
+        details: "CI was right to complain: the merge added two real commits and the generated release records had not met them yet. This refresh also fixes the lint nit that left the palette wearing a mutable-variable costume.\\n\\nCI 講得啱：merge 加咗兩個真 commit，但 generated changelog 仲未追上。今次補返版本記錄，順手修埋 palette 扮 mutable variable 嗰個 lint 小鬧劇。",
+        category: "interface",
+        areas: ["interface", "site", "docs"],
+        files: 3,
+    },
+    {
         sha: "fe747eedb811fbdffdd1caabe0660869f5cc5407",
         shortSha: "fe747eedb8",
         date: "2026-08-04T01:51:08-04:00",
