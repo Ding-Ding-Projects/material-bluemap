@@ -747,7 +747,6 @@ function createShellPalette(options: {
     readonly settingsView: ReturnType<typeof createSettingsPage>;
     readonly shortcuts: ShortcutRegistry;
 }): HTMLElement {
-    let palette: ReturnType<typeof createCommandPalette>;
     const commands: readonly PaletteCommand[] = [
         { id: "open-home", label: "Open Home", description: "Return to the landing page", kind: "page", run: () => options.tabs.reveal("home") },
         { id: "open-docs", label: "Open Documentation", description: "Read every feature article", kind: "page", run: () => options.tabs.reveal("docs") },
@@ -764,7 +763,7 @@ function createShellPalette(options: {
         })),
         { id: "appearance-editor", label: "Edit appearance…", description: "Open the per-element Material appearance editor from any target context menu", kind: "appearance", run: () => options.tabs.reveal("settings") },
     ];
-    palette = createCommandPalette({ prefs: options.prefs, list: () => commands });
+    const palette = createCommandPalette({ prefs: options.prefs, list: () => commands });
     options.shortcuts.register({ id: "palette.open", parts: ["Ctrl", "Shift", "F"], run: () => palette.open() });
     return palette.element;
 }
