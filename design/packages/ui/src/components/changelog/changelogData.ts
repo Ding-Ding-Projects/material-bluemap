@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "70caf29017334d88604903d0dd3104531c5ec2bb",
+        shortSha: "70caf29017",
+        date: "2026-08-04T16:53:32-04:00",
+        subject: "Document gated Pages cleanup",
+        details: "English: The handoff, roadmap and generated changelog now record the Pages safety sweep, including its honest hosted-proof boundary. The changelog still counts every real commit, so documentation gets a seat at the table instead of hiding behind the furniture.\n\n廣東話：handoff、roadmap 同自動變更記錄而家寫清楚 Pages 安全掃描，同埋 hosted proof 仲未完成呢個事實。每個真 commit 照樣有數，文件唔再匿喺張枱底扮透明。",
+        category: "docs",
+        areas: ["docs", "interface"],
+        files: 4,
+    },
+    {
         sha: "2ba959d91fba9603c75e81b9e9602622a475a1de",
         shortSha: "2ba959d91f",
         date: "2026-08-04T16:52:42-04:00",
