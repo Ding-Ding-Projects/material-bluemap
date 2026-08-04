@@ -24,6 +24,27 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "6080c4be7f3de2304a18db298efd00b95a5096ec",
+        shortSha: "6080c4be7f",
+        date: "2026-08-04T02:56:57-04:00",
+        subject: "Index every article in the command palette",
+        details: "Every documentation article now gets a localized palette destination that opens the exact disclosure instead of dumping the reader at a generic docs tab. The catalog has a complete-coverage test, because a command palette that forgets half the articles is just a very confident table of contents.\\n\\n而家每篇說明文章都有本地化 command palette 入口，會開返正確 disclosure，唔會將人丟喺文件首頁自己搵。完整文章目錄有測試包住，因為漏咗一半文章嘅面板，只係好有自信嘅目錄。",
+        category: "site",
+        areas: ["site", "docs"],
+        files: 7,
+    },
+    {
+        sha: "21a35bc52487069ef0e5f04db2f9d87bfec2547d",
+        shortSha: "21a35bc524",
+        date: "2026-08-04T02:52:09-04:00",
+        subject: "Merge pull request #21 from Ding-Ding-Projects/pages-material3-continuation",
+        details: "Record the current Pages CI boundary",
+        category: "docs",
+        areas: ["docs", "interface"],
+        files: 4,
+        summarizes: 3,
+    },
+    {
         sha: "decd78179e70d59d628c3f93b825d543348f3d53",
         shortSha: "decd78179e",
         date: "2026-08-04T02:51:52-04:00",
@@ -32,6 +53,17 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
         category: "docs",
         areas: ["docs"],
         files: 2,
+    },
+    {
+        sha: "352a2b1bf6c836075f0596683d5a57cc6e4f3a8a",
+        shortSha: "352a2b1bf6",
+        date: "2026-08-04T02:41:34-04:00",
+        subject: "Merge pull request #20 from Ding-Ding-Projects/pages-material3-continuation",
+        details: "Complete localized Pages notification history",
+        category: "docs",
+        areas: ["docs", "site", "interface"],
+        files: 7,
+        summarizes: 4,
     },
     {
         sha: "7582eb7d21b01e3357335649679d015078eff5cf",

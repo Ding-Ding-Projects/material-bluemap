@@ -24,6 +24,7 @@ import {
     FEATURE_STATUS_LABELS,
     PHASE_STATUS_LABELS,
     articleCategoryOrder,
+    articles,
     articlesInCategory,
     captureCaption,
     captureProvenance,
@@ -63,6 +64,7 @@ import { TabModel } from "./tabs/TabModel.js";
 import { TabsController } from "./tabs/index.js";
 import { ThemeController } from "./theme/ThemeController.js";
 import { createCommandPalette, type PaletteCommand } from "./shell/commandPalette.js";
+import { articlePaletteCommands } from "./shell/articleCommands.js";
 import { registerAppearanceTarget } from "./appearance/editor/contextMenu.js";
 import { setSearchLocale } from "./search/strings.js";
 import { createSearchSurface } from "./search/searchSurface.js";
@@ -797,7 +799,7 @@ function boot(): void {
     const main = el("main", "mb-main");
     main.appendChild(tabs.strip.panels);
     root.appendChild(main);
-    document.body.appendChild(createShellPalette({ prefs, tabs, settingsView, shortcuts, i18n, appearance }));
+    document.body.appendChild(createShellPalette({ prefs, tabs, settingsView, shortcuts, i18n, appearance, openArticle: navigation.openArticle }));
     tabs.activate("home");
 
     // 10% per load, non-blocking, never focus-stealing, and there is deliberately no
@@ -832,6 +834,7 @@ function createShellPalette(options: {
     readonly shortcuts: ShortcutRegistry;
     readonly i18n: I18n;
     readonly appearance: AppearanceController;
+    readonly openArticle: (articleRef: string) => void;
 }): HTMLElement {
     const list = (): readonly PaletteCommand[] => [
         { id: "open-home", label: options.i18n.t("site.openHome"), description: options.i18n.t("site.descriptionHome"), kind: "page", run: () => options.tabs.reveal("home") },
@@ -840,6 +843,11 @@ function createShellPalette(options: {
         { id: "open-changelog", label: options.i18n.t("site.openChangelog"), description: options.i18n.t("site.descriptionChangelog"), kind: "page", run: () => options.tabs.reveal("changelog") },
         { id: "open-notifications", label: options.i18n.t("site.openNotifications"), description: options.i18n.t("site.descriptionNotifications"), kind: "command", run: () => options.tabs.reveal("notifications") },
         { id: "open-settings", label: options.i18n.t("site.openSettings"), description: options.i18n.t("site.descriptionSettings"), kind: "page", run: () => options.tabs.reveal("settings") },
+        ...articlePaletteCommands(
+            articles,
+            (title) => options.i18n.t("site.openArticle", { title }),
+            options.openArticle,
+        ),
         ...options.settingsView.search.host.listSettings().map((setting) => ({
             id: `setting-${setting.id}`,
             label: setting.label,
