@@ -20,25 +20,15 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
-### Interface
-
-- Merge remote-tracking branch 'origin/main' into pages-material3-continuation - [`7582eb7d21`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7582eb7d21b01e3357335649679d015078eff5cf) _(summary of 3 commits, also listed here)_
-- Offer the worlds people already have, from every Minecraft folder they own - [`638c0b1b9d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/638c0b1b9dbe31d85766097aa044c7dfc59948ec)
-
 ### Desktop shell
 
+- Follow the wizard tab in screenshot capture - [`4bd233808c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4bd233808c4f521e0b3acda3c7ef058f6caaa90d)
 - Keep mounted folder labels cross-platform - [`b9391b8584`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b9391b858476c6aa7aebdda23088567bb6c95c7e)
 
 ### Landing page and documentation site
 
 - Merge remote-tracking branch 'origin/main' into pages-material3-continuation - [`8e6875b8c5`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8e6875b8c557d83a3aa2289b09674afdaeaccd42) _(summary of 4 commits, also listed here)_
-- Put the tabs on screen, and stop offering two doors to one room - [`19a51466fc`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/19a51466fcd67126459429eac088ae106958e6c7)
-- Merge pull request #22 from Ding-Ding-Projects/pages-material3-continuation - [`183b7be957`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/183b7be957217f9aa253788ca0190be0f25a10bf) _(summary of 3 commits, also listed here)_
 - Search the settings page's own tabs, and pin it with a test - [`3ccd32c636`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/3ccd32c636571e34e86a59b1920ba7aac9716273)
-- Index every article in the command palette - [`6080c4be7f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6080c4be7f3de2304a18db298efd00b95a5096ec)
-- Merge pull request #19 from Ding-Ding-Projects/pages-material3-continuation - [`6b319f9547`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6b319f954784c995f64ccda27f78181d746d94f1) _(summary of 6 commits, also listed here)_
-- Test localized Pages controls - [`a5c10d70ab`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a5c10d70ab37a1faef614ae6bfdc97f8a2ba552b)
-- Localize Pages shell and anchor changelog ranges - [`5375a9195c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5375a9195c05a6fbd584c20751fb5d2cc17c195d)
 
 ### Build, release and tooling
 
@@ -46,8 +36,29 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
-- Bring the changelog, the handoff and the world docs up to what shipped - [`553b532617`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/553b5326177a9a9cf4ee3f8d247685da4ae5be38)
 - Give every settings tab its own search - [`4c20d5ced2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4c20d5ced2d0e77e0d52f99a20327a796e2822b1)
+
+## 0.1.0-build.160 - 2026-08-04
+
+Tagged at [`d95dccb0ff`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d95dccb0ffd6c922940adb2385b0cdb48a356460).
+
+### Interface
+
+- Merge remote-tracking branch 'origin/main' into pages-material3-continuation - [`7582eb7d21`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7582eb7d21b01e3357335649679d015078eff5cf) _(summary of 3 commits, also listed here)_
+- Offer the worlds people already have, from every Minecraft folder they own - [`638c0b1b9d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/638c0b1b9dbe31d85766097aa044c7dfc59948ec)
+
+### Landing page and documentation site
+
+- Put the tabs on screen, and stop offering two doors to one room - [`19a51466fc`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/19a51466fcd67126459429eac088ae106958e6c7)
+- Merge pull request #22 from Ding-Ding-Projects/pages-material3-continuation - [`183b7be957`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/183b7be957217f9aa253788ca0190be0f25a10bf) _(summary of 3 commits, also listed here)_
+- Index every article in the command palette - [`6080c4be7f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6080c4be7f3de2304a18db298efd00b95a5096ec)
+- Merge pull request #19 from Ding-Ding-Projects/pages-material3-continuation - [`6b319f9547`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6b319f954784c995f64ccda27f78181d746d94f1) _(summary of 6 commits, also listed here)_
+- Test localized Pages controls - [`a5c10d70ab`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a5c10d70ab37a1faef614ae6bfdc97f8a2ba552b)
+- Localize Pages shell and anchor changelog ranges - [`5375a9195c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5375a9195c05a6fbd584c20751fb5d2cc17c195d)
+
+### Documentation
+
+- Bring the changelog, the handoff and the world docs up to what shipped - [`553b532617`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/553b5326177a9a9cf4ee3f8d247685da4ae5be38)
 - Merge pull request #21 from Ding-Ding-Projects/pages-material3-continuation - [`21a35bc524`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/21a35bc52487069ef0e5f04db2f9d87bfec2547d) _(summary of 3 commits, also listed here)_
 - Record the current Pages CI boundary - [`decd78179e`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/decd78179e70d59d628c3f93b825d543348f3d53)
 - Merge pull request #20 from Ding-Ding-Projects/pages-material3-continuation - [`352a2b1bf6`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/352a2b1bf6c836075f0596683d5a57cc6e4f3a8a) _(summary of 4 commits, also listed here)_
