@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "2ba959d91fba9603c75e81b9e9602622a475a1de",
+        shortSha: "2ba959d91f",
+        date: "2026-08-04T16:52:42-04:00",
+        subject: "Gate destructive Pages actions",
+        details: "English: Notification clearing and tab-structure removal now pass through the site's two-key gate, so the documentation shell no longer treats a destructive button like a harmless paperclip. Localized copy names the affected records, pages, counts and groups; tests and the production build pass.\n\n廣東話：清通知同埋拆分頁結構而家都要過網站自己嗰道雙匙門，唔再當破壞性掣係無害紙夾。翻譯文案講清楚記錄、頁面、數目同群組，測試同 production build 都過晒。",
+        category: "site",
+        areas: ["site", "docs"],
+        files: 9,
+    },
+    {
         sha: "6e3260fd9ed421a8f407d96b6e3eba891119df08",
         shortSha: "6e3260fd9e",
         date: "2026-08-04T16:41:31-04:00",

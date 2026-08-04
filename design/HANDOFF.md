@@ -1,5 +1,30 @@
 # Handoff
 
+## Update, 2026-08-04 — destructive Pages actions now use the site gate
+
+The Pages shell now carries the super-confirmation boundary all the way to its own destructive
+controls in `2ba959d91fba9603c75e81b9e9602622a475a1de`: clearing notification history, closing a
+single page, closing other pages, closing to the right, removing a tab group, and both bulk-close
+directions. Each caller names the affected count, label, or group before the site's two-key
+`RESET`/`ALL` plus full-range slider gate can resolve; cancellation leaves the state untouched.
+The settings search clear control is localized on the same pass, and the site article and category
+index describe the new boundary.
+
+Local evidence for this source change is green:
+
+- `pnpm exec vitest run --silent`: **349 files passed, 5,602 tests passed, 3 skipped**.
+- `pnpm typecheck`: all **13 packages** passed.
+- `pnpm lint`: passed.
+- `pnpm build`: all workspace packages passed; the existing large-JavaScript-chunk notices are
+  warnings only.
+- `node scripts/build-changelog.mjs --check`: refresh follows this handoff update so the new
+  commit is represented in the generated record.
+
+The hosted CI and Pages verdict for this tip is still required; the previous live proof at
+`80369ec080d1fda83376e0ccc026e9ccd3045b8c` remains historical evidence only. Untracked
+`design/packages/engine/src/map/rendermanager/` files appeared during verification and were not
+staged or changed by this Pages task.
+
 ## Update, 2026-08-04 — render console, remote/world-source wiring, and hosted Pages proof
 
 The default branch now carries the complete remote-render, cross-repository world-source and

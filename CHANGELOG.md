@@ -50,6 +50,7 @@ full message for the in-app changelog viewer.
 
 ### Landing page and documentation site
 
+- Gate destructive Pages actions - [`2ba959d91f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2ba959d91fba9603c75e81b9e9602622a475a1de)
 - Document the render console and hosted Pages gate - [`28bcd3a124`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/28bcd3a124bd2c6321d529569d5447528d33a73c)
 - Merge pull request #26 from Ding-Ding-Projects/pages-material3-full-continuation - [`5c1254ce44`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5c1254ce44e227d2f383d8d67f01dfbee65964d3) _(summary of 20 commits, also listed here)_
 - Preserve regex mode when reopening bulk close builder - [`acd7674aa3`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/acd7674aa3c648c5658b756790fda58d0299e718)
