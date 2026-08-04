@@ -21,6 +21,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 | [Appearance editors](./appearance-editors.md) | Per-element appearance, the infinite colour picker and its translator, and the word-processor-depth typography editor. |
 | [Super confirmation](./super-confirmation.md) | Two keys and a full-range slider in front of a destructive action, and the inventory that keeps new ones from slipping past. |
 | [Language modes and funny levels](./language-and-tone.md) | English, playful Hong Kong Cantonese and bilingual, with an independent funny level per language, and the rule that voice moves while facts do not. |
+| [Finding worlds](./finding-worlds.md) | The worlds already on this computer, the Minecraft folders a user can mount, and the manual routes that keep working beside them. |
 | [The regex builder and the search bars it reaches](./regex-builder.md) | The guided builder, its bounded engine, and the guard that keeps every search bar attached to one. |
 
 ## Rendering

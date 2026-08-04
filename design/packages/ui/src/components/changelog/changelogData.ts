@@ -24,6 +24,27 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "19a51466fcd67126459429eac088ae106958e6c7",
+        shortSha: "19a51466fc",
+        date: "2026-08-04T02:57:43-04:00",
+        subject: "Put the tabs on screen, and stop offering two doors to one room",
+        details: "The tab system, the appearance editors and the language section were\nall finished, tested and reachable by nobody. That is this project's\nsignature defect and it had reached five instances, so this mounts\nthem.\n\nThe shell now separates into three pages behind one persistent strip:\nthe map, making a map, and the maps-and-servers list. Two details are\nload-bearing rather than tidy. MapView stays mounted at shell level\nrather than moving into its page's slot, because only the active\npage's slot renders and putting the renderer there would dispose it on\nevery tab switch. And the map page is a transparent, click-through\nframe over a canvas that lives outside the Vue tree entirely, carrying\nonly the chrome that means something over a map.\n\nThe servers button is gone. A tab and a floating button reaching the\nsame surface are two navigation models on one screen, and the one that\nsurvives is the one that is always visible. The palette's server\ndestination now reveals that tab, and choosing a map from any page\nnavigates to the map - so finishing a render no longer loads a map\ninvisibly behind the page somebody is still reading.\n\nMaking a map is now reachable while a map is open, which it was not:\nthe wizard used to appear only when no profile was active, so the way\nto render a second world was to have rendered no first one.\n\nThe window title bar and the tab bar are appearance targets, so both\ncan be restyled from their own right-click. Settings gains the\nlanguage-and-tone section, which mounts the same panel first-run uses\nrather than a copy of it, so the mode and both funny levels are a\nsetting rather than a question asked once and never again.\n\nEvery feature that shipped this session now has a document and a site\narticle, and the contracts the site described as specified are marked\nshipped only where the code supports it.\n\n260 test files, 4226 tests.\n\n---\n\nTab、外觀編輯器、語言設定三樣嘢一早整好、測試齊全,但冇人去到 -\n即係呢個 project 嘅招牌病,而家已經第五次。所以今次擺佢哋出街。\n\n有兩個位睇落似執靚,其實係頂樑柱。MapView 冇搬入去自己嗰版嘅 slot,\n因為淨係 active 嗰版先 render,搬咗入去即係每次撳 tab 都殺一次個\nrenderer。而張地圖嗰版係一塊透明、撳得穿嘅框,浮喺一個根本唔喺 Vue\n樹入面嘅 canvas 上面。\n\n「伺服器」個浮動掣拆咗。一個 tab 同一粒掣去同一個地方,即係一個畫面\n兩套導航,而應該留低嘅係成日都見到嗰個。\n\n仲有一單:以前開住地圖就搵唔到「整地圖」— 個精靈淨係喺冇地圖嗰陣\n先出現,即係話想 render 第二個世界,你首先要冇 render 過第一個 😅",
+        category: "site",
+        areas: ["site", "docs"],
+        files: 24,
+    },
+    {
+        sha: "183b7be957217f9aa253788ca0190be0f25a10bf",
+        shortSha: "183b7be957",
+        date: "2026-08-04T02:57:29-04:00",
+        subject: "Merge pull request #22 from Ding-Ding-Projects/pages-material3-continuation",
+        details: "Index every article in the command palette",
+        category: "site",
+        areas: ["site", "docs", "interface"],
+        files: 9,
+        summarizes: 3,
+    },
+    {
         sha: "6080c4be7f3de2304a18db298efd00b95a5096ec",
         shortSha: "6080c4be7f",
         date: "2026-08-04T02:56:57-04:00",
