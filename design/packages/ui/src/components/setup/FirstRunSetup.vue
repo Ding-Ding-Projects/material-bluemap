@@ -11,6 +11,7 @@ import {
     VSpacer,
 } from "vuetify/components";
 import SetupConsentStep from "./SetupConsentStep.vue";
+import SetupEulaStep from "./SetupEulaStep.vue";
 import SetupStorageStep from "./SetupStorageStep.vue";
 import SetupWelcomeStep from "./SetupWelcomeStep.vue";
 import { useSetupI18n } from "./setupI18n.js";
@@ -126,12 +127,13 @@ function onStorageInput(value: string): void {
                     :aria-label="stepLabel(flow.step.value)"
                 >
                     <!--
-                        Three explicit branches rather than one dynamic component. The
-                        steps take different props, and a `<component :is>` handed the
-                        union would fall the unused ones through onto the step's root
-                        element as stray HTML attributes.
+                        Explicit branches rather than one dynamic component. The steps
+                        take different props, and a `<component :is>` handed the union
+                        would fall the unused ones through onto the step's root element as
+                        stray HTML attributes.
                     -->
                     <SetupWelcomeStep v-if="flow.step.value === 'welcome'" />
+                    <SetupEulaStep v-else-if="flow.step.value === 'eula'" />
                     <SetupConsentStep
                         v-else-if="flow.step.value === 'consent'"
                         :answer="flow.answer.value"
@@ -178,7 +180,13 @@ function onStorageInput(value: string): void {
 
                 <v-spacer class="mb-setup-card__spacer" />
 
-                <template v-if="flow.step.value === 'welcome'">
+                <!--
+                    Welcome and the licence both move on with Next and nothing else. The
+                    licence step deliberately carries no Accept: reading is not agreeing,
+                    and an accept button beside a document is a button people press
+                    instead of reading it.
+                -->
+                <template v-if="flow.step.value === 'welcome' || flow.step.value === 'eula'">
                     <v-btn variant="tonal" :disabled="flow.busy.value" @click="flow.next">
                         {{ i18n.t("action.next") }}
                     </v-btn>

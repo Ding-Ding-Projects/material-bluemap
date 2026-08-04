@@ -1,16 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiClose } from "@mdi/js";
-import {
-    VBtn,
-    VDivider,
-    VIcon,
-    VNavigationDrawer,
-    VToolbar,
-    VToolbarTitle,
-    VTooltip,
-} from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import GitHubAccountRow from "../github/GitHubAccountRow.vue";
@@ -20,13 +10,18 @@ import LanguageSettingsRow from "../setup/LanguageSettingsRow.vue";
 import { consentSearchLabels } from "../setup/consentSearch.js";
 import { languageSearchLabels } from "../setup/languageSearch.js";
 import { defaultMapStorageDir } from "../setup/mapStorage.js";
+import DockedSurface from "./DockedSurface.vue";
 import JavaRuntimeRow from "./JavaRuntimeRow.vue";
 import SettingsSection from "./SettingsSection.vue";
 import StorageSettingRow from "./StorageSettingRow.vue";
+import SurfacePlacementRow from "./SurfacePlacementRow.vue";
 import WorldFolderRow from "./WorldFolderRow.vue";
+import { DOCK_PLACEMENTS } from "./dockPlacement.js";
+import { dockedSurfaces } from "./useDockPlacement.js";
 import { createJavaSetting, describeJavaRejections } from "./javaSetting.js";
 import { createMapStorageSetting } from "./mapStorageSetting.js";
 import {
+    dockPlacementLabel,
     githubSectionCopy,
     javaUnsupportedCopy,
     sectionCopy,
@@ -69,6 +64,14 @@ import {
  * visible and usable, Escape closes it, and nothing about it halts anything. A blocking
  * dialog is reserved for a decision that genuinely must be made before continuing, and
  * changing a folder is not one.
+ *
+ * **Where it sits is the user's choice.** It was a right-hand drawer because somebody had
+ * to pick one, which is fine on a wide display and wrong for anyone whose map is on the
+ * right. `DockedSurface` gives it a persisted placement - floating, or docked to any of
+ * the four edges - a chooser in its own title bar, and geometry that never covers the
+ * button that opened it. The chrome, the Escape handling, the focus return and the
+ * placement all live there rather than here, so the next docked panel is a wrapper rather
+ * than a second implementation of any of it.
  */
 const props = withDefaults(
     defineProps<{
@@ -95,6 +98,9 @@ const { t } = useI18n();
 const storage = createMapStorageSetting();
 const java = createJavaSetting();
 const github = createGitHubAccount();
+
+/** Every docked panel that is open right now, including this one. */
+const surfaces = dockedSurfaces();
 
 // The GitHub controller is the only one of the three that subscribes to a push channel,
 // so it is the only one with a subscription to give back. Left attached it would keep
@@ -203,6 +209,19 @@ const sections = computed<SettingsSectionText[]>(() => {
             title: text["language-and-tone"].title,
             description: text["language-and-tone"].description,
             values: languageSearchLabels(),
+        },
+        // The names of the panels that are open and the five placements they can take, so
+        // somebody who can read "Docked to the bottom" on screen finds this row by typing
+        // it. Same rule as consent and language: the search matches the words rendered,
+        // not a hand-written keyword list beside them.
+        {
+            anchor: "surface-placement",
+            title: text["surface-placement"].title,
+            description: text["surface-placement"].description,
+            values: [
+                ...surfaces.value.map((surface) => surface.label),
+                ...DOCK_PLACEMENTS.map((placement) => dockPlacementLabel(t, placement)),
+            ],
         },
     ];
 });
@@ -333,42 +352,18 @@ function onDrawer(value: boolean): void {
 </script>
 
 <template>
-    <v-navigation-drawer
+    <DockedSurface
         class="mb-settings"
-        :model-value="props.open"
-        location="right"
-        width="520"
-        temporary
-        :scrim="false"
-        :aria-label="t('settings.title', 'Settings')"
-        @keydown.esc="close"
-        @update:model-value="onDrawer"
+        surface-id="app-settings"
+        :title="t('settings.title', 'Settings')"
+        :open="props.open"
+        default-placement="right"
+        :preferred-thickness="520"
+        :preferred-width="520"
+        :preferred-height="720"
+        @update:open="onDrawer"
     >
         <template #prepend>
-            <v-toolbar class="mb-settings__bar" density="comfortable" flat color="surface">
-                <v-toolbar-title class="mb-settings__title">
-                    {{ t("settings.title", "Settings") }}
-                </v-toolbar-title>
-
-                <template #append>
-                    <v-btn
-                        icon
-                        variant="text"
-                        :aria-label="t('settings.close', 'Close settings')"
-                        @click="close"
-                    >
-                        <v-icon :icon="mdiClose" />
-                        <v-tooltip
-                            activator="parent"
-                            location="bottom"
-                            :text="t('settings.close', 'Close settings')"
-                        />
-                    </v-btn>
-                </template>
-            </v-toolbar>
-
-            <v-divider />
-
             <div class="mb-settings__search">
                 <ConfigSearchField
                     v-model="query"
@@ -381,8 +376,6 @@ function onDrawer(value: boolean): void {
                     density="comfortable"
                 />
             </div>
-
-            <v-divider />
         </template>
 
         <!--
@@ -490,6 +483,21 @@ function onDrawer(value: boolean): void {
                 <LanguageSettingsRow />
             </SettingsSection>
 
+            <!--
+                Where every docked panel sits, and the one reset that reaches the ones
+                that are closed. Each panel's own chooser is in its own title bar, which
+                is where somebody moves the panel they are looking at; this is where they
+                undo a move they have since forgotten making.
+            -->
+            <SettingsSection
+                v-show="shows('surface-placement')"
+                anchor="surface-placement"
+                :title="copy['surface-placement'].title"
+                :description="copy['surface-placement'].description"
+            >
+                <SurfacePlacementRow />
+            </SettingsSection>
+
             <p v-if="visible.length === 0" class="mb-settings__empty" role="status">
                 {{
                     matcher.error !== null
@@ -498,28 +506,15 @@ function onDrawer(value: boolean): void {
                 }}
             </p>
         </div>
-    </v-navigation-drawer>
+    </DockedSurface>
 </template>
 
 <style>
-.mb-settings.v-navigation-drawer {
-    /* Above the floating control bar, below Vuetify's overlay stack (menus, tooltips),
-       so the regex builder anchored to the search field still paints over the sheet. */
-    z-index: 1500 !important;
-    /* Never wider than the window: at 800x600, and at 200% scale where the viewport is
-       effectively half that, the sheet becomes the whole width instead of overflowing. */
-    max-width: 100vw;
-    pointer-events: auto;
-}
-
-.mb-settings .mb-settings__title {
-    font-size: 1rem;
-    font-weight: 500;
-    overflow-wrap: anywhere;
-    white-space: normal;
-    line-height: 1.25;
-}
-
+/*
+ * The chrome, the placement, the width cap and the Escape handling all belong to
+ * `DockedSurface` now. What is left here is the two things that are this surface's own:
+ * the search row above the sections, and the column the sections sit in.
+ */
 .mb-settings__search {
     padding: 12px 16px;
 }
@@ -537,20 +532,9 @@ function onDrawer(value: boolean): void {
     border-radius: 8px;
 }
 
-.mb-settings .v-navigation-drawer__content {
-    overscroll-behavior: contain;
-}
-
 .mb-settings__empty {
     margin: 0;
     font-size: 0.8125rem;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
-@media (prefers-reduced-motion: reduce) {
-    .mb-settings.v-navigation-drawer,
-    .mb-settings .v-navigation-drawer__content {
-        transition-duration: 0.01ms !important;
-    }
 }
 </style>

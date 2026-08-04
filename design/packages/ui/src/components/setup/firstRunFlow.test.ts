@@ -135,9 +135,27 @@ describe("moving between steps", () => {
         expect(flow.stepNumber.value).toBe(2);
     });
 
+    /*
+     * The licence comes before the question, which is the whole point of it being a step.
+     * A document offered after the buttons is a document nobody opens, and one offered as
+     * a link beside them is one people click past.
+     */
+    it("shows the licence before it asks the question", async () => {
+        const flow = controller(fakeBridge());
+        await flow.start();
+        expect(flow.step.value).toBe("welcome");
+        flow.next();
+        expect(flow.step.value).toBe("eula");
+        flow.next();
+        expect(flow.step.value).toBe("consent");
+        flow.back();
+        expect(flow.step.value).toBe("eula");
+    });
+
     it("will not walk past the consent question", async () => {
         const flow = controller(fakeBridge());
         await flow.start();
+        flow.next();
         flow.next();
         expect(flow.step.value).toBe("consent");
         flow.next();
@@ -206,6 +224,7 @@ describe("answering consent", () => {
         bridge.failOn = "acceptDownload";
         const flow = controller(bridge);
         await flow.start();
+        flow.next();
         flow.next();
         await flow.answerConsent(true);
         expect(flow.answer.value).toBeNull();

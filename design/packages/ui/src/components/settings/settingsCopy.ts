@@ -15,6 +15,7 @@
  * without mounting anything.
  */
 
+import type { DockPlacement } from "./dockPlacement.js";
 import type { SettingsSectionAnchor } from "./settingsSections.js";
 
 /** `(key, English fallback) => string`, which is what `useI18n().t` narrows to here. */
@@ -81,6 +82,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Which language the app speaks, and how playful it is in each one. The two funny levels are separate settings, and the level styles every message including errors and warnings.",
             ),
         },
+        "surface-placement": {
+            title: t("settings.placement.title", "Where the panels sit"),
+            description: t(
+                "settings.placement.description",
+                "Every panel that docks to an edge remembers its own position: floating, or docked to the left, right, top or bottom. Each one is changed from its own title bar. This is where all of them are put back at once.",
+            ),
+        },
     };
 }
 
@@ -144,6 +152,29 @@ export function githubSectionCopy(t: Translate): GitHubSectionCopy {
 export interface WorldFolderCopy {
     readonly perMap: string;
     readonly where: string;
+}
+
+/**
+ * The name of a placement, in one place.
+ *
+ * Three surfaces render this list - each panel's own chooser, the settings row that lists
+ * every panel, and the settings search that has to find the row by the words on it - and
+ * three copies of five strings is three chances for the search to be asked for a phrase
+ * that is on screen and answer that there are no matches.
+ */
+export function dockPlacementLabel(t: Translate, placement: DockPlacement): string {
+    switch (placement) {
+        case "floating":
+            return t("dock.placement.floating", "Floating panel");
+        case "left":
+            return t("dock.placement.left", "Docked to the left");
+        case "right":
+            return t("dock.placement.right", "Docked to the right");
+        case "top":
+            return t("dock.placement.top", "Docked to the top");
+        case "bottom":
+            return t("dock.placement.bottom", "Docked to the bottom");
+    }
 }
 
 /** What the world-folder section says, shared with the search for the same reason. */

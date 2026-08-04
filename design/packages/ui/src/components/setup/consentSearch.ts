@@ -31,5 +31,10 @@ export function consentSearchLabels(): string[] {
         flat("consent.why"),
         flat("consent.ifAccept"),
         flat("consent.ifDecline"),
+        // The licence viewer folded into this row. Somebody who remembers reading the
+        // document here should be able to find the row by typing "licence".
+        flat("action.readLicence"),
+        flat("eula.title"),
+        flat("eula.navigationOnly"),
     ];
 }

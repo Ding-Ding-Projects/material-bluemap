@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type { IpcRendererEvent } from "electron";
 import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
+import type { EulaLoadResult } from "../main/eula/index.js";
 import type {
     CiPreflight,
     CiSyncEvent,
@@ -1053,6 +1054,13 @@ interface MaterialBlueMapBridge {
      * front of somebody who is halfway through a task.
      */
     readConsent(): Promise<ConsentRecord>;
+    /**
+     * Mojang's own EULA text, so it can be read here rather than taken on trust.
+     *
+     * Never rejects: a refusal carries the reason and any cached copy, because a licence
+     * that will not load is a thing to say plainly rather than an empty panel.
+     */
+    readEulaDocument(request: { refresh: boolean }): Promise<EulaLoadResult>;
     acceptDownload(): Promise<ConsentRecord>;
     revokeDownloadConsent(): Promise<ConsentRecord>;
 
@@ -1461,6 +1469,7 @@ const bridge: MaterialBlueMapBridge = {
     },
 
     readConsent: () => ipcRenderer.invoke("consent:read"),
+    readEulaDocument: (request) => ipcRenderer.invoke("eula:document", request),
     acceptDownload: () => ipcRenderer.invoke("consent:accept"),
     revokeDownloadConsent: () => ipcRenderer.invoke("consent:revoke"),
 

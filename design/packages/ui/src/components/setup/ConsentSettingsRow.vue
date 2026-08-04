@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { VAlert, VBtn, VChip, VIcon } from "vuetify/components";
 import { mdiCheckCircleOutline, mdiCloseCircleOutline, mdiOpenInNew } from "@mdi/js";
+import EulaViewer from "../eula/EulaViewer.vue";
 import SetupText from "./SetupText.vue";
 import ConsentQuote from "./ConsentQuote.vue";
 import { useSetupI18n } from "./setupI18n.js";
@@ -62,6 +63,35 @@ const documentUrl = computed(() => consent.record.value?.documentUrl ?? MOJANG_E
  * somebody on the right page and leaving them to hunt for the control is not arriving.
  */
 const flash = ref(false);
+
+/**
+ * The licence itself, in this row, on request.
+ *
+ * Collapsed by default and expanded in place rather than opened somewhere else. A link
+ * that opens a browser leaves the app; a separate window is one more thing to find again;
+ * and a settings row that offers to change an answer without offering the document that
+ * answer is about is the gap this whole piece of work exists to close. Expanded here, the
+ * accept button and the text it is about are on the same screen.
+ */
+const showLicence = ref(false);
+
+/**
+ * True once the disclosure has been opened, and never false again.
+ *
+ * The viewer fetches when it mounts. This row is mounted for the whole life of the
+ * application - the settings sheet is hidden rather than unmounted - so a viewer rendered
+ * unconditionally would put a request to Mojang's server in the startup path of an app
+ * nobody has asked to read a licence. Mounting on first expand, and keeping it mounted
+ * afterwards, means one fetch and only when somebody actually wanted the document.
+ */
+const licenceMounted = ref(false);
+
+const licenceId = useId();
+
+function toggleLicence(): void {
+    showLicence.value = !showLicence.value;
+    if (showLicence.value) licenceMounted.value = true;
+}
 
 function highlight(): void {
     root.value?.focus();
@@ -165,6 +195,33 @@ defineExpose({ highlight, reload: consent.load });
             question somebody is entitled to answer without withdrawing first.
         -->
         <ConsentQuote v-if="!accepted" />
+
+        <!--
+            The document itself, without leaving this row. Collapsed by default so the
+            settings surface stays scannable, and expanded in place so that whoever is
+            about to press Accept can read what they are accepting first.
+        -->
+        <div class="mb-consent-row__licence">
+            <v-btn
+                variant="text"
+                size="small"
+                :aria-expanded="showLicence ? 'true' : 'false'"
+                :aria-controls="licenceId"
+                @click="toggleLicence"
+            >
+                {{ showLicence ? i18n.t("action.hideLicence") : i18n.t("action.readLicence") }}
+            </v-btn>
+
+            <div v-show="showLicence" :id="licenceId" class="mb-consent-row__licence-body">
+                <!--
+                    Mounted on the first expand and kept afterwards. `v-if` alone would
+                    re-fetch on every toggle of a button whose whole job is to reveal
+                    something that was already there; no `v-if` at all would fetch at
+                    startup for everybody, whether or not they ever open this.
+                -->
+                <EulaViewer v-if="licenceMounted" compact />
+            </div>
+        </div>
 
         <SetupText v-if="accepted" text-key="consent.withdrawFact" class="mb-consent-row__lead" />
 
@@ -292,5 +349,15 @@ defineExpose({ highlight, reload: consent.load });
 
 .mb-consent-row__alert {
     overflow-wrap: anywhere;
+}
+
+.mb-consent-row__licence {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mb-consent-row__licence-body {
+    padding-block-start: 4px;
 }
 </style>

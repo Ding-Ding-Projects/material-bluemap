@@ -33,7 +33,21 @@ import {
     type SetupPlatform,
 } from "./mapStorage.js";
 
-export const SETUP_STEPS = ["welcome", "consent", "storage"] as const;
+/**
+ * The steps, in order.
+ *
+ * `eula` sits between the welcome and the question because that is the order the two
+ * things happen in: you read the licence, then you answer. It was added when the app
+ * stopped merely linking to Mojang's document and started fetching it, and the ordering
+ * is the whole point - a licence offered *after* the buttons is a licence nobody opens,
+ * and one offered as a link beside them is one people click past. It is a step with its
+ * own progress number, so somebody who skips through it at least knows they did.
+ *
+ * Nothing on the licence step answers anything. Its only forward control is Next, and the
+ * accept and decline buttons still live on the step after it, unselected, equally
+ * weighted, neither one focused first.
+ */
+export const SETUP_STEPS = ["welcome", "eula", "consent", "storage"] as const;
 export type SetupStep = (typeof SETUP_STEPS)[number];
 
 /** What the person answered during this run of the flow. */
@@ -219,6 +233,10 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
 
     function next(): void {
         if (step.value === "welcome") {
+            step.value = "eula";
+            return;
+        }
+        if (step.value === "eula") {
             step.value = "consent";
             return;
         }
@@ -229,7 +247,8 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
 
     function back(): void {
         if (step.value === "storage") step.value = "consent";
-        else if (step.value === "consent") step.value = "welcome";
+        else if (step.value === "consent") step.value = "eula";
+        else if (step.value === "eula") step.value = "welcome";
     }
 
     async function answerConsent(accepted: boolean): Promise<void> {

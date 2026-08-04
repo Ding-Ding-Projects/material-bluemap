@@ -57,6 +57,12 @@ const SECTIONS: SettingsSectionText[] = [
         description: "Which language the app speaks, and how playful it is in each one.",
         values: ["Funny level, English", "5 Maximum playfulness"],
     },
+    {
+        anchor: "surface-placement",
+        title: "Where the panels sit",
+        description: "Every panel that docks to an edge remembers its own position.",
+        values: ["Settings", "Docked to the bottom"],
+    },
 ];
 
 describe("the anchors a render can point at", () => {
@@ -105,7 +111,25 @@ describe("every section the surface renders", () => {
             "world-folder",
             "github-account",
             "language-and-tone",
+            "surface-placement",
         ]);
+    });
+
+    /*
+     * Where the panels sit is the third section no render can point at, and it is here
+     * for a reason of its own: each panel carries a placement chooser in its own title
+     * bar, so the only thing that has nowhere else to live is the reset that reaches a
+     * panel somebody has moved somewhere awkward and then closed.
+     */
+    it("keeps the placement section out of the render-reachable set", () => {
+        expect(isSettingsSection("surface-placement")).toBe(true);
+        expect(isSettingsAnchor("surface-placement")).toBe(false);
+    });
+
+    it("finds the placement section by a placement name that is on screen", () => {
+        expect(
+            filterSections(SECTIONS, createSettingMatcher("Docked to the bottom", false, "im")),
+        ).toEqual(["surface-placement"]);
     });
 
     it("keeps the render-reachable anchors a closed set, the other two out of it", () => {

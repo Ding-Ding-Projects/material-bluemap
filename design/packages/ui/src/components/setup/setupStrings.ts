@@ -130,6 +130,52 @@ export const EXACT = {
         en: "Rendering on this computer needs this answer. Accept it here and the render can start.",
         yue: "喺呢部電腦算圖需要呢個答案。喺呢度接受咗，就可以開始算圖。",
     },
+
+    /*
+     * The EULA viewer's own statements.
+     *
+     * Every one of these is a claim about the document on screen: what it is, where it
+     * came from, when, and what the tabs above it are. They are EXACT because a funny
+     * level that reworded "this is a copy from last month" into something breezier would
+     * be restyling the one sentence that stops somebody reading an out-of-date licence
+     * and believing it is the current one.
+     */
+    "eula.navigationOnly": {
+        en: "The tabs below are this application's navigation over Mojang's document. They add nothing to it, remove nothing from it and reorder nothing inside it. Mojang's document is what you are agreeing to.",
+        yue: "下面啲分頁只係本程式為 Mojang 份文件加嘅導覽。冇加過任何嘢入去，冇刪過任何嘢，入面嘅次序亦一個字都冇調換過。你真正同意嘅係 Mojang 份文件本身。",
+    },
+    "eula.live": {
+        en: "This is Mojang's document, fetched from Mojang.",
+        yue: "呢份就係 Mojang 份文件，直接向 Mojang 攞返嚟。",
+    },
+    "eula.cachedCopy": {
+        en: "This is a copy the application fetched earlier and kept. It may not be the current wording.",
+        yue: "呢份係程式之前攞落嚟儲住嘅副本，未必係最新嘅版本。",
+    },
+    "eula.fallbackCopy": {
+        en: "This is not Mojang's document. Mojang's document could not be fetched, so the wording BlueMap itself quotes is shown instead.",
+        yue: "呢份唔係 Mojang 份文件。攞唔到 Mojang 份文件，所以改為顯示 BlueMap 自己引用嘅字句。",
+    },
+    "eula.fetchedAt": {
+        en: "Fetched {when}.",
+        yue: "喺 {when} 攞落嚟。",
+    },
+    "eula.neverFetched": {
+        en: "Never fetched from Mojang on this computer.",
+        yue: "喺呢部電腦從來未向 Mojang 攞過。",
+    },
+    "eula.failureReason": {
+        en: "Why the live document is not on screen: {reason}",
+        yue: "點解而家見唔到即時版本：{reason}",
+    },
+    "eula.readingIsNotAgreeing": {
+        en: "Reading this agrees to nothing. You are asked to accept or decline on the next step, and both answers are real.",
+        yue: "睇呢份嘢唔等於同意咗任何嘢。下一步先會問你接受定拒絕，兩個答案都係真㗎。",
+    },
+    "eula.authoritative": {
+        en: "If this application's copy and Mojang's published document ever differ, Mojang's document is the one that counts.",
+        yue: "如果本程式呢份副本同 Mojang 公佈嘅文件有出入，以 Mojang 份文件為準。",
+    },
 } as const satisfies Record<string, FixedString>;
 
 /* -------------------------------------------------------------------------- */
@@ -196,6 +242,57 @@ export const FIXED = {
     "consent.field.never": { en: "Never answered", yue: "未曾回答" },
     "consent.field.declined": { en: "Declined during setup", yue: "喺設定嗰陣拒絕咗" },
     "consent.field.unknown": { en: "Not recorded", yue: "冇記錄" },
+
+    /* The EULA viewer's controls and the names of its categories. */
+    "step.eula": { en: "The licence", yue: "授權條款" },
+    "eula.title": { en: "Minecraft End User Licence Agreement", yue: "Minecraft 最終用戶授權合約" },
+    "eula.viewerTitle": { en: "The Minecraft licence", yue: "Minecraft 授權條款" },
+    "eula.stripLabel": { en: "Sections of the licence", yue: "授權條款嘅章節" },
+    "eula.windowLabel": { en: "Licence viewer", yue: "授權條款檢視器" },
+    "action.readLicence": { en: "Read the licence in the app", yue: "喺程式入面睇授權條款" },
+    "action.hideLicence": { en: "Hide the licence", yue: "收埋授權條款" },
+    "action.refetchEula": { en: "Fetch it again", yue: "再攞多次" },
+    "eula.fetching": { en: "Fetching Mojang's document", yue: "攞緊 Mojang 份文件" },
+    "eula.searchLabel": { en: "Search the licence", yue: "搜尋授權條款" },
+    "eula.searchHint": { en: "a word or phrase in the document", yue: "文件入面嘅字或者詞" },
+    "eula.searchAll": {
+        en: "{total} sections. Nothing is hidden by a search.",
+        yue: "共 {total} 個章節。搜尋唔會收埋任何一段。",
+    },
+    "eula.searchFound": {
+        en: "{shown} of {total} sections contain that. Every section is still listed.",
+        yue: "{total} 個章節之中有 {shown} 個搵到。所有章節照樣列晒出嚟。",
+    },
+    "eula.searchBadPattern": {
+        en: "That pattern is not valid, so nothing is marked. The document is unchanged.",
+        yue: "呢個式唔啱格式，所以冇標記到任何嘢。文件本身冇變過。",
+    },
+    "eula.empty": {
+        en: "There is no document to show yet.",
+        yue: "而家仲未有文件可以顯示。",
+    },
+    "eula.export": { en: "Export or copy", yue: "匯出或者複製" },
+    "eula.exportSectionMarkdown": { en: "This section, as Markdown", yue: "呢個章節，Markdown 格式" },
+    "eula.exportSectionText": { en: "This section, as plain text", yue: "呢個章節，純文字格式" },
+    "eula.exportAllMarkdown": { en: "The whole document, as Markdown", yue: "成份文件，Markdown 格式" },
+    "eula.exportAllText": { en: "The whole document, as plain text", yue: "成份文件，純文字格式" },
+    "eula.copySection": { en: "Copy this section", yue: "複製呢個章節" },
+    "eula.copyAll": { en: "Copy the whole document", yue: "複製成份文件" },
+    "eula.copied": {
+        en: "Copied, with a header saying which part of the document it is.",
+        yue: "已複製，開頭有註明呢段係文件邊一部分。",
+    },
+    "eula.copyFailed": { en: "Could not reach the clipboard.", yue: "接觸唔到剪貼簿。" },
+    "eula.exported": { en: "Exported {name}.", yue: "已匯出 {name}。" },
+
+    "eula.category.overview": { en: "Overview", yue: "概覽" },
+    "eula.category.permitted": { en: "What you may do", yue: "你可以做嘅嘢" },
+    "eula.category.prohibited": { en: "What you may not do", yue: "你唔可以做嘅嘢" },
+    "eula.category.ownership": { en: "Ownership", yue: "擁有權" },
+    "eula.category.changes": { en: "Updates and changes", yue: "更新同改動" },
+    "eula.category.termination": { en: "Termination", yue: "終止" },
+    "eula.category.liability": { en: "Warranties and liability", yue: "保證同責任" },
+    "eula.category.other": { en: "Other terms", yue: "其他條款" },
 } as const satisfies Record<string, FixedString>;
 
 /* -------------------------------------------------------------------------- */

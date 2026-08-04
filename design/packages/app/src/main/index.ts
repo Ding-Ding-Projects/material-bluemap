@@ -33,6 +33,7 @@ import {
     type InstalledUpdates,
 } from "./update/index.js";
 import { RenderMemoryStore, registerFileHandlers, windowsMapStorageDefault } from "./files/index.js";
+import { registerEulaHandlers } from "./eula/index.js";
 import { installCiRenderIpc } from "./cirender/ipc.js";
 import type { CiRenderIpc } from "./cirender/ipc.js";
 import { registerProjectHandlers } from "./project/index.js";
@@ -174,6 +175,10 @@ function registerIpc(): void {
         if (typeof text === "string") clipboard.writeText(text);
     });
     ipcMain.handle("app:version", () => app.getVersion());
+
+    // Mojang's licence, fetched and cached so it can be read inside the app rather than
+    // taken on trust. A reader only: the acceptance itself stays in `consent.ts`.
+    registerEulaHandlers(ipcMain);
 
     // Window controls for the Material title bar. The window is frameless, so these are
     // the only way it can be moved through its states: without them the app cannot be

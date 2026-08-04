@@ -590,6 +590,36 @@ interface MaterialBlueMapBridge {
      * licence in front of somebody who is already halfway through a task.
      */
     readConsent(): Promise<MojangConsentRecord>;
+
+    /**
+     * Mojang's EULA text. `ok: false` carries a reason and any cached copy.
+     *
+     * A licence that will not load says so; it is never quietly replaced with something
+     * that merely looks like one, and the panel says which of the three it is showing.
+     */
+    readEulaDocument(request: { refresh: boolean }): Promise<
+        | {
+              ok: true;
+              document: {
+                  source: "live" | "cache";
+                  text: string;
+                  documentUrl: string;
+                  fetchedAt: string;
+                  characters: number;
+              };
+          }
+        | {
+              ok: false;
+              reason: string;
+              cached: {
+                  source: "live" | "cache";
+                  text: string;
+                  documentUrl: string;
+                  fetchedAt: string;
+                  characters: number;
+              } | null;
+          }
+    >;
     acceptDownload(): Promise<MojangConsentRecord>;
     revokeDownloadConsent(): Promise<MojangConsentRecord>;
 

@@ -519,7 +519,9 @@ describe("closing", () => {
         const host = open();
         await settle();
 
-        await host.find('button[aria-label="Close settings"]').trigger("click");
+        // The close button belongs to `DockedSurface` now and names the panel it closes,
+        // so a screen reader announces which of several open panels the button acts on.
+        await host.find('button[aria-label="Close Settings"]').trigger("click");
         await settle();
 
         expect(host.emitted("update:open")).toEqual([[false]]);

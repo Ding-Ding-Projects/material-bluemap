@@ -51,14 +51,24 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * at from a failure and expects to be looking straight at, then the sections that are
  * only ever reached by opening Settings and reading.
  *
- * Language and tone is last of those, and it is here because before it was there was
- * nowhere else: the mode and the two funny levels were asked once during first-run setup
- * and then had no home at all, which is a setting being asked rather than a setting being
- * configurable. It is deliberately not an anchor, for the same reason GitHub sign-in is
- * not one — a render does not stop for the want of a funny level, so nothing on the bridge
- * could honestly point at it.
+ * Language and tone is here because before it was there was nowhere else: the mode and the
+ * two funny levels were asked once during first-run setup and then had no home at all,
+ * which is a setting being asked rather than a setting being configurable. It is
+ * deliberately not an anchor, for the same reason GitHub sign-in is not one — a render does
+ * not stop for the want of a funny level, so nothing on the bridge could honestly point at
+ * it.
+ *
+ * Where the panels sit is last, and is a setting about this surface as much as about any
+ * other: every docked panel remembers its own placement, and the one control that resets
+ * all of them at once has to live somewhere a person can find it when they have moved a
+ * panel somewhere they now regret. That is what this section is.
  */
-export const SETTINGS_SECTIONS = [...SETTINGS_ANCHORS, "github-account", "language-and-tone"] as const;
+export const SETTINGS_SECTIONS = [
+    ...SETTINGS_ANCHORS,
+    "github-account",
+    "language-and-tone",
+    "surface-placement",
+] as const;
 
 /** A section this surface renders, whether or not a render can send somebody to it. */
 export type SettingsSectionAnchor = (typeof SETTINGS_SECTIONS)[number];

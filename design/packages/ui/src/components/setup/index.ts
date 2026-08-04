@@ -12,6 +12,7 @@
 export { default as FirstRunSetup } from "./FirstRunSetup.vue";
 export { default as ConsentSettingsRow } from "./ConsentSettingsRow.vue";
 export { default as ConsentQuote } from "./ConsentQuote.vue";
+export { default as SetupEulaStep } from "./SetupEulaStep.vue";
 export { default as SetupLanguagePanel } from "./SetupLanguagePanel.vue";
 export { default as LanguageSettingsRow } from "./LanguageSettingsRow.vue";
 export { default as SetupText } from "./SetupText.vue";
