@@ -363,6 +363,21 @@ async function pointAppAtNoMap(): Promise<void> {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector("#app", { timeout: 30_000 });
+
+    /*
+     * The wizard is a tab now, not the thing that appears when no map is loaded.
+     *
+     * It used to be rendered by the shell whenever `profilesStore.activeId` was null, so
+     * clearing the profile list was enough to put it on screen. Since the shell became
+     * tabbed it lives behind "Make a map", which is a real improvement - it is reachable
+     * while a map is open, which it was not - and it means this helper has to open the tab
+     * rather than assume an empty profile list shows it. Waiting for `.mb-world-wizard`
+     * without that is a thirty second timeout describing a wizard that is fine.
+     */
+    const wizardTab = page.locator('[role="tab"]', { hasText: /make a map/i }).first();
+    await wizardTab.waitFor({ state: "visible", timeout: 30_000 });
+    if ((await wizardTab.getAttribute("aria-selected")) !== "true") await wizardTab.click();
+
     await page.waitForSelector(".mb-world-wizard", { timeout: 30_000 });
     mapArea = "none";
 }
