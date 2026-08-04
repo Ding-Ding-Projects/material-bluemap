@@ -1392,6 +1392,25 @@ test("captures the remaining first-class screens", async () => {
         );
     });
 
+    // Needs nothing but the application: the render list is read from disk and is honestly
+    // empty on a throwaway profile, and the preflight is never run, so no GitHub account and
+    // no network are involved in reaching this screen.
+    await attempt("Pages publishing screen", async () => {
+        const pagesTab = page.locator('[role="tab"]', { hasText: /Publish to Pages/i }).first();
+        await pagesTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        if ((await pagesTab.getAttribute("aria-selected")) !== "true") {
+            await pagesTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+        }
+        const publish = page.locator(".mb-pages-screen");
+        await publish.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "pages-publishing-screen",
+            "The Pages publishing screen: the searchable render list, the repository fields, and the check that reports what publishing would push before anything is pushed",
+            { crop: publish, cropped: "the Pages publishing screen", mapArea: "covered" },
+        );
+    });
+
     await attempt("EULA viewer", async () => {
         await page.locator('.mb-shell-fab[aria-label="Settings"]').first().click({ timeout: ELEMENT_TIMEOUT });
         const settings = page.locator(".mb-settings");
@@ -1693,6 +1712,7 @@ const REQUIRED_SURFACES = [
     "History",
     "Projects",
     "CI-render screen",
+    "Pages publishing screen",
     "EULA viewer",
     "Profile manager",
     "Notification corner",
