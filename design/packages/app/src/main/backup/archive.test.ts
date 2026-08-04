@@ -180,7 +180,11 @@ describe("what it writes is what this project's own restore reads", () => {
         expect(await readFile(join(out, "data", "deep", "notes.txt"))).toEqual(Buffer.from("hello"));
     });
 
-    it("survives a file large enough to need more than one read chunk", async () => {
+    // A megabyte written, packed, hashed and unpacked is nothing on a developer machine and
+    // is not always nothing on a shared CI runner with a dozen workers competing for the
+    // disk. The default five seconds failed there while passing everywhere else, which is a
+    // report about the runner rather than about the chunk boundary being tested.
+    it("survives a file large enough to need more than one read chunk", { timeout: 60_000 }, async () => {
         const source = join(workDir, "big");
         await mkdir(source, { recursive: true });
         // Exactly one byte over two read chunks, and no more. The property under test is

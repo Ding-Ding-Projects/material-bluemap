@@ -63,6 +63,8 @@ export const SUPER_CONFIRMATION_DOC_URL = repoFile("docs/super-confirmation.md")
 export const LANGUAGE_AND_TONE_DOC_URL = repoFile("docs/language-and-tone.md");
 export const REGEX_BUILDER_DOC_URL = repoFile("docs/regex-builder.md");
 export const LEGACY_WORLDS_DOC_URL = repoFile("docs/legacy-1-12-worlds.md");
+export const CONFIG_HISTORY_DOC_URL = repoFile("docs/config-history.md");
+export const BACKUP_DOC_URL = repoFile("docs/backup.md");
 
 /** Upstream BlueMap, the project this is a port of. */
 export const UPSTREAM_URL = "https://github.com/BlueMap-Minecraft/BlueMap";

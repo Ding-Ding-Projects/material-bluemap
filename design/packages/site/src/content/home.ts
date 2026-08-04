@@ -19,8 +19,10 @@
 import type { HomeContent } from "./types.js";
 import {
     APPEARANCE_EDITORS_DOC_URL,
+    BACKUP_DOC_URL,
     BUILD_JARS_WORKFLOW_URL,
     CHANGELOG_VIEWER_DOC_URL,
+    CONFIG_HISTORY_DOC_URL,
     COMMAND_PALETTE_DOC_URL,
     CONTRACTS_URL,
     CONVENTIONS_URL,
@@ -332,6 +334,32 @@ export const home: HomeContent = {
                     articleId: "options-gui",
                 },
                 {
+                    title: "A real control for every setting, not a wall of text boxes",
+                    body: "Every config field gets the control its value deserves, and a select bound to a value its list does not hold shows that value rather than rendering blank. Both colour fields mount the app's infinite picker with alpha, because BlueMap reads an eighth hex byte as one.",
+                    status: "shipped",
+                    statusNote:
+                        "A guard test classifies every field from its zod schema and takes a second opinion from upstream's own Java field types, so a setting cannot quietly become a text box. The Java half skips itself without the vendored submodule, and nobody has driven these controls in an installed build.",
+                    articleId: "config-rich-controls",
+                },
+                {
+                    title: "An undo for the config folder, kept out of the config folder",
+                    body: "Every save records a complete snapshot of the folder into a git history the app keeps beside its own data. Restore is append-only, so an undo can be undone; a History tab browses, diffs, labels, filters and exports it; and a history that cannot be written never fails the save.",
+                    status: "shipped",
+                    statusNote:
+                        "37 tests drive real git repositories in real temporary directories and 37 more cover the panel and its filters, all in CI. The real-git block skips itself where git is absent, and there is no committed capture of the panel with revisions in it.",
+                    articleId: "config-history",
+                    reading: [{ label: "docs/config-history.md", href: CONFIG_HISTORY_DOC_URL }],
+                },
+                {
+                    title: "Back a world or a rendered map up to GitHub",
+                    body: "A folder packed into one deterministic archive, cut into 500 MiB parts, and published as the assets of a new release with a pointer naming every part and its digest. Git LFS was rejected on cost by name, and the pointer format is the sibling app's so either can read the other's backup.",
+                    status: "ported-unverified",
+                    statusNote:
+                        "Nine test files in CI, one of which drives a whole backup and a resume against real folders. Every GitHub interaction in every one of them is against a recording fake, and the interoperability claim is checked at the level of the pointer grammar only.",
+                    articleId: "backups",
+                    reading: [{ label: "docs/backup.md", href: BACKUP_DOC_URL }],
+                },
+                {
                     title: "Get a world out of a release, without leaving the wizard",
                     body: "The step that asks where your world is also offers to fetch one. A world published in 1.7 GB parts arrives as the single file it really is: every part checked as it lands, rejoined, checked again whole, and unpacked, with real byte counts rather than a spinner.",
                     status: "ported-unverified",
@@ -345,7 +373,7 @@ export const home: HomeContent = {
                     body: "A device flow that shows the code large and verbatim, counts down only from what the main process actually said, and keeps its four endings apart. A pasted token is the other way in. The credential never reaches the interface at all.",
                     status: "ported-unverified",
                     statusNote:
-                        "Built and covered by 126 tests, all of which drive a stand-in for GitHub's endpoints. No code has been typed on github.com from a packaged build, and the signed-in account does not reach the download path yet.",
+                        "Built and covered by 126 tests, all of which drive a stand-in for GitHub's endpoints. No code has been typed on github.com from a packaged build. The account now reaches the download path and the backup path, and neither has been run against real GitHub.",
                     articleId: "github-sign-in",
                 },
                 {
@@ -547,7 +575,7 @@ export const home: HomeContent = {
         "The standalone headless server, its full HTTP routes and event stream, and its Docker image.",
         "The Docker hosting GUI for managing BlueMap server containers.",
         "SQL storages, the marker editor, the JavaScript addon system, static export and the three.js upgrade. The options editor models an SQL storage and writes one, and its connection test says plainly that this build carries no database client to open a connection with rather than reporting a success nobody observed.",
-        "Spending the signed-in GitHub account on anything. Signing in works and stores its credential properly, and then nothing else in the application asks it for one: the download path still reads a token from the environment, so signing in does not yet make a private release asset fetchable.",
+        "Spending the signed-in GitHub account against real GitHub. The account now reaches two things rather than nothing: the download path asks the session first and falls back to a token in the environment, and a backup runs under it. Neither has been exercised against github.com from a packaged build, so every one of those calls is proved against a stand-in.",
         "Live players read from local player data or RCON, measurement and waypoint tools, the screenshot gallery inside the app, scheduled renders, the multi-server dashboard and the update checker.",
         "The five cross-cutting product contracts, as contracts. All five now have substantial working machinery in the application, and each is listed as a shipped feature above with its own article. None of the five is met as written, and the remaining clause is named in each case: the regex builder's own surface is not localised, tabs cannot be decorated per tab or per group, appearance reaches four elements rather than every one, the language catalogue answers roughly a hundred keys, and two destructive call sites are declared as gaps rather than gated. A contract with an unmet clause is a pending contract, so all five stay here.",
         "macOS and Linux packaging. Windows is the only platform with an installer, and the installers are not code signed.",
@@ -709,6 +737,8 @@ export const home: HomeContent = {
         { label: "Language modes and funny levels", href: LANGUAGE_AND_TONE_DOC_URL },
         { label: "The regex builder and the search bars it reaches", href: REGEX_BUILDER_DOC_URL },
         { label: "Writing and rendering 1.12.2 worlds", href: LEGACY_WORLDS_DOC_URL },
+        { label: "Local version history for a config folder", href: CONFIG_HISTORY_DOC_URL },
+        { label: "Backing up a world or a rendered map", href: BACKUP_DOC_URL },
         { label: "Rendering a world in GitHub Actions", href: RENDER_IN_ACTIONS_DOC_URL },
         { label: "Rendering that survives being interrupted", href: RESUMABLE_RENDERS_DOC_URL },
         { label: "Large worlds and rendered maps", href: LARGE_WORLDS_DOC_URL },

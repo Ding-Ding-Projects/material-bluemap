@@ -47,11 +47,11 @@ exclusions **S2 and S4 are withdrawn**; S1 and S3 still stand.
 | J | **Java render path** (D17): toolchain discovery/provisioning, jar resolution, config writer, CLI runner, progress parser, provenance record, local map serving | Built, proven by hand on one machine; see below |
 | D | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks | **Done, and the gate is closed.** `tools/oracle/compare.mjs` rendered a generated 1000x1000 world with both engines on 2026-08-04 and reported **identical**: 995 files matched, 961 of 961 hires tiles byte for byte after decompression, 24 of 24 lowres tiles pixel for pixel, all render-state decisions equal, neither side holding a file the other lacked. A 200x200 fixture on a different seed reports the same. Passing the gate does not itself switch the product over; D17 keeps upstream's engine rendering until that switch is made and verified on its own |
 | E | RenderManager worker pool, watch re-render, full HTTP routes + SSE, config schema (every option), standalone server CLI + Dockerfile | Pending. The config schema half landed early in `packages/config` |
-| F | Full options GUI (all settings, map wizard, storage editors, config import) | **Reachable.** `App.vue` now mounts the Material title bar, the world wizard, first-run setup and the settings surface. Two gaps closed with it: the preload never exposed the window controls (a frameless window with no minimise or close), and only 6 of a map's 92 settings could reach a render |
+| F | Full options GUI (all settings, map wizard, storage editors, config import) | **Reachable, and it now opens on settings.** `App.vue` mounts the Material title bar, the world wizard, first-run setup and the settings surface. Three gaps closed: the preload never exposed the window controls (a frameless window with no minimise or close); only 6 of a map's 92 settings could reach a render; and (`5c810d0`) the editor opened on "Nothing is open yet" with no tabs once it resolved a real bridge, so it now opens on the config folder BlueMap already uses, or on BlueMap's defaults labelled as unsaved. Its controls were swept in `6b8ef7b`: registry-key selects no longer render blank against values BlueMap writes, and both colour fields use the continuous picker with alpha, kept true by `packages/config/test/controlPolicy.test.ts` |
 | G | Docker hosting GUI (dockerode instance manager) | Pending |
 | H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | Pending |
 | I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending |
-| Contracts | Regex builder everywhere · full tab system · per-element appearance editors · EN/HK-Cantonese/bilingual + funny-level · super confirmation (see `docs/contracts/`) | Pages now mounts the discovery searches, live-localized command palette, anchored changelog range picker, notification centre, and two-key gate; desktop-app contract work remains tracked in the open issues |
+| Contracts | Regex builder everywhere · full tab system · per-element appearance editors · EN/HK-Cantonese/bilingual + funny-level · super confirmation · local version history (see `docs/contracts/`) | Pages mounts the discovery searches, live-localized command palette, anchored changelog range picker, notification centre, and two-key gate. **Local version history landed for config folders** (`1b77779`, `docs/config-history.md`): an isolated git repository beside the app data directory, append-only including restore, a History tab, and trim behind the two-key gate. It does not yet cover profiles, application settings or the maps-and-servers list. Remaining desktop-app contract work is tracked in the open issues |
 | Pages | Material 3 GitHub Pages shell, tabbed discovery, repository-backed changelog, command palette, notification centre and responsive documentation surface | **Source/type/lint/build gates pass; 127 focused site tests pass across 13 files. Merged CI run 30890865475 passed 4,232 tests, all seven jars, Java render, Windows installer and screenshots; Pages deployment 30892326119 is green and the live bundle is verified. Runtime/headless capture remains a separate boundary** |
 | Delivery | Sign-in, private worlds, split archives, resumable renders, Actions rendering, packaging pipeline | **Landed.** Not a plan phase; see below |
 
@@ -72,6 +72,7 @@ locally in TypeScript. All of it is on the branch and tested.
 | **Resumable renders** | A crash, a shutdown or a six hour ceiling costs one wave rather than everything. Crash detection by app-instance id, not pid, which is reused |
 | **Large downloads** | A release asset is capped at 2 GB, so oversized archives ship as 1.7 GB parts with per-part and whole-file digests, and the app downloads and rejoins them with resume |
 | **Test worlds** | Generated in anvil format with no Minecraft and no network, a fresh seed every build, attached to every release |
+| **Backups** | A world or a rendered map packed, split and published as the assets of a new GitHub release, with a pointer naming every part and its SHA-256 (`8cbac63`, `docs/backup.md`). The pointer is Desktop Material's Cheap LFS v1 rather than a rival format. Restore verifies each part and the whole file; an upload that stopped before its pointer went up is listed as unfinished and offered no restore. Git LFS was rejected on cost, by name. Interoperability is proven against a fixture copy of the canonical patterns, **not** by a round trip through the other application |
 
 ## Phase J, what is built and what is proven
 
@@ -126,21 +127,43 @@ Until those run, "ported" is the honest word and "done" is not.
 
 ## Test counts
 
-`npx vitest run` from `design/`, 2026-08-03 (later the same day): **198 files, 2968
-passed, 2 skipped**.
+`npx vitest run` from `design/`, 2026-08-04 midday: **276 files, 4457 passed, 3 skipped, 0
+failed**, in about 30 seconds.
 
 | Package | Tests | Package | Tests |
 |---|---|---|---|
-| `engine` | 1135 (1 skipped) | `app` | 522 |
-| `ui` | 512 | `shared` | 196 |
-| `config` | 176 (1 skipped) | `render-actions` | 147 |
-| `site` | 118 | `viewer` | 57 |
-| `nbt` | 56 | `parts` | 25 |
-| `worldgen` | 19 | `server` | 5 |
+| `ui` | 1663 (1 skipped) | `engine` | 1150 (1 skipped) |
+| `app` | 809 | `shared` | 196 |
+| `config` | 190 (1 skipped) | `render-actions` | 147 |
+| `site` | 127 | `viewer` | 57 |
+| `nbt` | 56 | `worldgen` | 32 |
+| `parts` | 25 | `server` | 5 |
 | `cli` | none yet | | |
 
 A green suite proves the ported code does what its tests say. It does not prove parity with
 upstream, which is what the phase exit criteria above are for.
+
+**One test does not pass everywhere.** `packages/app/src/main/backup/archive.test.ts >
+survives a file large enough to need more than one read chunk` passes on a developer machine
+and timed out after 5 seconds on the hosted Linux runner in CI run 30927851530, taking the
+whole `Lint, build, test` job with it (1 failed, 4435 passed, 24 skipped). It is a timeout
+rather than a wrong answer, and it needs an explicit timeout or a smaller fixture. Until it
+is fixed, `main` cannot go green and no release is published for the 2026-08-04 midday work.
+
+## Revealed by the 2026-08-04 midday work, still open
+
+- **Fix the `archive.test.ts` timeout** described above. This is the item blocking a green
+  `main`.
+- **Give the History and Backups tabs capture steps**, and add them to `REQUIRED_SURFACES` in
+  `packages/app/test/screenshots.spec.ts`. Both shipped without one, so the harness will not
+  notice if either stops opening — which is precisely the failure the gate added in `5c810d0`
+  exists to catch.
+- **Extend the version history past config folders** to profiles, application settings and the
+  maps-and-servers list, so a mistaken deletion there can also be undone.
+- **Round-trip a backup through Desktop Material**, or state permanently that the claim is
+  format conformance only.
+- **Assert the options editor's setting count.** The `154 settings across eight tabs` figure
+  is recorded in `5c810d0`'s message and in no test, so it will drift silently.
 
 ## Deferred verification
 

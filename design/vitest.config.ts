@@ -43,6 +43,22 @@ export default defineConfig({
     },
     test: {
         include: ["packages/*/src/**/*.test.ts", "packages/*/test/**/*.test.ts"],
+
+        /**
+         * Vitest's default is five seconds, and this suite failed it three times in one
+         * afternoon - the real-git history tests, then the archive test that writes and
+         * hashes a megabyte - always on CI and never on a developer machine. None of them
+         * were slow: they were competing with a dozen other workers for one shared runner's
+         * disk, and five seconds is a bet on the hardware rather than a statement about
+         * the code.
+         *
+         * Thirty seconds is still far below anything an actually-hung test would reach, so
+         * a genuine hang is still reported as a hang rather than waited out. Tests that
+         * really do need longer keep their own explicit timeout, which now reads as a
+         * deliberate claim about that test instead of as a patch applied after CI found it.
+         */
+        testTimeout: 30_000,
+        hookTimeout: 30_000,
         server: {
             deps: {
                 /**
