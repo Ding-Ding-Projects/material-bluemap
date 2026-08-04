@@ -24,6 +24,17 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "e95d6f2ccdca73a54ca8632cad589ad8abd8a0db",
+        shortSha: "e95d6f2ccd",
+        date: "2026-08-04T04:10:15-04:00",
+        subject: "Merge current default fixes into Pages continuation",
+        details: "The continuation now carries the default branch's platform-safe mount naming, conditional wizard-tab capture, and the honest changelog gate explanation while retaining the Pages contract work. Two branches had solved the same screenshot mystery independently; the merge keeps the steadier tab behavior instead of making Playwright click a tab that is already selected.\\n\\nContinuation 而家吸收咗 default branch 嘅跨平台 mount 命名、wizard 分頁截圖同 changelog gate 解釋，同時保留 Pages contract。兩條 branch 各自捉到同一隻截圖鬼，merge 後用穩陣嗰個分頁行為，唔再叫 Playwright 重撳已經揀咗嘅 tab。",
+        category: "shell",
+        areas: ["shell", "build"],
+        files: 3,
+        summarizes: 3,
+    },
+    {
         sha: "65ee28815a4925414dd9bfd53bb10985077fd189",
         shortSha: "65ee28815a",
         date: "2026-08-04T03:40:01-04:00",
@@ -99,11 +110,39 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
     {
+        version: "0.1.0-build.165",
+        tag: "v0.1.0-build.165",
+        date: "2026-08-04T03:33:30-04:00",
+        commit: "cf5358eba55ce7ca1ae5775b53c9991d3db59f7b",
+        entries: [
+            {
+                sha: "cf5358eba55ce7ca1ae5775b53c9991d3db59f7b",
+                shortSha: "cf5358eba5",
+                date: "2026-08-04T03:33:30-04:00",
+                subject: "Open the tab before photographing what is behind it",
+                details: "The wizard capture waited thirty seconds for a wizard that was fine.\n\nIt used to be rendered by the shell whenever no map was loaded, so the\nharness cleared the profile list and waited for it to appear. Since the\nshell became tabbed it lives behind \"Make a map\" - which is the\nimprovement, because it is now reachable while a map is open, and it\nwas not before - so clearing the profiles no longer puts it on screen.\nThe helper opens the tab first, and only clicks it when it is not\nalready the selected one.\n\nThis is the same shape as the defect the tab mount itself fixed: an\nassumption about where a surface lives, held somewhere far from the\nsurface, that keeps being true right up until it is not. The difference\nis that a harness says so in thirty seconds and a user says so never.\n\n---\n\n嗰個精靈截圖等咗三十秒,等一個其實好地地嘅精靈。\n\n以前冇地圖嗰陣個 shell 就會自己畫個精靈出嚟,所以 harness 清咗個\nprofile 名單就等佢出現。而家 shell 分咗頁,精靈住喺「整地圖」嗰版 -\n呢個係好事,因為開住地圖都搵到佢,以前係搵唔到 - 但即係話清空\nprofile 已經唔會令佢彈出嚟。而家會先撳開嗰個 tab,而且淨係喺佢未被\n選中嘅時候先撳。\n\n同 tab 上架時修好嗰隻蟲係同一個形狀:一個關於「某個畫面喺邊」嘅假設,\n擺喺離嗰個畫面好遠嘅地方,一直啱到有一日唔啱。分別係 harness 三十秒\n就會嘈,用家係永遠都唔會出聲。",
+                category: "shell",
+                areas: ["shell"],
+                files: 1,
+            }
+        ],
+    },
+    {
         version: "0.1.0-build.160",
         tag: "v0.1.0-build.160",
         date: "2026-08-04T03:10:09-04:00",
         commit: "d95dccb0ffd6c922940adb2385b0cdb48a356460",
         entries: [
+            {
+                sha: "d95dccb0ffd6c922940adb2385b0cdb48a356460",
+                shortSha: "d95dccb0ff",
+                date: "2026-08-04T03:10:09-04:00",
+                subject: "Name a Windows mount on a Linux runner, and stop asking CI for the impossible",
+                details: "Two things the first full CI run on this tree caught, both mine.\n\nA mount's default label is the folder above saves, because every one of\nthem is called saves. It took that parent with dirname from node:path,\nwhich is the *running* platform's - so on the Linux runner it does not\nrecognise a backslash, returns \".\" for every Windows path handed to it,\nand the mount was named \".\". The test that caught it passes a Windows\npath deliberately, and passed on Windows for the obvious wrong reason.\nThe parent is now cut with the same separator-agnostic rule baseName\nalready used, because a path this function is asked about may have been\nwritten on either platform. That is the fourth time this repository has\nbeen bitten by platform-native path code, and the third that only a\nLinux runner could see.\n\nThe other is a gate I added earlier this session and should not have.\nThe changelog generator records unreleased commits as well as released\nversions, so its output changes with every push - including the push\nthat regenerates it. A freshness check over that output cannot be\nsatisfied: regenerate, commit, and the commit you just made is the one\nnow missing. It failed the very first build it ran in, on the commit\nthat had just brought the changelog up to date.\n\nRemoved, with the reasoning left in the workflow where the next person\nwill look. Making it satisfiable means grading only the released half,\nwhich is the part a reader relies on and the part that changes only\nwhen a tag appears; until the generator can render that half on its\nown, a gate here fails every build, and a red X that everybody learns\nto ignore is worse than no check at all.\n\n---\n\n第一次真正行完成個 CI,捉到兩件事,兩件都係我整嘅。\n\n一個 mount 嘅預設名,係攞 saves 上面嗰層 - 因為個個都叫 saves。但佢\n用 node:path 個 dirname,而嗰個係跟住**行緊嗰部機**嘅:Linux runner\n唔識反斜線,於是每條 Windows 路徑都答你「.」,個 mount 就叫咗做「.」。\n呢個係本 repo 第四次俾平台相關嘅路徑碼咬到,亦係第三次淨係 Linux\nrunner 先見到。\n\n另一件係我今次自己加、而唔應該加嘅一道閘。個 changelog 產生器連未\n出版嘅 commit 都записal,所以佢每次 push 都會變 - 包括「幫佢更新」\n嗰次 push。即係話呢道閘由設計上就過唔到:你更新完、commit,而你啱啱\n嗰個 commit 就係而家缺咗嗰個。佢第一次行就打紅咗,而嗰個 commit 正正\n就係啱啱幫個 changelog 追返上嘅。\n\n拆咗,理由寫喺 workflow 度。成日紅、紅到人人學識當佢冇到嘅閘,衰過\n根本冇檢查。",
+                category: "shell",
+                areas: ["shell", "build"],
+                files: 2,
+            },
             {
                 sha: "553b5326177a9a9cf4ee3f8d247685da4ae5be38",
                 shortSha: "553b532617",
