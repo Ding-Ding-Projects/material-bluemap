@@ -351,9 +351,10 @@ async function pointAppAtCaptureTarget(): Promise<void> {
 /**
  * Clears the active profile and reloads, so the shell shows the make-a-map wizard.
  *
- * The wizard and the map are mutually exclusive by design - `App.vue` shows the wizard
- * exactly when no profile is active - so the only honest way to photograph the wizard is
- * to be in that state, rather than to force its component on screen over a map.
+ * The wizard and the map are separate pages in the persistent tab strip. Clearing the
+ * active profile makes the wizard page truthful, but a fresh shell still lands on the map
+ * tab, so the harness follows the same visible navigation a person would use before it
+ * waits for the wizard. It never forces the component into the DOM over another page.
  */
 async function pointAppAtNoMap(): Promise<void> {
     await page.evaluate((key: string) => {
@@ -363,6 +364,9 @@ async function pointAppAtNoMap(): Promise<void> {
 
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.waitForSelector("#app", { timeout: 30_000 });
+    const wizardTab = page.getByRole("tab", { name: /make a map/i }).first();
+    await wizardTab.waitFor({ state: "visible", timeout: 30_000 });
+    await wizardTab.click({ timeout: ELEMENT_TIMEOUT });
     await page.waitForSelector(".mb-world-wizard", { timeout: 30_000 });
     mapArea = "none";
 }
