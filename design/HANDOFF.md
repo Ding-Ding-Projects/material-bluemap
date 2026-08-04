@@ -1,5 +1,25 @@
 # Handoff
 
+## Update, 2026-08-04 — current continuation tip and workspace verification
+
+The `pages-material3-full-continuation` linked checkout now carries the current default
+branch through `b600dc3`, with continuation tip `20afbed`. The Pages contracts in this
+checkout are committed and pushed; the generated changelog reports **52 versions and 160
+entries**, with every SHA resolved.
+
+Local verification is now a full workspace gate rather than a site-only claim:
+
+- `pnpm exec vitest run --silent`: **300 files passed, 4,810 tests passed, 23 skipped**.
+- `pnpm typecheck`: all **13 packages** passed.
+- `pnpm lint`: passed.
+- `pnpm build`: all workspace packages passed; the existing large-JavaScript-chunk notices
+  are warnings only.
+- `node scripts/build-changelog.mjs --check`: current at 52 versions / 160 entries.
+
+The config writer now preserves CRLF/LF input and emits native new-file line endings, and
+the project-map fixtures explicitly model an empty `world` field. Hosted CI remains queued at
+the current SHA (`20afbed`) and is not represented here as verified until it runs.
+
 ## Update, 2026-08-04 — every rendered Pages element and live group discovery
 
 The clean `pages-material3-full-continuation` linked checkout starts from `origin/main` at
