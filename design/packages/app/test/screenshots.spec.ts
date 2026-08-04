@@ -990,6 +990,25 @@ test("captures the map and server profile manager", async () => {
     });
 });
 
+test("captures the backup screen", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    await attempt("Backup screen", async () => {
+        const backupsTab = page.locator('[role="tab"]', { hasText: /backups/i }).first();
+        await backupsTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        if ((await backupsTab.getAttribute("aria-selected")) !== "true") {
+            await backupsTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+        }
+        await page.waitForSelector(".mb-backup", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "backups",
+            "Backing a world or a rendered map up to GitHub release assets: what to pack, where it goes, and the notice saying nobody is signed in to GitHub on this computer yet. The screen states why this uses release assets rather than Git LFS, and the pointer format it writes",
+            { mapArea: "covered" },
+        );
+    });
+});
+
 test("captures the settings surface and every section in it", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
@@ -1536,6 +1555,7 @@ const REQUIRED_SURFACES = [
     "Options editor regex builder",
     "Profile manager",
     "Notification corner",
+    "Backup screen",
 ] as const;
 
 test("captured every surface that needs nothing but the application", () => {
