@@ -42,6 +42,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 | [Rendering on a remote host](./remote-render.md) | Handing a render to a Linux machine over SSH and running it there in Docker — keys only, host keys checked, and the map brought home. |
 | [Rendering a world that lives in a private repository](./private-world-rendering.md) | Encrypted worlds rendered on public runners, and what that does and does not protect. |
 | [1.12.2 worlds](./legacy-1-12-worlds.md) | Writing pre-flattening worlds from the generator, and the render harness that checks one reads back as a map. |
+| [Bedrock Edition worlds](./bedrock-worlds.md) | Recognising a Bedrock world and saying so, and converting one to Java with Chunker — its MIT licence, what conversion loses, and why exit code zero does not mean it worked. |
 
 ## Captures
 
