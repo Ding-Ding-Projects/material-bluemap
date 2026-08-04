@@ -21,3 +21,4 @@ export * from "./schema/index.js";
 export * from "./validate.js";
 export * from "./generate.js";
 export * from "./cli/flags.js";
+export * from "./project.js";
