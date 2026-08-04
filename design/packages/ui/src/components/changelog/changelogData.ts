@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "65ee28815a4925414dd9bfd53bb10985077fd189",
+        shortSha: "65ee28815a",
+        date: "2026-08-04T03:40:01-04:00",
+        subject: "Record the screenshot verification boundary",
+        details: "Handoff and roadmap now tell the same story as hosted CI: the core suite is green, the screenshot job found a tab-navigation harness gap, and b9be794 is queued for a fresh run. The docs no longer keep an old red mount assertion around like an expired parking ticket.\\n\\nHandoff 同 roadmap 而家跟 hosted CI 講同一套：核心測試綠晒，截圖 job 搵到分頁導航個小坑，b9be794 等新一輪實測。舊嘅 mount 紅燈唔再當係長期停車證。",
+        category: "docs",
+        areas: ["docs"],
+        files: 2,
+    },
+    {
         sha: "4bd233808c4f521e0b3acda3c7ef058f6caaa90d",
         shortSha: "4bd233808c",
         date: "2026-08-04T03:38:09-04:00",

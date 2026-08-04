@@ -36,6 +36,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Record the screenshot verification boundary - [`65ee28815a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/65ee28815a4925414dd9bfd53bb10985077fd189)
 - Give every settings tab its own search - [`4c20d5ced2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4c20d5ced2d0e77e0d52f99a20327a796e2822b1)
 
 ## 0.1.0-build.160 - 2026-08-04
