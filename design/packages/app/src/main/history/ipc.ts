@@ -47,6 +47,7 @@ import { isAbsolute } from "node:path";
 
 import { probeGit, runGit, type GitAvailability, type GitRunner } from "./git.js";
 import {
+    compareRevisions,
     DEFAULT_REVISION_LIMIT,
     discardOlderRevisions,
     ensureRepository,
@@ -55,12 +56,15 @@ import {
     remoteNames,
     repoGit,
     restoreRevision,
+    restoreRevisionFiles,
+    restoreRevisionSettings,
     revisionDiff,
     setRevisionLabel,
     snapshotProject,
     type HistoryRevision,
     type HistoryWrite,
     type RestoreResult,
+    type RevisionComparisonFile,
     type RevisionDiffFile,
     type RevisionFile,
 } from "./repository.js";
@@ -73,7 +77,10 @@ export const HISTORY_CHANNELS = [
     "history:snapshot",
     "history:revisionFiles",
     "history:diff",
+    "history:compare",
     "history:restore",
+    "history:restoreFiles",
+    "history:restoreSettings",
     "history:label",
     "history:discardOlder",
 ] as const;
@@ -117,6 +124,31 @@ export type RevisionFilesResult =
 export type RevisionDiffResult =
     | { readonly ok: true; readonly files: readonly RevisionDiffFile[] }
     | { readonly ok: false; readonly message: string };
+
+export type RevisionCompareResult =
+    | {
+          readonly ok: true;
+          /** The older end, echoed back so the interface cannot mislabel which way round it is. */
+          readonly from: string | null;
+          readonly to: string;
+          readonly files: readonly RevisionComparisonFile[];
+      }
+    | { readonly ok: false; readonly message: string };
+
+/** One file's merged text, on its way back to disk as part of a setting-level restore. */
+export interface SettingRestoreFile {
+    readonly path: string;
+    readonly text: string;
+}
+
+/**
+ * How much merged text a setting-level restore may carry, in total.
+ *
+ * A config folder this editor models is a few tens of kilobytes. The cap is here so that a
+ * renderer bug cannot turn a restore into an unbounded write, and it is stated rather than
+ * silent so that hitting it reads as a refusal rather than as a truncation.
+ */
+export const MAX_RESTORE_BYTES = 8 * 1024 * 1024;
 
 export interface HistoryIpcOptions {
     /** Electron's `userData`. Histories live in a folder beside it, never in a user folder. */
@@ -181,6 +213,44 @@ function checkRevision(value: unknown): { ok: true; id: string } | { ok: false; 
         return { ok: false, message: "That is not a revision this history recognises, so nothing was done." };
     }
     return { ok: true, id: trimmed.toLowerCase() };
+}
+
+/**
+ * The merged file texts of a setting-level restore, checked for shape and for size.
+ *
+ * Shape first, because `files` arrives from the renderer and a handler that trusted it would
+ * hand `undefined` to `writeFile`. Size second, and it is the more interesting of the two:
+ * `repository.ts` checks that every path is one this editor would write and one that exists
+ * at the revision or on disk, but nothing there bounds how *much* is written. This does, so
+ * a renderer bug is a refusal with a sentence rather than a folder full of enormous files.
+ */
+function checkRestoreFiles(
+    value: unknown,
+): { ok: true; files: SettingRestoreFile[] } | { ok: false; message: string } {
+    if (!Array.isArray(value)) {
+        return { ok: false, message: "The settings to put back have to be given as a list of files." };
+    }
+
+    const files: SettingRestoreFile[] = [];
+    let bytes = 0;
+    for (const entry of value) {
+        if (typeof entry !== "object" || entry === null) {
+            return { ok: false, message: "The settings to put back have to be given as a list of files." };
+        }
+        const row = entry as { path?: unknown; text?: unknown };
+        if (typeof row.path !== "string" || typeof row.text !== "string") {
+            return { ok: false, message: "Every file to put back needs a name and its new contents." };
+        }
+        bytes += row.text.length;
+        if (bytes > MAX_RESTORE_BYTES) {
+            return {
+                ok: false,
+                message: "That is far more text than a config folder holds, so nothing was written.",
+            };
+        }
+        files.push({ path: row.path, text: row.text });
+    }
+    return { ok: true, files };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -345,6 +415,106 @@ export function registerHistoryHandlers(ipcMain: IpcMain, options: HistoryIpcOpt
             const opened = await open(options, checked.folder);
             if (!opened.ok) return { ok: false, message: opened.message };
             return await revisionDiff(opened.git, revision.id);
+        },
+    );
+
+    ipcMain.handle(
+        "history:compare",
+        async (
+            _event: IpcMainInvokeEvent,
+            folder: unknown,
+            from: unknown,
+            to: unknown,
+        ): Promise<RevisionCompareResult> => {
+            const checked = checkFolder(folder);
+            if (!checked.ok) return { ok: false, message: checked.message };
+
+            // A null older end is the legitimate "compare this with whatever came before it",
+            // which is what an unexpanded row asks for. Anything else has to be a hash.
+            let older: string | null = null;
+            if (from !== null && from !== undefined) {
+                const parsed = checkRevision(from);
+                if (!parsed.ok) return { ok: false, message: parsed.message };
+                older = parsed.id;
+            }
+            const newer = checkRevision(to);
+            if (!newer.ok) return { ok: false, message: newer.message };
+
+            const opened = await open(options, checked.folder);
+            if (!opened.ok) return { ok: false, message: opened.message };
+
+            const compared = await compareRevisions(opened.git, older, newer.id);
+            if (!compared.ok) return compared;
+            return { ok: true, from: older, to: newer.id, files: compared.files };
+        },
+    );
+
+    ipcMain.handle(
+        "history:restoreFiles",
+        async (
+            _event: IpcMainInvokeEvent,
+            folder: unknown,
+            id: unknown,
+            paths: unknown,
+        ): Promise<RestoreResult> => {
+            const checked = checkFolder(folder);
+            if (!checked.ok) return { ok: false, message: checked.message };
+            const revision = checkRevision(id);
+            if (!revision.ok) return { ok: false, message: revision.message };
+            if (!Array.isArray(paths) || paths.some((entry) => typeof entry !== "string")) {
+                return { ok: false, message: "The files to put back have to be given as a list of names." };
+            }
+
+            const opened = await open(options, checked.folder);
+            if (!opened.ok) return { ok: false, message: opened.message };
+
+            const restored = await restoreRevisionFiles(
+                opened.git,
+                checked.folder,
+                revision.id,
+                paths as string[],
+            );
+            if (restored.ok) await rememberProject(options.dataDir, checked.folder, restored.revision?.at ?? null);
+            return restored;
+        },
+    );
+
+    ipcMain.handle(
+        "history:restoreSettings",
+        async (
+            _event: IpcMainInvokeEvent,
+            folder: unknown,
+            id: unknown,
+            files: unknown,
+            keys: unknown,
+        ): Promise<RestoreResult> => {
+            const checked = checkFolder(folder);
+            if (!checked.ok) return { ok: false, message: checked.message };
+            const revision = checkRevision(id);
+            if (!revision.ok) return { ok: false, message: revision.message };
+
+            const merged = checkRestoreFiles(files);
+            if (!merged.ok) return { ok: false, message: merged.message };
+
+            const named =
+                Array.isArray(keys) && keys.every((entry) => typeof entry === "string")
+                    ? (keys as string[]).map((key) => key.replace(/[\u0000-\u001f]/g, " ").trim()).filter(
+                          (key) => key !== "",
+                      )
+                    : [];
+
+            const opened = await open(options, checked.folder);
+            if (!opened.ok) return { ok: false, message: opened.message };
+
+            const restored = await restoreRevisionSettings(
+                opened.git,
+                checked.folder,
+                revision.id,
+                merged.files,
+                named,
+            );
+            if (restored.ok) await rememberProject(options.dataDir, checked.folder, restored.revision?.at ?? null);
+            return restored;
         },
     );
 

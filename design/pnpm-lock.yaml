@@ -38,6 +38,9 @@ importers:
 
   packages/app:
     dependencies:
+      '@material-bluemap/config':
+        specifier: workspace:*
+        version: link:../config
       '@material-bluemap/parts':
         specifier: workspace:*
         version: link:../parts

@@ -49,6 +49,19 @@ import { join } from "node:path";
 /** The directory inside the application's data folder that holds every history. */
 export const HISTORY_DIRECTORY = "config-history";
 
+/**
+ * The directory holding the history of every world's project file.
+ *
+ * A second family rather than more repositories in the first one, because a repository here
+ * is a *complete* mirror: `mirrorInto` deletes whatever it was not handed. A project
+ * snapshot landing in a config folder's repository would therefore delete every config file
+ * in it, and the next config snapshot would delete the project back, each one recording the
+ * other's disappearance as a real event. Two roots make that collision impossible rather
+ * than merely unlikely - which matters, because the folder a person points the config editor
+ * at and the world folder they render are allowed to be the same directory.
+ */
+export const PROJECT_HISTORY_DIRECTORY = "project-history";
+
 /** The mapping file's name inside that directory. */
 export const INDEX_FILE = "projects.json";
 
@@ -60,7 +73,13 @@ const HASH_LENGTH = 16;
 
 export interface HistoryProject {
     readonly id: string;
-    /** The config folder this history belongs to, absolute, exactly as it was given. */
+    /**
+     * The folder this history belongs to, absolute, exactly as it was given.
+     *
+     * A BlueMap config folder in the config family, a Minecraft world folder in the project
+     * family. Which family an entry belongs to is the mapping file it was read from, not a
+     * field here, because the two families never share one.
+     */
     readonly folder: string;
     /** Absolute path of the repository. Always inside the history root. */
     readonly repository: string;
@@ -75,9 +94,16 @@ export interface HistoryIndex {
     readonly projects: readonly HistoryProject[];
 }
 
-/** The application's history root, beside its data rather than inside a user's folder. */
-export function historyRoot(dataDir: string): string {
-    return join(dataDir, HISTORY_DIRECTORY);
+/**
+ * The application's history root, beside its data rather than inside a user's folder.
+ *
+ * `directory` picks the family - config folders or world projects - and defaults to the
+ * config one so every existing caller reads exactly as it did. Each family gets its own
+ * root and its own mapping file; see {@link PROJECT_HISTORY_DIRECTORY} for why sharing one
+ * would make two histories delete each other.
+ */
+export function historyRoot(dataDir: string, directory: string = HISTORY_DIRECTORY): string {
+    return join(dataDir, directory);
 }
 
 /**
@@ -116,8 +142,13 @@ export function projectId(folder: string, platform: NodeJS.Platform = process.pl
 }
 
 /** Where the repository for a folder lives. Pure: it creates nothing. */
-export function repositoryPath(dataDir: string, folder: string, platform?: NodeJS.Platform): string {
-    return join(historyRoot(dataDir), projectId(folder, platform));
+export function repositoryPath(
+    dataDir: string,
+    folder: string,
+    platform?: NodeJS.Platform,
+    directory?: string,
+): string {
+    return join(historyRoot(dataDir, directory), projectId(folder, platform));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -137,8 +168,8 @@ export function emptyIndex(): HistoryIndex {
  * costs a listing, not a history. Refusing to snapshot because a JSON file has a stray
  * comma in it would turn a cosmetic problem into data loss.
  */
-export async function readIndex(dataDir: string): Promise<HistoryIndex> {
-    const path = join(historyRoot(dataDir), INDEX_FILE);
+export async function readIndex(dataDir: string, directory?: string): Promise<HistoryIndex> {
+    const path = join(historyRoot(dataDir, directory), INDEX_FILE);
     let text: string;
     try {
         text = await readFile(path, "utf8");
@@ -182,8 +213,8 @@ export async function readIndex(dataDir: string): Promise<HistoryIndex> {
  * that says which history belongs to whom the most likely file in the application to end
  * up empty.
  */
-export async function writeIndex(dataDir: string, index: HistoryIndex): Promise<void> {
-    const root = historyRoot(dataDir);
+export async function writeIndex(dataDir: string, index: HistoryIndex, directory?: string): Promise<void> {
+    const root = historyRoot(dataDir, directory);
     await mkdir(root, { recursive: true });
     const target = join(root, INDEX_FILE);
     const temporary = `${target}.tmp`;
@@ -203,12 +234,13 @@ export async function rememberProject(
     folder: string,
     at: string | null,
     platform?: NodeJS.Platform,
+    directory?: string,
 ): Promise<HistoryProject> {
     const id = projectId(folder, platform);
-    const repository = repositoryPath(dataDir, folder, platform);
+    const repository = repositoryPath(dataDir, folder, platform, directory);
     const now = new Date().toISOString();
 
-    const index = await readIndex(dataDir);
+    const index = await readIndex(dataDir, directory);
     const existing = index.projects.find((project) => project.id === id);
     const project: HistoryProject = {
         id,
@@ -223,7 +255,7 @@ export async function rememberProject(
     );
 
     try {
-        await writeIndex(dataDir, { version: INDEX_VERSION, projects });
+        await writeIndex(dataDir, { version: INDEX_VERSION, projects }, directory);
     } catch {
         // Deliberately swallowed. See the doc comment: the record of the snapshot is the
         // commit, and this file only makes the set of histories listable.

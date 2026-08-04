@@ -206,3 +206,56 @@ export function describeChanges(changes: readonly FileChange[], first = false): 
 export function describeRestore(target: { readonly label: string; readonly shortId: string }): string {
     return `Restored the config as it was at ${target.shortId}: ${target.label}`;
 }
+
+/**
+ * The label for a restore that put back some of a revision rather than all of it.
+ *
+ * It has to read differently from a whole-folder restore, and the reason is not tidiness.
+ * Somebody scanning this list later needs to know whether the folder *became* that revision
+ * or merely borrowed one file from it, because those two rows imply completely different
+ * things about every file the row does not mention. A whole restore says "everything is as
+ * it was then"; this one says "one thing is, and the rest is whatever it already was".
+ *
+ * So it names the files, up to the same cut-off every other label uses, and says where they
+ * came from. The revision's own label rides along because a bare hash is not a moment
+ * anybody remembers.
+ */
+export function describeFileRestore(
+    target: { readonly label: string; readonly shortId: string },
+    paths: readonly string[],
+): string {
+    if (paths.length === 0) return `Put nothing back from ${target.shortId}: ${target.label}`;
+
+    const named =
+        paths.length <= MAX_NAMED_FILES
+            ? joinNames(paths.map(describeFile))
+            : `${joinNames(paths.slice(0, MAX_NAMED_FILES).map(describeFile))} and ${String(
+                  paths.length - MAX_NAMED_FILES,
+              )} more`;
+
+    return `Put ${named} back as it was at ${target.shortId}: ${target.label}`;
+}
+
+/**
+ * The label for a restore of individual settings rather than whole files.
+ *
+ * Counted rather than fully named, because a settings restore is the one case where the
+ * count really is more useful than the list: "Put 4 settings back" is a row somebody can
+ * scan, and the four dotted keys behind it are in the revision's own detail. The first few
+ * keys are still named, so the common case - one setting, put back on purpose - reads as
+ * the specific event it was rather than as a number.
+ */
+export function describeSettingRestore(
+    target: { readonly label: string; readonly shortId: string },
+    keys: readonly string[],
+): string {
+    if (keys.length === 0) return `Put no settings back from ${target.shortId}: ${target.label}`;
+
+    const named =
+        keys.length <= MAX_NAMED_FILES
+            ? joinNames([...keys])
+            : `${joinNames(keys.slice(0, MAX_NAMED_FILES))} and ${String(keys.length - MAX_NAMED_FILES)} more`;
+
+    const noun = keys.length === 1 ? "setting" : "settings";
+    return `Put the ${noun} ${named} back as it was at ${target.shortId}: ${target.label}`;
+}

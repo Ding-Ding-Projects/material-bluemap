@@ -301,6 +301,18 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "The seam rather than the deletion: an interface method, the probe that refuses a bridge " +
             "missing it, and the adapter that forwards it. Its one caller is the panel, behind the gate.",
     },
+    "components/history/historyRestore.ts": {
+        count: 1,
+        destroys: "one setting's entry in an in-memory copy of a config file that is about to be written back",
+        standing: "buffer",
+        note:
+            "A pure transform of a parsed HOCON document, and the same call the config editor " +
+            "makes for an ordinary edit. It runs when somebody puts one setting back to a value " +
+            "it did not have then, which means taking the key out is the correct restoration " +
+            "rather than a deletion. Nothing reaches the disk here: the merged text goes to the " +
+            "history host, which snapshots the folder first and records the write as a new " +
+            "revision that can itself be undone.",
+    },
     "components/menu/SettingsMenu.vue": {
         count: 2,
         destroys: "every saved viewer setting in this browser, followed by a reload",

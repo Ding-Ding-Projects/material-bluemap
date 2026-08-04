@@ -2,6 +2,8 @@
 import { computed, nextTick, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
+    mdiAlphaABox,
+    mdiAlphaBBox,
     mdiChevronDown,
     mdiChevronUp,
     mdiHistory,
@@ -10,7 +12,8 @@ import {
 } from "@mdi/js";
 import { VBtn, VChip, VIcon, VProgressCircular, VTextField } from "vuetify/components";
 
-import type { HistoryDiffFile, HistoryRevision } from "./historyHost.js";
+import HistoryReadableDiff from "./HistoryReadableDiff.vue";
+import type { HistoryComparisonFile, HistoryRevision } from "./historyHost.js";
 
 /**
  * One revision in the history panel.
@@ -36,29 +39,59 @@ import type { HistoryDiffFile, HistoryRevision } from "./historyHost.js";
  * A history of four hundred revisions would otherwise run four hundred `git diff` calls to
  * draw a list nobody has scrolled to yet. The row asks its parent for the diff on expand
  * and the parent caches it.
+ *
+ * ### The row itself is the focus target
+ *
+ * The list is walked with the arrow keys, and what moves is focus on the `<li>` rather than
+ * on one of the buttons inside it. That is the difference between a list a screen-reader
+ * user can skim and one they have to tab through four controls per row to cross. Tab still
+ * reaches every control of the focused row, which is the standard roving-tabindex bargain:
+ * arrows choose the row, Tab works inside it.
  */
 const props = withDefaults(
     defineProps<{
         revision: HistoryRevision;
-        /** True for the newest revision, which is what is on disk right now. */
+        /** True for the revision that is on disk right now. Never inferred from position. */
         current?: boolean;
         expanded?: boolean;
-        /** The fetched diff, or null while it is still being fetched. */
-        diff?: readonly HistoryDiffFile[] | null;
+        /** The fetched comparison against this revision's parent, or null while fetching. */
+        diff?: readonly HistoryComparisonFile[] | null;
         /** Why the diff could not be read, shown in place of it. */
         diffError?: string | null;
         /** True while any history operation is in flight, which disables the actions. */
         busy?: boolean;
         /** False when the host cannot write, so the row offers no action it cannot perform. */
         writable?: boolean;
+        /** True when this row is the one the arrow keys would move away from. */
+        active?: boolean;
+        /** Which end of the comparison this revision is, when it is one. */
+        compareRole?: "a" | "b" | null;
+        /** False when the host cannot compare, so the A and B buttons are not offered. */
+        comparable?: boolean;
+        /** True when the host can put single files and settings back. */
+        selective?: boolean;
     }>(),
-    { current: false, expanded: false, diff: null, diffError: null, busy: false, writable: true },
+    {
+        current: false,
+        expanded: false,
+        diff: null,
+        diffError: null,
+        busy: false,
+        writable: true,
+        active: false,
+        compareRole: null,
+        comparable: false,
+        selective: false,
+    },
 );
 
 const emit = defineEmits<{
     toggle: [id: string];
     restore: [id: string];
     label: [id: string, text: string];
+    pick: [id: string, end: "a" | "b"];
+    restoreFile: [id: string, path: string];
+    restoreSetting: [id: string, path: string, key: string];
 }>();
 
 const { t, locale } = useI18n();
@@ -68,6 +101,7 @@ const editingLabel = ref(false);
 const labelText = ref(props.revision.note ?? "");
 const labelField = ref<InstanceType<typeof VTextField> | null>(null);
 const restoreButton = ref<InstanceType<typeof VBtn> | null>(null);
+const rowElement = ref<HTMLLIElement | null>(null);
 
 /**
  * Vuetify's props and `exactOptionalPropertyTypes` disagree about `undefined`, so the
@@ -76,8 +110,12 @@ const restoreButton = ref<InstanceType<typeof VBtn> | null>(null);
 const isExpanded = computed(() => props.expanded === true);
 const isBusy = computed(() => props.busy === true);
 const isCurrent = computed(() => props.current === true);
+const isActive = computed(() => props.active === true);
 const canWrite = computed(() => props.writable !== false);
-const diffFiles = computed<readonly HistoryDiffFile[] | null>(() => props.diff ?? null);
+const canCompare = computed(() => props.comparable === true);
+const canSelect = computed(() => props.selective === true);
+const role = computed<"a" | "b" | null>(() => props.compareRole ?? null);
+const diffFiles = computed<readonly HistoryComparisonFile[] | null>(() => props.diff ?? null);
 const diffProblem = computed(() => props.diffError ?? null);
 
 const localeTag = computed(() => (locale.value === "none" ? "en" : locale.value));
@@ -132,6 +170,23 @@ const actionColour = computed(() => {
     }
 });
 
+/**
+ * The whole row in one sentence, which is what a screen reader announces on arrow.
+ *
+ * Built rather than left to the reader's own concatenation of four chips, because the order
+ * those would be read in is the order they happen to be in the markup, and "Deleted, on disk
+ * now, A, 12 March" is not a sentence. Selection is in here too, so choosing A is audible
+ * without hunting for what changed on screen.
+ */
+const rowLabel = computed(() => {
+    const parts = [props.revision.label, when.value, actionLabel.value];
+    if (props.revision.note !== null) parts.push(props.revision.note);
+    if (isCurrent.value) parts.push(t("history.row.current", "On disk now"));
+    if (role.value === "a") parts.push(t("history.row.pickedA", "Chosen as A, the older end"));
+    if (role.value === "b") parts.push(t("history.row.pickedB", "Chosen as B, the newer end"));
+    return parts.join(". ");
+});
+
 function askRestore(): void {
     confirming.value = true;
 }
@@ -168,19 +223,29 @@ function cancelLabel(): void {
     labelText.value = props.revision.note ?? "";
 }
 
-/** Split for colouring, so an added line is not merely a line beginning with a plus. */
-function lineClass(line: string): string {
-    if (line.startsWith("+++") || line.startsWith("---") || line.startsWith("diff ") || line.startsWith("index "))
-        return "mb-history-diff__meta";
-    if (line.startsWith("@@")) return "mb-history-diff__hunk";
-    if (line.startsWith("+")) return "mb-history-diff__added";
-    if (line.startsWith("-")) return "mb-history-diff__removed";
-    return "";
+/** Lets the list move focus here without reaching into the DOM for a class name. */
+function focusRow(): void {
+    rowElement.value?.focus();
 }
+
+defineExpose({ focusRow });
 </script>
 
 <template>
-    <li class="mb-history-row" :class="{ 'mb-history-row--current': isCurrent }">
+    <li
+        ref="rowElement"
+        class="mb-history-row"
+        :class="{
+            'mb-history-row--current': isCurrent,
+            'mb-history-row--picked': role !== null,
+        }"
+        role="group"
+        :tabindex="isActive ? 0 : -1"
+        :aria-label="rowLabel"
+        :aria-current="isCurrent ? 'true' : undefined"
+        :data-revision="revision.id"
+        :data-pick="role ?? undefined"
+    >
         <div class="mb-history-row__head">
             <v-icon
                 :icon="revision.action === 'restored' ? mdiRestore : mdiHistory"
@@ -198,6 +263,13 @@ function lineClass(line: string): string {
                     <v-chip :color="actionColour" size="x-small" variant="tonal" label>{{ actionLabel }}</v-chip>
                     <v-chip v-if="isCurrent" size="x-small" variant="tonal" color="primary" label>
                         {{ t("history.row.current", "On disk now") }}
+                    </v-chip>
+                    <v-chip v-if="role" size="x-small" variant="flat" color="secondary" label>
+                        {{
+                            role === "a"
+                                ? t("history.row.chipA", "A")
+                                : t("history.row.chipB", "B")
+                        }}
                     </v-chip>
                 </p>
 
@@ -229,6 +301,41 @@ function lineClass(line: string): string {
             </div>
 
             <div class="mb-history-row__actions">
+                <template v-if="canCompare">
+                    <v-btn
+                        :icon="mdiAlphaABox"
+                        :aria-label="
+                            t(
+                                'history.row.pickALong',
+                                { label: revision.label },
+                                'Compare from here: make {label} the older end, A',
+                            )
+                        "
+                        :aria-pressed="role === 'a' ? 'true' : 'false'"
+                        :color="role === 'a' ? 'secondary' : undefined"
+                        variant="text"
+                        size="small"
+                        density="comfortable"
+                        @click="emit('pick', revision.id, 'a')"
+                    />
+                    <v-btn
+                        :icon="mdiAlphaBBox"
+                        :aria-label="
+                            t(
+                                'history.row.pickBLong',
+                                { label: revision.label },
+                                'Compare to here: make {label} the newer end, B',
+                            )
+                        "
+                        :aria-pressed="role === 'b' ? 'true' : 'false'"
+                        :color="role === 'b' ? 'secondary' : undefined"
+                        variant="text"
+                        size="small"
+                        density="comfortable"
+                        @click="emit('pick', revision.id, 'b')"
+                    />
+                </template>
+
                 <v-btn
                     :icon="isExpanded ? mdiChevronUp : mdiChevronDown"
                     :aria-label="
@@ -314,21 +421,16 @@ function lineClass(line: string): string {
                 <span>{{ t("history.row.loadingDiff", "Reading what changed...") }}</span>
             </div>
 
-            <div v-else-if="diffFiles" class="mb-history-diff">
-                <section v-for="file in diffFiles" :key="file.path">
-                    <h4 class="mb-history-diff__path">{{ file.path }}</h4>
-                    <pre
-                        class="mb-history-diff__body"
-                        tabindex="0"
-                        :aria-label="t('history.row.diffFor', { path: file.path }, 'Changes to {path}')"
-                    ><code><span
-                        v-for="(line, index) in file.patch.split('\n')"
-                        :key="index"
-                        :class="lineClass(line)"
-                    >{{ line }}
-</span></code></pre>
-                </section>
-            </div>
+            <HistoryReadableDiff
+                v-else-if="diffFiles"
+                :files="diffFiles"
+                :restorable="canWrite && canSelect"
+                :busy="isBusy"
+                restore-side="after"
+                :source-label="revision.shortId"
+                @restore-setting="(path, key) => emit('restoreSetting', revision.id, path, key)"
+                @restore-file="(path) => emit('restoreFile', revision.id, path)"
+            />
         </div>
     </li>
 </template>
@@ -340,8 +442,22 @@ function lineClass(line: string): string {
     list-style: none;
 }
 
+/*
+ * A row is a focus target, so it needs a focus ring of its own. Without this the arrow keys
+ * move something invisible and the list reads as broken to anybody not using a pointer.
+ */
+.mb-history-row:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: -2px;
+    border-radius: 4px;
+}
+
 .mb-history-row--current {
     background: rgba(var(--v-theme-primary), 0.04);
+}
+
+.mb-history-row--picked {
+    box-shadow: inset 3px 0 0 rgb(var(--v-theme-secondary));
 }
 
 .mb-history-row__head {
@@ -459,45 +575,5 @@ function lineClass(line: string): string {
     align-items: center;
     margin-block-start: 8px;
     font-size: 0.8125rem;
-}
-
-.mb-history-diff__path {
-    margin: 10px 0 2px;
-    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 0.75rem;
-}
-
-/*
- * Bounded and scrollable rather than clipped. A patch is arbitrarily long and arbitrarily
- * wide, and a block that hides its overflow deletes the end of it with nothing on screen
- * to say anything is missing.
- */
-.mb-history-diff__body {
-    max-height: 320px;
-    margin: 0;
-    padding: 6px 8px;
-    overflow: auto;
-    font-size: 0.75rem;
-    line-height: 1.45;
-    background: rgba(var(--v-theme-on-surface), 0.04);
-    border-radius: 6px;
-}
-
-.mb-history-diff__body:focus-visible {
-    outline: 2px solid rgb(var(--v-theme-primary));
-    outline-offset: 2px;
-}
-
-.mb-history-diff__added {
-    color: rgb(var(--v-theme-success));
-}
-
-.mb-history-diff__removed {
-    color: rgb(var(--v-theme-error));
-}
-
-.mb-history-diff__hunk,
-.mb-history-diff__meta {
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

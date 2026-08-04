@@ -15,14 +15,17 @@
 
 import { describe, expect, it } from "vitest";
 
+import { readableDiff } from "./historyDiff.js";
 import {
     actionFacets,
     daysWithRevisions,
+    exportComparison,
     exportRevisions,
     filterRevisions,
     historySpan,
     revisionDay,
     searchCorpus,
+    type ComparisonExportLabels,
     type ExportLabels,
 } from "./historyModel.js";
 import type { HistoryRevision } from "./historyHost.js";
@@ -260,5 +263,76 @@ describe("an export says which slice of the history it holds", () => {
         expect(exportRevisions(labelled, "text", labels)).toContain("before the server move");
         expect(exportRevisions(labelled, "csv", labels)).toContain("before the server move");
         expect(exportRevisions(labelled, "json", labels)).toContain("before the server move");
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Taking a comparison away with you                                          */
+/* -------------------------------------------------------------------------- */
+
+describe("a comparison exports to the same four formats the history does", () => {
+    const comparison = readableDiff([
+        {
+            path: "core.conf",
+            status: "modified",
+            patch: "--- a/core.conf\n+++ b/core.conf\n",
+            before: 'accept-download: false\ndata: "bluemap"\n',
+            after: 'accept-download: true\ndata: "bluemap"\n',
+            withheld: null,
+        },
+        {
+            path: "notes.txt",
+            status: "modified",
+            patch: "--- a/notes.txt\n+++ b/notes.txt\n",
+            before: "one\n",
+            after: "two\n",
+            withheld: null,
+        },
+    ]);
+
+    const comparisonLabels: ComparisonExportLabels = {
+        title: "What changed between two revisions",
+        between: "From aaaa000000001 (Added the nether map) to bbbb000000002 (Changed the core settings).",
+        empty: "These two moments hold exactly the same files.",
+    };
+
+    it("says which two revisions it holds, in every text format", () => {
+        for (const format of ["markdown", "text"] as const) {
+            // An export without this is unreadable a week later: it is a list of changes
+            // between two moments nobody can name.
+            expect(exportComparison(comparison, format, comparisonLabels)).toContain("aaaa000000001");
+        }
+        expect(exportComparison(comparison, "json", comparisonLabels)).toContain("aaaa000000001");
+    });
+
+    it("writes the setting-level reading rather than the raw patch", () => {
+        const text = exportComparison(comparison, "markdown", comparisonLabels);
+        expect(text).toContain("accept-download: false -> true");
+        expect(text).not.toContain("+++ b/core.conf");
+    });
+
+    it("names the files it could not read, so the settings it lists do not read as the whole answer", () => {
+        const text = exportComparison(comparison, "text", comparisonLabels);
+        expect(text).toContain("notes.txt");
+        expect(text).toContain("not a file this editor reads");
+    });
+
+    it("writes JSON that parses back with every file and its settings", () => {
+        const parsed: unknown = JSON.parse(exportComparison(comparison, "json", comparisonLabels));
+        const record = parsed as { files: { path: string; settings: { key: string }[] }[] };
+        expect(record.files.map((entry) => entry.path)).toEqual(["core.conf", "notes.txt"]);
+        expect(record.files[0]?.settings.map((entry) => entry.key)).toEqual(["accept-download"]);
+    });
+
+    it("writes one CSV row per setting, and one for a file with none", () => {
+        const rows = exportComparison(comparison, "csv", comparisonLabels).trim().split("\n");
+        // Header, the one changed setting, and the unreadable file's own row.
+        expect(rows).toHaveLength(3);
+        expect(rows[1]).toContain('"accept-download"');
+    });
+
+    it("says plainly when the two moments are identical", () => {
+        expect(exportComparison([], "markdown", comparisonLabels)).toContain("exactly the same files");
+        expect(exportComparison([], "text", comparisonLabels)).toContain("exactly the same files");
     });
 });
