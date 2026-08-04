@@ -75,6 +75,99 @@ interface BlueMapConfigBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* The worlds already on this machine                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A shallow reading of a folder, for deciding whether it is a Minecraft world.
+ *
+ * Mirrors `WorldFolderListing` in the preload, which mirrors `main/world/inspect.ts`.
+ * Region files are counted rather than listed: a mature world holds tens of thousands of
+ * `.mca` files whose names answer no question the wizard asks.
+ */
+interface BlueMapWorldFolderListing {
+    folder: string;
+    entries: { path: string; directory: boolean }[];
+    regionFiles: Record<string, number>;
+}
+
+/**
+ * One place worlds are offered from.
+ *
+ * The Minecraft folder this machine's platform puts saves in is found automatically and
+ * is the first of these; the rest are folders the person mounted themselves, because one
+ * machine commonly holds a vanilla install, a modded instance and an archive on another
+ * drive, and the worlds in all of them are worlds somebody might want a map of.
+ *
+ * `state` is checked afresh every time the list is asked for. A folder on a drive that is
+ * unplugged right now reports `missing` and keeps its row: forgetting a mounted folder
+ * over an unplugged cable would be discarding a setting on the strength of a cable.
+ */
+interface BlueMapMinecraftFolder {
+    id: string;
+    label: string;
+    /** True when the label is the person's own rather than the generated one. */
+    labelled: boolean;
+    /** Exactly what was handed over, which may be the installation or the saves folder. */
+    chosenPath: string;
+    /** The saves folder it resolved to, which is what is actually read. */
+    savesPath: string;
+    resolution: "installation" | "saves";
+    /** True for a folder the app found by itself. Those are never unmounted. */
+    builtIn: boolean;
+    origin: "appdata" | "home" | "application-support" | "beside-executable" | null;
+    state: "ok" | "missing" | "not-a-folder" | "unreadable";
+    stateDetail: string | null;
+    mountedAt: string | null;
+}
+
+/**
+ * One world, with the facts a person actually chooses by.
+ *
+ * `name` is `LevelName` from `level.dat` and is deliberately not the folder name:
+ * Minecraft names the folder when the world is created and never renames it, so a world
+ * called "Survival" in the game routinely sits in a folder called "New World (2)".
+ * Anything that could not be read is null rather than guessed, and a world whose
+ * `level.dat` is unreadable is still listed, carrying `detailsError`.
+ */
+interface BlueMapMinecraftWorldSummary {
+    folderId: string;
+    path: string;
+    directoryName: string;
+    name: string | null;
+    /** Milliseconds since the epoch, or null when this world has never recorded one. */
+    lastPlayed: number | null;
+    versionName: string | null;
+    snapshot: boolean | null;
+    gameMode: "survival" | "creative" | "adventure" | "spectator" | null;
+    hardcore: boolean | null;
+    cheats: boolean | null;
+    /** Decimal text, because a 64-bit seed does not survive a JavaScript number. */
+    seed: string | null;
+    /** Keyed by region directory, exactly as the folder inspection reports them. */
+    regionFiles: Record<string, number>;
+    sizeBytes: number | null;
+    /** False when the measurement stopped at its cap, so the size is a floor. */
+    sizeComplete: boolean;
+    detailsError: string | null;
+}
+
+interface BlueMapSavesScan {
+    folderId: string;
+    savesPath: string;
+    worlds: BlueMapMinecraftWorldSummary[];
+    truncated: boolean;
+}
+
+type BlueMapFolderScanResult =
+    | { ok: true; scan: BlueMapSavesScan }
+    | { ok: false; folderId: string; message: string };
+
+type BlueMapMountFolderResult =
+    | { ok: true; folder: BlueMapMinecraftFolder; alreadyMounted: boolean }
+    | { ok: false; message: string };
+
+/* -------------------------------------------------------------------------- */
 /* GitHub sign-in                                                             */
 /* -------------------------------------------------------------------------- */
 
@@ -212,6 +305,65 @@ interface MaterialBlueMapBridge {
     needsFirstRun(): Promise<boolean>;
     /** Called when setup finishes, whichever way consent was answered. */
     completeFirstRun(): Promise<FirstRunState>;
+
+    /**
+     * Reads a folder shallowly, so the wizard can say whether it is a world.
+     *
+     * Rejects when the folder cannot be read rather than returning an empty listing: "no
+     * level.dat here" and "this folder does not exist" send somebody to two different
+     * places, and reporting the first when the second is true wastes their afternoon.
+     */
+    inspectWorldFolder(folder: string): Promise<BlueMapWorldFolderListing>;
+
+    /**
+     * The Minecraft folders worlds are offered from: the detected default first, then
+     * whatever the person has mounted.
+     *
+     * Never rejects for a folder that is not there. A machine with no Minecraft on it is
+     * an ordinary machine, and the honest answer is a row saying where it looked.
+     *
+     * Declared here because this is the shell this interface ships with.
+     * `components/world/worldCatalog.ts` still feature-detects every one of these
+     * separately and refuses a partial answer, and it is right to: a released shell can
+     * load a newer renderer than the one it was built beside, and a list that throws when
+     * it loads is worse than a step that quietly keeps its path field.
+     */
+    listMinecraftFolders(): Promise<BlueMapMinecraftFolder[]>;
+
+    /**
+     * Adds a Minecraft folder to that list, taking either an installation or the `saves`
+     * folder inside it and reporting which it found.
+     */
+    mountMinecraftFolder(folder: string): Promise<BlueMapMountFolderResult>;
+
+    /**
+     * Takes a mounted folder off the list, touching nothing on disk.
+     *
+     * No world, no file and no folder is deleted by this. It rewrites one small JSON list
+     * and never opens the folder it is forgetting, which is why the interface offers it
+     * as an ordinary control rather than behind the destructive-action gate.
+     */
+    unmountMinecraftFolder(id: string): Promise<boolean>;
+
+    /** Renames a mounted folder. An empty label puts the generated name back. */
+    labelMinecraftFolder(id: string, label: string): Promise<boolean>;
+
+    /**
+     * Reads the worlds in one mounted folder.
+     *
+     * One folder per call, so each finishes on its own and a slow network drive is
+     * visibly slow rather than holding up the local folders that were ready at once.
+     */
+    scanMinecraftFolder(id: string): Promise<BlueMapFolderScanResult>;
+
+    /**
+     * The real path of a file or folder dropped onto the window.
+     *
+     * Electron removed `File.path` in version 32, so a drop handler sees a `File` with a
+     * name and no location; this is the shell's replacement for it. Null when the drop
+     * named no real file, which is what a drag out of a browser tab produces.
+     */
+    pathForDroppedFile(file: File): string | null;
 
     /**
      * Who is signed in to GitHub, and what this machine can do about it.

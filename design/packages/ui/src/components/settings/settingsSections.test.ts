@@ -51,6 +51,12 @@ const SECTIONS: SettingsSectionText[] = [
         description: "Signing in lets the app reach private repositories.",
         values: ["octocat", "oauth-app", "repo"],
     },
+    {
+        anchor: "language-and-tone",
+        title: "Language and tone",
+        description: "Which language the app speaks, and how playful it is in each one.",
+        values: ["Funny level, English", "5 Maximum playfulness"],
+    },
 ];
 
 describe("the anchors a render can point at", () => {
@@ -85,8 +91,11 @@ describe("every section the surface renders", () => {
     /*
      * The surface shows more than the bridge can point at. GitHub sign-in is here because
      * it is an app-wide setting, and no render can link to it: a job that cannot reach a
-     * private repository fails on the repository, not on a settings row. Widening the
-     * bridge contract to make one list would be widening a contract to suit a layout.
+     * private repository fails on the repository, not on a settings row. Language and tone
+     * is here for the same reason and one of its own: a render never stops for the want of
+     * a funny level, and before this section existed the mode and the two levels could only
+     * be reached while first-run setup was still on screen. Widening the bridge contract to
+     * make one list would be widening a contract to suit a layout.
      */
     it("is the four a render can point at, plus the ones only Settings reaches", () => {
         expect([...SETTINGS_SECTIONS]).toEqual([
@@ -95,12 +104,15 @@ describe("every section the surface renders", () => {
             "map-storage-directory",
             "world-folder",
             "github-account",
+            "language-and-tone",
         ]);
     });
 
-    it("keeps the render-reachable anchors a closed set, GitHub included out of it", () => {
+    it("keeps the render-reachable anchors a closed set, the other two out of it", () => {
         expect(isSettingsSection("github-account")).toBe(true);
         expect(isSettingsAnchor("github-account")).toBe(false);
+        expect(isSettingsSection("language-and-tone")).toBe(true);
+        expect(isSettingsAnchor("language-and-tone")).toBe(false);
         expect(isSettingsSection("appearance")).toBe(false);
         expect(isSettingsSection(null)).toBe(false);
     });
@@ -121,6 +133,25 @@ describe("every section the surface renders", () => {
         expect(filterSections(SECTIONS, createSettingMatcher("github", false, "im"))).toEqual([
             "github-account",
         ]);
+    });
+
+    /*
+     * The two things somebody is actually surprised by, and therefore the two things the
+     * description has to keep saying however playfully it is later rewritten: that the two
+     * funny levels are independent settings rather than one shared slider, and that the
+     * level reaches errors and warnings rather than stopping politely at the cheerful copy.
+     */
+    it("tells the reader the levels are separate and that they reach errors too", () => {
+        const copy = sectionCopy(t);
+        expect(copy["language-and-tone"].title).toContain("Language");
+        expect(copy["language-and-tone"].description).toContain("separate settings");
+        expect(copy["language-and-tone"].description).toContain("errors and warnings");
+    });
+
+    it("finds the language section by a level name the panel is showing", () => {
+        expect(
+            filterSections(SECTIONS, createSettingMatcher("Maximum playfulness", false, "im")),
+        ).toEqual(["language-and-tone"]);
     });
 
     it("gives the GitHub row words the search will be asked for", () => {

@@ -16,7 +16,9 @@ import { createSettingMatcher } from "../config/regexEngine.js";
 import GitHubAccountRow from "../github/GitHubAccountRow.vue";
 import { createGitHubAccount, githubSearchValues } from "../github/githubAccount.js";
 import ConsentSettingsRow from "../setup/ConsentSettingsRow.vue";
+import LanguageSettingsRow from "../setup/LanguageSettingsRow.vue";
 import { consentSearchLabels } from "../setup/consentSearch.js";
+import { languageSearchLabels } from "../setup/languageSearch.js";
 import { defaultMapStorageDir } from "../setup/mapStorage.js";
 import JavaRuntimeRow from "./JavaRuntimeRow.vue";
 import SettingsSection from "./SettingsSection.vue";
@@ -48,6 +50,13 @@ import {
  * editable path validated by the same module first-run setup validates against. The two
  * that cannot be controls here say why in as many words: this build has no way to ask
  * about the Java runtime, and a world folder belongs to one map rather than to the app.
+ *
+ * The two sections underneath them are reached only by opening Settings, because no
+ * `SettingsTarget` names either: GitHub sign-in, and the language mode with its two funny
+ * levels. The language section mounts the same `SetupLanguagePanel` the first-run flow
+ * shows rather than a second copy of it, so the three persisted keys have exactly one set
+ * of controls writing them. Two panels writing the same keys would disagree the moment one
+ * of them was opened second, and both would look right while doing it.
  *
  * **Opening at an anchor reveals the setting.** It scrolls it into view, focuses it, and
  * outlines it briefly, because a render that stopped and offered a link has promised a
@@ -183,6 +192,17 @@ const sections = computed<SettingsSectionText[]>(() => {
             title: text["github-account"].title,
             description: text["github-account"].description,
             values: githubValues,
+        },
+        // Same arrangement as consent: the row's words come from `languageSearchLabels()`
+        // rather than from the component, read live at the current mode and levels, so a
+        // Cantonese profile searching in Cantonese finds the row that is on screen and the
+        // level a slider is actually sitting on is searchable by its name as well as its
+        // number.
+        {
+            anchor: "language-and-tone",
+            title: text["language-and-tone"].title,
+            description: text["language-and-tone"].description,
+            values: languageSearchLabels(),
         },
     ];
 });
@@ -453,6 +473,21 @@ function onDrawer(value: boolean): void {
                 :description="copy['github-account'].description"
             >
                 <GitHubAccountRow :account="github" />
+            </SettingsSection>
+
+            <!--
+                The language mode and both funny levels, which until now were reachable
+                only while first-run setup was still on screen. `LanguageSettingsRow`
+                mounts the first-run flow's own `SetupLanguagePanel`, so this is the same
+                three controls rather than a second set writing the same stored keys.
+            -->
+            <SettingsSection
+                v-show="shows('language-and-tone')"
+                anchor="language-and-tone"
+                :title="copy['language-and-tone'].title"
+                :description="copy['language-and-tone'].description"
+            >
+                <LanguageSettingsRow />
             </SettingsSection>
 
             <p v-if="visible.length === 0" class="mb-settings__empty" role="status">

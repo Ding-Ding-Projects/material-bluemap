@@ -274,7 +274,14 @@ let worldIpc: WorldIpc | null = null;
 
 function startWorldInspection(): WorldIpc {
     if (worldIpc !== null) return worldIpc;
-    worldIpc = registerWorldHandlers(ipcMain);
+    // `userData` is where the list of mounted Minecraft folders is kept, and the
+    // executable's own directory is where a portable installation would put its
+    // `.minecraft`. Both are passed in rather than read inside `world/`, so the whole
+    // directory still runs, and is still tested, with no Electron and no real machine.
+    worldIpc = registerWorldHandlers(ipcMain, {
+        userDataDirectory: app.getPath("userData"),
+        executableDirectory: path.dirname(process.execPath),
+    });
     return worldIpc;
 }
 
