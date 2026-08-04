@@ -75,7 +75,8 @@ import {
     type Page,
 } from "@playwright/test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -479,17 +480,44 @@ async function closeSideSheet(): Promise<void> {
 }
 
 /**
- * A real Minecraft world folder for the wizard, or null.
+ * A real Minecraft world folder for the wizard, generating one if nothing was supplied.
  *
  * The wizard's first step probes the folder it is given through the main process, so a
- * made-up path fails the probe and the step never advances - correctly. A world this
- * repository generated satisfies it honestly; nothing else will, which is why there is no
- * fallback here and the later steps are recorded as skipped instead.
+ * made-up path fails the probe and the step never advances - correctly. Only a real world
+ * satisfies it, and this repository can write one, so a run with nothing to point at makes
+ * its own rather than recording four captures as skipped. It is small on purpose: these
+ * captures need a world the wizard accepts, not a world worth rendering.
+ *
+ * A supplied path still wins, and a generator that fails still yields null - the skip is
+ * the honest outcome then, and it says which command failed.
  */
 function captureWorldFolder(): string | null {
     const explicit = process.env.MATERIAL_BLUEMAP_CAPTURE_WORLD?.trim();
     if (explicit !== undefined && explicit !== "" && existsSync(explicit)) return explicit;
-    return null;
+
+    const cli = resolve(here, "../../worldgen/dist/cli.js");
+    if (!existsSync(cli)) return null;
+
+    const out = join(tmpdir(), "material-bluemap-capture-world");
+    try {
+        // Deterministic seed: the same world every run, so a capture that changes is a
+        // change in the application rather than in the terrain behind it.
+        execFileSync(process.execPath, [cli, "--seed", "1", "--size", "64", "--out", out], {
+            stdio: "pipe",
+            timeout: 240_000,
+        });
+    } catch (error) {
+        console.log(
+            `[harness] could not generate a capture world: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`,
+        );
+        return null;
+    }
+
+    const world = readdirSync(out, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => join(out, entry.name))
+        .find((folder) => existsSync(join(folder, "level.dat")));
+    return world ?? null;
 }
 
 /* -------------------------------------------------------------------------- */
