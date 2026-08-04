@@ -35,6 +35,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 | [Running the engine on this computer, or in a container](./docker-and-local.md) | Local by default and Docker by choice, with the same progress, logs and cancellation either way — and an honest account of what a container does and does not change. |
 | [Automatic repair when a render or the web server fails to start](./automatic-repair.md) | Eight known failures diagnosed by code with no AI at all, a local coding agent for what is left, and the guardrails that keep it to config files it can undo. |
 | [Rendering a world in GitHub Actions](./render-in-actions.md) | Rendering on GitHub's runners for computers that cannot do it themselves — the CI render sync loop, its trade-offs, sharding across a matrix, merging it back, and verifying the result. |
+| [Publishing a rendered map to GitHub Pages](./pages-hosting.md) | The app's preflight, guarded static branch, Pages enablement, live HTTP verification, limits, failure modes and stop-hosting gate. |
 | [Renders that survive being interrupted](./resumable-renders.md) | Render-state caches, completion markers, and resuming rather than restarting. |
 | [Large worlds and rendered maps](./large-worlds.md) | Splitting anything past a release asset's ceiling into checksummed parts, and rejoining it. |
 | [Backing up a world or a rendered map](./backup.md) | Packing a folder, splitting it and publishing it as release assets with a Cheap LFS v1 pointer — and why Git LFS was rejected on cost. |

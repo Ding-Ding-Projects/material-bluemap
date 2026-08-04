@@ -7,7 +7,7 @@ uses. Read it first. Everything after it is a dated log written by people who we
 this section is for anyone who was not, including a small language model with no other
 context.
 
-It was last checked against the code on **2026-08-04, evening**, at commit `9f34cff` on the
+It was last checked against the code on **2026-08-04, evening**, at commit `54559eb` on the
 `main` branch.
 
 ### What this project is
@@ -107,6 +107,21 @@ document says so.
   `components/config/regexPolicy.test.ts` rather than by remembering.
 - CI builds an installer, renders a test world, takes screenshots of the real app, and
   publishes a GitHub release on every green push to `main`.
+- **A finished local render can now be published from the app's `Publish to Pages` tab.**
+  The tab lists real renders, searches them with the shared regex-backed field, runs a
+  preflight that names the exact byte/file cost and GitHub limits, and requires an explicit
+  acknowledgement before replacing a branch. A stop-hosting action is behind the same two-key
+  super-confirmation gate used elsewhere. The main process writes a guarded marker, enables
+  Pages, waits for the Pages build, and only reports `Live` after the public address answers
+  HTTP 200. See `docs/pages-hosting.md` and `docs/render-in-actions.md`.
+  **Caveat, stated plainly:** the piece underneath this (preparing a map so a dumb static
+  host can serve it) is proved against a real published site. The publish sequence in the
+  app itself has never been run against a real GitHub account. It is tested step by step
+  against a fake process runner, which is how the interesting failures are reachable at
+  all, but nobody has yet watched it publish a real map. Do not describe it as verified.
+- **The screenshot harness photographs that tab and refuses stale evidence.** `freshBundle.ts`
+  runs before Electron starts and fails closed when the UI, main-process, or preload output is
+  older than its source. The Pages capture is a real packaged-app surface, not a mock.
 - **The engine can read a Minecraft 1.12.2 world and render it.** This was checked for the
   first time on 2026-08-04. `worldgen` can now write a 1.12.2 world, and a test reads back
   every single one of a million blocks in it and checks that the engine understood each
@@ -253,6 +268,107 @@ further down for the wrong conclusion its absence produced.
    verified.
 4. Every change: run the tests, run the linter, commit with a message that says what
    actually changed, push, and check CI.
+
+---
+
+## Update, 2026-08-04 evening — the Pages publishing feature, front to back, and what is still unproven
+
+### What this adds, in one sentence
+
+A person can now take a map this computer rendered and put it on the internet, from the
+`Publish to Pages` tab, without touching a terminal.
+
+### The one fact everything here rests on
+
+The engine writes hires tiles gzip-compressed (`0.prbm.gz`), and the viewer by default asks
+for the *uncompressed* name (`0.prbm`). BlueMap's own web server, and this app's embedded
+one, answer the uncompressed name out of the compressed file. **GitHub Pages does not**, and
+has no configuration that could. So a map copied there 404s on every tile.
+
+The fix is one flag: `clientDecompression: true` in the web app's `settings.json`, which makes
+the viewer ask for the `.gz` names and inflate them itself. `prepareStaticHost` in
+`packages/render-actions/src/pages/staticHost.ts` sets it and then *checks it against the files
+actually on disk*, because a flag pointing the viewer at files nobody wrote is exactly as
+broken as the problem it fixes.
+
+That module was already proved against a **real** published site before this work: on
+`DingDingChae/bluemap-pages-proof`, `maps/tiny/tiles/0/x0/z0.prbm.gz` returned `200` with
+`content-type: application/gzip`, no `Content-Encoding` and first bytes `1f8b`, while the same
+tile without `.gz` returned `404`, and the web app loaded and rendered geometry from Pages in a
+headless browser. The flag is genuinely load-bearing, and that is measured rather than assumed.
+
+### What was built
+
+**Main process — `packages/app/src/main/pages/`** (`hosting.ts`, `ipc.ts`, `index.ts`).
+
+- `preflight` runs `prepareStaticHost` with `write: false`, so it changes nothing at all, and
+  reports the site's size, its file count, GitHub's 1 GB soft site limit and 100 MB hard
+  per-file limit, any map missing files the viewer would ask for, what `gh` is on this machine
+  as three separate situations, whether `git` exists, and the state of the target repository.
+- `publish` prepares, stages, force-pushes an orphan commit, enables Pages, polls the build and
+  then **fetches the published URL**. `status` becomes `live` only on a `200`.
+- The push is read back from GitHub and the branch head compared to the commit just made;
+  `pushVerified: false` is reported out loud rather than smoothed over.
+- `stopHosting` disables Pages and deletes the publishing branch.
+
+**The guard that matters.** Every publish writes `.material-bluemap-map.json` at the site root.
+Before anything is pushed, *and again before anything is deleted*, the target branch is read: a
+branch that exists and carries no such marker is **refused**. Publishing force-replaces the
+branch, so without that check one mistyped repository name destroys somebody else's website.
+There is no override and no fallback on that path, deliberately.
+
+**Where the git directory lives.** Never inside the render output. The repository is at
+`<userData>/pages-hosting/<renderId>/.git`, and every command is
+`git -C <webRoot> --git-dir=<that> --work-tree=<webRoot> ...`. Copying a multi-gigabyte tile
+tree into a staging directory first was rejected on arithmetic: it doubles the disk and the
+time to produce a byte-for-byte duplicate of a directory already sitting there. Git writes
+nothing into a work tree during `add`, `commit` or `push`.
+
+**Progress is real.** Files are staged in batches of 2,000, handed to `git add` on stdin
+NUL-separated, so the surface reports files staged out of files total. Tens of thousands of
+small tiles is the normal case and a spinner over it is indistinguishable from a hang.
+
+**Renderer — `packages/ui/src/components/pages/`** (`pagesBridge.ts`, `pagesHosting.ts`,
+`PagesScreen.vue`, `index.ts`), mounted in `App.vue` as the `Publish to Pages` tab. The render
+list is searched through the shared field that carries the regex builder; notices go to the
+shared non-blocking corner; taking a site down is behind the two-key gate and declared in the
+super-confirmation inventory. Its prose is in the copy catalogue, so the three language modes
+and both per-language funny levels reach it: 17 voiced entries at five levels a side and 16
+fixed strings, each with a `FACTS` entry pinning what a playful rewrite may not drop.
+
+### Verification
+
+- `npx vitest run` from `design/`: **6191 passed, 3 skipped, 382 files**. 35 of those are the
+  main-process feature and 32 the renderer half.
+- `npx eslint .`: clean. `pnpm typecheck`: clean across all 13 packages. `pnpm build`: clean.
+- The screen is a **required** surface in the screenshot harness, so a run that cannot open it
+  fails rather than quietly recording a gap.
+
+### What is NOT proven, plainly
+
+**The desktop publish sequence has never been run end to end against a real GitHub account.**
+Every step is unit-tested against a fake process runner, on purpose: `gh` missing, `gh` signed
+out, a branch somebody else wrote, a push GitHub does not show, a build that errors, a URL that
+answers 404 — none of those can be produced on a machine where the thing works. But the real
+sequence `gh repo create` -> orphan force-push -> `POST /pages` -> poll -> fetch has not been
+executed against github.com from the application. Treat it as implemented and unproven.
+
+Specifically unverified against reality:
+
+1. The `-c credential.helper=!gh auth git-credential` push. It is exactly what
+   `gh auth setup-git` writes, passed per-command so the person's global git config is never
+   modified, but it has not been observed authenticating a real push on Windows.
+2. `POST` / `PUT /repos/{o}/{r}/pages` and the shape GitHub answers with. The code reads
+   `html_url` and `status` and treats an absent site as a 404, which matches the documented
+   API, but no real response has been parsed.
+3. The private-repository refusal. A free account's Pages `POST` is reported as needing a paid
+   plan, which is what its 403 means; that mapping is from documentation, not from a refusal
+   anybody here has seen.
+4. Staging tens of thousands of files through batched `git add --pathspec-from-file=-` has not
+   been timed against a real multi-gigabyte map.
+
+The next person's shortest path to closing all four is one real publish of a small map to a
+throwaway public repository, watching the events, and writing what actually happened here.
 
 ---
 
@@ -433,6 +549,31 @@ The hosted CI and Pages verdict for this tip is still required; the previous liv
 `80369ec080d1fda83376e0ccc026e9ccd3045b8c` remains historical evidence only. Untracked
 `design/packages/engine/src/map/rendermanager/` files appeared during verification and were not
 staged or changed by this Pages task.
+
+## Update, 2026-08-04 — Pages publishing is a real app tab, with fresh captures
+
+The desktop shell now carries a seventh page, **Publish to Pages**, at `22b475a` and the
+follow-up copy/safety pass at `e7bd403`. `PagesScreen.vue` is not a decorative landing panel:
+it lists the renders on this computer, keeps the repository owner/name/branch in the preflight,
+shows the decompression setting and the 1 GB / 100 MB / private-plan caveats, and refuses to
+publish until the user acknowledges that the whole map will replace that branch. A completed
+publish is green only after the public URL answers; "GitHub says built" remains a separate,
+unverified state. The `Pages` IPC bridge, guarded branch marker and stop-hosting report keep the
+destructive path auditable, while the shared notification surface remains opaque.
+
+`54559eb` adds the mounted component tests and a screenshot step for the Pages surface. The
+global Playwright setup now checks that the UI, main process and preload bundles are newer than
+their sources before any screenshot is taken, so an old bundle cannot produce a convincing green
+capture. Local evidence at this continuation tip is **381 files, 6,174 passed, 3 skipped**;
+Pages component/store tests add **32 passed**, and app typecheck plus lint are clean.
+
+Hosted CI run
+[`30960216270`](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30960216270)
+and Pages run
+[`30960216143`](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30960216143)
+are **pending** for the exact SHA `54559eb4c772b8778bfdda719cd0b8aae0a1558a`; no release or
+live-site claim is made until those runs complete. The older successful Pages deployment recorded
+above remains historical evidence only.
 
 ## Update, 2026-08-04 — render console, remote/world-source wiring, and hosted Pages proof
 

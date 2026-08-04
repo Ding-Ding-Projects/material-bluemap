@@ -53,6 +53,7 @@ import { contractAppearanceEditors } from "./contract-appearance-editors.js";
 import { contractLocalization } from "./contract-localization.js";
 import { contractSuperConfirmation } from "./contract-super-confirmation.js";
 import { renderConsole } from "./render-console.js";
+import { publishingToPages } from "./publishing-to-pages.js";
 
 export const articles: readonly Article[] = [
     viewerRemoteMode,
@@ -81,6 +82,7 @@ export const articles: readonly Article[] = [
     resourcePacks,
     install,
     renderInActions,
+    publishingToPages,
     releasePipeline,
     screenshotGallery,
     testWorldGenerator,

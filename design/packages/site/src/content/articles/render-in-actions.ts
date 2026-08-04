@@ -337,6 +337,10 @@ export const renderInActions: Article = {
 
     suggested: [
         {
+            articleId: "publishing-to-pages",
+            reason: "The other end of the same job: publishing a map this computer rendered, from the application, to a real address anybody can open.",
+        },
+        {
             articleId: "java-render-path",
             reason: "The same BlueMap engine, driven by the desktop app instead of by a runner. Read it to see what is doing the actual rendering here.",
         },
