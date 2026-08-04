@@ -11,6 +11,7 @@ import { gunzipSync } from "node:zlib";
 
 import { describeError, diffBytes, diffJson, diffPng } from "./diff.mjs";
 import { diffRenderState } from "./renderstate.mjs";
+import { diffTextures } from "./textures.mjs";
 import { listFiles, log } from "./util.mjs";
 
 /**
@@ -37,8 +38,12 @@ export function classify(relativePath) {
         };
     if (/^tiles\/[1-9]\d*\//.test(relativePath) && relativePath.endsWith(".png"))
         return { category: "lowres", mode: "png" };
-    if (relativePath === "textures.json.gz") return { category: "textures", mode: "gunzip-bytes" };
-    if (relativePath === "textures.json") return { category: "textures", mode: "bytes" };
+    // The gallery embeds every texture as an inline PNG, so it is compared the way lowres
+    // tiles are: fields and order exactly, images on decoded pixels. See lib/textures.mjs.
+    if (relativePath === "textures.json.gz")
+        return { category: "textures", mode: "textures", compressed: true };
+    if (relativePath === "textures.json")
+        return { category: "textures", mode: "textures", compressed: false };
     if (relativePath === "settings.json") return { category: "settings", mode: "json" };
     if (relativePath === "live/markers.json" || relativePath === "live/players.json")
         return { category: "live", mode: "json" };
@@ -63,12 +68,33 @@ function decompressIfNeeded(buffer, mode, side) {
 
 /** @returns {Promise<null | {file: string, category: string, kind: string, message: string, detail: string[]}>} */
 export async function compareFile(relativePath, referenceRoot, portedRoot) {
-    const { category, mode } = classify(relativePath);
+    const { category, mode, compressed } = classify(relativePath);
     const referenceBytes = await readFile(join(referenceRoot, ...relativePath.split("/")));
     const portedBytes = await readFile(join(portedRoot, ...relativePath.split("/")));
 
     if (mode === "png") {
         const difference = diffPng(referenceBytes, portedBytes);
+        return difference === null ? null : { file: relativePath, category, ...difference };
+    }
+
+    if (mode === "textures") {
+        let referenceText;
+        let portedText;
+        try {
+            referenceText = (
+                compressed ? gunzipSync(referenceBytes) : referenceBytes
+            ).toString("utf8");
+            portedText = (compressed ? gunzipSync(portedBytes) : portedBytes).toString("utf8");
+        } catch (error) {
+            return {
+                file: relativePath,
+                category,
+                kind: "decompress",
+                message: `textures.json is not valid gzip: ${describeError(error)}`,
+                detail: [],
+            };
+        }
+        const difference = diffTextures(referenceText, portedText);
         return difference === null ? null : { file: relativePath, category, ...difference };
     }
 
@@ -209,6 +235,13 @@ export async function compareMaps(referenceRoot, portedRoot, keepDivergences = 1
             // pngjs make different filter and zlib choices for the same image. So this
             // counts as a match — but it is counted and printed separately rather than
             // folded away, because a sudden crop of re-encodes is worth seeing.
+            bump(category, "matching");
+            bump(category, "reencoded");
+            reencoded.push({ file, ...difference });
+        } else if (difference.kind === "textures-reencode") {
+            // Decision D3 again, reached through textures.json rather than through a
+            // lowres tile: same picture, different PNG bytes. Counted with the other
+            // re-encodes so a sudden change in how many there are stays visible.
             bump(category, "matching");
             bump(category, "reencoded");
             reencoded.push({ file, ...difference });

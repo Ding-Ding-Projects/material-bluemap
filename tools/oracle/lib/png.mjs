@@ -77,8 +77,23 @@ export function decodePng(data) {
     const colourType = ihdr.data.readUInt8(9);
     const interlace = ihdr.data.readUInt8(12);
 
-    if (bitDepth !== 8)
-        throw new PngFormatError(`unsupported PNG bit depth ${bitDepth} (only 8 is decoded)`);
+    /*
+     * Bit depths below 8 exist here for one reason, and it is a comparison that matters:
+     * Java's ImageIO writes a small-palette texture as an indexed PNG at 1, 2 or 4 bits
+     * per pixel, while this project's encoder writes 8-bit RGBA. 532 of the 2092 textures
+     * in `textures.json` are in that shape, and refusing to decode them would leave a
+     * quarter of the gallery compared as "could not check" - which reads as agreement and
+     * is not.
+     *
+     * Only indexed and greyscale images are ever packed below 8 bits (the PNG spec allows
+     * it for colour types 0 and 3 only), so this stays narrow deliberately.
+     */
+    if (![1, 2, 4, 8].includes(bitDepth))
+        throw new PngFormatError(`unsupported PNG bit depth ${bitDepth} (1, 2, 4 and 8 are decoded)`);
+    if (bitDepth !== 8 && colourType !== 0 && colourType !== 3)
+        throw new PngFormatError(
+            `PNG colour type ${colourType} cannot be ${bitDepth} bits per sample`,
+        );
     if (interlace !== 0) throw new PngFormatError("unsupported interlaced PNG");
     const channels = CHANNELS[colourType];
     if (channels === undefined)
@@ -96,8 +111,16 @@ export function decodePng(data) {
 
     const raw = inflateSync(Buffer.concat(idatParts));
 
-    const bytesPerPixel = channels; // bit depth is 8
-    const stride = width * bytesPerPixel;
+    /*
+     * The filter works on bytes, so a packed row is un-filtered as bytes and only then
+     * unpacked into samples. `bytesPerPixel` is the filter's "distance to the pixel on
+     * the left", which the spec rounds *down* to one byte when a pixel occupies less than
+     * one - getting that wrong is a silent corruption rather than an error.
+     */
+    const samplesPerRow = width * channels;
+    const stride =
+        bitDepth === 8 ? samplesPerRow : Math.ceil((samplesPerRow * bitDepth) / 8);
+    const bytesPerPixel = bitDepth === 8 ? channels : 1;
     const expected = (stride + 1) * height;
     if (raw.length < expected)
         throw new PngFormatError(
@@ -142,13 +165,42 @@ export function decodePng(data) {
         }
     }
 
+    /*
+     * Unpack sub-byte samples into one byte each, so everything below works on the same
+     * shape whatever the file's bit depth was.
+     *
+     * Greyscale is *scaled* to the full range rather than left as a raw index, which is
+     * what the spec requires and what any viewer does: a 1-bit white pixel is 255, not 1.
+     * Palette indices are left alone, because they are indices and scaling one would look
+     * up the wrong colour.
+     */
+    const samples =
+        bitDepth === 8
+            ? lines
+            : (() => {
+                  const unpacked = Buffer.alloc(samplesPerRow * height);
+                  const max = (1 << bitDepth) - 1;
+                  const perByte = 8 / bitDepth;
+                  for (let y = 0; y < height; y++) {
+                      for (let s = 0; s < samplesPerRow; s++) {
+                          const byte = lines[y * stride + Math.floor(s / perByte)];
+                          const shift = 8 - bitDepth * ((s % perByte) + 1);
+                          const value = (byte >> shift) & max;
+                          unpacked[y * samplesPerRow + s] =
+                              colourType === 3 ? value : Math.round((value * 255) / max);
+                      }
+                  }
+                  return unpacked;
+              })();
+    const samplesPerPixel = channels;
+
     // expand to rgba
     const pixels = Buffer.alloc(width * height * 4);
     for (let i = 0, p = 0; i < width * height; i++, p += 4) {
-        const source = i * bytesPerPixel;
+        const source = i * samplesPerPixel;
         switch (colourType) {
             case 0: {
-                const grey = lines[source];
+                const grey = samples[source];
                 pixels[p] = grey;
                 pixels[p + 1] = grey;
                 pixels[p + 2] = grey;
@@ -156,14 +208,14 @@ export function decodePng(data) {
                 break;
             }
             case 2:
-                pixels[p] = lines[source];
-                pixels[p + 1] = lines[source + 1];
-                pixels[p + 2] = lines[source + 2];
+                pixels[p] = samples[source];
+                pixels[p + 1] = samples[source + 1];
+                pixels[p + 2] = samples[source + 2];
                 pixels[p + 3] = 0xff;
                 break;
             case 3: {
                 if (palette === null) throw new PngFormatError("paletted PNG without a PLTE chunk");
-                const index = lines[source];
+                const index = samples[source];
                 pixels[p] = palette[index * 3] ?? 0;
                 pixels[p + 1] = palette[index * 3 + 1] ?? 0;
                 pixels[p + 2] = palette[index * 3 + 2] ?? 0;
@@ -171,18 +223,18 @@ export function decodePng(data) {
                 break;
             }
             case 4: {
-                const grey = lines[source];
+                const grey = samples[source];
                 pixels[p] = grey;
                 pixels[p + 1] = grey;
                 pixels[p + 2] = grey;
-                pixels[p + 3] = lines[source + 1];
+                pixels[p + 3] = samples[source + 1];
                 break;
             }
             case 6:
-                pixels[p] = lines[source];
-                pixels[p + 1] = lines[source + 1];
-                pixels[p + 2] = lines[source + 2];
-                pixels[p + 3] = lines[source + 3];
+                pixels[p] = samples[source];
+                pixels[p + 1] = samples[source + 1];
+                pixels[p + 2] = samples[source + 2];
+                pixels[p + 3] = samples[source + 3];
                 break;
             default:
                 throw new PngFormatError(`unsupported PNG colour type ${colourType}`);

@@ -20,6 +20,7 @@ import { deflateSync, gzipSync } from "node:zlib";
 
 import { compareMaps, classify } from "./lib/compareMaps.mjs";
 import { diffRenderState } from "./lib/renderstate.mjs";
+import { diffTextures } from "./lib/textures.mjs";
 import { decodePng } from "./lib/png.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -241,9 +242,11 @@ async function main() {
 
     const textures = byFile.get("textures.json.gz");
     check(
-        "a textures.json difference is reported as bytes AND as json",
-        textures?.kind === "byte" &&
-            (textures.detail ?? []).some((line) => line.includes("as json:")),
+        "a textures.json difference names the entry and the field that changed",
+        textures?.kind === "textures-field" &&
+            textures.message.includes("entry 1") &&
+            textures.message.includes("'id'") &&
+            textures.message.includes("minecraft:block/sand"),
         JSON.stringify(textures),
     );
 
@@ -323,6 +326,42 @@ async function main() {
         parts.push(Buffer.from([0, 0])); // end tile-states, end root
         return Buffer.concat(parts);
     };
+    /*
+     * The gallery comparison excuses the PNG encoding, so it too has to be shown biting
+     * on the picture itself. The three cases are the ones that matter: the same image
+     * written two ways is a re-encode, a changed pixel is a divergence, and an image that
+     * cannot be decoded is never quietly accepted.
+     */
+    const galleryOf = (png) => JSON.stringify([{ id: "bluemap:block/x", texture: png }]);
+    const dataUrl = (buffer) => `data:image/png;base64,${buffer.toString("base64")}`;
+    const smallImage = gradient(4, 4);
+    const asFilter0 = dataUrl(encodePng(4, 4, smallImage, 0));
+    const asFilter1 = dataUrl(encodePng(4, 4, smallImage, 1));
+    const changedPixel = dataUrl(encodePng(4, 4, gradient(4, 4, { x: 1, y: 2 }), 0));
+
+    check(
+        "a gallery compares equal to itself",
+        diffTextures(galleryOf(asFilter0), galleryOf(asFilter0)) === null,
+    );
+    const reencode = diffTextures(galleryOf(asFilter0), galleryOf(asFilter1));
+    check(
+        "the same picture written two ways is reported as a re-encode, not a divergence",
+        reencode?.kind === "textures-reencode",
+        JSON.stringify(reencode),
+    );
+    const changedImage = diffTextures(galleryOf(asFilter0), galleryOf(changedPixel));
+    check(
+        "a changed texture pixel is caught, and not excused as a re-encode",
+        changedImage?.kind === "textures-image" && changedImage.message.includes("x=1"),
+        JSON.stringify(changedImage),
+    );
+    const undecodable = diffTextures(galleryOf(asFilter0), galleryOf("not-a-data-url"));
+    check(
+        "a texture that cannot be decoded is reported rather than accepted",
+        undecodable?.kind === "textures-image",
+        JSON.stringify(undecodable),
+    );
+
     const baseState = renderStateFile([0, 0, 1, 0]);
     check(
         "a render state compares equal to itself",
