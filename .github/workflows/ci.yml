@@ -345,7 +345,11 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$GITHUB_WORKSPACE/capture-world"
-          unzip -q "$(ls test-world-zip/test-world-seed-*.zip | head -1)" -d "$GITHUB_WORKSPACE/capture-world"
+          # `find`, not `ls`: shellcheck refuses the latter here (SC2012), and it is right
+          # that parsing `ls` output breaks on names this job does not control.
+          zip=$(find test-world-zip -maxdepth 1 -type f -name 'test-world-seed-*.zip' | head -1)
+          test -n "$zip"
+          unzip -q "$zip" -d "$GITHUB_WORKSPACE/capture-world"
           world=$(find "$GITHUB_WORKSPACE/capture-world" -maxdepth 2 -type f -name level.dat -printf '%h\n' | head -1)
           test -n "$world"
           echo "CAPTURE_WORLD=$world" >> "$GITHUB_ENV"
