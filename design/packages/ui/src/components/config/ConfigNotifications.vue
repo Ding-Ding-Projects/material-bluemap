@@ -169,7 +169,17 @@ function close(id: number): void {
     pointer-events: auto;
 }
 
-.mb-config-notices__toast {
+/*
+ * Two class names deep on purpose, and it will look like a mistake to whoever tidies it.
+ *
+ * Vuetify's tonal variant ships `.v-alert--variant-tonal { background: transparent }` at
+ * one class of specificity. A rule of ours at the same specificity loses on source order,
+ * silently - which is exactly how the first attempt at this fix passed review, passed its
+ * own test, and changed nothing on screen. The extra ancestor is what makes the surface
+ * actually win, and the shorthand it has to beat is `background`, so this sets `background`
+ * too rather than only `background-color`.
+ */
+.mb-config-notices .mb-config-notices__toast {
     border-radius: 12px;
 
     /*
@@ -186,6 +196,7 @@ function close(id: number): void {
      * surface underneath to be a tint *of*. The shadow and the hairline are what make it
      * read as a thing lying on top of the page rather than a coloured patch of it.
      */
+    background: rgb(var(--v-theme-surface));
     background-color: rgb(var(--v-theme-surface));
     box-shadow:
         0 6px 16px rgb(0 0 0 / 28%),

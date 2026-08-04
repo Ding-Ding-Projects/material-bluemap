@@ -376,6 +376,40 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "matters, is a question about the caller, and that caller is declared in its own " +
             "right immediately above.",
     },
+    "components/pages/PagesScreen.vue": {
+        count: 3,
+        destroys:
+            "a published map's website: GitHub Pages is turned off for the repository and the " +
+            "publishing branch is deleted, so the address stops working",
+        standing: "gated",
+        gatedIn: "components/pages/PagesScreen.vue",
+        note:
+            "The one call in the whole publishing feature that takes anything away. The gate " +
+            "names the repository, the branch and the address, and says out loud that the " +
+            "render on this computer and the rest of that repository are both untouched, " +
+            "because those are the two things people assume and only one of them is obvious.",
+    },
+    "components/pages/pagesBridge.ts": {
+        count: 1,
+        destroys:
+            "a published map's website, through the seam the screen reaches the main process by",
+        standing: "gated",
+        gatedIn: "components/pages/PagesScreen.vue",
+        note:
+            "The seam rather than the deletion, exactly as components/history/historyHost.ts " +
+            "is: one interface method, whose only caller is the store below, whose only caller " +
+            "is the screen, behind the gate.",
+    },
+    "components/pages/pagesHosting.ts": {
+        count: 3,
+        destroys: "a published map's website, through the store the screen drives",
+        standing: "gated",
+        gatedIn: "components/pages/PagesScreen.vue",
+        note:
+            "The declaration, the implementation and the one bridge call it forwards to. " +
+            "Nothing here decides to run it: the screen does, and the screen puts the two keys " +
+            "and the full-range slider in front of it first.",
+    },
     "components/menu/SettingsMenu.vue": {
         count: 2,
         destroys: "every saved viewer setting in this browser, followed by a reload",

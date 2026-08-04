@@ -661,6 +661,282 @@ export const APP_VOICED = {
             "程式用邊種語言同你傾偈，同埋喺每種語言入面幾抵死。兩個搞笑程度係分開嘅設定，所以英文可以扮晒正經，廣東話照樣癲，而個程度會去到每一句說話，錯誤同警告一句都走唔甩。",
         ],
     },
+    /* ---------------------------------------------------------------- */
+    /* Publishing a rendered map to GitHub Pages                        */
+    /* ---------------------------------------------------------------- */
+
+    "pages.pitch": {
+        en: [
+            "A finished render is served from this computer, at an address only this computer can open. This publishes it to GitHub Pages instead: a real address anybody can open, hosted for free, and still only files.",
+            "A finished render is served from this computer, at an address only this computer can open. This publishes it to GitHub Pages instead: a real address anybody can open, hosted for free, and still only files.",
+            "A finished render is served from this computer, at an address only this computer can open. This puts it on GitHub Pages instead: a real address anybody can open, hosted for free, and still nothing but files.",
+            "Right now your map lives at an address only this computer can reach, which is not much of a map to show anyone. This moves it to GitHub Pages: a real address, open to anybody, free, and still nothing but files.",
+            "Right now your map lives at an address only this computer can reach, which makes showing it to a friend a bit of a party trick involving your router. This puts it on GitHub Pages instead: a real address, open to anybody, free, and still nothing cleverer than files.",
+        ],
+        yue: [
+            "算好嘅地圖而家由呢部電腦提供，個網址亦都只有呢部電腦開得到。呢個功能會改為發佈到 GitHub Pages：一個真正嘅網址，人人都開得到，免費，而且照樣只係一堆檔案。",
+            "算好嘅地圖而家由呢部電腦提供，個網址亦都只有呢部電腦開得到。呢個功能會改為發佈到 GitHub Pages：一個真正嘅網址，人人都開得到，免費，而且照樣只係一堆檔案。",
+            "算好嘅地圖而家由呢部電腦自己派，個網址亦都淨係呢部電腦開得到。呢度會改為擺上 GitHub Pages：一個真網址，個個都開得到，免費，而且依然淨係檔案。",
+            "你張圖而家住喺一個淨係呢部電腦入得到嘅網址，想俾朋友睇都幾麻煩。呢個功能會搬佢上 GitHub Pages：真網址，人人入得，免費，而且都係一堆檔案咁簡單。",
+            "你張圖而家匿埋喺一個淨係呢部電腦入得到嘅網址，想俾朋友睇就要同你部路由器搏鬥。呢個功能直接搬佢上 GitHub Pages：真網址，個個入得，免費，而且冇乜大道理，都係一堆檔案。",
+        ],
+    },
+    "pages.caveats": {
+        en: [
+            "The trade-offs, plainly: every tile is pushed, which is gigabytes across tens of thousands of files for a large map; GitHub asks Pages sites to stay under 1 GB and refuses any single file over 100 MB; and Pages on a private repository needs a paid plan. A public repository means anybody who finds the address can download the whole map.",
+            "The trade-offs, plainly: every tile is pushed, which is gigabytes across tens of thousands of files for a large map; GitHub asks Pages sites to stay under 1 GB and refuses any single file over 100 MB; and Pages on a private repository needs a paid plan. A public repository means anybody who finds the address can download the whole map.",
+            "The trade-offs, stated rather than buried: every tile is pushed, which for a large map is gigabytes spread over tens of thousands of files; GitHub asks Pages sites to stay under 1 GB and refuses any single file over 100 MB; and Pages on a private repository needs a paid plan. A public repository means anybody who finds the address can download the whole map.",
+            "The catches, up front rather than in a footnote: every tile goes up, which for a big map is gigabytes across tens of thousands of files; GitHub would like Pages sites to stay under 1 GB and flatly refuses any single file over 100 MB; and Pages on a private repository needs a paid plan. A public repository means anybody who finds the address can help themselves to the whole map.",
+            "The catches, up front rather than hidden in a footnote nobody reads: every single tile goes up, which for a big map is gigabytes spread across tens of thousands of tiny files; GitHub politely asks that Pages sites stay under 1 GB and point blank refuses any one file over 100 MB; and Pages on a private repository needs a paid plan. A public repository means anybody who stumbles on the address can help themselves to the entire map.",
+        ],
+        yue: [
+            "代價講清楚：所有圖磚都會上傳，大張圖即係幾 GB、幾萬個檔案；GitHub 要求 Pages 網站保持喺 1 GB 以下，而且拒絕任何單一檔案超過 100 MB；私人 repository 用 Pages 要俾錢嘅方案。公開 repository 即係任何人搵到個網址都可以下載成張圖。",
+            "代價講清楚：所有圖磚都會上傳，大張圖即係幾 GB、幾萬個檔案；GitHub 要求 Pages 網站保持喺 1 GB 以下，而且拒絕任何單一檔案超過 100 MB；私人 repository 用 Pages 要俾錢嘅方案。公開 repository 即係任何人搵到個網址都可以下載成張圖。",
+            "代價擺明講，唔會匿埋：所有圖磚都要上傳，大張圖即係幾 GB 散落喺幾萬個檔案度；GitHub 要求 Pages 網站保持喺 1 GB 以下，亦都拒絕任何單一檔案超過 100 MB；私人 repository 想用 Pages 就要俾錢嘅方案。公開 repository 即係邊個搵到個網址都下載到成張圖。",
+            "醜話講喺前頭，唔會塞落註腳：每一塊圖磚都要上去，大張圖即係幾 GB 攤喺幾萬個細檔案度；GitHub 好想 Pages 網站企喺 1 GB 以下，而單一檔案超過 100 MB 就直接拒絕；私人 repository 想開 Pages 就要俾錢嘅方案。公開嘅意思係，邊個撞到個網址都可以搬走成張圖。",
+            "醜話講喺前頭，唔會塞落冇人睇嘅註腳：每一塊圖磚都要上去，大張圖即係幾 GB 攤喺幾萬個超細檔案度；GitHub 好客氣咁請你 Pages 網站企喺 1 GB 以下，但單一檔案超過 100 MB 就一句廢話都冇咁拒絕；私人 repository 想開 Pages 就要俾錢嘅方案。公開嘅意思係，邊個撞啱個網址都可以整張圖搬走。",
+        ],
+    },
+    "pages.decompression": {
+        en: [
+            "The viewer will be set to decompress tiles itself, because a static host cannot do it. That is the one setting publishing changes, and it is written into the render's own settings.json.",
+            "The viewer will be set to decompress tiles itself, because a static host cannot do it. That is the one setting publishing changes, and it is written into the render's own settings.json.",
+            "The viewer will be set to decompress the tiles itself, because a static host cannot do it for us. That is the one setting publishing changes, and it is written into this render's own settings.json.",
+            "The viewer gets told to decompress the tiles itself, because a static host will not do it on the way out. That is the only setting publishing touches, and it goes into this render's own settings.json.",
+            "The viewer gets told to unpack the tiles itself, because a static host hands over whatever file it was given and asks no questions. That is the only setting publishing touches, and it lands in this render's own settings.json.",
+        ],
+        yue: [
+            "檢視器會設定為自己解壓圖磚，因為靜態主機做唔到呢件事。呢個係發佈唯一會改嘅設定，會寫入呢次算圖自己嘅 settings.json。",
+            "檢視器會設定為自己解壓圖磚，因為靜態主機做唔到呢件事。呢個係發佈唯一會改嘅設定，會寫入呢次算圖自己嘅 settings.json。",
+            "檢視器會設定成自己解壓圖磚，因為靜態主機唔會幫我哋做。呢個係發佈唯一會改嘅設定，會寫入呢次算圖本身嘅 settings.json。",
+            "檢視器會被叫去自己解壓圖磚，因為靜態主機出檔案嗰陣唔會幫你拆。呢個係發佈唯一會郁嘅設定，寫入呢次算圖自己嘅 settings.json。",
+            "檢視器會被叫去自己拆圖磚，因為靜態主機收到咩檔案就派咩檔案，一句都唔會問。呢個係發佈唯一會郁嘅設定，最後會落喺呢次算圖自己嘅 settings.json。",
+        ],
+    },
+    "pages.size": {
+        en: [
+            "{size} across {files} files would be pushed.",
+            "{size} across {files} files would be pushed.",
+            "{size} spread across {files} files would be pushed.",
+            "{size} spread across {files} separate files is what would go up.",
+            "{size} spread across {files} separate little files is what would go up, one at a time, in its own good time.",
+        ],
+        yue: [
+            "會上傳 {size}，分佈喺 {files} 個檔案。",
+            "會上傳 {size}，分佈喺 {files} 個檔案。",
+            "會上傳 {size}，攤喺 {files} 個檔案度。",
+            "要上去嘅係 {size}，攤喺 {files} 個檔案度。",
+            "要上去嘅係 {size}，攤喺 {files} 個細檔案度，一個一個慢慢行。",
+        ],
+    },
+    "pages.published.size": {
+        en: [
+            "{size} across {files} files.",
+            "{size} across {files} files.",
+            "{size} spread across {files} files.",
+            "{size}, spread across {files} separate files.",
+            "{size}, spread across {files} separate files, every one of them now somebody else's problem to host.",
+        ],
+        yue: [
+            "{size}，分佈喺 {files} 個檔案。",
+            "{size}，分佈喺 {files} 個檔案。",
+            "{size}，攤喺 {files} 個檔案度。",
+            "{size}，攤喺 {files} 個檔案度。",
+            "{size}，攤喺 {files} 個檔案度，而家全部都係人哋幫你擺緊。",
+        ],
+    },
+    "pages.renders.empty": {
+        en: [
+            "There is nothing rendered on this computer yet. Make a map first, then come back.",
+            "There is nothing rendered on this computer yet. Make a map first, then come back.",
+            "Nothing has been rendered on this computer yet. Make a map first, then come back here.",
+            "Nothing has been rendered on this computer yet, so there is nothing to publish. Make a map first, then come back.",
+            "Nothing has been rendered on this computer yet, so there is precisely nothing to publish. Go and make a map, then come back and we will talk.",
+        ],
+        yue: [
+            "呢部電腦仲未算過任何地圖。請先整一張圖，再返嚟。",
+            "呢部電腦仲未算過任何地圖。請先整一張圖，再返嚟。",
+            "呢部電腦到而家都未算過地圖。不如先去整一張，再返嚟呢度。",
+            "呢部電腦到而家都未算過地圖，所以冇嘢好發佈。先去整一張圖，再返嚟。",
+            "呢部電腦到而家一張圖都未算過，所以真係一啲嘢都冇得發佈。去整張圖先，返嚟先再傾。",
+        ],
+    },
+    "pages.ack": {
+        en: [
+            "I understand this pushes the whole map and replaces whatever is on that branch.",
+            "I understand this pushes the whole map and replaces whatever is on that branch.",
+            "I understand this pushes the whole map, and replaces whatever is currently on that branch.",
+            "Yes: push the whole map, and replace whatever is sitting on that branch right now.",
+            "Yes: push the whole map, and replace whatever is sitting on that branch right now, no questions asked afterwards.",
+        ],
+        yue: [
+            "我明白呢個操作會上傳成張地圖，並且取代嗰個分支上面原有嘅內容。",
+            "我明白呢個操作會上傳成張地圖，並且取代嗰個分支上面原有嘅內容。",
+            "我明白呢個操作會上傳成張地圖，亦都會取代嗰個分支而家有嘅嘢。",
+            "係：上傳成張地圖，同埋取代而家坐喺嗰個分支上面嘅嘢。",
+            "係：上傳成張地圖，同埋取代而家坐喺嗰個分支上面嘅嘢，之後唔會再問多次。",
+        ],
+    },
+    "pages.blocked.acknowledge": {
+        en: [
+            "Confirm that you mean to publish this map, replacing whatever is on that branch.",
+            "Confirm that you mean to publish this map, replacing whatever is on that branch.",
+            "Confirm that you do mean to publish this map, replacing whatever is on that branch.",
+            "Tick the box: you do mean to publish this map, replacing whatever is on that branch.",
+            "Tick the box before anything moves: you really do mean to publish this map, replacing whatever is on that branch.",
+        ],
+        yue: [
+            "請確認你係想發佈呢張地圖，並且取代嗰個分支上面嘅內容。",
+            "請確認你係想發佈呢張地圖，並且取代嗰個分支上面嘅內容。",
+            "請確認你的確想發佈呢張地圖，亦都會取代嗰個分支上面嘅內容。",
+            "剔咗個格先：你係真係想發佈呢張地圖，同埋取代嗰個分支上面嘅內容。",
+            "郁之前剔咗個格先：你係真心想發佈呢張地圖，並且取代嗰個分支上面嘅內容。",
+        ],
+    },
+    "pages.oversized": {
+        en: [
+            "{path} is past GitHub's 100 MB per-file limit and cannot be pushed at all.",
+            "{path} is past GitHub's 100 MB per-file limit and cannot be pushed at all.",
+            "{path} is past GitHub's 100 MB per-file limit, so it cannot be pushed at all.",
+            "{path} is over GitHub's 100 MB per-file limit, so it cannot be pushed at all, no matter what else is true.",
+            "{path} sails straight past GitHub's 100 MB per-file limit, so it cannot be pushed at all, however politely anyone asks.",
+        ],
+        yue: [
+            "{path} 超出咗 GitHub 每個檔案 100 MB 嘅上限，根本上傳唔到。",
+            "{path} 超出咗 GitHub 每個檔案 100 MB 嘅上限，根本上傳唔到。",
+            "{path} 超出咗 GitHub 每個檔案 100 MB 嘅上限，所以完全上傳唔到。",
+            "{path} 過咗 GitHub 每個檔案 100 MB 嘅上限，所以無論如何都上傳唔到。",
+            "{path} 一嘢衝爆咗 GitHub 每個檔案 100 MB 嘅上限，所以幾好聲好氣求都上傳唔到。",
+        ],
+    },
+    "pages.status.live": {
+        en: [
+            "Live, and answering",
+            "Live, and answering",
+            "Live: the address answered",
+            "Live. The address was opened and it answered",
+            "Live. The address was actually opened and it actually answered, which is more than most status lights can claim",
+        ],
+        yue: [
+            "已上線，而且有回應",
+            "已上線，而且有回應",
+            "已上線：個網址有回應",
+            "已上線。個網址開過，而且有回應",
+            "已上線。個網址真係開過，亦都真係有回應，呢句唔係靠估嘅",
+        ],
+    },
+    "pages.status.built": {
+        en: [
+            "GitHub says built, but the address did not answer yet",
+            "GitHub says built, but the address did not answer yet",
+            "GitHub says built, but the address has not answered yet",
+            "GitHub says built. The address has not answered yet, so this is not being called live",
+            "GitHub says built, which is GitHub's opinion. The address has not answered yet, so nobody here is calling it live",
+        ],
+        yue: [
+            "GitHub 話已經建立好，但係個網址仲未有回應",
+            "GitHub 話已經建立好，但係個網址仲未有回應",
+            "GitHub 話已經建立好，不過個網址到而家都未有回應",
+            "GitHub 話已經建立好。個網址仲未有回應，所以呢度唔會當佢上線",
+            "GitHub 話已經建立好，嗰個係 GitHub 嘅講法。個網址仲未有回應，所以呢度冇人夠膽當佢上線",
+        ],
+    },
+    "pages.pushUnverified": {
+        en: [
+            "The push reported success but GitHub does not yet show that commit on the branch, so it is reported as unverified rather than as landed.",
+            "The push reported success but GitHub does not yet show that commit on the branch, so it is reported as unverified rather than as landed.",
+            "The push reported success, but GitHub does not yet show that commit on the branch, so it is reported as unverified rather than as landed.",
+            "The push said it worked, but GitHub does not show that commit on the branch yet, so it is reported as unverified rather than as landed.",
+            "The push said it worked. GitHub does not show that commit on the branch yet, and one of them is wrong, so it is reported as unverified rather than as landed.",
+        ],
+        yue: [
+            "推送報告成功，但係 GitHub 仲未喺個分支上面顯示到嗰個 commit，所以呢度報告為未經核實，而唔係已經完成。",
+            "推送報告成功，但係 GitHub 仲未喺個分支上面顯示到嗰個 commit，所以呢度報告為未經核實，而唔係已經完成。",
+            "推送話成功，不過 GitHub 到而家都未喺個分支上面顯示到嗰個 commit，所以呢度報告為未經核實，而唔係已經完成。",
+            "推送話搞掂咗，但 GitHub 個分支上面仲未見到嗰個 commit，所以呢度報告為未經核實，而唔係已經完成。",
+            "推送話搞掂咗。GitHub 個分支上面仲未見到嗰個 commit，兩者總有一個講錯，所以呢度報告為未經核實，而唔係已經完成。",
+        ],
+    },
+    "pages.stop.action": {
+        en: [
+            "GitHub Pages will be turned off for {owner}/{repo} and the {branch} branch will be deleted. The address stops working immediately. The render on this computer is not touched, and neither is anything else in that repository.",
+            "GitHub Pages will be turned off for {owner}/{repo} and the {branch} branch will be deleted. The address stops working immediately. The render on this computer is not touched, and neither is anything else in that repository.",
+            "GitHub Pages will be turned off for {owner}/{repo}, and the {branch} branch will be deleted. The address stops working immediately. The render on this computer is not touched, and nothing else in that repository is either.",
+            "Pages goes off for {owner}/{repo} and the {branch} branch is deleted. The address stops working straight away. The render on this computer is not touched, and nothing else in that repository is either.",
+            "Pages goes off for {owner}/{repo} and the {branch} branch is deleted outright. The address stops working straight away, with no grace period and no forwarding note. The render on this computer is not touched, and nothing else in that repository is either.",
+        ],
+        yue: [
+            "{owner}/{repo} 嘅 GitHub Pages 會關閉，{branch} 分支會被刪除。個網址會即刻失效。呢部電腦上面算好嘅圖唔會被郁到，嗰個 repository 其他嘢亦都唔會。",
+            "{owner}/{repo} 嘅 GitHub Pages 會關閉，{branch} 分支會被刪除。個網址會即刻失效。呢部電腦上面算好嘅圖唔會被郁到，嗰個 repository 其他嘢亦都唔會。",
+            "{owner}/{repo} 嘅 GitHub Pages 會關閉，而 {branch} 分支會被刪除。個網址會即刻失效。呢部電腦上面算好嘅圖唔會被郁到，嗰個 repository 其他嘢亦都唔會。",
+            "{owner}/{repo} 嘅 Pages 會熄咗，{branch} 分支會刪除。個網址即刻失效。呢部電腦上面算好嘅圖唔會被郁到，嗰個 repository 其他嘢亦都唔會。",
+            "{owner}/{repo} 嘅 Pages 會熄咗，{branch} 分支會直接刪除。個網址即刻失效，冇緩衝期，亦都唔會留張紙條話搬咗去邊。呢部電腦上面算好嘅圖唔會被郁到，嗰個 repository 其他嘢亦都唔會。",
+        ],
+    },
+    "pages.notice.live": {
+        en: [
+            "The map is live at {url}.",
+            "The map is live at {url}.",
+            "The map is live at {url}, and the address answered.",
+            "The map is live at {url}. The address was opened and it answered.",
+            "The map is live at {url}. The address was opened, it answered, and you may now send it to somebody.",
+        ],
+        yue: [
+            "地圖已經上線，網址係 {url}。",
+            "地圖已經上線，網址係 {url}。",
+            "地圖已經上線，網址係 {url}，而且個網址有回應。",
+            "地圖已經上線：{url}。個網址開過，亦都有回應。",
+            "地圖已經上線：{url}。個網址開過，有回應，而家可以放心 send 俾人。",
+        ],
+    },
+    "pages.notice.pending": {
+        en: [
+            "The map was pushed and GitHub Pages was turned on, but the address has not answered yet.",
+            "The map was pushed and GitHub Pages was turned on, but the address has not answered yet.",
+            "The map was pushed and GitHub Pages was turned on, but the address has not answered yet. A first build often takes a minute or two.",
+            "The map went up and GitHub Pages is on, but the address has not answered yet. A first build often takes a minute or two.",
+            "The map went up and GitHub Pages is on, but the address has not answered yet. A first build often takes a minute or two, so this is not being called live until it does.",
+        ],
+        yue: [
+            "地圖已經上傳，GitHub Pages 亦都開咗，但係個網址仲未有回應。",
+            "地圖已經上傳，GitHub Pages 亦都開咗，但係個網址仲未有回應。",
+            "地圖已經上傳，GitHub Pages 亦都開咗，不過個網址仲未有回應。第一次建立通常要一兩分鐘。",
+            "地圖上咗去，GitHub Pages 亦都開咗，但個網址仲未有回應。第一次建立通常要一兩分鐘。",
+            "地圖上咗去，GitHub Pages 亦都開咗，但個網址仲未有回應。第一次建立通常要一兩分鐘，所以未有回應之前，呢度唔會當佢上線。",
+        ],
+    },
+    "pages.gh.signIn": {
+        en: [
+            "Run `gh auth login` in a terminal - it asks for a code interactively and cannot be driven from inside this application - then check again.",
+            "Run `gh auth login` in a terminal - it asks for a code interactively and cannot be driven from inside this application - then check again.",
+            "Run `gh auth login` in a terminal. It asks for a code interactively and cannot be driven from inside this application, so it has to be run there. Then check again.",
+            "Run `gh auth login` in a terminal yourself. It asks for a code interactively and cannot be driven from inside this application, so there is no button here that would do it. Then check again.",
+            "Run `gh auth login` in a terminal yourself. It asks for a code interactively and cannot be driven from inside an application at all, so there is deliberately no button here pretending otherwise. Then check again.",
+        ],
+        yue: [
+            "喺終端機執行 `gh auth login`：佢會互動咁問你要驗證碼，喺呢個程式入面驅動唔到，之後再檢查一次。",
+            "喺終端機執行 `gh auth login`：佢會互動咁問你要驗證碼，喺呢個程式入面驅動唔到，之後再檢查一次。",
+            "請喺終端機執行 `gh auth login`。佢會互動咁問你要驗證碼，喺呢個程式入面驅動唔到，所以一定要喺嗰邊行。跟住再檢查一次。",
+            "自己喺終端機行 `gh auth login`。佢會互動咁問你攞驗證碼，喺呢個程式入面驅動唔到，所以呢度冇一粒掣做得到。之後再檢查一次。",
+            "自己喺終端機行 `gh auth login`。佢會互動咁問你攞驗證碼，喺任何程式入面都驅動唔到，所以呢度特登冇一粒掣扮做得到。之後再檢查一次。",
+        ],
+    },
+    "pages.visibility.note": {
+        en: [
+            "This is only used if the repository has to be created. An existing repository is left exactly as it is.",
+            "This is only used if the repository has to be created. An existing repository is left exactly as it is.",
+            "This is only used if the repository has to be created. An existing repository is left exactly as it already is.",
+            "This only matters if the repository has to be created. One that already exists is left exactly as it is.",
+            "This only matters if the repository has to be created from scratch. One that already exists is left exactly as it is, visibility and all.",
+        ],
+        yue: [
+            "呢個選項淨係喺需要建立 repository 嗰陣先會用到。已經存在嘅 repository 會原封不動。",
+            "呢個選項淨係喺需要建立 repository 嗰陣先會用到。已經存在嘅 repository 會原封不動。",
+            "呢個選項淨係喺要新開 repository 嗰陣先會用。已經存在嘅 repository 會原封不動咁擺喺度。",
+            "呢個淨係喺要新開 repository 先有意義。已經存在嗰個會原封不動。",
+            "呢個淨係喺要由零開一個 repository 先有意義。已經存在嗰個會原封不動，連公開定私人都唔會郁。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 /* -------------------------------------------------------------------------- */
@@ -711,6 +987,29 @@ export const APP_FIXED = {
     "superConfirm.keyOne": { en: "Key 1", yue: "鎖匙 1" },
     "superConfirm.keyTwo": { en: "Key 2", yue: "鎖匙 2" },
     "superConfirm.done": { en: "Authorized.", yue: "已授權。" },
+
+    "pages.title": { en: "Put a map on the internet", yue: "將地圖擺上網" },
+    "pages.which.title": { en: "Which map, and where", yue: "邊張圖，擺去邊" },
+    "pages.report.title": { en: "What this would do", yue: "呢個會做啲乜" },
+    "pages.hosted.title": {
+        en: "Maps this computer has published",
+        yue: "呢部電腦發佈過嘅地圖",
+    },
+    "pages.check": { en: "Check before anything is pushed", yue: "上傳之前先檢查" },
+    "pages.publish": { en: "Publish to GitHub Pages", yue: "發佈到 GitHub Pages" },
+    "pages.open": { en: "Open it", yue: "開嚟睇" },
+    "pages.copy": { en: "Copy the address", yue: "複製網址" },
+    "pages.stopButton": { en: "Stop hosting", yue: "停止寄存" },
+    "pages.cancel": { en: "Stop publishing", yue: "停止發佈" },
+    "pages.field.owner": { en: "Repository owner", yue: "Repository 擁有者" },
+    "pages.field.repo": { en: "Repository name", yue: "Repository 名" },
+    "pages.field.branch": { en: "Publishing branch", yue: "發佈分支" },
+    "pages.renders.search": { en: "Search renders", yue: "搜尋算好嘅圖" },
+    "pages.stop.title": {
+        en: "Take this map off the internet",
+        yue: "將呢張地圖由網上落架",
+    },
+    "pages.stop.confirm": { en: "Take the site down", yue: "落架" },
 } as const satisfies Record<string, FixedString>;
 
 /* -------------------------------------------------------------------------- */
@@ -829,6 +1128,48 @@ export const FACTS = {
         en: ["funny levels", "errors and warnings"],
         yue: ["搞笑程度", "錯誤同警告"],
     },
+
+    /*
+     * Publishing a map. The facts here are the two GitHub limits, the one setting that is
+     * changed and where it is written, the branch that is replaced, and - most of all - the
+     * difference between "GitHub says built" and "the address answered". A playful rewrite
+     * that lost that last one would turn an honest status into a green tick over a dead link.
+     */
+    "pages.pitch": { en: ["GitHub Pages", "free"], yue: ["GitHub Pages", "免費"] },
+    "pages.caveats": {
+        en: ["1 GB", "100 MB", "paid plan", "public"],
+        yue: ["1 GB", "100 MB", "俾錢嘅方案", "公開"],
+    },
+    "pages.decompression": {
+        en: ["settings.json", "static host"],
+        yue: ["settings.json", "靜態主機"],
+    },
+    "pages.size": { en: ["{size}", "{files}"], yue: ["{size}", "{files}"] },
+    "pages.published.size": { en: ["{size}", "{files}"], yue: ["{size}", "{files}"] },
+    "pages.renders.empty": { en: ["rendered"], yue: ["算"] },
+    "pages.ack": { en: ["whole map", "replace"], yue: ["成張地圖", "取代"] },
+    "pages.blocked.acknowledge": { en: ["publish", "branch"], yue: ["發佈", "分支"] },
+    "pages.oversized": { en: ["{path}", "100 MB"], yue: ["{path}", "100 MB"] },
+    // "Live" here is a claim about a request that answered, so the word has to survive.
+    "pages.status.live": { en: ["Live"], yue: ["已上線"] },
+    // And this one is the opposite claim, which is exactly the one a playful level is
+    // tempted to round up into a success. Both halves are pinned.
+    "pages.status.built": {
+        en: ["GitHub says built", "not"],
+        yue: ["GitHub 話已經建立好", "未有回應"],
+    },
+    "pages.pushUnverified": {
+        en: ["unverified", "commit"],
+        yue: ["未經核實", "commit"],
+    },
+    "pages.stop.action": {
+        en: ["{owner}", "{repo}", "{branch}", "deleted", "not touched"],
+        yue: ["{owner}", "{repo}", "{branch}", "刪除", "唔會被郁到"],
+    },
+    "pages.notice.live": { en: ["{url}", "live"], yue: ["{url}", "上線"] },
+    "pages.notice.pending": { en: ["not answered yet"], yue: ["未有回應"] },
+    "pages.gh.signIn": { en: ["gh auth login", "terminal"], yue: ["gh auth login", "終端機"] },
+    "pages.visibility.note": { en: ["created"], yue: ["repository"] },
 } as const satisfies Record<AppVoicedKey, { en: readonly string[]; yue: readonly string[] }>;
 
 export type AppVoicedKey = keyof typeof APP_VOICED;

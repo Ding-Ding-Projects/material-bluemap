@@ -671,7 +671,7 @@ onBeforeUnmount(() => {
                                         color="error"
                                         data-test="hosted-stop"
                                     >
-                                        {{ t("pages.stop", "Stop hosting") }}
+                                        {{ t("pages.stopButton", "Stop hosting") }}
                                     </VBtn>
                                 </template>
                             </ConfigSuperConfirm>
