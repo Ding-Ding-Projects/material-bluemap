@@ -211,6 +211,7 @@ export class WorldRegionUpdateTask {
             } else if (action.action() === Action.NONE) {
                 resultState = action.state();
             } else if (action.action() === Action.RENDER) {
+                await this.#preloadTileChunks(tile);
                 const failedState = this.#checkTileRenderPreconditions(tile);
                 if (failedState !== null) {
                     await this.#map.unrenderTile(tile);
@@ -303,6 +304,36 @@ export class WorldRegionUpdateTask {
         }
 
         return false;
+    }
+
+    /**
+     * Makes sure every chunk this tile reads is in the cache before anything reads one.
+     *
+     * Upstream has no counterpart because it does not need one: its `World#getChunk`
+     * loads on demand, so a precondition check that asks about an unloaded chunk gets the
+     * chunk. The port's is synchronous and answers a cache miss with an *empty* chunk,
+     * which reports itself as not generated - so a tile whose chunks happened not to be
+     * warm was rejected as ungenerated terrain and unrendered.
+     *
+     * The tiles that suffer are the ones on a region boundary, and only once a world is
+     * big enough to have one. A tile at the far edge of a region reads a chunk belonging
+     * to the *next* region, which this region's task never loaded: at 1000x1000 that was
+     * the whole of tile column 15, 23 tiles the reference rendered and the port erased.
+     * Loading by chunk range rather than by region is what makes that work, because the
+     * range crosses the boundary and a region does not.
+     *
+     * `preloadChunks` resolves from the cache when it can and dedups a load already in
+     * flight, so on the warm interior of a region this is a walk over resolved promises.
+     */
+    async #preloadTileChunks(tile: Vector2i): Promise<void> {
+        await this.#map
+            .getWorld()
+            .preloadChunks(
+                this.#tileGrid.getCellMinX(tile.getX(), this.#chunkGrid),
+                this.#tileGrid.getCellMinY(tile.getY(), this.#chunkGrid),
+                this.#tileGrid.getCellMaxX(tile.getX(), this.#chunkGrid),
+                this.#tileGrid.getCellMaxY(tile.getY(), this.#chunkGrid),
+            );
     }
 
     /** upstream: `checkTileBounds(Vector2i)` */

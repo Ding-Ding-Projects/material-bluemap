@@ -48,21 +48,36 @@ document says so.
 
 ### What does not work yet
 
-- **The TypeScript mesher does not yet match the Java engine.** The oracle compared them
-  on 2026-08-03: 49 of 57 compared files differ. Until the gate passes, local rendering
-  uses the Java engine, and that is correct behaviour rather than a bug.
+- **The TypeScript mesher now matches the Java engine on a small world, and a large one
+  is being proven.** The oracle's first real comparison had 49 of 57 files differing.
+  Every cause turned out to be *outside* the mesher, which is the finding worth keeping:
 
-  Three causes are now known precisely, which is a change from the earlier guesses:
-  1. **The texture list.** Its number and string spelling now match Java exactly. What
-     still differs is that Java and the port use different PNG encoders, so the same image
-     comes out as different bytes — same pixels, different file. The list is also still
-     missing entries (Java has 2092, the port has 1253) for a reason not yet found.
-  2. **253 extra tile files, and six missing `rstate/` files.** One shared cause: a Java
-     class called `WorldRegionUpdateTask` has not been ported. It is what decides a tile
-     should be skipped, and it is what records what was rendered. Tile paths are fine —
-     that earlier guess was wrong.
-  3. **Missing geometry.** Partly fixed: tiles are now about 20% larger after a change
-     that loads a tile's chunks before meshing it. More remains.
+  1. **The harness was feeding the two engines different resources.** BlueMap bundles its
+     own resource pack, `resourceExtensions.zip`, and upstream loads it alongside the
+     vanilla jar; the harness loaded only the jar, so the gallery was 839 textures short
+     and every texture index after the first gap pointed at the wrong picture. The pack
+     version was read from a file neither pack has, so it silently fell back to a number
+     that selects different models.
+  2. **The port had no per-tile update task.** `WorldRegionUpdateTask` is what decides a
+     tile should be deleted rather than rendered, and what records the render state.
+     Without it the port rendered and kept 253 tiles upstream deletes.
+  3. **The comparison itself was grading the wrong things.** Render state was compared as
+     raw bytes, so the first difference it ever found was a gzip header field; the
+     gallery was compared as bytes, so two correct PNG encoders looked like a divergence.
+
+  With those fixed the 200x200 fixture reports **identical**: every hires tile byte for
+  byte after decompression, every lowres tile pixel for pixel.
+
+  A 1000x1000 run then found a real defect the small world could not reach. At a region
+  boundary a tile reads chunks belonging to the *next* region; the port's synchronous
+  `getChunk` answers a cache miss with an empty chunk, which reports itself as ungenerated,
+  so 23 tiles were erased rather than rendered. Every tile the port did write was still
+  byte-identical: 938 of 938. The fix preloads a tile's chunk range before the precondition
+  check, and its full-scale verification is running as this is written. **Until that run is
+  green, the gate is proven at 200x200 and not at 1000x1000.**
+
+  Until it is proven at full scale, local rendering uses the Java engine, and that is
+  correct behaviour rather than a bug.
 
 - **A warning for anyone measuring the gate: build first.** `tools/oracle` runs the
   *compiled* engine, so a run measures the last build rather than the current source. It
@@ -82,7 +97,8 @@ cd design && npx vitest run          # every unit test (about 3200, under 30 sec
 cd design && pnpm typecheck          # type-checks all 13 packages (vue-tsc for the ui one)
 cd design && pnpm lint
 node tools/oracle/selftest.mjs       # proves the byte-comparison gate can detect planted differences
-node tools/oracle/compare.mjs --seed 7 --size 200   # the real gate; currently reports divergences, exit 1
+node tools/oracle/compare.mjs --seed 7 --size 200   # the real gate; identical, exit 0
+node tools/oracle/compare.mjs --seed 1 --size 1000  # full scale; the run that found the region-boundary defect
 ```
 
 The gate compiles the engine itself before rendering, so it always grades the current
