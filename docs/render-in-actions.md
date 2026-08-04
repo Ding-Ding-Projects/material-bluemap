@@ -93,14 +93,57 @@ The result is the **rendered-map** artifact: the complete BlueMap webapp with th
 inside it. Serve the unzipped folder over http; opening `index.html` off the file system
 will not work, because the webapp fetches its tiles.
 
-### Publishing to Pages replaces the documentation site
+### Publishing to Pages, and the one detail that decides whether it works
 
-`artifact-and-pages` publishes the map to this repository's GitHub Pages site. That is
-the same Pages site the documentation workflow publishes to, and a Pages site holds one
-deployment, so **the map replaces the documentation site until `pages.yml` next runs**.
-The two workflows share the `pages` concurrency group so they queue instead of racing,
-and the run summary says this out loud. If you want both permanently, publish the map
-somewhere else.
+`artifact-and-pages` hosts the finished map on this repository's GitHub Pages site, in
+addition to producing the downloadable artifact. In the app, the CI render screen offers
+it as a tick box, off by default — rendering a world is a private act until somebody says
+otherwise, and Pages is public whether or not the repository is.
+
+A repository has one Pages site, and the documentation workflow publishes to the same one.
+Rather than one taking the other down, the merge job rebuilds the documentation site and
+places the map **underneath it at `/map/`**, so both survive. It refuses outright if the
+documentation site already publishes something at `/map/`, rather than overwriting it. The
+two workflows share the `pages` concurrency group, so they queue instead of racing.
+
+#### Why a map that works locally can load to an empty sky
+
+The engine stores hires tiles gzipped: the file on disk is `0.prbm.gz`, and the map's
+texture data is `textures.json.gz`. The viewer asks for `0.prbm` and `textures.json`
+— *unless* the web app's `settings.json` says `clientDecompression: true`, in which case it
+appends `.gz` itself and inflates the bytes in the browser with `DecompressionStream`.
+
+Upstream defaults that to `false`, correctly, because BlueMap's own web server answers a
+request for `0.prbm` out of `0.prbm.gz`. So does this app's embedded server
+([render-console.md](render-console.md)). **GitHub Pages does no such thing.** It serves
+the files that exist, under the names they have, and 404s everything else. There is no
+rewrite rule to add — that is the whole point of it.
+
+So before the map is combined with the documentation site, the merge job runs:
+
+```
+node design/packages/render-actions/dist/cli.js static-host --web-root site
+```
+
+which flips that flag, **checks the flip against the files actually on disk**, writes
+`.nojekyll` (Pages otherwise runs the site through Jekyll, which silently drops anything
+whose name starts with an underscore), measures the site against GitHub's limits, and
+**exits non-zero rather than publishing a site nobody can use**. A map rendered with
+compression off is the case that check exists for: it has `textures.json` and no `.gz`, so
+flipping the flag would point the viewer at files nobody wrote.
+
+Verified against a real CI-rendered map published to a real Pages site: the tile URL the
+viewer requests returns `200` with gzip magic bytes, and the uncompressed name returns
+`404` — which is exactly why the flag has to be set.
+
+#### What Pages will not host
+
+| Limit | What happens |
+| --- | --- |
+| A map delivered in parts (more than one merge group) | Publishing is skipped, with a note in the run summary. No single runner ever holds the whole map, which is the point of the split — see [large-worlds.md](large-worlds.md). |
+| 1 GB site | GitHub's soft limit. `static-host` reports the size and warns past it; publishing may be refused or throttled. |
+| 100 MB per file | GitHub's hard limit. `static-host` fails the run rather than discovering it mid-push. |
+| 100 GB/month bandwidth | GitHub's soft limit on serving. A popular map is a lot of tiles. |
 
 ## Doing it from the app
 
