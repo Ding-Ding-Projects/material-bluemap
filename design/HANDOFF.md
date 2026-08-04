@@ -55,6 +55,8 @@ document says so.
 | **Squirrel** | The Windows installer technology the app ships with |
 | **The contracts** | Product rules every user-facing surface must follow (regex builder on every search bar, browser-style tabs, appearance editors, language modes, super-confirmation for destructive actions). Tracked as GitHub issues #6 to #13 |
 | **The recurring defect** | "Built, tested, unreachable": code that works and has green tests, but no user can reach it, because nothing mounts it or wires it. It has happened at least four times in this project. An audit on 2026-08-03 found and fixed nine more cases |
+| **The flattening** | A change Minecraft made in version 1.13. Before it, a block was a number plus four extra bits (stone was `1`, andesite was `1:5`). After it, a block is a name (`minecraft:andesite`). Worlds from 1.12.2 and older use the old numbers. Some names also changed meaning: `minecraft:grass` used to be the grass **block** and now means a small grass **plant** |
+| **`worldgen`** | `design/packages/worldgen`. Makes a fake Minecraft world from a number (a "seed"), so tests have a real world to read without downloading one. It can write the modern format or the 1.12.2 one |
 
 ### What works right now
 
@@ -67,6 +69,12 @@ document says so.
   are reachable by clicking, and all have tests.
 - CI builds an installer, renders a test world, takes screenshots of the real app, and
   publishes a GitHub release on every green push to `main`.
+- **The engine can read a Minecraft 1.12.2 world and render it.** This was checked for the
+  first time on 2026-08-04. `worldgen` can now write a 1.12.2 world, and a test reads back
+  every single one of a million blocks in it and checks that the engine understood each
+  one. It got all of them right. A rendered 1.12.2 map comes out as a real 3D map with 23
+  different block textures in it, and no block falls back to the pink-and-black "missing
+  texture" placeholder.
 
 ### What does not work yet
 
@@ -110,6 +118,15 @@ document says so.
   *compiled* engine, so a run measures the last build rather than the current source. It
   now compiles automatically, but a report older than 2026-08-03 late-evening may have been
   grading a stale build.
+- **Four kinds of block from a 1.12.2 world are drawn wrongly.** Reading the world is
+  right; drawing it is not, and the reason is not in the world reader. The reader gives back
+  the *old* block name (`minecraft:grass` for a grass block). Nothing then turns that old
+  name into the new one before the pictures are looked up. So the modern picture list is
+  asked for `minecraft:grass`, and modern Minecraft uses that name for a small grass plant.
+  Every grass block in the map is drawn as a see-through plant instead of a solid cube, and
+  you can see the dirt through the ground. Snow blocks, snow layers and podzol are drawn as
+  nothing at all. The full list, the numbers behind it, and the two possible fixes are in
+  the 2026-08-04 section at the bottom of this file.
 - Phases E, G, H, I are not started. Phase C has three unfinished exit checks.
 - The contract issues (#6 to #13) are open: regex builder everywhere, tabs, appearance
   editors, language-mode completeness, the command palette, the changelog viewer, the
@@ -126,6 +143,7 @@ cd design && pnpm lint
 node tools/oracle/selftest.mjs       # proves the byte-comparison gate can detect planted differences
 node tools/oracle/compare.mjs --seed 7 --size 200   # the gate on a small world; identical, exit 0
 node tools/oracle/compare.mjs --seed 1 --size 1000  # the gate at full scale; identical, exit 0
+node tools/oracle/render-1-12.mjs    # renders a Minecraft 1.12.2 world; 14 checks, exit 0
 ```
 
 The gate compiles the engine itself before rendering, so it always grades the current
@@ -897,3 +915,179 @@ Everything the port needs already exists: `TileState`, `TileActionResolver`,
 
 Verification for this section: **209 files, 3204 passed, 2 skipped**; `pnpm typecheck`
 clean across all 13 packages; `pnpm lint` clean.
+
+---
+
+## Update, 2026-08-04 — Minecraft 1.12.2 read end to end, and where it stops being right
+
+The project claims support for "MC 1.12.2 to 26.x". The modern half of that is measured by
+the Phase D gate. The 1.12.2 half had never been exercised past a single hand-built
+two-chunk fixture, so this session built a real 1.12.2 world and rendered it.
+
+**Read this part first if you read nothing else:** the chunk reader is correct and is now
+proved exhaustively; the *render* of a 1.12.2 world against a modern resource pack is not,
+and four block-states come out wrong. Neither statement is a guess — both are measured, and
+the second names the exact blocks.
+
+### Why there is no oracle for this, and what was used instead
+
+Upstream BlueMap 5.22 has no pre-flattening chunk loader.
+`vendor/BlueMap/core/src/main/java/de/bluecolored/bluemap/core/world/mca/chunk/` holds
+`Chunk_1_13`, `Chunk_1_15`, `Chunk_1_16` and `Chunk_1_18` and nothing older, so **there is
+no Java render of a 1.12.2 world to compare bytes against, and there cannot be one** without
+reviving `v0.10.3-mc1.12`, whose output format predates everything this engine writes. The
+byte-exact gate `compare.mjs` runs for modern worlds is impossible here. Two substitutes
+were used instead, and both are weaker claims than byte equality:
+
+1. **The generator as ground truth.** `worldgen` is a pure function of its seed, so the
+   test regenerates the same chunks in memory and compares the reader's answer against what
+   the writer was handed, block by block.
+2. **A control render of the same terrain.** Both formats are written from the same
+   `TerrainGenerator`, so seed N produces literally the same blocks in a 1.12.2 world and a
+   1.20.4 world. Rendering both and diffing the material tables isolates the format:
+   anything in one and not the other is a difference in how the world was *read and
+   resolved*, not in what was generated.
+
+### What was added
+
+- **`worldgen --format 1.12.2`** (equivalently `--data-version 1343`). Writes the
+  pre-flattening chunk layout: `Level.Sections[].Blocks` as a `byte[4096]` of numeric ids,
+  `Data` as a `byte[2048]` nibble array of 4-bit metadata, the optional `Add` nibbles for
+  ids above 255, `BlockLight`/`SkyLight`, biomes as a flat `byte[256]` on the `Level`
+  compound, `HeightMap` as an `int[256]` of absolute y, and a 1.12.2 `level.dat`
+  (`RandomSeed`, `generatorName`, `MapFeatures`, and deliberately **no**
+  `WorldGenSettings` — a real 1.12.2 world has none, so the reader falls back to the modern
+  overworld box exactly as it would in the wild). New files: `legacyVersion.ts`,
+  `legacyMappings.ts`, `legacyChunkNbt.ts`, `legacyLevelDat.ts`.
+- **`design/packages/worldgen/test/legacy-worldgen.test.ts`** — 13 tests, about 1.3 s.
+- **`tools/oracle/render-1-12.mjs`** — generates both worlds, renders both with the same
+  `render-ts.mjs` driver `compare.mjs` uses, parses the PRBM tiles, and runs 14 assertions.
+  It is a script rather than a unit test because it needs a client jar, BlueMap's
+  `resourceExtensions.zip`, a 2,100-texture resource-pack load and two full renders. Nothing
+  is softened by that: every check is an assertion and a failure exits non-zero.
+
+The generator reports every block 1.12.2 cannot express instead of dropping it silently
+(`substitutions` in the JSON summary, and on stderr). At seed 22 that is copper ore
+(1.17, becomes gold ore) and `grass_block[snowy=true]` (1.12.2 had no `snowy` property;
+the reader's `SnowyExtension` derives it back, and the test asserts it does). Deepslate and
+its ores would be substituted too but live below y=0, which this era's world box does not
+have, so they are never written.
+
+### What is now proven about reading a 1.12.2 world
+
+`npx vitest run packages/worldgen` — 13 legacy tests green. The strongest of them walks
+**every one of 1,048,576 block positions** of a 64x64 world and asserts the reader returns
+exactly the block-state that position's numeric id and metadata nibble mean. The expected
+value is resolved the long way round — writer's id/meta, then the same
+`assets/legacy/blockIds.json` the reader consults — so an id both sides agree on but that
+is *wrong* cannot pass. Also asserted: `DataVersion` 1343 dispatches to `Chunk_1_12`; the
+metadata nibbles survive (granite and andesite are not stone, spruce and birch logs are not
+oak); bedrock sits at y=0 and every y below reads back as air; every biome byte resolves
+through the bundled legacy table; `HeightMap` comes back as an absolute y with no
+world-floor offset; sky-light is 15 above the terrain and 0 at the surface; and
+`SnowyExtension` restores `snowy` on grass blocks — false where plain grass was written,
+true where the snowy variant was and a snow layer sits above — while the raw chunk carries
+no properties at all.
+
+### What is now proven about rendering one
+
+`node tools/oracle/render-1-12.mjs` — 14 checks, all passing, on a 128x128 world at seed 22
+(8x8 chunks, five biomes). The 1.12.2 world renders: **9 hires tiles, 306,252 vertices, 23
+distinct materials**, and
+
+- every tile parses as valid PRBM with a generic reader that arrives *exactly* at the end
+  of the file, so no tile is truncated, mis-padded or inconsistent with its own vertex
+  count;
+- every tile carries the seven vertex attributes the viewer reads, in order;
+- every material index resolves to a `textures.json` entry with a real embedded PNG;
+- **no part of the map is the missing-texture placeholder** — `bluemap:block/missing` is 0
+  vertices;
+- the legacy render wrote a hires tile at every coordinate the modern control did, and drew
+  nothing the control does not.
+
+That is a real map, not a tile count.
+
+### Where it stops being right — the finding
+
+Rendered against the modern (26.2) client jar plus `resourceExtensions.zip`, **four
+block-states come out wrong**, and the cause is not in the chunk reader. The reader hands
+back precisely the pre-flattening block name the numeric id means; nothing then translates
+that name into a modern one before the resource pack is asked for a model. Three
+qualitatively different failures follow:
+
+| Block-state | What the generator wrote | What happens | Why |
+|---|---|---|---|
+| `minecraft:grass` | the grass **block** (id 2) | renders as a grass **tuft** | `resourceExtensions.zip`'s `mc1_20_3` overlay defines `minecraft:grass` as the modern tuft (1.20.3 renamed the tuft to `short_grass`). The two names swapped meaning at the flattening |
+| `minecraft:snow` | the snow **block** (id 80) | renders as nothing | mirror image: in a modern pack `minecraft:snow` is the snow **layer**, whose variants are keyed on `layers`, which the legacy state has no way to carry |
+| `minecraft:snow_layer` | a snow layer (id 78) | renders as nothing | the name was removed by the flattening; no blockstate answers to it |
+| `minecraft:podzol` | podzol (id 3, meta 2) | renders as nothing | survived the flattening but gained a `snowy` property, and 26.2 keys its variants on it, so no variant matches |
+
+The most damaging is `minecraft:grass`, because it fails *confidently*: roughly eleven and a
+half thousand grass cubes became that many cross-shaped plants (a cross is 12 vertices, so
+the arithmetic is visible in the numbers below). `short_grass` carries **139,728 vertices
+against the control's 1,944 (71.9x)** — the control's figure being the world's *actual*
+grass tufts — and with the ground no longer occluding, `dirt` (10.0x) and
+`stone` (10.4x) become visible through it. A set difference alone would have missed this
+entirely — the texture is present in both renders — which is why the harness also compares
+quantities and pins the ratios.
+
+`grass_path`, `stonebrick`, `fence`, `melon_block` and 92 other pre-flattening names are in
+the same position; they simply do not occur in this seed's terrain. Of the 417 distinct
+block names `blockIds.json` can produce, **96 have no blockstate in a 26.2 resource pack**.
+
+**This is a resource-resolution gap, not a world-reading one.** Two fixes are possible and
+neither is in scope here: give the render an era-matched 1.12.2 resource pack, which is
+exactly what `LegacyResourcePackExtension` and `LegacyResourceNames` were written for and
+what upstream v0.10.3 shipped; or add a flattening rename table between `BlockIdMapper` and
+the resource lookup. The first could not be tested this session because it needs a 1.12.2
+client jar and this work downloads nothing.
+
+### How to re-run it
+
+```bash
+cd design && npx vitest run packages/worldgen          # the exhaustive decode proof, ~1.3 s
+node tools/oracle/render-1-12.mjs                      # the render proof, ~1 min, 14 checks
+node tools/oracle/render-1-12.mjs --seed 9 --size 256 --keep
+```
+
+`render-1-12.mjs` compiles the engine and the generator first (same reason the gate does),
+and reuses the client jar and `resourceExtensions.zip` that `compare.mjs` already put in
+`tools/oracle/out/gate/bluemap-data/`. **It downloads nothing**; if those files are absent
+it says so and stops rather than fetching. Output goes to `tools/oracle/out/legacy/`,
+including `render-1-12-report.json` with both material tables in full.
+
+`KNOWN_LEGACY_RENDER_GAPS` and `KNOWN_DIVERGENT_MATERIALS` at the top of that script are the
+finding written as a regression gate: the divergence must be **exactly** those sets. A new
+entry appearing is a new bug; an entry disappearing means somebody fixed it and the list is
+stale. Either way the run fails and says which.
+
+### What remains unproven
+
+- **There is no byte-exact oracle for 1.12.2 and there cannot be one with upstream 5.22.**
+  Everything above is an internal consistency proof plus a same-terrain control. It says the
+  reader agrees with the writer and that the legacy render agrees with the modern one except
+  where documented. It does not say either matches what BlueMap v0.10.3 would have drawn.
+- **Rendering with an era-matched 1.12.2 resource pack is untested.** The four gaps above
+  are expected to disappear under one, since that is what `LegacyResourcePackExtension`
+  exists for, but expected is not measured.
+- **Only one of the twelve registered legacy block-state extensions is reachable from this
+  terrain.** `BlockStateExtensions.ts` registers twelve, and the generator's blocks trigger
+  exactly one of them — `SnowyExtension`, which is asserted. It places no stairs, fire,
+  redstone, doors, nether fences, tripwire, walls, wooden fences, glass panes, double plants
+  or chests, so the other eleven are still covered only by their own unit tests and the
+  two-chunk fixture in `packages/engine/test/world-e2e.test.ts` (which reaches
+  `WoodenFenceConnectExtension`). Teaching the generator to place a few of those structures
+  would close it, and would be the highest-value next step for this area.
+- **Forge block-id mappings are untested end to end.** `Chunk_1_12` duck-types a
+  `getForgeBlockIdMapping` off the world and the modern `MCAWorld` does not provide one, so
+  that whole branch is dead in practice and no generated world exercises it.
+- **Nether and End dimensions in the legacy folder layout** (`DIM-1`, `DIM1`) are resolved
+  by `MCAWorld.legacyDimensionFolder` but no generated world has them.
+
+Verification for this section: `npx tsc -p packages/worldgen/tsconfig.json --noEmit` clean;
+`npx eslint packages/worldgen packages/engine` clean; `npx vitest run packages/worldgen
+packages/engine` — **88 files, 1182 passed, 1 skipped**; `node tools/oracle/render-1-12.mjs`
+— **14 checks passed, 0 failed**. (`npx prettier --check packages/worldgen` reports style
+issues, but it reports them for untouched files too — `chunkNbt.ts`, `packing.test.ts`,
+`package.json`, `README.md` — so that is a pre-existing repository state, not something this
+work introduced.)

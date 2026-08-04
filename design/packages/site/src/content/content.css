@@ -468,12 +468,70 @@
 }
 
 /*
- * The title bar cropped to full width: 1920 by 44, which is 480 / 11. A crop is a real
- * shape rather than an odd one, and giving it its own rule keeps it from silently losing
- * its reserved box and shoving the gallery around as it loads.
+ * The rest are crops, and a crop is a real shape rather than an odd one: a title bar is
+ * genuinely 1280 by 40, a column of three round buttons genuinely 48 by 160. Each needs
+ * its own rule, because the ratio is applied through an attribute selector and a value
+ * with no rule silently loses its reserved box and shoves the gallery around as it loads.
+ * A test refuses to publish a capture whose ratio is not listed here.
  */
 .mb-shot-image[data-ratio="480 / 11"] {
     aspect-ratio: 480 / 11;
+}
+
+.mb-shot-image[data-ratio="32 / 1"] {
+    aspect-ratio: 32 / 1;
+}
+
+.mb-shot-image[data-ratio="20 / 1"] {
+    aspect-ratio: 20 / 1;
+}
+
+.mb-shot-image[data-ratio="18 / 5"] {
+    aspect-ratio: 18 / 5;
+}
+
+.mb-shot-image[data-ratio="112 / 17"] {
+    aspect-ratio: 112 / 17;
+}
+
+.mb-shot-image[data-ratio="13 / 7"] {
+    aspect-ratio: 13 / 7;
+}
+
+.mb-shot-image[data-ratio="35 / 16"] {
+    aspect-ratio: 35 / 16;
+}
+
+.mb-shot-image[data-ratio="3 / 4"] {
+    aspect-ratio: 3 / 4;
+}
+
+.mb-shot-image[data-ratio="11 / 14"] {
+    aspect-ratio: 11 / 14;
+}
+
+.mb-shot-image[data-ratio="13 / 20"] {
+    aspect-ratio: 13 / 20;
+}
+
+.mb-shot-image[data-ratio="3 / 10"] {
+    aspect-ratio: 3 / 10;
+}
+
+.mb-shot-image[data-ratio="45 / 47"] {
+    aspect-ratio: 45 / 47;
+}
+
+.mb-shot-image[data-ratio="45 / 29"] {
+    aspect-ratio: 45 / 29;
+}
+
+.mb-shot-image[data-ratio="55 / 62"] {
+    aspect-ratio: 55 / 62;
+}
+
+.mb-shot-image[data-ratio="60 / 61"] {
+    aspect-ratio: 60 / 61;
 }
 
 .mb-shot-lead .mb-shot-image {

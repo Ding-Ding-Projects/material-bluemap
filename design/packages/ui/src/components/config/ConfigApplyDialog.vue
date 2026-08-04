@@ -18,6 +18,7 @@ import {
     VProgressLinear,
     VSpacer,
 } from "vuetify/components";
+import ConfigSuperConfirm from "./ConfigSuperConfirm.vue";
 import { valueToText } from "./fieldValue.js";
 import type { WorkspaceIssue, WorkspacePlan } from "./configWorkspace.js";
 
@@ -73,6 +74,34 @@ const changedPaths = computed(() => props.plan.writes.map((file) => file.path));
 const createdPaths = computed(() => new Set(props.plan.created));
 
 const reRenderCount = computed(() => props.plan.affectedMapIds.length);
+
+/* -------------------------------------------------------------------------- */
+/* The half of this dialog that is genuinely irreversible                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Whether saving would take files off the disk, as opposed to only putting them there.
+ *
+ * This is the moment the delete actually happens. The gate on the maps and storages screens
+ * guards *staging* a removal: it takes the entry out of the in-memory workspace and puts
+ * its file on this plan's `deletes` list, and reopening the folder at that point brings
+ * everything back because nothing has left the disk yet. Only `confirmSave` calls
+ * `host.deleteFiles`, and that call is the one with no way back.
+ *
+ * So the irreversible step gets the gate the contract asks for, and the reversible one that
+ * merely writes and updates files does not. Writing is not nothing, but a config file
+ * rewritten with its comments kept is a change somebody can look at and change again;
+ * a file removed from the folder is not on the disk to look at. Gating every save behind
+ * two keys and a slider would also be the fastest way to teach people to turn both keys
+ * without reading, which is how a gate stops protecting anything at all.
+ */
+const deletesFiles = computed(() => props.plan.deletes.length > 0);
+
+/** Disabled for exactly the reasons the plain button is, so the two paths cannot diverge. */
+const cannotSave = computed(() => blocked.value || props.plan.empty || isSaving.value);
+
+/** Named individually, because "3 files" is not a list anybody can check. */
+const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
 </script>
 
 <template>
@@ -197,10 +226,42 @@ const reRenderCount = computed(() => props.plan.affectedMapIds.length);
                 <span v-if="blocked" class="mb-config-apply__blocked">
                     {{ t("config.apply.blocked", "Fix the problems above first. BlueMap would refuse to start with these.") }}
                 </span>
+                <!--
+                    A save that only writes is one button. A save that also deletes is the
+                    same button behind the super-confirmation gate, because this is where
+                    the files actually leave the folder.
+                -->
+                <ConfigSuperConfirm
+                    v-if="deletesFiles"
+                    :title="t('config.apply.deleteTitle', 'Delete files from the config folder')"
+                    :action="
+                        t(
+                            'config.apply.deleteAction',
+                            { folder: folder ?? '' },
+                            'Saving now deletes the files listed below from {folder}. They leave the disk, this application keeps no copy of them, and it cannot put them back.',
+                        )
+                    "
+                    :affected="deletedPaths"
+                    :confirm-label="t('config.apply.confirm', 'Write the files')"
+                    :disabled="cannotSave"
+                    @confirm="emit('confirm')"
+                >
+                    <template #activator="{ props: activatorProps }">
+                        <v-btn
+                            v-bind="activatorProps"
+                            color="error"
+                            variant="flat"
+                            :prepend-icon="mdiContentSaveOutline"
+                        >
+                            {{ t("config.apply.confirm", "Write the files") }}
+                        </v-btn>
+                    </template>
+                </ConfigSuperConfirm>
                 <v-btn
+                    v-else
                     color="primary"
                     variant="flat"
-                    :disabled="blocked || plan.empty || isSaving"
+                    :disabled="cannotSave"
                     :prepend-icon="mdiContentSaveOutline"
                     @click="emit('confirm')"
                 >

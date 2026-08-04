@@ -203,7 +203,7 @@ export const home: HomeContent = {
         lede: "Captures of the real application, committed to the repository so they travel with every clone. None is a mockup, a design file or a hand-edited picture.",
     },
     showcaseCaveat:
-        "The first is the application after a real Windows install, over a live map, with all four kinds of marker drawing. The three below it come from the capture harness, which drives the packaged application with Playwright at each window size and display scale the interface is checked against. In those three the map surface fills the window, so what they show is the geometry rather than the controls: the controls are what the first capture shows. Every capture, including both colour schemes, is on the screenshots page.",
+        "The first is the application after a real Windows install, over a live map, with all four kinds of marker drawing. The rest come from the capture harness, which drives the packaged application with Playwright: it opens each menu, dialog, panel and editor in turn, and photographs it. Every capture is on the screenshots page, along with the surfaces the harness could not reach and the reason for each, because a gallery that quietly leaves a screen out is indistinguishable from one that never had it.",
     showcaseMoreLabel: "See every capture",
     showcaseUnavailable:
         "No committed capture could be resolved for this build, so nothing is shown here. Nothing has been substituted for the missing images.",

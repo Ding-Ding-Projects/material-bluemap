@@ -48,7 +48,7 @@ import {
     type EntryKind,
 } from "./configWorkspace.js";
 import { SCREENS, buildSettingIndex, groupMatchesByScreen, searchSettings, workspaceSampleText, type ScreenId } from "./configSearch.js";
-import { createBridgeConfigHost, hostMissingReason, provideConfigHost, useConfigHost, type ConfigHost } from "./configHost.js";
+import { createBridgeConfigHost, hostMissingReason, provideConfigHost, type ConfigHost } from "./configHost.js";
 import { notify } from "./notifications.js";
 import { notices } from "../../stores/notices.js";
 
@@ -93,9 +93,23 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
+/*
+ * The host is used directly and *also* provided to the descendants that need it.
+ *
+ * It used to be read back with `useConfigHost()` immediately after providing it, which
+ * cannot work and failed silently in the direction that looks fine: Vue's `inject` does
+ * not see its own component's `provide`, so `host` was always `null` in the desktop
+ * build. Every control that needs a file system - Open, New, Re-read, Save - stayed
+ * disabled, and the screen fell back to the honest "this is a browser tab" preview it was
+ * written to show in a browser tab. The bridge behind it was fine the whole time; nothing
+ * ever asked it anything.
+ *
+ * Providing to children is still right, so the value is used here and provided from the
+ * same expression rather than round-tripped through the injection it just created.
+ */
 const resolvedHost = props.host === undefined ? createBridgeConfigHost() : props.host;
 provideConfigHost(resolvedHost);
-const host = useConfigHost();
+const host = resolvedHost;
 
 /*
  * Everything this screen reports goes to the shell's one notification corner, which is

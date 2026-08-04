@@ -5,7 +5,7 @@ export const screenshotGallery: Article = {
     id: "screenshot-gallery",
     title: "The screenshot harness and this site's gallery",
     summary:
-        "Captures of the real running app, taken by Playwright in CI at four window sizes, four display scales and both colour schemes, then pulled into this site at build time.",
+        "Captures of the real running app, taken by Playwright: every menu, dialog, panel and editor the app has, at four window sizes, four display scales and both colour schemes, then pulled into this site.",
     category: "delivery",
     status: "shipped",
     statusNote:
@@ -28,15 +28,52 @@ export const screenshotGallery: Article = {
                 {
                     kind: "table",
                     caption: "What the harness captures on every run",
-                    columns: ["Capture set", "Configurations"],
+                    columns: ["Capture set", "What it opens"],
                     rows: [
                         [
                             "Window sizes",
                             "1280 by 800, 1920 by 1080, 1024 by 768, and 800 by 600 as the narrow case where labels clip first",
                         ],
                         ["Display scales", "100, 125, 150 and 200 percent"],
-                        ["Navigable pages", "Every item in the navigation drawer, captured after activating it"],
                         ["Colour schemes", "Light and dark, through emulated media preferences"],
+                        [
+                            "Window chrome",
+                            "The application's own Material title bar and its three window buttons, the viewer control bar, and the shell buttons",
+                        ],
+                        [
+                            "First run",
+                            "All three setup steps on a throwaway profile, answered the way a cautious person would: the harness declines the Mojang download consent",
+                        ],
+                        [
+                            "The menu",
+                            "Its root page and every page below it, plus its search bar and the regex builder anchored to it",
+                        ],
+                        [
+                            "Settings",
+                            "The drawer, every section in it scrolled into view, its search, and its regex builder",
+                        ],
+                        [
+                            "The options editor",
+                            "Every one of its tabs, its search across all of them, its regex builder, and the gate that guards deleting a map",
+                        ],
+                        [
+                            "The map wizard",
+                            "Each step in turn, after a world this repository generated has actually been read off disk",
+                        ],
+                        [
+                            "Dialogs and notices",
+                            "The profile manager, the notification corner and its history, and the two-key destructive-action gate in each of its states",
+                        ],
+                    ],
+                },
+                {
+                    kind: "paragraph",
+                    content: [
+                        "The surfaces are enumerated from the running application rather than from a list in the ",
+                        "harness: the settings sections come from their own anchor attributes, the options ",
+                        "editor's tabs from its tab strip, and the wizard's steps from whichever step each ",
+                        "press of Next actually lands on. A section added to the interface therefore arrives in ",
+                        "the capture set on its own.",
                     ],
                 },
                 {
@@ -45,8 +82,15 @@ export const screenshotGallery: Article = {
                         "Each capture is asserted to have produced real bytes, so a zero-length image fails the ",
                         "test rather than being uploaded as evidence of nothing. Alongside the images the harness ",
                         "writes a manifest recording what captured them, by what method, at which commit and which ",
-                        "run, and the exact viewport and scale lists it drove.",
+                        "run, the exact viewport and scale lists it drove, and every surface it could not reach.",
                     ],
+                },
+                {
+                    kind: "callout",
+                    tone: "note",
+                    title: "A surface it cannot reach is listed, never substituted",
+                    content:
+                        "Some screens need something the harness deliberately does not have: a signed-in GitHub account, live traffic to github.com, or a render that takes a Java runtime and minutes of work. Each of those is recorded in the manifest under skipped, with the reason, and nothing similar-looking is published in its place. An empty skipped list is the claim that everything was captured; a filled one is the claim that it was not.",
                 },
                 {
                     kind: "paragraph",

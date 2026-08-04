@@ -42,14 +42,28 @@
  *      a screen look populated, and no screen stands in for a different one.
  *   2. **What cannot be reached is recorded, not substituted.** A surface that genuinely
  *      needs a signed-in account, live network traffic or a running render is listed in
- *      `manifest.json` under `skipped`, with the reason. An empty row there is the claim
+ *      `manifest.json` under `skipped`, with the reason. An empty `skipped` is the claim
  *      that everything was captured; a filled one is the claim that it was not.
  *
  * The surfaces are enumerated from the running application rather than from a list kept
- * here - the settings sections come from their own `data-anchor` attributes, the options
- * editor's tabs from its tab strip, the wizard's steps from its step nav. A section added
- * in `packages/ui` therefore arrives in this set on its own, instead of being silently
- * missing until somebody notices.
+ * here - the settings sections from their own `data-anchor` attributes, the options
+ * editor's tabs from its tab strip, the wizard's steps from the step each one lands on.
+ * A section added in `packages/ui` therefore arrives in this set on its own, instead of
+ * being silently missing until somebody notices.
+ *
+ * ## Two things to know before adding a capture
+ *
+ * **Do not select a button by its accessible name.** Vuetify upper-cases button labels in
+ * CSS, and an accessible name is computed after `text-transform`, so `getByRole("button",
+ * { name: "Next" })` matches nothing while the button plainly reads Next. It fails as a
+ * thirty-second timeout rather than as a not-found, which reads like a hang. Use
+ * `locator(selector, { hasText })`, which matches the text in the DOM, or a class.
+ *
+ * **A failing test costs the whole manifest.** Playwright discards the worker after a
+ * failure and starts a new one, which re-runs `beforeAll` and empties the list of
+ * captures this file has accumulated - so the run ends by publishing a manifest that
+ * describes only whatever happened after the failure. Every surface is therefore opened
+ * inside `attempt`, which records a gap instead of throwing.
  */
 
 import {
@@ -76,7 +90,6 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, "..");
-const repoRoot = resolve(appRoot, "..", "..", "..");
 const shotDir = join(appRoot, "screenshots");
 
 /**
@@ -102,6 +115,12 @@ const SCALES = [1, 1.25, 1.5, 2];
 
 /** The window every surface capture is taken at, so they can be read side by side. */
 const SURFACE_VIEWPORT = { width: 1280, height: 800 };
+
+/** Opening a surface involves several waits; the default per-test budget is too small. */
+const SURFACE_TIMEOUT = 300_000;
+
+/** How long to wait for one element. Short enough that a wrong selector is not a hang. */
+const ELEMENT_TIMEOUT = 15_000;
 
 let app: ElectronApplication;
 let page: Page;
@@ -174,6 +193,18 @@ function mapNote(): string {
         : "the map area shows the locally rendered world named above";
 }
 
+/**
+ * A label read off a control, in sentence case.
+ *
+ * Vuetify upper-cases tab and button labels in CSS, so `innerText` comes back as "WEB
+ * SERVER" and a caption written from it shouts. The source calls it "Web server", and
+ * that is what a caption should say.
+ */
+function readableLabel(text: string): string {
+    const trimmed = text.trim().toLowerCase();
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+}
+
 /** A file-name-safe form of a label read off the running interface. */
 function slug(text: string): string {
     return (
@@ -195,10 +226,30 @@ interface ShotOptions {
     readonly cropped?: string;
     /** Overrides what the caption says about the map area for this one image. */
     readonly mapArea?: MapArea;
+    /** Appended to the caption, for anything the picture alone would misrepresent. */
+    readonly note?: string;
+}
+
+/**
+ * Moves the pointer somewhere harmless and waits for tooltips to close.
+ *
+ * Playwright leaves the pointer wherever it last clicked, so the button that opened a
+ * surface is still hovered when the surface is photographed and its tooltip sits on top
+ * of the thing the capture is of. That tooltip is an artefact of how the harness drives
+ * the app, not something a person would see, and publishing it makes the interface look
+ * like it has a floating black box over its own search field.
+ *
+ * The corner of the title bar's drag region is the destination: it is always present, it
+ * is not a control, and it has nothing to hover.
+ */
+async function parkPointer(): Promise<void> {
+    await page.mouse.move(2, 2);
+    await page.waitForTimeout(350);
 }
 
 async function shoot(name: string, surface: string, options: ShotOptions = {}): Promise<void> {
     await mkdir(shotDir, { recursive: true });
+    await parkPointer();
 
     const previousArea = mapArea;
     if (options.mapArea !== undefined) mapArea = options.mapArea;
@@ -206,19 +257,36 @@ async function shoot(name: string, surface: string, options: ShotOptions = {}): 
     const buffer =
         options.crop === undefined ? await page.screenshot() : await options.crop.screenshot();
 
-    // A zero-byte or absent capture is a silent failure; assert it landed.
-    expect(buffer.length, `capture ${name} produced no bytes`).toBeGreaterThan(1000);
+    // A zero-byte or absent capture is a silent failure; assert it landed. The floor is
+    // low because a crop can legitimately be tiny: three window buttons on a flat bar
+    // compress to a few hundred bytes, and a threshold set for a full window rejects a
+    // perfectly good capture of them.
+    expect(buffer.length, `capture ${name} produced no bytes`).toBeGreaterThan(200);
     await writeFile(join(shotDir, `${name}.png`), buffer);
 
     const where =
         options.cropped === undefined
             ? `In this image, ${mapNote()}.`
             : `This image is cropped to ${options.cropped} rather than showing the whole window.`;
-    const caption = `${surface}. ${target.caption} ${where}`;
+    const caption = [`${surface}.`, target.caption, where, options.note].filter(Boolean).join(" ");
     await writeFile(join(shotDir, `${name}.caption.txt`), `${caption}\n`, "utf8");
     captures.push({ name, file: `${name}.png`, surface, caption });
 
     mapArea = previousArea;
+}
+
+/**
+ * Runs a step that only tidies up after a capture, and swallows its failure.
+ *
+ * Housekeeping is not a surface. Reporting a failed one as a missing screen puts a false
+ * statement in the manifest beside an image that plainly exists.
+ */
+async function attemptQuietly(run: () => Promise<void>): Promise<void> {
+    try {
+        await run();
+    } catch {
+        // Deliberately silent: nothing published depends on this succeeding.
+    }
 }
 
 /** Records a surface this run deliberately did not photograph. */
@@ -228,13 +296,15 @@ function skip(surface: string, reason: string): void {
 }
 
 /**
- * Runs one surface's capture sequence, and records a skip rather than failing the run if
+ * Runs one surface's capture sequence, and records a gap rather than failing the run if
  * the surface never appeared.
  *
- * A thrown selector timeout here means one screen is missing from the set. Failing the
- * whole file for it would take the other forty with it, and an artifact of forty good
- * captures plus a named gap is far more useful than no artifact at all. The gap is loud:
- * it is in `manifest.json`, in `captions.md`, and printed by the final test.
+ * A thrown selector timeout here means one screen is missing from the set. Failing for it
+ * would take the other forty with it - see the note at the top of this file about what a
+ * failure does to the manifest - and an artifact of forty good captures plus a named gap
+ * is far more useful than no artifact at all. The gap is loud: it is in `manifest.json`,
+ * in `captions.md`, printed by the final test, and a diagnostic capture of whatever was
+ * on screen at the time is written beside the rest.
  */
 async function attempt(surface: string, run: () => Promise<void>): Promise<void> {
     try {
@@ -242,6 +312,9 @@ async function attempt(surface: string, run: () => Promise<void>): Promise<void>
     } catch (error) {
         const reason = error instanceof Error ? error.message.split("\n")[0] : String(error);
         skip(surface, `the harness could not open it in this run: ${reason ?? "unknown error"}`);
+        await page
+            .screenshot({ path: join(shotDir, `diagnostic-${slug(surface)}.png`) })
+            .catch(() => undefined);
     }
 }
 
@@ -309,6 +382,28 @@ async function visible(selector: string): Promise<boolean> {
         .catch(() => false);
 }
 
+/** The one control in this application that cancels a super confirmation. */
+function emergencyExit(): Locator {
+    return page.locator(".v-btn", { hasText: "Emergency exit" }).first();
+}
+
+/**
+ * True when a Vuetify navigation drawer is actually open.
+ *
+ * A `temporary` drawer stays in the document when it is closed and is slid out of the
+ * window with a transform, so it keeps a bounding box and `isVisible()` reports it as on
+ * screen. That is how a run concluded the side sheet was already open, never pressed the
+ * button that opens it, and then spent fifteen seconds waiting for a page inside a drawer
+ * nobody had opened. `v-navigation-drawer--active` is the class Vuetify actually toggles.
+ */
+async function drawerOpen(selector: string): Promise<boolean> {
+    return page
+        .locator(`${selector}.v-navigation-drawer--active`)
+        .first()
+        .isVisible()
+        .catch(() => false);
+}
+
 /**
  * Opens the side sheet and walks back to its root page.
  *
@@ -316,74 +411,57 @@ async function visible(selector: string): Promise<boolean> {
  * surface captured after the first would otherwise photograph the first one again.
  */
 async function openMenuRoot(): Promise<void> {
-    if (!(await visible(".mb-side-sheet"))) {
-        await page.locator(".mb-cb-menu").first().click();
-        await page.waitForSelector(".mb-side-sheet", { state: "visible", timeout: 15_000 });
+    if (!(await drawerOpen(".mb-side-sheet"))) {
+        await page.locator(".mb-cb-menu").first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-side-sheet.v-navigation-drawer--active", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
     }
     for (let guard = 0; guard < 6; guard += 1) {
         if (await visible(".mb-main-menu__root")) return;
         const back = page.locator('.mb-side-sheet [aria-label="Back"]');
         if ((await back.count()) === 0) break;
-        await back.first().click();
-        await page.waitForTimeout(250);
+        await back.first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(300);
     }
-    await page.waitForSelector(".mb-main-menu__root", { state: "visible", timeout: 15_000 });
+    await page.waitForSelector(".mb-main-menu__root", {
+        state: "visible",
+        timeout: ELEMENT_TIMEOUT,
+    });
 }
 
 /** Opens one page of the side sheet by the label on its row in the root list. */
 async function openMenuPage(label: string, waits: string): Promise<void> {
     await openMenuRoot();
-    await page.locator(".mb-main-menu__root .mb-menu-option", { hasText: label }).first().click();
-    await page.waitForSelector(waits, { state: "visible", timeout: 15_000 });
+    await page
+        .locator(".mb-main-menu__root .mb-menu-option", { hasText: label })
+        .first()
+        .click({ timeout: ELEMENT_TIMEOUT });
+    await page.waitForSelector(waits, { state: "visible", timeout: ELEMENT_TIMEOUT });
     await page.waitForTimeout(400);
 }
 
-/** Closes the side sheet if it is open. */
+/**
+ * Closes the side sheet if it is open.
+ *
+ * Escape is not enough on its own: the sheet treats it as Back, so from a page two deep
+ * it pops one page and stays open. It is 320 pixels wide on the left, which is exactly
+ * where the three shell buttons live, so a sheet left open makes the settings and profile
+ * captures fail with a click timeout on a button nothing is wrong with. Its own close
+ * button is unambiguous, so use that.
+ */
 async function closeSideSheet(): Promise<void> {
-    if (await visible(".mb-side-sheet")) await dismiss();
-}
-
-/**
- * Answers the operating system's folder picker with a folder that is already on disk.
- *
- * This replaces the native dialog and nothing else. The folder handed back is a real one,
- * the application then really reads the real files inside it, and every value on screen
- * afterwards came off the disk. Without this the options editor cannot be photographed at
- * all: its only door is `dialog.showOpenDialog`, and Playwright cannot drive a window the
- * operating system draws.
- *
- * `dialog` is the live Electron module object that `main/index.ts` passes to the config
- * handlers, and the call site reads `host.showOpenDialog` at call time, so replacing the
- * property here is seen by the next call.
- */
-async function answerFolderPickerWith(folder: string): Promise<void> {
-    await app.evaluate(({ dialog }, chosen: string) => {
-        const patched = dialog as unknown as {
-            showOpenDialog: (...args: unknown[]) => Promise<{ canceled: boolean; filePaths: string[] }>;
-        };
-        patched.showOpenDialog = () => Promise.resolve({ canceled: false, filePaths: [chosen] });
-    }, folder);
-}
-
-/**
- * A real BlueMap configuration folder to open in the options editor, or null.
- *
- * `MATERIAL_BLUEMAP_CAPTURE_CONFIG` names one explicitly. Failing that, the oracle gate
- * leaves one behind: it is written by upstream's own CLI, so it is a genuine BlueMap
- * config set rather than something this harness invented. When neither exists the editor
- * is captured in the only state it can honestly be in - nothing open - and the tabs are
- * recorded as skipped.
- */
-function captureConfigFolder(): string | null {
-    const explicit = process.env.MATERIAL_BLUEMAP_CAPTURE_CONFIG?.trim();
-    const candidates = [
-        explicit === undefined || explicit === "" ? null : explicit,
-        join(repoRoot, "tools", "oracle", "out", "gate", "reference", "config"),
-    ];
-    for (const candidate of candidates) {
-        if (candidate !== null && existsSync(candidate)) return candidate;
+    for (let guard = 0; guard < 6; guard += 1) {
+        if (!(await drawerOpen(".mb-side-sheet"))) return;
+        const close = page.locator('.mb-side-sheet [aria-label="Close the menu"]');
+        if ((await close.count()) === 0) {
+            await dismiss();
+            continue;
+        }
+        await close.first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
     }
-    return null;
 }
 
 /**
@@ -391,7 +469,8 @@ function captureConfigFolder(): string | null {
  *
  * The wizard's first step probes the folder it is given through the main process, so a
  * made-up path fails the probe and the step never advances - correctly. A world this
- * repository generated satisfies it honestly; nothing else will.
+ * repository generated satisfies it honestly; nothing else will, which is why there is no
+ * fallback here and the later steps are recorded as skipped instead.
  */
 function captureWorldFolder(): string | null {
     const explicit = process.env.MATERIAL_BLUEMAP_CAPTURE_WORLD?.trim();
@@ -429,36 +508,43 @@ async function captureFirstRun(): Promise<void> {
     }
 
     const card = page.locator(".mb-setup-card");
+    const actions = page.locator(".mb-setup-card__actions .v-btn");
 
-    await shoot("firstrun-1-welcome", "First-run setup, the welcome step", {
-        crop: card,
-        cropped: "the first-run dialog",
-    });
+    await shoot(
+        "firstrun-1-welcome",
+        "First-run setup, the welcome step, with the three language modes and a separate funny level for each language",
+        { crop: card, cropped: "the first-run dialog" },
+    );
     await shoot(
         "firstrun-1-welcome-window",
-        "First-run setup over the application window, showing the language modes and the two funny-level sliders",
+        "First-run setup as it appears over the whole application window on a fresh profile",
     );
 
-    await page.getByRole("button", { name: "Next", exact: true }).first().click();
-    await page.waitForSelector(".mb-setup-outcomes", { state: "visible", timeout: 15_000 });
-    await page.waitForTimeout(400);
-    await shoot("firstrun-2-consent", "First-run setup, the Minecraft files consent step", {
-        crop: card,
-        cropped: "the first-run dialog",
+    await actions.last().click({ timeout: ELEMENT_TIMEOUT });
+    await page.waitForSelector(".mb-setup-outcomes", {
+        state: "visible",
+        timeout: ELEMENT_TIMEOUT,
     });
+    await page.waitForTimeout(400);
+    await shoot(
+        "firstrun-2-consent",
+        "First-run setup, the Minecraft files step, which asks once whether the application may download from Mojang and says what each answer means",
+        { crop: card, cropped: "the first-run dialog" },
+    );
 
     // Decline, not accept. It is a real answer, it is remembered, and it leaves the
     // machine this ran on in the state it was already in rather than recording an
     // agreement to somebody else's licence on their behalf.
-    await page.getByRole("button", { name: "Decline", exact: true }).first().click();
-    await page.waitForSelector(".mb-setup-storage", { state: "visible", timeout: 15_000 });
+    await page.locator(".mb-setup-card__answer").nth(1).click({ timeout: ELEMENT_TIMEOUT });
+    await page.waitForSelector(".mb-setup-storage", { state: "visible", timeout: ELEMENT_TIMEOUT });
     await page.waitForTimeout(400);
-    await shoot("firstrun-3-storage", "First-run setup, the map storage step", {
-        crop: card,
-        cropped: "the first-run dialog",
-    });
+    await shoot(
+        "firstrun-3-storage",
+        "First-run setup, the map storage step, which asks where rendered maps should be written",
+        { crop: card, cropped: "the first-run dialog" },
+    );
 
-    await page.getByRole("button", { name: "Finish setup", exact: true }).first().click();
+    await actions.last().click({ timeout: ELEMENT_TIMEOUT });
     await page.waitForSelector(".mb-setup-card", { state: "detached", timeout: 20_000 });
 }
 
@@ -510,6 +596,7 @@ test.beforeAll(async () => {
     // Vuetify class that only exists once the app has successfully mounted. If mounting
     // failed we still want a capture of the broken state.
     await page.waitForSelector("#app", { timeout: 30_000 });
+    await mkdir(shotDir, { recursive: true });
     await page.setViewportSize(SURFACE_VIEWPORT);
 
     // `.mb-app` is the class App.vue puts on its `<v-app>` root. Do NOT wait on
@@ -521,7 +608,6 @@ test.beforeAll(async () => {
         .catch(() => false);
 
     if (!mounted) {
-        await mkdir(shotDir, { recursive: true });
         await page.screenshot({ path: join(shotDir, "diagnostic-unmounted.png") });
         const html = await page.content();
         await writeFile(join(shotDir, "diagnostic-unmounted.html"), html);
@@ -561,9 +647,11 @@ test.afterAll(async () => {
 /* -------------------------------------------------------------------------- */
 
 test("captures the window's own chrome", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
     await attempt("Material title bar", async () => {
         const bar = page.locator(".mb-titlebar");
-        await bar.waitFor({ state: "visible", timeout: 15_000 });
+        await bar.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await shoot(
             "chrome-titlebar",
             "The application's own Material title bar, the whole width of the window, with no operating system caption bar above it",
@@ -571,14 +659,14 @@ test("captures the window's own chrome", async () => {
         );
         await shoot(
             "chrome-titlebar-window-buttons",
-            "The minimize, maximize and close buttons the application draws for itself",
+            "The minimize, maximize and close buttons the application draws for itself, because the window is frameless",
             { crop: page.locator(".mb-titlebar-controls"), cropped: "the window buttons" },
         );
     });
 
     await attempt("Viewer control bar", async () => {
         const bar = page.locator(".mb-cb");
-        await bar.waitFor({ state: "visible", timeout: 15_000 });
+        await bar.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await shoot(
             "chrome-control-bar",
             "The viewer control bar: the menu button, the map, marker and player lists, the view and day-night switches, the live position inputs and the compass",
@@ -588,7 +676,7 @@ test("captures the window's own chrome", async () => {
 
     await attempt("Shell buttons", async () => {
         const fabs = page.locator(".mb-shell-fabs");
-        await fabs.waitFor({ state: "visible", timeout: 15_000 });
+        await fabs.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await shoot(
             "chrome-shell-buttons",
             "The three shell buttons in the bottom left corner: settings, maps and servers, and server configuration",
@@ -652,9 +740,14 @@ test("captures both themes", async () => {
 /* -------------------------------------------------------------------------- */
 
 test("captures every page of the menu", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
     await attempt("Menu, root page", async () => {
         await openMenuRoot();
-        await shoot("menu-root", "The main menu, with maps, markers, settings and info");
+        await shoot(
+            "menu-root",
+            "The main menu, listing maps, markers, settings and info, then the camera and screenshot actions",
+        );
     });
 
     await attempt("Maps menu", async () => {
@@ -664,7 +757,10 @@ test("captures every page of the menu", async () => {
 
     await attempt("Settings menu", async () => {
         await openMenuPage("Settings", ".mb-side-sheet .mb-settings");
-        await shoot("menu-settings", "The viewer settings menu, inside the side sheet");
+        await shoot(
+            "menu-settings",
+            "The viewer settings menu inside the side sheet, with its own search bar at the top",
+        );
     });
 
     await attempt("Info page", async () => {
@@ -674,29 +770,42 @@ test("captures every page of the menu", async () => {
 
     await attempt("Marker menu", async () => {
         await openMenuPage("Markers", ".mb-marker-menu");
-        await shoot("menu-markers", "The marker menu, showing the marker sets of the loaded map");
+        await shoot(
+            "menu-markers",
+            "The marker menu, showing the marker sets of the map that is loaded",
+        );
     });
 
     await closeSideSheet();
 });
 
 test("captures the menu search bar and its regex builder", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
     await attempt("Menu search bar", async () => {
         await openMenuPage("Settings", ".mb-side-sheet .mb-settings");
 
-        const head = page.locator(".mb-side-sheet .mb-menu-searchbar__head .v-btn").first();
-        await head.click();
-        await page.waitForSelector(".mb-menu-search", { state: "visible", timeout: 15_000 });
-        await page.locator(".mb-menu-search input").first().fill("render");
-        await page.waitForTimeout(400);
+        await page
+            .locator(".mb-side-sheet .mb-menu-searchbar__head .v-btn")
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-menu-search", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
+        await page.locator(".mb-menu-search input").first().fill("re");
+        await page.waitForTimeout(500);
         await shoot(
             "menu-search",
             "The settings menu's own search bar, filtering the menu down to the settings that match what was typed",
         );
 
-        await page.locator(".mb-menu-search__builder").first().click();
-        await page.waitForSelector(".mb-regex-builder", { state: "visible", timeout: 15_000 });
-        await page.waitForTimeout(500);
+        await page.locator(".mb-menu-search__builder").first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-regex-builder", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
+        await page.waitForTimeout(600);
         await shoot(
             "menu-regex-builder",
             "The regex builder anchored to the menu's search bar, with its flags, its character classes, anchors, groups, alternation and quantifiers, and the live matches underneath",
@@ -709,26 +818,31 @@ test("captures the menu search bar and its regex builder", async () => {
 });
 
 test("captures the reset-settings super confirmation", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
     await attempt("Reset settings super confirmation", async () => {
         await openMenuPage("Settings", ".mb-side-sheet .mb-settings");
 
         await page
             .locator(".mb-side-sheet .mb-menu-option", { hasText: "Reset All Settings" })
             .first()
-            .click();
-        await page.waitForSelector(".mb-super-confirm", { state: "visible", timeout: 15_000 });
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-super-confirm", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
         await page.waitForTimeout(400);
 
         const gate = page.locator(".mb-super-confirm");
         await shoot(
             "super-confirm-untouched",
-            "The destructive-action gate before either key is turned: the slider will not move and the status line says both keys are needed",
+            "The destructive-action gate before either key is turned: the slider will not move, and the status line says both keys are needed",
             { crop: gate, cropped: "the confirmation dialog" },
         );
 
         const keys = page.locator(".mb-super-confirm__keys input[type='checkbox']");
         await keys.nth(0).click({ force: true });
-        await page.waitForTimeout(200);
+        await page.waitForTimeout(300);
         await shoot(
             "super-confirm-one-key",
             "The destructive-action gate with one key turned, which is still not enough to arm the slider",
@@ -736,16 +850,16 @@ test("captures the reset-settings super confirmation", async () => {
         );
 
         await keys.nth(1).click({ force: true });
-        await page.waitForTimeout(300);
+        await page.waitForTimeout(400);
         await shoot(
             "super-confirm-armed",
-            "The destructive-action gate with both keys turned and the slider armed, one drag away from resetting every viewer setting",
+            "The destructive-action gate with both keys turned and the slider armed, one full drag away from resetting every viewer setting",
             { crop: gate, cropped: "the confirmation dialog" },
         );
 
         // Emergency exit rather than the slider. Driving the slider to the end really does
         // reset every setting and reload the page, and a capture is not worth doing that.
-        await page.getByRole("button", { name: "Emergency exit" }).first().click();
+        await emergencyExit().click({ timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(400);
     });
 
@@ -753,31 +867,39 @@ test("captures the reset-settings super confirmation", async () => {
 });
 
 test("captures the marker menu's filter and sort controls", async () => {
-    await attempt("Marker filters", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    await attempt("Marker search and sort controls", async () => {
         await openMenuPage("Markers", ".mb-marker-menu");
 
-        const toggle = page.locator(".mb-marker-menu__filters-head .v-btn").first();
+        const toggle = page.locator(".mb-marker-menu__filters-head .v-btn");
         if ((await toggle.count()) === 0) {
             skip(
                 "Marker search and sort controls",
-                "the loaded map has no markers, so the marker menu shows only its set list and " +
-                    "the search and sort controls are not part of the interface to photograph",
+                "the map this run captured carries no markers, so the marker menu has no marker " +
+                    "section and its search and sort controls are not on screen to photograph",
             );
             return;
         }
 
-        if ((await page.locator("#mb-marker-filters").first().isVisible()) === false) {
-            await toggle.click();
+        if (!(await visible("#mb-marker-filters"))) {
+            await toggle.first().click({ timeout: ELEMENT_TIMEOUT });
             await page.waitForTimeout(400);
         }
         await shoot(
             "menu-marker-filters",
-            "The marker menu's search and sort controls: the search field with its plain-text and regex modes, and the sort order choice",
+            "The marker menu's search and sort controls: the search field with its plain-text and regular-expression modes, and the sort order choice",
         );
 
-        await page.locator(".mb-marker-search__builder-button").first().click();
-        await page.waitForSelector(".mb-regex-builder", { state: "visible", timeout: 15_000 });
-        await page.waitForTimeout(500);
+        await page
+            .locator(".mb-marker-search__builder-button")
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-regex-builder", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
+        await page.waitForTimeout(600);
         await shoot(
             "menu-marker-regex-builder",
             "The regex builder opened from the marker search field",
@@ -794,13 +916,18 @@ test("captures the marker menu's filter and sort controls", async () => {
 /* -------------------------------------------------------------------------- */
 
 test("captures the map and server profile manager", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
     await attempt("Profile manager", async () => {
-        await page.locator('.mb-shell-fab[aria-label="Servers"]').first().click();
+        await page
+            .locator('.mb-shell-fab[aria-label="Servers"]')
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".v-overlay--active .v-card", {
             state: "visible",
-            timeout: 15_000,
+            timeout: ELEMENT_TIMEOUT,
         });
-        await page.waitForTimeout(400);
+        await page.waitForTimeout(500);
         await shoot(
             "profiles-manager",
             "The maps and servers manager, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with the fields for adding another",
@@ -810,12 +937,20 @@ test("captures the map and server profile manager", async () => {
 });
 
 test("captures the settings surface and every section in it", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
     const drawer = page.locator(".v-navigation-drawer.mb-settings");
 
     await attempt("Settings drawer", async () => {
-        await page.locator('.mb-shell-fab[aria-label="Settings"]').first().click();
-        await drawer.waitFor({ state: "visible", timeout: 15_000 });
-        await page.waitForTimeout(600);
+        await page
+            .locator('.mb-shell-fab[aria-label="Settings"]')
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".v-navigation-drawer.mb-settings.v-navigation-drawer--active", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
+        await page.waitForTimeout(700);
         await shoot("settings-drawer", "The application settings, opened over the map");
     });
 
@@ -832,7 +967,7 @@ test("captures the settings surface and every section in it", async () => {
             const anchor = (await section.getAttribute("data-anchor")) ?? `section-${i}`;
             const title = (await section.locator(".mb-setting__title").innerText()).trim();
             await section.scrollIntoViewIfNeeded();
-            await page.waitForTimeout(400);
+            await page.waitForTimeout(500);
             await shoot(
                 `settings-section-${slug(anchor)}`,
                 `The "${title}" settings section, scrolled into view in the settings drawer`,
@@ -841,22 +976,27 @@ test("captures the settings surface and every section in it", async () => {
         }
     });
 
-    await attempt("Settings search and regex builder", async () => {
+    await attempt("Settings search", async () => {
         await page.locator(".mb-settings__search input").first().fill("java");
-        await page.waitForTimeout(500);
+        await page.waitForTimeout(600);
         await shoot(
             "settings-search",
             "The settings search, filtering the drawer to the settings whose name, explanation or current value matches what was typed",
             { crop: drawer, cropped: "the settings drawer" },
         );
+    });
 
+    await attempt("Settings regex builder", async () => {
         await page
             .locator('.mb-settings__search [aria-label="Open the regex builder"]')
             .first()
-            .click();
-        await page.waitForSelector(".mb-config-regex", { state: "visible", timeout: 15_000 });
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-config-regex", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
         await page.locator(".mb-config-regex__pattern textarea").first().fill("java|storage");
-        await page.waitForTimeout(600);
+        await page.waitForTimeout(700);
         await shoot(
             "settings-regex-builder",
             "The regex builder anchored to the settings search, showing the pattern, the supported flags, the guided token palette and the live matches against the text on screen",
@@ -864,192 +1004,241 @@ test("captures the settings surface and every section in it", async () => {
         );
         await dismiss();
         await page.locator(".mb-settings__search input").first().fill("");
-        await page.waitForTimeout(300);
+        await page.waitForTimeout(400);
     });
 
     skip(
         "GitHub account, signed in",
-        "signing in needs a real GitHub account and a real device-flow round trip to github.com; " +
-            "the harness refuses every non-loopback request, so only the signed-out state of the " +
-            "account section is real here and it is the one captured",
+        "signing in needs a real GitHub account and a real device-flow round trip to github.com, " +
+            "and the offline guard refuses every request that is not loopback; the signed-out " +
+            "state of the account section is real and is the one captured",
     );
 
     await dismiss();
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(500);
 });
 
 /* -------------------------------------------------------------------------- */
 /* The options editor                                                         */
 /* -------------------------------------------------------------------------- */
 
-test("captures the options editor, its tabs and its dialogs", async () => {
-    const openEditor = async (): Promise<void> => {
-        if (await visible(".mb-config-screen")) return;
-        await page.locator('.mb-shell-fab[aria-label="Server configuration"]').first().click();
-        await page.waitForSelector(".mb-config-screen", { state: "visible", timeout: 15_000 });
-        await page.waitForTimeout(500);
-    };
+/**
+ * What the options editor is showing in these captures, said plainly in every caption.
+ *
+ * `ConfigScreen.vue` calls `provideConfigHost()` and `useConfigHost()` in the same
+ * component, and a component's own `provide` is not visible to its own `inject`, so the
+ * editor resolves no host and falls back to the generated set it offers a browser tab. It
+ * says so itself, in an alert across the top of the screen. These captures therefore show
+ * the editor's real current behaviour, and the caption says which state that is rather
+ * than letting the picture imply the editor is reading somebody's config folder.
+ */
+const CONFIG_STATE_NOTE =
+    "The editor is showing the complete configuration set it generates when it has no folder " +
+    'attached, and says so itself in the notice across the top: "This build cannot reach a file ' +
+    'system, so nothing can be opened or saved. Every editor below still works, and the file ' +
+    'text can be copied out of each screen." Every setting, tab and control in the image is ' +
+    "real and live; what is absent is a folder read off this machine.";
 
-    await attempt("Options editor, nothing open", async () => {
-        await openEditor();
+/**
+ * Opens the options editor, or leaves it open.
+ *
+ * Called at the start of every capture in this test rather than once, because Escape is
+ * how an overlay inside the editor is closed and the editor's own host region listens for
+ * the same key: closing the regex builder therefore closes the editor out from under the
+ * next capture. Re-opening is cheap and makes each capture independent of the last.
+ */
+async function ensureOptionsEditor(): Promise<void> {
+    if (await visible(".mb-config-screen")) return;
+    await page
+        .locator('.mb-shell-fab[aria-label="Server configuration"]')
+        .first()
+        .click({ timeout: ELEMENT_TIMEOUT });
+    await page.waitForSelector(".mb-config-screen", {
+        state: "visible",
+        timeout: ELEMENT_TIMEOUT,
+    });
+    await page.waitForTimeout(700);
+}
+
+test("captures the options editor, its tabs and its dialogs", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    await attempt("Options editor", async () => {
+        await ensureOptionsEditor();
+
+        // Taken first and quickly: an informational notice dismisses itself after five
+        // seconds, and this one is raised by the editor mounting.
+        if (await visible(".mb-config-notices__toast")) {
+            await shoot(
+                "notifications-toast",
+                "The notification corner reporting, without blocking anything, what the options editor loaded when it opened",
+                { mapArea: "covered", note: CONFIG_STATE_NOTE },
+            );
+        }
+
+        await shoot("config-screen", "The options editor as it opens", {
+            mapArea: "covered",
+            note: CONFIG_STATE_NOTE,
+        });
+    });
+
+    await attempt("Options editor tabs", async () => {
+        await ensureOptionsEditor();
+        const tabs = page.locator(".mb-config-screen__tabs .v-tab");
+        await tabs.first().waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        const count = await tabs.count();
+        expect(count, "the options editor rendered no tabs").toBeGreaterThan(0);
+        for (let i = 0; i < count; i += 1) {
+            const label = readableLabel(await tabs.nth(i).innerText());
+            await tabs.nth(i).click({ timeout: ELEMENT_TIMEOUT });
+            await page.waitForTimeout(700);
+            await shoot(
+                `config-tab-${slug(label)}`,
+                `The options editor, the "${label}" tab, with the settings that tab owns`,
+                { mapArea: "covered", note: CONFIG_STATE_NOTE },
+            );
+        }
+    });
+
+    await attempt("Options editor search", async () => {
+        await ensureOptionsEditor();
+        const search = page.locator(".mb-config-screen__search .mb-config-search input").first();
+        await search.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await search.fill("port");
+        await page.waitForTimeout(700);
         await shoot(
-            "config-welcome",
-            "The options editor before a folder is chosen, offering to open a folder BlueMap already uses or to generate a new set of config files",
-            { mapArea: "covered" },
+            "config-search",
+            "The options editor's search, which reaches every setting on all of the tabs at once and says which tab each result lives on",
+            { mapArea: "covered", note: CONFIG_STATE_NOTE },
         );
     });
 
-    const folder = captureConfigFolder();
-    if (folder === null) {
-        skip(
-            "Options editor tabs, search, delete gate and save plan",
-            "no BlueMap configuration folder was available to this run, and the editor's tabs " +
-                "only exist once a real folder is open; set MATERIAL_BLUEMAP_CAPTURE_CONFIG to " +
-                "one to capture them",
+    await attempt("Options editor regex builder", async () => {
+        await page
+            .locator('.mb-config-screen__search [aria-label="Open the regex builder"]')
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-config-regex", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
+        await page.waitForTimeout(700);
+        await shoot(
+            "config-regex-builder",
+            "The regex builder anchored to the options editor's search bar",
+            { crop: page.locator(".mb-config-regex"), cropped: "the regex builder" },
         );
-    } else {
-        console.log(`[harness] options editor folder: ${folder}`);
+    });
 
-        await attempt("Options editor tabs", async () => {
-            await openEditor();
-            await answerFolderPickerWith(folder);
-            await page
-                .locator(".mb-config-screen__bar .v-btn", { hasText: "Open" })
-                .first()
-                .click();
-            await page.waitForSelector(".mb-config-screen__tabs", {
-                state: "visible",
-                timeout: 20_000,
-            });
-            await page.waitForTimeout(600);
+    // Tidying up, outside the attempt above and unable to fail it. Escape closes the
+    // builder and then reaches the editor's own host region, which closes the editor too,
+    // so clearing the search afterwards would otherwise fail and be reported as though
+    // the builder had never opened - while its capture sat on disk beside the claim.
+    await dismiss();
+    await attemptQuietly(async () => {
+        await ensureOptionsEditor();
+        await page.locator(".mb-config-screen__search .mb-config-search input").first().fill("");
+        await page.waitForTimeout(400);
+    });
 
-            // The notice the open raised, photographed while it is still on screen. It is
-            // the app's real notification corner reporting a real thing that just happened.
-            if (await visible(".mb-config-notices__toast")) {
-                await shoot(
-                    "notifications-toast",
-                    "The notification corner reporting, without blocking anything, how many config files were read from the folder that was just opened",
-                    { mapArea: "covered" },
-                );
-            }
-
-            const tabs = page.locator(".mb-config-screen__tabs .v-tab");
-            const count = await tabs.count();
-            expect(count, "the options editor rendered no tabs").toBeGreaterThan(0);
-            for (let i = 0; i < count; i += 1) {
-                const label = (await tabs.nth(i).innerText()).trim();
-                await tabs.nth(i).click();
-                await page.waitForTimeout(600);
-                await shoot(
-                    `config-tab-${slug(label)}`,
-                    `The options editor, the "${label}" tab, showing the settings that tab owns as they are in the config folder that is open`,
-                    { mapArea: "covered" },
-                );
-            }
+    await attempt("Options editor delete gate", async () => {
+        await ensureOptionsEditor();
+        await page
+            .locator(".mb-config-screen__tabs .v-tab", { hasText: "Maps" })
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-config-maps", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
         });
+        await page.waitForTimeout(600);
 
-        await attempt("Options editor search and regex builder", async () => {
-            const search = page.locator(".mb-config-screen__search .mb-config-search input");
-            await search.first().fill("port");
-            await page.waitForTimeout(600);
-            await shoot(
-                "config-search",
-                "The options editor's search, which reaches every setting on all of the tabs at once and says which tab each result lives on",
-                { mapArea: "covered" },
-            );
-
-            await page
-                .locator('.mb-config-screen__search [aria-label="Open the regex builder"]')
-                .first()
-                .click();
-            await page.waitForSelector(".mb-config-regex", { state: "visible", timeout: 15_000 });
-            await page.waitForTimeout(600);
-            await shoot(
-                "config-regex-builder",
-                "The regex builder anchored to the options editor's search bar",
-                { crop: page.locator(".mb-config-regex"), cropped: "the regex builder" },
-            );
-            await dismiss();
-            await search.first().fill("");
-            await page.waitForTimeout(400);
+        await page
+            .locator(".mb-config-maps .v-btn", { hasText: "Delete" })
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-config-confirm", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
         });
+        await page.waitForTimeout(500);
+        await shoot(
+            "config-delete-gate",
+            "The super confirmation that guards deleting a map's configuration: two keys, then a full-travel slider, with an emergency exit that is always available",
+            { crop: page.locator(".mb-config-confirm"), cropped: "the confirmation popover" },
+        );
+        await emergencyExit().click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+    });
 
-        await attempt("Options editor delete gate", async () => {
-            const maps = page.locator(".mb-config-screen__tabs .v-tab", { hasText: "Maps" });
-            await maps.first().click();
-            await page.waitForSelector(".mb-config-maps", { state: "visible", timeout: 15_000 });
-            await page.waitForTimeout(500);
-
-            await page
-                .locator(".mb-config-maps .v-btn", { hasText: "Delete" })
-                .first()
-                .click();
-            await page.waitForSelector(".mb-config-confirm", {
-                state: "visible",
-                timeout: 15_000,
-            });
-            await page.waitForTimeout(400);
-            await shoot(
-                "config-delete-gate",
-                "The super confirmation that guards deleting a map's configuration: two keys, then a full-travel slider, with an emergency exit that is always available",
-                { crop: page.locator(".mb-config-confirm"), cropped: "the confirmation popover" },
+    await attempt("Options editor save plan", async () => {
+        await ensureOptionsEditor();
+        const save = page.locator(".mb-config-screen__bar .v-btn", { hasText: "Save" }).first();
+        await save.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        if (await save.isDisabled()) {
+            skip(
+                "Options editor save plan",
+                "the Save control is disabled in this state, and its tooltip says why; the dialog " +
+                    "that lists the files a save would write therefore has no door to open through, " +
+                    "and nothing was substituted for it",
             );
-            await page.getByRole("button", { name: "Emergency exit" }).first().click();
-            await page.waitForTimeout(400);
+            return;
+        }
+        await save.click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-config-apply__title", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
         });
-
-        await attempt("Options editor save plan", async () => {
-            const save = page.locator(".mb-config-screen__bar .v-btn", { hasText: "Save" }).first();
-            if (await save.isDisabled()) {
-                skip(
-                    "Options editor save plan",
-                    "the save plan dialog only opens once something has been changed, and this " +
-                        "run made no edit to the config folder it opened",
-                );
-                return;
-            }
-            await save.click();
-            await page.waitForSelector(".mb-config-apply__title", {
-                state: "visible",
-                timeout: 15_000,
-            });
-            await page.waitForTimeout(400);
-            await shoot(
-                "config-save-plan",
-                "The save plan, which names the folder and every file that would be written before anything is written",
-                { mapArea: "covered" },
-            );
-            await dismiss();
-        });
-    }
+        await page.waitForTimeout(500);
+        await shoot(
+            "config-save-plan",
+            "The save plan, which names every file a save would write and every reason it would write it, before anything is written",
+            { mapArea: "covered", note: CONFIG_STATE_NOTE },
+        );
+        // Cancelled, not confirmed. Opening this dialog writes nothing; only its confirm
+        // button does, and this run has no folder it has any business writing into.
+        await dismiss();
+    });
 
     // Escape closes the editor, and focus goes back to the button that opened it. The key
     // is sent to the editor's own host region, which is what listens for it.
     if (await visible(".mb-config-screen")) {
-        await page.locator('[role="region"][aria-label="Server configuration"]').press("Escape");
-        await page.waitForTimeout(600);
+        await page
+            .locator('[role="region"][aria-label="Server configuration"]')
+            .press("Escape")
+            .catch(() => undefined);
+        await page.waitForTimeout(700);
     }
 });
 
 test("captures the notification corner and its history", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
     await attempt("Notification corner", async () => {
-        const tools = page.locator(".mb-config-notices__tools");
-        await tools.waitFor({ state: "visible", timeout: 15_000 });
+        // Opening the options editor raises a real informational notice, which is what
+        // puts a live toast in the corner. Nothing is planted: the message is the one the
+        // editor writes for itself when it loads.
+        await ensureOptionsEditor();
+        const corner = page.locator(".mb-config-notices");
+        await corner.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await shoot(
             "notifications-corner",
-            "The notification corner in the bottom right, with the button that opens the history of everything the application has reported",
-            { crop: tools, cropped: "the notification corner" },
+            "The notification corner in the bottom right: a message that reports without blocking anything, and beside it the button that opens the history of everything the application has said",
+            { crop: corner, cropped: "the notification corner" },
         );
 
-        await page.locator('[aria-label="Notification history"]').first().click();
+        await page
+            .locator('[aria-label="Notification history"]')
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".mb-config-notices__history", {
             state: "visible",
-            timeout: 15_000,
+            timeout: ELEMENT_TIMEOUT,
         });
-        await page.waitForTimeout(400);
+        await page.waitForTimeout(500);
         await shoot(
             "notifications-history",
-            "The notification history, so a message that has already faded is still readable",
+            "The notification history, so a message that has already faded away is still readable",
             {
                 crop: page.locator(".mb-config-notices__history"),
                 cropped: "the notification history panel",
@@ -1064,13 +1253,15 @@ test("captures the notification corner and its history", async () => {
 /* -------------------------------------------------------------------------- */
 
 test("captures the make-a-map wizard at every step", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
     await pointAppAtNoMap();
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(1000);
 
     await attempt("Wizard, world step", async () => {
         await shoot(
             "wizard-1-world",
-            "The make-a-map wizard on its first step, asking for the world folder, with the five steps listed across the top",
+            "The make-a-map wizard on its first step, asking for the world folder, with its five steps listed across the top",
         );
     });
 
@@ -1078,9 +1269,9 @@ test("captures the make-a-map wizard at every step", async () => {
     if (world === null) {
         skip(
             "Wizard steps after the first",
-            "the wizard probes the world folder it is given through the main process, so the " +
-                "later steps only exist once a real Minecraft world has passed that probe; set " +
-                "MATERIAL_BLUEMAP_CAPTURE_WORLD to one to capture them",
+            "the wizard reads the world folder it is given through the main process, so its later " +
+                "steps only exist once a real Minecraft world has been read; point " +
+                "MATERIAL_BLUEMAP_CAPTURE_WORLD at one to capture them",
         );
     } else {
         console.log(`[harness] wizard world folder: ${world}`);
@@ -1092,38 +1283,54 @@ test("captures the make-a-map wizard at every step", async () => {
                 state: "visible",
                 timeout: 30_000,
             });
-            await page.waitForTimeout(500);
+            await page.waitForTimeout(600);
             await shoot(
-                "wizard-1-world-checked",
-                "The wizard's first step after the world folder has been read: it names the dimensions it found and how many region files each holds",
+                "wizard-1-world-read",
+                "The wizard's first step after the world folder has been read: it names the dimensions it found and how many region files each of them holds",
             );
 
-            // Walk the rest of the steps by their own step nav, which is the only list of
-            // them that cannot drift from what the application actually has.
-            const steps = page.locator(".mb-world-wizard__steps .mb-world-wizard__step");
-            const count = await steps.count();
-            for (let i = 1; i < count; i += 1) {
-                await page
-                    .locator(".mb-world-wizard__actions .v-btn", { hasText: "Next" })
-                    .first()
-                    .click();
-                await page.waitForTimeout(700);
-                const label = (await steps.nth(i).innerText()).trim().replace(/^\d+\s*/, "");
+            // Walked by the step the wizard actually lands on rather than by a counter,
+            // because a Next that does not advance would otherwise shift every later
+            // name by one and label each capture with the wrong step.
+            const seen = new Set<string>(["World"]);
+            for (let guard = 0; guard < 8; guard += 1) {
+                const next = page.locator(".mb-world-wizard__actions .v-btn", { hasText: "Next" });
+                if ((await next.count()) === 0) break;
+                await next.first().click({ timeout: ELEMENT_TIMEOUT });
+                await page.waitForTimeout(800);
+
+                const step = page.locator("section.mb-world-step").first();
+                const label = (await step.getAttribute("aria-label")) ?? `step-${guard}`;
+                if (seen.has(label)) continue;
+                seen.add(label);
                 await shoot(
-                    `wizard-${i + 1}-${slug(label)}`,
+                    `wizard-${seen.size}-${slug(label)}`,
                     `The make-a-map wizard on its "${label}" step`,
                 );
             }
+
+            // The last step offers to start the render. It is photographed rather than
+            // pressed: a render needs a Java runtime, an accepted Mojang download consent
+            // and minutes of work, and this run declined that consent.
         });
     }
 
     await attempt("Release downloads", async () => {
         // Back to the first step, where the release downloads panel lives.
-        await page.locator(".mb-world-wizard__steps .mb-world-wizard__step").first().click();
+        await page
+            .locator(".mb-world-wizard__steps .mb-world-wizard__step")
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(700);
+        await page
+            .locator(".mb-world-step__downloads .v-btn")
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-downloads", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
         await page.waitForTimeout(600);
-        await page.locator(".mb-world-step__downloads .v-btn").first().click();
-        await page.waitForSelector(".mb-downloads", { state: "visible", timeout: 15_000 });
-        await page.waitForTimeout(500);
         await shoot(
             "wizard-release-downloads",
             "The release downloads panel, which offers to fetch a world from a GitHub release for somebody with no Minecraft save on this machine",
@@ -1132,10 +1339,10 @@ test("captures the make-a-map wizard at every step", async () => {
     });
 
     skip(
-        "Release download progress and asset list",
+        "Release asset list and download progress",
         "listing a release's assets and downloading one both need real traffic to github.com, " +
             "which the offline guard refuses; the panel is captured in the state it is in before " +
-            "anything is asked for",
+            "anything has been asked for",
     );
     skip(
         "Render progress panel",
@@ -1145,7 +1352,7 @@ test("captures the make-a-map wizard at every step", async () => {
     skip(
         "Interrupted renders",
         "it only appears when a previous render was interrupted and left a session behind, and " +
-            "this throwaway profile has never run one",
+            "the throwaway profile this run used has never started one",
     );
 });
 
@@ -1231,7 +1438,12 @@ test("records what was captured", async () => {
             "",
         ]),
         ...(skipped.length === 0
-            ? ["## Nothing was skipped", "", "Every surface this harness knows about was captured.", ""]
+            ? [
+                  "## Nothing was skipped",
+                  "",
+                  "Every surface this harness knows about was captured.",
+                  "",
+              ]
             : [
                   "## Not captured",
                   "",

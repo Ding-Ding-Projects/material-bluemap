@@ -13,6 +13,7 @@ export { default as FirstRunSetup } from "./FirstRunSetup.vue";
 export { default as ConsentSettingsRow } from "./ConsentSettingsRow.vue";
 export { default as ConsentQuote } from "./ConsentQuote.vue";
 export { default as SetupLanguagePanel } from "./SetupLanguagePanel.vue";
+export { default as LanguageSettingsRow } from "./LanguageSettingsRow.vue";
 export { default as SetupText } from "./SetupText.vue";
 
 export {
@@ -87,3 +88,4 @@ export { memoryStorage, setSetupStorage, setupStorage } from "./setupPrefs.js";
 export type { SetupStorage } from "./setupPrefs.js";
 
 export { consentSearchLabels } from "./consentSearch.js";
+export { languageSearchLabels } from "./languageSearch.js";

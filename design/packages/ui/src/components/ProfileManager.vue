@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiDelete, mdiLaptop, mdiPlus, mdiServerNetwork } from "@mdi/js";
 import ConfigSearchField from "./config/ConfigSearchField.vue";
+import ConfigSuperConfirm from "./config/ConfigSuperConfirm.vue";
 import { createSettingMatcher } from "./config/regexEngine.js";
 import {
     addProfile,
@@ -95,6 +96,54 @@ function activate(id: string) {
     profilesStore.activeId = id;
     emit("close");
 }
+
+/* -------------------------------------------------------------------------- */
+/* Removing one                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What the delete gate says, per row.
+ *
+ * `removeProfile` is not a cosmetic tidy-up of a list. The list is the only record this
+ * application keeps of where a map lives: for a server it is the address somebody typed,
+ * and for a map rendered on this computer it is the entry that makes the tiles on disk
+ * reachable at all. The store persists to `localStorage` on every mutation, so the row is
+ * gone from the next launch as well as from this one, and there is no history panel behind
+ * it to restore from.
+ *
+ * The two cases are said differently because they are different. Deleting a server entry
+ * costs an address that can be typed again. Deleting a locally rendered map leaves several
+ * gigabytes of tiles on the disk with nothing pointing at them, which is worse than it
+ * sounds: the space is still gone and the map is no longer openable. Naming that is what
+ * the contract means by identifying the exact data affected, and it is exactly the sentence
+ * a single generic "Remove this profile?" would fail to say.
+ */
+function whatRemovalCosts(profile: ServerProfile): string[] {
+    const lines = [
+        t("servers.deleteRow", { name: profile.name }, "The entry named {name}"),
+        subtitleOf(profile),
+    ];
+
+    lines.push(
+        isLocalProfile(profile)
+            ? t(
+                  "servers.deleteLocalNote",
+                  "The rendered tiles stay on the disk. Nothing here can open them again once this entry is gone, and nothing here deletes them either.",
+              )
+            : t(
+                  "servers.deleteRemoteNote",
+                  "Nothing on the server changes. Only this computer forgets the address.",
+              ),
+    );
+
+    if (profile.id === profilesStore.activeId) {
+        lines.push(
+            t("servers.deleteActiveNote", "This is the map currently open, so the view switches to another one."),
+        );
+    }
+
+    return lines;
+}
 </script>
 
 <template>
@@ -132,15 +181,47 @@ function activate(id: string) {
                     @click="activate(profile.id)"
                 >
                     <template #append>
-                        <v-btn
-                            :icon="mdiDelete"
-                            variant="text"
-                            size="small"
-                            :aria-label="
-                                t('servers.remove', { name: profile.name }, 'Remove {name}')
-                            "
-                            @click.stop="removeProfile(profile.id)"
-                        />
+                        <!--
+                            The row's own gate, anchored to its own button. One gate shared
+                            by the list would have to be told which row it was standing in
+                            front of, and a gate that can be told is a gate that can be told
+                            wrong; this way the profile is captured by the template and
+                            there is no "current row" to get out of step.
+
+                            `@click.stop` on the wrapper keeps opening the gate from also
+                            activating the row underneath it, which is what the bare button
+                            guarded against before and would otherwise switch the map the
+                            user was about to think twice about deleting.
+                        -->
+                        <span @click.stop>
+                            <ConfigSuperConfirm
+                                :title="t('servers.deleteTitle', 'Remove this map or server')"
+                                :action="
+                                    t(
+                                        'servers.deleteAction',
+                                        { name: profile.name },
+                                        'This removes {name} from the list on this computer. It is not undoable from here.',
+                                    )
+                                "
+                                :affected="whatRemovalCosts(profile)"
+                                :confirm-label="
+                                    t('servers.remove', { name: profile.name }, 'Remove {name}')
+                                "
+                                @confirm="removeProfile(profile.id)"
+                            >
+                                <template #activator="{ props: activatorProps }">
+                                    <v-btn
+                                        v-bind="activatorProps"
+                                        :icon="mdiDelete"
+                                        variant="text"
+                                        size="small"
+                                        :aria-label="
+                                            t('servers.remove', { name: profile.name }, 'Remove {name}')
+                                        "
+                                    />
+                                </template>
+                            </ConfigSuperConfirm>
+                        </span>
                     </template>
                 </v-list-item>
             </v-list>

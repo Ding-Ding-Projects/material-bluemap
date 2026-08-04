@@ -23,6 +23,27 @@ export { BlockRegistry, parseBlockState, type ParsedBlockState } from "./blocks.
 // anvil output
 export { ChunkNbtWriter } from "./chunkNbt.js";
 export { buildLevelDatNbt, type LevelDatOptions } from "./levelDat.js";
+
+// pre-flattening (1.12.2) anvil output
+export { LegacyChunkNbtWriter } from "./legacyChunkNbt.js";
+export { buildLegacyLevelDatNbt } from "./legacyLevelDat.js";
+export {
+    LEGACY_BIOME_IDS,
+    LEGACY_BLOCKS,
+    legacyBiomeFor,
+    legacyBlockFor,
+    type LegacyBlock,
+} from "./legacyMappings.js";
+export {
+    LEGACY_DATA_VERSION,
+    LEGACY_MAX_SECTION,
+    LEGACY_MAX_Y,
+    LEGACY_MIN_SECTION,
+    LEGACY_MIN_Y,
+    LEGACY_VERSION_NAME,
+    LEGACY_WORLD_HEIGHT,
+    NIBBLES_PER_SECTION,
+} from "./legacyVersion.js";
 export {
     blockStateBitWidth,
     ceilLog2,
@@ -34,12 +55,14 @@ export { ZipWriter, crc32, type ZipEntryOptions } from "./zip.js";
 
 // world assembly
 export {
+    DEFAULT_WORLD_FORMAT,
     defaultWorldName,
     defaultZipName,
     generateWorld,
     zipWorld,
     type GenerateWorldOptions,
     type GeneratedWorld,
+    type WorldFormat,
 } from "./generateWorld.js";
 
 // format constants

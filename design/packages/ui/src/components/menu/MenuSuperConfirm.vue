@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiAlertOutline, mdiCheckCircle, mdiKeyOutline } from "@mdi/js";
+import { mdiAlertOutline, mdiCheckCircle, mdiExitRun, mdiKeyOutline } from "@mdi/js";
 import {
     VBtn,
     VCard,
@@ -15,6 +15,13 @@ import {
     VSpacer,
     VSwitch,
 } from "vuetify/components";
+import {
+    createSuperConfirmGate,
+    returnFocusTo,
+    GATE_COMPLETION_HOLD_MS,
+    GATE_TRAVEL_END,
+    GATE_TRAVEL_START,
+} from "../confirm/superConfirmGate.js";
 
 /**
  * Super confirmation gate for a destructive action, built in the app's own renderer.
@@ -23,6 +30,17 @@ import {
  * are on and the slider has travelled its whole range. Emergency exit and Escape cancel
  * without touching anything. The wording around it may be styled, but the facts it states
  * (what is destroyed, and that it cannot be undone) are fixed props, not decoration.
+ *
+ * This is the modal half of the pair. `ConfigSuperConfirm.vue` anchors itself beside the
+ * control it guards, which the contract prefers and the config screens can host; the
+ * surfaces that reach for this one cannot. The settings menu is a narrow side sheet whose
+ * own width is the whole surface, so an anchored card beside a row in it would either
+ * overhang the sheet or be narrower than the sentence it has to say. Where there is nowhere
+ * to anchor, the contract allows a dialog, and this is that case rather than a second
+ * default.
+ *
+ * The rule the two share lives once, in `../confirm/superConfirmGate.ts`. Everything in
+ * this file is presentation: which surface, which class names, which animation.
  */
 const props = withDefaults(
     defineProps<{
@@ -32,7 +50,7 @@ const props = withDefaults(
         /** One sentence naming exactly what happens. */
         action: string;
         /** Bullet list of the data that will actually be affected. */
-        affected?: string[];
+        affected?: readonly string[];
         /** Label of the final confirm affordance. */
         confirmLabel: string;
     }>(),
@@ -43,44 +61,65 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean]; confirm: [] }>
 
 const { t } = useI18n();
 
-const keyOne = ref(false);
-const keyTwo = ref(false);
-const travel = ref(0);
-const done = ref(false);
+const gate = createSuperConfirmGate(() => emit("confirm"));
 
-const armed = computed(() => keyOne.value && keyTwo.value);
-const affectedList = computed(() => props.affected ?? []);
+const armed = gate.armed;
+const done = computed(() => gate.authorized.value);
+const affectedList = computed<readonly string[]>(() => props.affected ?? []);
 
 const open = computed<boolean>({
     get: () => props.modelValue,
     set: (value) => emit("update:modelValue", value),
 });
 
-watch(open, (value) => {
-    if (value) reset();
-});
+/**
+ * Where focus was when the gate opened, so cancelling can put it back.
+ *
+ * A modal has no activator slot to read it from, so it is remembered instead. The contract
+ * asks for the return in both outcomes, and nothing about a dialog gives it for free: a
+ * cancelled overlay drops focus onto `<body>`, and the next Tab restarts from the top of
+ * the page rather than from the row the user was on.
+ */
+let opener: HTMLElement | null = null;
 
-function reset(): void {
-    keyOne.value = false;
-    keyTwo.value = false;
-    travel.value = 0;
-    done.value = false;
+let holdTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearHold(): void {
+    if (holdTimer !== null) {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+    }
 }
 
-function onTravel(value: number): void {
-    if (!armed.value) {
-        travel.value = 0;
+onBeforeUnmount(clearHold);
+
+watch(open, (value) => {
+    if (value) {
+        clearHold();
+        gate.reset();
+        const active = document.activeElement;
+        opener = active instanceof HTMLElement ? active : null;
         return;
     }
-    travel.value = value;
-    if (value >= 100 && !done.value) {
-        done.value = true;
-        emit("confirm");
-    }
+    clearHold();
+    returnFocusTo(opener);
+    opener = null;
+});
+
+function onTravel(value: number): void {
+    if (!gate.travelTo(value)) return;
+
+    // Authorized. The completion state is held long enough to be seen, then the dialog
+    // closes itself, which is what returns focus.
+    clearHold();
+    holdTimer = setTimeout(() => {
+        holdTimer = null;
+        open.value = false;
+    }, GATE_COMPLETION_HOLD_MS);
 }
 
 function onRelease(): void {
-    if (!done.value) travel.value = 0;
+    gate.release();
 }
 
 function cancel(): void {
@@ -90,7 +129,12 @@ function cancel(): void {
 
 <template>
     <v-dialog v-model="open" max-width="440" scrollable>
-        <v-card class="mb-super-confirm">
+        <v-card
+            class="mb-super-confirm"
+            :class="{ 'mb-super-confirm--authorized': done }"
+            :aria-label="title"
+            @keydown.esc.stop="cancel"
+        >
             <v-card-text>
                 <div class="mb-super-confirm__head">
                     <v-icon :icon="mdiAlertOutline" color="error" size="28" aria-hidden="true" />
@@ -111,7 +155,8 @@ function cancel(): void {
 
                 <div class="mb-super-confirm__keys">
                     <v-switch
-                        v-model="keyOne"
+                        v-model="gate.keyOne.value"
+                        class="mb-super-confirm__key mb-super-confirm__key--one"
                         :label="t('superConfirm.keyOne', 'Key 1')"
                         :prepend-icon="mdiKeyOutline"
                         color="error"
@@ -120,7 +165,8 @@ function cancel(): void {
                         inset
                     />
                     <v-switch
-                        v-model="keyTwo"
+                        v-model="gate.keyTwo.value"
+                        class="mb-super-confirm__key mb-super-confirm__key--two"
                         :label="t('superConfirm.keyTwo', 'Key 2')"
                         :prepend-icon="mdiKeyOutline"
                         color="error"
@@ -132,13 +178,15 @@ function cancel(): void {
 
                 <v-slider
                     class="mb-super-confirm__slider"
-                    :model-value="travel"
-                    :min="0"
-                    :max="100"
+                    :model-value="gate.travel.value"
+                    :min="GATE_TRAVEL_START"
+                    :max="GATE_TRAVEL_END"
                     :step="1"
                     :disabled="!armed || done"
                     :aria-label="confirmLabel"
-                    :aria-valuetext="`${Math.round(travel)}%`"
+                    :aria-valuetext="
+                        t('superConfirm.travel', { percent: gate.percent.value }, '{percent} percent of the way across')
+                    "
                     color="error"
                     hide-details
                     @update:model-value="onTravel"
@@ -147,16 +195,18 @@ function cancel(): void {
 
                 <v-progress-linear
                     class="mb-super-confirm__progress"
-                    :model-value="travel"
+                    :class="{ 'mb-super-confirm__progress--live': gate.phase.value === 'moving' }"
+                    :model-value="gate.travel.value"
                     :color="done ? 'success' : 'error'"
                     height="6"
                     rounded
+                    striped
                     aria-hidden="true"
                 />
 
                 <p class="mb-super-confirm__status" role="status" aria-live="polite">
                     <template v-if="done">
-                        <v-icon :icon="mdiCheckCircle" color="success" size="18" />
+                        <v-icon :icon="mdiCheckCircle" color="success" size="18" class="mb-super-confirm__tick" />
                         {{ t("superConfirm.done", "Authorized.") }}
                     </template>
                     <template v-else-if="!armed">
@@ -169,7 +219,13 @@ function cancel(): void {
             </v-card-text>
 
             <v-card-actions>
-                <v-btn color="primary" variant="tonal" @click="cancel">
+                <v-btn
+                    class="mb-super-confirm__exit"
+                    :prepend-icon="mdiExitRun"
+                    color="primary"
+                    variant="tonal"
+                    @click="cancel"
+                >
                     {{ t("superConfirm.exit", "Emergency exit") }}
                 </v-btn>
                 <v-spacer />
@@ -202,6 +258,7 @@ function cancel(): void {
     margin: 8px 0 0 1.2em;
     font-size: 0.8125rem;
     line-height: 1.5;
+    overflow-wrap: anywhere;
 }
 
 .mb-super-confirm__step,
@@ -226,8 +283,29 @@ function cancel(): void {
     margin-block: 4px 8px;
 }
 
+/* Both keys stay operable side by side down to the narrowest supported width. */
+.mb-super-confirm__key {
+    flex: 1 1 8rem;
+}
+
+.mb-super-confirm__exit {
+    min-height: 40px;
+}
+
 .mb-super-confirm__progress {
     transition: none;
+}
+
+.mb-super-confirm__progress--live {
+    animation: mb-super-confirm-pulse 900ms ease-in-out infinite;
+}
+
+.mb-super-confirm--authorized {
+    animation: mb-super-confirm-flash 420ms ease-out;
+}
+
+.mb-super-confirm__tick {
+    animation: mb-super-confirm-pop 260ms ease-out;
 }
 
 .mb-super-confirm__label {
@@ -235,7 +313,43 @@ function cancel(): void {
     font-weight: 500;
 }
 
+@keyframes mb-super-confirm-pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.55;
+    }
+}
+
+@keyframes mb-super-confirm-pop {
+    from {
+        transform: scale(0.4);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes mb-super-confirm-flash {
+    from {
+        box-shadow: 0 0 0 0 rgba(var(--v-theme-success), 0.55);
+    }
+    to {
+        box-shadow: 0 0 0 14px rgba(var(--v-theme-success), 0);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
+    .mb-super-confirm__progress--live,
+    .mb-super-confirm--authorized,
+    .mb-super-confirm__tick {
+        animation: none !important;
+    }
+
     .mb-super-confirm,
     .mb-super-confirm * {
         transition-duration: 0.01ms !important;

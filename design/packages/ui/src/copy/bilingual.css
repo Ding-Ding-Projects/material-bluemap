@@ -1,0 +1,100 @@
+/*
+ * Bilingual mode, for the strings that can only be strings.
+ *
+ * A `vue-i18n` message is text, so a bilingual one carries a newline between the English
+ * and the Cantonese (see `BILINGUAL_JOIN` in `appVoice.ts`). HTML collapses that newline to
+ * a space by default, which would put both languages on one running line and leave the
+ * reader to work out where one stopped. These rules turn it back into a line break.
+ *
+ * Everything here is gated behind `html[data-language-mode="bilingual"]`, so neither
+ * single-language mode is affected by any of it. Nothing in this file changes a colour, a
+ * size, a spacing or a font: the only properties touched are the ones that decide whether a
+ * container may grow to fit a second line, or must clip it.
+ *
+ * ## Why this cannot break the other modes, or the layout of this one
+ *
+ * Vue's template compiler condenses whitespace in template text before it ever reaches the
+ * DOM, so a newline written for readability in a `<template>` is already a single space by
+ * render time. The only newlines `white-space: pre-line` can act on are ones that arrived
+ * as data. In bilingual mode the data with newlines in it is ours.
+ *
+ * ## Why the height and overflow rules are here at all
+ *
+ * `white-space: pre-line` on its own is the half of the fix that makes things worse.
+ * Vuetify sets `white-space: nowrap` plus `overflow: hidden; text-overflow: ellipsis` on
+ * list titles and tabs, and fixes the height of buttons, chips and list items to a single
+ * line of text. Add a line break to a container built for one line and the second language
+ * is clipped away entirely: the text is there, the user cannot see it, and nothing on
+ * screen says so. That is exactly the bilingual overflow the contract calls a product
+ * defect, so the rules that let those containers grow are not decoration, they are the
+ * other half of the same fix.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Honour the line break                                              */
+/* ------------------------------------------------------------------ */
+
+html[data-language-mode="bilingual"] .v-btn__content,
+html[data-language-mode="bilingual"] .v-chip__content,
+html[data-language-mode="bilingual"] .v-list-item-title,
+html[data-language-mode="bilingual"] .v-list-item-subtitle,
+html[data-language-mode="bilingual"] .v-label,
+html[data-language-mode="bilingual"] .v-field-label,
+html[data-language-mode="bilingual"] .v-messages__message,
+html[data-language-mode="bilingual"] .v-alert__content,
+html[data-language-mode="bilingual"] .v-card-title,
+html[data-language-mode="bilingual"] .v-card-subtitle,
+html[data-language-mode="bilingual"] .v-card-text,
+html[data-language-mode="bilingual"] .v-toolbar-title__placeholder,
+html[data-language-mode="bilingual"] .v-tooltip .v-overlay__content,
+html[data-language-mode="bilingual"] .v-snackbar__content,
+html[data-language-mode="bilingual"] .v-expansion-panel-title,
+html[data-language-mode="bilingual"] .v-tab .v-btn__content {
+    white-space: pre-line;
+    overflow-wrap: break-word;
+}
+
+/* ------------------------------------------------------------------ */
+/* Let the containers grow rather than clip                           */
+/* ------------------------------------------------------------------ */
+
+html[data-language-mode="bilingual"] .v-list-item-title,
+html[data-language-mode="bilingual"] .v-list-item-subtitle,
+html[data-language-mode="bilingual"] .v-toolbar-title__placeholder {
+    /* Vuetify truncates these with an ellipsis, which would eat the second language whole. */
+    overflow: visible;
+    text-overflow: clip;
+}
+
+html[data-language-mode="bilingual"] .v-btn,
+html[data-language-mode="bilingual"] .v-chip,
+html[data-language-mode="bilingual"] .v-tab {
+    /* `height` is fixed per density; `min-height` keeps the single-language size as the
+       floor so nothing shrinks, while the second line is allowed to push the box down. */
+    height: auto;
+    min-height: 36px;
+    padding-block: 6px;
+}
+
+html[data-language-mode="bilingual"] .v-list-item {
+    min-height: 48px;
+    height: auto;
+}
+
+/* ------------------------------------------------------------------ */
+/* Narrow windows                                                     */
+/* ------------------------------------------------------------------ */
+
+/*
+ * At 360 CSS pixels a Cantonese line and its English partner are each about twice as tall
+ * as they are wide, so a row of buttons that fitted side by side in one language stops
+ * fitting in two. Wrapping the row is the difference between a taller dialog and a button
+ * that has left the screen.
+ */
+@media (max-width: 480px) {
+    html[data-language-mode="bilingual"] .v-card-actions,
+    html[data-language-mode="bilingual"] .v-toolbar__content {
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+}

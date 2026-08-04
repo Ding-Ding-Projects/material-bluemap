@@ -157,6 +157,11 @@ remembered, and downloads nothing.
 | <img src="docs/screenshots/config-tab-run.png" alt="The Run tab of the options editor, showing the command-line flags a render is started with" width="280"> | <img src="docs/screenshots/config-search.png" alt="The options editor's search, which reaches every setting on all of the tabs at once" width="280"> | <img src="docs/screenshots/config-regex-builder.png" alt="The regex builder anchored to the options editor's search bar" width="280"> |
 | Run | The search across every tab | Its regex builder |
 
+Deleting a map's configuration is guarded the same way any destructive action is, and the gate
+names what would actually go before it asks.
+
+<img src="docs/screenshots/config-delete-gate.png" alt="The confirmation that guards deleting a map's configuration, naming the file that would go, the map id whose tiles stop being served, and that already-rendered tiles are not deleted, above two key switches, a slider and an emergency exit" width="420">
+
 The editor says across the top that it has no folder attached and can open and save nothing, and
 these captures show it in exactly that state: every setting, tab and control is real and live,
 and what is absent is a folder read off the machine.
@@ -189,8 +194,8 @@ readable afterwards in a history.
 |---|---|
 | <img src="docs/screenshots/profiles-manager.png" alt="The maps and servers manager, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with fields for adding another" width="420"> | <img src="docs/screenshots/notifications-toast.png" alt="The notification corner reporting what the options editor loaded when it opened, without blocking anything" width="420"> |
 | Maps and servers | A message in the corner |
-| <img src="docs/screenshots/notifications-corner.png" alt="The notification corner in the bottom right, with a message above the button that opens the history" width="300"> | <img src="docs/screenshots/notifications-history.png" alt="The notification history panel, so a message that has already faded away is still readable" width="300"> |
-| The corner, close up | Its history |
+| <img src="docs/screenshots/notifications-corner.png" alt="The small bell button in the bottom right corner that opens the notification history, showing a count of three" width="120"> | <img src="docs/screenshots/notifications-history.png" alt="The notification history panel, listing three messages with their level and the time each was raised" width="300"> |
+| The button that opens the history | The history itself |
 
 A destructive action takes two keys and a full-travel slider, and an emergency exit is available
 throughout.
@@ -220,6 +225,9 @@ looks similar. As of the committed set:
   left a session behind, and the throwaway profile the harness uses has never started one.
 - **The marker search and sort controls.** The map the run captured carries no markers, so the
   marker menu has no marker section and those controls are not on screen to photograph.
+- **The options editor's save plan.** That dialog lists the files a save would write, and its
+  Save control is disabled while the editor has no folder attached, so there is no door to open
+  it through in the state the captures were taken in.
 
 The exact list for the committed set, with reasons, is the `skipped` array in
 `docs/screenshots/manifest.json`.

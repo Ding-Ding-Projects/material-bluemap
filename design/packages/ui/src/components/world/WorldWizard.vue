@@ -156,6 +156,34 @@ async function inspect(folder: string): Promise<void> {
     }
 }
 
+/**
+ * The dimension list is read before the step that offers it is shown.
+ *
+ * Inspection already runs when the folder is picked, dropped, blurred or submitted with
+ * Enter, and that covers how most people arrive. It does not cover all of them: a path
+ * pasted and then advanced with the keyboard never blurs, and a path restored from a
+ * previous session was never typed at all. In both cases the dimension control offered
+ * the three vanilla defaults instead of the dimensions the world actually has - and
+ * choosing a dimension the world does not have is, by this wizard's own comment, the
+ * second most common way to render nothing at all.
+ *
+ * So arriving at the step that shows dimensions reads the folder first, when the folder
+ * has not been read yet or was read at a different path. `setWorld` then picks the first
+ * dimension that really exists, which is what makes the control show a real answer rather
+ * than a plausible one.
+ */
+watch(
+    () => wizard.step.value,
+    (step) => {
+        if (step !== "identity") return;
+        const path = wizard.worldPath.value.trim();
+        if (path === "") return;
+        const read = wizard.inspection.value;
+        if (!read.unchecked && read.path === path) return;
+        void inspect(path);
+    },
+);
+
 /* ---- storage -------------------------------------------------------------- */
 
 async function applyStorage(value: string): Promise<void> {

@@ -163,6 +163,8 @@ export const FIXED = {
     "action.retry": { en: "Try again", yue: "再試一次" },
 
     "language.title": { en: "Language", yue: "語言" },
+    "language.settingsTitle": { en: "Language and tone", yue: "語言同語氣" },
+    "action.resetLanguage": { en: "Reset language and tone", yue: "還原語言同語氣" },
     "language.mode.en": { en: "English", yue: "English" },
     "language.mode.yue": { en: "廣東話", yue: "廣東話" },
     "language.mode.bilingual": { en: "Bilingual", yue: "雙語" },
@@ -279,6 +281,47 @@ export const VOICED = {
             "揀程式用咩語氣同你講嘢。兩條搞笑程度係分開嘅，英文可以正正經經，廣東話可以放飛自我。之後喺「設定」度隨時改得。",
             "揀把聲。兩條搞笑程度分開行，英文打領呔，廣東話著拖鞋都得。之後喺「設定」度改返都得。",
             "隨你揀把聲。兩條搞笑程度各行各路，一種語言著西裝，另一種著睡衣都冇問題。之後喺「設定」度改幾多次都得。",
+        ],
+    },
+    /**
+     * The honest disclosure, in the setting itself and at first run alike.
+     *
+     * Every level of it says the same three things: the level styles every message, errors
+     * and warnings are included rather than exempt, and what a message says happened does
+     * not change. That is the disclosure the contract asks for, and
+     * `copy/appCopy.test.ts` checks all ten strings still carry those words, because a
+     * disclosure that gets funnier until it stops disclosing is worse than none.
+     */
+    "language.disclosure": {
+        en: [
+            "The funny level styles every message in the application, including errors and warnings. It changes the wording only. What a message says happened, what it affects and what your options are stay exactly the same at every level.",
+            "The funny level styles every message in the application, including errors and warnings. It changes the wording only. What a message says happened, what it affects and what your options are stay exactly the same at every level.",
+            "The funny level styles every message in the application, and nothing is exempt: errors and warnings get the same treatment as everything else. Only the wording moves. What happened, what it affects and what your options are read the same at every level.",
+            "The funny level restyles every message in here, errors and warnings included. It moves the wording and nothing else, so what happened, what it affects and what you can do about it read the same at level 1 and at level 5.",
+            "The funny level restyles every message in here, and yes, that includes errors and warnings. It moves the wording and nothing else, so what happened, what it affects and what you can do about it read exactly the same at level 1 and at level 5.",
+        ],
+        yue: [
+            "搞笑程度會影響程式入面每一個訊息嘅語氣，包括錯誤同警告。佢只會改措辭。訊息講嘅係發生咗咩事、影響邊啲嘢、你有咩選擇，喺每一級都完全一樣。",
+            "搞笑程度會影響程式入面每一個訊息嘅語氣，包括錯誤同警告。佢只會改措辭。訊息講嘅係發生咗咩事、影響邊啲嘢、你有咩選擇，喺每一級都完全一樣。",
+            "搞笑程度會影響程式入面每一個訊息嘅語氣，冇一個例外：錯誤同警告一樣照計。佢淨係改措辭。發生咗咩事、影響邊啲嘢、你有咩選擇，每一級讀落都一樣。",
+            "搞笑程度會將呢度每一個訊息換過個語氣，錯誤同警告都包埋。佢淨係郁措辭，所以發生咗咩事、影響邊啲嘢、你可以點做，第 1 級同第 5 級讀落都一樣。",
+            "搞笑程度會將呢度每一個訊息換過個語氣，係，錯誤同警告都包埋。佢淨係郁措辭，所以發生咗咩事、影響邊啲嘢、你可以點做，第 1 級同第 5 級讀落一模一樣。",
+        ],
+    },
+    "language.settingsLead": {
+        en: [
+            "The language mode and the two funny levels chosen during setup. Both can be changed here at any time.",
+            "The language mode and the two funny levels chosen during setup. Both can be changed here at any time.",
+            "The language mode and the two funny levels you chose during setup. Change either one here whenever you like.",
+            "Whatever you picked during setup is here, and none of it is permanent.",
+            "Whatever voice you picked during setup lives here, and you can change your mind as often as you like.",
+        ],
+        yue: [
+            "設定時所揀嘅語言模式同兩條搞笑程度。兩樣都可以喺呢度隨時更改。",
+            "設定時所揀嘅語言模式同兩條搞笑程度。兩樣都可以喺呢度隨時更改。",
+            "你喺設定嗰陣揀嘅語言模式同兩條搞笑程度。想改邊樣，幾時都喺呢度改得。",
+            "你設定嗰陣揀咗乜，全部喺呢度，而且冇一樣係改唔到嘅。",
+            "你設定嗰陣揀咗把咩聲，全部住喺呢度，想轉幾多次軚都得。",
         ],
     },
     "consent.heading": {

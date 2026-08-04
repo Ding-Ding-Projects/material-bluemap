@@ -23,6 +23,7 @@ TypeScript mesher is finished when this exits `0`, and not before.
 - [While the engine cannot render yet](#while-the-engine-cannot-render-yet)
 - [The reference render, and its cache](#the-reference-render-and-its-cache)
 - [`selftest.mjs` — proving the gate can fail](#selftestmjs--proving-the-gate-can-fail)
+- [`render-1-12.mjs` — the 1.12.2 half, which the gate cannot reach](#render-1-12mjs--the-1122-half-which-the-gate-cannot-reach)
 - [Files](#files)
 - [Troubleshooting](#troubleshooting)
 
@@ -222,6 +223,37 @@ all three of which must **not** count as differences.
 
 It needs no jar, no world and no render, runs in about a second, and belongs in CI.
 
+## `render-1-12.mjs` — the 1.12.2 half, which the gate cannot reach
+
+```
+node tools/oracle/render-1-12.mjs
+```
+
+The gate above compares against upstream, and **upstream 5.22 cannot read a 1.12.2 world at
+all** — `core/.../world/mca/chunk/` holds `Chunk_1_13`, `_1_15`, `_1_16` and `_1_18` and
+nothing older. So the byte comparison that answers "is the port correct?" for a modern world
+has nothing to compare against for a pre-flattening one, and no amount of harness work
+changes that.
+
+This script is what is possible instead, and it is careful to claim only that. It generates
+the same seed twice — once as 1.12.2 (`worldgen --format 1.12.2`) and once as 1.20.4 — and
+renders both with the same `render-ts.mjs` driver. Because both worlds come from one
+`TerrainGenerator`, the modern render is a **control for the same terrain**: any block
+present in one map and absent from the other is a difference in how the world was read and
+resolved, not in what was generated. On top of that it parses every hires tile as PRBM with
+a generic reader that must arrive exactly at the end of the file, and checks every material
+index against the emitted `textures.json`.
+
+It reuses the client jar and `resourceExtensions.zip` that `compare.mjs` downloaded into
+`out/gate/bluemap-data/` and fetches nothing itself. Fourteen assertions, roughly a minute,
+non-zero exit on any failure, and a full material table in `out/legacy/render-1-12-report.json`.
+
+`KNOWN_LEGACY_RENDER_GAPS` and `KNOWN_DIVERGENT_MATERIALS` at the top of the script are a
+finding written as a regression gate: four block-states that a modern resource pack resolves
+wrongly for a legacy world. The divergence must be *exactly* those sets, so a new one
+appearing and an old one being fixed both fail the run. See the 2026-08-04 section of
+`design/HANDOFF.md` for what they are and why.
+
 ## Files
 
 | | |
@@ -229,6 +261,7 @@ It needs no jar, no world and no render, runs in about a second, and belongs in 
 | `compare.mjs` | the entry point: orchestrate, compare, report, choose the exit code |
 | `render-ts.mjs` | drives this project's TypeScript engine in its own process; prints one json result whatever happens |
 | `selftest.mjs` | plants known divergences and asserts the comparison finds them |
+| `render-1-12.mjs` | renders a 1.12.2 world, checks the tiles, and diffs it against a modern control render of the same terrain |
 | `lib/javaOracle.mjs` | world generation, config writing, the Java render and its cache |
 | `lib/tsEngine.mjs` | invokes `render-ts.mjs` and normalises its answer |
 | `lib/compareMaps.mjs` | file classification and the comparison itself |

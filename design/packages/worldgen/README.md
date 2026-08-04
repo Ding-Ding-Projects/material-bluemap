@@ -24,7 +24,7 @@ Anvil reader — it exercises the format code on the way.
 
 | | |
 | --- | --- |
-| Format | Anvil, the 1.18+ `sections` / `block_states` chunk layout |
+| Format | Anvil, the 1.18+ `sections` / `block_states` chunk layout (or the pre-flattening 1.12.2 layout, see below) |
 | Target version | Minecraft **1.20.4**, `DataVersion` **3700** |
 | World geometry | `min_y = -64`, `height = 384`, sea level `y = 63` |
 | Chunk compression | zlib (region compression id `2`) |
@@ -57,16 +57,62 @@ Every block is a real vanilla block-state string, written into the section palet
 `minecraft:water[level=0]`, `minecraft:oak_leaves[distance=1,persistent=false,waterlogged=false]`,
 and so on.
 
+## The 1.12.2 (pre-flattening) format
+
+`--format 1.12.2` writes the same terrain in the chunk layout Minecraft used before the
+flattening, so the engine's legacy reader has something real to read.
+
+| | |
+| --- | --- |
+| Format | Anvil, the `Level.Sections[].Blocks` / `Data` / `Add` layout |
+| Target version | Minecraft **1.12.2**, `DataVersion` **1343** |
+| World geometry | `min_y = 0`, `height = 256`, sea level `y = 63` |
+| Blocks | numeric ids in a `byte[4096]`, 4-bit metadata in a `byte[2048]` nibble array, ids above 255 in the optional `Add` nibbles |
+| Biomes | a flat `byte[256]` on the `Level` compound, one legacy biome id per column |
+| Heightmap | `HeightMap`, an `int[256]` of absolute y values (no world-floor offset) |
+| `level.dat` | the 1.12.2 spelling: `RandomSeed`, `generatorName`, `MapFeatures`, and **no** `WorldGenSettings` |
+
+**The terrain is identical to the 1.20.4 world of the same seed.** `TerrainGenerator`
+knows nothing about either format and both writers are pure projections of one generated
+chunk, which is what makes a render of the modern world a usable control for a render of
+the legacy one. Only the bottom of the world moves: the four all-rock sections below y=0
+are dropped, because 1.12.2 has no space for them, and y=0 becomes the bedrock floor.
+
+Three approximations are unavoidable, and the generator **reports every one** rather than
+swallowing it — on stderr and in the JSON summary's `substitutions`:
+
+- **Deepslate and its ores** (1.17) become stone and the era's plain ores. Unreachable in
+  practice: every deepslate block the generator places is below y=0 and is therefore never
+  written.
+- **Copper ore** (1.17) becomes gold ore. Its vein range does overlap the legacy world, so
+  this one really happens; it is underground either way.
+- **`grass_block[snowy=true]`** becomes plain id `2:0`. 1.12.2 had no `snowy` property at
+  all — the reader's `SnowyExtension` derives it from the block above, exactly as that era
+  did — so this is a round trip rather than a loss, and the test asserts it comes back.
+
+> [!WARNING]
+> Reading a 1.12.2 world is not the same as **rendering** one. This project's chunk reader
+> returns pre-flattening block names (`minecraft:grass` for the grass block,
+> `minecraft:snow_layer`, `minecraft:stonebrick`), and nothing translates those into modern
+> names before the resource pack is asked for a model. Rendered against a modern client
+> jar, four of them come out wrong. `tools/oracle/render-1-12.mjs` measures exactly which,
+> and `design/HANDOFF.md` records the finding.
+
 ## Running it
 
 ```sh
 # from design/, after `pnpm build`
 node packages/worldgen/dist/cli.js --seed 4242424242 --size 1000 --out ./out
+
+# the same terrain in the pre-flattening layout
+node packages/worldgen/dist/cli.js --seed 4242424242 --size 1000 --out ./out --format 1.12.2
 ```
 
 ```
 --seed <n>        world seed; the world is a function of this alone (required)
 --size <blocks>   edge length of the generated square, in blocks (default 1000)
+--format <ver>    chunk format: 1.20.4 (default) or 1.12.2
+--data-version <n>  the same choice as a DataVersion (3700 or 1343)
 --out <dir>       directory the world folder is created in (default ".")
 --name <str>      world folder name (default "test-world-seed-<seed>")
 --zip <path>      archive path (default "<out>/test-world-seed-<seed>.zip")
@@ -134,6 +180,26 @@ terrain.biomeAt(100, 200, terrain.terrainHeight(100, 200));
 - the same seed twice produces byte-identical files, and a different seed does not
 - the archive opens through `ZipFileSystem` and its region bytes match the ones on disk
 
+`test/legacy-worldgen.test.ts` does the same for `--format 1.12.2`, and does it
+exhaustively rather than by sampling. It generates a 64x64 block world at a seed chosen
+because its first 4x4 chunks span five biomes, then walks **all 1,048,576 block
+positions** and asserts that the reader hands back exactly the block-state each numeric
+id and metadata nibble means — resolved the long way round, through the same
+`blockIds.json` the reader uses, so a wrong id shared by both sides cannot pass. It also
+asserts that:
+
+- `DataVersion` 1343 dispatches to `Chunk_1_12`
+- the metadata nibbles survive: granite and andesite are not stone, spruce and birch logs
+  are not oak
+- the bedrock floor is at y=0 and every y below it reads back as air rather than throwing
+- every biome byte resolves through the bundled legacy table
+- `HeightMap` comes back as an absolute y, with no world-floor offset applied
+- sky-light is 15 above the terrain and 0 at the surface block
+- `SnowyExtension` puts the `snowy` property back on grass blocks — false where the
+  generator wrote plain grass, true where it wrote the snowy variant and a snow layer sits
+  above — while the raw chunk carries no properties at all
+- the same seed twice produces byte-identical files
+
 `test/packing.test.ts` checks the padded long-array packing directly against the
 reader's own `PackedIntArrayAccess`, at every bit-width the generator can choose.
 
@@ -189,6 +255,10 @@ whether the world parses; they are listed so nobody mistakes them for bugs.
 | `packing.ts` | the padded long-array packing, and the bit-width rules |
 | `chunkNbt.ts` | a chunk's NBT: palettes, packed data, heightmaps, sky-light |
 | `levelDat.ts` | `level.dat`, including the inline dimension type |
+| `legacyVersion.ts` | the 1.12.2 target version and its 0..255 world geometry |
+| `legacyMappings.ts` | block-state to numeric id/meta, and biome key to legacy biome id |
+| `legacyChunkNbt.ts` | a 1.12.2 chunk's NBT: `Blocks`/`Data`/`Add`, nibble packing, `Biomes`, `HeightMap` |
+| `legacyLevelDat.ts` | the 1.12.2 `level.dat`, and what it deliberately does not carry |
 | `region.ts` | the `.mca` container: sector allocation and the 8 KiB header |
 | `zip.ts` | a small deterministic zip writer |
 | `generateWorld.ts` | assembles a whole world and archives it |

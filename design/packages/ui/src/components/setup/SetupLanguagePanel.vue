@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { VRadio, VRadioGroup, VSlider } from "vuetify/components";
+import { VBtn, VRadio, VRadioGroup, VSlider } from "vuetify/components";
 import SetupText from "./SetupText.vue";
 import {
     FUNNY_LEVELS,
     LANGUAGE_MODES,
+    resetSetupLanguage,
     useSetupI18n,
     type FunnyLevel,
     type LanguageMode,
@@ -22,6 +23,12 @@ import {
  * The funny level restyles the copy around the consent question. It never touches the
  * consent facts themselves, which resolve from the EXACT catalogue with the level not
  * consulted at all (see `setupI18n.ts`).
+ *
+ * The disclosure under the sliders is not decoration and is not optional. The level styles
+ * every message the application produces, errors and warnings included, and somebody is
+ * entitled to know that before they move a slider rather than after an error reads oddly.
+ * It is rendered at the current level like everything else, and every level of it still
+ * says that errors and warnings are included and that the facts do not move.
  *
  * The accessible name of a Vuetify slider comes from its `name` prop, which is what the
  * thumb (the element carrying `role="slider"`) renders as `aria-label`; an `aria-label`
@@ -50,6 +57,16 @@ function setMode(value: unknown): void {
 function setFunny(language: "en" | "yue", value: number | number[]): void {
     const level = Array.isArray(value) ? value[0] : value;
     if (typeof level === "number") i18n.setFunny(language, level as FunnyLevel);
+}
+
+/**
+ * Back to English at level 3 in both languages.
+ *
+ * No confirmation gate: this changes the wording of the interface and nothing else, so
+ * there is nothing here to lose and the whole state is one click away again.
+ */
+function reset(): void {
+    resetSetupLanguage();
 }
 </script>
 
@@ -124,6 +141,18 @@ function setFunny(language: "en" | "yue", value: number | number[]): void {
                 </p>
             </div>
         </div>
+
+        <SetupText text-key="language.disclosure" class="mb-setup-language__disclosure" />
+
+        <div class="mb-setup-language__reset">
+            <v-btn
+                variant="text"
+                density="comfortable"
+                size="small"
+                :text="i18n.t('action.resetLanguage')"
+                @click="reset"
+            />
+        </div>
     </section>
 </template>
 
@@ -163,5 +192,18 @@ function setFunny(language: "en" | "yue", value: number | number[]): void {
     margin: 0;
     font-size: 0.8125rem;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-setup-language__disclosure {
+    font-size: 0.8125rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-setup-language__reset {
+    display: flex;
+    /* Trailing, so it reads as the way out of the two controls above it rather than as a
+       fourth control in the row. Wraps to its own line where there is no room beside them. */
+    justify-content: flex-end;
+    flex-wrap: wrap;
 }
 </style>

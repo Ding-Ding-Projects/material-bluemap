@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiAlertOutline, mdiCheckCircle, mdiExitRun, mdiKeyOutline } from "@mdi/js";
 import { VBtn, VCard, VCardActions, VCardText, VDivider, VIcon, VMenu, VProgressLinear, VSlider, VSpacer, VSwitch } from "vuetify/components";
+import {
+    createSuperConfirmGate,
+    returnFocusTo,
+    GATE_COMPLETION_HOLD_MS,
+    GATE_TRAVEL_END,
+    GATE_TRAVEL_START,
+} from "../confirm/superConfirmGate.js";
 
 /**
  * Super confirmation for a destructive action, anchored beside the control that
@@ -17,7 +24,13 @@ import { VBtn, VCard, VCardActions, VCardText, VDivider, VIcon, VMenu, VProgress
  *
  * The facts are props, not decoration. Whatever tone the surrounding copy takes,
  * `action` and `affected` still name exactly what is destroyed and that it
- * cannot be undone.
+ * cannot be undone. That is the one part of this component that no language mode
+ * and no funny level is allowed to soften, because the caller supplies it and the
+ * caller is the screen that knows which file is about to go.
+ *
+ * The arithmetic of the gate itself lives in `../confirm/superConfirmGate.ts`, shared
+ * with `MenuSuperConfirm.vue`. This file is the anchored presentation of it and
+ * nothing else; a rule that needs changing is changed there, once, for both.
  */
 const props = withDefaults(
     defineProps<{
@@ -37,11 +50,9 @@ const emit = defineEmits<{ confirm: [] }>();
 const { t } = useI18n();
 
 const open = ref(false);
-const keyOne = ref(false);
-const keyTwo = ref(false);
-const travel = ref(0);
-const done = ref(false);
 const activator = ref<HTMLElement | null>(null);
+const gate = createSuperConfirmGate(() => emit("confirm"));
+
 /**
  * Vuetify's props and `exactOptionalPropertyTypes` disagree about `undefined`,
  * so an optional prop of ours is normalised once here rather than coalesced at
@@ -50,36 +61,66 @@ const activator = ref<HTMLElement | null>(null);
 const isDisabled = computed(() => props.disabled === true);
 const affectedList = computed<readonly string[]>(() => props.affected ?? []);
 
+const armed = gate.armed;
+const done = computed(() => gate.authorized.value);
 
-const armed = computed(() => keyOne.value && keyTwo.value);
+/**
+ * The completion hold, cleared on unmount.
+ *
+ * Every consumer of this gate deletes the thing the gate was anchored to, so the usual
+ * outcome of authorizing is that this component is torn down while the timer is still
+ * pending. A timer that survives that would call into a dead component.
+ */
+let holdTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearHold(): void {
+    if (holdTimer !== null) {
+        clearTimeout(holdTimer);
+        holdTimer = null;
+    }
+}
+
+onBeforeUnmount(clearHold);
 
 watch(open, (value) => {
     if (value) {
-        keyOne.value = false;
-        keyTwo.value = false;
-        travel.value = 0;
-        done.value = false;
+        clearHold();
+        gate.reset();
         return;
     }
+    clearHold();
     // Focus goes back where it came from, whether the gate completed or not.
-    activator.value?.querySelector("button")?.focus();
+    returnFocusTo(activator.value);
 });
 
 function onTravel(value: number): void {
-    if (!armed.value) {
-        travel.value = 0;
-        return;
-    }
-    travel.value = value;
-    if (value >= 100 && !done.value) {
-        done.value = true;
-        emit("confirm");
-    }
+    if (!gate.travelTo(value)) return;
+
+    // Authorized. Hold the completion state long enough to be seen, then close, which is
+    // what puts focus back on the control the user was standing on.
+    clearHold();
+    holdTimer = setTimeout(() => {
+        holdTimer = null;
+        open.value = false;
+    }, GATE_COMPLETION_HOLD_MS);
 }
 
 /** A slider let go before the end springs back, so a slip cannot destroy anything. */
 function onRelease(): void {
-    if (!done.value) travel.value = 0;
+    gate.release();
+}
+
+/**
+ * The Escape path, spelled out rather than left to the overlay.
+ *
+ * Vuetify closes a menu on Escape by itself, but only while focus is inside the overlay's
+ * own content tree, and the contract asks for Escape and the platform back path as a
+ * guarantee rather than as a default that happens to hold. Handling it here means the card
+ * cancels from wherever inside it the key is pressed, including from the slider, which is
+ * exactly where somebody having second thoughts will be.
+ */
+function cancel(): void {
+    open.value = false;
 }
 </script>
 
@@ -93,7 +134,13 @@ function onRelease(): void {
             already opens the gate, so the two would fight over every click.
         -->
         <v-menu v-model="open" target="parent" :close-on-content-click="false" location="bottom end" offset="8">
-            <v-card class="mb-config-confirm" max-width="420" role="dialog" :aria-label="title">
+            <v-card
+                class="mb-config-confirm"
+                :class="{ 'mb-config-confirm--authorized': done }"
+                role="dialog"
+                :aria-label="title"
+                @keydown.esc.stop="cancel"
+            >
                 <v-card-text>
                     <div class="mb-config-confirm__head">
                         <v-icon :icon="mdiAlertOutline" color="error" size="26" aria-hidden="true" />
@@ -114,7 +161,8 @@ function onRelease(): void {
 
                     <div class="mb-config-confirm__keys">
                         <v-switch
-                            v-model="keyOne"
+                            v-model="gate.keyOne.value"
+                            class="mb-config-confirm__key mb-config-confirm__key--one"
                             :label="t('config.confirm.keyOne', 'Key 1')"
                             :prepend-icon="mdiKeyOutline"
                             color="error"
@@ -123,7 +171,8 @@ function onRelease(): void {
                             inset
                         />
                         <v-switch
-                            v-model="keyTwo"
+                            v-model="gate.keyTwo.value"
+                            class="mb-config-confirm__key mb-config-confirm__key--two"
                             :label="t('config.confirm.keyTwo', 'Key 2')"
                             :prepend-icon="mdiKeyOutline"
                             color="error"
@@ -135,13 +184,15 @@ function onRelease(): void {
 
                     <v-slider
                         class="mb-config-confirm__slider"
-                        :model-value="travel"
-                        :min="0"
-                        :max="100"
+                        :model-value="gate.travel.value"
+                        :min="GATE_TRAVEL_START"
+                        :max="GATE_TRAVEL_END"
                         :step="1"
                         :disabled="!armed || done"
                         :aria-label="confirmLabel"
-                        :aria-valuetext="`${Math.round(travel)}%`"
+                        :aria-valuetext="
+                            t('config.confirm.travel', { percent: gate.percent.value }, '{percent} percent of the way across')
+                        "
                         color="error"
                         hide-details
                         @update:model-value="onTravel"
@@ -150,8 +201,8 @@ function onRelease(): void {
 
                     <v-progress-linear
                         class="mb-config-confirm__progress"
-                        :class="{ 'mb-config-confirm__progress--live': armed && travel > 0 && !done }"
-                        :model-value="travel"
+                        :class="{ 'mb-config-confirm__progress--live': gate.phase.value === 'moving' }"
+                        :model-value="gate.travel.value"
                         :color="done ? 'success' : 'error'"
                         height="6"
                         rounded
@@ -174,7 +225,13 @@ function onRelease(): void {
                 </v-card-text>
 
                 <v-card-actions>
-                    <v-btn :prepend-icon="mdiExitRun" color="primary" variant="tonal" @click="open = false">
+                    <v-btn
+                        class="mb-config-confirm__exit"
+                        :prepend-icon="mdiExitRun"
+                        color="primary"
+                        variant="tonal"
+                        @click="cancel"
+                    >
                         {{ t("config.confirm.exit", "Emergency exit") }}
                     </v-btn>
                     <v-spacer />
@@ -188,6 +245,16 @@ function onRelease(): void {
 <style>
 .mb-config-confirm__anchor {
     display: inline-flex;
+}
+
+/*
+ * Bounded by the viewport rather than by a fixed width alone. At 200% display scale on a
+ * small laptop the anchored card is most of the screen, and a fixed 420px there is a card
+ * whose Emergency exit sits off the edge.
+ */
+.mb-config-confirm {
+    width: min(420px, calc(100vw - 32px));
+    max-width: 420px;
 }
 
 .mb-config-confirm__head {
@@ -212,6 +279,7 @@ function onRelease(): void {
     margin: 8px 0 0 1.2em;
     font-size: 0.8125rem;
     line-height: 1.5;
+    overflow-wrap: anywhere;
 }
 
 .mb-config-confirm__step,
@@ -236,12 +304,25 @@ function onRelease(): void {
     margin-block: 4px 8px;
 }
 
+/* Both keys stay operable side by side down to the narrowest supported width. */
+.mb-config-confirm__key {
+    flex: 1 1 8rem;
+}
+
+.mb-config-confirm__exit {
+    min-height: 40px;
+}
+
 .mb-config-confirm__progress {
     transition: none;
 }
 
 .mb-config-confirm__progress--live {
     animation: mb-config-confirm-pulse 900ms ease-in-out infinite;
+}
+
+.mb-config-confirm--authorized {
+    animation: mb-config-confirm-flash 420ms ease-out;
 }
 
 .mb-config-confirm__tick {
@@ -274,8 +355,18 @@ function onRelease(): void {
     }
 }
 
+@keyframes mb-config-confirm-flash {
+    from {
+        box-shadow: 0 0 0 0 rgba(var(--v-theme-success), 0.55);
+    }
+    to {
+        box-shadow: 0 0 0 14px rgba(var(--v-theme-success), 0);
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .mb-config-confirm__progress--live,
+    .mb-config-confirm--authorized,
     .mb-config-confirm__tick {
         animation: none !important;
     }
