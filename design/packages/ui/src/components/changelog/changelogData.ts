@@ -24,6 +24,26 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "28bcd3a124bd2c6321d529569d5447528d33a73c",
+        shortSha: "28bcd3a124",
+        date: "2026-08-04T16:18:14-04:00",
+        subject: "Document the render console and hosted Pages gate",
+        details: "The landing page, site article, feature index, handoff and roadmap now describe the bounded render console, its real search and export behaviour, the 349-file local gate, and the hosted Pages evidence without turning an older deployed SHA into a newer claim. The docs stop leaving the console in the code basement.\\n\\nLanding page、site article、feature index、handoff 同 roadmap 而家一齊講清楚 bounded render console、真 search/export 行為、349-file 本地 gate 同 hosted Pages 證據，亦唔會將舊 deployed SHA 扮成新版本。個 console 唔使再喺 code 地庫自己收埋。",
+        category: "site",
+        areas: ["site", "docs"],
+        files: 8,
+    },
+    {
+        sha: "92c392ff0d3f86081211951f00bf1c13b36d819e",
+        shortSha: "92c392ff0d",
+        date: "2026-08-04T16:17:42-04:00",
+        subject: "Read the scan result, not the wrapper around it",
+        details: "The projects list asked every Minecraft folder for its worlds and then\nread `.worlds` off the answer. `world:scan` does not answer with a scan:\nit answers with a result union, because one unplugged drive must not\ntake the worlds on every other drive off the screen with it. So the\nadapter read a property that was never there and the screen showed\n\"scan.worlds is not iterable\" where the reason should have been.\n\nIt now reads the union properly, and a folder that cannot be opened\ncontributes its own message while the rest still list. The same screen\nnow says what is actually true on this machine: there is no\n`.minecraft\\saves` here, so there are no worlds, so there are no\nprojects.\n\nFound by opening the application rather than by a test. Five thousand\nsix hundred passed while this was broken, because every one of them\nhands the surface an injected host - which is the right way to test the\nscreen and no way at all to test the bridge underneath it.\n\n---\n\n專案清單問完每個 Minecraft 資料夾攞世界之後,直接喺個回應度讀 `.worlds`。\n但 `world:scan` 回嘅唔係一個 scan,而係一個 result union —— 因為一隻拔咗\n線嘅碟,唔應該連累其他碟上面嘅世界一齊唔見。所以個轉接器讀咗一個由頭到\n尾都唔存在嘅屬性,個畫面就喺應該講原因嘅位置,顯示咗\n「scan.worlds is not iterable」。\n\n而家佢正正經經咁讀個 union:開唔到嘅資料夾出返自己嗰句訊息,其餘照樣\n列。同一個畫面而家講返呢部機真正嘅事實:根本冇 `.minecraft\\saves`,所以\n冇世界,所以冇專案。\n\n呢個係開個 app 出嚟撞到嘅,唔係測試捉到。爛住嗰陣有五千六百幾個測試係綠\n色 —— 因為佢哋每一個都係將個 host 注入去。咁樣測個畫面係啱嘅,但咁樣係\n完全測唔到下面條橋。",
+        category: "shell",
+        areas: ["shell"],
+        files: 1,
+    },
+    {
         sha: "897ecad1662c59e5a87affd1d89627b289d91d71",
         shortSha: "897ecad166",
         date: "2026-08-04T16:13:26-04:00",
