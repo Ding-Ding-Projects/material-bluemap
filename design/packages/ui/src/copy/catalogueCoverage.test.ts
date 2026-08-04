@@ -65,6 +65,7 @@ import { APP_VOICED, appCopyKeys } from "./appCopy.js";
  */
 const COVERED_SURFACES = [
     "App.vue",
+    "components/changelog",
     "components/controls",
     "components/eula",
     "components/notifications",

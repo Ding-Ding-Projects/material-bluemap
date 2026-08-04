@@ -17,16 +17,20 @@
  * voiced keys so a new entry cannot be added without a fact to guard it.
  */
 
+import { CHANGELOG_FACTS, CHANGELOG_FIXED, CHANGELOG_VOICED } from "./changelog.js";
 import { CHROME_FACTS, CHROME_FIXED, CHROME_VOICED } from "./chrome.js";
 
 export const SURFACE_VOICED = {
     ...CHROME_VOICED,
+    ...CHANGELOG_VOICED,
 } as const;
 
 export const SURFACE_FIXED = {
     ...CHROME_FIXED,
+    ...CHANGELOG_FIXED,
 } as const;
 
 export const SURFACE_FACTS = {
     ...CHROME_FACTS,
+    ...CHANGELOG_FACTS,
 } as const;
