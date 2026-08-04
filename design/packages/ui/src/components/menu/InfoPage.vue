@@ -5,6 +5,7 @@ import { sanitizeHtml } from "@material-bluemap/viewer";
 import type { BlueMapApp } from "@material-bluemap/viewer";
 import { useBlueMap } from "./useBlueMap";
 import ChangelogViewer from "../changelog/ChangelogViewer.vue";
+import { onRevealRequested } from "../shell/revealRequests.js";
 
 /**
  * The Info page: upstream renders `info.content` from the locale file straight through
@@ -119,6 +120,31 @@ const versionFailure = ref<string | null>(null);
  */
 const changelogOpen = ref(false);
 
+/**
+ * The fold element, so something other than a click can open it.
+ *
+ * `changelogOpen` is a mirror of the element's state rather than the source of it - the
+ * `toggle` handler reads it back off the element - so setting the ref alone would build the
+ * viewer inside a fold that still looks shut. The element's `open` property is the real
+ * switch, and setting it fires `toggle`, which updates the mirror on the way through.
+ */
+const changelogFold = ref<HTMLDetailsElement | null>(null);
+
+/*
+ * The command palette can ask for the changelog by name. It reaches here because this is where
+ * the changelog lives: the palette opens the viewer's menu at this page, and this expands the
+ * fold once the page has drawn. Scrolled into view as well, because the fold is at the bottom
+ * of a page whose top is a logo and three tables of controls - opening it out of sight would be
+ * a teleport that lands somebody on the wrong end of the screen.
+ */
+onRevealRequested("changelog", () => {
+    const fold = changelogFold.value;
+    if (fold === null) return;
+    fold.open = true;
+    changelogOpen.value = true;
+    fold.scrollIntoView({ block: "nearest" });
+});
+
 onMounted(() => {
     const read = versionReader();
     if (read === null) return;
@@ -174,7 +200,11 @@ onMounted(() => {
         demand, the page says what it says and the history arrives when it is asked for.
     -->
     <v-divider class="mb-info-page__rule" />
-    <details class="mb-info-page__changelog" @toggle="changelogOpen = ($event.target as HTMLDetailsElement).open">
+    <details
+        ref="changelogFold"
+        class="mb-info-page__changelog"
+        @toggle="changelogOpen = ($event.target as HTMLDetailsElement).open"
+    >
         <summary>{{ t("info.changelog", "Changelog, every released version") }}</summary>
         <ChangelogViewer v-if="changelogOpen" />
     </details>

@@ -5,6 +5,7 @@ import { mdiBellBadgeOutline, mdiBellOutline } from "@mdi/js";
 import { VBtn, VMenu, VTooltip } from "vuetify/components";
 import NoticeCentrePanel from "./NoticeCentrePanel.vue";
 import { markReviewed, unreadCount, type NoticeState } from "../config/notifications.js";
+import { onRevealRequested } from "../shell/revealRequests.js";
 
 /**
  * The bell, and the panel it opens.
@@ -61,6 +62,16 @@ function onToggle(value: boolean): void {
     const element = buttonRef.value?.$el as HTMLElement | undefined;
     element?.focus();
 }
+
+/*
+ * The command palette can ask for this panel by name, because "notification centre" is a thing
+ * people look for and a bell in a corner is a thing people forget the location of. It arrives
+ * through the same `onToggle` a click goes through, so the history is marked read exactly as it
+ * would have been: opening the centre is what clears the badge, however it was opened.
+ */
+onRevealRequested("noticeCentre", () => {
+    onToggle(true);
+});
 </script>
 
 <template>

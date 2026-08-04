@@ -27,6 +27,7 @@ import {
     VMenu,
     VTooltip,
 } from "vuetify/components";
+import { onRevealRequested } from "../shell/revealRequests.js";
 import TabButton from "./TabButton.vue";
 import TabFinder from "./TabFinder.vue";
 import TabGroupMenu from "./TabGroupMenu.vue";
@@ -535,6 +536,19 @@ function onGroupKeydown(event: KeyboardEvent, groupId: string, collapsed: boolea
 
 const finderOpen = ref(false);
 const overflowOpen = ref(false);
+
+/*
+ * The command palette can ask for the finder by name.
+ *
+ * It sets this component's own state rather than being handed a method through a template ref
+ * threaded down from the shell, because the panel is anchored to a button this component draws
+ * and closes back onto it: the open-state belongs here and hoisting it would put the shell in
+ * charge of a panel it cannot see. `components/shell/revealRequests.ts` says why this is a
+ * doorbell rather than a prop.
+ */
+onRevealRequested("tabFinder", () => {
+    finderOpen.value = true;
+});
 
 /**
  * Landing on a result.

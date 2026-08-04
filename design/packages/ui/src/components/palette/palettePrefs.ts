@@ -80,18 +80,29 @@ export function writePaletteSize(size: PaletteSize, storage: PaletteStorage | nu
 /**
  * Whether a keystroke is the palette's shortcut.
  *
- * Control or Command with `k`, and neither Alt nor Shift, which is the shortcut every
- * application that has one of these uses. Alt and Shift are excluded rather than ignored so
- * that a future Ctrl+Shift+K belongs to whoever wants it instead of silently opening this.
+ * **Control+Shift+F**, and not Alt. This used to be Ctrl+K, on the reasoning that Ctrl+K is
+ * what every application with a palette uses and muscle memory is worth more than
+ * consistency. That reasoning was wrong twice over. Ctrl+K is already spoken for in a text
+ * field on several platforms, and - the part that actually decided it - the documentation
+ * site next door binds Ctrl+Shift+F, so the product shipped two different shortcuts for the
+ * same feature and whichever one a person learned was wrong half the time. One shortcut, and
+ * this is it.
  *
- * `event.key` rather than `event.code`, so the key labelled K on the user's own layout is
- * the one that works. `code` would hard-code the position of K on a US keyboard, which on a
- * Dvorak or AZERTY layout is a different key entirely.
+ * Alt is excluded rather than ignored, so that a future Ctrl+Alt+Shift+F belongs to whoever
+ * wants it instead of silently opening this. Shift is now required rather than rejected, which
+ * is the whole change.
+ *
+ * `event.key` rather than `event.code`, so the key labelled F on the user's own layout is the
+ * one that works. `code` would hard-code the position of F on a US keyboard, which on a Dvorak
+ * or AZERTY layout is a different key entirely. Shift makes `event.key` arrive as `"F"` on
+ * most layouts and `"f"` on some, so both cases are accepted; comparing case-insensitively is
+ * not optional here the way it was for an unshifted letter.
  */
 export function isPaletteShortcut(event: KeyboardEvent): boolean {
-    if (event.altKey || event.shiftKey) return false;
+    if (event.altKey) return false;
+    if (!event.shiftKey) return false;
     if (!event.ctrlKey && !event.metaKey) return false;
-    return event.key === "k" || event.key === "K";
+    return event.key === "f" || event.key === "F";
 }
 
 /**

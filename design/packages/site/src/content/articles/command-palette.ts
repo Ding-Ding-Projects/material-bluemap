@@ -100,12 +100,15 @@ export const commandPalette: Article = {
                         {
                             term: "The shortcut",
                             description: [
-                                "Control or Command with ",
-                                { code: "k" },
-                                ", with neither Alt nor Shift. It is matched on the key rather than the physical ",
-                                "code, so the key labelled K on the user's own layout is the one that works. The ",
-                                "listener is on the window in the capture phase, because the palette has to be ",
-                                "reachable from inside a text field too.",
+                                "Control or Command with Shift and ",
+                                { code: "f" },
+                                ", and not Alt. The same chord opens the palette in the desktop app and on this ",
+                                "site. It was Ctrl+K in the app until the two disagreed with each other, which ",
+                                "made whichever one you had learned wrong half the time. It is matched on the key ",
+                                "rather than the physical code, so the key labelled F on the user's own layout is ",
+                                "the one that works, and both cases are accepted because layouts disagree about ",
+                                "what Shift+F reports. The listener is on the window in the capture phase, because ",
+                                "the palette has to be reachable from inside a text field too.",
                             ],
                         },
                         {

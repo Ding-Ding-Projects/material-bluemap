@@ -23,12 +23,14 @@ import { MainMenu, provideBlueMap, useBlueMapTheme } from "./components/menu/ind
 import { MarkerMenu } from "./components/markers/index.js";
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
 import { AppTitleBar } from "./components/shell/index.js";
+import { requestReveal } from "./components/shell/revealRequests.js";
 import { FirstRunSetup } from "./components/setup/index.js";
 import { AppSettings, type SettingsAnchor } from "./components/settings/index.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
 import { CiRenderScreen } from "./components/cirender/index.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
+import type { PaletteConfigTarget } from "./components/palette/index.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
 import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
@@ -292,6 +294,7 @@ function revealSetting(target: SettingsTarget): void {
  */
 const configOpen = ref(false);
 const configHost = ref<HTMLElement | null>(null);
+const pendingConfigScreen = ref<PaletteConfigTarget>(null);
 
 /**
  * The button is found by id rather than by a template ref because it is a tooltip
@@ -301,7 +304,8 @@ const configHost = ref<HTMLElement | null>(null);
  */
 const configFabId = useId();
 
-function openConfig(): void {
+function openConfig(screen: PaletteConfigTarget = null): void {
+    pendingConfigScreen.value = screen;
     configOpen.value = true;
     // The host is focused so Escape works from the first keystroke. Left alone, focus stays
     // on the button the surface has just covered, and the key that closes this only works
@@ -312,6 +316,7 @@ function openConfig(): void {
 /** Escape and a finished save both land here, and focus goes back to the button that opened it. */
 function closeConfig(): void {
     configOpen.value = false;
+    pendingConfigScreen.value = null;
     void nextTick(() => document.getElementById(configFabId)?.focus());
 }
 
@@ -332,6 +337,24 @@ function closeConfig(): void {
  */
 const paletteOpen = ref(false);
 usePaletteShortcut(paletteOpen);
+
+/**
+ * The changelog, which is a fold inside the viewer's own Info page.
+ *
+ * Two steps rather than one, because the fold is two surfaces down: the menu has to be showing
+ * that page before there is a fold to expand. The page is opened here, the way every other menu
+ * destination in the palette opens one, and the request tells the page itself to expand and
+ * scroll to it. The palette does not offer this row at all without a viewer running, so the
+ * guard here is belt and braces rather than the thing keeping it honest.
+ */
+function openChangelog(): void {
+    const app = blueMapApp.value;
+    if (app === null) return;
+    app.appState.menu.openPage("info", () => t("info.title", "Info"));
+    void nextTick(() => {
+        requestReveal("changelog");
+    });
+}
 
 /**
  * A save happened, so the editor steps out of the way and says where it wrote.
@@ -648,6 +671,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 @keydown.esc="closeConfig"
             >
                 <ConfigScreen
+                    :initial-screen="pendingConfigScreen ?? 'core'"
                     @consent="openSettings('mojang-download-consent')"
                     @saved="configSaved"
                 />
@@ -711,11 +735,17 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             -->
             <CommandPalette
                 :open="paletteOpen"
+                :pages="pages"
+                :can-route-config-screens="true"
                 @update:open="paletteOpen = $event"
                 @reveal-setting="revealSetting"
                 @open-settings="openSettings()"
-                @open-config="openConfig()"
+                @open-config="openConfig($event)"
                 @open-profiles="revealPage(PAGE_SERVERS)"
+                @open-page="revealPage($event)"
+                @open-notice-centre="requestReveal('noticeCentre')"
+                @open-tab-finder="requestReveal('tabFinder')"
+                @open-changelog="openChangelog"
             />
         </v-main>
 

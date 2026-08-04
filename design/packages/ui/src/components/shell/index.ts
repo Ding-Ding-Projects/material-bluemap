@@ -14,3 +14,6 @@ export { default as AppTitleBar } from "./AppTitleBar.vue";
 
 export { createWindowControls, resolveWindowBridge } from "./windowControls.js";
 export type { WindowBridge, WindowControls } from "./windowControls.js";
+
+export { onRevealRequested, requestReveal, resetRevealRequests, revealCount } from "./revealRequests.js";
+export type { RevealRequest } from "./revealRequests.js";

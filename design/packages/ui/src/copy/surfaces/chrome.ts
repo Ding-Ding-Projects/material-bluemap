@@ -293,6 +293,45 @@ export const CHROME_VOICED = {
             "所有章節分頁都閂晒，呢句講嘅係啲分頁，唔係份授權合約。份文件一個字都冇改動；喺分頁列嘅加號掣可以再開返一節。",
         ],
     },
+    /*
+     * The two halves of one notice, raised together when a bulk close finishes in the EULA
+     * reader. They are separate keys because `tabs.close.done` is the generic tab-strip
+     * message and the second sentence is the licence reader's own reassurance: closing a
+     * tab labelled "What you may not do" genuinely looks like it removed something. That
+     * reassurance is the whole reason the second key exists, so no level may drop it.
+     */
+    "tabs.close.done": {
+        en: [
+            "Closed {closed} tabs.",
+            "Closed {closed} tabs.",
+            "Closed {closed} tabs.",
+            "{closed} tabs closed.",
+            "{closed} tabs closed, and none of them put up a fight.",
+        ],
+        yue: [
+            "閂咗 {closed} 個分頁。",
+            "閂咗 {closed} 個分頁。",
+            "已經閂咗 {closed} 個分頁。",
+            "{closed} 個分頁閂咗。",
+            "{closed} 個分頁閂晒，一個都冇反抗。",
+        ],
+    },
+    "eula.close.documentIntact": {
+        en: [
+            "The document is unchanged; only these ways into it were closed.",
+            "The document is unchanged; only these ways into it were closed.",
+            "The document itself is unchanged; only these ways into it were closed.",
+            "The document itself is unchanged. Only these ways into it were closed, not any part of it.",
+            "The document itself is unchanged, every word of it. Only these ways into it were closed, which is a statement about tabs and not about your licence.",
+        ],
+        yue: [
+            "份文件冇任何改動；閂咗嘅只係入去嘅途徑。",
+            "份文件冇任何改動；閂咗嘅只係入去嘅途徑。",
+            "份文件本身冇任何改動；閂咗嘅只係入去嘅途徑。",
+            "份文件本身冇任何改動。閂咗嘅只係入去嘅途徑，唔係文件嘅任何部分。",
+            "份文件本身冇任何改動，一隻字都冇少。閂咗嘅只係入去嘅途徑，呢句講嘅係分頁，唔係你份授權合約。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const CHROME_FIXED = {
@@ -389,6 +428,8 @@ export const CHROME_FACTS = {
     "eula.search.noneHere": { en: ["hidden"], yue: ["隱藏"] },
     "eula.search.hereCount": { en: ["{n}"], yue: ["{n}"] },
     "eula.allTabsClosed": { en: ["unchanged", "plus button"], yue: ["改動", "加號掣"] },
+    "tabs.close.done": { en: ["{closed}"], yue: ["{closed}"] },
+    "eula.close.documentIntact": { en: ["unchanged"], yue: ["改動"] },
 } as const satisfies Record<
     keyof typeof CHROME_VOICED,
     { en: readonly string[]; yue: readonly string[] }

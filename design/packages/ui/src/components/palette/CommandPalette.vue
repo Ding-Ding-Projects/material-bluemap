@@ -5,10 +5,15 @@ import { mdiArrowCollapse, mdiArrowExpand, mdiClose } from "@mdi/js";
 import { VBtn, VCard, VDialog, VDivider, VIcon, VToolbar, VToolbarTitle, VTooltip } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
-import type { ScreenId } from "../config/configSearch.js";
 import { blueMapApp } from "../../stores/bluemap.js";
 import PaletteRow from "./PaletteRow.vue";
-import { buildPaletteCatalog, type PaletteSettingsTarget, type PaletteShellActions } from "./paletteCatalog.js";
+import {
+    buildPaletteCatalog,
+    type PaletteConfigTarget,
+    type PalettePageRef,
+    type PaletteSettingsTarget,
+    type PaletteShellActions,
+} from "./paletteCatalog.js";
 import { countByKind, filterItems, groupItems, paletteSample, type PaletteItem } from "./paletteItems.js";
 import { readPaletteSize, writePaletteSize, type PaletteSize } from "./palettePrefs.js";
 
@@ -57,8 +62,10 @@ const props = withDefaults(
          * `paletteCatalog.ts`.
          */
         canRouteConfigScreens?: boolean;
+        /** The shell's tab strip, passed through so every page is searchable here too. */
+        pages?: readonly PalettePageRef[];
     }>(),
-    { canRouteConfigScreens: false },
+    { canRouteConfigScreens: false, pages: () => [] },
 );
 
 const emit = defineEmits<{
@@ -68,9 +75,17 @@ const emit = defineEmits<{
     /** Open the settings sheet with nothing revealed. */
     "open-settings": [];
     /** Open the options editor; the screen is null when no particular tab was asked for. */
-    "open-config": [screen: ScreenId | null];
+    "open-config": [screen: PaletteConfigTarget];
     /** Open the server-profile manager. */
     "open-profiles": [];
+    /** Reveal one of the shell's tabbed pages. */
+    "open-page": [pageId: string];
+    /** Open the notification centre in the corner. */
+    "open-notice-centre": [];
+    /** Open the tab strip's finder. */
+    "open-tab-finder": [];
+    /** Open the changelog, wherever the shell keeps it. */
+    "open-changelog": [];
 }>();
 
 const { t, locale } = useI18n();
@@ -111,6 +126,10 @@ const actions: PaletteShellActions = {
     openSettings: () => emit("open-settings"),
     openConfig: (screen) => emit("open-config", screen),
     openProfiles: () => emit("open-profiles"),
+    openPage: (pageId) => emit("open-page", pageId),
+    openNoticeCentre: () => emit("open-notice-centre"),
+    openTabFinder: () => emit("open-tab-finder"),
+    openChangelog: () => emit("open-changelog"),
 };
 
 /**
@@ -128,6 +147,7 @@ const items = computed<PaletteItem[]>(() =>
         app: blueMapApp.value,
         locale: locale.value,
         actions,
+        pages: props.pages,
         canRouteConfigScreens: props.canRouteConfigScreens,
         size: size.value,
         setSize: (value) => {

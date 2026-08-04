@@ -42,7 +42,13 @@ export type {
 } from "./paletteItems.js";
 
 export { buildPaletteCatalog } from "./paletteCatalog.js";
-export type { PaletteCatalogInput, PaletteSettingsTarget, PaletteShellActions } from "./paletteCatalog.js";
+export type {
+    PaletteCatalogInput,
+    PaletteConfigTarget,
+    PalettePageRef,
+    PaletteSettingsTarget,
+    PaletteShellActions,
+} from "./paletteCatalog.js";
 
 export {
     DEFAULT_PALETTE_SIZE,

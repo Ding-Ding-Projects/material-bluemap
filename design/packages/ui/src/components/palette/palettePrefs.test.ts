@@ -109,22 +109,36 @@ describe("the shortcut", () => {
             ...init,
         } as KeyboardEvent);
 
-    it("is Control or Command with K", () => {
-        expect(press({ key: "k", ctrlKey: true })).toBe(true);
-        expect(press({ key: "k", metaKey: true })).toBe(true);
-        expect(press({ key: "K", ctrlKey: true })).toBe(true);
+    it("is Control or Command with Shift and F", () => {
+        expect(press({ key: "F", ctrlKey: true, shiftKey: true })).toBe(true);
+        expect(press({ key: "F", metaKey: true, shiftKey: true })).toBe(true);
     });
 
-    it("is not a bare K, which is a letter somebody is typing", () => {
-        expect(press({ key: "k" })).toBe(false);
+    it("accepts either case, because layouts disagree about what Shift+F reports", () => {
+        expect(press({ key: "f", ctrlKey: true, shiftKey: true })).toBe(true);
+        expect(press({ key: "F", ctrlKey: true, shiftKey: true })).toBe(true);
     });
 
-    it("leaves Ctrl+Shift+K and Ctrl+Alt+K to whoever wants them", () => {
+    it("is not a bare F, which is a letter somebody is typing", () => {
+        expect(press({ key: "f" })).toBe(false);
+        expect(press({ key: "F", shiftKey: true })).toBe(false);
+    });
+
+    it("needs the Shift, so plain Ctrl+F still belongs to find-in-page", () => {
+        expect(press({ key: "f", ctrlKey: true })).toBe(false);
+        expect(press({ key: "f", metaKey: true })).toBe(false);
+    });
+
+    it("leaves Ctrl+Alt+Shift+F to whoever wants it", () => {
+        expect(press({ key: "F", ctrlKey: true, shiftKey: true, altKey: true })).toBe(false);
+    });
+
+    it("is not Ctrl+K, which is what this used to be", () => {
+        expect(press({ key: "k", ctrlKey: true })).toBe(false);
         expect(press({ key: "K", ctrlKey: true, shiftKey: true })).toBe(false);
-        expect(press({ key: "k", ctrlKey: true, altKey: true })).toBe(false);
     });
 
     it("is not some other Control chord", () => {
-        expect(press({ key: "p", ctrlKey: true })).toBe(false);
+        expect(press({ key: "p", ctrlKey: true, shiftKey: true })).toBe(false);
     });
 });

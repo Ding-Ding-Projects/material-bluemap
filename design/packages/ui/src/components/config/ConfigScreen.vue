@@ -75,6 +75,8 @@ const props = withDefaults(
         version?: string;
         /** Absolute path of the CLI shadow jar, for the run screen's command. */
         jarPath?: string;
+        /** Tab to reveal when the editor opens from the command palette. */
+        initialScreen?: ScreenId | "history";
         /**
          * Injected in tests. Left out, the Electron bridge is probed instead,
          * which is why this one has no default: `undefined` means "probe" and
@@ -82,7 +84,7 @@ const props = withDefaults(
          */
         host?: ConfigHost | null;
     }>(),
-    { initialFolder: null, version: "5.22", jarPath: "bluemap-cli.jar" },
+    { initialFolder: null, version: "5.22", jarPath: "bluemap-cli.jar", initialScreen: "core" },
 );
 
 const emit = defineEmits<{
@@ -123,7 +125,7 @@ const host = resolvedHost;
 const workspace = shallowRef<ConfigWorkspace | null>(null);
 // "history" is a tab but not a ScreenId: the settings search indexes screens by their
 // fields, and the history panel has none, so it stays out of that union on purpose.
-const activeScreen = ref<ScreenId | "history">("core");
+const activeScreen = ref<ScreenId | "history">(props.initialScreen);
 const selectedMapKey = ref<string | null>(null);
 const selectedStorageKey = ref<string | null>(null);
 const highlightPath = ref<string | null>(null);
@@ -142,6 +144,13 @@ const regexMode = ref(false);
 // `m` because a field's searchable text is several lines (label, key, Java field,
 // upstream's explanation), so `^` and `$` are only useful per line.
 const flags = ref("im");
+
+watch(
+    () => props.initialScreen,
+    (screen) => {
+        if (screen !== undefined) activeScreen.value = screen;
+    },
+);
 
 // ---- consent ---------------------------------------------------------------
 
