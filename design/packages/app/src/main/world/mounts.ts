@@ -207,6 +207,20 @@ function baseName(folder: string): string {
 }
 
 /**
+ * Returns a path's parent without asking the host OS to interpret it.
+ *
+ * Stored folders can come from another platform (and the test corpus deliberately
+ * includes both slash styles), while `node:path.dirname` only understands the current
+ * runner's separator. Keeping this tiny parser beside `baseName` makes the default label
+ * stable on Linux CI for a Windows path as well as on Windows itself.
+ */
+function parentFolder(folder: string): string {
+    const trimmed = folder.replace(/[\\/]+$/, "");
+    const cut = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+    return cut < 0 ? "" : trimmed.slice(0, cut);
+}
+
+/**
  * A stable id for a mounted folder, derived from the path it resolved to.
  *
  * FNV-1a over the path, which is enough for a list of at most a few dozen entries and has
@@ -230,7 +244,7 @@ export function folderIdFor(savesPath: string): string {
  * called `saves` and a list of six rows all reading "saves" distinguishes nothing.
  */
 export function defaultLabelFor(savesPath: string): string {
-    const parent = baseName(dirname(savesPath));
+    const parent = baseName(parentFolder(savesPath));
     const own = baseName(savesPath);
     if (parent === "" || parent === own) return own;
     return parent;
