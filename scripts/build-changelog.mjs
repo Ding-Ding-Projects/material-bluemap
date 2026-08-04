@@ -313,6 +313,23 @@ function toEntry(commit) {
     };
 }
 
+/*
+ * The generated files cannot describe their own commit without creating a fixed-point loop:
+ * writing the changelog changes the commit SHA, which would immediately make the changelog
+ * stale again. A commit that changes only these two generated outputs is therefore maintenance
+ * noise for this record; the source commit that caused it remains fully represented.
+ */
+function isGeneratedOnlyCommit(commit) {
+    return commit.files.length > 0 && commit.files.every((path) =>
+        path === "CHANGELOG.md" || path === "design/packages/ui/src/components/changelog/changelogData.ts",
+    );
+}
+
+function keepCommit(sha, commits) {
+    const commit = commits.get(sha);
+    return commit !== undefined && !isGeneratedOnlyCommit(commit);
+}
+
 /**
  * Groups a version's commits into their categories, in the fixed category order.
  */
@@ -337,7 +354,8 @@ function assemble(commits, versions) {
 
     for (const [index, version] of versions.entries()) {
         const exclusions = versions.slice(0, index).map((earlier) => `^${earlier.commit}`);
-        const shas = gitLines(["rev-list", "--topo-order", version.commit, ...exclusions]);
+        const shas = gitLines(["rev-list", "--topo-order", version.commit, ...exclusions])
+            .filter((sha) => keepCommit(sha, commits));
         const entries = shas.map((sha) => {
             const commit = commits.get(sha);
             if (commit === undefined) throw new Error(`commit ${sha} is missing from the log`);
@@ -350,7 +368,8 @@ function assemble(commits, versions) {
 
     const head = git(["rev-parse", "HEAD"]).trim();
     const exclusions = versions.map((version) => `^${version.commit}`);
-    const unreleasedShas = gitLines(["rev-list", "--topo-order", head, ...exclusions]);
+    const unreleasedShas = gitLines(["rev-list", "--topo-order", head, ...exclusions])
+        .filter((sha) => keepCommit(sha, commits));
     const unreleasedEntries = unreleasedShas.map((sha) => {
         const commit = commits.get(sha);
         if (commit === undefined) throw new Error(`commit ${sha} is missing from the log`);
