@@ -28,6 +28,7 @@ function map(overrides: Partial<ProjectMap> = {}): ProjectMap {
         id: "world",
         name: "World",
         dimension: "minecraft:overworld",
+        world: null,
         config: "",
         storage: "file",
         sorting: 0,
