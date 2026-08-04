@@ -20,6 +20,7 @@ import type { Preferences } from "../platform/Preferences.js";
 import type { ThemeController } from "../theme/ThemeController.js";
 import { THEME_MODES, DENSITIES } from "../theme/ThemeController.js";
 import type { SearchableSetting, SettingsSearchHost } from "../search/contract.js";
+import { attachRegexBuilder } from "../search/attachBuilder.js";
 import { SettingsStore } from "./store.js";
 import { SETTINGS, SETTINGS_TABS } from "./schema.js";
 import type { ActionSetting, SettingDefinition, SettingsTab } from "./types.js";
@@ -170,6 +171,53 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
     searchInput.addEventListener("input", () => {
         setQuery(searchInput.value);
     });
+
+    const installMatcher = (next: ((setting: SearchableSetting) => boolean) | null): void => {
+        matcher = next;
+        applyFilter();
+    };
+    const markInvalidPattern = (invalid: boolean): void => {
+        invalidPattern = invalid;
+        applyFilter();
+    };
+
+    // The settings field owns its filter, but the regex builder belongs to this exact
+    // field as well.  Keep plain text as the default and only install a matcher after
+    // the visitor deliberately switches the adjacent builder to regex mode.
+    const attachedSearchBuilder = attachRegexBuilder(searchInput, {
+        fieldId: "settings.page",
+        fieldLabel: "Search settings",
+        container: builderSlot,
+        sampleProvider: () => searchableSettings().map((setting) => setting.label).join("\n"),
+        onChange: (spec) => {
+            if (spec.mode !== "regex") {
+                markInvalidPattern(false);
+                installMatcher(null);
+                return;
+            }
+            if (!spec.valid) {
+                markInvalidPattern(true);
+                installMatcher(null);
+                return;
+            }
+            try {
+                const expression = new RegExp(spec.query, spec.flags);
+                markInvalidPattern(false);
+                installMatcher((setting) => expression.test([
+                    setting.label,
+                    setting.description,
+                    setting.valueText,
+                    setting.tabLabel,
+                    setting.sectionLabel ?? "",
+                    ...(setting.keywords ?? []),
+                ].join(" ")));
+            } catch {
+                markInvalidPattern(true);
+                installMatcher(null);
+            }
+        },
+    });
+    disposers.push(() => attachedSearchBuilder.destroy());
 
     function setQuery(value: string): void {
         query = value;

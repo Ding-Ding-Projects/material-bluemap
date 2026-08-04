@@ -1,5 +1,27 @@
 # Handoff
 
+## Pages rewrite checkpoint (2026-08-04)
+
+The linked Pages worktree `pages-material3-rewrite` rewired the site entry point so the existing
+Material 3 modules are reachable from the published shell instead of sitting as unmounted
+contracts. The new `Search` tab mounts documentation, settings, current-strip, every-group,
+group-name, master-tab, and both bulk-close searches; each field keeps its own anchored full
+regex builder. `Ctrl+Shift+F` opens a persisted bounded/full-window command palette whose rows
+can reveal pages, settings and appearance actions. `Changelog` parses the committed
+`CHANGELOG.md`, offers date presets and typed date bounds, and exports/copies the filtered view.
+`Notification centre` exposes the existing toast history. Settings search now attaches its own
+builder, and the destructive settings reset uses two independent key challenges plus a full-range
+authorization slider with Escape and reduced-motion handling.
+
+Evidence from the clean linked worktree:
+
+- `pnpm --filter @material-bluemap/site typecheck` — passed.
+- `pnpm --filter @material-bluemap/site exec vitest run` — 119 tests passed across 9 files.
+- `pnpm --filter @material-bluemap/site build` — Vite production build passed (140 modules).
+
+This is source, type, unit, and production-bundle evidence. A cheap headless Windows capture of
+the live Day Teet Hui remains a separate runtime/UI boundary and is not claimed by these checks.
+
 ## Plain-language summary (start here)
 
 This section is written in short, plain sentences on purpose. It defines every term it

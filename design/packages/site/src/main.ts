@@ -50,6 +50,8 @@ import type {
     RepoCapture,
 } from "./content/index.js";
 import { maybeShowDimSum } from "./dimsum/index.js";
+import { createChangelogView } from "./content/changelogView.js";
+import { createDiscoveryView } from "./content/discoveryView.js";
 import { I18n } from "./i18n/I18n.js";
 import { Notifications } from "./notifications/Notifications.js";
 import { Preferences } from "./platform/Preferences.js";
@@ -60,6 +62,8 @@ import { appendInlineContent, renderBlocks } from "./shell/renderBlocks.js";
 import { TabModel } from "./tabs/TabModel.js";
 import { TabsController } from "./tabs/index.js";
 import { ThemeController } from "./theme/ThemeController.js";
+import { createCommandPalette, type PaletteCommand } from "./shell/commandPalette.js";
+import { registerAppearanceTarget } from "./appearance/editor/contextMenu.js";
 
 /* -------------------------------------------------------------------------- */
 /* Small DOM helpers                                                          */
@@ -164,7 +168,7 @@ function captureFigure(capture: RepoCapture, className: string): HTMLElement {
  */
 interface PageNavigation {
     /** Open the documentation tab, expand one article, and put focus on it. */
-    readonly openArticle: (articleId: string) => void;
+    readonly openArticle: (articleId: string, offset?: number) => void;
     /** Open one of the content tabs by id. */
     readonly openPage: (pageId: string) => void;
 }
@@ -450,7 +454,9 @@ function renderDocs(host: HTMLElement): void {
             body.appendChild(el("p", "mb-status-note", article.statusNote));
 
             for (const articleSection of article.sections) {
-                body.appendChild(el("h3", "mb-article-section", articleSection.title));
+                const heading = el("h3", "mb-article-section", articleSection.title);
+                heading.id = `article-${article.id}-${articleSection.id}`;
+                body.appendChild(heading);
                 const prose = el("div", "mb-prose");
                 renderBlocks(prose, articleSection.blocks);
                 body.appendChild(prose);
@@ -615,6 +621,7 @@ function boot(): void {
 
     const model = new TabModel(prefs, i18n);
     const tabs = new TabsController({ i18n, model, notifications, shortcuts, regex });
+    const settingsView = createSettingsPage({ prefs, appearance, theme });
 
     /*
      * Following a card from the landing page has to land the visitor on the exact article,
@@ -627,7 +634,7 @@ function boot(): void {
      */
     const navigation: PageNavigation = {
         openPage: (pageId) => tabs.reveal(pageId),
-        openArticle: (articleId) => {
+        openArticle: (articleId, offset) => {
             tabs.reveal("docs");
             const target = document.getElementById(articleElementId(articleId));
             if (!(target instanceof HTMLDetailsElement)) return;
@@ -637,6 +644,11 @@ function boot(): void {
             // it would be fixing.
             const summary = target.querySelector("summary");
             if (summary instanceof HTMLElement) summary.focus({ preventScroll: true });
+            if (offset !== undefined) {
+                const textTarget = [...target.querySelectorAll<HTMLElement>(".mb-prose, .mb-article-lede")]
+                    .find((candidate) => candidate.textContent?.length !== 0);
+                textTarget?.scrollIntoView({ block: "center", behavior: "auto" });
+            }
             const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
             target.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
             // The same "look here" flash the search results use, so arriving from a card
@@ -651,6 +663,7 @@ function boot(): void {
             if (contentPage.id === "home") renderHome(host, navigation);
             else if (contentPage.id === "docs") renderDocs(host);
             else renderScreenshots(host);
+            decoratePage(host, contentPage.id, appearance);
         };
         tabs.registerPage({
             id: contentPage.id,
@@ -668,9 +681,39 @@ function boot(): void {
         label: { text: "Settings" },
         closable: true,
         render: (host) => {
-            const view = createSettingsPage({ prefs, appearance, theme });
-            host.replaceChildren(view.element);
-            return () => view.destroy();
+            host.replaceChildren(settingsView.element);
+            decoratePage(host, "settings", appearance);
+        },
+    });
+
+    tabs.registerPage({
+        id: "search",
+        label: { text: "Search" },
+        closable: true,
+        render: (host) => {
+            host.replaceChildren(createDiscoveryView({ tabs, settings: settingsView, openArticle: navigation.openArticle }));
+            decoratePage(host, "search", appearance);
+        },
+    });
+    tabs.registerPage({
+        id: "changelog",
+        label: { text: "Changelog" },
+        closable: true,
+        render: (host) => { host.replaceChildren(createChangelogView()); decoratePage(host, "changelog", appearance); },
+    });
+    tabs.registerPage({
+        id: "notifications",
+        label: { text: "Notifications" },
+        closable: true,
+        render: (host) => {
+            const view = el("div", "mb-page");
+            view.appendChild(el("h1", "mb-page-title", "Notification centre"));
+            const list = el("div", "notification-centre");
+            notifications.renderCentre(list);
+            view.appendChild(list);
+            host.replaceChildren(view);
+            decoratePage(host, "notifications", appearance);
+            return notifications.subscribe(() => notifications.renderCentre(list));
         },
     });
 
@@ -680,11 +723,50 @@ function boot(): void {
     const main = el("main", "mb-main");
     main.appendChild(tabs.strip.panels);
     root.appendChild(main);
+    document.body.appendChild(createShellPalette({ prefs, tabs, settingsView, shortcuts }));
     tabs.activate("home");
 
     // 10% per load, non-blocking, never focus-stealing, and there is deliberately no
     // setting to switch it off.
     maybeShowDimSum({ i18n, host: document.body });
+}
+
+function decoratePage(host: HTMLElement, pageId: string, appearance: AppearanceController): void {
+    const target = host.firstElementChild;
+    if (!(target instanceof HTMLElement)) return;
+    registerAppearanceTarget(target, {
+        kind: "card",
+        instance: `page-${pageId}`,
+        instanceLabel: `${pageId} page`,
+    }, appearance);
+}
+
+function createShellPalette(options: {
+    readonly prefs: Preferences;
+    readonly tabs: TabsController;
+    readonly settingsView: ReturnType<typeof createSettingsPage>;
+    readonly shortcuts: ShortcutRegistry;
+}): HTMLElement {
+    let palette: ReturnType<typeof createCommandPalette>;
+    const commands: readonly PaletteCommand[] = [
+        { id: "open-home", label: "Open Home", description: "Return to the landing page", kind: "page", run: () => options.tabs.reveal("home") },
+        { id: "open-docs", label: "Open Documentation", description: "Read every feature article", kind: "page", run: () => options.tabs.reveal("docs") },
+        { id: "open-search", label: "Open Search everything", description: "Search docs, settings, tabs, groups, and bulk actions", kind: "page", run: () => options.tabs.reveal("search") },
+        { id: "open-changelog", label: "Open Changelog", description: "Filter and export every recorded version", kind: "page", run: () => options.tabs.reveal("changelog") },
+        { id: "open-notifications", label: "Open Notification centre", description: "Review dismissed notifications", kind: "command", run: () => options.tabs.reveal("notifications") },
+        { id: "open-settings", label: "Open Settings", description: "Language, funny levels, appearance, and data", kind: "page", run: () => options.tabs.reveal("settings") },
+        ...options.settingsView.search.host.listSettings().map((setting) => ({
+            id: `setting-${setting.id}`,
+            label: setting.label,
+            description: `${setting.description} · ${setting.valueText}`,
+            kind: "setting" as const,
+            run: () => { options.tabs.reveal("settings"); options.settingsView.revealSetting(setting.id); },
+        })),
+        { id: "appearance-editor", label: "Edit appearance…", description: "Open the per-element Material appearance editor from any target context menu", kind: "appearance", run: () => options.tabs.reveal("settings") },
+    ];
+    palette = createCommandPalette({ prefs: options.prefs, list: () => commands });
+    options.shortcuts.register({ id: "palette.open", parts: ["Ctrl", "Shift", "F"], run: () => palette.open() });
+    return palette.element;
 }
 
 function safeBoot(): void {

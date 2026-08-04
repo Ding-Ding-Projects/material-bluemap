@@ -51,7 +51,8 @@ exclusions **S2 and S4 are withdrawn**; S1 and S3 still stand.
 | G | Docker hosting GUI (dockerode instance manager) | Pending |
 | H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | Pending |
 | I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending |
-| Contracts | Regex builder everywhere · full tab system · per-element appearance editors · EN/HK-Cantonese/bilingual + funny-level · super confirmation (see `docs/contracts/`) | Partly landed with F; the rest lands with G-I |
+| Contracts | Regex builder everywhere · full tab system · per-element appearance editors · EN/HK-Cantonese/bilingual + funny-level · super confirmation (see `docs/contracts/`) | The Pages surface now mounts the discovery searches, command palette, changelog, notification centre, and two-key gate; desktop-app contract work remains tracked in the open issues |
+| Pages | Material 3 GitHub Pages shell, tabbed discovery, repository-backed changelog, command palette, notification centre and responsive documentation surface | **Implemented in `packages/site`; production build and 119 site tests pass. Runtime/headless capture is still a separate verification boundary** |
 | Delivery | Sign-in, private worlds, split archives, resumable renders, Actions rendering, packaging pipeline | **Landed.** Not a plan phase; see below |
 
 Phase **J** is not in `plan.md`: the plan had no Java render path because it had no JVM.

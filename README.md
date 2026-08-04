@@ -23,6 +23,14 @@ is TypeScript. See [Rendering engines](#rendering-engines).
 · [all releases](https://github.com/Ding-Ding-Projects/material-bluemap/releases)
 · [documentation site](https://ding-ding-projects.github.io/material-bluemap/)
 
+The documentation site is a Material 3 tabbed application, not a plain scroll: `Search` owns
+independent regex-builder-backed searches for documentation, settings, tabs, groups and bulk
+close; `Changelog` reads the committed release history with date filters and export; `Settings`
+persists language mode, both funny-level sliders and per-element appearance controls; and
+`Ctrl+Shift+F` opens the searchable command palette. These surfaces are assembled in
+`design/packages/site/src/main.ts` and verified with the site type checker, Vitest suite and
+Vite production build.
+
 Every push to the default branch that passes lint, build and the full test suite publishes a real
 Squirrel.Windows installer with its own uniquely tagged release. Read what it can and cannot do
 before installing it.
