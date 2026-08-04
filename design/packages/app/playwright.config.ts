@@ -6,6 +6,11 @@ import { defineConfig } from "@playwright/test";
  * never collect each other's files.
  */
 export default defineConfig({
+    // Before the application is launched at all: refuse to photograph a build that is
+    // older than the code. The renderer is built by `packages/ui`, not by `packages/app`,
+    // so a Vue change plus an app rebuild produces captures of the previous interface -
+    // silently, and with every test passing. See test/freshBundle.ts.
+    globalSetup: "./test/freshBundle.ts",
     testDir: "./test",
     testMatch: /.*\.spec\.ts/,
     // Electron launches one app instance shared across the file, so parallelism
