@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "79b286f959bbb55ef4434d12c110eae3af1e9195",
+        shortSha: "79b286f959",
+        date: "2026-08-04T04:38:00-04:00",
+        subject: "Wire Pages tab appearance editors",
+        details: "The published tab strip now keeps management menus intact while adding Edit tab appearance and Edit group appearance, with Shift+right-click opening the anchored editor directly. The documentation records the Pages boundary instead of making the tab editor play hide-and-seek.\\n\\nDay Teet Hui 嘅 tab strip 而家保留管理選單，再加 Edit tab appearance 同 Edit group appearance；Shift+right-click 直開 anchored editor。文件亦寫清楚 Pages 做到邊度，唔再叫 tab editor 玩捉迷藏。",
+        category: "site",
+        areas: ["site", "docs"],
+        files: 7,
+    },
+    {
         sha: "2b861490a76ad62c2a32578210ea30398629741d",
         shortSha: "2b861490a7",
         date: "2026-08-04T04:34:07-04:00",
