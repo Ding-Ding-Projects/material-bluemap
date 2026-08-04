@@ -75,6 +75,21 @@ export const projectMapSchema = z.object({
     name: z.string().min(1),
     /** `minecraft:overworld`, `minecraft:the_nether`, or any dimension the world holds. */
     dimension: z.string().min(1),
+    /**
+     * A different world than the one this project lives in, or null for that one.
+     *
+     * A project belongs to the world it sits in, and most maps are of that world's own
+     * dimensions - so null is the ordinary case and means "here". But a person with several
+     * worlds wants one map list covering all of them, and forcing a separate project per
+     * world would scatter the settings that describe a single server.
+     *
+     * Written relative to this project's own world where one path can reach the other, so a
+     * whole saves directory can be moved or copied and the project still resolves. An
+     * absolute path is accepted for a world on another drive, where no relative path exists,
+     * and is the one thing here that does not survive being moved - which the interface says
+     * rather than discovering silently at render time.
+     */
+    world: z.string().nullable().default(null),
     /** The complete `maps/<id>.conf` body, HOCON. */
     config: z.string(),
     /** Which storage in `storages` receives the tiles. */
