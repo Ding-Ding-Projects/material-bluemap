@@ -24,6 +24,37 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "76153d0965556208e9095faf8bee43046801308a",
+        shortSha: "76153d0965",
+        date: "2026-08-04T14:56:49-04:00",
+        subject: "Merge current default branch into Pages continuation",
+        details: "The Pages branch now carries the current project-world tests and the real render gallery, so the shell can stop living in yesterday's branch.\n\n而家 Pages 分支食埋最新 project-world 測試同真 render 相片，唔使再同昨日條分支玩捉迷藏。",
+        category: "docs",
+        areas: ["docs", "services"],
+        files: 8,
+        summarizes: 3,
+    },
+    {
+        sha: "88924b0a4438f718aafd20524db3b8c33d6e81c8",
+        shortSha: "88924b0a44",
+        date: "2026-08-04T14:49:52-04:00",
+        subject: "Let one project cover several worlds, without pretending to know where they are",
+        details: "A map may now name a world other than the one the project lives in.\nNull still means \"this one\", which is both the ordinary case and the\nonly value that survives the folder being moved.\n\nThe alternative was a project per world, and that scatters the settings\ndescribing a single server across several files that then drift apart.\nSomebody running a survival world, a creative world and a mirror of an\nold one wants a single map list, not three projects to keep in step.\n\nRelative where a path can reach, because the whole point of putting the\nproject inside the world is that a saves directory can be copied whole\nand still work. Absolute is accepted for a world on another drive, where\nno relative path exists - and it is the one value here that does not\nsurvive a move, which the interface has to say rather than let somebody\nfind out at render time.\n\nThe file still stores no path to its own world. That refusal is\nunchanged and is the reason this addition is safe: there is one implicit\nworld, resolved from where the file was found, and every other world is\nexpressed against it.\n\n---\n\n一張地圖而家可以指住「唔係本 project 所在嗰個」世界。Null 仍然係\n「就係呢個」,亦都係唯一一個「成個資料夾搬走都仲啱」嘅值。\n\n另一條路係「一個世界一個 project」,而咁樣會將描述同一部伺服器嘅設定\n拆散喺幾個檔案度,然後各自飄開。有生存世界、創造世界、仲有舊世界副本\n嘅人,想要一張地圖清單,唔係三個要同步嘅 project。\n\n行得到相對路徑就用相對:將 project 放喺世界入面,原本就係為咗成個\nsaves 資料夾複製走都照用。另一隻碟嗰啲就收絕對路徑 —— 而佢係呢度唯一\n一個搬完會失效嘅值,所以介面要講明,唔可以等到 render 嗰陣先俾人發現。\n\n檔案本身依然唔存自己世界嘅路徑。呢個「唔存」冇變,亦正正係今次加得\n安全嘅原因:有一個隱含世界,由檔案喺邊度搵到推導出嚟,其他世界一律\n對住佢嚟講。",
+        category: "services",
+        areas: ["services"],
+        files: 2,
+    },
+    {
+        sha: "c37c2be9ce7875636014a4c46a0432627442a8e3",
+        shortSha: "c37c2be9ce",
+        date: "2026-08-04T14:46:43-04:00",
+        subject: "Photograph a real render, from an empty field to tiles on screen",
+        details: "Driven through the built application on an off-screen desktop: a world\ntyped in and validated, the consent gate refusing to let a render start,\nthat consent given, the render run, and the finished map opened in the\nviewer. BlueMap engine 5.22-27 on Java 25.0.3, seven seconds, one\nregion. Nothing staged, nothing mocked.\n\nThe consent capture is worth keeping precisely because it is a refusal.\nThe engine needs Minecraft's own client files, the app will not fetch\nthem until somebody says so, and the review step says that in as many\nwords instead of failing later with a stack trace. A gallery that only\nshows the happy path teaches nobody what the app does when it is not\nallowed to proceed.\n\nThe render capture is the first proof in this repository that the whole\npath works from the interface rather than from a test harness: world\ndetection, dimension reading, the five steps, the engine, the tiles,\nand the map registering itself as something the viewer can open.\n\n---\n\n喺離屏桌面上,用真嘅應用程式行足一次:打個世界路徑入去、驗證、撞到\n同意閘唔俾開工、俾咗同意、跑完 render、最後喺 viewer 度打開幅圖。\nBlueMap 引擎 5.22-27、Java 25.0.3、七秒、一個 region。冇擺拍,冇假嘢。\n\n同意嗰張特登要留,正正因為佢係一個「唔准」。引擎要用 Minecraft 自己\n嘅客戶端檔案,app 未有人開口就唔會去攞,而檢視嗰步會用人話講明白,\n唔係等陣先掉個 stack trace 出嚟。一疊淨係影住順風順水嘅圖,教唔到人\n呢個 app 唔准行嗰陣會點。",
+        category: "docs",
+        areas: ["docs"],
+        files: 6,
+    },
+    {
         sha: "acd7674aa3c648c5658b756790fda58d0299e718",
         shortSha: "acd7674aa3",
         date: "2026-08-04T14:53:23-04:00",

@@ -26,6 +26,7 @@ full message for the in-app changelog viewer.
 
 ### Server, CLI and configuration
 
+- Let one project cover several worlds, without pretending to know where they are - [`88924b0a44`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/88924b0a4438f718aafd20524db3b8c33d6e81c8)
 - Give a world a project file, so its settings outlive one render - [`1eb15bc46e`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1eb15bc46edcc51de18cedd3395e3ba3064a0fce)
 
 ### Desktop shell
@@ -44,6 +45,8 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Merge current default branch into Pages continuation - [`76153d0965`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/76153d0965556208e9095faf8bee43046801308a) _(summary of 3 commits, also listed here)_
+- Photograph a real render, from an empty field to tiles on screen - [`c37c2be9ce`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c37c2be9ce7875636014a4c46a0432627442a8e3)
 - Audit BlueMapGUI feature by feature, from its source rather than its readme - [`0a99147394`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0a99147394dbe1e719df9f3399da8e953a45eb3e)
 - Merge pull request #25 from Ding-Ding-Projects/pages-material3-continuation - [`8fd2fc5b1f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8fd2fc5b1f03fa7c4a06e0618b1a1a688825a466) _(summary of 5 commits, also listed here)_
 - Merge current default work before integrating Pages docs - [`12432939ae`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/12432939aec0a423693303b1f35719a3a18027ed) _(summary of 16 commits, also listed here)_
