@@ -25,6 +25,7 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import App from "./App.vue";
 import ProfileManager from "./components/ProfileManager.vue";
+import { BackupScreen } from "./components/backup/index.js";
 import { ConfigScreen } from "./components/config/index.js";
 import { dismissAll } from "./components/config/notifications.js";
 import { CommandPalette } from "./components/palette/index.js";
@@ -191,10 +192,10 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("separates the shell into three pages behind one persistent strip", () => {
+    it("separates the shell into four pages behind one persistent strip", () => {
         shell();
 
-        expect(tabLabels()).toEqual(["Map", "Make a map", "Maps and servers"]);
+        expect(tabLabels()).toEqual(["Map", "Make a map", "Maps and servers", "Backups"]);
     });
 
     it("opens on the map, which is where the map-state message lives", () => {
@@ -228,6 +229,18 @@ describe("the tab strip", () => {
         await settle();
 
         expect(app.findComponent(ProfileManager).exists()).toBe(true);
+    });
+
+    it("reaches the backup screen through its tab, rather than only existing in the bundle", async () => {
+        // This project has shipped five features that were built, tested and unreachable.
+        // A tab test is cheap; discovering a whole subsystem has no door is not.
+        const app = shell();
+        expect(app.findComponent(BackupScreen).exists()).toBe(false);
+
+        tabButton("Backups").click();
+        await settle();
+
+        expect(app.findComponent(BackupScreen).exists()).toBe(true);
     });
 
     it("sends the palette's server destination to that same page", async () => {

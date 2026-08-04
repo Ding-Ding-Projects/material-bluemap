@@ -1,5 +1,14 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type { IpcRendererEvent } from "electron";
+import type {
+    BackupEvent,
+    BackupListing,
+    BackupRequest,
+    BackupResult,
+    BackupSourceKind,
+    RepositoryChoice,
+    RepositoryReport,
+} from "../main/backup/index.js";
 
 /** Mirrors `ConsentRecord` in the main process. */
 export interface ConsentRecord {
@@ -763,7 +772,26 @@ export type GitHubAuthEvent =
     | { type: "cancelled" }
     | { type: "signed-out" };
 
-export interface MaterialBlueMapBridge {
+export /**
+ * The backup types come from the main process itself rather than being restated here, so
+ * this bridge cannot drift from what actually crosses. Only the two names the UI spells
+ * differently are aliased, and `BackupAnswer` is the one shape `main/backup/ipc.ts` keeps
+ * private because it is the IPC envelope rather than a subsystem type.
+ */
+type BackupRepositoryChoice = RepositoryChoice;
+type BackupRepositoryReport = RepositoryReport;
+type BackupAnswer<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
+
+interface BackupSourceReport {
+    readonly kind: BackupSourceKind;
+    readonly folder: string;
+    readonly label: string;
+    readonly files: number;
+    readonly bytes: number;
+    readonly skipped: readonly { readonly name: string; readonly reason: string }[];
+}
+
+interface MaterialBlueMapBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
@@ -1109,6 +1137,26 @@ export interface MaterialBlueMapBridge {
      * could accept one.
      */
     history: HistoryBridge;
+
+    /* ---- Backing a world or a rendered map up to GitHub ------------------ */
+
+    /** Repositories the signed-in account can actually write to. */
+    listBackupRepositories(): Promise<BackupAnswer<readonly BackupRepositoryChoice[]>>;
+    /** Reads a repository so the surface can warn about a PUBLIC one before packing. */
+    inspectBackupRepository(request: { owner: string; repo: string }): Promise<BackupAnswer<BackupRepositoryReport>>;
+    /** Reads a folder well enough to say what backing it up would involve. */
+    inspectBackupSource(request: { kind: BackupSourceKind; folder: string }): Promise<BackupAnswer<BackupSourceReport>>;
+    /** Backups already on a repository, read from each release's own small assets. */
+    listBackups(request: { owner: string; repo: string }): Promise<BackupAnswer<readonly BackupListing[]>>;
+    /**
+     * Packs, splits, publishes and uploads. Takes as long as the world is big; watch
+     * `onBackupEvent` for progress. Never rejects: a refusal is `ok: false` with a code.
+     */
+    startBackup(request: BackupRequest): Promise<BackupResult>;
+    /** Stops one. What is packed and uploaded is kept. False when there was nothing to stop. */
+    cancelBackup(backupId: string): Promise<boolean>;
+    activeBackups(): Promise<readonly string[]>;
+    onBackupEvent(listener: (event: BackupEvent) => void): () => void;
 }
 
 const bridge: MaterialBlueMapBridge = {
@@ -1239,6 +1287,21 @@ const bridge: MaterialBlueMapBridge = {
         restore: (folder, id) => ipcRenderer.invoke("history:restore", folder, id),
         label: (folder, id, label) => ipcRenderer.invoke("history:label", folder, id, label),
         discardOlderRevisions: (folder, keep) => ipcRenderer.invoke("history:discardOlder", folder, keep),
+    },
+
+    listBackupRepositories: () => ipcRenderer.invoke("backup:repositories"),
+    inspectBackupRepository: (request) => ipcRenderer.invoke("backup:inspectRepository", request),
+    inspectBackupSource: (request) => ipcRenderer.invoke("backup:inspectSource", request),
+    listBackups: (request) => ipcRenderer.invoke("backup:list", request),
+    startBackup: (request) => ipcRenderer.invoke("backup:start", request),
+    cancelBackup: (backupId) => ipcRenderer.invoke("backup:cancel", backupId),
+    activeBackups: () => ipcRenderer.invoke("backup:active"),
+    onBackupEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: BackupEvent): void => listener(payload);
+        ipcRenderer.on("backup:event", forward);
+        return () => {
+            ipcRenderer.off("backup:event", forward);
+        };
     },
 };
 

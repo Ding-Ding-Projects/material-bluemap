@@ -322,7 +322,9 @@ describe("the arguments the renderer sends are checked rather than trusted", () 
 /* Against a real git                                                         */
 /* -------------------------------------------------------------------------- */
 
-describe.skipIf(!hasGit)("a real repository, on a real disk", () => {
+// Each test here spawns a dozen or more real git processes; under a full-suite run they
+// share the CPU with every other worker and 5 seconds is not enough on a loaded machine.
+describe.skipIf(!hasGit)("a real repository, on a real disk", { timeout: 60_000 }, () => {
     async function wired(): Promise<{
         folder: string;
         dataDir: string;

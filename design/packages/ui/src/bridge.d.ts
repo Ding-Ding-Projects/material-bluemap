@@ -573,7 +573,184 @@ interface MaterialBlueMapBridge {
      * saying this build keeps no history.
      */
     history: BlueMapHistoryBridge;
+
+    /**
+     * Backing a world or a rendered map up to GitHub release assets.
+     *
+     * Declared here because this is the shell this interface ships with. `backupBridge.ts`
+     * still probes for every method one at a time and refuses a partial answer, and it is
+     * right to: a Back up button that begins hours of invisible work because the shell
+     * carries `startBackup` but not `onBackupEvent` is worse than a surface saying this
+     * build cannot back anything up. Methods are spelled out rather than imported because
+     * this file is ambient: an import would make it a module and take the global with it.
+     */
+    listBackupRepositories(): Promise<BackupAnswer<readonly BackupRepositoryChoice[]>>;
+    inspectBackupRepository(request: { owner: string; repo: string }): Promise<BackupAnswer<BackupRepositoryReport>>;
+    inspectBackupSource(request: { kind: BackupSourceKind; folder: string }): Promise<BackupAnswer<BackupSourceReport>>;
+    listBackups(request: { owner: string; repo: string }): Promise<BackupAnswer<readonly BackupListing[]>>;
+    startBackup(request: BackupRequest): Promise<BackupResult>;
+    cancelBackup(backupId: string): Promise<boolean>;
+    activeBackups(): Promise<readonly string[]>;
+    onBackupEvent(listener: (event: BackupEvent) => void): () => void;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Backing a world or a rendered map up to GitHub                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mirrors `components/backup/backupBridge.ts`, which mirrors `main/backup/ipc.ts`. Names
+ * carry a `Backup` prefix where the component's own name would collide with something
+ * else already declared globally here.
+ */
+type BackupSourceKind = "render" | "world";
+
+interface BackupSourceReport {
+    readonly kind: BackupSourceKind;
+    readonly folder: string;
+    readonly label: string;
+    readonly files: number;
+    readonly bytes: number;
+    readonly skipped: readonly { readonly name: string; readonly reason: string }[];
+}
+
+interface BackupRepositoryChoice {
+    readonly owner: string;
+    readonly name: string;
+    readonly fullName: string;
+    readonly private: boolean;
+    readonly canWrite: boolean;
+    readonly htmlUrl: string;
+}
+
+interface BackupRepositoryReport {
+    readonly owner: string;
+    readonly repo: string;
+    readonly fullName: string;
+    readonly private: boolean;
+    readonly canWrite: boolean;
+    readonly htmlUrl: string;
+    readonly warning: { readonly level: "warning" | "note"; readonly message: string } | null;
+}
+
+type BackupPhase = "inspecting" | "packing" | "splitting" | "publishing" | "uploading" | "finished";
+
+interface BackupTaskProgress {
+    readonly phase: BackupPhase;
+    readonly description: string;
+    readonly bytesDone: number;
+    readonly bytesTotal: number;
+    readonly partsDone: number;
+    readonly partsTotal: number;
+    readonly currentPart: string | null;
+    readonly percent: number;
+    readonly etaSeconds: number | null;
+    readonly etaText: string | null;
+}
+
+interface BackupFailure {
+    readonly code: string;
+    readonly message: string;
+    readonly detail: string | null;
+    readonly status: number | null;
+    /** True when signing in again in Settings is the thing that would fix it. */
+    readonly needsSignIn: boolean;
+}
+
+interface BackupSummary {
+    readonly backupId: string;
+    readonly repository: string;
+    readonly tag: string;
+    readonly releaseUrl: string;
+    readonly archive: string;
+    readonly bytes: number;
+    readonly sha256: string;
+    readonly parts: number;
+    readonly kind: BackupSourceKind;
+    readonly label: string;
+}
+
+interface BackupRequest {
+    readonly kind: BackupSourceKind;
+    readonly folder: string;
+    readonly owner: string;
+    readonly repo: string;
+    /** Set only once the person has been shown, and accepted, that the repository is public. */
+    readonly acknowledgePublic?: boolean;
+    /** Carry on with an existing backup rather than starting a new one. */
+    readonly resumeTag?: string;
+}
+
+type BackupEvent =
+    | {
+          readonly type: "started";
+          readonly backupId: string;
+          readonly repository: string;
+          readonly tag: string;
+          readonly kind: BackupSourceKind;
+          readonly label: string;
+          readonly at: string;
+      }
+    | { readonly type: "phase"; readonly backupId: string; readonly phase: BackupPhase; readonly at: string }
+    | {
+          readonly type: "progress";
+          readonly backupId: string;
+          readonly phase: BackupPhase;
+          readonly task: BackupTaskProgress;
+          readonly at: string;
+      }
+    | {
+          readonly type: "log";
+          readonly backupId: string;
+          readonly level: "info" | "warning" | "error";
+          readonly message: string;
+          readonly at: string;
+      }
+    | {
+          readonly type: "finished";
+          readonly backupId: string;
+          readonly summary: BackupSummary;
+          readonly durationMs: number;
+          readonly at: string;
+      }
+    | { readonly type: "failed"; readonly backupId: string; readonly failure: BackupFailure; readonly at: string }
+    | { readonly type: "cancelled"; readonly backupId: string; readonly at: string };
+
+type BackupResult =
+    | {
+          readonly ok: true;
+          readonly backupId: string;
+          readonly summary: BackupSummary;
+          readonly durationMs: number;
+      }
+    | { readonly ok: false; readonly backupId: string; readonly failure: BackupFailure };
+
+/** One backup found on a repository, read from its release's own small assets. */
+interface BackupListing {
+    readonly tag: string;
+    readonly name: string;
+    readonly releaseUrl: string;
+    readonly createdAt: string;
+    readonly archive: string;
+    readonly bytes: number;
+    readonly sha256: string;
+    readonly parts: number;
+    readonly kind: BackupSourceKind;
+    readonly label: string;
+    readonly files: number;
+    readonly contentBytes: number;
+    readonly appVersion: string | null;
+    readonly sourceFolder: string;
+    /** False for a release whose upload stopped before the pointer went up. */
+    readonly complete: boolean;
+    /** Set when it is a valid backup this build cannot restore, with the reason. */
+    readonly unsupported: string | null;
+}
+
+/** Every answer the main process gives to a backup question that can simply fail. */
+type BackupAnswer<T> =
+    | { readonly ok: true; readonly value: T }
+    | { readonly ok: false; readonly message: string };
 
 interface Window {
     materialBluemap?: MaterialBlueMapBridge;

@@ -32,6 +32,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 | [Rendering a world in GitHub Actions](./render-in-actions.md) | Sharding a render across a matrix, merging it back, and verifying the result. |
 | [Renders that survive being interrupted](./resumable-renders.md) | Render-state caches, completion markers, and resuming rather than restarting. |
 | [Large worlds and rendered maps](./large-worlds.md) | Splitting anything past a release asset's ceiling into checksummed parts, and rejoining it. |
+| [Backing up a world or a rendered map](./backup.md) | Packing a folder, splitting it and publishing it as release assets with a Cheap LFS v1 pointer — and why Git LFS was rejected on cost. |
 | [Rendering a world that lives in a private repository](./private-world-rendering.md) | Encrypted worlds rendered on public runners, and what that does and does not protect. |
 | [1.12.2 worlds](./legacy-1-12-worlds.md) | Writing pre-flattening worlds from the generator, and the render harness that checks one reads back as a map. |
 
