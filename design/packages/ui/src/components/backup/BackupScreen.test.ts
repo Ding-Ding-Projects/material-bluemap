@@ -402,3 +402,63 @@ describe("what is in flight", () => {
         expect(wrapper.text()).toContain("cannot stop a backup");
     });
 });
+
+
+describe("saying why the button will not go, rather than only going grey", () => {
+    // The start control used to be a six-clause conjunction rendered as one disabled
+    // button: no world chosen, no repository checked, no write permission and an unticked
+    // acknowledgement all looked identical, and which one it was is exactly what somebody
+    // needs to know. Each reason is checked in the order a person meets it.
+    it("asks for a source before anything else", async () => {
+        const wrapper = mountScreen(fakeBridge());
+        await settle(wrapper);
+
+        expect(wrapper.find('[data-test="blocked"]').text()).toContain("Choose the world");
+    });
+
+    it("asks for the repository to be checked once a source is chosen", async () => {
+        const wrapper = mountScreen(fakeBridge());
+        await settle(wrapper);
+        const screen = exposed(wrapper);
+        screen.folder = "C:/worlds/overworld";
+        await screen.inspect();
+        await settle(wrapper);
+
+        expect(wrapper.find('[data-test="blocked"]').text()).toContain("Check the repository");
+    });
+
+    it("names the repository when the sign-in cannot write to it", async () => {
+        const wrapper = mountScreen(
+            fakeBridge({
+                inspectBackupRepository: () =>
+                    Promise.resolve({ ok: true, value: { ...privateReport, canWrite: false } }),
+            }),
+        );
+        await settle(wrapper);
+        const screen = exposed(wrapper);
+        screen.folder = "C:/worlds/overworld";
+        await screen.inspect();
+        screen.owner = "me";
+        screen.repo = "saves";
+        await screen.check();
+        await settle(wrapper);
+
+        const blocked = wrapper.find('[data-test="blocked"]').text();
+        expect(blocked).toContain("me/saves");
+        expect(blocked).toContain("cannot write");
+    });
+
+    it("says nothing at all once every condition is met", async () => {
+        const wrapper = mountScreen(fakeBridge());
+        await settle(wrapper);
+        const screen = exposed(wrapper);
+        screen.folder = "C:/worlds/overworld";
+        await screen.inspect();
+        screen.owner = "me";
+        screen.repo = "saves";
+        await screen.check();
+        await settle(wrapper);
+
+        expect(wrapper.find('[data-test="blocked"]').exists()).toBe(false);
+    });
+});

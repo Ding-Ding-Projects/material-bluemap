@@ -334,7 +334,7 @@ defineExpose({ draft, patch, startNew, checkAndSave, editing });
                     <v-text-field
                         :model-value="draft.host"
                         :label="t('remote.targets.field.host', 'Host name or address')"
-                        placeholder="build-server.lan"
+                        :placeholder="t('remote.targets.field.hostHint', 'build-server.lan')"
                         variant="outlined"
                         density="compact"
                         spellcheck="false"
@@ -346,7 +346,7 @@ defineExpose({ draft, patch, startNew, checkAndSave, editing });
                     <v-text-field
                         :model-value="draft.user"
                         :label="t('remote.targets.field.user', 'Sign in as')"
-                        placeholder="renderer"
+                        :placeholder="t('remote.targets.field.userHint', 'renderer')"
                         variant="outlined"
                         density="compact"
                         spellcheck="false"

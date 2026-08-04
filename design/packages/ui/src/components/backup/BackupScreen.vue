@@ -158,15 +158,48 @@ const needsAcknowledgement = computed(
     () => backups.report.value !== null && !backups.report.value.private,
 );
 
-const canStart = computed(
-    () =>
-        backups.available &&
-        source.value !== null &&
-        backups.report.value !== null &&
-        backups.report.value.canWrite &&
-        (!needsAcknowledgement.value || acknowledged.value) &&
-        !backups.starting.value,
-);
+/**
+ * Why the button cannot be pressed, in the words that say what to do about it.
+ *
+ * A six-clause conjunction is easy to write and useless to be on the wrong side of: the
+ * button simply went grey, and which of the six was the problem — no world chosen, a
+ * repository never checked, no write permission, an unticked acknowledgement — was left
+ * for the person to guess. The CI render screen next door had already worked this out, so
+ * this is the same shape: one sentence, checked in the order somebody meets them.
+ *
+ * `canStart` stays the single gate on the action, derived from this, so the sentence and
+ * the button can never disagree about whether it may run.
+ */
+const blockedBecause = computed<string | null>(() => {
+    if (!backups.available) {
+        return t("backup.blocked.unsupported", "This build cannot publish a backup.");
+    }
+    if (source.value === null) {
+        return t("backup.blocked.source", "Choose the world or folder to back up first.");
+    }
+    if (backups.report.value === null) {
+        return t("backup.blocked.repository", "Check the repository first, so its permissions are known.");
+    }
+    if (!backups.report.value.canWrite) {
+        return t(
+            "backup.blocked.write",
+            { repository: backups.report.value.fullName },
+            "This GitHub sign-in cannot write to {repository}, so it cannot publish a release there.",
+        );
+    }
+    if (needsAcknowledgement.value && !acknowledged.value) {
+        return t(
+            "backup.blocked.public",
+            "Confirm that you mean to publish this to a PUBLIC repository, where anybody could download it.",
+        );
+    }
+    if (backups.starting.value) {
+        return t("backup.blocked.starting", "Already starting.");
+    }
+    return null;
+});
+
+const canStart = computed(() => blockedBecause.value === null);
 
 async function start(): Promise<void> {
     if (!canStart.value || source.value === null || backups.report.value === null) return;
@@ -290,7 +323,7 @@ onBeforeUnmount(() => {
  * folder reports what it holds, that reading a public repository gates the button - and
  * naming them here keeps those tests about that rather than about markup order.
  */
-defineExpose({ backups, kind, folder, owner, repo, inspect, check });
+defineExpose({ backups, kind, folder, owner, repo, source, inspect, check });
 </script>
 
 <template>
@@ -593,6 +626,13 @@ defineExpose({ backups, kind, folder, owner, repo, inspect, check });
                         : t("backup.start", "Back this up")
                 }}
             </v-btn>
+            <!--
+                Beside the button rather than instead of it: a control that vanishes leaves
+                the explanation with nothing to be about.
+            -->
+            <p v-if="blockedBecause !== null" class="text-medium-emphasis mt-2" data-test="blocked">
+                {{ blockedBecause }}
+            </p>
 
             <v-alert
                 v-if="backups.startFailure.value"

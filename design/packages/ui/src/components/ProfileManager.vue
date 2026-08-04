@@ -557,7 +557,7 @@ function whatRemovalCosts(profile: ServerProfile): string[] {
             <v-text-field
                 v-model="newUrl"
                 :label="t('servers.urlLabel', 'BlueMap URL')"
-                placeholder="https://example.com/bluemap"
+                :placeholder="t('profiles.field.urlHint', 'https://example.com/bluemap')"
                 density="compact"
             />
         </v-card-text>
