@@ -230,10 +230,22 @@ export function folderIdFor(savesPath: string): string {
  * called `saves` and a list of six rows all reading "saves" distinguishes nothing.
  */
 export function defaultLabelFor(savesPath: string): string {
-    const parent = baseName(dirname(savesPath));
+    // `dirname` from `node:path` is the *running* platform's, so on a Linux CI runner it
+    // does not recognise a backslash and answers "." for every Windows path handed to it -
+    // which is how this named a Windows mount "." while passing on a Windows machine. The
+    // parent is cut here with the same separator-agnostic rule `baseName` already uses,
+    // because a path this function is asked about may have been written on either platform.
+    const parent = baseName(parentOf(savesPath));
     const own = baseName(savesPath);
     if (parent === "" || parent === own) return own;
     return parent;
+}
+
+/** The folder above, cutting at the last separator of either kind. */
+function parentOf(folder: string): string {
+    const trimmed = folder.replace(/[\\/]+$/, "");
+    const cut = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+    return cut <= 0 ? "" : trimmed.slice(0, cut);
 }
 
 /* -------------------------------------------------------------------------- */
