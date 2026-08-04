@@ -20,9 +20,10 @@ import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
 import AppSettings from "./AppSettings.vue";
 import ConsentSettingsRow from "../setup/ConsentSettingsRow.vue";
+import SetupLanguagePanel from "../setup/SetupLanguagePanel.vue";
 import { currentPlatform, mapStorageExample, readMapStorageDir } from "../setup/mapStorage.js";
 import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
-import { reloadSetupLanguage } from "../setup/setupI18n.js";
+import { reloadSetupLanguage, setLanguageMode } from "../setup/setupI18n.js";
 import {
     SETTINGS_ANCHORS,
     SETTINGS_SECTIONS,
@@ -376,6 +377,74 @@ describe("the GitHub account", () => {
     });
 });
 
+describe("the language and tone setting", () => {
+    /*
+     * The point of the section. Before it existed the mode and the two funny levels were
+     * reachable only while first-run setup was on screen, so once setup was completed there
+     * was no way back to them short of clearing the profile. Mounting the first-run flow's
+     * own panel rather than reproducing it is what keeps the two surfaces from disagreeing:
+     * one set of controls writes the three persisted keys, so there is no second set to fall
+     * out of step with it.
+     */
+    it("is the first-run flow's own language panel, mounted, not a second copy of it", async () => {
+        open();
+        await settle();
+
+        expect(wrapper?.findComponent(SetupLanguagePanel).exists()).toBe(true);
+        expect(section("language-and-tone").querySelector(".mb-setup-language")).not.toBeNull();
+        expect(document.querySelectorAll(".mb-setup-language")).toHaveLength(1);
+    });
+
+    it("offers the real controls: a mode to pick and one funny slider per language", async () => {
+        open();
+        await settle();
+
+        const element = section("language-and-tone");
+        // Three modes, as radios rather than as a label describing the current one.
+        expect(element.querySelectorAll('input[type="radio"]').length).toBe(3);
+        // Two sliders, and two is the whole claim: one shared slider for both languages
+        // would satisfy a screenshot and none of the contract.
+        expect(element.querySelectorAll('[role="slider"]').length).toBe(2);
+    });
+
+    it("is found by the surface's own search, by a word the panel is showing", async () => {
+        open();
+        await settle();
+
+        const field = wrapper?.find(".mb-config-search input");
+        await field?.setValue("funny");
+        await settle();
+
+        expect(section("language-and-tone").style.display).not.toBe("none");
+        expect(section("java-runtime").style.display).toBe("none");
+        expect(section("github-account").style.display).toBe("none");
+    });
+
+    /*
+     * This section is the one place where the control that changes the language and the
+     * search that indexes it are on the same screen at the same time. So the words the
+     * search matches against have to follow the panel as it is used, not as it was when the
+     * sheet opened: switch to Cantonese in this row, search in Cantonese, and the row you
+     * are looking at has to be the row that comes back. It works because the labels are read
+     * from the reactive setup state inside the computed rather than snapshotted, and it is
+     * pinned here because snapshotting them would break nothing that any other test sees.
+     */
+    it("re-indexes itself when the mode changes, so a Cantonese search finds it", async () => {
+        open();
+        await settle();
+
+        const field = wrapper?.find(".mb-config-search input");
+        await field?.setValue("搞笑程度");
+        await settle();
+        expect(section("language-and-tone").style.display).toBe("none");
+
+        setLanguageMode("yue");
+        await settle();
+
+        expect(section("language-and-tone").style.display).not.toBe("none");
+    });
+});
+
 describe("searching this surface", () => {
     it("is the shared settings search field, with its regex builder attached", async () => {
         open();
@@ -401,6 +470,7 @@ describe("searching this surface", () => {
         expect(section("map-storage-directory").style.display).toBe("none");
         expect(section("world-folder").style.display).toBe("none");
         expect(section("github-account").style.display).toBe("none");
+        expect(section("language-and-tone").style.display).toBe("none");
     });
 
     it("finds a section by a value that is on screen, not only by its title", async () => {

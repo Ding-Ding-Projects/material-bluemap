@@ -636,6 +636,31 @@ export const APP_VOICED = {
             "每一張算好嘅地圖都會落喺呢個資料夾。佢一定要係由磁碟最頂寫起嘅完整路徑，而且最後可以裝到好多 GB 嘅圖磚，所以揀隻夠位嘅碟。",
         ],
     },
+    /*
+     * The one entry in this file that describes the slider it is written for, which makes
+     * it the one entry where a level that quietly drops a fact is self-refuting. Both facts
+     * stay in all ten strings: that the two funny levels are separate settings rather than
+     * one shared slider, and that the level reaches errors and warnings rather than stopping
+     * at the cheerful copy. Somebody reading this at level 5 is reading it precisely because
+     * they are about to turn the level up, so that is the worst possible moment to stop
+     * mentioning which messages it will reach.
+     */
+    "settings.language.description": {
+        en: [
+            "Which language the app speaks, and how playful it is in each one. The two funny levels are separate settings, and the level styles every message including errors and warnings.",
+            "Which language the app speaks, and how playful it is in each one. The two funny levels are separate settings, and the level styles every message including errors and warnings.",
+            "Which language the app speaks, and how playful it is in each one. The two funny levels are separate settings rather than one shared slider, and the level styles every message, errors and warnings included.",
+            "Which language the app talks in, and how cheeky it gets in each one. The two funny levels are separate settings, so English can stay deadpan while Cantonese does not, and the level reaches every message including errors and warnings.",
+            "Which language the app talks in, and how cheeky it gets in each one. The two funny levels are separate settings, so English can keep a straight face while Cantonese goes off the rails, and the level reaches every last message, errors and warnings very much included.",
+        ],
+        yue: [
+            "程式用邊種語言講嘢，同埋喺每種語言入面幾好玩。兩個搞笑程度係獨立設定，而個程度會影響每一句說話，包括錯誤同警告。",
+            "程式用邊種語言講嘢，同埋喺每種語言入面幾好玩。兩個搞笑程度係獨立設定，而個程度會影響每一句說話，包括錯誤同警告。",
+            "程式用邊種語言講嘢，同埋喺每種語言入面有幾好玩。兩個搞笑程度係各自獨立嘅設定，唔係共用一條拉桿，而個程度會影響每一句說話，錯誤同警告都計埋。",
+            "程式用邊種語言同你傾偈，同埋喺每種語言入面幾抵死。兩個搞笑程度係分開嘅設定，所以英文可以好正經，廣東話可以好放，而個程度會去到每一句說話，包括錯誤同警告。",
+            "程式用邊種語言同你傾偈，同埋喺每種語言入面幾抵死。兩個搞笑程度係分開嘅設定，所以英文可以扮晒正經，廣東話照樣癲，而個程度會去到每一句說話，錯誤同警告一句都走唔甩。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 /* -------------------------------------------------------------------------- */
@@ -647,6 +672,11 @@ export const APP_FIXED = {
     "settings.java.title": { en: "Java runtime", yue: "Java 執行環境" },
     "settings.storage.title": { en: "Where rendered maps go", yue: "算好嘅地圖去邊度" },
     "settings.github.title": { en: "GitHub account", yue: "GitHub 帳戶" },
+    // Deliberately the same words as `language.settingsTitle` in the first-run catalogue,
+    // because it names the same section: the settings surface and the setup flow are two
+    // routes to one panel, and a heading that renamed itself depending on which route was
+    // taken would read as two different settings.
+    "settings.language.title": { en: "Language and tone", yue: "語言同語氣" },
 
     "world.folder.title": { en: "Choose a world", yue: "揀一個世界" },
     "world.identity.title": {
@@ -790,6 +820,14 @@ export const FACTS = {
     "settings.storage.description": {
         en: ["full path", "gigabytes"],
         yue: ["完整路徑", "GB"],
+    },
+    // The disclosure the contract asks for, pinned here so a playful rewrite cannot quietly
+    // drop it: the level is two settings rather than one, and it reaches errors and warnings.
+    // A description that stopped saying the second part would be the funny level hiding its
+    // own reach from the person deciding how far to push it.
+    "settings.language.description": {
+        en: ["funny levels", "errors and warnings"],
+        yue: ["搞笑程度", "錯誤同警告"],
     },
 } as const satisfies Record<AppVoicedKey, { en: readonly string[]; yue: readonly string[] }>;
 

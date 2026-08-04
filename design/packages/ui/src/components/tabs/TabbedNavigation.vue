@@ -180,6 +180,41 @@ function openPage(pageId: string): void {
     update(addTab(strip.value, { pageId: page.id, label: page.label, icon: page.icon }));
 }
 
+/**
+ * Brings a page to the front for a host that has another way in.
+ *
+ * A shell does not only navigate by clicking tabs: a command palette offers the same
+ * destinations, and finishing a render is a reason to land on the map whether or not the map
+ * tab is the one on screen. Those routes need a verb, and it is deliberately not
+ * {@link openPage}: opening is what a "new tab" gesture means, so an outside destination
+ * wired to it would stack a fresh duplicate every time somebody used the palette twice.
+ *
+ * So an existing tab for the page is activated and only a page with no tab at all opens one.
+ * That is the behaviour a person expects from a destination - "take me there", not "make me
+ * another one" - and it is why closing the map tab still leaves the palette able to reach the
+ * map rather than silently doing nothing.
+ */
+function revealPage(pageId: string): void {
+    const existing = strip.value.tabs.find((tab) => tab.pageId === pageId);
+    if (existing === undefined) {
+        openPage(pageId);
+        return;
+    }
+    update(setActiveTab(strip.value, existing.id));
+}
+
+/**
+ * The two things a host cannot work out from the outside.
+ *
+ * `activePage` is exposed because chrome that belongs to one page - a control bar, a floating
+ * cluster that has to lift clear of another control - has to know whether that page is the one
+ * on screen, and the answer lives in this component's state. Reading it back is the difference
+ * between a shell that hides a control when its page is gone and one that leaves a row of
+ * buttons pointing at nothing, which is exactly the decorative control this project refuses to
+ * ship. Nothing here is writable: the layout is still changed only through this component.
+ */
+defineExpose({ activePage, revealPage });
+
 function newGroup(tabId: string): void {
     update(createGroup(strip.value, { name: t("tabs.group.newName", "New group") }, [tabId]));
 }

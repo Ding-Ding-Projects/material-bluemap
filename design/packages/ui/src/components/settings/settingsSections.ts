@@ -10,12 +10,13 @@
  * words, and {@link isSettingsAnchor} is what keeps a value that came from outside this
  * package from being trusted as one of them.
  *
- * **The surface shows more than those four.** GitHub sign-in lives here too, and nothing
- * in the main process can send somebody to it, because no render stops for the want of a
- * GitHub account in a way a `SettingsTarget` describes. Adding it to the bridge contract
- * to make one list would be widening a contract to fit a layout; so the two lists are
- * separate and {@link SETTINGS_SECTIONS} is the superset the surface actually renders,
- * with the render-reachable four still their own closed set.
+ * **The surface shows more than those four.** GitHub sign-in lives here too, and so does
+ * the language mode with its two funny levels, and nothing in the main process can send
+ * somebody to either: no render stops for the want of a GitHub account or a funny level in
+ * a way a `SettingsTarget` describes. Adding them to the bridge contract to make one list
+ * would be widening a contract to fit a layout; so the two lists are separate and
+ * {@link SETTINGS_SECTIONS} is the superset the surface actually renders, with the
+ * render-reachable four still their own closed set.
  *
  * Searching is done over the text a section actually renders — its title, its
  * explanation and its current values — rather than over a hand-written keyword list. A
@@ -49,8 +50,15 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * The four render-reachable anchors first, because those are the ones somebody arrives
  * at from a failure and expects to be looking straight at, then the sections that are
  * only ever reached by opening Settings and reading.
+ *
+ * Language and tone is last of those, and it is here because before it was there was
+ * nowhere else: the mode and the two funny levels were asked once during first-run setup
+ * and then had no home at all, which is a setting being asked rather than a setting being
+ * configurable. It is deliberately not an anchor, for the same reason GitHub sign-in is
+ * not one — a render does not stop for the want of a funny level, so nothing on the bridge
+ * could honestly point at it.
  */
-export const SETTINGS_SECTIONS = [...SETTINGS_ANCHORS, "github-account"] as const;
+export const SETTINGS_SECTIONS = [...SETTINGS_ANCHORS, "github-account", "language-and-tone"] as const;
 
 /** A section this surface renders, whether or not a render can send somebody to it. */
 export type SettingsSectionAnchor = (typeof SETTINGS_SECTIONS)[number];

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useId } from "vue";
+import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiCog, mdiFileCogOutline, mdiServerNetwork } from "@mdi/js";
+import { mdiCog, mdiFileCogOutline, mdiMapOutline, mdiMapPlus, mdiServerNetwork } from "@mdi/js";
 import type { MenuPage } from "@material-bluemap/viewer";
 import MapView from "./components/MapView.vue";
 import ProfileManager from "./components/ProfileManager.vue";
@@ -17,6 +17,8 @@ import { FirstRunSetup } from "./components/setup/index.js";
 import { AppSettings, type SettingsAnchor } from "./components/settings/index.js";
 import { WorldScreen } from "./components/world/index.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
+import { AppearanceTarget } from "./components/appearance/index.js";
+import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
 import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js";
@@ -33,22 +35,62 @@ const currentApp = computed(() => blueMapApp.value);
 provideBlueMap(currentApp);
 useBlueMapTheme(currentApp);
 
-/** Port addition with no upstream counterpart: the server-profile manager. */
-const profilesOpen = ref(false);
+/* -------------------------------------------------------------------------- */
+/* Pages                                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The shell is three pages behind one strip, not one screen that swaps itself out.
+ *
+ * Everything this application does used to happen in the same rectangle: the map filled it,
+ * the wizard covered the map when no profile was chosen, and the server list arrived as an
+ * overlay on top of both. Which of them you were looking at was decided by state you could
+ * not see - `profilesStore.activeId === null` - so there was no way to open the wizard while
+ * a map was loaded, and no way to look at the map without leaving the wizard. Tabs replace
+ * that with a place you can point at: three destinations, all reachable at any time, and the
+ * one you were last on restored on the next launch.
+ *
+ * The ids are constants rather than inline strings because each one is written three times -
+ * in this list, in the template's slot name, and wherever something navigates to it - and a
+ * page whose slot name has drifted from its id renders the tab system's honest "this build
+ * has no content for that page" message rather than failing loudly.
+ */
+const PAGE_MAP = "map";
+const PAGE_WORLD = "world";
+const PAGE_SERVERS = "servers";
+
+const pages = computed<TabPage[]>(() => [
+    { id: PAGE_MAP, label: t("tabs.page.map", "Map"), icon: mdiMapOutline },
+    { id: PAGE_WORLD, label: t("tabs.page.world", "Make a map"), icon: mdiMapPlus },
+    { id: PAGE_SERVERS, label: t("tabs.page.servers", "Maps and servers"), icon: mdiServerNetwork },
+]);
+
+const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
+
+/**
+ * Navigating from outside the strip.
+ *
+ * The palette offers the same destinations the tabs do, and finishing a render is a reason to
+ * land on the map. Both go through the tab component rather than through a second copy of the
+ * shell's navigation state, because two sources of truth for "which page is showing" is how a
+ * palette ends up sending somebody to a screen the strip stopped drawing.
+ */
+function revealPage(pageId: string): void {
+    tabs.value?.revealPage(pageId);
+}
+
+/**
+ * Which page is on screen, for the chrome that belongs to one of them.
+ *
+ * Read back from the tab component rather than mirrored here. Only the shell-level furniture
+ * needs it: everything inside a page slot already knows, because a slot that is not the active
+ * one is never rendered at all.
+ */
+const mapPageActive = computed(() => tabs.value?.activePage?.id === PAGE_MAP);
 
 /* -------------------------------------------------------------------------- */
 /* Making a map                                                               */
 /* -------------------------------------------------------------------------- */
-
-/**
- * With nothing chosen, the application offers to make a map rather than saying it has none.
- *
- * "No map loaded." was literally true and completely useless: it named a state without
- * naming the one action that leaves it, on the first screen of a fresh install, where
- * that action is the only thing anybody wants. The wizard behind it was built, tested and
- * unreachable - which is this project's recurring defect, not a missing feature.
- */
-const showWorldScreen = computed(() => profilesStore.activeId === null);
 
 /**
  * A finished render becomes an entry in the same map list a remote server uses, and is
@@ -60,6 +102,22 @@ function openRenderedMap(dataRoot: string, mapIds: readonly string[]): void {
     const profile = addLocalMap(dataRoot, label);
     profilesStore.activeId = profile.id;
 }
+
+/**
+ * Choosing a map takes you to the map.
+ *
+ * The two places that set an active profile - the wizard finishing a render, and a row in the
+ * maps-and-servers list - are both on a different page from the one the map draws on, so
+ * without this the user's chosen map would load correctly and invisibly behind whichever page
+ * they were still looking at. Watching the store rather than calling this from both sites is
+ * what keeps a third caller from having to remember.
+ */
+watch(
+    () => profilesStore.activeId,
+    (id) => {
+        if (id !== null) revealPage(PAGE_MAP);
+    },
+);
 
 /* -------------------------------------------------------------------------- */
 /* Settings                                                                   */
@@ -90,16 +148,14 @@ function revealSetting(target: SettingsTarget): void {
 /* -------------------------------------------------------------------------- */
 
 /**
- * The options editor, which had no door until now.
+ * The options editor, which is a workbench rather than a page.
  *
- * It is a workbench rather than a dialog: seven screens, a search that reaches every
- * setting on all of them, and a save plan that states what is about to be written. So it
- * gets the same full-bleed host the wizard has, and for the same reason - a surface that
- * size inside a centred overlay is a surface read two lines at a time.
- *
- * Reachable in both shell states. Configuration is not a step in making the first map; it
- * is how somebody points this at a folder BlueMap already uses, which is exactly the case
- * where there is a map on screen already.
+ * Seven screens, a search that reaches every setting on all of them, and a save plan that
+ * states what is about to be written - so it keeps the full-bleed host it has always had,
+ * covering the whole shell including the tab strip, rather than becoming a fourth tab. That
+ * is deliberate: a tab is somewhere you leave and come back to, and this is a surface you
+ * either save or abandon. Escape is the way out, and the tab strip underneath is made inert
+ * while it is open so nothing behind an opaque surface can still be reached with Tab.
  */
 const configOpen = ref(false);
 const configHost = ref<HTMLElement | null>(null);
@@ -170,7 +226,15 @@ function configSaved(folder: string): void {
  */
 const freeFlight = computed(() => appState.value?.controls.state === "free");
 
-const showFreeFlightControls = computed(() => mapState.value === "loaded" && freeFlight.value);
+/**
+ * The free-flight cluster is gated on the map page as well as on the view mode, because the
+ * shell's own button column has to step above it and that column is on screen whatever page
+ * is showing. Gate only on the mode and the buttons lift over an empty corner whenever
+ * somebody in free flight looks at the server list.
+ */
+const showFreeFlightControls = computed(
+    () => mapPageActive.value && mapState.value === "loaded" && freeFlight.value,
+);
 
 const showZoomButtons = computed(
     () =>
@@ -191,16 +255,16 @@ const mapStateMessage = computed(() =>
 );
 
 /**
- * The map's own chrome is for a map. With the wizard up there is nothing behind it to
- * zoom, tilt or drop a marker on, so a control bar floating over it would be a row of
- * buttons that do nothing - which is the decorative-control failure this project keeps
- * finding, just at shell level.
+ * The map's own chrome is for a map, and now the page it belongs to says so.
  *
- * The options editor is excluded for the same reason and not quite the same one: there may
- * well be a map behind it, but it is covered by an opaque full-bleed surface, so a control
- * bar floating on top would be aiming at something nobody can see.
+ * Its "is there anything behind this to zoom, tilt or drop a marker on" question used to be
+ * answered by `!showWorldScreen`; the control bar lives inside the map page's slot now, and a
+ * slot that is not the active one is never rendered, so the page answers it instead. What is
+ * left is the case a page boundary cannot see: the options editor is an opaque surface laid
+ * over the whole shell, and the control bar is `z-index: 3` against its `auto`, so without
+ * this it would float on top of the editor aiming at a map nobody can see.
  */
-const showViewerChrome = computed(() => !showWorldScreen.value && !configOpen.value);
+const showViewerChrome = computed(() => !configOpen.value);
 
 /**
  * `MenuPage` carries page data behind an index signature, so the marker set the page was
@@ -216,52 +280,139 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
         <!--
             The window's own chrome. Frameless means the operating system draws no caption
             bar, so this is it; in a browser build the component renders nothing at all.
+
+            It is the first appearance target because it is the first thing a person sees and
+            the one piece of chrome that is on screen no matter what they are doing.
         -->
-        <AppTitleBar />
+        <AppearanceTarget
+            id="app.titleBar"
+            :label="t('appearance.target.app.titleBar', 'The window title bar')"
+            as="div"
+        >
+            <AppTitleBar />
+        </AppearanceTarget>
 
         <v-main class="mb-main">
+            <!--
+                The viewer, which renders into #map-container rather than into this tree, so
+                it stays mounted at shell level and keyed on the profile exactly as before.
+                Putting it inside the map page's slot would dispose the whole renderer every
+                time somebody glanced at another tab.
+            -->
             <MapView v-if="profilesStore.activeId" :key="profilesStore.activeId" />
 
             <!--
-                Render order mirrors upstream's #app: the free-flight arrows, the zoom buttons,
-                the control bar, the map-state message, then the menu. Every interactive leaf
-                opts back into pointer events (`.mb-interactive`, or its own rule) because
-                v-main stays click-through so the map can be dragged between the controls.
+                The strip and its pages. Made inert rather than unmounted while the options
+                editor is open, for the same reason the editor's own comment gives: the page
+                behind an opaque surface must not still be reachable with Tab, and tearing it
+                down would lose whatever step of the wizard somebody was on.
             -->
-            <FreeFlightMobileControls v-if="showFreeFlightControls" />
-            <ZoomButtons v-if="showZoomButtons" />
+            <div class="mb-shell-tabs" :inert="configOpen">
+                <AppearanceTarget
+                    id="app.tabBar"
+                    :label="t('appearance.target.app.tabBar', 'The tab bar')"
+                    as="div"
+                >
+                    <TabbedNavigation ref="tabs" :pages="pages">
+                        <!--
+                            The map page draws nothing of its own: the canvas is behind the
+                            whole application layer, so this page is a transparent,
+                            click-through frame that lets the map be dragged and carries the
+                            chrome that only makes sense over one.
+                        -->
+                        <template #map>
+                            <div class="mb-map-page">
+                                <FreeFlightMobileControls v-if="showFreeFlightControls" />
+                                <ZoomButtons v-if="showZoomButtons" />
 
-            <ControlBar v-if="showViewerChrome" />
+                                <ControlBar v-if="showViewerChrome" />
 
-            <!--
-                The one surface that is not an overlay: it fills the map area, takes pointer
-                events, and scrolls, because the wizard is taller than a short window and the
-                step buttons must never be the thing that ends up off-screen.
-            -->
-            <div v-if="showWorldScreen" class="mb-world-host mb-interactive" :inert="configOpen">
-                <WorldScreen
-                    @consent="openSettings('mojang-download-consent')"
-                    @settings="revealSetting"
-                    @open-map="openRenderedMap"
-                />
+                                <div v-if="mapState !== 'loaded'" class="mb-map-state">
+                                    <!--
+                                        The live region is the sentence and only the sentence.
+                                        A button inside it would be re-announced every time the
+                                        map moved between loading, loaded and errored, which
+                                        turns a status update into a repeated instruction.
+                                    -->
+                                    <p class="mb-map-state__line" role="status" aria-live="polite">
+                                        {{ mapStateMessage }}
+                                    </p>
+
+                                    <!--
+                                        "No map loaded." names a state and not the one action
+                                        that leaves it. With nothing chosen at all the message
+                                        keeps its own tab company: the strip already offers the
+                                        wizard, and this puts the same door where the person is
+                                        actually looking.
+                                    -->
+                                    <v-btn
+                                        v-if="profilesStore.activeId === null"
+                                        class="mb-interactive"
+                                        variant="tonal"
+                                        :prepend-icon="mdiMapPlus"
+                                        @click="revealPage(PAGE_WORLD)"
+                                    >
+                                        {{ t("tabs.page.world", "Make a map") }}
+                                    </v-btn>
+                                </div>
+
+                                <!--
+                                    The menu owns the page stack (`appState.menu`), which the
+                                    control bar pushes onto, so it belongs to the same page the
+                                    control bar does. Its "markers" page is a slot because the
+                                    marker list lives in its own component; `page.markerSet` is
+                                    whatever the opener put there, which is the root set for the
+                                    Markers button and the `bm-players` set for the Players one.
+                                -->
+                                <MainMenu>
+                                    <template #markers="{ page, menu }">
+                                        <MarkerMenu
+                                            v-if="blueMapApp"
+                                            :app="blueMapApp"
+                                            :menu="menu"
+                                            :marker-set="pageMarkerSet(page)"
+                                        />
+                                    </template>
+                                </MainMenu>
+                            </div>
+                        </template>
+
+                        <!--
+                            The wizard is taller than a short window, so it keeps its own
+                            scroll container: the step buttons must never be the thing that
+                            ends up off-screen.
+                        -->
+                        <template #world>
+                            <div class="mb-world-host mb-interactive">
+                                <WorldScreen
+                                    @consent="openSettings('mojang-download-consent')"
+                                    @settings="revealSetting"
+                                    @open-map="openRenderedMap"
+                                />
+                            </div>
+                        </template>
+
+                        <!--
+                            The list is a card rather than a full-width screen, so it is
+                            centred in its page instead of stretched across it. Its Close
+                            button now goes back to the map, which is the only thing "close"
+                            can honestly mean on a page that cannot be dismissed.
+                        -->
+                        <template #servers>
+                            <div class="mb-world-host mb-interactive">
+                                <div class="mb-shell-centre">
+                                    <ProfileManager @close="revealPage(PAGE_MAP)" />
+                                </div>
+                            </div>
+                        </template>
+                    </TabbedNavigation>
+                </AppearanceTarget>
             </div>
 
-            <div
-                v-else-if="mapState !== 'loaded'"
-                class="mb-map-state"
-                role="status"
-                aria-live="polite"
-            >
-                {{ mapStateMessage }}
-            </div>
-
             <!--
-                The options editor gets the same host, and sits after the wizard so it paints
-                over it. The wizard behind is left mounted and made inert rather than torn
-                down: somebody four steps into it who opens the configuration to check a
-                path should not come back to an empty first step. `tabindex="-1"` is what
-                lets the region hold focus, so Escape reaches it before anything inside has
-                been clicked.
+                The options editor gets a full-bleed host of its own, painted over the tab
+                strip and everything under it. `tabindex="-1"` is what lets the region hold
+                focus, so Escape reaches it before anything inside has been clicked.
             -->
             <div
                 v-if="configOpen"
@@ -279,26 +430,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             </div>
 
             <!--
-                The menu owns the page stack (`appState.menu`), which the control bar pushes
-                onto. Its "markers" page is a slot because the marker list lives in its own
-                component; `page.markerSet` is whatever the opener put there, which is the root
-                set for the Markers button and the `bm-players` set for the Players button.
-            -->
-            <MainMenu>
-                <template #markers="{ page, menu }">
-                    <MarkerMenu
-                        v-if="blueMapApp"
-                        :app="blueMapApp"
-                        :menu="menu"
-                        :marker-set="pageMarkerSet(page)"
-                    />
-                </template>
-            </MainMenu>
-
-            <!--
-                Shell-only controls: settings and server profiles have no upstream counterpart,
-                so they are not in the ported menu. They sit opposite the zoom cluster and lift
-                clear of the free-flight movement arrows when those are on screen.
+                Shell-only controls: settings and the options editor have no upstream
+                counterpart, so they are not in the ported menu, and neither of them is a
+                page. The server list used to have a button here too and no longer does -
+                it is a tab now, and a floating button that opens what a tab already opens is
+                two navigation models arguing in the same corner of the screen.
             -->
             <div
                 class="mb-shell-fabs"
@@ -316,22 +452,6 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             :aria-label="t('settings.title', 'Settings')"
                             :aria-expanded="settingsOpen"
                             @click="openSettings()"
-                        />
-                    </template>
-                </v-tooltip>
-
-                <v-tooltip :text="t('servers.title', 'Servers')" location="end">
-                    <template #activator="{ props: tooltipProps }">
-                        <v-btn
-                            v-bind="tooltipProps"
-                            class="mb-shell-fab mb-interactive"
-                            :icon="mdiServerNetwork"
-                            color="surface"
-                            variant="flat"
-                            elevation="3"
-                            :aria-label="t('servers.title', 'Servers')"
-                            :aria-expanded="profilesOpen"
-                            @click="profilesOpen = true"
                         />
                     </template>
                 </v-tooltip>
@@ -354,10 +474,6 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 </v-tooltip>
             </div>
 
-            <v-overlay v-model="profilesOpen" class="align-center justify-center" contained>
-                <ProfileManager @close="profilesOpen = false" />
-            </v-overlay>
-
             <AppSettings
                 :open="settingsOpen"
                 :anchor="settingsAnchor"
@@ -375,7 +491,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 @reveal-setting="revealSetting"
                 @open-settings="openSettings()"
                 @open-config="openConfig()"
-                @open-profiles="profilesOpen = true"
+                @open-profiles="revealPage(PAGE_SERVERS)"
             />
         </v-main>
 
@@ -403,11 +519,97 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  * Layering, pointer-events and the map/chrome stacking order all live in styles/global.scss,
  * because they are properties of the #app / #map-container pair rather than of this component.
  */
+
+/*
+ * The tabbed shell fills the map area and is click-through by default, exactly as v-main is:
+ * the map canvas is behind the whole application layer, and a full-bleed navigation container
+ * that swallowed pointer events would make the map undraggable everywhere except the gaps
+ * between the floating controls. The strip and each page opt back in individually below.
+ */
+.mb-shell-tabs {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    pointer-events: none;
+}
+
+/*
+ * The appearance wrapper is `display: contents` until somebody gives it a background, a border
+ * or a padding to paint, at which point it becomes a real box - and a box between the flex
+ * container and the tab shell would leave the panel with no height to fill. This gives it the
+ * same shape the element it replaced had, so styling the tab bar cannot collapse the pages
+ * underneath it.
+ */
+.mb-shell-tabs > .mb-appearance-target--box {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-block-size: 0;
+}
+
+.mb-shell-tabs :deep(.mb-tabs) {
+    flex: 1 1 auto;
+    min-block-size: 0;
+}
+
+/* Real chrome, so it takes pointer events, and it never gives up height to the panel. */
+.mb-shell-tabs :deep(.mb-tabs-strip-row) {
+    flex: 0 0 auto;
+    pointer-events: auto;
+}
+
+/*
+ * Positioned so a page can fill it with `inset: 0` and own its own scrolling, and left
+ * click-through so the map page can hand a drag straight to the canvas. A page that wants
+ * events asks for them with `.mb-interactive`, which is the same bargain every floating
+ * control in this shell already makes.
+ */
+.mb-shell-tabs :deep(.mb-tabs__panel) {
+    position: relative;
+    pointer-events: none;
+}
+
+/*
+ * Every tab closed. The tab system's empty state offers a button per page, and a button in a
+ * click-through layer is a button nobody can press; it also needs a surface of its own,
+ * because centred text floating over a map render is text nobody can read.
+ */
+.mb-shell-tabs :deep(.mb-tabs__empty) {
+    pointer-events: auto;
+    background: rgb(var(--v-theme-background));
+}
+
+/*
+ * The control bar anchors itself under the title bar with `position: fixed`, which was right
+ * when it was the topmost thing in the window and would now paint straight over the tab strip.
+ * Inside the map page it becomes absolute instead, so it sits at the top of whatever space the
+ * strip leaves rather than at a measured offset that would have to be kept in step with it.
+ */
+.mb-shell-tabs :deep(.mb-cb) {
+    position: absolute;
+    top: 0;
+}
+
+/*
+ * The map page paints nothing: the canvas is a sibling of #app and shows through. Filling the
+ * panel rather than sitting in its flow is what gives the control bar above something with the
+ * panel's own geometry to anchor against.
+ */
+.mb-map-page {
+    position: absolute;
+    inset: 0;
+}
+
 .mb-map-state {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
     max-width: min(90vw, 40rem);
     padding: 0 1rem;
     color: rgba(var(--v-theme-on-surface), 0.7);
@@ -416,10 +618,15 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     pointer-events: none;
 }
 
+.mb-map-state__line {
+    margin: 0;
+}
+
 /*
- * Opaque on purpose. There is no map behind the wizard - `#map-container` is empty until
- * one is opened - so a translucent panel would sit over the window background and read as
- * a rendering fault rather than as a surface.
+ * Opaque on purpose. There is no map behind the wizard or the server list once the page is
+ * on screen - and where there is one, showing it faintly through a form is worse than not
+ * showing it at all - so a translucent panel would read as a rendering fault rather than as
+ * a surface. Also the options editor's host, where it covers the whole shell.
  */
 .mb-world-host {
     position: absolute;
@@ -427,6 +634,13 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     overflow-y: auto;
     overscroll-behavior: contain;
     background: rgb(var(--v-theme-background));
+}
+
+/* The maps-and-servers card has its own width, so its page centres it rather than stretching it. */
+.mb-shell-centre {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
 }
 
 .mb-shell-fabs {

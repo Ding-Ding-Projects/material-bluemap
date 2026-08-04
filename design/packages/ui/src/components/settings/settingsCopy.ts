@@ -32,7 +32,10 @@ export interface SectionCopy {
  * for, and the world folder is last of the four that a render can point at because it is
  * the one that turns out not to be a setting on this screen at all. GitHub sign-in comes
  * after them: no render stops for the want of it in a way the bridge can describe, so it
- * is reached by opening Settings rather than by following a link out of a failure.
+ * is reached by opening Settings rather than by following a link out of a failure. Language
+ * and tone is last for the same reason, and its description spends its words on the two
+ * things somebody is actually surprised by: that the two funny levels are independent
+ * settings rather than one, and that the level reaches errors and warnings too.
  */
 export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor, SectionCopy>> {
     return {
@@ -69,6 +72,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
             description: t(
                 "settings.github.description",
                 "Signing in lets the app reach worlds in private repositories and download release assets that are not public. Everything public works without it, so this is optional. The token is held by the app itself and never shown on this screen.",
+            ),
+        },
+        "language-and-tone": {
+            title: t("settings.language.title", "Language and tone"),
+            description: t(
+                "settings.language.description",
+                "Which language the app speaks, and how playful it is in each one. The two funny levels are separate settings, and the level styles every message including errors and warnings.",
             ),
         },
     };

@@ -8,10 +8,17 @@ import {
     mdiCloudDownloadOutline,
     mdiFolderSearchOutline,
     mdiRefresh,
+    mdiTrayArrowDown,
 } from "@mdi/js";
-import { VAlert, VBtn, VChip, VProgressCircular, VTextField } from "vuetify/components";
+import { VAlert, VBtn, VChip, VIcon, VProgressCircular, VTextField } from "vuetify/components";
 import { useConfigHost } from "../config/configHost.js";
 import { ReleaseDownloads, type DownloadBridge } from "../downloads/index.js";
+import MinecraftWorldList from "./MinecraftWorldList.vue";
+import {
+    pathForDroppedFile,
+    resolveWorldCatalogBridge,
+    type WorldCatalogBridge,
+} from "./worldCatalog.js";
 import { describeWorld, describeWorldProblem, type WorldInspection } from "./worldFolder.js";
 
 /**
@@ -46,6 +53,15 @@ const props = defineProps<{
      * there is deliberately no bridge and the honest unsupported state is shown.
      */
     downloadBridge?: DownloadBridge | null;
+    /**
+     * The shell half that finds the worlds already on this machine.
+     *
+     * Same convention as `downloadBridge`: left out it probes the preload itself, and an
+     * explicit `null` means there is deliberately none, in which case no list is rendered
+     * at all and the path field, the picker and the drop target are exactly as they were.
+     * That is the browser-tab case, and it must cost the manual route nothing.
+     */
+    catalogBridge?: WorldCatalogBridge | null;
 }>();
 
 const emit = defineEmits<{
@@ -99,6 +115,84 @@ async function browse(): Promise<void> {
     if (chosen === null) return;
     emit("update:modelValue", chosen);
     emit("inspect", chosen);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Finding the worlds already on this machine                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The catalog half of the shell, probed here rather than handed down.
+ *
+ * `undefined` means probe, which is what the running application does; an explicit `null`
+ * is a test, or a browser tab, saying there is deliberately none. The list is then absent
+ * and every manual route below is untouched, which is the point: somebody with one world
+ * in an unusual place is an ordinary user, not a fallback case.
+ */
+const catalog = computed<WorldCatalogBridge | null>(() =>
+    props.catalogBridge === undefined ? resolveWorldCatalogBridge() : props.catalogBridge,
+);
+
+/** A world chosen from the list is filled in and checked exactly like a typed one. */
+function chooseWorld(folder: string): void {
+    emit("update:modelValue", folder);
+    emit("inspect", folder);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Dropping a folder on the step                                              */
+/* -------------------------------------------------------------------------- */
+
+/** True while something is being dragged over the target, so the target says so. */
+const dragging = ref(false);
+/** Why the last drop named nothing, when it named nothing. */
+const dropFailure = ref<string | null>(null);
+
+function onDragOver(event: DragEvent): void {
+    // Both the over and the enter handler must cancel the event, or the browser keeps its
+    // own default handling and the drop never reaches this component at all.
+    event.preventDefault();
+    dragging.value = true;
+    if (event.dataTransfer !== null) event.dataTransfer.dropEffect = "copy";
+}
+
+function onDragLeave(): void {
+    dragging.value = false;
+}
+
+/**
+ * Takes a folder dropped onto the step.
+ *
+ * Electron removed `File.path` in version 32, so the location of a dropped folder can
+ * only come from the preload. When it cannot - a browser tab, or a drag out of another
+ * application that carried bytes rather than a file - this says so rather than appearing
+ * to accept the drop and doing nothing, which is the failure that reads as a bug.
+ */
+function onDrop(event: DragEvent): void {
+    event.preventDefault();
+    dragging.value = false;
+    dropFailure.value = null;
+
+    const file = event.dataTransfer?.files?.[0] ?? null;
+    if (file === null) {
+        dropFailure.value = t(
+            "world.folder.dropEmpty",
+            "That drop carried no file or folder. Drag the world folder itself from your file manager.",
+        );
+        return;
+    }
+
+    const dropped = pathForDroppedFile(file);
+    if (dropped === null) {
+        dropFailure.value = t(
+            "world.folder.dropUnsupported",
+            "This build cannot tell where a dropped folder is. Use Browse, or type the full path in the field above.",
+        );
+        return;
+    }
+
+    emit("update:modelValue", dropped);
+    emit("inspect", dropped);
 }
 </script>
 
@@ -156,6 +250,35 @@ async function browse(): Promise<void> {
             }}
         </p>
 
+        <!--
+            The drop target. It sits beside the field and the picker rather than replacing
+            either: three ways of naming the same folder, all of them equal, because a
+            world on a USB stick or pulled off a server is a normal world and must need
+            nothing configured first.
+        -->
+        <div
+            class="mb-world-step__drop"
+            :class="{ 'mb-world-step__drop--over': dragging }"
+            @dragenter.prevent="dragging = true"
+            @dragover="onDragOver"
+            @dragleave="onDragLeave"
+            @drop="onDrop"
+        >
+            <v-icon :icon="mdiTrayArrowDown" size="18" aria-hidden="true" />
+            <span>
+                {{
+                    t(
+                        "world.folder.dropHere",
+                        "Or drag a world folder from your file manager and drop it here.",
+                    )
+                }}
+            </span>
+        </div>
+
+        <v-alert v-if="dropFailure" type="warning" density="compact" variant="tonal" class="mt-2" role="alert">
+            {{ dropFailure }}
+        </v-alert>
+
         <div v-if="inspecting" class="mb-world-step__checking" role="status" aria-live="polite">
             <v-progress-circular indeterminate size="18" width="2" aria-hidden="true" />
             <span>{{ t("world.folder.checking", "Reading the folder...") }}</span>
@@ -207,6 +330,8 @@ async function browse(): Promise<void> {
                 </div>
             </v-alert>
         </template>
+
+        <MinecraftWorldList :model-value="modelValue" :bridge="catalog" @choose="chooseWorld" />
 
         <div class="mb-world-step__downloads">
             <v-btn
@@ -281,6 +406,25 @@ async function browse(): Promise<void> {
     margin-inline-start: 6px;
     font-variant-numeric: tabular-nums;
     opacity: 0.8;
+}
+
+.mb-world-step__drop {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-block-start: 8px;
+    padding: 12px;
+    min-height: 48px;
+    border: 1px dashed rgba(var(--v-theme-on-surface), 0.3);
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    text-wrap: pretty;
+}
+
+.mb-world-step__drop--over {
+    border-color: rgb(var(--v-theme-primary));
+    background: rgba(var(--v-theme-primary), 0.08);
 }
 
 .mb-world-step__downloads {

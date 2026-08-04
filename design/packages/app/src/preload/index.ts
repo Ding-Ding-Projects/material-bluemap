@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type { IpcRendererEvent } from "electron";
 
 /** Mirrors `ConsentRecord` in the main process. */
@@ -40,6 +40,71 @@ export interface WorldFolderListing {
     entries: WorldFolderEntry[];
     regionFiles: Record<string, number>;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Finding the worlds already on this machine                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mirrors `MinecraftFolder` in `main/world/mounts.ts`.
+ *
+ * One row of the list of places worlds are offered from: the Minecraft folder this
+ * machine's platform puts them in, plus every folder the person has mounted themselves.
+ * `state` is checked afresh every time the list is asked for, so a folder on a drive that
+ * is currently unplugged reports `missing` and keeps its row rather than disappearing.
+ */
+export interface MinecraftFolder {
+    id: string;
+    label: string;
+    labelled: boolean;
+    chosenPath: string;
+    savesPath: string;
+    resolution: "installation" | "saves";
+    /** True for a folder the app found by itself. Those are never unmounted. */
+    builtIn: boolean;
+    origin: "appdata" | "home" | "application-support" | "beside-executable" | null;
+    state: "ok" | "missing" | "not-a-folder" | "unreadable";
+    stateDetail: string | null;
+    mountedAt: string | null;
+}
+
+/** Mirrors `MinecraftWorldSummary` in `main/world/catalog.ts`. */
+export interface MinecraftWorldSummary {
+    folderId: string;
+    path: string;
+    directoryName: string;
+    /** `LevelName` from `level.dat`, which is not the folder name. Null when unreadable. */
+    name: string | null;
+    /** Milliseconds since the epoch, or null when this world has never recorded one. */
+    lastPlayed: number | null;
+    versionName: string | null;
+    snapshot: boolean | null;
+    gameMode: "survival" | "creative" | "adventure" | "spectator" | null;
+    hardcore: boolean | null;
+    cheats: boolean | null;
+    /** Decimal text, because a 64-bit seed does not survive a JavaScript number. */
+    seed: string | null;
+    regionFiles: Record<string, number>;
+    sizeBytes: number | null;
+    sizeComplete: boolean;
+    /** Why the details are missing, when they are. The world is still listed either way. */
+    detailsError: string | null;
+}
+
+export interface SavesScan {
+    folderId: string;
+    savesPath: string;
+    worlds: MinecraftWorldSummary[];
+    truncated: boolean;
+}
+
+export type FolderScanResult =
+    | { ok: true; scan: SavesScan }
+    | { ok: false; folderId: string; message: string };
+
+export type MountFolderResult =
+    | { ok: true; folder: MinecraftFolder; alreadyMounted: boolean }
+    | { ok: false; message: string };
 
 /* -------------------------------------------------------------------------- */
 /* Rendering                                                                  */
@@ -635,6 +700,62 @@ export interface MaterialBlueMapBridge {
     inspectWorldFolder(folder: string): Promise<WorldFolderListing>;
 
     /**
+     * The Minecraft folders worlds are offered from: the detected default, then whatever
+     * the person has mounted.
+     *
+     * Never rejects for a folder that is not there. A machine with no Minecraft on it is
+     * an ordinary machine, and the answer is a row saying where it looked rather than an
+     * error the wizard has to recover from.
+     */
+    listMinecraftFolders(): Promise<MinecraftFolder[]>;
+
+    /**
+     * Adds a Minecraft folder to that list, taking either an installation or the `saves`
+     * folder inside it and reporting which it found.
+     *
+     * A folder that is neither comes back `ok: false` with a sentence naming what was
+     * expected. Mounting one that is already listed is not an error: it comes back with
+     * `alreadyMounted` so the interface can point at the existing row instead of growing
+     * a duplicate.
+     */
+    mountMinecraftFolder(folder: string): Promise<MountFolderResult>;
+
+    /**
+     * Takes a mounted folder off the list.
+     *
+     * Nothing on disk is touched. No world, no file and no folder is deleted by this; it
+     * rewrites one small JSON list and does not open the folder it is forgetting. A
+     * detected default is not stored and so cannot be taken out of a list it was never
+     * in, which is what `false` means.
+     */
+    unmountMinecraftFolder(id: string): Promise<boolean>;
+
+    /** Renames a mounted folder. An empty label puts the default name back. */
+    labelMinecraftFolder(id: string, label: string): Promise<boolean>;
+
+    /**
+     * Reads the worlds in one mounted folder.
+     *
+     * One folder per call on purpose, so the interface can show each finishing on its
+     * own: a folder on a slow network drive is then visibly slow rather than holding up
+     * the four local folders that were ready immediately. A folder that cannot be read
+     * resolves `ok: false` with its own message rather than rejecting, so one unplugged
+     * drive never takes the other folders' worlds off the screen.
+     */
+    scanMinecraftFolder(id: string): Promise<FolderScanResult>;
+
+    /**
+     * The real path of a file or folder the person dropped onto the window.
+     *
+     * Electron removed `File.path` in version 32, so a drop handler in the renderer sees
+     * a `File` with a name and no location. `webUtils.getPathForFile` is the replacement
+     * and it can only be called here, in the preload, which is why this exists at all.
+     * Null when the object was not a real file - a drag from a browser tab, say - rather
+     * than a made-up path.
+     */
+    pathForDroppedFile(file: File): string | null;
+
+    /**
      * Renders a world locally, with upstream BlueMap's engine.
      *
      * Resolves when the render has ended, whichever way it ended. It never rejects and
@@ -880,6 +1001,25 @@ const bridge: MaterialBlueMapBridge = {
     completeFirstRun: () => ipcRenderer.invoke("firstRun:complete"),
 
     inspectWorldFolder: (folder) => ipcRenderer.invoke("world:inspect", folder),
+
+    listMinecraftFolders: () => ipcRenderer.invoke("world:folders"),
+    mountMinecraftFolder: (folder) => ipcRenderer.invoke("world:mount", folder),
+    unmountMinecraftFolder: (id) => ipcRenderer.invoke("world:unmount", id),
+    labelMinecraftFolder: (id, label) => ipcRenderer.invoke("world:label", id, label),
+    scanMinecraftFolder: (id) => ipcRenderer.invoke("world:scan", id),
+
+    pathForDroppedFile: (file) => {
+        // Guarded rather than trusted: `webUtils` throws for anything that is not a real
+        // `File` from the file system, and a drag out of a browser tab or a text selection
+        // produces exactly that. Null says "this drop named no folder", which the step can
+        // explain, where a thrown error inside a drop handler would silently do nothing.
+        try {
+            const path = webUtils.getPathForFile(file);
+            return typeof path === "string" && path !== "" ? path : null;
+        } catch {
+            return null;
+        }
+    },
 
     startRender: (request) => ipcRenderer.invoke("render:start", request),
     cancelRender: (renderId) => ipcRenderer.invoke("render:cancel", renderId),
