@@ -736,6 +736,8 @@ export const FIXED = {
     "tabs.menu.addToGroup": { en: "Add to group", yue: "加入群組" },
     "tabs.menu.removeFromGroup": { en: "Remove from group", yue: "移出群組" },
     "tabs.menu.pageActions": { en: "Page actions", yue: "頁面操作" },
+    "tabs.menu.search": { en: "Filter menu items", yue: "篩選選單項目" },
+    "tabs.menu.noItems": { en: "Nothing matches that menu search.", yue: "呢個選單搜尋冇嘢啱。" },
     "tabs.group.collapse": { en: "Collapse group", yue: "收合群組" },
     "tabs.group.expand": { en: "Expand group", yue: "展開群組" },
     "tabs.group.rename": { en: "Rename group…", yue: "重新命名群組…" },

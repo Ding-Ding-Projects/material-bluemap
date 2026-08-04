@@ -1,5 +1,84 @@
 # Handoff
 
+## Update, 2026-08-04 — current continuation tip and workspace verification
+
+The `pages-material3-full-continuation` linked checkout now carries the current default
+branch through `b600dc3`. The Pages contracts in this
+checkout are committed and pushed; the generated changelog reports **52 versions and 160
+entries**, with every SHA resolved.
+
+Local verification is now a full workspace gate rather than a site-only claim:
+
+- `pnpm exec vitest run --silent`: **323 files passed, 5,108 tests passed, 23 skipped**.
+- `pnpm typecheck`: all **13 packages** passed.
+- `pnpm lint`: passed.
+- `pnpm build`: all workspace packages passed; the existing large-JavaScript-chunk notices
+  are warnings only.
+- `node scripts/build-changelog.mjs --check`: current at 52 versions / 162 entries.
+
+The config writer now preserves CRLF/LF input and emits native new-file line endings, and
+the project-map fixtures explicitly model an empty `world` field. Hosted CI remains queued at
+the current branch SHA and is not represented here as verified until it runs.
+
+## Update, 2026-08-04 — every rendered Pages element and live group discovery
+
+The clean `pages-material3-full-continuation` linked checkout starts from `origin/main` at
+`0a99147`, while the main checkout's concurrent history/config work remains untouched. This
+checkpoint adds two Pages-only contract fixes:
+
+- `decoratePage` now walks every rendered HTMLElement through
+  `packages/site/src/appearance/editor/coverage.ts`, so prose, headings, disclosure summaries,
+  table cells, links and controls all receive the same Material 3 appearance context menu and
+  anchored editor. Script/style/template plumbing is excluded because it has no user-facing
+  appearance.
+- The discovery tab now rebuilds only the per-group search surfaces when the persisted group
+  list changes. Each new group receives its own anchored regex builder and independent query;
+  removed groups destroy their field listeners instead of leaving orphaned searches behind.
+
+The new regression coverage is `coverage.test.ts` and `discoveryView.test.ts`. Focused verification
+currently passes **2 tests** and site typecheck passes. The full suite/build and hosted Pages proof
+remain outstanding for this continuation.
+
+## Update, 2026-08-04 — searchable tab, group and overflow menus
+
+The same clean linked checkout now gives the shared site `Menu` primitive its own local filter and
+guided regex builder. Tab, group, overflow and page-action menus pass localized labels into that
+primitive, so each menu filters only its own command list, reports an explicit no-match state,
+and restores focus through the existing overlay path. The search model is non-persistent; plain
+text remains the default and regex is opt-in from the adjacent builder.
+
+`packages/site/src/platform/Menu.test.ts` covers the field/list relationship, local filtering,
+builder affordance and empty state. Focused verification now passes **3 tests** including the
+appearance and dynamic-group regressions; the full suite, production build and hosted Pages proof
+still need to be re-run for this additional change.
+
+## Update, 2026-08-04 — site gate re-run after menu integration
+
+The Pages package now passes `pnpm --filter @material-bluemap/site typecheck`, repository lint,
+the full site Vitest suite (**132 tests across 16 files**), `pnpm --filter
+@material-bluemap/site build` (211 modules), and `git diff --check`. The site build retains the
+existing non-failing warning about the main JavaScript chunk exceeding 500 kB. The repository-wide
+Vitest command is not a clean gate on this checkout: 21 engine tests cannot resolve the unbuilt
+`@material-bluemap/nbt` package entry, and config fixture tests fail on the checkout's CRLF/LF
+byte boundary; those failures are outside this Pages change and are reported as such.
+
+The generated changelog was refreshed with `node scripts/build-changelog.mjs` and its check passes
+from the repository root. Hosted PR checks and a real headless/runtime capture remain outstanding.
+
+## Update, 2026-08-04 — shell regex slot now has a real provider
+
+The shared `RegexBuilderSlot` had been constructed but never provided, which left the tab-list
+menu and bulk-close builder buttons absent at runtime. `main.ts` now registers a non-persistent
+provider backed by the same `SearchQueryModel`, bounded evaluator and anchored builder used by
+the other search fields. Tab-list filtering carries the selected regex mode and flags into its
+matcher, so opening the builder no longer silently falls back to plain text.
+
+The site gate was re-run after this wiring: **132 tests across 16 files**, lint, typecheck and the
+211-module production build pass. A hidden Chrome capture from the fresh preview server shows the
+landing surface and the Search tab; the tab-list menu capture shows its own keyboard-focused
+`Filter pages` field. The screenshot is local evidence only until the branch is pushed and GitHub
+Pages rebuilds it.
+
 ## Update, 2026-08-04 midday — config controls, a history per folder, backups, and the door to the options editor
 
 Six commits on `main`, in the order they landed. Every SHA below resolves; each was read with

@@ -138,14 +138,14 @@ describe("editing a document", () => {
         const webapp = readFileSync(join(fixtureRoot, "webapp.conf"), "utf8");
         const edited = writeHocon(setPlainValue(parseHocon(webapp), ["start-location"], "world:0:16:-32:390:0.1:0.19:0:0:perspective"));
 
-        const lines = edited.split("\n");
+        const lines = edited.split(/\r?\n/);
         const exampleIndex = lines.findIndex((line) => line.startsWith('#start-location:'));
         expect(exampleIndex).toBeGreaterThan(-1);
         expect(lines[exampleIndex + 1]).toBe('start-location: "world:0:16:-32:390:0.1:0.19:0:0:perspective"');
     });
 
     it("puts a commented-out core setting back under its own example", () => {
-        const lines = writeHocon(setPlainValue(parseHocon(core), ["render-thread-priority"], 3)).split("\n");
+        const lines = writeHocon(setPlainValue(parseHocon(core), ["render-thread-priority"], 3)).split(/\r?\n/);
         const exampleIndex = lines.indexOf("#render-thread-priority: 1");
         expect(exampleIndex).toBeGreaterThan(-1);
         expect(lines[exampleIndex + 1]).toBe("render-thread-priority: 3");

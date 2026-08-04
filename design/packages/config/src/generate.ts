@@ -19,6 +19,12 @@ export interface GeneratedConfigFile {
     readonly text: string;
 }
 
+/** Match the line endings Java writes on the host where the config is created. */
+function nativeLineEndings(text: string): string {
+    const newline = process.platform === "win32" ? "\r\n" : "\n";
+    return text.replace(/\r?\n/g, newline);
+}
+
 /** Java's `Thread.NORM_PRIORITY`, which the core template quotes as the default. */
 const DEFAULT_THREAD_PRIORITY = 5;
 
@@ -257,5 +263,5 @@ export function generateConfigSet(options: ConfigSetOptions): GeneratedConfigFil
         { path: "storages/sql.conf", text: renderSqlStorageTemplate() },
     );
 
-    return files;
+    return files.map((file) => ({ ...file, text: nativeLineEndings(file.text) }));
 }

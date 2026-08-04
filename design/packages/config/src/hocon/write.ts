@@ -169,6 +169,6 @@ export function writeHocon(document: HoconDocument): string {
 
     writeTrivia(document.trailing, "", lines);
 
-    const text = lines.join("\n");
-    return document.endsWithNewline ? `${text}\n` : text;
+    const text = lines.join(document.lineEnding);
+    return document.endsWithNewline ? `${text}${document.lineEnding}` : text;
 }

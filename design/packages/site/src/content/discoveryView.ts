@@ -114,9 +114,45 @@ export function createDiscoveryView(options: {
         labelled(options.i18n.t("site.tabGroups"), createTabGroupNameSearch({ host: tabHost }).element),
         labelled(options.i18n.t("site.everyOpenTab"), createMasterTabSearch({ host: tabHost }).element),
     );
-    for (const group of tabHost.listGroups()) {
-        current.append(labelled(options.i18n.t("site.groupPrefix", { name: group.label }), createTabGroupSearch({ host: tabHost, groupId: group.id, groupLabel: group.label }).element));
-    }
+    // Groups are user-created state, not a fixed content list. Keep a dedicated container so
+    // a newly-created group receives its own independently-bound search field immediately,
+    // rather than waiting for the visitor to reload the discovery tab.
+    const groupSearches = el("div", { class: "mb-discovery-grid mb-discovery-groups" });
+    let groupViews: Array<{ readonly element: HTMLElement; destroy(): void }> = [];
+    const renderGroupSearches = (): void => {
+        for (const view of groupViews) view.destroy();
+        groupViews = [];
+        groupSearches.replaceChildren();
+        for (const group of tabHost.listGroups()) {
+            const view = createTabGroupSearch({
+                host: tabHost,
+                groupId: group.id,
+                groupLabel: group.label,
+            });
+            groupViews.push(view);
+            groupSearches.append(
+                labelled(
+                    options.i18n.t("site.groupPrefix", { name: group.label }),
+                    view.element,
+                ),
+            );
+        }
+    };
+    renderGroupSearches();
+    let unsubscribeGroups: (() => void) | null = null;
+    unsubscribeGroups = options.tabs.model.subscribe(() => {
+        // A discovery view is rebuilt when its tab is rendered. Once an older view is
+        // detached, stop listening so group mutations do not keep dead search controls alive.
+        if (!root.isConnected) {
+            unsubscribeGroups?.();
+            unsubscribeGroups = null;
+            for (const view of groupViews) view.destroy();
+            groupViews = [];
+            return;
+        }
+        renderGroupSearches();
+    });
+    current.append(groupSearches);
     tabSection.append(current);
     const bulkHeading = el("h3", { class: "mb-section-title" });
     options.i18n.bindText(bulkHeading, "site.bulkCloseHeading");

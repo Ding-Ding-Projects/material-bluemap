@@ -11,7 +11,10 @@
  */
 
 import { Overlay, type OverlayOptions } from "./Overlay.js";
-import { el } from "./dom.js";
+import { el, uniqueId } from "./dom.js";
+import { createBuilderController } from "../search/builderPanel.js";
+import { sharedRegexEvaluator } from "../search/evaluator.js";
+import { SearchQueryModel } from "../search/queryModel.js";
 
 export interface MenuCommand {
     readonly kind?: "command";
@@ -38,24 +41,97 @@ export interface MenuHeading {
 
 export type MenuEntry = MenuCommand | MenuSeparator | MenuHeading;
 
+export interface MenuSearchOptions {
+    /** Accessible label and placeholder for the menu's local filter. */
+    readonly label: string;
+    /** Label for the adjacent guided regex builder. */
+    readonly builderLabel: string;
+    /** Honest empty state shown when no command survives the query. */
+    readonly noResults?: string;
+}
+
 export interface MenuOptions extends Omit<OverlayOptions, "role"> {
     readonly entries: readonly MenuEntry[];
     /** Content shown above the command list, such as a filter field. */
     readonly header?: HTMLElement;
+    /** Add a keyboard-accessible filter owned by this menu. */
+    readonly search?: MenuSearchOptions;
 }
 
 export class Menu {
     private readonly overlay: Overlay;
     private readonly list: HTMLElement;
     private readonly initialFocus: HTMLElement | undefined;
+    private readonly searchInput: HTMLInputElement | undefined;
+    private readonly searchOptions: MenuSearchOptions | undefined;
+    private entries: readonly MenuEntry[] = [];
+    private searchModel: SearchQueryModel | null = null;
+    private destroySearchModel: (() => void) | null = null;
+    private searchBuilder: { toggle(): void; destroy(): void } | null = null;
 
     constructor(anchor: HTMLElement, options: MenuOptions) {
-        const { entries, header, ...overlayOptions } = options;
+        const { entries, header, search, ...overlayOptions } = options;
         this.initialFocus = options.initialFocus;
-        this.overlay = new Overlay(anchor, { ...overlayOptions, role: "menu" });
-        this.list = el("ul", { class: "md-menu", attrs: { role: "menu" } });
+        this.searchOptions = search;
+        this.overlay = new Overlay(anchor, {
+            ...overlayOptions,
+            role: "menu",
+            onClose: () => {
+                this.searchBuilder?.destroy();
+                this.searchBuilder = null;
+                this.destroySearchModel?.();
+                this.destroySearchModel = null;
+                this.searchModel = null;
+                overlayOptions.onClose?.();
+            },
+        });
+        this.list = el("ul", {
+            class: "md-menu",
+            attrs: { role: "menu", id: uniqueId("md-menu-list") },
+        });
 
         if (header !== undefined) this.overlay.element.append(header);
+        if (search !== undefined) {
+            const searchHeader = el("div", { class: "md-menu__search" });
+            const searchId = uniqueId("md-menu-search");
+            const label = el("label", {
+                class: "md-field__label",
+                attrs: { for: searchId },
+                text: search.label,
+            });
+            this.searchInput = el("input", {
+                class: "md-field__input",
+                attrs: {
+                    id: searchId,
+                    type: "search",
+                    autocomplete: "off",
+                    spellcheck: "false",
+                    placeholder: search.label,
+                    "aria-label": search.label,
+                    "aria-controls": this.list.id,
+                },
+            });
+            const searchRow = el("div", { class: "md-menu__search-row" });
+            const builder = el("button", {
+                class: "md-button md-button--outlined md-menu__builder",
+                attrs: {
+                    type: "button",
+                    "aria-label": search.builderLabel,
+                    title: search.builderLabel,
+                },
+                text: ".*",
+            });
+            this.searchInput.addEventListener("input", () => {
+                this.searchModel?.setFieldValue(this.searchInput?.value ?? "");
+                this.renderEntries();
+            });
+            builder.addEventListener("click", () => this.openSearchBuilder(builder, search.label));
+            searchRow.append(this.searchInput, builder);
+            searchHeader.append(label, searchRow);
+            this.overlay.element.append(searchHeader);
+        } else {
+            this.searchInput = undefined;
+        }
         this.overlay.element.append(this.list);
         this.setEntries(entries);
 
@@ -67,7 +143,15 @@ export class Menu {
     }
 
     setEntries(entries: readonly MenuEntry[]): void {
+        this.entries = entries;
+        this.renderEntries();
+    }
+
+    private renderEntries(): void {
+        const query = this.searchInput?.value.trim() ?? "";
+        const entries = query.length === 0 ? this.entries : this.filteredEntries();
         this.list.replaceChildren();
+        let commandCount = 0;
         for (const entry of entries) {
             if (entry.kind === "separator") {
                 this.list.append(el("li", { class: "md-menu__separator", attrs: { role: "separator" } }));
@@ -80,6 +164,7 @@ export class Menu {
                 continue;
             }
 
+            commandCount += 1;
             const item = el("li", { attrs: { role: "none" } });
             const button = el("button", {
                 class: "md-menu__item",
@@ -111,6 +196,83 @@ export class Menu {
             item.append(button);
             this.list.append(item);
         }
+        if (commandCount === 0 && query.length > 0) {
+            this.list.append(
+                el("li", {
+                    class: "md-menu__no-results",
+                    attrs: { role: "presentation" },
+                    text: this.searchOptions?.noResults ?? "No matching menu items.",
+                }),
+            );
+        }
+    }
+
+    private filteredEntries(): readonly MenuEntry[] {
+        const result: MenuEntry[] = [];
+        let pending: MenuEntry[] = [];
+        for (const entry of this.entries) {
+            if (entry.kind === "separator" || entry.kind === "heading") {
+                pending.push(entry);
+                continue;
+            }
+            const label = el("span");
+            entry.render(label);
+            const matches = this.matches(label.textContent ?? "");
+            if (matches) {
+                result.push(...pending, entry);
+            }
+            pending = [];
+        }
+        return result;
+    }
+
+    private matches(label: string): boolean {
+        const snapshot = this.searchModel?.snapshot();
+        if (snapshot === undefined || snapshot.mode === "text") {
+            return label.toLowerCase().includes((snapshot?.query ?? this.searchInput?.value ?? "").toLowerCase());
+        }
+        if (snapshot.validation.status === "invalid" || snapshot.pattern.length === 0) return false;
+        try {
+            const matcher = new RegExp(snapshot.pattern, snapshot.flags);
+            matcher.lastIndex = 0;
+            return matcher.test(label);
+        } catch {
+            return false;
+        }
+    }
+
+    private openSearchBuilder(anchor: HTMLElement, fieldLabel: string): void {
+        if (this.searchInput === undefined) return;
+        this.searchBuilder?.destroy();
+        this.destroySearchModel?.();
+        const model = new SearchQueryModel({
+            fieldId: uniqueId("md-menu-search-model"),
+            initialQuery: this.searchInput.value,
+            persist: false,
+        });
+        this.searchModel = model;
+        this.destroySearchModel = model.subscribe((snapshot) => {
+            if (this.searchInput !== undefined && this.searchInput.value !== snapshot.fieldValue) {
+                this.searchInput.value = snapshot.fieldValue;
+            }
+            this.renderEntries();
+        });
+        this.searchBuilder = createBuilderController({
+            model,
+            evaluator: sharedRegexEvaluator(),
+            fieldLabel,
+            sampleProvider: () => this.entries.map((entry) => this.entryLabel(entry)).filter(Boolean).join("\n"),
+            anchor,
+            returnFocusTo: this.searchInput,
+        });
+        this.searchBuilder.toggle();
+    }
+
+    private entryLabel(entry: MenuEntry): string {
+        if (entry.kind === "separator" || entry.kind === "heading") return "";
+        const label = el("span");
+        entry.render(label);
+        return label.textContent ?? "";
     }
 
     show(): void {
@@ -118,7 +280,7 @@ export class Menu {
         // Overlay already focused whatever the caller asked for. Only fall back to the first
         // command when no initial focus was named, so a menu with a filter field opens with
         // the caret in the field rather than on the first result.
-        if (this.initialFocus === undefined) this.items()[0]?.focus();
+        if (this.initialFocus === undefined) (this.searchInput ?? this.items()[0])?.focus();
     }
 
     close(): void {
