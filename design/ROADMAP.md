@@ -97,13 +97,12 @@ Not proven, and worth stating plainly:
   `packages/engine/src/index.ts` and consumed only by its own tests. Local rendering still
   goes through upstream's Java engine per D17. This is the project's recurring
   "built, tested, unreachable" shape, named here rather than discovered later.
-- **Two known differences from upstream remain in `WorldRegionUpdateTask`**, recorded during
-  the port and deliberately not changed, because that file's `run()` path is what the closed
-  Phase D gate measured: the periodic map checkpoint (upstream's 60-second `map.save`) is
-  missing from `complete()`, and `run()` calls `complete()` even for a region with nothing to
-  do, writing chunk hashes upstream would not. Both are observable only on an incremental
-  re-render, which is why a first-render oracle never caught them. Fixing them means
-  re-running `tools/oracle/compare.mjs` at both sizes to prove the gate still closes.
+- **One known difference from upstream remains in `WorldRegionUpdateTask`**: `run()` calls
+  `complete()` even for a region with nothing to do, writing chunk hashes upstream would not.
+  That is observable only on an incremental re-render, which is why a first-render oracle
+  never caught it. The other difference — upstream's periodic 60-second `map.save` — is now
+  implemented as `saveIfDue(60_000)` at completion, with a regression test; the 200x200 oracle
+  compared 63 files identically and the 1000x1000 oracle compared 995 files identically.
 
 ## Delivery, which the plan never described
 
@@ -257,8 +256,8 @@ for a run to survive.
   tested and exported, and no code outside `packages/engine` calls them. Until that changes,
   a local render still goes through the Java engine and the port's own render loop is
   unexercised outside its unit tests.
-- **Fix the two `WorldRegionUpdateTask` differences** named in the Phase E section above, then
-  re-run the oracle at both sizes to prove the Phase D gate still closes.
+- **Decide whether to match upstream's empty-region completion semantics** in
+  `WorldRegionUpdateTask`, then re-run the incremental parity check if that behaviour changes.
 - **Give the History tab a capture step**, and add it to `REQUIRED_SURFACES` in
   `packages/app/test/screenshots.spec.ts`. `Backup screen` was added; `History` was not, so
   the harness will not notice if that tab stops opening — precisely the failure the gate added
