@@ -303,13 +303,66 @@ function previewWorkspace(): void {
     );
 }
 
+/**
+ * A generated set, in a build that *can* write one.
+ *
+ * Not the same message as `previewWorkspace`, because it is not the same situation: these
+ * settings are editable and savable, they are simply not on a disk yet. Saying "this build
+ * cannot write one" here would be false, and saying nothing would leave somebody editing a
+ * full screen of settings without knowing there is no file behind them.
+ */
+function draftWorkspace(): void {
+    workspace.value = createWorkspace(null, {
+        webroot: "/bluemap/web",
+        dataFolder: "/bluemap/data",
+        world: "/minecraft/world",
+        version: props.version,
+    });
+    notify(
+        notices,
+        "info",
+        t(
+            "config.shell.draft",
+            "Showing BlueMap's own defaults so every setting is here to read. Nothing is on disk yet: choose a folder to save them into, or open one BlueMap already uses.",
+        ),
+    );
+}
+
+/**
+ * What the editor opens on.
+ *
+ * The empty state used to be the whole answer, and it made every setting in the
+ * application invisible until somebody guessed that a folder had to exist first. So: an
+ * explicitly-passed folder wins; otherwise the folder BlueMap already uses on this machine
+ * is opened when it is really there; otherwise the generated defaults are shown, labelled
+ * as not-yet-saved. In every case the tabs and their settings are on screen, which is the
+ * point - an options editor whose options cannot be seen is not an options editor.
+ */
 onMounted(async () => {
     await readConsent();
     if (props.initialFolder !== null && host !== null) {
         await openFolderAt(props.initialFolder);
         return;
     }
-    if (host === null) previewWorkspace();
+    if (host === null) {
+        previewWorkspace();
+        return;
+    }
+
+    const existing = await host.suggestConfigFolder().catch(() => "");
+    if (existing !== "") {
+        try {
+            const contents = await host.readFolder(existing);
+            if (contents.files.length > 0) {
+                await openFolderAt(existing);
+                return;
+            }
+        } catch {
+            // Nothing there to carry on from, which is the ordinary first-run case rather
+            // than a failure worth telling anybody about. Fall through to the defaults.
+        }
+    }
+    draftWorkspace();
 });
 
 watch(consentAccepted, () => syncConsentIntoCore());

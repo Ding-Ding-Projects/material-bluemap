@@ -1039,19 +1039,24 @@ test("captures the settings surface and every section in it", async () => {
 /**
  * What the options editor is showing in these captures, said plainly in every caption.
  *
- * `ConfigScreen.vue` calls `provideConfigHost()` and `useConfigHost()` in the same
- * component, and a component's own `provide` is not visible to its own `inject`, so the
- * editor resolves no host and falls back to the generated set it offers a browser tab. It
- * says so itself, in an alert across the top of the screen. These captures therefore show
- * the editor's real current behaviour, and the caption says which state that is rather
- * than letting the picture imply the editor is reading somebody's config folder.
+ * The throwaway profile these runs use has no BlueMap config folder on disk, so the editor
+ * opens on BlueMap's own generated defaults and says so in a notice across the top. Every
+ * setting, tab and control below that notice is real, live and savable - what is absent is
+ * a folder read off this machine, not the ability to write one.
+ *
+ * This note used to describe a different state, and the difference is worth recording: the
+ * editor once resolved no host at all, because it called `provideConfigHost()` and
+ * `useConfigHost()` in the same component and a component's own `provide` is invisible to
+ * its own `inject`. Fixing that gave the editor a real bridge, which meant it stopped
+ * generating a set and opened on an empty state instead - and because `attempt()` records
+ * a gap rather than failing, six options-editor captures silently vanished from the
+ * artifact while the job stayed green. The captures are the only thing that noticed.
  */
 const CONFIG_STATE_NOTE =
-    "The editor is showing the complete configuration set it generates when it has no folder " +
-    'attached, and says so itself in the notice across the top: "This build cannot reach a file ' +
-    'system, so nothing can be opened or saved. Every editor below still works, and the file ' +
-    'text can be copied out of each screen." Every setting, tab and control in the image is ' +
-    "real and live; what is absent is a folder read off this machine.";
+    "The editor is showing BlueMap's own generated defaults, because the throwaway profile " +
+    "this run uses has no config folder on disk, and it says so in the notice across the top. " +
+    "Every setting, tab and control in the image is real, live and savable; what is absent is " +
+    "a folder read off this machine.";
 
 /**
  * Opens the options editor, or leaves it open.
@@ -1468,4 +1473,38 @@ test("records what was captured", async () => {
               ]),
     ];
     await writeFile(join(shotDir, "captions.md"), `${lines.join("\n")}\n`, "utf8");
+});
+
+/**
+ * The surfaces whose absence is a defect rather than a gap.
+ *
+ * `attempt()` deliberately records a missing surface instead of failing, so forty good
+ * captures still reach the artifact when one screen refuses to open. That is right for a
+ * screen which needs a Java runtime, a real GitHub account or a render in flight - and
+ * wrong for a screen that is simply part of the application. The distinction had to be
+ * made after a one-line fix in the options editor took six of its captures with it and
+ * left the job green: the gap was in the manifest, and a green tick is what anybody
+ * actually reads.
+ *
+ * A surface belongs here when it needs nothing but the application itself.
+ */
+const REQUIRED_SURFACES = [
+    "Options editor",
+    "Options editor tabs",
+    "Options editor search",
+    "Options editor regex builder",
+    "Profile manager",
+    "Notification corner",
+] as const;
+
+test("captured every surface that needs nothing but the application", () => {
+    const missing = skipped
+        .filter((gap) => (REQUIRED_SURFACES as readonly string[]).includes(gap.surface))
+        .map((gap) => `${gap.surface} - ${gap.reason}`);
+
+    expect(
+        missing,
+        "These surfaces need no runtime, no account and no render, so a run that could not " +
+            "open them is reporting a broken application rather than an unavailable one.",
+    ).toEqual([]);
 });
