@@ -40,6 +40,7 @@
  * actions.ts      the GitHub Actions calls: dispatch, find the run, read it, read a log
  * gh.ts           detecting and driving the `gh` command-line tool, the second credential
  * transport.ts    the two credential routes behind one interface, and how one is chosen
+ * upload.ts       publishing the world: `backup/`'s packer, either route's transfer
  * fingerprint.ts  deciding cheaply whether the world changed since it was last uploaded
  * plan.ts         the world's own project file turned into the workflow's nine inputs
  * state.ts        what a sync remembers between attempts, so it can be resumed
@@ -54,13 +55,24 @@
  * not interchangeable - `gh` routinely carries an enterprise host, an SSO session an
  * organisation has authorised, or scopes the in-app flow never asked for. The in-app one
  * is preferred when it can actually see the workflow; `gh` is a real fallback rather than
- * an error message. Whichever is chosen drives **every** call of that sync, and the choice
- * is reported before the button rather than discovered from a 403.
+ * an error message. Whichever is chosen drives **every** call of that sync - the upload
+ * included - and the choice is reported before the button rather than discovered from a 403.
  *
- * The upload is `main/backup/`, unchanged. The transfer and the unpack are
- * `main/download/`, unchanged. The token is `main/github/`, unchanged. The mount and the
- * provenance record are `main/render/`, unchanged. There is no second uploader, no second
- * downloader and no second token source anywhere in here.
+ * ## One packer, two transports
+ *
+ * Publishing the world used to be the one thing a `gh`-only machine could not do, because
+ * the upload was delegated wholesale to the backup runner and so could only run on the
+ * credential that runner holds. The line is now drawn between the packer and the transfer.
+ * The archive, the split, the part names, the digests, the sidecar and the Cheap LFS
+ * pointer are `main/backup/`'s, imported and not restated, so a world published on either
+ * route is byte-for-byte the same backup. Only the four calls that *move* the bytes -
+ * create the release, list what it holds, put an asset, read the repository - have two
+ * implementations, and both sit behind `CiTransport`.
+ *
+ * The download and the unpack are `main/download/`, unchanged. The token is
+ * `main/github/`, unchanged. The mount and the provenance record are `main/render/`,
+ * unchanged. There is still no second packer, no second downloader and no second token
+ * source anywhere in here.
  *
  * `ipc.ts` is deliberately **not** re-exported here. Keeping the one Electron-importing
  * module off this barrel is what lets everything else be imported, and tested, without an
@@ -112,14 +124,30 @@ export type {
 
 export { ghTransport, resolveTransport, sessionTransport } from "./transport.js";
 export type {
+    CiAssetUpload,
+    CiRelease,
+    CiReleaseAsset,
+    CiRepositoryFacts,
     CiRoute,
     CiTransport,
+    CiUploadProgress,
     GhTransportOptions,
     ResolveTransportOptions,
     ResolvedTransport,
+    RouteGhReport,
     RouteReport,
     SessionTransportOptions,
 } from "./transport.js";
+
+export { uploadWorldForRender } from "./upload.js";
+export type {
+    CiUploadEvent,
+    CiUploadFailure,
+    CiUploadRequest,
+    CiUploadResult,
+    CiUploadResume,
+    CiUploadSummary,
+} from "./upload.js";
 
 export { collectRenderedMap } from "./collect.js";
 export type { CollectFailure, CollectOptions, CollectResult, CollectSuccess } from "./collect.js";

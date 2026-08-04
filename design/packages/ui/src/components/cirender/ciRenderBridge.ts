@@ -109,7 +109,15 @@ export interface CiSyncState {
 
 export type CiRoute = "session" | "gh";
 
-export type GhAvailability = "not-installed" | "signed-out" | "ready";
+/**
+ * What `gh` is on this machine - and a fourth value for "we did not ask".
+ *
+ * The first three are genuinely different remedies: install it, sign in to it in a terminal,
+ * or nothing at all. `not-checked` is none of those. It is what the report says when the
+ * in-app sign-in worked and `gh` was deliberately never probed, and keeping it distinct is
+ * what stops the surface telling somebody to install software they already have.
+ */
+export type GhAvailability = "not-installed" | "signed-out" | "ready" | "not-checked";
 
 /** Which credential would drive a sync, and why the other one would not. */
 export interface RouteReport {
@@ -127,7 +135,14 @@ export interface RouteReport {
         readonly reason: string | null;
     };
     readonly ready: boolean;
-    /** False when the chosen route can start a render but cannot upload a world. */
+    /**
+     * False when the chosen route can start a render but cannot publish a world.
+     *
+     * Both shipped routes can, so this is true whenever `ready` is - the `gh` transfer is
+     * route-aware. It stays on the report because "can start a render" and "can publish a
+     * world" are two capabilities, and the surface has to be able to say which is missing
+     * rather than showing a button that fails after an hour of packing.
+     */
     readonly canUpload: boolean;
 }
 
@@ -233,6 +248,21 @@ export type CiSyncEvent =
           readonly syncId: string;
           readonly level: "info" | "warning" | "error";
           readonly message: string;
+          readonly at: string;
+      }
+    /**
+     * How far the upload has got, in bytes.
+     *
+     * A world is measured in gigabytes and a domestic connection in hours, so a phase label
+     * with no number beside it is indistinguishable from a hang for most of an afternoon.
+     */
+    | {
+          readonly type: "progress";
+          readonly syncId: string;
+          readonly phase: CiSyncPhase;
+          readonly description: string;
+          readonly bytesDone: number;
+          readonly bytesTotal: number;
           readonly at: string;
       }
     | { readonly type: "run"; readonly syncId: string; readonly run: CiRunReport; readonly at: string }

@@ -308,6 +308,31 @@ describe("rows follow the events", () => {
         renders.dispose();
     });
 
+    it("carries the upload's byte count, and drops it the moment the phase moves on", () => {
+        const { bridge: host, emit } = bridge();
+        const renders = createCiRenders(host);
+
+        emit({ type: "phase", syncId: "s", phase: "uploading", at: "2026-08-04T10:00:00Z" });
+        emit({
+            type: "progress",
+            syncId: "s",
+            phase: "uploading",
+            description: "Uploading part 1 of 1",
+            bytesDone: 250,
+            bytesTotal: 1000,
+            at: "2026-08-04T10:00:01Z",
+        });
+
+        expect(renders.rows.value[0]?.transfer?.percent).toBe(25);
+        expect(renders.rows.value[0]?.transfer?.description).toBe("Uploading part 1 of 1");
+
+        // A finished upload's bar left beside "GitHub is rendering" would read as a render
+        // that is nearly done rather than one that has only just started.
+        emit({ type: "phase", syncId: "s", phase: "rendering", at: "2026-08-04T10:05:00Z" });
+        expect(renders.rows.value[0]?.transfer).toBeNull();
+        renders.dispose();
+    });
+
     it("reports nothing at all when this build has no bridge", () => {
         const renders = createCiRenders(null);
         expect(renders.available).toBe(false);

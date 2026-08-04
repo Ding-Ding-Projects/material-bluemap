@@ -11,6 +11,7 @@ import {
     VCheckbox,
     VChip,
     VProgressCircular,
+    VProgressLinear,
     VTextField,
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
@@ -96,6 +97,65 @@ const isPublic = computed(() => preflight.value?.repository?.private === false);
 const routeReport = computed(() => preflight.value?.routeReport ?? null);
 
 /**
+ * What `gh` is on this machine, as one of three sentences rather than "unavailable".
+ *
+ * The three states have three different remedies and collapsing them sends most people to
+ * the wrong one: "not installed" wants a download, "signed out" wants a command run in a
+ * terminal that this application deliberately does not drive, and "ready" wants nothing at
+ * all. The account is named when there is one, because a machine can be signed in to `gh`
+ * as somebody other than the person expects.
+ */
+const ghState = computed<{ tone: "info" | "warning"; text: string } | null>(() => {
+    const gh = routeReport.value?.gh;
+    if (gh === undefined) return null;
+    // Never asked, so nothing is said. Reporting an unprobed `gh` as missing would tell
+    // somebody to install software they may well already have, on every single check.
+    if (gh.availability === "not-checked") return null;
+    if (gh.availability === "not-installed") {
+        return {
+            tone: "warning",
+            text: t(
+                "cirender.gh.missing",
+                "The gh command-line tool is not on this computer, so it cannot be used as a second route. Install it from cli.github.com if you would rather render with it than with the sign-in here.",
+            ),
+        };
+    }
+    if (gh.availability === "signed-out") {
+        return {
+            tone: "warning",
+            text: t(
+                "cirender.gh.signedOut",
+                "The gh command-line tool is installed but nobody is signed in to it. Run `gh auth login` in a terminal - it asks for a code interactively and cannot be driven from inside this application - then check again.",
+            ),
+        };
+    }
+    return {
+        tone: "info",
+        text:
+            gh.account === null
+                ? t("cirender.gh.ready", "The gh command-line tool is installed and signed in.")
+                : t(
+                      "cirender.gh.readyAs",
+                      { account: gh.account, host: gh.host ?? "github.com" },
+                      "The gh command-line tool is signed in as {account} on {host}.",
+                  ),
+    };
+});
+
+/**
+ * Why the credential that is *not* driving this sync was passed over.
+ *
+ * Only when there is a real reason. When the in-app sign-in works, `gh` is not probed at
+ * all, and "not needed" is a placeholder rather than something a person should read.
+ */
+const routeAside = computed<string | null>(() => {
+    const report = routeReport.value;
+    if (report === null || report.route === null) return null;
+    const reason = report.route === "gh" ? report.session.reason : report.gh.reason;
+    return reason === null || reason === "not needed" ? null : reason;
+});
+
+/**
  * Whether the button may be pressed.
  *
  * Everything it checks is checked again in the main process. This is not belt and braces
@@ -125,10 +185,13 @@ const blockedBecause = computed<string | null>(() => {
             "This world packs to about {size}, past what one GitHub release asset can hold.",
         );
     }
+    // Both shipped credentials can publish a world, so this is the genuine "neither can"
+    // case rather than the old "gh cannot" one - and it names both remedies, because only
+    // the person knows which of their two GitHub sign-ins they are able to fix.
     if (report.uploadNeeded && !report.routeReport.canUpload) {
         return t(
             "cirender.blocked.uploadRoute",
-            "Uploading a world needs this application's own GitHub sign-in. Sign in from Settings.",
+            "Neither GitHub sign-in on this computer can publish a world. Sign in to GitHub from Settings, or run `gh auth login` in a terminal, then check again.",
         );
     }
     if (report.uploadNeeded && !acknowledgeUpload.value) {
@@ -264,7 +327,8 @@ onBeforeUnmount(() => {
                     <!--
                         Which credential is driving, before the button rather than after a
                         403. A machine typically holds two GitHub sign-ins and they are not
-                        interchangeable.
+                        interchangeable, so the reason the other one was passed over is here
+                        too - "permission denied" is unactionable without it.
                     -->
                     <VAlert
                         :type="routeReport?.ready === true ? 'info' : 'warning'"
@@ -273,6 +337,18 @@ onBeforeUnmount(() => {
                         data-test="route"
                     >
                         {{ routeReport?.describe }}
+                        <p v-if="routeAside !== null" class="mt-1 text-medium-emphasis" data-test="route-aside">
+                            {{
+                                t(
+                                    "cirender.route.other",
+                                    { reason: routeAside },
+                                    "The other sign-in was not used: {reason}",
+                                )
+                            }}
+                        </p>
+                        <p v-if="ghState !== null" class="mt-1 text-medium-emphasis" data-test="route-gh">
+                            {{ ghState.text }}
+                        </p>
                     </VAlert>
 
                     <VAlert
@@ -309,8 +385,8 @@ onBeforeUnmount(() => {
                         {{ preflight.repository.warning.message }}
                     </VAlert>
                     <VAlert
-                        v-else-if="preflight.repositoryFailure !== null"
-                        type="info"
+                        v-if="preflight.repository === null && preflight.repositoryFailure !== null"
+                        type="warning"
                         variant="tonal"
                         class="mb-3"
                         data-test="repository-unknown"
@@ -318,10 +394,27 @@ onBeforeUnmount(() => {
                         {{
                             t(
                                 "cirender.repository.unknown",
-                                "This application's own GitHub sign-in could not read the repository, so whether it is public could not be checked. Nothing can be uploaded on this route.",
+                                "Neither GitHub sign-in on this computer could read the repository, so whether it is public could not be checked. Nothing will be uploaded until one of them can.",
                             )
                         }}
                     </VAlert>
+                    <!--
+                        The warning above came from the chosen route rather than from the
+                        application's own sign-in. Said out loud, because the wording differs
+                        and somebody comparing two machines deserves to know why.
+                    -->
+                    <p
+                        v-else-if="preflight.repositoryFailure !== null"
+                        class="text-medium-emphasis mb-3"
+                        data-test="repository-fallback"
+                    >
+                        {{
+                            t(
+                                "cirender.repository.fallback",
+                                "This application's own GitHub sign-in could not read the repository, so the note above was read with the credential that will do the work instead.",
+                            )
+                        }}
+                    </p>
 
                     <p data-test="upload-line">{{ uploadLine(preflight, t) }}</p>
 
@@ -418,6 +511,33 @@ onBeforeUnmount(() => {
                 </VCardTitle>
                 <VCardText>
                     <p>{{ phaseLabel(row.phase, t) }}</p>
+
+                    <!--
+                        The upload's own byte count. A world is gigabytes and a domestic
+                        connection is hours, so a phase label with no number beside it is
+                        indistinguishable from a hang for most of an afternoon.
+                    -->
+                    <template v-if="row.transfer !== null">
+                        <VProgressLinear
+                            :model-value="row.transfer.percent"
+                            class="my-2"
+                            data-test="transfer-bar"
+                        />
+                        <p class="text-medium-emphasis" data-test="transfer">
+                            {{ row.transfer.description }} —
+                            {{
+                                t(
+                                    "cirender.transfer.bytes",
+                                    {
+                                        done: formatBytes(row.transfer.bytesDone, t),
+                                        total: formatBytes(row.transfer.bytesTotal, t),
+                                    },
+                                    "{done} of {total}",
+                                )
+                            }}
+                        </p>
+                    </template>
+
                     <p data-test="run-label">{{ runLabel(row.run, t) }}</p>
 
                     <VBtn

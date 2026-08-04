@@ -403,6 +403,27 @@ the run back up, and it will not upload a world it can see has not changed. It c
 GitHub through the app's own sign-in or through an authenticated `gh` CLI, and it says
 which credential is in play.
 
+**Proven, on a real run rather than in principle.** A 96-block world committed to a
+throwaway probe repository rendered end to end on GitHub's runners on 2026-08-04:
+[run 30953146107](https://github.com/DingDingChae/bluemap-tiny-render-probe/actions/runs/30953146107)
+— plan, jar build, one shard and the merge all green, producing 21 hires `.prbm.gz` tiles,
+`settings.json` and `textures.json.gz`, in a 1.9 MB `rendered-map` artifact.
+
+Getting there found two real defects, both now fixed and both worth knowing about:
+
+- The jar is compiled with **Java 25** and the render jobs set up **Java 21**, so every
+  shard died with `UnsupportedClassVersionError` before drawing a tile.
+- That failure was then **swallowed**. `continue-on-error` is right for a shard that ran
+  out of time with hours of real tiles to hand over, but it also let a render that produced
+  *nothing* report success, upload no artifact, and break three jobs later with
+  `Artifact not found for name: webapp` — pointing at the merge and saying nothing about
+  the engine refusing to start. A render that drew nothing now fails next to its reason.
+
+A third trap is worth recording for anyone using `world-source: repository`: this
+repository's `.gitignore` contains `*.mca`, so a world committed into a clone of it
+silently loses every region file, and the render then correctly reports a world with
+nothing in it.
+
 **The trade-offs, because advertising without them wastes an afternoon:**
 
 - uploading a multi-gigabyte world takes real time and bandwidth — that is the slow part now;

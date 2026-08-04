@@ -156,7 +156,7 @@ describe("gh is the fallback, and it is a real one", () => {
         expect(resolved.report.session.usable).toBe(false);
     });
 
-    it("works with no in-app sign-in at all, and says it cannot upload", async () => {
+    it("works with no in-app sign-in at all, and can publish a world as well as render one", async () => {
         const runner = readyGh();
         const github = apiWith(200);
 
@@ -164,10 +164,11 @@ describe("gh is the fallback, and it is a real one", () => {
 
         expect(resolved.report.route).toBe("gh");
         expect(resolved.report.ready).toBe(true);
-        // The upload is the backup surface, which needs the application's own sign-in.
-        // Saying so here is what lets the sync refuse with the real reason.
-        expect(resolved.report.canUpload).toBe(false);
-        expect(resolved.transport?.canUpload).toBe(false);
+        // The transfer is route-aware now - one packer, two transports - so this is a real
+        // fallback rather than a route that can start a render and then refuse the upload
+        // it needs. Somebody signed in to `gh` and not to the application is not stuck.
+        expect(resolved.report.canUpload).toBe(true);
+        expect(resolved.transport?.canUpload).toBe(true);
         expect(github.calls).toHaveLength(0);
     });
 });
@@ -276,5 +277,121 @@ describe("both transports answer the same questions the same way", () => {
         const runner = readyGh({ "actions/jobs/42/logs": { stdout: lines } });
         const tail = await ghTransport({ runner }).readJobLogTail(OWNER, REPO, 42, 3);
         expect(tail).toBe("line 97\nline 98\nline 99");
+    });
+});
+
+/**
+ * The transfer, which is the only part of the interface the two routes implement
+ * differently - and therefore the only part where they could disagree about what a release
+ * rule means. Each property below is asserted against `gh`'s argv rather than against a
+ * mock's call count, because argv is what actually reaches the executable.
+ */
+describe("the transfer is route-aware, and both routes obey the same release rules", () => {
+    const RELEASE = { assets: [] as unknown[], id: 5, tag_name: "v1", html_url: "https://github.test/v1" };
+
+    it("the gh route creates a prerelease that never becomes the repository's latest", async () => {
+        const runner = readyGh({ "releases/tags/v1": { code: 1, stderr: "gh: Not Found (HTTP 404)\n" } });
+        // Answered as missing on the pre-check and present on the read-back, which is what
+        // creating a release actually looks like from here.
+        let seen = 0;
+        const inner = runner.run.bind(runner);
+        runner.run = (command, args, options) => {
+            if (args.some((arg) => arg.includes("releases/tags/v1")) && (seen += 1) > 1) {
+                runner.calls.push({ args: [...args], input: null });
+                return Promise.resolve({ started: true, code: 0, stdout: JSON.stringify(RELEASE), stderr: "" });
+            }
+            return inner(command, args, options);
+        };
+
+        const release = await ghTransport({ runner }).createRelease(OWNER, REPO, "v1", "Backup: w", "notes");
+
+        expect(release).toEqual({ id: 5, tag: "v1", htmlUrl: "https://github.test/v1" });
+        const create = runner.calls.find((call) => call.args[0] === "release" && call.args[1] === "create");
+        expect(create?.args).toContain("--prerelease");
+        // A stored world quietly becoming somebody's latest release would redirect their
+        // installer link at a Minecraft save.
+        expect(create?.args).toContain("--latest=false");
+        expect(create?.args).toEqual(expect.arrayContaining(["--repo", `${OWNER}/${REPO}`]));
+        // Never a shell string, and never a token: the notes and the title are separate argv
+        // entries, so a quote in a world's name cannot become part of a command.
+        expect(create?.args).toContain("notes");
+        expect(create?.args.some((arg) => arg.includes("--show-token"))).toBe(false);
+    });
+
+    it("the gh route refuses a tag that already exists rather than adopting it", async () => {
+        const runner = readyGh({ "releases/tags/v1": { stdout: JSON.stringify(RELEASE) } });
+
+        await expect(
+            ghTransport({ runner }).createRelease(OWNER, REPO, "v1", "Backup: w", "notes"),
+        ).rejects.toThrow(/already has a release tagged v1/);
+        // The append-only rule: nothing was created, so yesterday's upload is untouched.
+        expect(runner.calls.some((call) => call.args[1] === "create")).toBe(false);
+    });
+
+    it("the gh route uploads with --clobber, so a truncated part can be replaced", async () => {
+        const runner = readyGh();
+        await ghTransport({ runner }).uploadReleaseAsset({
+            release: { id: 5, tag: "v1", htmlUrl: "" },
+            owner: OWNER,
+            repo: REPO,
+            assetName: "world.zip",
+            filePath: "/tmp/staged/world.zip",
+            bytes: 10,
+        });
+
+        const upload = runner.calls.find((call) => call.args[1] === "upload");
+        expect(upload?.args.slice(0, 4)).toEqual(["release", "upload", "v1", "/tmp/staged/world.zip"]);
+        expect(upload?.args).toContain("--clobber");
+    });
+
+    it("the gh route refuses a staged file whose name is not the asset name", async () => {
+        const runner = readyGh();
+        // `gh release upload` names the asset after the basename, so this would publish a
+        // part under a name the Cheap LFS pointer does not mention.
+        await expect(
+            ghTransport({ runner }).uploadReleaseAsset({
+                release: { id: 5, tag: "v1", htmlUrl: "" },
+                owner: OWNER,
+                repo: REPO,
+                assetName: "world.zip.000-abc",
+                filePath: "/tmp/staged/world.zip.000",
+                bytes: 10,
+            }),
+        ).rejects.toThrow(/a restore cannot find/);
+        expect(runner.calls.some((call) => call.args[1] === "upload")).toBe(false);
+    });
+
+    it("both routes list only the assets GitHub calls uploaded", async () => {
+        const assets = [
+            { id: 1, name: "world.zip", size: 1024, state: "uploaded" },
+            // A half-sent asset. Skipping it because a name matched is how a resumed upload
+            // leaves a truncated part that nothing notices until a restore.
+            { id: 2, name: "half.zip", size: 8, state: "starter" },
+        ];
+        const github = new RecordingGitHub().on("GET", "/releases/tags/v1", {
+            status: 200,
+            json: { ...RELEASE, assets },
+        });
+        const session = sessionTransport({ fetch: github.fetch, token: TOKEN, apiBase: API });
+        const gh = ghTransport({ runner: readyGh({ "releases/tags/v1": { stdout: JSON.stringify({ ...RELEASE, assets }) } }) });
+
+        for (const transport of [session, gh]) {
+            const listed = await transport.listReleaseAssets(OWNER, REPO, "v1");
+            expect([...listed.keys()]).toEqual(["world.zip"]);
+            expect(listed.get("world.zip")?.size).toBe(1024);
+            expect(await transport.releaseHasAsset(OWNER, REPO, "v1", "half.zip")).toBe(false);
+        }
+    });
+
+    it("both routes read the same four facts about a repository", async () => {
+        const json = repositoryJson({ owner: OWNER, repo: REPO, isPrivate: false, canWrite: true });
+        const github = new RecordingGitHub().on("GET", /\/repos\/o\/r$/, { status: 200, json });
+        const session = sessionTransport({ fetch: github.fetch, token: TOKEN, apiBase: API });
+        const gh = ghTransport({ runner: readyGh({ "repos/o/r": { stdout: JSON.stringify(json) } }) });
+
+        // Parsed by `main/backup/`'s own reader on both sides, so "PUBLIC" cannot come to
+        // mean two different things depending on which credential asked.
+        expect(await gh.readRepository(OWNER, REPO)).toEqual(await session.readRepository(OWNER, REPO));
+        expect((await gh.readRepository(OWNER, REPO)).private).toBe(false);
     });
 });

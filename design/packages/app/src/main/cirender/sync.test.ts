@@ -9,11 +9,11 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { packFolder } from "../backup/archive.js";
-import type { BackupRequest, BackupResult, RepositoryReport } from "../backup/index.js";
+import type { RepositoryReport } from "../backup/index.js";
 import { LocalMapHandler } from "../render/LocalMapHandler.js";
 import { fingerprintWorld } from "./fingerprint.js";
 import {
@@ -48,6 +48,7 @@ const REPO = "r";
 const MAP_ID = "world";
 const TOKEN = "t0k3n-that-must-never-cross";
 const API = "https://api.test";
+const UPLOADS = "https://uploads.test";
 const NOW = Date.parse("2026-08-04T10:00:00Z");
 const RELEASE_TAG = "mbm-backup-world-overworld-20260803T090000Z";
 const ASSET_NAME = "world-overworld-20260803T090000Z.zip";
@@ -119,46 +120,59 @@ function report(isPrivate: boolean, canWrite = true): RepositoryReport {
     };
 }
 
-interface FakeBackup {
-    readonly surface: BackupSurface;
-    readonly requests: BackupRequest[];
+/**
+ * The backup surface, which is now only asked to *word* the public-repository warning.
+ *
+ * The upload no longer goes through it: it goes through whichever transport the sync chose,
+ * so "did anything get uploaded?" is asserted against the fake that would have had to serve
+ * the release creation and the asset PUT. That is a stronger assertion than the old one -
+ * it fails if a world is published by any route, not only by the one this stub stood in for.
+ */
+function fakeBackup(isPrivate: boolean, canWrite = true): BackupSurface {
+    return { inspectRepository: () => Promise.resolve(report(isPrivate, canWrite)) };
 }
 
-function fakeBackup(isPrivate: boolean, result?: BackupResult, canWrite = true): FakeBackup {
-    const requests: BackupRequest[] = [];
-    const success: BackupResult = {
-        ok: true,
-        backupId: "backup-1",
-        durationMs: 1000,
-        summary: {
-            backupId: "backup-1",
-            repository: `${OWNER}/${REPO}`,
-            tag: RELEASE_TAG,
-            releaseUrl: `https://github.test/${OWNER}/${REPO}/releases/tag/${RELEASE_TAG}`,
-            archive: ASSET_NAME,
-            bytes: 1024,
-            sha256: "a".repeat(64),
-            parts: 1,
-            kind: "world",
-            label: "overworld",
-        },
-    };
-    return {
-        requests,
-        surface: {
-            inspectRepository: () => Promise.resolve(report(isPrivate, canWrite)),
-            backup: (request) => {
-                requests.push(request);
-                return Promise.resolve(result ?? success);
+/**
+ * True when nothing was published: no release created and no asset put anywhere.
+ *
+ * Writes only. *Reading* a release is what the unchanged-world check does on every sync and
+ * is not an upload, so counting every mention of `/releases` would make this assertion pass
+ * or fail for the wrong reason.
+ */
+function nothingUploaded(github: RecordingGitHub): boolean {
+    return github.countOf(/\/releases$/, "POST") === 0 && github.countOf("/assets?name=", "POST") === 0;
+}
+
+/**
+ * The routes an upload needs: create the release, then accept each asset.
+ *
+ * The upload host is a second base URL, which is why `uploadsBase` is set alongside
+ * `apiBase` - an upload that quietly went to the real `uploads.github.com` would be a test
+ * that touches the network.
+ */
+function uploadRoutes(github: RecordingGitHub, tag = RELEASE_TAG): RecordingGitHub {
+    return github
+        .on("POST", /\/repos\/o\/r\/releases$/, {
+            status: 201,
+            json: {
+                id: 5,
+                tag_name: tag,
+                name: tag,
+                html_url: `https://github.test/release/${tag}`,
+                upload_url: "",
+                created_at: "2026-08-04T10:00:00Z",
+                assets: [],
             },
-            cancel: () => false,
-        },
-    };
+        })
+        .on("POST", "/assets?name=", {
+            status: 201,
+            json: { id: 11, name: "asset", size: 1, state: "uploaded", browser_download_url: "" },
+        });
 }
 
 function makeSync(options: {
     github: RecordingGitHub;
-    backup: FakeBackup;
+    backup: BackupSurface;
     mounts?: LocalMapHandler;
     eulaAccepted?: boolean;
     events?: CiSyncEvent[];
@@ -168,9 +182,10 @@ function makeSync(options: {
         token: () => TOKEN,
         runner: noGh(),
         eulaAccepted: () => options.eulaAccepted ?? true,
-        backup: options.backup.surface,
+        backup: options.backup,
         fetch: options.github.fetch,
         apiBase: API,
+        uploadsBase: UPLOADS,
         ...(options.mounts === undefined ? {} : { mounts: options.mounts }),
         ...(options.events === undefined ? {} : { onEvent: (event) => options.events?.push(event) }),
         now: () => NOW,
@@ -280,7 +295,7 @@ describe("what leaves this computer is said first", () => {
         if (result.ok) return;
         expect(result.failure.code).toBe("public-not-acknowledged");
         expect(result.failure.message).toContain("PUBLIC");
-        expect(backup.requests).toHaveLength(0);
+        expect(nothingUploaded(github)).toBe(true);
         expect(github.never("/dispatches")).toBe(true);
     });
 
@@ -295,7 +310,7 @@ describe("what leaves this computer is said first", () => {
         if (result.ok) return;
         expect(result.failure.code).toBe("upload-not-acknowledged");
         expect(result.failure.message).toContain("upload the whole world");
-        expect(backup.requests).toHaveLength(0);
+        expect(nothingUploaded(github)).toBe(true);
     });
 
     it("never accepts Mojang's licence on somebody's behalf", async () => {
@@ -310,13 +325,13 @@ describe("what leaves this computer is said first", () => {
         expect(result.failure.code).toBe("eula-not-accepted");
         expect(result.failure.needsEula).toBe(true);
         expect(result.failure.message).toContain("Settings");
-        expect(backup.requests).toHaveLength(0);
+        expect(nothingUploaded(github)).toBe(true);
         expect(github.never("/dispatches")).toBe(true);
     });
 
     it("refuses a repository the account cannot write to", async () => {
         const github = baseRoutes(new RecordingGitHub());
-        const backup = fakeBackup(true, undefined, false);
+        const backup = fakeBackup(true, false);
         const sync = makeSync({ github, backup });
 
         const result = await sync.sync(request());
@@ -324,7 +339,7 @@ describe("what leaves this computer is said first", () => {
         expect(result.ok).toBe(false);
         if (result.ok) return;
         expect(result.failure.code).toBe("read-only");
-        expect(backup.requests).toHaveLength(0);
+        expect(nothingUploaded(github)).toBe(true);
     });
 });
 
@@ -349,14 +364,14 @@ describe("an unchanged world is not uploaded again", () => {
 
         expect(result.ok).toBe(true);
         // The whole point: nothing was packed and nothing was uploaded.
-        expect(backup.requests).toHaveLength(0);
+        expect(nothingUploaded(github)).toBe(true);
         expect(github.countOf("/dispatches", "POST")).toBe(1);
         const said = events.filter((event) => event.type === "log").map((event) => event.message);
         expect(said.join(" ")).toContain("has not changed");
     });
 
     it("uploads again when the release the record points at is gone", async () => {
-        const github = baseRoutes(new RecordingGitHub())
+        const github = uploadRoutes(baseRoutes(new RecordingGitHub()))
             // GitHub answers 404 for a release that was deleted, which is exactly what a
             // record pointing at nothing looks like from here.
             .on("GET", `/releases/tags/${RELEASE_TAG}`, { status: 404, json: { message: "Not Found" } })
@@ -367,17 +382,16 @@ describe("an unchanged world is not uploaded again", () => {
             .on("GET", /\/actions\/runs\/7$/, { status: 200, json: runJson({ id: 7, status: "queued" }) })
             .on("GET", "/actions/runs/7/jobs", { status: 200, json: { jobs: [] } });
         await seedUploadedState();
-        const backup = fakeBackup(true);
-        const sync = makeSync({ github, backup });
+        const sync = makeSync({ github, backup: fakeBackup(true) });
 
         const result = await sync.sync(request({ follow: false }));
 
         expect(result.ok).toBe(true);
-        expect(backup.requests).toHaveLength(1);
+        expect(github.countOf(/\/repos\/o\/r\/releases$/, "POST")).toBe(1);
     });
 
     it("uploads again when the world has actually changed", async () => {
-        const github = releaseRoute(baseRoutes(new RecordingGitHub()))
+        const github = uploadRoutes(releaseRoute(baseRoutes(new RecordingGitHub())))
             .on("GET", "/actions/workflows/render-world.yml/runs", {
                 status: 200,
                 json: { workflow_runs: [runJson({ id: 7, status: "queued" })] },
@@ -386,14 +400,20 @@ describe("an unchanged world is not uploaded again", () => {
             .on("GET", "/actions/runs/7/jobs", { status: 200, json: { jobs: [] } });
         await seedUploadedState();
         await writeFile(join(world, "region", "r.0.1.mca"), "a new region nobody had rendered");
-        const backup = fakeBackup(true);
-        const sync = makeSync({ github, backup });
+        const sync = makeSync({ github, backup: fakeBackup(true) });
 
         const result = await sync.sync(request({ follow: false }));
 
         expect(result.ok).toBe(true);
-        expect(backup.requests).toHaveLength(1);
-        expect(backup.requests[0]?.kind).toBe("world");
+        expect(github.countOf(/\/repos\/o\/r\/releases$/, "POST")).toBe(1);
+        // The archive, the sidecar and the pointer. The pointer goes last, because it is
+        // what marks the release as a finished upload.
+        const assets = github.calls
+            .filter((call) => call.method === "POST" && call.url.includes("/assets?name="))
+            .map((call) => decodeURIComponent(call.url.split("name=")[1] ?? ""));
+        expect(assets).toHaveLength(3);
+        expect(assets[1]).toBe("backup.json");
+        expect(assets[2]).toContain(".cheaplfs");
     });
 
     it("reports through preflight whether an upload would happen at all", async () => {
@@ -713,7 +733,7 @@ describe("refusals are values, and none of them is a stack", () => {
             token: () => null,
             runner: noGh(),
             eulaAccepted: () => true,
-            backup: fakeBackup(true).surface,
+            backup: fakeBackup(true),
             fetch: github.fetch,
             apiBase: API,
         });
@@ -783,7 +803,7 @@ describe("refusals are values, and none of them is a stack", () => {
             token: () => TOKEN,
             runner: noGh(),
             eulaAccepted: () => true,
-            backup: fakeBackup(true).surface,
+            backup: fakeBackup(true),
             fetch: github.fetch,
             apiBase: API,
             onEvent: (event) => events.push(event),
@@ -805,8 +825,29 @@ describe("refusals are values, and none of them is a stack", () => {
 });
 
 describe("the gh command-line tool is a real fallback, not an error message", () => {
+    /** One release as the fake `gh` remembers it, so a resumed upload has something to read. */
+    interface FakeRelease {
+        readonly id: number;
+        readonly tag: string;
+        readonly assets: Map<string, { name: string; size: number; state: string }>;
+    }
+
+    interface ReadyGh extends ProcessRunner {
+        readonly calls: string[][];
+        /** The releases this `gh` has been asked to create, and what is on them. */
+        readonly releases: Map<string, FakeRelease>;
+        /** Every `gh release upload` it was asked to perform, in order. */
+        uploaded(): string[];
+    }
+
     /**
      * A `gh` that is signed in and answers every endpoint the loop asks for.
+     *
+     * It keeps **state** rather than replaying canned answers, because the properties worth
+     * testing here are stateful: that a release created by `gh release create` is then
+     * readable by `gh api`, that an asset put there by `gh release upload` is skipped by a
+     * resumed upload, and that a part recorded at the wrong size is sent again. A stub that
+     * answered the same thing every time could not tell any of those apart.
      *
      * `runToFile` copies a real zip into place, because the collector unpacks what it
      * downloads and checks a `maps/<id>` folder came out of it - a stub that wrote nothing
@@ -815,39 +856,76 @@ describe("the gh command-line tool is a real fallback, not an error message", ()
     function readyGh(options: {
         json: Readonly<Record<string, unknown>>;
         artifact?: string;
-    }): ProcessRunner & { calls: string[][] } {
+        releases?: Map<string, FakeRelease>;
+    }): ReadyGh {
         const calls: string[][] = [];
+        const releases = options.releases ?? new Map<string, FakeRelease>();
+        let nextId = 100;
+
         const answerFor = (args: readonly string[]): string | null => {
             const key = Object.keys(options.json)
                 .sort((left, right) => right.length - left.length)
                 .find((candidate) => args.some((arg) => arg.includes(candidate)));
             return key === undefined ? null : JSON.stringify(options.json[key]);
         };
+
+        const releaseJson = (release: FakeRelease): string =>
+            JSON.stringify({
+                id: release.id,
+                tag_name: release.tag,
+                html_url: `https://github.test/release/${release.tag}`,
+                assets: [...release.assets.values()],
+            });
+
+        const ok = (stdout = ""): Promise<{ started: true; code: 0; stdout: string; stderr: string }> =>
+            Promise.resolve({ started: true, code: 0, stdout, stderr: "" });
+        const notFound = (): Promise<{ started: true; code: 1; stdout: string; stderr: string }> =>
+            Promise.resolve({ started: true, code: 1, stdout: "", stderr: "gh: Not Found (HTTP 404)\n" });
+
         return {
             calls,
-            run(_command, args, runOptions) {
+            releases,
+            uploaded: () =>
+                calls
+                    .filter((args) => args[0] === "release" && args[1] === "upload")
+                    .map((args) => basename(args[3] ?? "")),
+
+            async run(_command, args, runOptions) {
                 calls.push([...args]);
-                if (args.includes("--version")) {
-                    return Promise.resolve({ started: true, code: 0, stdout: "gh version 2.62.0\n", stderr: "" });
+                if (args.includes("--version")) return await ok("gh version 2.62.0\n");
+                if (args.includes("status")) return await ok("✓ Logged in to github.com account octocat\n");
+
+                if (args[0] === "release" && args[1] === "create") {
+                    const tag = args[2] as string;
+                    if (releases.has(tag)) {
+                        return { started: true, code: 1, stdout: "", stderr: "a release with the same tag name already exists\n" };
+                    }
+                    releases.set(tag, { id: (nextId += 1), tag, assets: new Map() });
+                    return await ok(`https://github.test/release/${tag}\n`);
                 }
-                if (args.includes("status")) {
-                    return Promise.resolve({
-                        started: true,
-                        code: 0,
-                        stdout: "✓ Logged in to github.com account octocat\n",
-                        stderr: "",
-                    });
+                if (args[0] === "release" && args[1] === "upload") {
+                    const release = releases.get(args[2] as string);
+                    if (release === undefined) return await notFound();
+                    const file = args[3] as string;
+                    // The asset lands under the file's own basename, exactly as the real
+                    // `gh release upload` does - which is the constraint the uploader has to
+                    // stage its files to satisfy.
+                    const name = basename(file);
+                    release.assets.set(name, { name, size: (await stat(file)).size, state: "uploaded" });
+                    return await ok();
                 }
-                if (runOptions?.input !== undefined) {
-                    return Promise.resolve({ started: true, code: 0, stdout: "", stderr: "" });
+
+                const tagRead = args.find((arg) => arg.includes("releases/tags/"));
+                if (tagRead !== undefined) {
+                    const release = releases.get(tagRead.slice(tagRead.indexOf("releases/tags/") + 14));
+                    return release === undefined ? await notFound() : await ok(releaseJson(release));
                 }
+
+                if (runOptions?.input !== undefined) return await ok();
                 const body = answerFor(args);
-                return Promise.resolve(
-                    body === null
-                        ? { started: true, code: 1, stdout: "", stderr: "gh: Not Found (HTTP 404)\n" }
-                        : { started: true, code: 0, stdout: body, stderr: "" },
-                );
+                return body === null ? await notFound() : await ok(body);
             },
+
             async runToFile(_command, args, destination) {
                 calls.push([...args]);
                 if (options.artifact === undefined) {
@@ -858,6 +936,60 @@ describe("the gh command-line tool is a real fallback, not an error message", ()
                 await writeFile(destination, bytes);
                 return { started: true, code: 0, bytes: bytes.byteLength, stderr: "" };
             },
+        };
+    }
+
+    /**
+     * The backup surface as a machine with no in-app sign-in actually has it.
+     *
+     * It refuses, because reading a repository over REST needs the token nobody has here.
+     * That is what forces the public/private answer to come from the `gh` route, which is
+     * the thing that has to keep working now that route can publish a world.
+     */
+    function signedOutBackup(): BackupSurface {
+        return {
+            inspectRepository: () =>
+                Promise.reject(new Error("Nobody is signed in to GitHub on this computer.")),
+        };
+    }
+
+    function ghSync(options: {
+        runner: ProcessRunner;
+        github: RecordingGitHub;
+        mounts?: LocalMapHandler;
+        backup?: BackupSurface;
+    }): CiRenderSync {
+        return new CiRenderSync({
+            storageDir: () => join(workDir, "maps"),
+            token: () => null,
+            runner: options.runner,
+            eulaAccepted: () => true,
+            backup: options.backup ?? signedOutBackup(),
+            fetch: options.github.fetch,
+            apiBase: API,
+            uploadsBase: UPLOADS,
+            ...(options.mounts === undefined ? {} : { mounts: options.mounts }),
+            now: () => NOW,
+            sleep: () => Promise.resolve(),
+        });
+    }
+
+    /**
+     * Everything the loop reads up to the dispatch, with the run still queued.
+     *
+     * Queued on purpose: these tests are about the **upload** reaching GitHub over `gh`, so
+     * they stop at `follow: false` rather than going on to download a map. Collecting one is
+     * already covered by the test above.
+     */
+    function loopJson(): Record<string, unknown> {
+        return {
+            "actions/workflows/render-world.yml/runs": {
+                workflow_runs: [runJson({ id: 7, status: "queued" })],
+            },
+            "actions/workflows/render-world.yml": { id: 1, name: "Render world", state: "active", path: "x" },
+            "actions/runs/7/jobs": { jobs: [] },
+            "actions/runs/7": runJson({ id: 7, status: "queued" }),
+            "repos/o/r": repositoryJson({ owner: OWNER, repo: REPO, isPrivate: true }),
         };
     }
 
@@ -899,19 +1031,15 @@ describe("the gh command-line tool is a real fallback, not an error message", ()
         // everything - so a single call through it would fail this test.
         const github = new RecordingGitHub();
         await seedUploadedState({ runId: 7 });
-        const mounts = new LocalMapHandler();
-        const sync = new CiRenderSync({
-            storageDir: () => join(workDir, "maps"),
-            token: () => null,
-            runner,
-            eulaAccepted: () => true,
-            backup: fakeBackup(true).surface,
-            fetch: github.fetch,
-            apiBase: API,
-            mounts,
-            now: () => NOW,
-            sleep: () => Promise.resolve(),
+        // This one keeps the working backup surface so it stays a test about the render
+        // loop; the upload's own route is exercised below.
+        runner.releases.set(RELEASE_TAG, {
+            id: 5,
+            tag: RELEASE_TAG,
+            assets: new Map([[ASSET_NAME, { name: ASSET_NAME, size: 1024, state: "uploaded" }]]),
         });
+        const mounts = new LocalMapHandler();
+        const sync = ghSync({ runner, github, mounts, backup: fakeBackup(true) });
 
         const result = await sync.sync(request());
 
@@ -924,34 +1052,154 @@ describe("the gh command-line tool is a real fallback, not an error message", ()
         expect(runner.calls.some((args) => args.some((arg) => arg.includes("/zip")))).toBe(true);
     });
 
-    it("refuses an upload on the gh route, and names the reason rather than failing in a packer", async () => {
-        const runner = readyGh({
-            json: {
-                "actions/workflows/render-world.yml": { id: 1, name: "Render world", state: "active", path: "x" },
-                "repos/o/r": repositoryJson({ owner: OWNER, repo: REPO, isPrivate: true }),
-            },
-        });
-        const backup = fakeBackup(true);
+    it("publishes a world on gh alone, with no in-app sign-in and no call to the API", async () => {
+        const runner = readyGh({ json: loopJson() });
+        // The API fake answers nothing. A single call through it - to create the release,
+        // to read the repository, to put an asset - would fail this test, which is the
+        // point: one route drives the whole sync, upload included.
+        const github = new RecordingGitHub();
+        const events: CiSyncEvent[] = [];
         const sync = new CiRenderSync({
             storageDir: () => join(workDir, "maps"),
             token: () => null,
             runner,
             eulaAccepted: () => true,
-            backup: backup.surface,
-            fetch: new RecordingGitHub().fetch,
+            backup: signedOutBackup(),
+            fetch: github.fetch,
             apiBase: API,
+            uploadsBase: UPLOADS,
+            onEvent: (event) => events.push(event),
             now: () => NOW,
             sleep: () => Promise.resolve(),
         });
 
-        const result = await sync.sync(request());
+        const result = await sync.sync(request({ follow: false }));
+
+        expect(result.ok).toBe(true);
+        expect(github.calls).toHaveLength(0);
+
+        // One release, and the three assets in the order that makes the pointer a
+        // completion marker: the world, then the sidecar, then the pointer.
+        expect(runner.releases.size).toBe(1);
+        const uploaded = runner.uploaded();
+        expect(uploaded).toHaveLength(3);
+        expect(uploaded[0]).toMatch(/\.zip$/);
+        expect(uploaded[1]).toBe("backup.json");
+        expect(uploaded[2]).toMatch(/\.cheaplfs$/);
+        // `--clobber` is what lets a truncated part be replaced on a later attempt.
+        expect(
+            runner.calls.filter((args) => args[1] === "upload").every((args) => args.includes("--clobber")),
+        ).toBe(true);
+
+        // And the world really did reach the workflow: the dispatch names the release the
+        // upload just made, not a tag from a record.
+        const state = await sync.readState(result.syncId);
+        expect(state?.releaseTag).toBe([...runner.releases.keys()][0]);
+        expect(state?.pendingReleaseTag).toBeNull();
+        expect(events.some((event) => event.type === "progress")).toBe(true);
+    });
+
+    it("resumes onto the release it was already using, and re-sends only what is short", async () => {
+        const runner = readyGh({ json: loopJson() });
+        const github = new RecordingGitHub();
+        const first = await ghSync({ runner, github }).sync(request({ follow: false }));
+        expect(first.ok).toBe(true);
+
+        const tag = [...runner.releases.keys()][0] as string;
+        const release = runner.releases.get(tag) as FakeRelease;
+        const archive = runner.uploaded()[0] as string;
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), first.syncId);
+
+        /*
+         * The record an interrupted upload leaves: the release it was using, and nothing
+         * claiming the world was ever finished. Written by hand because the only way to
+         * produce it otherwise is to kill the process mid-upload.
+         */
+        const interrupted = await readCiSyncState(workspace.stateFile);
+        await writeCiSyncState(workspace.stateFile, {
+            ...(interrupted as NonNullable<typeof interrupted>),
+            fingerprint: null,
+            releaseTag: null,
+            assetName: null,
+            runId: null,
+            pendingReleaseTag: tag,
+            pendingAssetName: archive,
+        });
+
+        // The archive is intact on the release; the sidecar was left half-sent, which is
+        // exactly what a dropped connection produces and what a name-only check would miss.
+        release.assets.set("backup.json", { name: "backup.json", size: 3, state: "uploaded" });
+        runner.calls.length = 0;
+
+        const events: CiSyncEvent[] = [];
+        const resumed = await new CiRenderSync({
+            storageDir: () => join(workDir, "maps"),
+            token: () => null,
+            runner,
+            eulaAccepted: () => true,
+            backup: signedOutBackup(),
+            fetch: github.fetch,
+            apiBase: API,
+            uploadsBase: UPLOADS,
+            onEvent: (event) => events.push(event),
+            now: () => NOW,
+            sleep: () => Promise.resolve(),
+        }).sync(request({ follow: false }));
+
+        expect(resumed.ok).toBe(true);
+        // No second release: it carried on with the one it had.
+        expect(runner.releases.size).toBe(1);
+        expect(runner.calls.some((args) => args[1] === "create")).toBe(false);
+        // The multi-gigabyte archive was skipped on a name-and-size match; the truncated
+        // sidecar was sent again rather than trusted.
+        const again = runner.uploaded();
+        expect(again).not.toContain(archive);
+        expect(again).toContain("backup.json");
+        const said = events.filter((event) => event.type === "log").map((event) => event.message);
+        expect(said.join(" ")).toContain("already on the release at the right size");
+        expect(said.join(" ")).toContain("did not finish sending it");
+        expect(github.calls).toHaveLength(0);
+    });
+
+    it("reads the repository over gh when this application cannot, and still warns about PUBLIC", async () => {
+        const runner = readyGh({
+            json: { ...loopJson(), "repos/o/r": repositoryJson({ owner: OWNER, repo: REPO, isPrivate: false }) },
+        });
+        const github = new RecordingGitHub();
+        const sync = ghSync({ runner, github });
+
+        const refused = await sync.sync(request({ acknowledgePublic: false }));
+
+        expect(refused.ok).toBe(false);
+        if (refused.ok) return;
+        // The world is not published unwarned just because the fuller wording lives behind
+        // a sign-in this machine does not have.
+        expect(refused.failure.code).toBe("public-not-acknowledged");
+        expect(refused.failure.message).toContain("PUBLIC");
+        expect(runner.releases.size).toBe(0);
+
+        const seen = await sync.preflight(request());
+        expect(seen.ok && seen.preflight.repository?.private).toBe(false);
+        // ...and the interface is told the wording came from the fallback rather than from
+        // the backup surface, so it can say which sign-in is missing.
+        expect(seen.ok && seen.preflight.repositoryFailure).toContain("Nobody is signed in");
+    });
+
+    it("refuses when neither credential can even read the repository, and names both remedies", async () => {
+        const runner = readyGh({
+            json: { "actions/workflows/render-world.yml": { id: 1, name: "Render world", state: "active", path: "x" } },
+        });
+        const github = new RecordingGitHub();
+
+        const result = await ghSync({ runner, github }).sync(request());
 
         expect(result.ok).toBe(false);
         if (result.ok) return;
-        expect(result.failure.code).toBe("upload-needs-app-sign-in");
+        expect(result.failure.code).toBe("repository-unreadable");
         expect(result.failure.route).toBe("gh");
-        expect(result.failure.needsSignIn).toBe(true);
-        expect(backup.requests).toHaveLength(0);
+        expect(result.failure.message).toContain("Settings");
+        expect(result.failure.message).toContain("gh auth login");
+        expect(runner.releases.size).toBe(0);
         expect(runner.calls.every((args) => !args.some((arg) => arg.includes("/dispatches")))).toBe(true);
     });
 });

@@ -33,25 +33,26 @@
  * found by its recorded id, its outcome is read, and the map is collected. That is also
  * what makes a retry after a failure cheap.
  *
- * ## Upload progress lives on the backup channel, deliberately
+ * ## The upload runs on whichever credential the sync chose
  *
- * The upload is a backup, run by the one {@link BackupSurface} the application owns, and
- * its byte-by-byte progress is already pushed on `backup:event`. Re-emitting it here would
- * be a second progress stream for one transfer, which is two chances to disagree about how
- * far it has got. The sync's own events name the backup id instead, so a surface can show
- * one bar by following the channel that already has it.
+ * Publishing the world is `upload.ts`, which imports the packer, the splitter, the part
+ * naming and the Cheap LFS pointer from `backup/` unchanged and moves the bytes through the
+ * **transport**. So a machine signed in to `gh` and not to this application can publish a
+ * world as well as render one, and a world published either way is byte-for-byte the same
+ * backup. There is still exactly one packer; what has two implementations is the transfer.
  */
 
 import { CHEAP_LFS_LEGACY_MAXIMUM_PART_SIZE_BYTES, inspectBackupSource } from "../backup/index.js";
-import type { BackupRequest, BackupResult, FetchLike, RepositoryReport } from "../backup/index.js";
+import type { FetchLike, RepositoryReport } from "../backup/index.js";
 import type { ProjectFile, ProjectMap } from "@material-bluemap/config";
 import type { LocalMapHandler } from "../render/LocalMapHandler.js";
 import { ActionsCallError, RENDER_WORKFLOW_FILE } from "./actions.js";
 import type { RunStatus, WorkflowJob, WorkflowRun } from "./actions.js";
-import { nodeProcessRunner } from "./gh.js";
+import { GH_COMMAND, GH_LOGIN_COMMAND, nodeProcessRunner } from "./gh.js";
 import type { ProcessRunner } from "./gh.js";
 import { resolveTransport } from "./transport.js";
-import type { CiRoute, CiTransport, RouteReport } from "./transport.js";
+import type { CiRepositoryFacts, CiRoute, CiTransport, RouteReport } from "./transport.js";
+import { uploadWorldForRender } from "./upload.js";
 import { collectRenderedMap } from "./collect.js";
 import { fingerprintWorld, isUnchanged } from "./fingerprint.js";
 import type { WorldFingerprint } from "./fingerprint.js";
@@ -196,6 +197,23 @@ export type CiSyncEvent =
           readonly message: string;
           readonly at: string;
       }
+    /**
+     * How far the upload has got, in bytes.
+     *
+     * Here rather than on the backup channel, because the CI upload is no longer delegated
+     * to the backup runner and so no longer produces `backup:event`. A world is measured in
+     * gigabytes and a domestic connection in hours: a phase label with no number beside it
+     * is indistinguishable from a hang for most of an afternoon.
+     */
+    | {
+          readonly type: "progress";
+          readonly syncId: string;
+          readonly phase: CiSyncPhase;
+          readonly description: string;
+          readonly bytesDone: number;
+          readonly bytesTotal: number;
+          readonly at: string;
+      }
     | { readonly type: "run"; readonly syncId: string; readonly run: CiRunReport; readonly at: string }
     | {
           readonly type: "finished";
@@ -267,13 +285,19 @@ export type CiSyncResult =
 export interface CiPreflight {
     readonly syncId: string;
     /**
-     * The repository and what publishing to it would mean, from the backup surface.
+     * The repository and what publishing to it would mean.
      *
-     * Null when the application's own sign-in could not read it - which is the ordinary
-     * case for somebody driving a render entirely through `gh`. `repositoryFailure` says
-     * why, and nothing invents a public/private answer in its place.
+     * From the backup surface when this application's own sign-in can read it, and from the
+     * chosen route's own reading when it cannot - so somebody driving a render entirely
+     * through `gh` still gets the public/private answer before their world moves. Null only
+     * when *neither* credential could read it, in which case nothing invents one.
      */
     readonly repository: RepositoryReport | null;
+    /**
+     * Why this application's own sign-in could not describe the repository, when it could
+     * not. Non-null with a non-null `repository` means the wording above came from the
+     * fallback rather than from the backup surface.
+     */
     readonly repositoryFailure: string | null;
     /**
      * Which credential would drive this sync, and why the other one would not.
@@ -306,17 +330,18 @@ export interface CiPreflight {
 }
 
 /**
- * The parts of the backup runner a CI render uses.
+ * The one thing a CI render still asks of the backup runner: describe a repository.
  *
- * An interface rather than the class, so this module cannot reach for anything else on it
- * and a test can stand one up in six lines. `BackupRunner` satisfies it structurally, and
- * the application passes the one instance it already owns - which is what keeps a single
- * upload with a single progress stream rather than two runners racing for one release tag.
+ * Narrowed on purpose. It used to carry `backup` as well, because the upload was delegated
+ * to the runner wholesale and could therefore only happen on the credential that runner
+ * holds. The upload is now `upload.ts` - the same packer, driven through whichever
+ * transport the sync chose - so what is left here is the **wording** of the
+ * public-repository warning, which is written once in `backup/` and must not be written
+ * twice. `BackupRunner` satisfies this structurally, and a test can stand one up in three
+ * lines.
  */
 export interface BackupSurface {
     inspectRepository(owner: string, repo: string): Promise<RepositoryReport>;
-    backup(request: BackupRequest): Promise<BackupResult>;
-    cancel(backupId: string): boolean;
 }
 
 export interface CiRenderSyncOptions {
@@ -351,6 +376,8 @@ export interface CiRenderSyncOptions {
     readonly onEvent?: ((event: CiSyncEvent) => void) | undefined;
     readonly appVersion?: string | null | undefined;
     readonly apiBase?: string | undefined;
+    /** Where release assets are PUT. Overridable so a test never uploads to GitHub. */
+    readonly uploadsBase?: string | undefined;
     readonly workflowFile?: string | undefined;
     readonly now?: (() => number) | undefined;
     /** Overridable so a test does not wait. Defaults to a real timer. */
@@ -430,17 +457,16 @@ export class CiRenderSync {
         // finding that out is the whole point of resolving a route before anything else.
         const resolved = await this.#resolveRoute(owner, repo, request);
 
-        // The public/private warning comes from the backup surface and needs the
-        // application's own sign-in. When there is none, that is reported as a gap rather
-        // than invented from somewhere else: one description of what "PUBLIC" means, in
-        // one place, is worth more than a second one that could drift from it.
-        let repository: RepositoryReport | null = null;
-        let repositoryFailure: string | null = null;
-        try {
-            repository = await this.#options.backup.inspectRepository(owner, repo);
-        } catch (error) {
-            repositoryFailure = error instanceof Error ? error.message : String(error);
-        }
+        // The PUBLIC warning is the backup surface's wording when this application's own
+        // sign-in can read the repository, and the chosen route's facts when it cannot.
+        // Either way it has to arrive *before* the button, because a warning that arrives
+        // after the upload is not a warning.
+        const described =
+            resolved.transport === null
+                ? { report: null, appFailure: null, routeFailure: null }
+                : await this.#describeRepository(resolved.transport, owner, repo);
+        const repository = described.report;
+        const repositoryFailure = described.appFailure;
 
         const project = await readProjectAt(request.worldFolder);
         let plan: CiRenderPlan | null = null;
@@ -539,8 +565,54 @@ export class CiRenderSync {
             runner: this.#options.runner ?? nodeProcessRunner(),
             ...(signal === undefined ? {} : { signal }),
             ...(this.#options.apiBase === undefined ? {} : { apiBase: this.#options.apiBase }),
+            ...(this.#options.uploadsBase === undefined ? {} : { uploadsBase: this.#options.uploadsBase }),
             ...(request.route === undefined ? {} : { prefer: request.route }),
         });
+    }
+
+    /**
+     * What the repository is, and in whose words.
+     *
+     * Two sources, in a deliberate order. The backup surface is asked first because it is
+     * where the PUBLIC warning is *worded*, and one description of what publishing to a
+     * public repository means is worth more than a second one that could drift from it.
+     * That reading needs this application's own sign-in, which somebody driving a render
+     * entirely through `gh` does not have - so the transport is asked second, and the
+     * warning is then written here from the facts it returned.
+     *
+     * The fallback wording is short on purpose. It is not a copy of the backup surface's
+     * paragraph competing with it for authority; it is the minimum a person needs to
+     * decide, in the one case where the fuller text is genuinely unavailable. Leaving the
+     * warning out instead - which is what this used to do, by refusing the upload outright -
+     * is no longer an option now that the `gh` route can publish.
+     */
+    async #describeRepository(
+        transport: CiTransport,
+        owner: string,
+        repo: string,
+    ): Promise<{
+        report: RepositoryReport | null;
+        /** Why the application's own sign-in could not describe it, when it could not. */
+        appFailure: string | null;
+        /** Why the chosen route could not either, when it could not. */
+        routeFailure: string | null;
+    }> {
+        try {
+            return { report: await this.#options.backup.inspectRepository(owner, repo), appFailure: null, routeFailure: null };
+        } catch (error) {
+            const appFailure = error instanceof Error ? error.message : String(error);
+            let facts: CiRepositoryFacts;
+            try {
+                facts = await transport.readRepository(owner, repo);
+            } catch (second) {
+                return {
+                    report: null,
+                    appFailure,
+                    routeFailure: second instanceof Error ? second.message : String(second),
+                };
+            }
+            return { report: reportFrom(facts), appFailure, routeFailure: null };
+        }
     }
 
     /* ---------------------------------------------------------------------- */
@@ -738,19 +810,28 @@ export class CiRenderSync {
 
         this.#phase(syncId, "checking");
 
-        // The application's own sign-in is what can read a repository's visibility, and
-        // what the PUBLIC warning is worded by. A `gh`-only machine has no such reading,
-        // which is survivable *only* because a `gh`-only machine also cannot upload: the
-        // guard below refuses an upload outright, so nothing is published unwarned.
-        let repository: RepositoryReport | null = null;
-        let repositoryFailure: string | null = null;
-        try {
-            repository = await this.#options.backup.inspectRepository(owner, repo);
-        } catch (error) {
-            repositoryFailure = error instanceof Error ? error.message : String(error);
+        // Read by the credential that is about to publish, not by whichever one happens to
+        // be signed in. Nothing is uploaded until this says whether the repository is
+        // public, because a warning that cannot be given is a world published unwarned.
+        const described = await this.#describeRepository(transport, owner, repo);
+        const repository = described.report;
+        const repositoryFailure = described.appFailure;
+
+        if (repository === null) {
+            return this.#failed(
+                syncId,
+                failure(
+                    "repository-unreadable",
+                    `Neither GitHub sign-in on this computer could read ${owner}/${repo}, so whether it ` +
+                        "is public could not be established and nothing was uploaded or started. Sign in " +
+                        `to GitHub in Settings, or run \`${GH_LOGIN_COMMAND}\` in a terminal, and try ` +
+                        `again.${described.routeFailure === null ? "" : ` (${described.routeFailure})`}`,
+                    { route, needsSignIn: true, detail: repositoryFailure },
+                ),
+            );
         }
 
-        if (repository !== null && !repository.canWrite) {
+        if (!repository.canWrite) {
             return this.#failed(
                 syncId,
                 failure(
@@ -762,7 +843,7 @@ export class CiRenderSync {
             );
         }
 
-        if (repository !== null && !repository.private && context.request.acknowledgePublic !== true) {
+        if (!repository.private && context.request.acknowledgePublic !== true) {
             return this.#failed(
                 syncId,
                 failure(
@@ -820,22 +901,26 @@ export class CiRenderSync {
                     "uploaded again.",
             );
         } else {
-            // The upload is the backup surface, which speaks to GitHub with the
-            // application's own sign-in. `gh` cannot stand in for it without becoming a
-            // second uploader with its own release rules, so this refuses with the real
-            // reason rather than failing somewhere inside a packer.
-            if (!transport.canUpload || repository === null) {
+            /*
+             * The one surviving "this route cannot publish" refusal.
+             *
+             * Both shipped routes can, so this is unreachable today - and it stays, because
+             * "can start a render" and "can publish a world" are genuinely two capabilities
+             * and a route that only has the first must say so here rather than failing
+             * somewhere inside a packer. It names both remedies, because a machine has two
+             * GitHub sign-ins and only the person knows which of them they can fix.
+             */
+            if (!transport.canUpload) {
                 return this.#failed(
                     syncId,
                     failure(
-                        "upload-needs-app-sign-in",
-                        "This world has to be uploaded before GitHub can render it, and an upload " +
-                            "goes through this application's own GitHub sign-in - the same machinery " +
-                            "that makes a backup, with its checksummed parts and its release rules. " +
-                            `The ${transport.route === "gh" ? "gh command-line tool" : "current route"} ` +
-                            "can start and follow a render, but not publish a world. Sign in to GitHub " +
-                            "in Settings and try again; a world that is already published renders " +
-                            `without this step.${repositoryFailure === null ? "" : ` (${repositoryFailure})`}`,
+                        "upload-route-cannot-publish",
+                        "This world has to be uploaded before GitHub can render it, and the credential " +
+                            `driving this sync - ${transport.describe} - can start and follow a render ` +
+                            "but not publish a world. Sign in to GitHub in Settings, or run " +
+                            `\`${GH_LOGIN_COMMAND}\` in a terminal so the ${GH_COMMAND} route can be ` +
+                            "used, and try again. A world that is already published renders without " +
+                            `this step.${repositoryFailure === null ? "" : ` (${repositoryFailure})`}`,
                         { route, needsSignIn: true },
                     ),
                 );
@@ -867,17 +952,66 @@ export class CiRenderSync {
             }
 
             this.#phase(syncId, "uploading");
-            const backupRequest: BackupRequest = {
-                kind: "world",
-                folder: context.request.worldFolder,
+
+            /*
+             * A resumed upload, when the record says one was in flight.
+             *
+             * Both halves of the earlier attempt's identity or neither: the tag names the
+             * release its parts are on and the archive name names the staged file and every
+             * asset derived from it. Passing one without the other would resume onto the
+             * right release with a differently named archive and send the whole world again.
+             */
+            const resume =
+                state.pendingReleaseTag !== null && state.pendingAssetName !== null
+                    ? { tag: state.pendingReleaseTag, archiveName: state.pendingAssetName }
+                    : undefined;
+            if (resume !== undefined) {
+                this.#log(
+                    syncId,
+                    "info",
+                    `An upload to ${resume.tag} was interrupted; carrying on with it rather than ` +
+                        "starting a second one. Anything already on that release is skipped.",
+                );
+            }
+
+            const result = await uploadWorldForRender({
+                transport,
                 owner,
                 repo,
+                worldFolder: context.request.worldFolder,
+                storageDir: this.#options.storageDir(),
                 partSize: CI_UPLOAD_PART_SIZE_BYTES,
-                ...(context.request.acknowledgePublic === undefined
-                    ? {}
-                    : { acknowledgePublic: context.request.acknowledgePublic }),
-            };
-            const result = await this.#options.backup.backup(backupRequest);
+                ...(resume === undefined ? {} : { resume }),
+                ...(this.#options.appVersion === undefined ? {} : { appVersion: this.#options.appVersion }),
+                at: new Date(this.#clock()),
+                signal,
+                onEvent: (event) => {
+                    if (event.type === "log") this.#log(syncId, "info", event.message);
+                    else if (event.type === "progress") {
+                        this.emit({
+                            type: "progress",
+                            syncId,
+                            phase: "uploading",
+                            description: event.description,
+                            bytesDone: event.bytesDone,
+                            bytesTotal: event.bytesTotal,
+                            at: this.#timestamp(),
+                        });
+                    } else {
+                        // Recorded the moment the release exists and *before* any byte is
+                        // sent. A tag written down on success is a tag written down exactly
+                        // when it is no longer any use for resuming.
+                        state = {
+                            ...state,
+                            pendingReleaseTag: event.tag,
+                            pendingAssetName: event.archiveName,
+                            updatedAt: this.#timestamp(),
+                        };
+                        void this.#save(workspace.stateFile, state);
+                    }
+                },
+            });
+
             if (!result.ok) {
                 state = {
                     ...state,
@@ -922,6 +1056,11 @@ export class CiRenderSync {
                 fingerprint: fresh.digest,
                 releaseTag: result.summary.tag,
                 assetName: result.summary.archive,
+                // Cleared together with the durable pair being set: there is no upload in
+                // flight any more, and leaving these behind would have the next changed
+                // world resume onto a release that already holds a different world.
+                pendingReleaseTag: null,
+                pendingAssetName: null,
                 archiveBytes: result.summary.bytes,
                 archiveSha256: result.summary.sha256,
                 stage: "uploaded",
@@ -1306,6 +1445,40 @@ function uploadConsentMessage(repository: string, bytes: number): string {
         "asset, so that GitHub's runners can render it. Nothing was uploaded: confirm that you " +
         "mean to send it."
     );
+}
+
+/**
+ * A repository report built from the chosen route's own reading of GitHub.
+ *
+ * Used only when this application's sign-in could not describe the repository, so the
+ * backup surface's fuller wording is unavailable. The facts are GitHub's; the sentence is
+ * as short as it can be while still saying the thing somebody has to decide on, because a
+ * second long paragraph about what PUBLIC means would compete with the authoritative one.
+ */
+function reportFrom(facts: CiRepositoryFacts): RepositoryReport {
+    return {
+        owner: facts.owner,
+        repo: facts.repo,
+        fullName: facts.fullName,
+        private: facts.private,
+        canWrite: facts.canWrite,
+        htmlUrl: facts.htmlUrl,
+        warning: facts.private
+            ? {
+                  level: "note",
+                  message:
+                      "This repository is private, so the upload will not be public. Releases on a" +
+                      " private repository still count against the account's storage, so this is cheap" +
+                      " rather than free.",
+              }
+            : {
+                  level: "warning",
+                  message:
+                      "This repository is PUBLIC. Anything uploaded to it can be downloaded by anybody," +
+                      " with no account and no link from you, and a Minecraft world carries your builds," +
+                      " your coordinates and whatever anyone left in a chest.",
+              },
+    };
 }
 
 function estimateArchiveBytes(sourceBytes: number, files: number): number {

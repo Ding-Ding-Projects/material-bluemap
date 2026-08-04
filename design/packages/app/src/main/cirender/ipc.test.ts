@@ -105,27 +105,15 @@ function report(isPrivate: boolean): RepositoryReport {
     };
 }
 
-function backupSurface(isPrivate: boolean): BackupSurface & { requests: unknown[] } {
-    const requests: unknown[] = [];
-    return {
-        requests,
-        inspectRepository: () => Promise.resolve(report(isPrivate)),
-        backup: (request) => {
-            requests.push(request);
-            return Promise.resolve({
-                ok: false as const,
-                backupId: "b",
-                failure: {
-                    code: "test",
-                    message: "the test never lets an upload happen",
-                    detail: null,
-                    status: null,
-                    needsSignIn: false,
-                },
-            });
-        },
-        cancel: () => false,
-    };
+/**
+ * The backup surface, which is now only asked to *word* the public-repository warning.
+ *
+ * The upload itself no longer goes through it - it goes through whichever transport the
+ * sync chose - so "was anything uploaded?" is asserted against the recording API fake
+ * instead, which is where a release would actually have been created.
+ */
+function backupSurface(isPrivate: boolean): BackupSurface {
+    return { inspectRepository: () => Promise.resolve(report(isPrivate)) };
 }
 
 function install(options: { token?: string | null; isPrivate?: boolean; github?: RecordingGitHub } = {}) {
@@ -209,7 +197,7 @@ describe("what crosses", () => {
     });
 
     it("reads an acknowledgement as consent only when it is exactly true", async () => {
-        const { ipcMain, backup, github } = install({ isPrivate: false });
+        const { ipcMain, github } = install({ isPrivate: false });
         const result = (await (ipcMain.handlers.get("cirender:start") as Handler)(noEvent, {
             worldFolder: world,
             owner: OWNER,
@@ -221,7 +209,9 @@ describe("what crosses", () => {
 
         expect(result.ok).toBe(false);
         expect(result.failure.code).toBe("public-not-acknowledged");
-        expect(backup.requests).toHaveLength(0);
+        // Nothing was published and nothing was started: a release is the first write an
+        // upload makes, so its absence is the proof that no world left the machine.
+        expect(github.never("/releases")).toBe(true);
         expect(github.never("/dispatches")).toBe(true);
     });
 });

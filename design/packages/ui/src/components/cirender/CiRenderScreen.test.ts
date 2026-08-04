@@ -62,7 +62,9 @@ function routeReport(overrides: Partial<RouteReport> = {}): RouteReport {
         describe: "Using the GitHub sign-in in this application (octocat).",
         session: { signedIn: true, usable: true, reason: null },
         gh: {
-            availability: "not-installed",
+            // Not probed, because the in-app sign-in worked. Distinct from "not installed",
+            // which is what the surface must not claim about software it never looked for.
+            availability: "not-checked",
             version: null,
             account: null,
             host: null,
@@ -262,6 +264,105 @@ describe("which credential is in play is on screen before the button", () => {
         );
         await check(wrapper);
         expect(wrapper.find('[data-test="route"]').text()).toContain("gh command-line tool");
+    });
+
+    it("says nothing about gh when it was never probed, rather than calling it missing", async () => {
+        const wrapper = mountScreen(fakeBridge(preflight()));
+        await check(wrapper);
+        // The in-app sign-in worked, so `gh` was deliberately not looked for. Reporting
+        // that as "not installed" would tell somebody to install software they may have.
+        expect(wrapper.find('[data-test="route-gh"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="route-aside"]').exists()).toBe(false);
+    });
+
+    it.each([
+        [
+            "not-installed" as const,
+            null,
+            "is not on this computer",
+            "Install it from cli.github.com",
+        ],
+        ["signed-out" as const, null, "nobody is signed in to it", "gh auth login"],
+        ["ready" as const, "ghuser", "signed in as ghuser", "github.com"],
+    ])("keeps the gh state %s distinct, because the remedies differ", async (availability, account, said, remedy) => {
+        const wrapper = mountScreen(
+            fakeBridge(
+                preflight({
+                    routeReport: routeReport({
+                        route: availability === "ready" ? "gh" : "session",
+                        gh: {
+                            availability,
+                            version: null,
+                            account,
+                            host: "github.com",
+                            message: "",
+                            usable: availability === "ready",
+                            reason: null,
+                        },
+                    }),
+                    uploadNeeded: false,
+                    worldChanged: false,
+                }),
+            ),
+        );
+        await check(wrapper);
+
+        const text = wrapper.find('[data-test="route-gh"]').text();
+        expect(text).toContain(said);
+        expect(text).toContain(remedy);
+    });
+
+    it("says why the other sign-in was passed over, so a denial is actionable", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(
+                preflight({
+                    routeReport: routeReport({
+                        route: "gh",
+                        describe: "Using the gh command-line tool (ghuser).",
+                        session: { signedIn: true, usable: false, reason: "GitHub answered 403" },
+                        gh: {
+                            availability: "ready",
+                            version: null,
+                            account: "ghuser",
+                            host: "github.com",
+                            message: "",
+                            usable: true,
+                            reason: null,
+                        },
+                    }),
+                    uploadNeeded: false,
+                    worldChanged: false,
+                }),
+            ),
+        );
+        await check(wrapper);
+        expect(wrapper.find('[data-test="route-aside"]').text()).toContain("403");
+    });
+
+    it("lets a gh-only machine upload, and only blocks when neither route can publish", async () => {
+        const canPublish = mountScreen(
+            fakeBridge(
+                preflight({
+                    routeReport: routeReport({
+                        route: "gh",
+                        describe: "Using the gh command-line tool (ghuser).",
+                        canUpload: true,
+                    }),
+                }),
+            ),
+        );
+        await check(canPublish);
+        // The only thing left in the way is the consent, not the credential.
+        expect(canPublish.find('[data-test="blocked"]').text()).toContain("uploaded to GitHub");
+
+        const cannot = mountScreen(
+            fakeBridge(preflight({ routeReport: routeReport({ route: "gh", canUpload: false }) })),
+        );
+        await check(cannot);
+        const blocked = cannot.find('[data-test="blocked"]').text();
+        // Both remedies, because only the person knows which sign-in they can fix.
+        expect(blocked).toContain("Settings");
+        expect(blocked).toContain("gh auth login");
     });
 
     it("blocks with the reason when neither credential can drive it", async () => {

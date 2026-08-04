@@ -67,6 +67,22 @@ export interface CiSyncState {
     readonly fingerprint: string | null;
     readonly releaseTag: string | null;
     readonly assetName: string | null;
+
+    /**
+     * The release and archive an upload **in progress** was using, so it can be resumed.
+     *
+     * Written the moment the release exists and before a byte is sent, which is the only
+     * moment that helps: an upload interrupted after four hours has to be able to find the
+     * parts it already put up, and a tag recorded on success is a tag recorded exactly when
+     * it is no longer needed.
+     *
+     * Deliberately **not** {@link releaseTag}, which means "the world that was successfully
+     * uploaded". A half-finished upload writing into that field is the failure the record
+     * writer already warns about - a release tag with no fingerprint beside it reads as
+     * "already uploaded" and would dispatch a run against an incomplete release.
+     */
+    readonly pendingReleaseTag: string | null;
+    readonly pendingAssetName: string | null;
     readonly archiveBytes: number | null;
     /** The archive's own SHA-256, from the backup that produced it. */
     readonly archiveSha256: string | null;
@@ -167,6 +183,8 @@ export function newCiSyncState(input: NewStateInput): CiSyncState {
         fingerprint: null,
         releaseTag: null,
         assetName: null,
+        pendingReleaseTag: null,
+        pendingAssetName: null,
         archiveBytes: null,
         archiveSha256: null,
         runId: null,
@@ -249,6 +267,10 @@ export async function readCiSyncState(path: string): Promise<CiSyncState | null>
         fingerprint: str(parsed["fingerprint"]),
         releaseTag: str(parsed["releaseTag"]),
         assetName: str(parsed["assetName"]),
+        // Absent in records written before uploads were resumable. Reading them as null is
+        // correct rather than lenient: no pending upload is exactly what those records mean.
+        pendingReleaseTag: str(parsed["pendingReleaseTag"]),
+        pendingAssetName: str(parsed["pendingAssetName"]),
         archiveBytes: num(parsed["archiveBytes"]),
         archiveSha256: str(parsed["archiveSha256"]),
         runId: num(parsed["runId"]),

@@ -52,6 +52,15 @@ export interface CiLogLine {
     readonly at: string;
 }
 
+/** The upload's own byte count, so an hours-long transfer is not a bare spinner. */
+export interface CiTransferProgress {
+    readonly description: string;
+    readonly bytesDone: number;
+    readonly bytesTotal: number;
+    /** 0 to 100. An estimate of the transfer only; the byte counts beside it are exact. */
+    readonly percent: number;
+}
+
 export interface CiRow {
     readonly syncId: string;
     readonly repository: string;
@@ -59,6 +68,8 @@ export interface CiRow {
     readonly worldFolder: string;
     readonly state: CiRowState;
     readonly phase: CiSyncPhase | null;
+    /** Null until the upload says something, and cleared once the run is in flight. */
+    readonly transfer: CiTransferProgress | null;
     readonly run: CiRunReport | null;
     readonly summary: CiSyncSummary | null;
     readonly failure: CiSyncFailure | null;
@@ -87,6 +98,7 @@ function blankRow(syncId: string): CiRow {
         worldFolder: "",
         state: "running",
         phase: null,
+        transfer: null,
         run: null,
         summary: null,
         failure: null,
@@ -284,6 +296,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                     worldFolder: event.worldFolder,
                     state: "running",
                     phase: null,
+                    transfer: null,
                     run: null,
                     summary: null,
                     failure: null,
@@ -295,13 +308,36 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 });
                 break;
             case "phase":
-                put({ ...row, phase: event.phase, live: true });
+                // The transfer's bar is cleared the moment the sync moves past uploading.
+                // Leaving a finished upload's bar beside "GitHub is rendering" would read
+                // as a render that is 100% done rather than one that has just started.
+                put({
+                    ...row,
+                    phase: event.phase,
+                    transfer: event.phase === "uploading" ? row.transfer : null,
+                    live: true,
+                });
                 break;
             case "log":
                 put({ ...row, log: append(row, event.level, event.message, event.at), live: true });
                 break;
+            case "progress":
+                put({
+                    ...row,
+                    transfer: {
+                        description: event.description,
+                        bytesDone: event.bytesDone,
+                        bytesTotal: event.bytesTotal,
+                        percent:
+                            event.bytesTotal <= 0
+                                ? 0
+                                : Math.min(100, (event.bytesDone / event.bytesTotal) * 100),
+                    },
+                    live: true,
+                });
+                break;
             case "run":
-                put({ ...row, run: event.run, state: "running", live: true });
+                put({ ...row, run: event.run, state: "running", transfer: null, live: true });
                 break;
             case "finished":
                 put({

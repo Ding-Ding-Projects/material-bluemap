@@ -82,6 +82,8 @@ export interface CiRenderIpcOptions {
     readonly fetch?: FetchLike | undefined;
     readonly appVersion?: string | null | undefined;
     readonly apiBase?: string | undefined;
+    /** Where release assets are PUT. Overridable so a test never uploads to GitHub. */
+    readonly uploadsBase?: string | undefined;
     readonly pollIntervalMs?: number | undefined;
     readonly runLookupAttempts?: number | undefined;
     readonly sleep?: ((ms: number, signal?: AbortSignal) => Promise<void>) | undefined;
@@ -108,6 +110,7 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
         ...(options.appVersion === undefined ? {} : { appVersion: options.appVersion }),
         ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
+        ...(options.uploadsBase === undefined ? {} : { uploadsBase: options.uploadsBase }),
         ...(options.pollIntervalMs === undefined ? {} : { pollIntervalMs: options.pollIntervalMs }),
         ...(options.runLookupAttempts === undefined
             ? {}
