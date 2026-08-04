@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "7c07514aba98258c0d774eae2c63623d1ee86651",
+        shortSha: "7c07514aba",
+        date: "2026-08-04T15:26:46-04:00",
+        subject: "Complete CI render project-map fixtures",
+        details: "The CI render planner now gets the explicit empty world value its ProjectMap type requires, so the fresh workspace typecheck agrees with the runtime contract instead of arguing over an optional ghost.\n\nCI render planner 而家補返 ProjectMap 要求嘅空 world 值，workspace typecheck 同 runtime contract 終於唔再為 optional 幽靈拗交。",
+        category: "shell",
+        areas: ["shell"],
+        files: 1,
+    },
+    {
         sha: "ab2ae1ee0213ac83af5d5e2355c0275690f22011",
         shortSha: "ab2ae1ee02",
         date: "2026-08-04T15:23:46-04:00",
