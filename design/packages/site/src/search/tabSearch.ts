@@ -249,6 +249,13 @@ export function createBulkCloseAction(options: BulkCloseActionOptions): BulkClos
     });
     runButton.disabled = true;
 
+    // `createSearchField` synchronises its persisted snapshot immediately and may call
+    // `onChange` before it returns. Declare the timer before constructing that field; a
+    // field restored with a non-empty query otherwise trips the temporal-dead-zone and
+    // makes the entire discovery page fail to boot.
+    let sequence = 0;
+    let debounce: ReturnType<typeof setTimeout> | null = null;
+
     const includePinnedId = uniqueId("mbm-include-pinned");
     const includePinnedInput = el("input", {
         class: "mbm-check__input",
@@ -291,8 +298,6 @@ export function createBulkCloseAction(options: BulkCloseActionOptions): BulkClos
         el("div", { class: "mbm-actions", children: [runButton] }),
     );
 
-    let sequence = 0;
-    let debounce: ReturnType<typeof setTimeout> | null = null;
     let plannedIds: readonly string[] = [];
     let plannedPinned: readonly SearchableTab[] = [];
 

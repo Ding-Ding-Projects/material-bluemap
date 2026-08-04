@@ -9,7 +9,7 @@ export const contractAppearanceEditors: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "The machinery is shipped and documented separately: the anchored non-modal editor, the continuous colour picker with its eleven-notation translator, the word-processor-depth typography editor, layered records, per-property reset, presets and theme export and import. It is wrapped around four elements today, which is a long way from the every element this contract requires, and tabs and tab groups are among the ones it does not reach. Partial credit does not apply, so this stays specified. Tracked as issue 8.",
+        "The machinery is shipped and documented separately: the anchored non-modal editor, the continuous colour picker with its eleven-notation translator, the word-processor-depth typography editor, layered records, per-property reset, presets and theme export and import. The Pages decorator now registers every rendered HTMLElement, including prose, headings, disclosure summaries, table cells and links; the desktop application still reaches four elements, and its tabs and groups remain a separate gap. Partial credit does not apply to the cross-surface contract, so this stays specified. Tracked as issue 8.",
 
     sections: [
         {
@@ -177,7 +177,7 @@ export const contractAppearanceEditors: Article = {
     suggested: [
         {
             articleId: "appearance-editor",
-            reason: "What is actually built against this contract, and the four elements it reaches.",
+            reason: "What is actually built against this contract, including complete Pages-element registration and the smaller desktop-app surface.",
         },
         {
             articleId: "contract-tab-navigation",

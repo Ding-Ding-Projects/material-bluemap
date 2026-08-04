@@ -66,6 +66,7 @@ import { ThemeController } from "./theme/ThemeController.js";
 import { createCommandPalette, type PaletteCommand } from "./shell/commandPalette.js";
 import { articlePaletteCommands } from "./shell/articleCommands.js";
 import { registerAppearanceTarget } from "./appearance/editor/contextMenu.js";
+import { appearanceElements } from "./appearance/editor/coverage.js";
 import { setSearchLocale } from "./search/strings.js";
 import { createSearchSurface } from "./search/searchSurface.js";
 import type { CandidateField } from "./search/runSearch.js";
@@ -810,12 +811,12 @@ function boot(): void {
 function decoratePage(host: HTMLElement, pageId: string, appearance: AppearanceController): void {
     const target = host.firstElementChild;
     if (!(target instanceof HTMLElement)) return;
-    const candidates = [
-        target,
-        ...target.querySelectorAll<HTMLElement>(
-            "section, article, header, figure, table, .mbm-surface, .mb-discovery-card, .mb-changelog-entry, .mb-command-palette__card, button, input, select, textarea, a",
-        ),
-    ];
+    // Do not reduce the appearance contract to the handful of elements that happen to look
+    // like cards today. Every rendered element owns a surface, typeface, spacing, and state;
+    // the shared traversal keeps headings, prose, summaries, table cells, and links editable
+    // as well as controls. The registration is idempotent for elements already decorated by
+    // a feature-specific editor (tabs, settings and the palette).
+    const candidates = appearanceElements(target);
     candidates.forEach((element, index) => {
         if (element.dataset.mbKind !== undefined) return;
         const readable = element.getAttribute("aria-label") ?? element.textContent?.trim().replace(/\s+/g, " ").slice(0, 72);

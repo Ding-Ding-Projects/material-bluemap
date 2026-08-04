@@ -4,8 +4,11 @@
 
 The Pages shell uses browser-style tabs. The `Search` tab mounts independent search surfaces for
 documentation articles, settings options, the current tab strip (including overflow), each tab
-group, group names, and every open tab. Both bulk-close directions are present and share the same
-field-level matcher, with pinned tabs excluded by default and a reviewable preview before close.
+group, group names, and every open tab. Group surfaces are derived from the persisted group list:
+creating, renaming, or removing a group rebuilds only that group's search controls, so a new
+group never borrows another field's query or regex state. Both bulk-close directions are present
+and share the same field-level matcher, with pinned tabs excluded by default and a reviewable
+preview before close.
 
 ## Configuration
 
@@ -23,8 +26,9 @@ claiming they closed. Only visible labels/titles are searched; hidden metadata i
 ## Verification
 
 `pnpm --filter @material-bluemap/site typecheck`, the site Vitest suite, and the Vite production
-build pass in the Pages rewrite worktree. Runtime browser capture remains a separate evidence
-boundary.
+build pass in the Pages rewrite worktree. The discovery regression test mutates the group list and
+proves that the independent group fields appear and disappear with it. Runtime browser capture
+remains a separate evidence boundary.
 
 ## Suggested articles
 

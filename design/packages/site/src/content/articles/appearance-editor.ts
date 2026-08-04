@@ -9,7 +9,7 @@ export const appearanceEditor: Article = {
     category: "application",
     status: "shipped",
     statusNote:
-        "The feature is on the default branch with nine test files running in CI, two of them mounting the real components. It is wrapped around four things today: the window title bar, the tab bar, each server profile row, and the editor's own chrome. The contract asks for every rendered element, so this is the machinery shipped rather than the contract met.",
+        "The feature is on the default branch with nine test files running in CI, two of them mounting the real components. The desktop application currently wraps four things: the window title bar, the tab bar, each server profile row, and the editor's own chrome. The Pages surface now walks and registers every rendered HTMLElement, so its prose, headings, summaries, table cells, links and controls all have the same entry point. The cross-surface contract still asks the desktop application for that same coverage, so this is the machinery shipped rather than the contract met.",
 
     sections: [
         {

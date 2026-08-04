@@ -9,8 +9,10 @@ browser reports the modifier. The editor returns focus to the tab or group that 
 
 The editor is the existing Material 3 appearance surface: per-instance typography, colour,
 spacing, shape, state and reset controls are stored under stable `tab#<id>` and
-`tab-group#<id>` style ids. The tab label remains the accessible name even when a custom style
-compresses the visual treatment.
+`tab-group#<id>` style ids. The shell's page decorator walks every rendered HTMLElement, not just
+cards and buttons, so headings, prose, disclosure summaries, table cells, links and the editor's
+own controls also receive the same appearance entry point. The tab label remains the accessible
+name even when a custom style compresses the visual treatment.
 
 ## Configuration
 
@@ -38,6 +40,8 @@ are preserved for round-trip export, and the editor has no network or analytics 
 ## Verification
 
 - `pnpm --filter @material-bluemap/site typecheck` — passed.
+- Appearance target traversal test — passed (every rendered element is included; script/style/
+  template plumbing is excluded).
 - `pnpm lint` — passed.
 - `pnpm --filter @material-bluemap/site exec vitest run` — 127 tests passed across 13 files.
 - Hosted CI run `30890865475` — screenshot suite and all build/test jobs passed.

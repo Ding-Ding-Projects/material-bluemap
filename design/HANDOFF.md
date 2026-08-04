@@ -1,5 +1,24 @@
 # Handoff
 
+## Update, 2026-08-04 — every rendered Pages element and live group discovery
+
+The clean `pages-material3-full-continuation` Gerk Tong Hui starts from `origin/main` at
+`0a99147`, while the main checkout's concurrent history/config work remains untouched. This
+checkpoint adds two Pages-only contract fixes:
+
+- `decoratePage` now walks every rendered HTMLElement through
+  `packages/site/src/appearance/editor/coverage.ts`, so prose, headings, disclosure summaries,
+  table cells, links and controls all receive the same Material 3 appearance context menu and
+  anchored editor. Script/style/template plumbing is excluded because it has no user-facing
+  appearance.
+- The discovery tab now rebuilds only the per-group search surfaces when the persisted group
+  list changes. Each new group receives its own anchored regex builder and independent query;
+  removed groups destroy their field listeners instead of leaving orphaned searches behind.
+
+The new regression coverage is `coverage.test.ts` and `discoveryView.test.ts`. Focused verification
+currently passes **2 tests** and site typecheck passes. The full suite/build and hosted Pages proof
+remain outstanding for this continuation.
+
 ## Update, 2026-08-04 midday — config controls, a history per folder, backups, and the door to the options editor
 
 Six commits on `main`, in the order they landed. Every SHA below resolves; each was read with
