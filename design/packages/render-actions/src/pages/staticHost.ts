@@ -146,8 +146,8 @@ function mapIds(settings: WebAppSettings): { readonly ids: string[]; readonly sk
 }
 
 interface Walked {
-    readonly bytes: number;
-    readonly files: number;
+    bytes: number;
+    files: number;
     readonly oversized: { path: string; bytes: number }[];
 }
 
