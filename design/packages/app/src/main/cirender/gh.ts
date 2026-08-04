@@ -325,18 +325,37 @@ export async function ghApiJson(endpoint: string, options: GhApiOptions): Promis
     }
 }
 
-/** A `POST` with a JSON body, for the workflow dispatch. Answers nothing on success. */
-export async function ghApiPost(endpoint: string, body: unknown, options: GhApiOptions): Promise<void> {
-    const result = await options.runner.run(
-        GH_COMMAND,
-        apiArgs(endpoint, options, ["-X", "POST", "--input", "-"]),
-        {
-            input: JSON.stringify(body),
-            ...(options.signal === undefined ? {} : { signal: options.signal }),
-        },
-    );
+/**
+ * One `gh api` call with a method that is not `GET`, answered as raw text.
+ *
+ * `POST`, `PUT`, `PATCH` and `DELETE` all go through here. Raw text rather than parsed JSON
+ * because GitHub answers several of these with `204 No Content` - enabling Pages replies with
+ * a body, disabling it replies with nothing at all - and a helper that insisted on JSON would
+ * turn a success into "gh answered something that was not JSON".
+ *
+ * `body` is omitted entirely rather than sent as `null` when there is nothing to send, because
+ * `gh api --input -` with an empty stdin is a request with an empty body, which GitHub rejects
+ * for a `DELETE` that expects none.
+ */
+export async function ghApiSend(
+    endpoint: string,
+    method: "POST" | "PUT" | "PATCH" | "DELETE",
+    body: unknown | undefined,
+    options: GhApiOptions,
+): Promise<string> {
+    const extra = body === undefined ? ["-X", method] : ["-X", method, "--input", "-"];
+    const result = await options.runner.run(GH_COMMAND, apiArgs(endpoint, options, extra), {
+        ...(body === undefined ? {} : { input: JSON.stringify(body) }),
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+    });
     if (!result.started) throw new ActionsCallError(NOT_INSTALLED, 0, endpoint);
     if (result.code !== 0) throw ghFailure(result.stderr, endpoint);
+    return result.stdout;
+}
+
+/** A `POST` with a JSON body, for the workflow dispatch. Answers nothing on success. */
+export async function ghApiPost(endpoint: string, body: unknown, options: GhApiOptions): Promise<void> {
+    await ghApiSend(endpoint, "POST", body, options);
 }
 
 /** A `GET` whose body is written straight to a file. For an artifact zip. */

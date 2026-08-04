@@ -715,6 +715,19 @@ jobs:
           pnpm --filter @material-bluemap/site build
           node packages/site/scripts/assert-base-path.mjs
 
+      # Pages serves the files that exist, under the names they have. The engine stores
+      # hires tiles gzipped as `0.prbm.gz`, and the viewer asks for `0.prbm` unless its
+      # settings.json says otherwise - so without this step every tile 404s and the
+      # published map loads to an empty sky, with a green run and a working link to
+      # show for it. Exits non-zero rather than publishing a site nobody can use.
+      - name: Make the map servable by a host that only serves files
+        if: inputs.output == 'artifact-and-pages' && needs.plan.outputs.single-group == 'true'
+        run: |
+          set -euo pipefail
+          node design/packages/render-actions/dist/cli.js static-host \
+            --web-root site \
+            --summary "$GITHUB_STEP_SUMMARY"
+
       - name: Combine the site and the map
         if: inputs.output == 'artifact-and-pages' && needs.plan.outputs.single-group == 'true'
         run: |

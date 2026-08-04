@@ -24,6 +24,7 @@
     "dependencies": {
         "@material-bluemap/config": "workspace:*",
         "@material-bluemap/parts": "workspace:*",
+        "@material-bluemap/render-actions": "workspace:*",
         "@material-bluemap/server": "workspace:*",
         "@material-bluemap/shared": "workspace:*",
         "electron-store": "^10.1.0"

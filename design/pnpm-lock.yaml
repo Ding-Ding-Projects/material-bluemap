@@ -44,6 +44,9 @@ importers:
       '@material-bluemap/parts':
         specifier: workspace:*
         version: link:../parts
+      '@material-bluemap/render-actions':
+        specifier: workspace:*
+        version: link:../render-actions
       '@material-bluemap/server':
         specifier: workspace:*
         version: link:../server

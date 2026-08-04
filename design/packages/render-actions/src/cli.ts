@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 import { writeShardConfig } from "./config/renderConfig.js";
 import { mergeShardMaps, MergeError, type MergeReport } from "./merge/mergeMap.js";
 import { verifyMerge } from "./merge/verify.js";
+import { prepareStaticHost } from "./pages/staticHost.js";
 import { formatDuration } from "./plan/estimate.js";
 import { planShards, validatePlanAlignment, type ShardPlan } from "./plan/plan.js";
 import { measureWorld } from "./world/measure.js";
@@ -47,6 +48,7 @@ Commands:
   merge           combine the shards' map directories into one map
   merge-lowres    merge only the lowres layers of several merge-group partials
   verify          prove the merged map lost and duplicated nothing
+  static-host     prepare a merged map to be served as plain files, and say if it can be
 
 Run "<command> --help" for the options of each.
 `;
@@ -869,6 +871,59 @@ async function commandVerify(args: Args): Promise<number> {
     return report.ok ? 0 : 1;
 }
 
+const STATIC_HOST_USAGE = `static-host --web-root <dir> [options]
+
+Prepares a rendered map to be served by a host that only ever serves files - GitHub
+Pages, an object store, anything with no BlueMap server in front of it.
+
+The engine stores hires tiles gzipped, so the file on disk is "0.prbm.gz". The viewer
+asks for "0.prbm" unless the web app's settings.json says clientDecompression, and a
+plain file host will not bridge that difference for us: every tile would 404 and the
+map would load to an empty sky. This flips that flag, checks the flip against the
+files that are really there, and writes .nojekyll.
+
+  --web-root <dir>   the directory holding index.html, settings.json and maps/
+  --check            report what would change without writing anything
+  --summary <path>   append a report to this file ($GITHUB_STEP_SUMMARY)
+
+Exits non-zero when the map could not be made servable, so a workflow that publishes
+an unusable site fails instead of publishing it.
+`;
+
+async function commandStaticHost(args: Args): Promise<number> {
+    if (args.booleans.has("help")) {
+        process.stdout.write(STATIC_HOST_USAGE);
+        return 0;
+    }
+
+    const webRoot = resolve(required(args, "web-root", STATIC_HOST_USAGE));
+    const check = args.booleans.has("check");
+    const report = await prepareStaticHost({ webRoot, write: !check });
+
+    for (const note of report.notes) process.stderr.write(note + "\n");
+
+    await appendSummary(
+        args.flags.get("summary"),
+        [
+            "## Serving the map as plain files",
+            "",
+            "| What | Value |",
+            "| --- | --- |",
+            "| Servable | " + (report.servable ? "yes" : "**no**") + " |",
+            "| Maps | " + report.maps.map((map) => map.id).join(", ") + " |",
+            "| Files | " + String(report.fileCount) + " |",
+            "| Size | " + String(Math.round(report.totalBytes / 1_000_000)) + " MB |",
+            "| Viewer decompresses tiles | " + (report.changedSettings ? "turned on here" : "already on") + " |",
+            "",
+            ...report.notes.map((note) => "- " + note),
+            "",
+        ].join("\n"),
+    );
+
+    process.stdout.write(JSON.stringify(report) + "\n");
+    return report.servable ? 0 : 1;
+}
+
 async function main(argv: readonly string[]): Promise<number> {
     const command = argv[0];
     const args = parseArgs(argv.slice(1));
@@ -890,6 +945,8 @@ async function main(argv: readonly string[]): Promise<number> {
             return await commandMergeLowres(args);
         case "verify":
             return await commandVerify(args);
+        case "static-host":
+            return await commandStaticHost(args);
         case "--help":
         case "-h":
         case undefined:
