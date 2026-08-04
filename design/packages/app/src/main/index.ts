@@ -52,6 +52,8 @@ import { DOWNLOAD_EVENT_CHANNEL } from "./download/ipc.js";
 import { RENDER_EVENT_CHANNEL } from "./render/ipc.js";
 import { installCiRenderIpc } from "./cirender/ipc.js";
 import type { CiRenderIpc } from "./cirender/ipc.js";
+import { installPagesIpc, PAGES_EVENT_CHANNEL } from "./pages/index.js";
+import type { PagesIpc } from "./pages/index.js";
 import { registerProjectHandlers } from "./project/index.js";
 import type { ProjectIpc } from "./project/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
@@ -527,6 +529,37 @@ function startCiRenders(render: RenderIpc, github: GitHubIpc, backup: BackupIpc)
 }
 
 /**
+ * Publishing a locally rendered map to GitHub Pages.
+ *
+ * Registered once, for the same reason everything above it is. The storage directory is read
+ * through the render side rather than captured, so it publishes the render somebody is
+ * actually looking at rather than one in a folder they moved away from.
+ *
+ * `workRoot` is under this application's own data directory and never inside a render or a
+ * world. Publishing stages through a git directory there, with the render's web root as the
+ * work tree, so a several-gigabyte tile tree is pushed without being copied first and there is
+ * never a `.git` inside somebody's rendered map.
+ */
+let pagesIpc: PagesIpc | null = null;
+
+function startPagesHosting(render: RenderIpc): PagesIpc {
+    if (pagesIpc !== null) return pagesIpc;
+    pagesIpc = installPagesIpc({
+        ipcMain,
+        storageDir: () => render.storageDirectory(),
+        workRoot: () => join(app.getPath("userData"), "pages-hosting"),
+        broadcast: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (window.isDestroyed()) continue;
+                window.webContents.send(PAGES_EVENT_CHANNEL, event);
+            }
+        },
+    });
+    app.on("will-quit", () => pagesIpc?.dispose());
+    return pagesIpc;
+}
+
+/**
  * Worlds published as somebody else's release, including the split ones.
  *
  * Broadcast on the DOWNLOAD channel and handed the downloader the panel already lists,
@@ -644,6 +677,7 @@ async function createWindow(): Promise<void> {
     const downloads = startDownloads(render, github);
     startBackups(render, github);
     startCiRenders(render, github, startBackups(render, github));
+    startPagesHosting(render);
     startWorldSources(render, downloads, github);
     startRuntime(render);
     startRemoteRendering(render);
