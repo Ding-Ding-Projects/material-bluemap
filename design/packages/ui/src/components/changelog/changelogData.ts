@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "393401be9f1dd8a0bf49506267dda5cd028fa0fa",
+        shortSha: "393401be9f",
+        date: "2026-08-04T15:27:08-04:00",
+        subject: "Record the fresh full workspace gate",
+        details: "The handoff now reports the actual post-merge result: 323 files, 5,108 passing tests, typecheck, lint and build all green. The old site-only thermometer is retired, and the hosted queue stays honestly queued.\n\nHandoff 而家報告 merge 後真實結果：323 個檔案、5,108 個測試通過，typecheck、lint 同 build 全部綠。舊 site-only 溫度計退休，hosted queue 繼續老實排緊隊。",
+        category: "docs",
+        areas: ["docs"],
+        files: 2,
+    },
+    {
         sha: "7c07514aba98258c0d774eae2c63623d1ee86651",
         shortSha: "7c07514aba",
         date: "2026-08-04T15:26:46-04:00",
