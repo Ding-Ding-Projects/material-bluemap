@@ -377,7 +377,13 @@ async function pointAppAtNoMap(): Promise<void> {
      */
     const wizardTab = page.locator('[role="tab"]', { hasText: /make a map/i }).first();
     await wizardTab.waitFor({ state: "visible", timeout: 30_000 });
-    if ((await wizardTab.getAttribute("aria-selected")) !== "true") await wizardTab.click();
+    if ((await wizardTab.getAttribute("aria-selected")) !== "true") {
+        // The label, not the tab. A tab carries its own close button, so a click on the
+        // tab's centre is a coin toss between selecting it and closing it - and when the
+        // close button wins, Playwright reports a thirty-second click timeout on a locator
+        // it had already resolved, which reads like a hung application.
+        await wizardTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+    }
     await page.waitForSelector(".mb-world-wizard", { timeout: 30_000 });
     mapArea = "none";
 }
@@ -562,6 +568,18 @@ async function captureFirstRun(): Promise<void> {
         "First-run setup as it appears over the whole application window on a fresh profile",
     );
 
+    await actions.last().click({ timeout: ELEMENT_TIMEOUT });
+    // The licence became its own step. Keep the capture honest: wait for that real
+    // viewer, then press its Next control before looking for the consent question. The
+    // old harness clicked once and waited for `.mb-setup-outcomes`, which left the EULA
+    // dialog open and made every later tab click hit Vuetify's overlay scrim.
+    await page.waitForSelector(".mb-eula", { state: "visible", timeout: ELEMENT_TIMEOUT });
+    await page.waitForTimeout(400);
+    await shoot(
+        "firstrun-2-eula",
+        "First-run setup, the Minecraft licence step, with the document provenance and its anchored search",
+        { crop: card, cropped: "the first-run dialog" },
+    );
     await actions.last().click({ timeout: ELEMENT_TIMEOUT });
     await page.waitForSelector(".mb-setup-outcomes", {
         state: "visible",
@@ -970,9 +988,15 @@ test("captures the map and server profile manager", async () => {
         if ((await serversTab.getAttribute("aria-selected")) !== "true") {
             // The label, not the tab: a tab carries its own close button, and a click on the
             // tab's centre is a coin toss between selecting it and closing it.
-            await serversTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+            await serversTab
+                .locator(".mb-tabs-strip__label")
+                .first()
+                .click({ timeout: ELEMENT_TIMEOUT });
         }
-        await page.waitForSelector('[role="tabpanel"]', { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector('[role="tabpanel"]', {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
         // `attached`, not `visible`: the listbox is always rendered, but with no maps and no
         // servers yet it has no rows, so it has no height, and Playwright calls a
         // zero-height element invisible. Waiting for it to be seen is waiting for somebody
@@ -997,7 +1021,10 @@ test("captures the backup screen", async () => {
         const backupsTab = page.locator('[role="tab"]', { hasText: /backups/i }).first();
         await backupsTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         if ((await backupsTab.getAttribute("aria-selected")) !== "true") {
-            await backupsTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+            await backupsTab
+                .locator(".mb-tabs-strip__label")
+                .first()
+                .click({ timeout: ELEMENT_TIMEOUT });
         }
         await page.waitForSelector(".mb-backup", { state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(500);
@@ -1458,7 +1485,8 @@ test("reached nothing but the machine it ran on", async () => {
 });
 
 test("records what was captured", async () => {
-    for (const gap of skipped) console.log(`[harness] not captured - ${gap.surface}: ${gap.reason}`);
+    for (const gap of skipped)
+        console.log(`[harness] not captured - ${gap.surface}: ${gap.reason}`);
 
     // A manifest makes the artifact self-describing, so a reviewer reading an issue
     // comment can tell which build and which surface an image came from.

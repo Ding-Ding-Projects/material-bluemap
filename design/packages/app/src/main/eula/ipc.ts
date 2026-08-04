@@ -55,10 +55,14 @@ export function registerEulaHandlers(ipcMain: IpcMain, options: EulaIpcOptions =
     ipcMain.handle(
         "eula:document",
         async (_event: IpcMainInvokeEvent, request: unknown): Promise<EulaLoadResult> => {
-            const refresh =
-                typeof request === "object" && request !== null && "refresh" in request
-                    ? (request as EulaRequest).refresh === true
-                    : false;
+            const asked =
+                typeof request === "object" && request !== null ? (request as EulaRequest) : null;
+            const refresh = asked?.refresh === true;
+            // Opening a licence is not a reason to make a request nobody asked for, so the
+            // network is used only when it is asked for explicitly. `refresh` implies it:
+            // that IS the explicit ask.
+            const allowNetwork =
+                refresh || (asked as { allowNetwork?: unknown } | null)?.allowNetwork === true;
 
             try {
                 return await loadEulaDocument({
@@ -66,6 +70,7 @@ export function registerEulaHandlers(ipcMain: IpcMain, options: EulaIpcOptions =
                     dataDirectory: resolveDirectory(),
                     documentUrl: MOJANG_EULA_URL,
                     refresh,
+                    allowNetwork,
                 });
             } catch (error) {
                 // `loadEulaDocument` already turns every expected failure into a value, so

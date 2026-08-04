@@ -39,6 +39,15 @@ import {
     normaliseLevel,
     type ConsoleLine,
 } from "../console/consoleModel.js";
+import { NO_ESTIMATE, createEtaTracker } from "../progress/progressModel.js";
+import type {
+    ProgressCount,
+    ProgressEstimate,
+    ProgressFacts,
+    ProgressLevel,
+    ProgressRoute,
+    ProgressText,
+} from "../progress/progressModel.js";
 import type {
     EngineDescription,
     RenderEvent,
@@ -126,30 +135,47 @@ export const RENDER_PHASES = [
     "finished",
 ] as const;
 
+/**
+ * What a phase is called, held rather than translated.
+ *
+ * The run has no translator - `createRenderRun` is built from a bridge and nothing else -
+ * and a label translated where it is drawn also changes language when the language mode
+ * does, rather than keeping whichever one was active when the render started. A phase this
+ * port has never seen keeps its own name as the fallback, so an engine that grows a ninth
+ * phase says its name rather than showing a blank.
+ */
+export function phaseText(phase: string): ProgressText {
+    switch (phase) {
+        case "starting":
+            return { key: "world.run.phase.starting", fallback: "Starting the engine", values: {} };
+        case "downloading-resources":
+            return {
+                key: "world.run.phase.downloading",
+                fallback: "Downloading the Minecraft client files",
+                values: {},
+            };
+        case "loading-resources":
+            return { key: "world.run.phase.loadingResources", fallback: "Loading textures and models", values: {} };
+        case "loading-maps":
+            return { key: "world.run.phase.loadingMaps", fallback: "Reading the world", values: {} };
+        case "rendering":
+            return { key: "world.run.phase.rendering", fallback: "Rendering tiles", values: {} };
+        case "watching":
+            return { key: "world.run.phase.watching", fallback: "Watching the world for changes", values: {} };
+        case "stopping":
+            return { key: "world.run.phase.stopping", fallback: "Finishing up", values: {} };
+        case "finished":
+            return { key: "world.run.phase.finished", fallback: "Finished", values: {} };
+        default:
+            return { key: `world.run.phase.${phase}`, fallback: phase, values: {} };
+    }
+}
+
 /** What a phase is called on screen. Unknown phases are shown as they arrive. */
 export function phaseLabel(phase: string | null, t: Translate): string {
-    switch (phase) {
-        case null:
-            return "";
-        case "starting":
-            return t("world.run.phase.starting", "Starting the engine");
-        case "downloading-resources":
-            return t("world.run.phase.downloading", "Downloading the Minecraft client files");
-        case "loading-resources":
-            return t("world.run.phase.loadingResources", "Loading textures and models");
-        case "loading-maps":
-            return t("world.run.phase.loadingMaps", "Reading the world");
-        case "rendering":
-            return t("world.run.phase.rendering", "Rendering tiles");
-        case "watching":
-            return t("world.run.phase.watching", "Watching the world for changes");
-        case "stopping":
-            return t("world.run.phase.stopping", "Finishing up");
-        case "finished":
-            return t("world.run.phase.finished", "Finished");
-        default:
-            return phase;
-    }
+    if (phase === null) return "";
+    const text = phaseText(phase);
+    return t(text.key, text.values, text.fallback);
 }
 
 /**
@@ -377,6 +403,15 @@ export interface RenderRun {
     readonly percent: ComputedRef<number>;
     /** True while the engine is between phases and has reported no percentage yet. */
     readonly indeterminate: ComputedRef<boolean>;
+    /**
+     * The whole breakdown, in the vocabulary every route reports through.
+     *
+     * The route this feeds - a child process here, a container here, or a container on a
+     * machine over SSH - arrives on one event stream on purpose, so one derivation covers
+     * all three. `components/progress/RenderProgressDetail.vue` draws it, and
+     * `ciProgressFacts` builds the same shape for a render on GitHub's runners.
+     */
+    readonly progress: ComputedRef<ProgressFacts>;
     readonly mapIds: Ref<readonly string[]>;
     readonly dataRoot: Ref<string | null>;
     readonly durationMs: Ref<number | null>;
@@ -415,7 +450,25 @@ export interface RenderRun {
     dispose(): void;
 }
 
-export function createRenderRun(bridge: WorldBridge | null): RenderRun {
+export interface RenderRunOptions {
+    /**
+     * Which of the four ways this render is running, when the surface knows.
+     *
+     * Nothing on the event stream says. `main/remote/orchestrator.ts` goes to real trouble
+     * to emit exactly the events a local render emits - which is what makes one panel work
+     * for all of them - and the consequence is that a render over SSH is indistinguishable
+     * from one in a container here. The only machine-readable difference is the engine's
+     * `label`, which is an English sentence and not something to match on. So the surface
+     * that chose the location is the thing that can say, and when nobody says, this reports
+     * no route rather than guessing at one.
+     */
+    readonly route?: ProgressRoute;
+    /** The clock, for a test that decides what time it is. */
+    readonly now?: () => number;
+}
+
+export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOptions = {}): RenderRun {
+    const now = options.now ?? ((): number => Date.now());
     const state = ref<RunState>("idle");
     const renderId = ref<string | null>(null);
     const engine = ref<EngineDescription | null>(null);
@@ -440,6 +493,49 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
     const logDropped = ref(0);
     const cancelling = ref(false);
     const startedAt = ref<string | null>(null);
+
+    /**
+     * The maps the engine has actually worked on, in the order it first named each.
+     *
+     * Not the same list as `mapIds`, which is what was *asked for*. The difference is what
+     * makes "2 of 3 maps done" a real count rather than a guess: the position of the map
+     * currently being worked on, inside the list of maps already touched, is a fact the
+     * events carry.
+     */
+    const observedMaps = ref<readonly string[]>([]);
+    const startedAtMs = ref<number | null>(null);
+    /** The last event of any kind. Answers "is it alive", which log lines also answer. */
+    const lastEventAtMs = ref<number | null>(null);
+    /** The last event that moved a bar. Answers the different question, "is it getting on". */
+    const lastProgressAtMs = ref<number | null>(null);
+    /**
+     * The phase the current task was reported under.
+     *
+     * Kept so a percentage is only shown against the phase it belongs to. A phase change
+     * arrives on its own event, and continuing to show the last task's percentage under the
+     * new phase's name would be a bar describing something that is no longer happening.
+     */
+    const taskPhase = ref<string | null>(null);
+    /**
+     * True once a progress report has arrived that is a transfer rather than a render.
+     *
+     * Only the remote route produces these - it reports the world going up and the map
+     * coming back on the render's own progress channel - and it reports them as files
+     * staged, not as bytes. The flag is what lets the panel say that in words rather than
+     * leaving a byte counter mysteriously absent.
+     */
+    const transferSeen = ref(false);
+
+    /**
+     * The estimator, which is upstream's own maths and not a second one.
+     *
+     * Fed the *overall* fraction rather than the current task's, because the question a
+     * person is asking of this screen is how long until the render is done, not how long
+     * until this one of nine tasks is. The formula - extrapolated whole-run durations in a
+     * bounded window, stalled intervals charged forward - is `ProgressTracker`'s, ported in
+     * `packages/engine/src/map/rendermanager/`.
+     */
+    const eta = createEtaTracker();
 
     let nextLogId = 1;
     /**
@@ -483,6 +579,174 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
     );
 
     const active = computed(() => state.value === "starting" || state.value === "running");
+
+    /* ---------------------------------------------------------------------- */
+    /* The breakdown                                                          */
+    /* ---------------------------------------------------------------------- */
+
+    /**
+     * An event's own timestamp, or the clock when it did not carry a usable one.
+     *
+     * The bridge sends ISO strings. Falling back to the clock rather than to null matters
+     * because the two timers on screen - elapsed, and how long it has been quiet - are the
+     * whole point of this panel, and an unparseable timestamp would silently switch them
+     * off rather than being slightly wrong.
+     */
+    function timeOf(at: string | undefined): number {
+        if (at === undefined) return now();
+        const parsed = Date.parse(at);
+        return Number.isNaN(parsed) ? now() : parsed;
+    }
+
+    /**
+     * How much of one map a task represents.
+     *
+     * Upstream runs three tasks per map - prepare, update, save - each reporting 0 to 100%
+     * of itself. Feeding all three straight into an overall bar would send it backwards
+     * twice per map, so each kind contributes what it actually means: preparing has not
+     * started the map, updating is the long one and carries its own percentage, and saving
+     * means the map is drawn. A kind this port does not recognise contributes its own
+     * percentage when it names a map and nothing when it does not, which is what keeps a
+     * remote transfer - which names no map - out of the render's overall figure.
+     */
+    function mapFraction(current: RenderTaskProgress): number {
+        const percent = Math.max(0, Math.min(100, current.percent)) / 100;
+        switch (current.kind) {
+            case "preparing-map":
+                return 0;
+            case "updating-map":
+                return percent;
+            case "saving-map":
+            case "purging-map":
+            case "deleting-map":
+                return 1;
+            default:
+                return current.mapId === null ? 0 : percent;
+        }
+    }
+
+    /** Maps done out of maps planned, or null before either number exists. */
+    function mapsCount(): ProgressCount | null {
+        const planned = mapIds.value.length;
+        const seen = observedMaps.value;
+        const total = planned > 0 ? Math.max(planned, seen.length) : seen.length > 0 ? seen.length : null;
+        if (total === null) return null;
+        if (state.value === "finished") return { done: total, total, unit: "maps" };
+        const current = task.value?.mapId ?? null;
+        const index = current === null ? -1 : seen.indexOf(current);
+        // Between tasks the maps already seen are the maps already done. While one is being
+        // worked on, the ones before it in the order they were first named are.
+        const done = index >= 0 ? index : seen.length;
+        return { done: Math.min(done, total), total, unit: "maps" };
+    }
+
+    /** 0 to 1 across the whole render, or null when the number of maps is not known. */
+    function overallFraction(): number | null {
+        if (state.value === "finished") return 1;
+        const count = mapsCount();
+        if (count === null || count.total === null || count.total === 0) return null;
+        const current = task.value;
+        const fraction = current === null ? 0 : mapFraction(current);
+        return Math.max(0, Math.min(1, (count.done + fraction) / count.total));
+    }
+
+    /**
+     * How long is left, preferring the engine's own answer over this application's.
+     *
+     * The engine prints an estimate for the task it is on; when it does, that is the more
+     * precise statement and it is used in its own words. The tracker is what fills the
+     * silence - upstream omits the estimate entirely whenever its own is not positive - and
+     * it says so, because a number this application worked out should never be mistaken for
+     * one the engine stood behind. When neither has anything, nothing is shown.
+     */
+    function estimate(): ProgressEstimate {
+        const current = task.value;
+        if (current !== null) {
+            if (current.etaText !== null && current.etaText.trim() !== "") {
+                return { source: "engine", seconds: current.etaSeconds, text: current.etaText };
+            }
+            if (current.etaSeconds !== null) {
+                return { source: "engine", seconds: current.etaSeconds, text: null };
+            }
+        }
+        const fraction = overallFraction();
+        if (fraction === null) return NO_ESTIMATE;
+        const remaining = eta.remainingMs(fraction);
+        return remaining === null ? NO_ESTIMATE : { source: "tracker", seconds: remaining / 1000, text: null };
+    }
+
+    function levels(): readonly ProgressLevel[] {
+        const built: ProgressLevel[] = [];
+        const count = mapsCount();
+        const fraction = overallFraction();
+        built.push({
+            id: "overall",
+            label: { key: "progress.level.overall", fallback: "Overall", values: {} },
+            detail: null,
+            percent: fraction === null ? null : fraction * 100,
+            count,
+        });
+
+        const current = task.value;
+        const phaseName = phase.value;
+        if (phaseName !== null) {
+            built.push({
+                id: "phase",
+                label: phaseText(phaseName),
+                detail: null,
+                // Only when the percentage belongs to the phase being named. Between the
+                // two, the phase is honestly of unknown size: loading resources and reading
+                // a world report no percentage at all, and inventing one for them is exactly
+                // the bar that creeps to 99% and is never believed again.
+                percent:
+                    current !== null && taskPhase.value === phaseName
+                        ? Math.max(0, Math.min(100, current.percent))
+                        : null,
+                count: null,
+            });
+        }
+
+        if (current !== null) {
+            built.push({
+                id: "task",
+                label: { key: "progress.level.task", fallback: "Right now", values: {} },
+                // Upstream's own description, verbatim: `updating map 'overworld'`. It is
+                // the most precise statement available and the string somebody would search.
+                detail: current.description === "" ? null : current.description,
+                percent: Math.max(0, Math.min(100, current.percent)),
+                count: null,
+            });
+        }
+
+        return built;
+    }
+
+    function notes(): readonly ProgressText[] {
+        if (!transferSeen.value) return [];
+        return [
+            {
+                key: "progress.note.stagedNotBytes",
+                fallback:
+                    "Sending a world and fetching a map back are reported as files staged, not as bytes moved: the copy is done by scp, which does not say how many bytes have gone. There is no byte count or transfer rate to show.",
+                values: {},
+            },
+        ];
+    }
+
+    const progress = computed<ProgressFacts>(() => ({
+        route: options.route ?? null,
+        active: active.value,
+        startedAtMs: startedAtMs.value,
+        lastEventAtMs: lastEventAtMs.value,
+        lastProgressAtMs: lastProgressAtMs.value,
+        levels: levels(),
+        estimate: estimate(),
+        // Nothing on this stream counts bytes. See `notes()`.
+        transfers: [],
+        // Nothing on this stream shards. A local, container or SSH render is one engine.
+        shards: [],
+        notes: notes(),
+    }));
 
     function mine(event: RenderEvent): boolean {
         if (renderId.value === null) {
@@ -579,13 +843,25 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
     function handle(event: RenderEvent): void {
         if (!mine(event)) return;
 
+        // Before the switch, and for every kind including a log line. "Has anything arrived
+        // recently" is a different question from "has a bar moved recently", and an engine
+        // that is logging steadily while reporting no percentage - which is exactly what
+        // loading resources looks like - is working rather than stuck.
+        const at = timeOf(event.at);
+        lastEventAtMs.value = at;
+
         switch (event.type) {
             case "started":
                 state.value = "running";
                 engine.value = event.engine;
                 mapIds.value = event.mapIds;
                 startedAt.value = event.at;
+                startedAtMs.value = at;
                 phase.value = "starting";
+                // The rate of whatever ran before says nothing about this one, and a single
+                // leftover sample from a fast render would make a slow one report an
+                // absurdly short time remaining.
+                eta.reset();
                 signal(SIGNALS.running);
                 break;
             case "phase":
@@ -594,6 +870,24 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
             case "progress":
                 phase.value = event.phase;
                 task.value = event.task;
+                taskPhase.value = event.phase;
+                lastProgressAtMs.value = at;
+                if (event.task.mapId !== null && !observedMaps.value.includes(event.task.mapId)) {
+                    observedMaps.value = [...observedMaps.value, event.task.mapId];
+                }
+                // A progress report that names no map during the phases either side of the
+                // render is the remote route moving files. It is real progress and gets its
+                // own bar, but it is not a map being drawn and must not move the overall one.
+                if (
+                    event.task.mapId === null &&
+                    (event.phase === "starting" || event.phase === "stopping")
+                ) {
+                    transferSeen.value = true;
+                }
+                {
+                    const fraction = overallFraction();
+                    if (fraction !== null) eta.observe(fraction, at);
+                }
                 break;
             case "log":
                 append(event.level, event.message, event.at);
@@ -645,6 +939,13 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         logDropped.value = 0;
         cancelling.value = false;
         startedAt.value = null;
+        observedMaps.value = [];
+        startedAtMs.value = null;
+        lastEventAtMs.value = null;
+        lastProgressAtMs.value = null;
+        taskPhase.value = null;
+        transferSeen.value = false;
+        eta.reset();
         adopting = false;
         ended = false;
         annotator.reset();
@@ -655,6 +956,11 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         reset();
         renderId.value = id;
         state.value = "starting";
+        // The clock starts when this surface starts watching, which is honest about what it
+        // measures: a render adopted from another window has been going for longer than
+        // this, and claiming its real start time from a number nobody sent would be worse.
+        startedAtMs.value = now();
+        lastEventAtMs.value = startedAtMs.value;
         signal(SIGNALS.watching);
     }
 
@@ -696,6 +1002,12 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         reset();
         state.value = "starting";
         adopting = true;
+        // The engine's own `started` event overwrites this with the moment it really began.
+        // Until it arrives - which for a render that has to fetch a Java runtime first can
+        // be a while - the elapsed clock counts from the press of the button, which is what
+        // the person watching is timing anyway.
+        startedAtMs.value = now();
+        lastEventAtMs.value = startedAtMs.value;
         signal(SIGNALS.starting);
 
         let result: RenderResult;
@@ -749,6 +1061,7 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         task,
         percent,
         indeterminate,
+        progress,
         mapIds,
         dataRoot,
         durationMs,

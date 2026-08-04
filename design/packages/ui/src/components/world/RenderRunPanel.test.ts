@@ -130,8 +130,27 @@ function startedRun(record: RenderSummary | null = null) {
     return { fake, run };
 }
 
-function render(run: ReturnType<typeof createRenderRun>) {
-    return mount(RenderRunPanel, { props: { run }, global: { plugins: [vuetify, i18n()] } });
+function render(run: ReturnType<typeof createRenderRun>, now: number | null = null) {
+    return mount(RenderRunPanel, { props: { run, now }, global: { plugins: [vuetify, i18n()] } });
+}
+
+/** A fixed moment, so the elapsed and gone-quiet clocks are decided by the test. */
+const T0 = Date.parse("2026-08-03T09:14:00.000Z");
+
+/**
+ * A started run on a stopped clock.
+ *
+ * The events in this file carry `at: "t1"`, which is not a timestamp, so the run falls back
+ * to its own clock - and that fallback is what these tests pin down. Both halves matter: a
+ * render whose events carry no usable time must still be able to say how long it has been
+ * going, because that is the fact the panel exists for.
+ */
+function timedRun(mapIds: string[] = ["survival"]) {
+    const fake = fakeBridge();
+    const run = createRenderRun(fake.bridge, { now: () => T0 });
+    void run.start({ maps: mapIds.map((id) => ({ id, world: "/srv/world" })) });
+    fake.emit({ type: "started", renderId: "world-abc", mapIds, engine: ENGINE, at: "t0" });
+    return { fake, run };
 }
 
 describe("what the panel says, rendered", () => {
@@ -154,7 +173,7 @@ describe("what the panel says, rendered", () => {
         run.dispose();
     });
 
-    it("shows the engine's own estimate rather than 'about left'", () => {
+    it("shows the engine's own estimate rather than 'about left', and says whose it is", () => {
         const { fake, run } = startedRun();
         fake.emit({
             type: "progress",
@@ -166,7 +185,9 @@ describe("what the panel says, rendered", () => {
 
         const wrapper = render(run);
 
-        expect(wrapper.text()).toContain("about 4m 12s left");
+        // Whose estimate it is matters: a figure this application worked out must never be
+        // mistaken for one the engine stood behind.
+        expect(wrapper.text()).toContain("About 4m 12s left, the engine's own estimate");
         wrapper.unmount();
         run.dispose();
     });
@@ -183,7 +204,7 @@ describe("what the panel says, rendered", () => {
 
         const wrapper = render(run);
 
-        expect(wrapper.text()).toContain("about 4 minutes left");
+        expect(wrapper.text()).toContain("About 4 minutes left");
         wrapper.unmount();
         run.dispose();
     });
@@ -284,6 +305,118 @@ describe("what the panel says, rendered", () => {
         // in place of it.
         expect(wrapper.text()).toContain("Address already in use");
         expect(wrapper.text()).toContain("mod on the Minecraft server");
+        wrapper.unmount();
+        run.dispose();
+    });
+});
+
+/**
+ * The breakdown, which is the difference between a bar somebody trusts and one they don't.
+ *
+ * One percentage says nothing about whether ten minutes or ten hours remain, and it cannot
+ * say the thing a person four minutes into a silent render actually wants to know. These
+ * are the four claims the panel now makes and the four ways it could lie about them.
+ */
+describe("the breakdown", () => {
+    it("shows overall, the phase, and the unit being worked, with the real map count", () => {
+        const { fake, run } = timedRun(["survival", "nether"]);
+        for (const mapId of ["survival", "nether"]) {
+            fake.emit({
+                type: "progress",
+                renderId: "world-abc",
+                phase: "rendering",
+                task: {
+                    kind: "updating-map",
+                    mapId,
+                    description: `updating map '${mapId}'`,
+                    percent: 50,
+                    etaSeconds: null,
+                    etaText: null,
+                },
+                at: "t1",
+            });
+        }
+
+        const wrapper = render(run, T0);
+
+        expect(wrapper.text()).toContain("Overall");
+        // A real count, not only a percentage: one of the two maps is behind it.
+        expect(wrapper.text()).toContain("1 of 2 maps done");
+        expect(wrapper.text()).toContain("Rendering tiles");
+        // The engine's own words for the unit it is on, verbatim.
+        expect(wrapper.text()).toContain("updating map 'nether'");
+        wrapper.unmount();
+        run.dispose();
+    });
+
+    it("says a phase of unknown size is of unknown size rather than moving its bar", () => {
+        const { fake, run } = timedRun();
+        // Loading textures and models reports no percentage at all, for minutes. This is
+        // exactly where a bar that creeps upward to look busy would be invented.
+        fake.emit({ type: "phase", renderId: "world-abc", phase: "loading-resources", at: "t1" });
+
+        const wrapper = render(run, T0);
+
+        expect(wrapper.text()).toContain("Loading textures and models");
+        expect(wrapper.text()).toContain("size unknown");
+        const indeterminate = wrapper
+            .findAll('[role="progressbar"]')
+            .filter((bar) => bar.attributes("aria-busy") === "true");
+        expect(indeterminate.length).toBeGreaterThan(0);
+        // An indeterminate bar carries no value to read out, and says so in words instead.
+        expect(indeterminate[0]?.attributes("aria-valuetext")).toContain("size unknown");
+        wrapper.unmount();
+        run.dispose();
+    });
+
+    it("says how long it has been quiet, which is the fact a percentage cannot express", () => {
+        const { fake, run } = timedRun();
+        fake.emit({
+            type: "progress",
+            renderId: "world-abc",
+            phase: "rendering",
+            task: {
+                kind: "updating-map",
+                mapId: "survival",
+                description: "updating map 'survival'",
+                percent: 41.2,
+                etaSeconds: null,
+                etaText: null,
+            },
+            at: "t1",
+        });
+
+        const wrapper = render(run, T0 + 240_000);
+
+        expect(wrapper.text()).toContain("Running for");
+        expect(wrapper.text()).toContain("4:00");
+        expect(wrapper.text()).toContain("Nothing has arrived for 4:00");
+        wrapper.unmount();
+        run.dispose();
+    });
+
+    it("offers no estimate at all when one progress report is all there is", () => {
+        const { fake, run } = timedRun();
+        fake.emit({
+            type: "progress",
+            renderId: "world-abc",
+            phase: "rendering",
+            task: {
+                kind: "updating-map",
+                mapId: "survival",
+                description: "updating map 'survival'",
+                percent: 3,
+                etaSeconds: null,
+                etaText: null,
+            },
+            at: "t1",
+        });
+
+        const wrapper = render(run, T0);
+
+        // A window with one sample in it can extrapolate to a figure that is confident and
+        // hours wrong. Nothing is the honest answer, and it is the one a person believes.
+        expect(wrapper.text()).not.toContain("left,");
         wrapper.unmount();
         run.dispose();
     });

@@ -21,6 +21,7 @@ import {
     VProgressLinear,
 } from "vuetify/components";
 import RenderConsole from "../console/RenderConsole.vue";
+import RenderProgressDetail from "../progress/RenderProgressDetail.vue";
 import { LOG_LIMIT, adviseOnFailure, formatDuration, phaseLabel } from "./renderRun.js";
 import type { RenderRun } from "./renderRun.js";
 import type { SettingsTarget } from "./worldBridge.js";
@@ -45,7 +46,18 @@ import type { SettingsTarget } from "./worldBridge.js";
  * loud. A build with no record and no live description says nothing rather than
  * naming an engine on the strength of what was expected.
  */
-const props = defineProps<{ run: RenderRun }>();
+const props = withDefaults(
+    defineProps<{
+        run: RenderRun;
+        /**
+         * The current time, handed in by a test that decides what time it is.
+         *
+         * Null - the default - lets the detail run its own once-a-second clock.
+         */
+        now?: number | null;
+    }>(),
+    { now: null },
+);
 
 const emit = defineEmits<{
     /** Opens the rendered map. */
@@ -62,29 +74,16 @@ const logOpen = ref(false);
 const detailOpen = ref(false);
 
 const state = computed(() => props.run.state.value);
-const task = computed(() => props.run.task.value);
 
+/**
+ * The phase, still named in the card's own heading row.
+ *
+ * The breakdown below names it too, as one of its bars, and that repetition is deliberate
+ * rather than an oversight: this panel also renders collapsed inside a wizard step, where
+ * the heading row is what somebody reads at a glance, and a heading that says only
+ * "Rendering" while the detail says which phase is a heading that made them scroll.
+ */
 const phaseText = computed(() => phaseLabel(props.run.phase.value, t));
-
-const percentText = computed(() => {
-    const current = task.value;
-    if (current === null) return "";
-    return `${current.percent.toFixed(1).replace(/\.0$/, "")}%`;
-});
-
-const etaText = computed(() => {
-    const current = task.value;
-    if (current === null) return "";
-    // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n
-    // compiles the fallback as a message too and consumes `{eta}` as a named
-    // parameter of its own, so a later `replace` has nothing left to substitute and
-    // the estimate reads "about left" while the render sits there for four minutes.
-    if (current.etaText !== null && current.etaText.trim() !== "") {
-        return t("world.run.etaText", { eta: current.etaText }, "about {eta} left");
-    }
-    if (current.etaSeconds === null) return "";
-    return t("world.run.etaText", { eta: formatDuration(current.etaSeconds, t) }, "about {eta} left");
-});
 
 const durationText = computed(() => {
     const ms = props.run.durationMs.value;
@@ -165,21 +164,18 @@ function openMap(): void {
 
         <v-card-text>
             <template v-if="run.active.value">
-                <v-progress-linear
-                    :model-value="run.percent.value"
-                    :indeterminate="run.indeterminate.value"
-                    :aria-label="t('world.run.progressLabel', 'Render progress')"
-                    :aria-valuenow="run.indeterminate.value ? undefined : Math.round(run.percent.value)"
-                    color="primary"
-                    height="8"
-                    rounded
-                />
-                <p class="mb-world-run__line" role="status" aria-live="polite">
-                    <strong v-if="percentText">{{ percentText }}</strong>
-                    <span>{{ phaseText }}</span>
-                    <span v-if="task?.description">{{ task.description }}</span>
-                    <span v-if="etaText" class="mb-world-run__eta">{{ etaText }}</span>
+                <p class="mb-world-run__line">
+                    <strong>{{ phaseText }}</strong>
                 </p>
+
+                <!--
+                    The breakdown, and the same component a render on GitHub's runners is
+                    drawn with. One percentage was never enough: it says nothing about
+                    whether ten minutes or ten hours remain, and it cannot say the one thing
+                    somebody actually wants to know four minutes in, which is whether
+                    anything is still happening. See `components/progress/`.
+                -->
+                <RenderProgressDetail :facts="run.progress.value" :now="now ?? null" />
 
                 <v-btn
                     :prepend-icon="mdiStopCircleOutline"
@@ -340,10 +336,6 @@ function openMap(): void {
 
 .mb-world-run__line strong {
     font-variant-numeric: tabular-nums;
-}
-
-.mb-world-run__eta {
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-world-run__failure {

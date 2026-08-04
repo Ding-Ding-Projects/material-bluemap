@@ -81,6 +81,21 @@ export interface LoadEulaOptions {
     readonly documentUrl: string;
     /** True to go to the network even when the cache is fresh. */
     readonly refresh?: boolean;
+    /**
+     * False to answer from the cache alone and never reach Mojang.
+     *
+     * This is what the licence is shown with when a surface merely opens. Reading a licence
+     * is not a reason to make a request somebody did not ask for, and first run is exactly
+     * where an unasked-for outbound call is least welcome: the person has consented to
+     * nothing yet. The capture harness's network guard caught precisely this - a fetch to
+     * account.mojang.com during a run that is supposed to touch nothing but loopback - and
+     * it was right to.
+     *
+     * With no cache and no network allowed, the answer is the copy BlueMap itself quotes,
+     * clearly labelled as not being Mojang's own document. Fetching the live one stays one
+     * explicit click away.
+     */
+    readonly allowNetwork?: boolean;
     readonly now?: () => Date;
     readonly maxAgeMs?: number;
     readonly timeoutMs?: number;
@@ -155,6 +170,19 @@ export async function loadEulaDocument(options: LoadEulaOptions): Promise<EulaLo
         // the future. Treated as stale rather than as infinitely fresh, because the
         // failure of the other choice is a copy that never refreshes again.
         if (age >= 0 && age < maxAgeMs) return { ok: true, document: asReadout(cached, "cache") };
+    }
+
+    // Asked not to go out. A stale cached copy is still the real document and is offered
+    // with its own date; with nothing cached the caller falls back to the quoted text.
+    if (options.allowNetwork === false) {
+        if (cached !== null) return { ok: true, document: asReadout(cached, "cache") };
+        return {
+            ok: false,
+            reason:
+                "Mojang's own copy has not been read on this computer yet, and this screen does not " +
+                "fetch it on its own. Choose to fetch it to read the current document.",
+            cached: null,
+        };
     }
 
     let html: string;
