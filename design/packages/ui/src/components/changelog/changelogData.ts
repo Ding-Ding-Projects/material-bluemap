@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "52f0fb318a46cc1a42931a6d0ccb165696ca4f0f",
+        shortSha: "52f0fb318a",
+        date: "2026-08-04T02:40:54-04:00",
+        subject: "Make notification history searchable and exportable",
+        details: "The Pages centre now searches localized titles and details, clears history explicitly, and exports timestamped Markdown. The docs and handoff record the 36-test proof, because a notification archive that hides behind a pretty bell is just a cupboard with stage fright.\\n\\n通知中心而家可以搜尋中英文標題同詳情、明確清走歷史，仲可以匯出有時間同嚴重程度嘅 Markdown；文件亦記低 36 個測試。之前隻鐘仔靚到似有料，原來只係怕醜櫃桶。",
+        category: "docs",
+        areas: ["docs", "site"],
+        files: 5,
+    },
+    {
         sha: "a5c10d70ab37a1faef614ae6bfdc97f8a2ba552b",
         shortSha: "a5c10d70ab",
         date: "2026-08-04T02:32:31-04:00",

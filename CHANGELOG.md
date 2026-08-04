@@ -32,6 +32,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Make notification history searchable and exportable - [`52f0fb318a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/52f0fb318a46cc1a42931a6d0ccb165696ca4f0f)
 - Merge remote-tracking branch 'origin/main' into pages-material3-continuation - [`f31bd13e38`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f31bd13e3876a0f5eda3be9ba189c207e39035e2) _(summary of 3 commits, also listed here)_
 - Photograph the render guide end to end, from the installed build - [`ecfa1d122b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ecfa1d122bc79edf891f05bdfe1adea990cf61eb)
 
