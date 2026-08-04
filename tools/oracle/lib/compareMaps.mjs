@@ -10,6 +10,7 @@ import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 
 import { describeError, diffBytes, diffJson, diffPng } from "./diff.mjs";
+import { diffRenderState } from "./renderstate.mjs";
 import { listFiles, log } from "./util.mjs";
 
 /**
@@ -42,10 +43,12 @@ export function classify(relativePath) {
     if (relativePath === "live/markers.json" || relativePath === "live/players.json")
         return { category: "live", mode: "json" };
     if (relativePath.startsWith("rstate/"))
-        return {
-            category: "renderstate",
-            mode: relativePath.endsWith(".gz") ? "gunzip-bytes" : "bytes",
-        };
+        // These are gzipped NBT whatever they are named - upstream writes `.dat`, not
+        // `.dat.gz` - so comparing them as raw bytes compared two gzip streams, and the
+        // first difference it ever found was the OS byte in the header. `renderstate` mode
+        // gunzips and then compares the structure; see lib/renderstate.mjs for why the
+        // render times cannot be part of that comparison.
+        return { category: "renderstate", mode: "renderstate" };
     return { category: "other", mode: "bytes" };
 }
 
@@ -66,6 +69,25 @@ export async function compareFile(relativePath, referenceRoot, portedRoot) {
 
     if (mode === "png") {
         const difference = diffPng(referenceBytes, portedBytes);
+        return difference === null ? null : { file: relativePath, category, ...difference };
+    }
+
+    if (mode === "renderstate") {
+        let referenceState;
+        let portedState;
+        try {
+            referenceState = gunzipSync(referenceBytes);
+            portedState = gunzipSync(portedBytes);
+        } catch (error) {
+            return {
+                file: relativePath,
+                category,
+                kind: "decompress",
+                message: `render state is not valid gzip: ${describeError(error)}`,
+                detail: [],
+            };
+        }
+        const difference = diffRenderState(referenceState, portedState);
         return difference === null ? null : { file: relativePath, category, ...difference };
     }
 
@@ -141,6 +163,7 @@ function emptyCategoryStats() {
         matching: 0,
         differing: 0,
         reencoded: 0,
+        timeOnly: 0,
         onlyInReference: 0,
         onlyInPorted: 0,
     };
@@ -165,6 +188,7 @@ export async function compareMaps(referenceRoot, portedRoot, keepDivergences = 1
 
     const divergences = [];
     const reencoded = [];
+    const timeOnly = [];
     const onlyInReference = [];
     const onlyInPorted = [];
 
@@ -188,6 +212,14 @@ export async function compareMaps(referenceRoot, portedRoot, keepDivergences = 1
             bump(category, "matching");
             bump(category, "reencoded");
             reencoded.push({ file, ...difference });
+        } else if (difference.kind === "renderstate-time") {
+            // Same reasoning as the re-encodes above, for the same reason: the render
+            // times are wall-clock seconds and two renders minutes apart cannot share
+            // them. Every other field in the file was compared exactly to get here, and
+            // these are counted and printed separately rather than folded away.
+            bump(category, "matching");
+            bump(category, "timeOnly");
+            timeOnly.push({ file, ...difference });
         } else {
             bump(category, "differing");
             if (divergences.length < keepDivergences) divergences.push(difference);
@@ -211,6 +243,7 @@ export async function compareMaps(referenceRoot, portedRoot, keepDivergences = 1
         matching: total("matching"),
         differing: total("differing"),
         reencoded: total("reencoded"),
+        timeOnly: total("timeOnly"),
         onlyInReference: onlyInReference.length,
         onlyInPorted: onlyInPorted.length,
     };
@@ -225,6 +258,7 @@ export async function compareMaps(referenceRoot, portedRoot, keepDivergences = 1
         categories,
         divergences,
         reencoded,
+        timeOnly,
         onlyInReference,
         onlyInPorted,
     };
@@ -232,7 +266,9 @@ export async function compareMaps(referenceRoot, portedRoot, keepDivergences = 1
 
 export function printComparison(comparison, maxReport) {
     log("");
-    log("  category     compared  matching  differing  re-encoded  java-only   ts-only");
+    log(
+        "  category     compared  matching  differing  re-encoded   time-only  java-only   ts-only",
+    );
     for (const [category, stats] of Object.entries(comparison.categories).sort()) {
         log(
             "  " +
@@ -241,6 +277,7 @@ export function printComparison(comparison, maxReport) {
                 String(stats.matching).padStart(10) +
                 String(stats.differing).padStart(11) +
                 String(stats.reencoded).padStart(12) +
+                String(stats.timeOnly).padStart(12) +
                 String(stats.onlyInReference).padStart(11) +
                 String(stats.onlyInPorted).padStart(10),
         );
@@ -255,6 +292,21 @@ export function printComparison(comparison, maxReport) {
         for (const note of comparison.reencoded.slice(0, maxReport)) log(`    ${note.file}`);
         if (comparison.reencoded.length > maxReport)
             log(`    … and ${comparison.reencoded.length - maxReport} more`);
+        log("");
+    }
+
+    if (comparison.timeOnly.length > 0) {
+        log(
+            `  ${comparison.timeOnly.length} render-state file(s) agree on every field except the ` +
+                `render times — counted as matching, because two renders performed at ` +
+                `different moments cannot share a wall clock:`,
+        );
+        for (const note of comparison.timeOnly.slice(0, maxReport)) {
+            log(`    ${note.file}`);
+            for (const line of note.detail) log(`      ${line}`);
+        }
+        if (comparison.timeOnly.length > maxReport)
+            log(`    … and ${comparison.timeOnly.length - maxReport} more`);
         log("");
     }
 

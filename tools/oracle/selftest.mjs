@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { deflateSync, gzipSync } from "node:zlib";
 
 import { compareMaps, classify } from "./lib/compareMaps.mjs";
+import { diffRenderState } from "./lib/renderstate.mjs";
 import { decodePng } from "./lib/png.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -275,6 +276,70 @@ async function main() {
             comparison.categories.lowres?.reencoded === 1 &&
             comparison.categories.lowres?.differing === 1,
         JSON.stringify(comparison.categories.lowres),
+    );
+
+    /*
+     * The render-state comparison excuses one thing - the wall-clock render times - so it
+     * has to be shown biting on everything else. A comparison that was loosened once and
+     * never re-tested is how a real divergence starts reading as "just the clock again".
+     */
+    const renderStateFile = (states, timeOffset = 0) => {
+        const palette = ["bluemap:rendered", "bluemap:not-generated"];
+        const parts = [Buffer.from([10, 0, 0])]; // compound, empty name
+        // last-render-times: TAG_Int_Array
+        const timesName = Buffer.from("last-render-times", "utf8");
+        const times = Buffer.alloc(4 + states.length * 4);
+        times.writeInt32BE(states.length, 0);
+        for (let i = 0; i < states.length; i++)
+            times.writeInt32BE(1700000000 + timeOffset + i, 4 + i * 4);
+        parts.push(
+            Buffer.from([11, 0, timesName.length]),
+            timesName,
+            times,
+        );
+        // tile-states: TAG_Compound { palette: TAG_List<TAG_String>, data: TAG_Byte_Array }
+        const statesName = Buffer.from("tile-states", "utf8");
+        parts.push(Buffer.from([10, 0, statesName.length]), statesName);
+        const paletteName = Buffer.from("palette", "utf8");
+        const paletteHeader = Buffer.alloc(5);
+        paletteHeader.writeInt8(8, 0); // element type: TAG_String
+        paletteHeader.writeInt32BE(palette.length, 1);
+        parts.push(Buffer.from([9, 0, paletteName.length]), paletteName, paletteHeader);
+        for (const entry of palette) {
+            const bytes = Buffer.from(entry, "utf8");
+            const header = Buffer.alloc(2);
+            header.writeUInt16BE(bytes.length, 0);
+            parts.push(header, bytes);
+        }
+        const dataName = Buffer.from("data", "utf8");
+        const dataLength = Buffer.alloc(4);
+        dataLength.writeInt32BE(states.length, 0);
+        parts.push(
+            Buffer.from([7, 0, dataName.length]),
+            dataName,
+            dataLength,
+            Buffer.from(states),
+        );
+        parts.push(Buffer.from([0, 0])); // end tile-states, end root
+        return Buffer.concat(parts);
+    };
+    const baseState = renderStateFile([0, 0, 1, 0]);
+    check(
+        "a render state compares equal to itself",
+        diffRenderState(baseState, baseState) === null,
+    );
+    const changedState = diffRenderState(baseState, renderStateFile([0, 1, 1, 0]));
+    check(
+        "a changed tile-state is reported, and not excused as a clock difference",
+        changedState?.kind === "renderstate-field" &&
+            changedState.message.includes("tile-states"),
+        JSON.stringify(changedState),
+    );
+    const changedTime = diffRenderState(baseState, renderStateFile([0, 0, 1, 0], 60));
+    check(
+        "a render time that moved is reported as time-only rather than as a divergence",
+        changedTime?.kind === "renderstate-time",
+        JSON.stringify(changedTime),
     );
 
     // and the control: two identical trees must pass
