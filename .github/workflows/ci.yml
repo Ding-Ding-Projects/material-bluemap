@@ -33,6 +33,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Pull requests are otherwise checked out at GitHub's synthetic merge
+          # commit. The generated changelog follows the branch history, so lint
+          # the actual PR head instead of inventing an unlisted merge entry.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       # The changelog is generated from the repository, so it can go stale the moment
       # anything is pushed without regenerating it. This says so here rather than letting
