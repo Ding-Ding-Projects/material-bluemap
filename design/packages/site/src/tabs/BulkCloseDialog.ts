@@ -99,6 +99,7 @@ export function openBulkCloseDialog(deps: BulkCloseDeps, options: BulkCloseOpenO
             field: query,
             pattern: query.value,
             flags: caseToggle.checked ? "" : "i",
+            mode,
             sample: model.openIds().map((id) => model.label(id)).join("\n"),
             onChange: (next) => {
                 query.value = next.pattern;
