@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiCog, mdiFileCogOutline, mdiMapOutline, mdiMapPlus, mdiServerNetwork } from "@mdi/js";
+import { mdiCloudUploadOutline, mdiCog, mdiFileCogOutline, mdiMapOutline, mdiMapPlus, mdiServerNetwork } from "@mdi/js";
 import type { MenuPage } from "@material-bluemap/viewer";
 import MapView from "./components/MapView.vue";
 import ProfileManager from "./components/ProfileManager.vue";
@@ -19,6 +19,7 @@ import { WorldScreen } from "./components/world/index.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
 import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
+import { BackupScreen } from "./components/backup/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
 import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js";
@@ -58,11 +59,13 @@ useBlueMapTheme(currentApp);
 const PAGE_MAP = "map";
 const PAGE_WORLD = "world";
 const PAGE_SERVERS = "servers";
+const PAGE_BACKUPS = "backups";
 
 const pages = computed<TabPage[]>(() => [
     { id: PAGE_MAP, label: t("tabs.page.map", "Map"), icon: mdiMapOutline },
     { id: PAGE_WORLD, label: t("tabs.page.world", "Make a map"), icon: mdiMapPlus },
     { id: PAGE_SERVERS, label: t("tabs.page.servers", "Maps and servers"), icon: mdiServerNetwork },
+    { id: PAGE_BACKUPS, label: t("tabs.page.backups", "Backups"), icon: mdiCloudUploadOutline },
 ]);
 
 const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
@@ -87,6 +90,38 @@ function revealPage(pageId: string): void {
  * one is never rendered at all.
  */
 const mapPageActive = computed(() => tabs.value?.activePage?.id === PAGE_MAP);
+
+/**
+ * Opening a link the application does not draw itself.
+ *
+ * `window.open` rather than a bridge call: the shell denies the popup and hands the URL to
+ * the system browser, which is the one route that already refuses anything that is not
+ * HTTPS. A renderer that opened URLs itself would be a second policy to keep in step.
+ */
+function openInBrowser(url: string): void {
+    window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/**
+ * Restoring a backup, which is the downloads surface's job and not a second downloader.
+ *
+ * The backup screen has already chosen the release and the asset; the settings surface is
+ * where the parts are fetched, verified against their published digests and rejoined. This
+ * only carries the choice there and says what happened, because a Restore button that
+ * silently changes a screen the person is not looking at reads as a button that did
+ * nothing.
+ */
+function revealBackupRestore(where: { owner: string; repo: string; tag: string; asset: string }): void {
+    openSettings();
+    raiseNotice(
+        "info",
+        t(
+            "backup.restoreHandoff",
+            { asset: where.asset, repo: `${where.owner}/${where.repo}` },
+            "Downloads is open. Fetch {asset} from {repo} there: every part is checked against its published digest before anything is written.",
+        ),
+    );
+}
 
 /* -------------------------------------------------------------------------- */
 /* Making a map                                                               */
@@ -402,6 +437,26 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <div class="mb-world-host mb-interactive">
                                 <div class="mb-shell-centre">
                                     <ProfileManager @close="revealPage(PAGE_MAP)" />
+                                </div>
+                            </div>
+                        </template>
+
+                        <!--
+                            Backing a world or a rendered map up to GitHub release assets.
+                            Restoring is deliberately not a second downloader: the screen
+                            names the release it wants and the existing downloads surface,
+                            which already verifies every part against its published digest,
+                            is what fetches it.
+                        -->
+                        <template #backups>
+                            <div class="mb-world-host mb-interactive">
+                                <div class="mb-shell-centre">
+                                    <BackupScreen
+                                        :can-open-settings="true"
+                                        @sign-in="openSettings()"
+                                        @open="openInBrowser"
+                                        @restore="revealBackupRestore"
+                                    />
                                 </div>
                             </div>
                         </template>

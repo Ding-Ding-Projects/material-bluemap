@@ -196,6 +196,12 @@ function set(next: PlainValue): void {
                 :disabled="isDisabled"
                 @update:model-value="set"
             />
+            <!--
+              `reset-value` is what the control's own clear affordance should mean
+              here. The shared colour field carries one, and in the appearance editor
+              an empty colour means "inherit"; a BlueMap config file has no spelling
+              for that, so the honest reading is BlueMap's own documented default.
+            -->
             <ConfigControl
                 v-else
                 :control="field.control"
@@ -203,6 +209,7 @@ function set(next: PlainValue): void {
                 :label="field.label"
                 :disabled="isDisabled"
                 :error="errorText"
+                :reset-value="(field.default as PlainValue)"
                 @update:model-value="set"
             />
         </template>

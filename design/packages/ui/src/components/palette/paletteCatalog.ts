@@ -272,6 +272,39 @@ function configScreenItems(input: PaletteCatalogInput, group: string): PaletteIt
 }
 
 /**
+ * The options editor's History tab.
+ *
+ * Listed separately because it is not in `SCREENS`, and should not be: that list drives the
+ * settings search index, whose entries are fields, and the History tab has none. Without an
+ * entry here, though, the one tab a person is most likely to look for by name - the place
+ * their old configuration is - could not be found by typing its name, which is the single
+ * thing this palette exists to prevent.
+ *
+ * It opens the editor rather than landing on the tab, and its sentence says so, in the same
+ * way the un-routed config entry above does. Naming the tab to pick is honest; pretending to
+ * arrive there is not.
+ */
+function configHistoryItem(input: PaletteCatalogInput, group: string): PaletteItem {
+    const { t, actions } = input;
+    return {
+        kind: "destination",
+        id: "config.history",
+        group,
+        title: t("palette.config.historyTitle", "Config folder history"),
+        description: t(
+            "palette.config.historyDescription",
+            "Every saved version of the open config folder, kept on this computer: browse them, see what each one changed, and put one back.",
+        ),
+        keywords: ["history", "versions", "revisions", "restore", "undo", "backup", "bluemap", "conf"],
+        where: t(
+            "palette.where.configHistory",
+            "Opens the server configuration editor. Its History tab, at the end of the tab strip, holds the saved versions.",
+        ),
+        go: () => actions.openConfig(null),
+    };
+}
+
+/**
  * The pages of the viewer's own menu.
  *
  * Titles are passed to `openPage` as functions, which is how the menu stores them: an open
@@ -403,6 +436,7 @@ export function buildPaletteCatalog(input: PaletteCatalogInput): PaletteItem[] {
         ...shellItems(input, t("palette.group.app", "App")),
         ...settingsSectionItems(input, t("palette.group.appSettings", "App settings")),
         ...configScreenItems(input, t("palette.group.config", "Server configuration")),
+        configHistoryItem(input, t("palette.group.config", "Server configuration")),
         ...menuPageItems(input, t("palette.group.menu", "Menu")),
         ...viewerSettingItems(input.app, input.t, input.locale),
         ...paletteOwnItems(input, t("palette.group.palette", "Command palette")),

@@ -378,6 +378,14 @@ export const optionsGui: Article = {
 
     suggested: [
         {
+            articleId: "config-rich-controls",
+            reason: "How each of those twelve control kinds is chosen, and the guard that refuses a text box over a rich value.",
+        },
+        {
+            articleId: "config-history",
+            reason: "The History tab beside these screens, and what a save records before the folder changes.",
+        },
+        {
             articleId: "java-render-path",
             reason: "What the config this GUI writes is actually handed to, and the flags the run screen composes.",
         },

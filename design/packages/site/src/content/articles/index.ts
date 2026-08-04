@@ -26,6 +26,9 @@ import { electronSecurity } from "./electron-security.js";
 import { firstRunConsent } from "./first-run-consent.js";
 import { desktopShellChrome } from "./desktop-shell-chrome.js";
 import { optionsGui } from "./options-gui.js";
+import { configRichControls } from "./config-rich-controls.js";
+import { configHistory } from "./config-history.js";
+import { backups } from "./backups.js";
 import { githubSignIn } from "./github-sign-in.js";
 import { releaseDownloads } from "./release-downloads.js";
 import { worldReading } from "./world-reading.js";
@@ -57,8 +60,11 @@ export const articles: readonly Article[] = [
     desktopShellChrome,
     firstRunConsent,
     optionsGui,
+    configRichControls,
+    configHistory,
     releaseDownloads,
     githubSignIn,
+    backups,
     tabbedShell,
     commandPalette,
     notificationCentre,

@@ -23,6 +23,8 @@ import type { RenderIpc } from "./render/ipc.js";
 import { installDownloadIpc } from "./download/ipc.js";
 import type { DownloadIpc } from "./download/ipc.js";
 import { releaseTokenSource } from "./download/token.js";
+import { installBackupIpc } from "./backup/ipc.js";
+import type { BackupIpc } from "./backup/ipc.js";
 import { installGitHubIpc } from "./github/ipc.js";
 import type { GitHubIpc } from "./github/ipc.js";
 import { openExternalHttps } from "./github/external.js";
@@ -30,6 +32,8 @@ import { registerJavaHandlers } from "./java/ipc.js";
 import type { JavaIpc } from "./java/ipc.js";
 import { registerConfigHandlers } from "./config/index.js";
 import type { ConfigIpc } from "./config/index.js";
+import { registerHistoryHandlers } from "./history/index.js";
+import type { HistoryIpc } from "./history/index.js";
 import { registerWorldHandlers } from "./world/index.js";
 import type { WorldIpc } from "./world/index.js";
 
@@ -244,6 +248,33 @@ function startDownloads(render: RenderIpc, github: GitHubIpc): DownloadIpc {
 }
 
 /**
+ * Backing a world or a rendered map up to GitHub.
+ *
+ * Registered once, for the same reason rendering, downloading and sign-in are. It stages
+ * into the same folder downloads use, so a backup follows the storage directory somebody
+ * chose in setup, and it borrows the downloader's token source so a backup runs under the
+ * account signed in inside the application rather than only under `GH_TOKEN`.
+ */
+let backupIpc: BackupIpc | null = null;
+
+function startBackups(render: RenderIpc, github: GitHubIpc): BackupIpc {
+    if (backupIpc !== null) return backupIpc;
+    backupIpc = installBackupIpc({
+        ipcMain,
+        storageDir: () => render.storageDirectory(),
+        token: releaseTokenSource({ session: github.session }),
+        broadcast: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (window.isDestroyed()) continue;
+                window.webContents.send("backup:event", event);
+            }
+        },
+        appVersion: app.getVersion(),
+    });
+    return backupIpc;
+}
+
+/**
  * GitHub sign-in.
  *
  * Registered once, for the same reason rendering and downloading are. The session it
@@ -323,14 +354,39 @@ function startConfigEditing(): ConfigIpc {
     return configIpc;
 }
 
+/**
+ * The local version history of each config folder, for the history panel.
+ *
+ * Registered once, like everything above it. It holds nothing between calls: a repository
+ * is derived from the folder it belongs to on every call, so installing Git, deleting a
+ * history folder or opening a different project while the app is running all take effect
+ * immediately rather than at the next restart.
+ *
+ * Every history lives in its own repository under `<userData>/config-history/`, never as a
+ * `.git` inside the folder the person chose - see `main/history/store.ts` for why that
+ * distinction is the whole design. Nothing is ever pushed anywhere: there is no remote and
+ * no channel that could accept one.
+ */
+let historyIpc: HistoryIpc | null = null;
+
+function startConfigHistory(): HistoryIpc {
+    if (historyIpc !== null) return historyIpc;
+    historyIpc = registerHistoryHandlers(ipcMain, { dataDir: app.getPath("userData") });
+    return historyIpc;
+}
+
 async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
     registerIpc();
-    startDownloads(startRendering(), startGitHubSignIn());
+    const render = startRendering();
+    const github = startGitHubSignIn();
+    startDownloads(render, github);
+    startBackups(render, github);
     startWorldInspection();
     startJavaDiscovery();
     startConfigEditing();
+    startConfigHistory();
 
     const window = new BrowserWindow({
         width: 1280,

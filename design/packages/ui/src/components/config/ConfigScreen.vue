@@ -29,6 +29,7 @@ import {
 } from "vuetify/components";
 import { EMPTY_INVOCATION, type CliInvocation, type FieldMeta, type PlainValue } from "@material-bluemap/config";
 import ConfigApplyDialog from "./ConfigApplyDialog.vue";
+import { HistoryPanel } from "../history/index.js";
 import ConfigFileForm from "./ConfigFileForm.vue";
 import ConfigSearchField from "./ConfigSearchField.vue";
 import MapsScreen from "./MapsScreen.vue";
@@ -120,7 +121,9 @@ const host = resolvedHost;
  */
 
 const workspace = shallowRef<ConfigWorkspace | null>(null);
-const activeScreen = ref<ScreenId>("core");
+// "history" is a tab but not a ScreenId: the settings search indexes screens by their
+// fields, and the history panel has none, so it stays out of that union on purpose.
+const activeScreen = ref<ScreenId | "history">("core");
 const selectedMapKey = ref<string | null>(null);
 const selectedStorageKey = ref<string | null>(null);
 const highlightPath = ref<string | null>(null);
@@ -300,13 +303,66 @@ function previewWorkspace(): void {
     );
 }
 
+/**
+ * A generated set, in a build that *can* write one.
+ *
+ * Not the same message as `previewWorkspace`, because it is not the same situation: these
+ * settings are editable and savable, they are simply not on a disk yet. Saying "this build
+ * cannot write one" here would be false, and saying nothing would leave somebody editing a
+ * full screen of settings without knowing there is no file behind them.
+ */
+function draftWorkspace(): void {
+    workspace.value = createWorkspace(null, {
+        webroot: "/bluemap/web",
+        dataFolder: "/bluemap/data",
+        world: "/minecraft/world",
+        version: props.version,
+    });
+    notify(
+        notices,
+        "info",
+        t(
+            "config.shell.draft",
+            "Showing BlueMap's own defaults so every setting is here to read. Nothing is on disk yet: choose a folder to save them into, or open one BlueMap already uses.",
+        ),
+    );
+}
+
+/**
+ * What the editor opens on.
+ *
+ * The empty state used to be the whole answer, and it made every setting in the
+ * application invisible until somebody guessed that a folder had to exist first. So: an
+ * explicitly-passed folder wins; otherwise the folder BlueMap already uses on this machine
+ * is opened when it is really there; otherwise the generated defaults are shown, labelled
+ * as not-yet-saved. In every case the tabs and their settings are on screen, which is the
+ * point - an options editor whose options cannot be seen is not an options editor.
+ */
 onMounted(async () => {
     await readConsent();
     if (props.initialFolder !== null && host !== null) {
         await openFolderAt(props.initialFolder);
         return;
     }
-    if (host === null) previewWorkspace();
+    if (host === null) {
+        previewWorkspace();
+        return;
+    }
+
+    const existing = await host.suggestConfigFolder().catch(() => "");
+    if (existing !== "") {
+        try {
+            const contents = await host.readFolder(existing);
+            if (contents.files.length > 0) {
+                await openFolderAt(existing);
+                return;
+            }
+        } catch {
+            // Nothing there to carry on from, which is the ordinary first-run case rather
+            // than a failure worth telling anybody about. Fall through to the defaults.
+        }
+    }
+    draftWorkspace();
 });
 
 watch(consentAccepted, () => syncConsentIntoCore());
@@ -394,6 +450,10 @@ async function confirmSave(): Promise<void> {
     try {
         if (currentPlan.writes.length > 0) await host.writeFiles(current.folder, currentPlan.writes);
         if (currentPlan.deletes.length > 0) await host.deleteFiles(current.folder, currentPlan.deletes);
+
+        // A history that cannot be kept must not turn a save that worked into one that
+        // failed, so this is fire-and-forget: the bridge call never rejects.
+        void window.materialBluemap?.history?.snapshot(current.folder);
 
         workspace.value = markWorkspaceSaved(current, currentPlan);
         applyOpen.value = false;
@@ -550,6 +610,7 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
 
             <v-tabs v-model="activeScreen" density="comfortable" show-arrows class="mb-config-screen__tabs">
                 <v-tab v-for="screen in SCREENS" :key="screen.id" :value="screen.id">{{ screen.label }}</v-tab>
+                <v-tab value="history">{{ t("config.history.tab", "History") }}</v-tab>
             </v-tabs>
             <v-divider />
 
@@ -647,6 +708,13 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                         @update:invocation="(value) => (invocation = value)"
                         @consent="emit('consent')"
                     />
+                </v-window-item>
+
+                <v-window-item value="history">
+                    <HistoryPanel v-if="workspace !== null && workspace.folder !== null" :folder="workspace.folder" />
+                    <p v-else class="mb-config-screen__note">
+                        {{ t("config.history.noFolder", "History follows a folder. Save this config set to one first.") }}
+                    </p>
                 </v-window-item>
             </v-window>
         </template>

@@ -338,6 +338,49 @@ describe("landing page", () => {
         }
     });
 
+    it("reaches every article from the landing page, directly or through a suggestion", () => {
+        // The site's own version of "a feature that ships and never appears here is
+        // undocumented in practice". The docs tab lists everything, but a reader who
+        // arrived at the landing page and never opened that tab should still be able to
+        // walk to every article: a card, or a suggestion from one the cards do reach.
+        // An article nobody points at is one that will be forgotten the next time this
+        // page is edited, which is exactly how a shipped feature goes unmentioned.
+        const seeds = [
+            ...homeFeatures.map((feature) => feature.articleId),
+            ...home.engines.map((engine) => engine.articleId),
+        ];
+
+        const reached = new Set<string>();
+        const pending = [...seeds];
+        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+            if (reached.has(next)) continue;
+            reached.add(next);
+            for (const suggestion of findArticle(next)?.suggested ?? []) {
+                pending.push(suggestion.articleId);
+            }
+        }
+
+        const orphans = articles.filter((article) => !reached.has(article.id)).map((article) => article.id);
+        expect(orphans, "these articles cannot be walked to from the landing page").toEqual([]);
+    });
+
+    it("carries a card for every feature the application surfaces to a user", () => {
+        // A named floor rather than a count, so the list can grow without editing a
+        // number, and so a card silently disappearing during an edit fails here.
+        const carded = new Set(homeFeatures.map((feature) => feature.articleId));
+        for (const required of [
+            "options-gui",
+            "config-rich-controls",
+            "config-history",
+            "backups",
+            "github-sign-in",
+            "tabbed-shell",
+            "command-palette",
+        ]) {
+            expect(carded.has(required), `${required} has no card on the landing page`).toBe(true);
+        }
+    });
+
     it("explains every status badge it prints", () => {
         for (const feature of homeFeatures) {
             expect(feature.statusNote.trim().length, `${feature.title} shows a badge and explains nothing`).toBeGreaterThan(20);

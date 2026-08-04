@@ -1,5 +1,190 @@
 # Handoff
 
+## Update, 2026-08-04 midday — config controls, a history per folder, backups, and the door to the options editor
+
+Six commits on `main`, in the order they landed. Every SHA below resolves; each was read with
+`git show --stat` before it was written about here.
+
+### `6b8ef7bd0075a2a817f33e68e0292a11d9649ff1` — selects that rendered blank, and colours without alpha
+
+The premise going in was "too many text boxes"; the commit records that 82 of 90 fields
+already carried a real control. What the sweep found instead was closed selects rendering
+**blank** for values BlueMap itself writes: `storage-type` offered `file` and `sql` while the
+Java default is `bluemap:file`, so a fresh install's own config matched no option and the
+next interaction would have overwritten a correct value with a different spelling of itself.
+The same shape sat on compression, loader, dialect and the dimension keys, and
+`resolution-default` was a closed select over a float.
+
+Selects now normalise registry keys before matching — a `keyNamespace` on the control says
+which namespace applies — and where a file carries a value no option holds verbatim, the
+control prepends an item carrying the file's own text, labelled with the matched option's
+meaning when it is only a different spelling and flagged as unlisted when it is genuinely
+unknown. Both colour fields now mount the application's continuous colour picker with alpha,
+because upstream's `Color.parse` reads an eighth hex byte as alpha.
+
+The guard is `design/packages/config/test/controlPolicy.test.ts`: it classifies each field's
+real domain from its zod schema, asserts the control fits, and takes a second opinion from
+upstream's own Java field types. Measured today: **14 tests** in that file, **11** in the new
+`design/packages/ui/src/components/config/ConfigControl.test.ts`.
+
+### `1b77779a4144ef97271c6727c9894e5d1646e724` — a local git history per config folder
+
+Each config folder now gets its own isolated git repository beside the app's data directory
+(`<userData>/config-history/<folder-slug>-<hash16>/`), never a `.git` inside the user's
+folder. Every save snapshots the folder as it is, deletions included. Restore is append-only:
+it snapshots what is on disk first, then writes the old files, then records the restore
+itself as a new revision with a `Restored-From` trailer — no `reset`, no `amend`, no
+`rebase`. The panel is a **History** tab in the config screen, reusing the changelog date
+picker, deriving its action chips from the revisions actually present, and carrying the
+regex-builder search field. Trimming is the only operation that deletes anything and sits
+behind the super-confirmation gate; it refuses to empty a history.
+
+The structural rule: **a failed history write never fails the save.** The git runner returns
+failures as values rather than throwing, every IPC handler resolves, and the snapshot call
+after a save is fire-and-forget.
+
+Measured today: **74 tests** across the three history files —
+`packages/app/src/main/history/ipc.test.ts` (37),
+`packages/ui/src/components/history/historyModel.test.ts` (20) and `HistoryPanel.test.ts` (17).
+
+### `157f4c3eb3cacff1d82b0010f59a5f5827d7710a` — `docs/config-history.md`
+
+The article for the feature above, indexed from `docs/README.md`. Behaviour, configuration,
+failure modes, security and verification.
+
+### `8cbac6334136948301c8f83d8e57702ff71fdaf6` — backing a world up to release assets
+
+Worlds and rendered maps can be packed, split and published as GitHub release assets, and
+read back. Git LFS was rejected on cost, by name, in `main/backup/pointer.ts` and in
+`docs/backup.md`: 1 GB free storage, bandwidth metered against every restore. Release assets
+are free on public repositories and capped per asset rather than per account.
+
+The pointer format is **not** this project's own. It is Desktop Material's Cheap LFS v1,
+copied rather than reinvented, so a backup written here is readable by that application.
+Metadata belonging to this application went into a separate `backup.json` asset rather than
+into the pointer. The interop claim is scoped honestly and stays scoped here: the canonical
+regexes are copied into a fixture and this writer's output is run through them, which proves
+the format — **not** a round trip through an application these tests cannot run.
+
+Restoring hands the chosen release to the existing downloads surface, which fetches parts,
+checks each against its published SHA-256, rejoins them and verifies the whole file. A backup
+whose upload stopped before the pointer went up is listed, marked unfinished, and offered no
+restore button, because there is no digest to verify it against.
+
+The screen is a fourth shell tab (`Backups`), with a test that opens it. Measured today:
+**128 tests** across the nine backup files — 95 in `packages/app/src/main/backup/` and 33 in
+`packages/ui/src/components/backup/`.
+
+### `5c810d0277fc4cafbbcf76bafc3dca80c3d441e6` — the options editor opened on a locked door
+
+Fixing the earlier provide/inject bug had a consequence nobody looked for. With no host the
+editor used to fall back to a generated config set, so every tab and setting was on screen;
+once it resolved a real bridge that fallback stopped applying, and the editor began opening
+on "Nothing is open yet" with **no tabs at all** until a folder existed. That is what the
+report "I don't see all bluemap configs available in gui" was actually about.
+
+It now opens on the config folder BlueMap already uses when that folder is really on disk,
+and otherwise on BlueMap's own defaults, labelled as not yet saved — deliberately *not*
+reusing the no-bridge wording, which says "this build cannot write one". The commit records
+154 settings across all eight tabs in both states; that figure is the commit's, not an
+independent measurement here. What was checked here is the tab set:
+`components/config/configSearch.ts` declares seven `SCREENS` and `ConfigScreen.vue` adds the
+History tab, which is eight.
+
+The same commit added the capture-harness gate. `attempt()` records a missing surface instead
+of failing, which is right for a screen needing a Java runtime or a real GitHub account and
+wrong for a screen that is simply part of the application: six options-editor captures had
+vanished from the artifact while the job stayed green. `REQUIRED_SURFACES` now names six
+surfaces — `Options editor`, `Options editor tabs`, `Options editor search`, `Options editor
+regex builder`, `Profile manager`, `Notification corner` — and a run that cannot open one
+fails.
+
+### `8491f0d3c39a02358fe0adf213fece51603bdf90` — three stale capture selectors
+
+The gate fired on its first CI run and turned the build red, which is the correct outcome.
+Three selectors had been photographing around broken navigation:
+
+1. The profile manager was opened from a floating button the tabbed shell deleted on purpose;
+   the harness now opens the tab, and clicks the tab's **label** rather than the tab, because
+   a tab carries its own close button and a click on its centre is a coin toss between
+   selecting and closing it.
+2. It then waited for the profile list to be *visible*. The listbox is always rendered, but
+   with no maps and no servers it has no rows and therefore no height, and a zero-height
+   element is invisible by Playwright's definition — so the wait was really waiting for
+   somebody to add a server. It now waits for the element to be attached.
+3. The notification history was renamed when a flat column of message strings became a real
+   notification centre; the bell is now found by its class, because its label carries the
+   unread count and changes with the corner.
+
+### Verification, measured today
+
+- `node scripts/build-changelog.mjs` — wrote both outputs; **49 versions, 134 entries (2
+  unreleased), every SHA resolved**. `node scripts/build-changelog.mjs --check` then passes.
+- `cd design && npx vitest run` — **276 files, 4457 passed, 3 skipped, 0 failed**, 30 s.
+- `cd design && npx vitest run packages/ui/src/components/changelog` — **4 files, 68 passed,
+  1 skipped**.
+
+Per package, from the same run:
+
+| Package | Tests | Package | Tests |
+|---|---|---|---|
+| `ui` | 1663 (1 skipped) | `engine` | 1150 (1 skipped) |
+| `app` | 809 | `shared` | 196 |
+| `config` | 190 (1 skipped) | `render-actions` | 147 |
+| `site` | 127 | `viewer` | 57 |
+| `nbt` | 56 | `worldgen` | 32 |
+| `parts` | 25 | `server` | 5 |
+| `cli` | none yet | | |
+
+### CI, as it actually stands
+
+These are read from the run list, not predicted. `success` and `failure` are recorded
+verdicts; `in progress` means exactly that at the time of writing and nothing more.
+
+| Commit | CI run | Verdict |
+|---|---|---|
+| `6b8ef7b` | 30923535221, 30924515607 | success |
+| `1b77779` | 30924158389 | cancelled (superseded by a later push) |
+| `157f4c3` | 30924276107, 30926223701 | success |
+| `8cbac63` | 30926226591 | cancelled (superseded by a later push) |
+| `5c810d0` | 30926891432 | **failure** — the `Screenshots` job, on the new gate |
+| `5c810d0` | 30927851530 | **failure** — `Lint, build, test` |
+| `8491f0d` | 30928687703 | in progress at the time of writing |
+| `49af181` | 30929184907 | queued at the time of writing |
+
+The two failures are different, and both matter:
+
+- **30926891432** is the gate doing its job. The `captured every surface that needs nothing
+  but the application` test failed with `Profile manager` and `Notification corner` in the
+  skipped list, both `locator.click: Timeout 15000ms exceeded`. Those are the selectors
+  `8491f0d` then fixed.
+- **30927851530** is a different and still-open problem. `Lint, build, test` reported **1
+  failed, 4435 passed, 24 skipped**, and the failure was
+  `packages/app/src/main/backup/archive.test.ts > survives a file large enough to need more
+  than one read chunk`, `Test timed out in 5000ms`. That file passes locally (11 tests). It
+  is a timeout on a slower machine, not a wrong answer, and it needs an explicit timeout or a
+  smaller fixture rather than a re-run.
+
+### What remains
+
+- **The archive-test timeout above.** Until it is fixed, `main` cannot go green, and so no
+  release is published for this work.
+- **No screenshots of the new surfaces yet.** The History tab and the Backups tab are not in
+  `REQUIRED_SURFACES` and have no capture step, so the harness will not notice if either
+  stops opening. Adding them is the obvious next step now that the gate exists.
+- **Backup interoperability is format-proven, not round-trip-proven** — see the scoping in
+  the `8cbac63` entry above.
+- **The history covers config folders only.** Profiles, application settings and the
+  maps-and-servers list are still not snapshotted, so a mistaken deletion there has no undo.
+- The `154 settings` figure is the commit's own; no test asserts it, so it will drift
+  silently if the schema changes.
+
+### External-state dependency
+
+Everything above about CI comes from the GitHub Actions run list for this repository and can
+change after this was written. The two in-flight runs had no verdict when this section was
+recorded, and nothing here should be read as predicting one.
+
 ## Pages continuation checkpoint (2026-08-04)
 
 The `pages-material3-continuation` linked worktree carries the merged Pages contract work and
@@ -111,18 +296,34 @@ document says so.
 - The app installs from a real Windows installer and opens with a working interface.
 - It can browse an existing BlueMap server and show its maps in 3D.
 - It can render a world locally by driving the original Java engine (per decision D17).
-- **The shell is a tabbed one.** Three pages behind a persistent strip: the map, making a
-  map, and the maps-and-servers list. Two mounting details are load-bearing rather than
-  tidy: `MapView` stays at shell level rather than in its page's slot, because only the
+- **The shell is a tabbed one.** Four pages behind a persistent strip: the map, making a
+  map, the maps-and-servers list, and backups. Two mounting details are load-bearing rather
+  than tidy: `MapView` stays at shell level rather than in its page's slot, because only the
   active page's slot renders and putting the renderer there would dispose it on every tab
   switch; and the map page is a transparent click-through frame over a canvas that lives
   outside the Vue tree entirely.
-- The interface includes: a world wizard (make a map in steps), a settings surface, a
-  seven-tab options editor for BlueMap config files, GitHub sign-in, release downloads,
+- The interface includes: a world wizard (make a map in steps), a settings surface, an
+  eight-tab options editor for BlueMap config files, GitHub sign-in, release downloads,
   a Java runtime settings row, a notification centre, a command palette, a changelog
   viewer covering every released version, per-element appearance editors with a continuous
   colour picker, the language-and-tone settings, and a custom window title bar. All of
   these are reachable by clicking, and all have tests.
+- **The options editor opens on settings you can read, not on an empty screen.** It opens
+  on the BlueMap config folder this computer already uses when one is really on disk, and
+  otherwise on BlueMap's own default values, labelled as not yet saved. Until 2026-08-04 it
+  opened on "Nothing is open yet" with no tabs at all, and people reasonably concluded the
+  settings were missing. Its eight tabs are the seven config screens (Core, Maps, Storages,
+  Web app, Web server, Server plugin, Run) plus **History**.
+- **Every config folder has a local version history**, so a save can be undone. The history
+  is a real git repository kept beside the app's own data folder — never a `.git` inside the
+  user's folder. It only ever adds: restoring old files is itself recorded as a new
+  revision, so an undo can be undone in turn. If the history cannot be written, the save
+  still succeeds and the app says what was lost. See `docs/config-history.md`.
+- **A world or a rendered map can be backed up to GitHub**, from the Backups tab. The folder
+  is packed into one archive, cut into parts small enough to be release assets, and
+  published as a new release, with a pointer file naming every part and its SHA-256.
+  Restoring downloads the parts, checks each digest, rejoins them and verifies the whole
+  file. See `docs/backup.md`.
 - **The first step of the wizard finds the worlds already on this computer**, from the
   default Minecraft installation and from any number of folders the user mounts. See
   `docs/finding-worlds.md`. Typing a path, browsing and dropping a folder all still work.
@@ -202,13 +403,25 @@ document says so.
 - One latent bug worth fixing next: `stores/profiles.ts` writes `localStorage` unguarded
   while `load()` wraps `getItem` in try/catch, so where storage is full or unavailable the
   first profile mutation throws inside a Vue watcher.
+- **The version history covers config folders only.** Profiles, application settings and the
+  maps-and-servers list are not snapshotted yet, so deleting one of those still cannot be
+  undone.
+- **One test is slower on the CI machine than on a developer machine and fails there.**
+  `packages/app/src/main/backup/archive.test.ts`, the case named "survives a file large
+  enough to need more than one read chunk", passes locally and timed out after 5 seconds on
+  the hosted Linux runner in CI run 30927851530. It is a timeout, not a wrong answer, but a
+  test that only passes on some machines is a test nobody can trust.
+- **Backup interoperability is proven against a copy of the other application's rules, not
+  against that application.** The pointer files this app writes are checked with the
+  patterns Desktop Material uses to read them. Nobody has yet made a backup here and
+  restored it there.
 
 ### How to verify things yourself
 
 Run these from the repository root. All should succeed today.
 
 ```bash
-cd design && npx vitest run          # every unit test (about 3200, under 30 seconds)
+cd design && npx vitest run          # every unit test (4457 on 2026-08-04, about 30 seconds)
 cd design && pnpm typecheck          # type-checks all 13 packages (vue-tsc for the ui one)
 cd design && pnpm lint
 node tools/oracle/selftest.mjs       # proves the byte-comparison gate can detect planted differences
@@ -223,8 +436,10 @@ at the bottom for the wrong conclusion its absence produced.
 
 ### If you are picking this up
 
-1. Read this section, then `ROADMAP.md`, then the newest dated section at the bottom of
-   this file.
+1. Read this section, then `ROADMAP.md`, then the dated sections. **The newest dated
+   sections are at the top of this file, above this summary; the older ones are below it.**
+   The file grew from the bottom up until 2026-08-04 and from the top down after that, so
+   the two ends are both worth a look and only the dates tell you which is which.
 2. The active work is making the oracle comparison come out identical. Start from the
    report at `tools/oracle/out/gate/report.json` and fix causes in
    `design/packages/engine/src`, comparing against the Java source in

@@ -237,14 +237,17 @@ export const githubSignIn: Article = {
                 {
                     kind: "callout",
                     tone: "note",
-                    title: "Signing in does not yet reach the downloader",
+                    title: "What the account now reaches",
                     content: [
-                        "The download path reads a token from the ",
+                        "This used to say the session was wired into nothing, which is no longer true. The ",
+                        "download path asks the session for a token first and falls back to ",
                         { code: "GH_TOKEN" },
-                        " environment variable, and the sign-in session is not wired into it. So signing in ",
-                        "does not currently make a private release asset fetchable from the downloads surface. ",
-                        "That is a gap rather than a design, and it is stated here rather than left for somebody ",
-                        "to discover by signing in and finding nothing changed.",
+                        " from the environment, so a continuous integration runner and a shell that exported ",
+                        "a token both keep working; and publishing a backup runs under the same session, ",
+                        "resolved per operation in the main process. The token is asked for again on every ",
+                        "call rather than captured once, so a renewal is seen and a sign-in a minute after ",
+                        "the window opened is seen too. None of that has been exercised against github.com ",
+                        "from a packaged build.",
                     ],
                 },
             ],
@@ -254,7 +257,11 @@ export const githubSignIn: Article = {
     suggested: [
         {
             articleId: "release-downloads",
-            reason: "The surface a token would eventually serve, and what it can already fetch without one.",
+            reason: "The surface this token now serves, and what it can already fetch without one.",
+        },
+        {
+            articleId: "backups",
+            reason: "The other thing the account is spent on: publishing a world or a render as release assets.",
         },
         {
             articleId: "electron-security",

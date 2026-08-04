@@ -15,7 +15,7 @@
  */
 
 import { z } from "zod";
-import type { NumberControl, SelectOption, SliderControl, SwitchControl } from "../meta.js";
+import type { NumberControl, SelectOption, SliderControl, SwitchControl, TextToken } from "../meta.js";
 
 /** Java `Integer.MIN_VALUE`, used as "no limit" by every mask shape. */
 export const JAVA_INT_MIN = -2147483648;
@@ -79,11 +79,25 @@ export function hoconString(): z.ZodType<string> {
 }
 
 /**
+ * The shape of a hex colour, named rather than inlined.
+ *
+ * `controlPolicy.test.ts` walks every schema and asks each string leaf which of
+ * these patterns it carries, so that a colour field can be *recognised* from its
+ * schema rather than from a list of paths somebody has to remember to extend.
+ * That is what stops `sky-color` quietly becoming a text box the day a sixth
+ * colour setting is added and copied from the wrong neighbour.
+ */
+export const HEX_COLOR_PATTERN = /^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+
+/** The shape of a BlueMap registry key. Recognised the same way, for the same reason. */
+export const NAMESPACED_KEY_PATTERN = /^(?:[a-z0-9_.-]+:)?[a-z0-9_./-]+$/;
+
+/**
  * A hex colour as BlueMap writes it. Both `#rrggbb` and `#rrggbbaa` are accepted
  * because BlueMap's own colour parser takes an alpha channel.
  */
 export function hexColor(): z.ZodType<string> {
-    return z.preprocess(coerceString, z.string().regex(/^#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/, "Expected a hex colour such as #7dabff"));
+    return z.preprocess(coerceString, z.string().regex(HEX_COLOR_PATTERN, "Expected a hex colour such as #7dabff"));
 }
 
 /**
@@ -96,7 +110,7 @@ export function hexColor(): z.ZodType<string> {
  * that refused those would break maps that render fine.
  */
 export function namespacedKey(): z.ZodType<string> {
-    return z.preprocess(coerceString, z.string().regex(/^(?:[a-z0-9_.-]+:)?[a-z0-9_./-]+$/, "Expected a key such as minecraft:overworld"));
+    return z.preprocess(coerceString, z.string().regex(NAMESPACED_KEY_PATTERN, "Expected a key such as minecraft:overworld"));
 }
 
 /**
@@ -155,6 +169,18 @@ export function sliderControl(options: { min: number; max: number; step: number;
     return { kind: "slider", ...options };
 }
 
+/**
+ * The default namespace BlueMap parses its own registry keys with.
+ *
+ * Storage types, compressions, SQL dialects and world loaders are all
+ * `Key.parse(value, Key.BLUEMAP_NAMESPACE)`, so `gzip` and `bluemap:gzip` name
+ * the same entry. Dimensions go through the ordinary `Key.parse`, whose default
+ * namespace is `minecraft`.
+ */
+export const BLUEMAP_NAMESPACE = "bluemap";
+/** The default namespace `Key.parse` uses when a key names no namespace. */
+export const MINECRAFT_NAMESPACE = "minecraft";
+
 /** The four gamemodes `hidden-game-modes` accepts. */
 export const GAME_MODE_OPTIONS: readonly SelectOption[] = [
     { value: "survival", label: "Survival" },
@@ -201,4 +227,59 @@ export const DIMENSION_TYPE_OPTIONS: readonly SelectOption[] = [
     { value: "minecraft:overworld_caves", label: "Overworld (caves)" },
     { value: "minecraft:the_nether", label: "The Nether" },
     { value: "minecraft:the_end", label: "The End" },
+];
+
+/**
+ * The addresses `WebserverConfig.resolveIp` treats specially, plus the one most
+ * people actually want.
+ *
+ * Three of these four are not addresses at all, which is exactly why this field
+ * stopped being a plain text box. `""`, `"0.0.0.0"` and `"::0"` all fall into
+ * the same branch and bind every interface; `"#getLocalHost"` is a keyword that
+ * resolves the machine's own host name; anything else goes to
+ * `InetAddress.getByName`. A person typing into an empty field has no way to
+ * discover the keyword, and no reason to guess that an empty value means
+ * "everywhere" rather than "nothing". Free entry stays open because a real host
+ * name or literal address is the whole point of the field.
+ */
+export const LISTEN_ADDRESS_OPTIONS: readonly SelectOption[] = [
+    { value: "0.0.0.0", label: "Every interface (IPv4)", description: "Reachable from anywhere that can route to this machine. This is the default." },
+    { value: "::0", label: "Every interface (IPv6)", description: "The same branch as 0.0.0.0 and an empty value: BlueMap binds the wildcard address." },
+    { value: "127.0.0.1", label: "This machine only", description: "Loopback. Nothing outside this machine can reach the server, which suits a reverse proxy in front of it." },
+    { value: "#getLocalHost", label: "Resolve the local host name", description: "BlueMap calls InetAddress.getLocalHost() and binds whatever that resolves to." },
+];
+
+/**
+ * The resolutions upstream's own comment lists for `resolution-default`.
+ *
+ * The Java field is a `float`, so anything loads. The list is what BlueMap
+ * documents, and free entry stays open so a value from a hand-edited file is
+ * still shown rather than silently replaced with a blank control.
+ */
+export const RESOLUTION_OPTIONS: readonly SelectOption[] = [
+    { value: 0.5, label: "Half", description: "Renders at half resolution. Fastest, and blurry on a high-density display." },
+    { value: 1, label: "Normal" },
+    { value: 2, label: "Double", description: "Renders at twice the resolution. Sharpest, and the most expensive to draw." },
+];
+
+/** The two storage types BlueMap's registry holds, written as its templates write them. */
+export const STORAGE_TYPE_OPTIONS: readonly SelectOption[] = [
+    { value: "file", label: "File", description: "Tiles are written to a folder on disk." },
+    { value: "sql", label: "SQL", description: "Tiles are written to a database through JDBC." },
+];
+
+/**
+ * The seven arguments upstream's webserver access log format accepts.
+ *
+ * Lifted from the comment in `webserver.conf`, examples and all. The format is
+ * `java.util.Formatter` syntax, so the field itself stays free text.
+ */
+export const ACCESS_LOG_TOKENS: readonly TextToken[] = [
+    { insert: "%1$s", label: "Source address", example: "10.10.10.10" },
+    { insert: "%2$s", label: "Source address (x-forwarded-for)", example: "88.66.44.22" },
+    { insert: "%3$s", label: "Method", example: "GET" },
+    { insert: "%4$s", label: "Request address", example: "/assets/file.png" },
+    { insert: "%5$s", label: "Protocol version", example: "HTTP/1.1" },
+    { insert: "%6$s", label: "Status code", example: "200" },
+    { insert: "%7$s", label: "Status message", example: "OK" },
 ];

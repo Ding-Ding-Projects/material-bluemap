@@ -223,12 +223,29 @@ describe("what the catalogue covers", () => {
 
     it("collapses those seven to one row while the shell cannot route, and keeps them findable", () => {
         const items = buildPaletteCatalog(input());
-        expect(items.filter((item) => item.id.startsWith("config."))).toHaveLength(1);
+        // The seven settings tabs collapse to one row. History is the eighth tab and is not
+        // one of them - it holds revisions rather than settings, which is why it is not in
+        // `SCREENS` - so it is listed in its own right and is counted here deliberately.
+        expect(items.filter((item) => item.id.startsWith("config."))).toHaveLength(2);
 
         // The single row still carries every tab's words, so a search for a tab name finds it.
         const combined = byId(items, "config.all");
         for (const screen of SCREENS) {
             expect(combined.keywords).toContain(screen.label);
+        }
+    });
+
+    it("lists the config folder's history, which no settings tab would ever surface", () => {
+        // Every other tab is reachable through `SCREENS`. This one is not in that list and
+        // must not be, so without its own row the place somebody's old configuration lives
+        // could not be found by typing its name - the exact failure this palette exists to
+        // prevent, and one this project has shipped five times in other guises.
+        for (const routing of [true, false]) {
+            const row = byId(buildPaletteCatalog(input({ canRouteConfigScreens: routing })), "config.history");
+            expect(row.keywords).toContain("history");
+            expect(row.keywords).toContain("restore");
+            // It opens the editor rather than landing on the tab, and says which tab to pick.
+            expect(row.kind === "destination" && row.where).toContain("History");
         }
     });
 

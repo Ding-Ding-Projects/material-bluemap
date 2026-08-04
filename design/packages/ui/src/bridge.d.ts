@@ -75,6 +75,130 @@ interface BlueMapConfigBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* The config folder's local version history                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The local, Git-backed history of a config folder.
+ *
+ * Mirrors `HistoryBridge` in the preload, which mirrors `main/history/ipc.ts`. Three
+ * properties of that layer are worth restating here, because they are what the panel on
+ * this side is allowed to assume:
+ *
+ *  - **Nothing rejects.** Every method resolves with a value, failures included, so a
+ *    history that cannot be written can never take down the save it was recording.
+ *  - **Nothing is rewritten.** A restore writes the old files back and records *that* as a
+ *    new revision, so an undo can be undone and that undo undone in turn.
+ *  - **Nothing leaves the machine.** The repository lives beside this application's own
+ *    data, has no remote, and there is no call here that could give it one.
+ */
+type BlueMapHistoryChangeStatus = "added" | "modified" | "deleted";
+
+interface BlueMapHistoryFileChange {
+    /** Relative to the config folder, forward slashes, e.g. `maps/nether.conf`. */
+    path: string;
+    status: BlueMapHistoryChangeStatus;
+}
+
+/**
+ * The grouping word a revision carries.
+ *
+ * The panel's action filter is built from the words the revisions in front of it actually
+ * use, never from this union: a history with no restores in it offers no "restored"
+ * filter, and a word added to the main process later needs no change on this side.
+ */
+type BlueMapHistoryAction = "started" | "created" | "changed" | "deleted" | "mixed" | "restored" | "pruned";
+
+interface BlueMapHistoryRevision {
+    id: string;
+    shortId: string;
+    /** ISO 8601. */
+    at: string;
+    /** Always names what changed, e.g. `Deleted the nether map`. Never `Updated`. */
+    label: string;
+    action: BlueMapHistoryAction;
+    changes: BlueMapHistoryFileChange[];
+    /** The user's own label for this revision, or null. */
+    note: string | null;
+    /** Set on a restore: the revision whose contents were written back. */
+    restoredFrom: string | null;
+}
+
+interface BlueMapHistoryStatus {
+    available: boolean;
+    version: string | null;
+    /** One sentence for the user when `available` is false. Null when it is true. */
+    reason: string | null;
+    /** Where histories are kept, beside the app's own data and never in a user's folder. */
+    root: string;
+}
+
+interface BlueMapHistoryListing {
+    available: boolean;
+    reason: string | null;
+    folder: string;
+    repository: string;
+    revisions: BlueMapHistoryRevision[];
+    /** Expected to be empty. Sent so the panel can show that rather than promise it. */
+    remotes: string[];
+}
+
+type BlueMapHistoryWrite =
+    | { ok: true; revision: BlueMapHistoryRevision | null; message: string }
+    | { ok: false; message: string };
+
+interface BlueMapHistorySkippedFile {
+    path: string;
+    reason: string;
+}
+
+type BlueMapHistoryRestoreResult =
+    | {
+          ok: true;
+          revision: BlueMapHistoryRevision | null;
+          message: string;
+          skipped: BlueMapHistorySkippedFile[];
+      }
+    | { ok: false; message: string };
+
+interface BlueMapHistoryRevisionFile {
+    path: string;
+    text: string;
+}
+
+interface BlueMapHistoryDiffFile {
+    path: string;
+    status: BlueMapHistoryChangeStatus;
+    /** A unified diff, exactly as git wrote it. */
+    patch: string;
+}
+
+type BlueMapHistoryFilesResult =
+    | { ok: true; files: BlueMapHistoryRevisionFile[] }
+    | { ok: false; message: string };
+
+type BlueMapHistoryDiffResult =
+    | { ok: true; files: BlueMapHistoryDiffFile[] }
+    | { ok: false; message: string };
+
+interface BlueMapHistoryBridge {
+    status(): Promise<BlueMapHistoryStatus>;
+    list(folder: string, limit?: number): Promise<BlueMapHistoryListing>;
+    snapshot(folder: string): Promise<BlueMapHistoryWrite>;
+    revisionFiles(folder: string, id: string): Promise<BlueMapHistoryFilesResult>;
+    diff(folder: string, id: string): Promise<BlueMapHistoryDiffResult>;
+    restore(folder: string, id: string): Promise<BlueMapHistoryRestoreResult>;
+    label(folder: string, id: string, label: string): Promise<BlueMapHistoryWrite>;
+    /**
+     * Keeps the newest `keep` revisions and removes the rest. **Destructive.**
+     *
+     * The one call here that takes anything away, which is why the panel puts it behind
+     * the two-key confirmation gate rather than a plain button.
+     */
+    discardOlderRevisions(folder: string, keep: number): Promise<BlueMapHistoryWrite>;
+}
+
+/* -------------------------------------------------------------------------- */
 /* The worlds already on this machine                                         */
 /* -------------------------------------------------------------------------- */
 
@@ -438,7 +562,195 @@ interface MaterialBlueMapBridge {
      * what it needs.
      */
     config: BlueMapConfigBridge;
+
+    /**
+     * The local version history of a config folder, for the history panel.
+     *
+     * Declared here because this is the shell this interface ships with. `historyHost.ts`
+     * still probes for every method one at a time and refuses a partial answer, and it is
+     * right to: a released shell can load a newer renderer than the one it was built
+     * beside, and a Restore button that throws when pressed is far worse than a panel
+     * saying this build keeps no history.
+     */
+    history: BlueMapHistoryBridge;
+
+    /**
+     * Backing a world or a rendered map up to GitHub release assets.
+     *
+     * Declared here because this is the shell this interface ships with. `backupBridge.ts`
+     * still probes for every method one at a time and refuses a partial answer, and it is
+     * right to: a Back up button that begins hours of invisible work because the shell
+     * carries `startBackup` but not `onBackupEvent` is worse than a surface saying this
+     * build cannot back anything up. Methods are spelled out rather than imported because
+     * this file is ambient: an import would make it a module and take the global with it.
+     */
+    listBackupRepositories(): Promise<BackupAnswer<readonly BackupRepositoryChoice[]>>;
+    inspectBackupRepository(request: { owner: string; repo: string }): Promise<BackupAnswer<BackupRepositoryReport>>;
+    inspectBackupSource(request: { kind: BackupSourceKind; folder: string }): Promise<BackupAnswer<BackupSourceReport>>;
+    listBackups(request: { owner: string; repo: string }): Promise<BackupAnswer<readonly BackupListing[]>>;
+    startBackup(request: BackupRequest): Promise<BackupResult>;
+    cancelBackup(backupId: string): Promise<boolean>;
+    activeBackups(): Promise<readonly string[]>;
+    onBackupEvent(listener: (event: BackupEvent) => void): () => void;
 }
+
+/* -------------------------------------------------------------------------- */
+/* Backing a world or a rendered map up to GitHub                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mirrors `components/backup/backupBridge.ts`, which mirrors `main/backup/ipc.ts`. Names
+ * carry a `Backup` prefix where the component's own name would collide with something
+ * else already declared globally here.
+ */
+type BackupSourceKind = "render" | "world";
+
+interface BackupSourceReport {
+    readonly kind: BackupSourceKind;
+    readonly folder: string;
+    readonly label: string;
+    readonly files: number;
+    readonly bytes: number;
+    readonly skipped: readonly { readonly name: string; readonly reason: string }[];
+}
+
+interface BackupRepositoryChoice {
+    readonly owner: string;
+    readonly name: string;
+    readonly fullName: string;
+    readonly private: boolean;
+    readonly canWrite: boolean;
+    readonly htmlUrl: string;
+}
+
+interface BackupRepositoryReport {
+    readonly owner: string;
+    readonly repo: string;
+    readonly fullName: string;
+    readonly private: boolean;
+    readonly canWrite: boolean;
+    readonly htmlUrl: string;
+    readonly warning: { readonly level: "warning" | "note"; readonly message: string } | null;
+}
+
+type BackupPhase = "inspecting" | "packing" | "splitting" | "publishing" | "uploading" | "finished";
+
+interface BackupTaskProgress {
+    readonly phase: BackupPhase;
+    readonly description: string;
+    readonly bytesDone: number;
+    readonly bytesTotal: number;
+    readonly partsDone: number;
+    readonly partsTotal: number;
+    readonly currentPart: string | null;
+    readonly percent: number;
+    readonly etaSeconds: number | null;
+    readonly etaText: string | null;
+}
+
+interface BackupFailure {
+    readonly code: string;
+    readonly message: string;
+    readonly detail: string | null;
+    readonly status: number | null;
+    /** True when signing in again in Settings is the thing that would fix it. */
+    readonly needsSignIn: boolean;
+}
+
+interface BackupSummary {
+    readonly backupId: string;
+    readonly repository: string;
+    readonly tag: string;
+    readonly releaseUrl: string;
+    readonly archive: string;
+    readonly bytes: number;
+    readonly sha256: string;
+    readonly parts: number;
+    readonly kind: BackupSourceKind;
+    readonly label: string;
+}
+
+interface BackupRequest {
+    readonly kind: BackupSourceKind;
+    readonly folder: string;
+    readonly owner: string;
+    readonly repo: string;
+    /** Set only once the person has been shown, and accepted, that the repository is public. */
+    readonly acknowledgePublic?: boolean;
+    /** Carry on with an existing backup rather than starting a new one. */
+    readonly resumeTag?: string;
+}
+
+type BackupEvent =
+    | {
+          readonly type: "started";
+          readonly backupId: string;
+          readonly repository: string;
+          readonly tag: string;
+          readonly kind: BackupSourceKind;
+          readonly label: string;
+          readonly at: string;
+      }
+    | { readonly type: "phase"; readonly backupId: string; readonly phase: BackupPhase; readonly at: string }
+    | {
+          readonly type: "progress";
+          readonly backupId: string;
+          readonly phase: BackupPhase;
+          readonly task: BackupTaskProgress;
+          readonly at: string;
+      }
+    | {
+          readonly type: "log";
+          readonly backupId: string;
+          readonly level: "info" | "warning" | "error";
+          readonly message: string;
+          readonly at: string;
+      }
+    | {
+          readonly type: "finished";
+          readonly backupId: string;
+          readonly summary: BackupSummary;
+          readonly durationMs: number;
+          readonly at: string;
+      }
+    | { readonly type: "failed"; readonly backupId: string; readonly failure: BackupFailure; readonly at: string }
+    | { readonly type: "cancelled"; readonly backupId: string; readonly at: string };
+
+type BackupResult =
+    | {
+          readonly ok: true;
+          readonly backupId: string;
+          readonly summary: BackupSummary;
+          readonly durationMs: number;
+      }
+    | { readonly ok: false; readonly backupId: string; readonly failure: BackupFailure };
+
+/** One backup found on a repository, read from its release's own small assets. */
+interface BackupListing {
+    readonly tag: string;
+    readonly name: string;
+    readonly releaseUrl: string;
+    readonly createdAt: string;
+    readonly archive: string;
+    readonly bytes: number;
+    readonly sha256: string;
+    readonly parts: number;
+    readonly kind: BackupSourceKind;
+    readonly label: string;
+    readonly files: number;
+    readonly contentBytes: number;
+    readonly appVersion: string | null;
+    readonly sourceFolder: string;
+    /** False for a release whose upload stopped before the pointer went up. */
+    readonly complete: boolean;
+    /** Set when it is a valid backup this build cannot restore, with the reason. */
+    readonly unsupported: string | null;
+}
+
+/** Every answer the main process gives to a backup question that can simply fail. */
+type BackupAnswer<T> =
+    | { readonly ok: true; readonly value: T }
+    | { readonly ok: false; readonly message: string };
 
 interface Window {
     materialBluemap?: MaterialBlueMapBridge;

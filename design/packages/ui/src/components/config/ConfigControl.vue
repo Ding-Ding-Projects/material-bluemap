@@ -4,8 +4,7 @@ import { useI18n } from "vue-i18n";
 import { mdiFolderOpenOutline, mdiFileOutline, mdiInfinity } from "@mdi/js";
 import {
     VBtn,
-    VColorPicker,
-    VMenu,
+    VChip,
     VSelect,
     VCombobox,
     VSlider,
@@ -14,15 +13,18 @@ import {
     VTextarea,
     VTooltip,
 } from "vuetify/components";
-import type { Control, PlainValue } from "@material-bluemap/config";
+import { formatKey, type Control, type PlainValue, type SelectOption } from "@material-bluemap/config";
+import ColorField from "../appearance/ColorField.vue";
+import { formatHex } from "../appearance/colorFormat.js";
+import { parseColor } from "../appearance/colorParse.js";
 import {
     JAVA_DOUBLE_MAX,
     JAVA_INT_MAX,
     JAVA_INT_MIN,
+    blankValueFor,
     decimalsForStep,
     isUnboundedSentinel,
     normalizeHexColor,
-    opaquePart,
     parseNumberInput,
 } from "./fieldValue.js";
 import { useConfigHost } from "./configHost.js";
@@ -48,8 +50,20 @@ const props = withDefaults(
         /** Inline error text, shown under the control. */
         error?: string | null;
         density?: "default" | "comfortable" | "compact";
+        /**
+         * What "clear this" means for the setting behind the control.
+         *
+         * Only the colour control has a clear affordance of its own, and only
+         * because the shared {@link ColorField} carries one: in the appearance
+         * editor an empty colour means "inherit from the surface above", which is a
+         * state a BlueMap config file has no spelling for. Passing the field's
+         * documented default turns that button into the thing it can honestly mean
+         * here - put the setting back to what BlueMap itself would use - rather than
+         * writing an empty string the schema then rejects.
+         */
+        resetValue?: PlainValue;
     }>(),
-    { disabled: false, error: null, density: "compact" },
+    { disabled: false, error: null, density: "compact", resetValue: null },
 );
 
 const emit = defineEmits<{ "update:modelValue": [value: PlainValue] }>();
@@ -58,7 +72,6 @@ const { t } = useI18n();
 const host = useConfigHost();
 
 const localError = ref<string | null>(null);
-const colorMenu = ref(false);
 
 /**
  * These three exist because `exactOptionalPropertyTypes` and Vuetify disagree
@@ -147,20 +160,119 @@ const textValue = computed<string>({
     set: (value) => emit("update:modelValue", value),
 });
 
+/**
+ * True when an option names the same thing as the current value.
+ *
+ * Straight equality is not enough for a BlueMap registry key. `Key.parse` fills
+ * in a default namespace, so a file saying `compression: gzip`, a Java default of
+ * `bluemap:gzip` and an option spelled either way are all one value. Comparing
+ * the normalised forms is what lets the control show "gzip" as selected instead
+ * of falling through to the unrecognised-value branch below.
+ */
+function sameOption(option: SelectOption, value: string | number): boolean {
+    if (option.value === value) return true;
+
+    const control = props.control;
+    if (control.kind !== "select" || control.keyNamespace === undefined) return false;
+    if (typeof option.value !== "string" || typeof value !== "string") return false;
+    return formatKey(option.value, control.keyNamespace) === formatKey(value, control.keyNamespace);
+}
+
+/**
+ * What a combobox handed back, put back into the shape the schema wants.
+ *
+ * Free entry always produces a string, including on a numeric setting such as
+ * `resolution-default`, whose Java field is a `float`. Writing `"2"` where the
+ * file wants `2` is the sort of thing HOCON forgives and a reader does not, so a
+ * numeric option set coerces a numeric-looking entry back to a number and leaves
+ * anything else alone for the schema to report.
+ */
+function coerceSelection(value: string | number | null | undefined): PlainValue {
+    if (value === null || value === undefined) return "";
+    if (typeof value === "number") return value;
+
+    const control = props.control;
+    if (control.kind !== "select") return value;
+    if (!control.options.every((option) => typeof option.value === "number")) return value;
+
+    const trimmed = value.trim();
+    if (trimmed === "") return "";
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : value;
+}
+
 const selectValue = computed<string | number>({
     get: () => (typeof props.modelValue === "string" || typeof props.modelValue === "number" ? props.modelValue : ""),
-    set: (value) => emit("update:modelValue", value ?? ""),
+    set: (value) => emit("update:modelValue", coerceSelection(value)),
 });
 
-const selectItems = computed(() =>
-    props.control.kind === "select"
-        ? props.control.options.map((option) => ({
-              value: option.value,
-              title: option.label,
-              subtitle: option.description ?? "",
-          }))
-        : [],
-);
+/** An item for the value the file actually holds, when no option carries that exact text. */
+interface SelectItem {
+    value: string | number;
+    title: string;
+    subtitle: string;
+}
+
+/**
+ * The item standing in for the current value, when no option holds it verbatim.
+ *
+ * This is the case the control most has to get right, because getting it wrong
+ * is invisible: Vuetify matches an item by its value, so a select bound to
+ * something no item holds renders *empty*. The setting then reads as unset and
+ * the next interaction overwrites what somebody deliberately put in the file.
+ *
+ * Two different things land here. A key spelled differently from its option -
+ * `bluemap:file` against an option of `file` - is the same value, so it takes
+ * that option's label and says why the two spellings agree. Anything else is
+ * genuinely unlisted: a dimension from a datapack, a resolution of 1.5, a
+ * storage id the user named themselves. All legal, none in a list this app
+ * ships. Either way the item's value is the file's own text, so showing it
+ * cannot rewrite it.
+ */
+const currentItem = computed<SelectItem | null>(() => {
+    const control = props.control;
+    if (control.kind !== "select") return null;
+
+    const value = selectValue.value;
+    if (value === "") return null;
+    if (control.options.some((option) => option.value === value)) return null;
+
+    const equivalent = control.options.find((option) => sameOption(option, value));
+    if (equivalent !== undefined) {
+        return {
+            value,
+            title: equivalent.label,
+            subtitle: t(
+                "config.control.sameKey",
+                { value: String(value), namespace: control.keyNamespace ?? "" },
+                "The file says {value}, which BlueMap reads as this entry because a key with no namespace gets {namespace}.",
+            ),
+        };
+    }
+
+    return {
+        value,
+        title: String(value),
+        subtitle: t(
+            "config.control.unlistedValue",
+            "This is what the file says. It is not a value this app knows about, which is fine if a mod, a datapack or your own setup provides it.",
+        ),
+    };
+});
+
+const selectItems = computed<SelectItem[]>(() => {
+    if (props.control.kind !== "select") return [];
+
+    const items: SelectItem[] = props.control.options.map((option) => ({
+        value: option.value,
+        title: option.label,
+        subtitle: option.description ?? "",
+    }));
+
+    const current = currentItem.value;
+    if (current !== null) items.unshift(current);
+    return items;
+});
 
 async function pickPath(): Promise<void> {
     if (props.control.kind !== "path" || host === null) return;
@@ -185,26 +297,72 @@ const pickerReason = computed(() =>
 
 // ---- colour ----------------------------------------------------------------
 
-const colorText = computed<string>(() => (typeof props.modelValue === "string" ? props.modelValue : "#000000"));
+/**
+ * Colours open the one picker the rest of the app opens.
+ *
+ * There is deliberately no separate, simpler colour control for config settings.
+ * `ColorField` is a swatch over the infinite picker with the space translator,
+ * and every colour in this application goes through it, so a sky colour gets
+ * OKLCH, a contrast readout and typed entry in eleven notations exactly as a tab
+ * colour does. Wiring a hex box here instead would have been the reasonable
+ * shortcut that leaves one colour in the product poorer than all the others.
+ *
+ * The bridging is the interesting part. The picker speaks CSS and writes back in
+ * whichever notation the user was working in; BlueMap's `Color.parse` reads hex
+ * and nothing else. So what comes back is parsed and re-spelled as the
+ * `#rrggbb` or `#rrggbbaa` the file wants, and a colour the picker could not
+ * read at all is left in the file untouched rather than replaced with a guess.
+ */
+const colorText = computed<string>(() => (typeof props.modelValue === "string" ? props.modelValue : ""));
 
-const swatch = computed(() => opaquePart(colorText.value));
+/**
+ * True when the stored text is not something BlueMap's own parser would take.
+ *
+ * The picker is happy with `red` and `oklch(...)`; `Color.parse` is not. Saying
+ * so beside the control beats normalising a hand-written file on sight, which
+ * would edit a setting the user never opened.
+ */
+const colorUnreadable = computed(() => colorText.value !== "" && normalizeHexColor(colorText.value) === null);
 
-const colorPickerValue = computed<string>({
-    get: () => normalizeHexColor(colorText.value) ?? "#000000",
-    set: (value) => {
-        const normalized = normalizeHexColor(value);
-        if (normalized !== null) emit("update:modelValue", normalized);
-    },
-});
+/**
+ * A colour from the picker, written the way BlueMap writes colours.
+ *
+ * `formatHex` already drops the alpha byte when the colour is opaque and keeps
+ * it when it is not, which is exactly upstream's own spelling: `Color.parse`
+ * pads a 6-digit value with `ff` and reads an 8-digit one as carrying alpha.
+ * An empty value is the picker's clear button, which for a config setting can
+ * only honestly mean "back to BlueMap's own default".
+ */
+function commitColor(value: string): void {
+    if (value === "") {
+        emit("update:modelValue", props.resetValue ?? blankValueFor(props.control));
+        return;
+    }
 
-function commitColorText(raw: string): void {
-    const normalized = normalizeHexColor(raw);
-    if (normalized === null) {
+    const parsed = parseColor(value);
+    if (!parsed.ok) {
         localError.value = t("config.control.notAColor", "Expected a hex colour such as #7dabff.");
         return;
     }
+
     localError.value = null;
-    emit("update:modelValue", normalized);
+    emit("update:modelValue", formatHex(parsed.value.color));
+}
+
+// ---- format-string tokens --------------------------------------------------
+
+/**
+ * The placeholders a format field accepts, if it declares any.
+ *
+ * Inserting appends rather than splicing at the caret: the control does not own
+ * the input element, and a Vuetify text field's selection is not something to
+ * reach into from outside it. Appending is predictable, and the field stays
+ * fully editable afterwards, which is the point of it still being a text field.
+ */
+const textTokens = computed(() => (props.control.kind === "text" ? (props.control.tokens ?? []) : []));
+
+function appendToken(insert: string): void {
+    emit("update:modelValue", `${textValue.value}${insert}`);
 }
 
 // ---- vector ----------------------------------------------------------------
@@ -397,41 +555,22 @@ const boundDirection = computed<"min" | "max">(() => (props.label.toLowerCase().
         </v-btn>
     </div>
 
-    <!-- colour -->
+    <!-- colour: the same infinite picker every other colour in the app opens -->
     <div v-else-if="control.kind === 'color'" class="mb-config-control__color">
-        <v-text-field
+        <ColorField
             :model-value="colorText"
             :label="label"
-            :disabled="isDisabled"
-            :error-messages="errorText"
-            class="mb-config-control__mono"
-            variant="outlined"
-            :density="densityValue"
-            spellcheck="false"
-            autocapitalize="off"
-            autocomplete="off"
-            hide-details="auto"
-            @update:model-value="commitColorText"
+            @update:model-value="commitColor"
         />
-        <v-btn
-            class="mb-config-control__swatch"
-            :style="{ backgroundColor: swatch }"
-            :aria-label="t('config.control.pickColor', 'Pick a colour')"
-            :disabled="isDisabled"
-            variant="outlined"
-            size="small"
-        >
-            <span class="mb-config-control__swatch-text">{{ colorText }}</span>
-            <v-menu v-model="colorMenu" activator="parent" :close-on-content-click="false" location="bottom end">
-                <v-color-picker
-                    v-model="colorPickerValue"
-                    :modes="control.alpha ? ['hexa', 'rgba', 'hsla'] : ['hex', 'rgb', 'hsl']"
-                    mode="hex"
-                    show-swatches
-                    elevation="6"
-                />
-            </v-menu>
-        </v-btn>
+        <p v-if="colorUnreadable" class="mb-config-control__note" role="note">
+            {{
+                t(
+                    "config.control.colorNotHex",
+                    "Kept exactly as the file writes it. BlueMap reads hex colours such as #7dabff, so it will refuse this one until it is changed.",
+                )
+            }}
+        </p>
+        <div v-if="errorText" class="mb-config-control__error" role="alert">{{ errorText }}</div>
     </div>
 
     <!-- vector -->
@@ -469,21 +608,64 @@ const boundDirection = computed<"min" | "max">(() => (props.label.toLowerCase().
         spellcheck="false"
         hide-details="auto"
     />
-    <v-text-field
-        v-else-if="control.kind === 'text'"
-        v-model="textValue"
-        :label="label"
-        :placeholder="control.placeholder ?? ''"
-        :disabled="isDisabled"
-        :error-messages="errorText"
-        :class="{ 'mb-config-control__mono': control.monospace }"
-        variant="outlined"
-        :density="densityValue"
-        spellcheck="false"
-        autocapitalize="off"
-        autocomplete="off"
-        hide-details="auto"
-    />
+    <div v-else-if="control.kind === 'text'" class="mb-config-control__text">
+        <v-text-field
+            v-model="textValue"
+            :label="label"
+            :placeholder="control.placeholder ?? ''"
+            :disabled="isDisabled"
+            :error-messages="errorText"
+            :class="{ 'mb-config-control__mono': control.monospace }"
+            variant="outlined"
+            :density="densityValue"
+            spellcheck="false"
+            autocapitalize="off"
+            autocomplete="off"
+            hide-details="auto"
+        />
+        <!--
+          A format string is free text, so it stays a text field. Its placeholders
+          are not free, though, and retyping `%1$s` from a comment three lines
+          below is how a person gets it wrong once and never touches it again.
+        -->
+        <div v-if="textTokens.length > 0" class="mb-config-control__tokens">
+            <span :id="`${label}-tokens`" class="mb-config-control__tokens-label">
+                {{ t("config.control.tokensLabel", "Placeholders this field understands. Selecting one adds it to the end.") }}
+            </span>
+            <v-chip
+                v-for="token in textTokens"
+                :key="token.insert"
+                :disabled="isDisabled"
+                size="small"
+                variant="outlined"
+                link
+                :aria-label="
+                    t(
+                        'config.control.insertToken',
+                        { insert: token.insert, label: token.label, example: token.example },
+                        'Add {insert}, the {label}, which prints like {example}',
+                    )
+                "
+                @click="appendToken(token.insert)"
+                @keydown.enter.prevent="appendToken(token.insert)"
+                @keydown.space.prevent="appendToken(token.insert)"
+            >
+                <code>{{ token.insert }}</code>
+                <span class="mb-config-control__token-label">{{ token.label }}</span>
+                <v-tooltip
+                    activator="parent"
+                    location="top"
+                    :text="
+                        t(
+                            'config.control.tokenHint',
+                            { label: token.label, example: token.example },
+                            '{label}. Prints like {example}.',
+                        )
+                    "
+                />
+            </v-chip>
+        </div>
+    </div>
 
     <!--
       list, key-value, mask-list and marker-sets are structured editors rather
@@ -501,8 +683,7 @@ const boundDirection = computed<"min" | "max">(() => (props.label.toLowerCase().
 
 <style>
 .mb-config-control__number,
-.mb-config-control__path,
-.mb-config-control__color {
+.mb-config-control__path {
     display: flex;
     align-items: flex-start;
     gap: 8px;
@@ -512,10 +693,42 @@ const boundDirection = computed<"min" | "max">(() => (props.label.toLowerCase().
     flex-wrap: wrap;
 }
 
-.mb-config-control__path .v-text-field,
-.mb-config-control__color .v-text-field {
+.mb-config-control__path .v-text-field {
     flex: 1 1 220px;
     min-width: 0;
+}
+
+/* The colour field lays itself out; this only stacks its note underneath. */
+.mb-config-control__color,
+.mb-config-control__text {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-inline-size: 0;
+}
+
+.mb-config-control__tokens {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+.mb-config-control__tokens-label {
+    flex-basis: 100%;
+    font-size: 0.75rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-config-control__tokens code {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: 0.6875rem;
+}
+
+.mb-config-control__token-label {
+    margin-inline-start: 6px;
+    font-size: 0.6875rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-config-control__vector {
@@ -566,17 +779,6 @@ const boundDirection = computed<"min" | "max">(() => (props.label.toLowerCase().
 .mb-config-control__mono textarea {
     font-family: "Roboto Mono", ui-monospace, monospace;
     font-size: 0.8125rem;
-}
-
-.mb-config-control__swatch {
-    min-width: 104px;
-}
-
-.mb-config-control__swatch-text {
-    font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
-    mix-blend-mode: difference;
-    color: #ffffff;
 }
 
 .mb-config-control__unsupported {

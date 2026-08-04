@@ -20,13 +20,54 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Desktop shell
+
+- Generate the world the wizard needs instead of noting its absence - [`49af1816f7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/49af1816f77c5dcd796c883985692342890617bb)
+- Point the capture harness at controls that still exist - [`8491f0d3c3`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8491f0d3c39a02358fe0adf213fece51603bdf90)
+
+## 0.1.0-build.187 - 2026-08-04
+
+Tagged at [`5c810d0277`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5c810d0277fc4cafbbcf76bafc3dca80c3d441e6).
+
+### Interface
+
+- Open the options editor on settings, not on a locked door - [`5c810d0277`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5c810d0277fc4cafbbcf76bafc3dca80c3d441e6)
+
+### Desktop shell
+
+- Back a world up to release assets, in the pointer format the sibling app already speaks - [`8cbac63341`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8cbac6334136948301c8f83d8e57702ff71fdaf6)
+
+## 0.1.0-build.183 - 2026-08-04
+
+Tagged at [`157f4c3eb3`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/157f4c3eb3cacff1d82b0010f59a5f5827d7710a).
+
+### Interface
+
+- Give every config folder a memory it cannot lose, even about being restored - [`1b77779a41`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1b77779a4144ef97271c6727c9894e5d1646e724)
+
+### Documentation
+
+- Document the config-folder history, promises and betrayals both - [`157f4c3eb3`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/157f4c3eb3cacff1d82b0010f59a5f5827d7710a)
+
+## 0.1.0-build.181 - 2026-08-04
+
+Tagged at [`6b8ef7bd00`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6b8ef7bd0075a2a817f33e68e0292a11d9649ff1).
+
+### Server, CLI and configuration
+
+- Show the file's own value in every select, and every colour in the real picker - [`6b8ef7bd00`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6b8ef7bd0075a2a817f33e68e0292a11d9649ff1)
+
+## 0.1.0-build.177 - 2026-08-04
+
+Tagged at [`f3fb53e8de`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f3fb53e8dee31c0669a602c78528fda195fb06c2).
+
 ### Landing page and documentation site
 
 - Wire Pages tab appearance editors - [`79b286f959`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/79b286f959bbb55ef4434d12c110eae3af1e9195)
 
 ### Documentation
 
-- Mention the Pages tab appearance editor - [`542e7eeeaa`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/542e7eeeaaac172737a1d093cade00ddc6d57c3a)
+- Merge pull request #24 from Ding-Ding-Projects/pages-material3-continuation - [`f3fb53e8de`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f3fb53e8dee31c0669a602c78528fda195fb06c2) _(summary of 5 commits, also listed here)_
 - Record the verified Pages deployment - [`2b861490a7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2b861490a76ad62c2a32578210ea30398629741d)
 
 ## 0.1.0-build.171 - 2026-08-04
@@ -50,6 +91,7 @@ Tagged at [`7c52520e24`](https://github.com/Ding-Ding-Projects/material-bluemap/
 
 ### Documentation
 
+- Merge pull request #23 from Ding-Ding-Projects/pages-material3-continuation - [`7c52520e24`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7c52520e247e94a08f9c439b16c0bf2c05d17aea) _(summary of 16 commits, also listed here)_
 - Record the screenshot verification boundary - [`65ee28815a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/65ee28815a4925414dd9bfd53bb10985077fd189)
 - Give every settings tab its own search - [`4c20d5ced2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4c20d5ced2d0e77e0d52f99a20327a796e2822b1)
 

@@ -75,7 +75,8 @@ import {
     type Page,
 } from "@playwright/test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -479,17 +480,44 @@ async function closeSideSheet(): Promise<void> {
 }
 
 /**
- * A real Minecraft world folder for the wizard, or null.
+ * A real Minecraft world folder for the wizard, generating one if nothing was supplied.
  *
  * The wizard's first step probes the folder it is given through the main process, so a
- * made-up path fails the probe and the step never advances - correctly. A world this
- * repository generated satisfies it honestly; nothing else will, which is why there is no
- * fallback here and the later steps are recorded as skipped instead.
+ * made-up path fails the probe and the step never advances - correctly. Only a real world
+ * satisfies it, and this repository can write one, so a run with nothing to point at makes
+ * its own rather than recording four captures as skipped. It is small on purpose: these
+ * captures need a world the wizard accepts, not a world worth rendering.
+ *
+ * A supplied path still wins, and a generator that fails still yields null - the skip is
+ * the honest outcome then, and it says which command failed.
  */
 function captureWorldFolder(): string | null {
     const explicit = process.env.MATERIAL_BLUEMAP_CAPTURE_WORLD?.trim();
     if (explicit !== undefined && explicit !== "" && existsSync(explicit)) return explicit;
-    return null;
+
+    const cli = resolve(here, "../../worldgen/dist/cli.js");
+    if (!existsSync(cli)) return null;
+
+    const out = join(tmpdir(), "material-bluemap-capture-world");
+    try {
+        // Deterministic seed: the same world every run, so a capture that changes is a
+        // change in the application rather than in the terrain behind it.
+        execFileSync(process.execPath, [cli, "--seed", "1", "--size", "64", "--out", out], {
+            stdio: "pipe",
+            timeout: 240_000,
+        });
+    } catch (error) {
+        console.log(
+            `[harness] could not generate a capture world: ${error instanceof Error ? error.message.split("\n")[0] : String(error)}`,
+        );
+        return null;
+    }
+
+    const world = readdirSync(out, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => join(out, entry.name))
+        .find((folder) => existsSync(join(folder, "level.dat")));
+    return world ?? null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -933,20 +961,51 @@ test("captures the map and server profile manager", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
     await attempt("Profile manager", async () => {
-        await page
-            .locator('.mb-shell-fab[aria-label="Servers"]')
-            .first()
-            .click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForSelector(".v-overlay--active .v-card", {
-            state: "visible",
+        // It used to open from a floating button, and this clicked that button. The shell
+        // removed it when it became tabbed - a tab and a FAB reaching one surface are two
+        // navigation models arguing on one screen - so this waited fifteen seconds for a
+        // control that was deliberately deleted, and the capture quietly left the set.
+        const serversTab = page.locator('[role="tab"]', { hasText: /maps and servers/i }).first();
+        await serversTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        if ((await serversTab.getAttribute("aria-selected")) !== "true") {
+            // The label, not the tab: a tab carries its own close button, and a click on the
+            // tab's centre is a coin toss between selecting it and closing it.
+            await serversTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+        }
+        await page.waitForSelector('[role="tabpanel"]', { state: "visible", timeout: ELEMENT_TIMEOUT });
+        // `attached`, not `visible`: the listbox is always rendered, but with no maps and no
+        // servers yet it has no rows, so it has no height, and Playwright calls a
+        // zero-height element invisible. Waiting for it to be seen is waiting for somebody
+        // to add a server first.
+        await page.waitForSelector(".mb-profiles__list", {
+            state: "attached",
             timeout: ELEMENT_TIMEOUT,
         });
         await page.waitForTimeout(500);
         await shoot(
             "profiles-manager",
-            "The maps and servers manager, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with the fields for adding another",
+            "The maps and servers manager on its own tab, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with the fields for adding another",
+            { mapArea: "covered" },
         );
-        await dismiss();
+    });
+});
+
+test("captures the backup screen", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    await attempt("Backup screen", async () => {
+        const backupsTab = page.locator('[role="tab"]', { hasText: /backups/i }).first();
+        await backupsTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        if ((await backupsTab.getAttribute("aria-selected")) !== "true") {
+            await backupsTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+        }
+        await page.waitForSelector(".mb-backup", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "backups",
+            "Backing a world or a rendered map up to GitHub release assets: what to pack, where it goes, and the notice saying nobody is signed in to GitHub on this computer yet. The screen states why this uses release assets rather than Git LFS, and the pointer format it writes",
+            { mapArea: "covered" },
+        );
     });
 });
 
@@ -1039,19 +1098,24 @@ test("captures the settings surface and every section in it", async () => {
 /**
  * What the options editor is showing in these captures, said plainly in every caption.
  *
- * `ConfigScreen.vue` calls `provideConfigHost()` and `useConfigHost()` in the same
- * component, and a component's own `provide` is not visible to its own `inject`, so the
- * editor resolves no host and falls back to the generated set it offers a browser tab. It
- * says so itself, in an alert across the top of the screen. These captures therefore show
- * the editor's real current behaviour, and the caption says which state that is rather
- * than letting the picture imply the editor is reading somebody's config folder.
+ * The throwaway profile these runs use has no BlueMap config folder on disk, so the editor
+ * opens on BlueMap's own generated defaults and says so in a notice across the top. Every
+ * setting, tab and control below that notice is real, live and savable - what is absent is
+ * a folder read off this machine, not the ability to write one.
+ *
+ * This note used to describe a different state, and the difference is worth recording: the
+ * editor once resolved no host at all, because it called `provideConfigHost()` and
+ * `useConfigHost()` in the same component and a component's own `provide` is invisible to
+ * its own `inject`. Fixing that gave the editor a real bridge, which meant it stopped
+ * generating a set and opened on an empty state instead - and because `attempt()` records
+ * a gap rather than failing, six options-editor captures silently vanished from the
+ * artifact while the job stayed green. The captures are the only thing that noticed.
  */
 const CONFIG_STATE_NOTE =
-    "The editor is showing the complete configuration set it generates when it has no folder " +
-    'attached, and says so itself in the notice across the top: "This build cannot reach a file ' +
-    'system, so nothing can be opened or saved. Every editor below still works, and the file ' +
-    'text can be copied out of each screen." Every setting, tab and control in the image is ' +
-    "real and live; what is absent is a folder read off this machine.";
+    "The editor is showing BlueMap's own generated defaults, because the throwaway profile " +
+    "this run uses has no config folder on disk, and it says so in the notice across the top. " +
+    "Every setting, tab and control in the image is real, live and savable; what is absent is " +
+    "a folder read off this machine.";
 
 /**
  * Opens the options editor, or leaves it open.
@@ -1241,21 +1305,22 @@ test("captures the notification corner and its history", async () => {
             { crop: corner, cropped: "the notification corner" },
         );
 
-        await page
-            .locator('[aria-label="Notification history"]')
-            .first()
-            .click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForSelector(".mb-config-notices__history", {
+        // The bell is found by its class, not by an accessible name: that name carries the
+        // unread count, so it changes with the notices in the corner. It also stopped being
+        // "Notification history" when the flat list became a real notification centre, and
+        // this selector went on waiting fifteen seconds for it.
+        await page.locator(".mb-notice-bell").first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-notice-centre", {
             state: "visible",
             timeout: ELEMENT_TIMEOUT,
         });
         await page.waitForTimeout(500);
         await shoot(
             "notifications-history",
-            "The notification history, so a message that has already faded away is still readable",
+            "The notification centre, so a message that has already faded away is still readable, searchable and filterable by level",
             {
-                crop: page.locator(".mb-config-notices__history"),
-                cropped: "the notification history panel",
+                crop: page.locator(".mb-notice-centre"),
+                cropped: "the notification centre",
             },
         );
         await dismiss();
@@ -1468,4 +1533,39 @@ test("records what was captured", async () => {
               ]),
     ];
     await writeFile(join(shotDir, "captions.md"), `${lines.join("\n")}\n`, "utf8");
+});
+
+/**
+ * The surfaces whose absence is a defect rather than a gap.
+ *
+ * `attempt()` deliberately records a missing surface instead of failing, so forty good
+ * captures still reach the artifact when one screen refuses to open. That is right for a
+ * screen which needs a Java runtime, a real GitHub account or a render in flight - and
+ * wrong for a screen that is simply part of the application. The distinction had to be
+ * made after a one-line fix in the options editor took six of its captures with it and
+ * left the job green: the gap was in the manifest, and a green tick is what anybody
+ * actually reads.
+ *
+ * A surface belongs here when it needs nothing but the application itself.
+ */
+const REQUIRED_SURFACES = [
+    "Options editor",
+    "Options editor tabs",
+    "Options editor search",
+    "Options editor regex builder",
+    "Profile manager",
+    "Notification corner",
+    "Backup screen",
+] as const;
+
+test("captured every surface that needs nothing but the application", () => {
+    const missing = skipped
+        .filter((gap) => (REQUIRED_SURFACES as readonly string[]).includes(gap.surface))
+        .map((gap) => `${gap.surface} - ${gap.reason}`);
+
+    expect(
+        missing,
+        "These surfaces need no runtime, no account and no render, so a run that could not " +
+            "open them is reporting a broken application rather than an unavailable one.",
+    ).toEqual([]);
 });

@@ -34,7 +34,10 @@ behind the surface it describes:
 
 - the application settings surface publishes `SETTINGS_SECTIONS` and `sectionCopy()`, so its
   sections arrive with the titles and explanations they render with, in the current language;
-- the options editor publishes `SCREENS`, so its seven tabs arrive with their own labels;
+- the options editor publishes `SCREENS`, so its seven settings tabs arrive with their own labels.
+  Its eighth tab, History, holds revisions rather than settings and is therefore not in that
+  list; it is published as a destination of its own, because the tab somebody is most likely to
+  hunt for by name must be findable by typing it;
 - the running viewer publishes its settings on `BlueMapApp`, which is where `viewerSettings.ts`
   reads and writes them.
 
@@ -88,8 +91,10 @@ by accident; the full-window view is something somebody asks for, from the heade
 in the list itself.
 
 `canRouteConfigScreens` is the shell's promise that it can open the options editor at a named
-tab. It defaults to false, and while it is false the editor is one row carrying all seven tabs'
-words in its searchable text rather than seven rows that would all open the same first tab.
+tab. It defaults to false, and while it is false the settings tabs are one row carrying all seven
+tabs' words in its searchable text rather than seven rows that would all open the same first tab.
+The History row is present either way, and in both cases says it opens the editor and names the
+tab to pick rather than pretending to land there.
 
 ## Failure modes
 

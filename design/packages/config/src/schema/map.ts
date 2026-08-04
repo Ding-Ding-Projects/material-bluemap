@@ -14,6 +14,7 @@ import { z } from "zod";
 import type { FieldMeta, GroupMeta, LegacyKey } from "../meta.js";
 import { MAP_TEMPLATE } from "../templates/sources.js";
 import {
+    BLUEMAP_NAMESPACE,
     DIMENSION_OPTIONS,
     DIMENSION_TYPE_OPTIONS,
     hexColor,
@@ -22,6 +23,7 @@ import {
     hoconNumber,
     hoconString,
     integerControl,
+    MINECRAFT_NAMESPACE,
     namespacedKey,
     sliderControl,
     SWITCH,
@@ -111,7 +113,7 @@ const FIELDS: readonly FieldMeta[] = [
             "Not present in upstream's template. BlueMap's registry currently holds one loader, 'anvil', which is also the default.",
         ].join("\n"),
         group: "world",
-        control: { kind: "select", allowCustom: true, options: WORLD_LOADER_OPTIONS },
+        control: { kind: "select", allowCustom: true, options: WORLD_LOADER_OPTIONS, keyNamespace: BLUEMAP_NAMESPACE },
         default: "bluemap:anvil",
         commentedOutInTemplate: false,
         hidden: true,
@@ -151,7 +153,7 @@ const FIELDS: readonly FieldMeta[] = [
             "or any dimension key introduced by a mod or datapack.",
         ].join("\n"),
         group: "world",
-        control: { kind: "select", allowCustom: true, options: DIMENSION_OPTIONS },
+        control: { kind: "select", allowCustom: true, options: DIMENSION_OPTIONS, keyNamespace: MINECRAFT_NAMESPACE },
         default: null,
         templateValue: { value: "minecraft:overworld", note: "The generated overworld, nether and end configs each name their own dimension." },
         commentedOutInTemplate: false,
@@ -173,7 +175,7 @@ const FIELDS: readonly FieldMeta[] = [
             "Default is the detected dimension-type",
         ].join("\n"),
         group: "world",
-        control: { kind: "select", allowCustom: true, options: DIMENSION_TYPE_OPTIONS },
+        control: { kind: "select", allowCustom: true, options: DIMENSION_TYPE_OPTIONS, keyNamespace: MINECRAFT_NAMESPACE },
         default: null,
         templateValue: { value: null, note: "The template only writes this key when the dimension type differs from the dimension key, so a generated file usually omits it." },
         commentedOutInTemplate: false,
@@ -250,7 +252,12 @@ const FIELDS: readonly FieldMeta[] = [
         label: "Sky colour",
         doc: ["The color of the sky as a hex-color.", "You can change this at any time.", 'Default is "#7dabff"'].join("\n"),
         group: "lighting",
-        control: { kind: "color", alpha: false },
+        // Alpha is real here, not decoration. `Color.parse` pads a 6-digit value to
+        // `ff` and reads the eighth byte as the alpha channel when one is given, and
+        // `MapSettingsSerializer` hands the whole colour to the webapp. A control that
+        // offered no alpha would be unable to express a value BlueMap both accepts and
+        // uses, and would drop it the first time somebody opened the picker.
+        control: { kind: "color", alpha: true },
         default: "#7dabff",
         templateValue: { value: "#7dabff", note: "The generated nether config uses #290000 and the end config #080010." },
         commentedOutInTemplate: false,
@@ -266,7 +273,8 @@ const FIELDS: readonly FieldMeta[] = [
         label: "Void colour",
         doc: ["The color of the void as a hex-color.", "You can change this at any time.", 'Default is "#000000"'].join("\n"),
         group: "lighting",
-        control: { kind: "color", alpha: false },
+        // Same as sky-color above: BlueMap parses and serialises the alpha byte.
+        control: { kind: "color", alpha: true },
         default: "#000000",
         templateValue: { value: "#000000", note: "The generated nether config uses #150000 and the end config #080010." },
         commentedOutInTemplate: false,
@@ -609,7 +617,17 @@ const FIELDS: readonly FieldMeta[] = [
             'Default is "file"',
         ].join("\n"),
         group: "storage",
-        control: { kind: "select", allowCustom: true, options: [{ value: "file", label: "file" }, { value: "sql", label: "sql" }] },
+        // These are storage *config ids* - the base names of the files in the storages
+        // folder - not registry keys, so no namespace applies and any id the user has
+        // created is legal. The two offered are the two upstream generates.
+        control: {
+            kind: "select",
+            allowCustom: true,
+            options: [
+                { value: "file", label: "file", description: "The generated storages/file.conf, which writes tiles to a folder." },
+                { value: "sql", label: "sql", description: "The generated storages/sql.conf, which writes tiles to a database." },
+            ],
+        },
         default: "file",
         commentedOutInTemplate: false,
         hidden: false,

@@ -331,6 +331,30 @@ jobs:
           name: rendered-map
           path: rendered-map
 
+      # The wizard's later steps read a real world through the main process, so
+      # without one they photograph nothing and are recorded as skipped. This job
+      # already had the rendered map; the world that produced it is an artifact of
+      # the same run, so fetch that too rather than leaving four captures out of
+      # every build.
+      - uses: actions/download-artifact@v4
+        with:
+          name: test-world
+          path: test-world-zip
+
+      - name: Unpack the world the map was rendered from
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/capture-world"
+          # `find`, not `ls`: shellcheck refuses the latter here (SC2012), and it is right
+          # that parsing `ls` output breaks on names this job does not control.
+          zip=$(find test-world-zip -maxdepth 1 -type f -name 'test-world-seed-*.zip' | head -1)
+          test -n "$zip"
+          unzip -q "$zip" -d "$GITHUB_WORKSPACE/capture-world"
+          world=$(find "$GITHUB_WORKSPACE/capture-world" -maxdepth 2 -type f -name level.dat -printf '%h\n' | head -1)
+          test -n "$world"
+          echo "CAPTURE_WORLD=$world" >> "$GITHUB_ENV"
+          ls -la "$world"
+
       - name: Install Playwright browsers
         working-directory: design/packages/app
         run: pnpm exec playwright install-deps chromium
@@ -345,6 +369,7 @@ jobs:
           MATERIAL_BLUEMAP_CAPTURE_MODE: local
           MATERIAL_BLUEMAP_CAPTURE_MAP: ${{ github.workspace }}/rendered-map/web
           MATERIAL_BLUEMAP_CAPTURE_PROVENANCE: ${{ github.workspace }}/rendered-map/provenance.json
+          MATERIAL_BLUEMAP_CAPTURE_WORLD: ${{ env.CAPTURE_WORLD }}
         run: xvfb-run -a --server-args="-screen 0 1920x1080x24" pnpm run screenshots
 
       # Upload even when the capture failed: a diagnostic image of a broken

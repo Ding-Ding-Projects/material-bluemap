@@ -59,6 +59,25 @@ export interface SliderControl {
     readonly unit?: string;
 }
 
+/**
+ * One placeholder a format string accepts, offered as an insertable chip.
+ *
+ * A format string is genuinely free text, so it stays a text field. What it is
+ * not is *opaque* text: upstream's own comment for the webserver access log
+ * lists seven numbered arguments and an example of each, and a person who has to
+ * retype `%1$s` from a doc comment three lines below the field will get it wrong
+ * once and then leave the default alone forever. The tokens make the closed part
+ * of an open field reachable without turning the field into a select it cannot be.
+ */
+export interface TextToken {
+    /** The literal inserted at the caret, e.g. `%1$s`. */
+    readonly insert: string;
+    /** Short label for the chip, e.g. `Source address`. */
+    readonly label: string;
+    /** Upstream's own example of what it expands to, e.g. `10.10.10.10`. */
+    readonly example: string;
+}
+
 /** A text field. */
 export interface TextControl {
     readonly kind: "text";
@@ -66,6 +85,8 @@ export interface TextControl {
     readonly placeholder?: string;
     /** Format strings, URLs and JDBC URLs read better in a mono face. */
     readonly monospace?: boolean;
+    /** Placeholders this field understands, insertable at the caret. */
+    readonly tokens?: readonly TextToken[];
 }
 
 /** A file-system path with a picker beside it. */
@@ -90,8 +111,27 @@ export interface SelectControl {
     /**
      * True when the config accepts values outside `options` (a namespaced key
      * from a mod or datapack, for example), so the GUI offers free entry too.
+     *
+     * This is not a styling choice. It has to be true whenever the schema is
+     * wider than the option list, because a closed control bound to a value it
+     * has no option for shows nothing at all: the setting reads as unset, and
+     * the next click overwrites a value the user put there deliberately.
+     * `controlPolicy.test.ts` refuses a closed select over an open schema.
      */
     readonly allowCustom: boolean;
+    /**
+     * The default namespace BlueMap parses this field's value with, when the
+     * value is one of its registry keys.
+     *
+     * `Key.parse("gzip", "bluemap")` and `Key.parse("bluemap:gzip", "bluemap")`
+     * are the same key, and BlueMap's generated templates write the short form
+     * while the Java defaults carry the long one. Without this, a `compression`
+     * of `bluemap:gzip` matches no option spelled `gzip` and the control shows a
+     * raw key beside a list it plainly belongs to. With it, the two forms match
+     * and the label is shown - and the file keeps whichever spelling it already
+     * had, because normalising somebody's file on open is not this app's job.
+     */
+    readonly keyNamespace?: string;
 }
 
 /** A colour, as the hex string BlueMap stores. */

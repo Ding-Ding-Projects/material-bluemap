@@ -184,9 +184,9 @@ remembered, and downloads nothing.
 </details>
 
 <details>
-<summary><b>The options editor</b> - all seven tabs of BlueMap's own configuration</summary>
+<summary><b>The options editor</b> - all eight tabs of BlueMap's own configuration</summary>
 
-<img src="docs/screenshots/config-screen.png" alt="The options editor with seven tabs, a search across every setting on all of them, and the core settings below" width="900">
+<img src="docs/screenshots/config-screen.png" alt="The options editor with eight tabs, a search across all 154 settings on them, and the core settings below" width="900">
 
 | | | |
 |---|---|---|
@@ -196,15 +196,18 @@ remembered, and downloads nothing.
 | Web app | Web server | Server plugin |
 | <img src="docs/screenshots/config-tab-run.png" alt="The Run tab of the options editor, showing the command-line flags a render is started with" width="280"> | <img src="docs/screenshots/config-search.png" alt="The options editor's search, which reaches every setting on all of the tabs at once" width="280"> | <img src="docs/screenshots/config-regex-builder.png" alt="The regex builder anchored to the options editor's search bar" width="280"> |
 | Run | The search across every tab | Its regex builder |
+| <img src="docs/screenshots/config-tab-history.png" alt="The History tab of the options editor, which lists the saved revisions of the open config folder" width="280"> | | |
+| History | | |
 
 Deleting a map's configuration is guarded the same way any destructive action is, and the gate
 names what would actually go before it asks.
 
 <img src="docs/screenshots/config-delete-gate.png" alt="The confirmation that guards deleting a map's configuration, naming the file that would go, the map id whose tiles stop being served, and that already-rendered tiles are not deleted, above two key switches, a slider and an emergency exit" width="420">
 
-The editor says across the top that it has no folder attached and can open and save nothing, and
-these captures show it in exactly that state: every setting, tab and control is real and live,
-and what is absent is a folder read off the machine.
+These captures show the editor holding BlueMap's own generated defaults, which is what it opens
+on when this machine has no config folder to carry on from - it says so in a notice across the
+top. Every setting, tab and control in them is real, live and savable; what is absent is a folder
+read off the machine, not the ability to write one.
 
 </details>
 
