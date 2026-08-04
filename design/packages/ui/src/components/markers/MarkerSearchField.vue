@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import { mdiMagnify, mdiRegex } from "@mdi/js";
 import RegexBuilder from "./RegexBuilder.vue";
 import { MAX_PATTERN_LENGTH } from "./markerFilter.js";
@@ -25,14 +25,43 @@ const emit = defineEmits<{
 const { t, tx } = useMarkerI18n();
 
 const builderOpen = ref(false);
+const anchor = ref<HTMLElement | null>(null);
 
 function onInput(value: string | null): void {
     emit("update:modelValue", value ?? "");
 }
+
+/**
+ * Focus goes back to the search field, not to the button that opened the builder.
+ *
+ * Vuetify restores focus to the activator on its own, and the activator here is a
+ * focusable icon button inside the field. Left alone, somebody who builds a pattern and
+ * closes the builder lands on a button rather than on the query they were writing, and
+ * has to tab back into it to keep typing. The two other search fields in this app return
+ * to the input; a third that does not would be a difference nobody could explain.
+ */
+function onBuilderToggle(open: boolean): void {
+    if (open) return;
+    void nextTick(() => anchor.value?.querySelector("input")?.focus());
+}
+
+/**
+ * The builder's own close button, which needs its own path back.
+ *
+ * Assigning to `builderOpen` does not emit `update:model-value` on the menu, so
+ * {@link onBuilderToggle} never sees a close that started inside the builder. Both routes
+ * out have to land in the same place or the focus behaviour depends on which control was
+ * pressed, which is exactly the kind of difference a keyboard user notices and nobody
+ * else does.
+ */
+function closeBuilder(): void {
+    builderOpen.value = false;
+    onBuilderToggle(false);
+}
 </script>
 
 <template>
-    <div class="mb-marker-search">
+    <div ref="anchor" class="mb-marker-search">
         <v-text-field
             :model-value="props.modelValue"
             :label="t('markers.searchPlaceholder', 'Search...')"
@@ -93,6 +122,7 @@ function onInput(value: string | null): void {
                         origin="auto"
                         :close-on-content-click="false"
                         :offset="8"
+                        @update:model-value="onBuilderToggle"
                     >
                         <RegexBuilder
                             :pattern="props.modelValue"
@@ -102,7 +132,7 @@ function onInput(value: string | null): void {
                             @update:pattern="emit('update:modelValue', $event)"
                             @update:flags="emit('update:flags', $event)"
                             @update:mode="emit('update:mode', $event)"
-                            @close="builderOpen = false"
+                            @close="closeBuilder"
                         />
                     </v-menu>
                 </v-btn>

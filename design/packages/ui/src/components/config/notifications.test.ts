@@ -7,8 +7,11 @@ import {
     dismiss,
     dismissAll,
     localTimestamp,
+    markReviewed,
     notify,
+    restore,
     timeoutFor,
+    unreadCount,
 } from "./notifications.js";
 
 describe("how long a notice stays", () => {
@@ -92,6 +95,112 @@ describe("the history", () => {
 
         expect(state.history).toHaveLength(HISTORY_LIMIT);
         expect(state.history[0]?.message).toBe(`notice ${HISTORY_LIMIT + 9}`);
+    });
+});
+
+describe("what a notice can carry", () => {
+    it("takes a title and actions, and keeps them on the same object the history holds", () => {
+        const state = createNoticeState();
+        const notice = notify(state, "error", "The files were not written.", {
+            title: "Save failed",
+            detail: "EACCES: permission denied",
+            actions: [{ id: "retry", label: "Retry the save" }],
+        });
+
+        expect(notice.title).toBe("Save failed");
+        expect(notice.actions?.[0]?.id).toBe("retry");
+        // Identity is compared through the id rather than with `toBe`: the state is
+        // `reactive`, so reading an entry back hands out a proxy of the same object.
+        expect(state.history[0]?.id).toBe(notice.id);
+        expect(state.history[0]?.actions?.[0]?.label).toBe("Retry the save");
+    });
+
+    it("still takes a bare detail string, which is what every existing caller passes", () => {
+        const state = createNoticeState();
+        const notice = notify(state, "error", "boom", "EACCES: permission denied");
+
+        expect(notice.detail).toBe("EACCES: permission denied");
+        expect("title" in notice).toBe(false);
+    });
+
+    it("leaves the fields off rather than storing an empty one, so a toast can test for them", () => {
+        const state = createNoticeState();
+        const notice = notify(state, "info", "Nothing to do.", { actions: [] });
+
+        expect("title" in notice).toBe(false);
+        expect("detail" in notice).toBe(false);
+        expect("actions" in notice).toBe(false);
+    });
+});
+
+describe("bringing a dismissed notice back", () => {
+    it("puts the same notice on screen again, id and actions intact", () => {
+        const state = createNoticeState();
+        const notice = notify(state, "error", "The files were not written.", {
+            actions: [{ id: "retry", label: "Retry the save" }],
+        });
+        dismiss(state, notice.id);
+
+        expect(restore(state, notice.id)).toBe(true);
+        expect(state.live[0]?.id).toBe(notice.id);
+        expect(state.live[0]?.actions?.[0]?.label).toBe("Retry the save");
+        // The history did not gain a second copy: the notice on screen is the notice in it.
+        expect(state.history).toHaveLength(1);
+    });
+
+    it("does not show it twice when it is already on screen", () => {
+        const state = createNoticeState();
+        const notice = notify(state, "error", "boom");
+
+        expect(restore(state, notice.id)).toBe(true);
+        expect(state.live).toHaveLength(1);
+    });
+
+    it("says so rather than throwing when the id has fallen off the end of the history", () => {
+        const state = createNoticeState();
+        expect(restore(state, 9999)).toBe(false);
+        expect(state.live).toEqual([]);
+    });
+});
+
+describe("what counts as unread", () => {
+    it("counts everything raised until the centre is opened over it", () => {
+        const state = createNoticeState();
+        notify(state, "info", "a");
+        notify(state, "error", "b");
+
+        expect(unreadCount(state)).toBe(2);
+
+        markReviewed(state);
+        expect(unreadCount(state)).toBe(0);
+    });
+
+    it("counts a notice raised after that, without counting the older ones again", () => {
+        const state = createNoticeState();
+        notify(state, "info", "a");
+        markReviewed(state);
+        notify(state, "error", "b");
+
+        expect(unreadCount(state)).toBe(1);
+    });
+
+    it("is not thrown off by the history dropping its oldest entry, which a count would be", () => {
+        const state = createNoticeState();
+        for (let index = 0; index < HISTORY_LIMIT; index++) notify(state, "info", `notice ${index}`);
+        markReviewed(state);
+
+        for (let index = 0; index < 5; index++) notify(state, "info", `later ${index}`);
+
+        expect(state.history).toHaveLength(HISTORY_LIMIT);
+        expect(unreadCount(state)).toBe(5);
+    });
+
+    it("marks nothing read on an empty history, so a notice raised mid-open is not lost", () => {
+        const state = createNoticeState();
+        markReviewed(state);
+        notify(state, "error", "raised while the panel was opening");
+
+        expect(unreadCount(state)).toBe(1);
     });
 });
 

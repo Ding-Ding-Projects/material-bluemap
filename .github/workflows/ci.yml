@@ -27,7 +27,19 @@ jobs:
     name: Lint the workflow files
     runs-on: ubuntu-latest
     steps:
+      # Full history and every tag: the changelog check below derives its versions from
+      # the tags and its entries from the commits, and a depth-1 checkout would report a
+      # changelog covering one version as current.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The changelog is generated from the repository, so it can go stale the moment
+      # anything is pushed without regenerating it. This says so here rather than letting
+      # a release ship notes that stop at last week.
+      - name: The changelog matches the history it is generated from
+        run: node scripts/build-changelog.mjs --check
+
       - name: actionlint
         run: |
           set -euo pipefail

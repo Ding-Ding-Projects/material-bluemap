@@ -5,8 +5,14 @@
  * The engine is the browser's own `RegExp`, which is also what the marker filter runs,
  * so what the preview shows is exactly what the search will do. Nothing is sent
  * anywhere: patterns and sample text stay in memory and are never persisted.
+ *
+ * The size and time limits below bound a pattern that is slow. A pattern that is
+ * exponentially slow is refused before compiling instead, because the wall clock is
+ * checked between matches and an exponential pattern never returns from the first one;
+ * `../config/regexRisk.ts` carries the argument and the shapes it detects.
  */
 
+import { backtrackingRefusal } from "../config/regexRisk.js";
 import { MAX_PATTERN_LENGTH } from "./markerFilter.js";
 
 export { MAX_PATTERN_LENGTH };
@@ -63,6 +69,8 @@ export function compilePreviewPattern(pattern: string, flags: string): CompileRe
     if (pattern.length > MAX_PATTERN_LENGTH) {
         return { regexp: null, error: `Pattern is longer than ${MAX_PATTERN_LENGTH} characters.` };
     }
+    const refusal = backtrackingRefusal(pattern);
+    if (refusal !== null) return { regexp: null, error: refusal };
     const previewFlags = flags.replace(/[gy]/g, "") + "g";
     try {
         return { regexp: new RegExp(pattern, previewFlags), error: null };

@@ -47,6 +47,25 @@ beforeAll(() => {
         removeEventListener: () => {},
         dispatchEvent: () => false,
     })) as unknown as typeof globalThis.matchMedia;
+
+    // Vuetify places an anchored overlay through a strategy that reads `visualViewport`
+    // without guarding it, and jsdom does not define it. The reference error is thrown
+    // inside a Vue watcher and swallowed there, so the menu's model flips and its card
+    // never renders: the builder looks broken when the only thing missing is this stub.
+    globalThis.visualViewport = {
+        width: 1024,
+        height: 768,
+        offsetLeft: 0,
+        offsetTop: 0,
+        pageLeft: 0,
+        pageTop: 0,
+        scale: 1,
+        onresize: null,
+        onscroll: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+    } as unknown as VisualViewport;
 });
 
 const RELEASE: DiscoveredRelease = {
@@ -334,6 +353,68 @@ describe("what was already going", () => {
         // download failed cannot promise that, and offers a fresh attempt instead.
         expect(wrapper.text()).toContain("Carry on from where it stopped");
         expect(wrapper.text()).toContain("Try this download again");
+
+        wrapper.unmount();
+    });
+
+    it("is searchable, by a field with its own regex builder anchored to it", async () => {
+        const base = {
+            repository: "Ding-Ding-Projects/material-bluemap",
+            tag: "v1.4.0",
+            bytes: 4_030_000_000,
+            parts: 3,
+            split: true,
+            archive: "/var/maps/downloads/x/world.zip",
+            content: null,
+            startedAt: "2026-08-02T09:14:00.000Z",
+            finishedAt: "2026-08-02T09:20:00.000Z",
+            durationMs: 360_000,
+            outcome: "cancelled" as const,
+        };
+        const fake = fakeBridge({
+            list: [
+                { ...base, downloadId: "one", asset: "overworld-1.21-hires.zip" },
+                { ...base, downloadId: "two", asset: "the-nether-1.21-lowres.zip" },
+            ],
+        });
+        const wrapper = render(fake.bridge);
+        await flushPromises();
+
+        // The field belongs to this list, and its builder is anchored inside it rather
+        // than shared with the release's asset list further up the same screen.
+        const field = wrapper.get(".mb-downloads__search .mb-config-search");
+        expect(
+            wrapper.find('.mb-downloads__search [aria-label="Open the regex builder"]').exists(),
+        ).toBe(true);
+
+        await field.get("input").setValue("nether");
+        await nextTick();
+
+        expect(wrapper.text()).toContain("the-nether-1.21-lowres.zip");
+        expect(wrapper.text()).not.toContain("overworld-1.21-hires.zip");
+        expect(wrapper.text()).toContain("Showing 1 of 2");
+
+        // Plain text is the default, so a pattern-shaped query is matched literally and
+        // finds nothing rather than quietly matching everything.
+        await field.get("input").setValue(".*");
+        await nextTick();
+        expect(wrapper.text()).toContain("Nothing on this machine matches that search");
+
+        // Filtering hid them; nothing was removed. Clearing brings both back.
+        await field.get("input").setValue("");
+        await nextTick();
+        expect(wrapper.text()).toContain("overworld-1.21-hires.zip");
+        expect(wrapper.text()).toContain("the-nether-1.21-lowres.zip");
+
+        wrapper.unmount();
+    });
+
+    it("offers no search over an empty list, which would be a control that cannot act", async () => {
+        const fake = fakeBridge();
+        const wrapper = render(fake.bridge);
+        await flushPromises();
+
+        expect(wrapper.find(".mb-downloads__search").exists()).toBe(false);
 
         wrapper.unmount();
     });

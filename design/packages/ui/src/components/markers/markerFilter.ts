@@ -1,3 +1,4 @@
+import { backtrackingRefusal } from "../config/regexRisk.js";
 import type { AnyMarkerData, AnyMarkerSetData, Vec3Like } from "./markerTypes.js";
 
 export type SortOrder = "default" | "label" | "distance";
@@ -68,6 +69,12 @@ export function compileSearchPattern(pattern: string, flags: string): CompiledPa
             error: `Pattern is longer than ${MAX_PATTERN_LENGTH} characters.`,
         };
     }
+    // A marker list can hold thousands of labels, so an exponential pattern here is
+    // tested against every one of them. The shape is refused before compiling; the
+    // reason travels out as the same `error` a syntax error uses, so the list reports
+    // it in the place it already reports an unusable pattern.
+    const refusal = backtrackingRefusal(pattern);
+    if (refusal !== null) return { regexp: null, error: refusal };
     try {
         return { regexp: new RegExp(pattern, flags.replace(SEARCH_UNSAFE_FLAGS, "")), error: null };
     } catch (error) {

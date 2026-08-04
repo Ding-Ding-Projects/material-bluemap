@@ -25,7 +25,14 @@
  * of wall clock per preview run. They are stated in the builder's own interface
  * as well as here, because a limit the user cannot see is a limit that reads as
  * a bug when it bites.
+ *
+ * On top of those, a pattern whose shape backtracks exponentially is refused
+ * before it is compiled. See `regexRisk.ts` for why the size and time limits
+ * cannot cover that case on their own: the wall clock is checked between matches,
+ * and an exponential pattern never returns from the first one.
  */
+
+import { backtrackingRefusal } from "./regexRisk.js";
 
 /** Longest pattern this build will compile. */
 export const MAX_PATTERN_LENGTH = 512;
@@ -102,6 +109,8 @@ export function compilePreviewPattern(pattern: string, flags: string): CompileRe
     if (pattern.length > MAX_PATTERN_LENGTH) {
         return { regexp: null, error: `Pattern is longer than ${MAX_PATTERN_LENGTH} characters.` };
     }
+    const refusal = backtrackingRefusal(pattern);
+    if (refusal !== null) return { regexp: null, error: refusal };
     const previewFlags = normalizeFlags(flags).replace(PREDICATE_UNSAFE_FLAGS, "") + "g";
     try {
         return { regexp: new RegExp(pattern, previewFlags), error: null };
@@ -118,6 +127,13 @@ export function compileSearchPattern(pattern: string, flags: string): CompileRes
     if (pattern.length > MAX_PATTERN_LENGTH) {
         return { regexp: null, error: `Pattern is longer than ${MAX_PATTERN_LENGTH} characters.` };
     }
+    // The predicate is cheaper than the preview — one short setting label at a
+    // time rather than a whole corpus — but it is not safe: a single label long
+    // enough to matter still hangs the thread, and the pattern that would do it
+    // is the same one. Refusing in both places also keeps the two honest, so the
+    // builder cannot preview something the search then rejects.
+    const refusal = backtrackingRefusal(pattern);
+    if (refusal !== null) return { regexp: null, error: refusal };
     try {
         return {
             regexp: new RegExp(pattern, normalizeFlags(flags).replace(PREDICATE_UNSAFE_FLAGS, "")),

@@ -1,10 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiCloseCircleOutline, mdiPlayCircleOutline, mdiRestore } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardText, VCardTitle, VChip, VIcon, VProgressLinear } from "vuetify/components";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import { describeInterruption, describeProgress, describeRefusal } from "./resumeOffers.js";
 import type { ResumeOffers } from "./resumeOffers.js";
+import type { InterruptedRenderSummary } from "./worldBridge.js";
 
 /**
  * Renders that stopped without finishing, offered back.
@@ -35,7 +38,50 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-const list = computed(() => props.offers.offers.value);
+const all = computed(() => props.offers.offers.value);
+
+/**
+ * This list's own query, mode and flags, with its own anchored builder.
+ *
+ * An unfinished render is offered until somebody accepts or declines it, so on a machine
+ * that renders several worlds this accumulates: one entry per interruption, each one hours
+ * of work, none of them safe to sweep away on the app's own initiative. That makes it a
+ * collection somebody scans looking for one particular world, and the names it is scanned
+ * by (`overworld`, `the_nether`, a map id typed months ago) are exactly what a pattern is
+ * good at. Plain text stays the default; regex is the opt-in `ConfigSearchField` gives it.
+ */
+const query = ref("");
+const regexMode = ref(false);
+const flags = ref("i");
+
+const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
+
+/**
+ * The text a card can be found by, and only text that card puts on screen: the map names
+ * in its title, the engine chip, the render id it falls back to when there are no maps,
+ * and the message underneath. Searching for something visible has to find the card
+ * showing it, or the search is lying about what it looked at.
+ */
+function offerText(offer: InterruptedRenderSummary): string[] {
+    return [
+        ...offer.maps.map((map) => map.name),
+        offer.renderId,
+        offer.engine,
+        offer.message,
+        offer.description ?? "",
+    ].filter((value) => value !== "");
+}
+
+const list = computed(() => all.value.filter((offer) => offerText(offer).some((value) => matcher.value.test(value))));
+
+/** The real corpus, so the builder's preview and this list cannot disagree. */
+const sample = computed(() => all.value.map((offer) => offerText(offer).join(" ")).join("\n"));
+
+const summary = computed(() =>
+    matcher.value.active
+        ? t("world.resume.searchSummary", { shown: list.value.length, total: all.value.length }, "Showing {shown} of {total}")
+        : "",
+);
 
 onMounted(() => {
     void props.offers.load();
@@ -60,7 +106,12 @@ function when(iso: string | null): string {
 </script>
 
 <template>
-    <section v-if="list.length > 0 || offers.failure.value" class="mb-world-resume">
+    <!--
+        Gated on the whole list, not the filtered one. A query that matches nothing must
+        leave the search bar on screen to be cleared; hiding the section around it would
+        take the way back out with it and read as the offers having been lost.
+    -->
+    <section v-if="all.length > 0 || offers.failure.value" class="mb-world-resume">
         <h3 class="mb-world-resume__title">
             <v-icon :icon="mdiRestore" size="20" aria-hidden="true" />
             {{ t("world.resume.title", "Renders that did not finish") }}
@@ -77,6 +128,27 @@ function when(iso: string | null): string {
         <v-alert v-if="offers.failure.value" type="error" density="compact" variant="tonal" class="mb-2" role="alert">
             {{ offers.failure.value }}
         </v-alert>
+
+        <div v-if="all.length > 0" class="mb-world-resume__search">
+            <ConfigSearchField
+                v-model="query"
+                v-model:regex="regexMode"
+                v-model:flags="flags"
+                :label="t('world.resume.searchLabel', 'Search these renders')"
+                :placeholder="t('world.resume.searchHint', 'a map name, or part of one')"
+                :sample="sample"
+                :summary="summary"
+            />
+        </div>
+
+        <p v-if="all.length > 0 && list.length === 0" class="mb-world-resume__blurb" role="status">
+            {{
+                t(
+                    "world.resume.noMatch",
+                    "No unfinished render matches that search. Clearing it brings them all back; nothing was declined.",
+                )
+            }}
+        </p>
 
         <v-card v-for="offer in list" :key="offer.renderId" variant="tonal" class="mb-world-resume__card">
             <v-card-title class="mb-world-resume__head">
@@ -157,6 +229,11 @@ function when(iso: string | null): string {
     font-size: 0.75rem;
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-world-resume__search {
+    margin-block: 8px;
+    max-width: 420px;
 }
 
 .mb-world-resume__card {

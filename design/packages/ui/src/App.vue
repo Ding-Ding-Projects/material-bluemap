@@ -16,6 +16,7 @@ import { AppTitleBar } from "./components/shell/index.js";
 import { FirstRunSetup } from "./components/setup/index.js";
 import { AppSettings, type SettingsAnchor } from "./components/settings/index.js";
 import { WorldScreen } from "./components/world/index.js";
+import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
 import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js";
@@ -124,6 +125,24 @@ function closeConfig(): void {
     configOpen.value = false;
     void nextTick(() => document.getElementById(configFabId)?.focus());
 }
+
+/* -------------------------------------------------------------------------- */
+/* Command palette                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One shortcut over every command, setting and destination the app has.
+ *
+ * It opens nothing itself. Every destination it offers emits back to this component, so
+ * the code that actually opens these surfaces stays in the one place that already owns it
+ * rather than being copied into a second component that would then drift out of step -
+ * which is how a palette ends up sending somebody to a screen the shell stopped using.
+ *
+ * `usePaletteShortcut` binds the window in the capture phase, so the chord works from
+ * inside a text field, and calls `preventDefault` only when it actually matched.
+ */
+const paletteOpen = ref(false);
+usePaletteShortcut(paletteOpen);
 
 /**
  * A save happened, so the editor steps out of the way and says where it wrote.
@@ -344,6 +363,19 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 :anchor="settingsAnchor"
                 :anchor-missing="settingsMissing"
                 @update:open="settingsOpen = $event"
+            />
+
+            <!--
+                Every destination emits back here rather than opening anything itself, so
+                the shell keeps one copy of the code that opens each surface.
+            -->
+            <CommandPalette
+                :open="paletteOpen"
+                @update:open="paletteOpen = $event"
+                @reveal-setting="revealSetting"
+                @open-settings="openSettings()"
+                @open-config="openConfig()"
+                @open-profiles="profilesOpen = true"
             />
         </v-main>
 

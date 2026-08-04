@@ -3,6 +3,7 @@ import {
     notify,
     type Notice,
     type NoticeLevel,
+    type NoticeOptions,
 } from "../components/config/notifications.js";
 
 /**
@@ -31,7 +32,15 @@ export const notices = createNoticeState();
  *
  * Saves the shell from importing the queue's own `notify` and remembering to pass the one
  * state to it, which is how a second, private queue gets created by accident.
+ *
+ * The third argument is a detail string or the full options object, exactly as `notify`
+ * takes it, so a caller that wants to attach a retry or an "open the folder" link to a
+ * message does not have to reach past this helper to do it.
  */
-export function raiseNotice(level: NoticeLevel, message: string, detail?: string): Notice {
-    return notify(notices, level, message, detail);
+export function raiseNotice(
+    level: NoticeLevel,
+    message: string,
+    options?: string | NoticeOptions,
+): Notice {
+    return notify(notices, level, message, options);
 }

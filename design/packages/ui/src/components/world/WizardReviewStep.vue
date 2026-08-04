@@ -14,7 +14,9 @@ import {
     VTextField,
 } from "vuetify/components";
 import type { PlainValue } from "@material-bluemap/config";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { valueToText } from "../config/fieldValue.js";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import type { FieldChange } from "../config/configModel.js";
 import type { RunOptions } from "./wizardModel.js";
 
@@ -78,6 +80,47 @@ function describeValue(value: PlainValue | undefined): string {
     const text = valueToText(value ?? null);
     return text === "" ? t("world.review.nothing", "nothing") : text;
 }
+
+/*
+ * Searching the two lists of changed settings, with the same anchored builder the
+ * settings screens use.
+ *
+ * The wizard collects ninety-two of BlueMap's map settings, and this step's whole
+ * purpose is to say which of them reach the render and which are only written into the
+ * config file. Somebody who changed thirty of them and wants to check one before
+ * pressing a button that runs for four hours should be able to type its name rather than
+ * read two lists. One field over both lists rather than one each, deliberately: the
+ * question is "where did my setting end up", and a field per list would answer half of it
+ * and make the reader ask the same thing twice.
+ */
+const query = ref("");
+const regexMode = ref(false);
+const flags = ref("i");
+
+const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
+
+/** Label, dotted path and rendered value, which is exactly the three things each row shows. */
+function changeText(entry: FieldChange): string[] {
+    return [entry.field.label, entry.field.path, describeValue(entry.to)];
+}
+
+function matches(entry: FieldChange): boolean {
+    return changeText(entry).some((value) => matcher.value.test(value));
+}
+
+const shownReaching = computed(() => props.reaching.filter(matches));
+const shownCarried = computed(() => props.carried.filter(matches));
+
+const changeSample = computed(() =>
+    [...props.reaching, ...props.carried].map((entry) => changeText(entry).join(" ")).join("\n"),
+);
+
+const changeSummary = computed(() => {
+    if (!matcher.value.active) return "";
+    const total = props.reaching.length + props.carried.length;
+    const shown = shownReaching.value.length + shownCarried.value.length;
+    return t("world.review.searchSummary", { shown, total }, "Showing {shown} of {total}");
+});
 
 async function copyConfig(): Promise<void> {
     try {
@@ -222,8 +265,33 @@ async function copyConfig(): Promise<void> {
         </p>
 
         <template v-else>
-            <ul v-if="reaching.length > 0" class="mb-world-review__list">
-                <li v-for="entry in reaching" :key="entry.field.path">
+            <div class="mb-world-review__search">
+                <ConfigSearchField
+                    v-model="query"
+                    v-model:regex="regexMode"
+                    v-model:flags="flags"
+                    :label="t('world.review.searchLabel', 'Search the settings you changed')"
+                    :placeholder="t('world.review.searchHint', 'a name, a path, or a value')"
+                    :sample="changeSample"
+                    :summary="changeSummary"
+                />
+            </div>
+
+            <p
+                v-if="shownReaching.length === 0 && shownCarried.length === 0"
+                class="mb-world-step__blurb"
+                role="status"
+            >
+                {{
+                    t(
+                        "world.review.noMatch",
+                        "No setting you changed matches that search. Clearing it brings the whole list back; the render is unaffected either way.",
+                    )
+                }}
+            </p>
+
+            <ul v-if="shownReaching.length > 0" class="mb-world-review__list">
+                <li v-for="entry in shownReaching" :key="entry.field.path">
                     <strong>{{ entry.field.label }}</strong>
                     <span class="mb-world-review__key">{{ entry.field.path }}</span>
                     <span>{{ describeValue(entry.to) }}</span>
@@ -233,7 +301,13 @@ async function copyConfig(): Promise<void> {
                 </li>
             </ul>
 
-            <template v-if="carried.length > 0">
+            <!--
+                The note counts every carried setting, not the ones surviving the query.
+                It is a statement about what this render will and will not pick up, and a
+                number that shrank because somebody typed in a search box would be a
+                different and much less useful claim.
+            -->
+            <template v-if="shownCarried.length > 0">
                 <v-alert type="info" density="compact" variant="tonal" class="mt-2">
                     {{
                         t(
@@ -244,7 +318,7 @@ async function copyConfig(): Promise<void> {
                     }}
                 </v-alert>
                 <ul class="mb-world-review__list mb-world-review__list--muted">
-                    <li v-for="entry in carried" :key="entry.field.path">
+                    <li v-for="entry in shownCarried" :key="entry.field.path">
                         <strong>{{ entry.field.label }}</strong>
                         <span class="mb-world-review__key">{{ entry.field.path }}</span>
                         <span>{{ describeValue(entry.to) }}</span>
@@ -332,6 +406,11 @@ async function copyConfig(): Promise<void> {
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 8px 24px;
     margin-block-start: 8px;
+}
+
+.mb-world-review__search {
+    margin-block-start: 8px;
+    max-width: 420px;
 }
 
 .mb-world-review__list {

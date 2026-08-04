@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { onBeforeUnmount, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiBellOutline, mdiClose } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText, VList, VListItem, VMenu } from "vuetify/components";
+import { mdiClose, mdiOpenInNew } from "@mdi/js";
+import { VAlert, VBtn } from "vuetify/components";
+import NotificationCentre from "../notifications/NotificationCentre.vue";
 import { dismiss, dismissAll, type Notice, type NoticeState } from "./notifications.js";
 
 /**
@@ -14,6 +15,12 @@ import { dismiss, dismissAll, type Notice, type NoticeState } from "./notificati
  * unread. Everything that was raised stays reachable in the history, because a
  * message that vanished and cannot be found again is a message that may as well
  * not have been shown.
+ *
+ * The history itself is no longer a list in a menu here. The bell opens
+ * `components/notifications/NotificationCentre.vue`, which searches, filters by
+ * level and can put a notice back on screen; a flat column of message strings
+ * was a control that looked like a notification centre in a screenshot and was
+ * not one by the tenth entry.
  */
 const props = defineProps<{ state: NoticeState }>();
 
@@ -69,17 +76,46 @@ function close(id: number): void {
             >
                 <div class="mb-config-notices__body">
                     <div>
+                        <p v-if="notice.title" class="mb-config-notices__title">{{ notice.title }}</p>
                         <p>{{ notice.message }}</p>
                         <details v-if="notice.detail">
                             <summary>{{ t("config.notices.detail", "Details") }}</summary>
                             <pre class="mb-config-notices__detail">{{ notice.detail }}</pre>
                         </details>
+
+                        <!--
+                            Retry, undo, open. The toast offers what the caller attached and
+                            nothing else; the same actions stay attached to the notice in the
+                            history, so dismissing one does not throw the offer away.
+                        -->
+                        <div v-if="notice.actions?.length" class="mb-config-notices__actions">
+                            <v-btn
+                                v-for="action in notice.actions"
+                                :key="action.id"
+                                :href="action.href"
+                                :target="action.href ? '_blank' : undefined"
+                                :rel="action.href ? 'noreferrer' : undefined"
+                                :append-icon="action.href ? mdiOpenInNew : undefined"
+                                variant="text"
+                                size="small"
+                                density="comfortable"
+                                @click="action.run?.()"
+                            >
+                                {{ action.label }}
+                            </v-btn>
+                        </div>
                     </div>
+                    <!--
+                        Dismissal is the one control every toast has, and it was a 24px
+                        target. It is now a 40px square: the button somebody aims at to
+                        silence a warning must not itself be a test of aim.
+                    -->
                     <v-btn
                         :icon="mdiClose"
                         :aria-label="t('config.notices.dismiss', 'Dismiss this notification')"
+                        class="mb-config-notices__dismiss"
                         variant="text"
-                        size="x-small"
+                        size="small"
                         density="comfortable"
                         @click="close(notice.id)"
                     />
@@ -90,40 +126,21 @@ function close(id: number): void {
         <div class="mb-config-notices__tools">
             <v-btn
                 v-if="state.live.length > 1"
+                class="mb-config-notices__dismiss-all"
                 variant="text"
-                size="x-small"
+                size="small"
                 density="comfortable"
                 @click="dismissAll(state)"
             >
                 {{ t("config.notices.dismissAll", "Dismiss all") }}
             </v-btn>
 
-            <v-btn
-                :prepend-icon="mdiBellOutline"
-                :aria-label="t('config.notices.history', 'Notification history')"
-                variant="tonal"
-                size="small"
-                density="comfortable"
-            >
-                {{ state.history.length }}
-                <v-menu activator="parent" location="top end" :close-on-content-click="false">
-                    <v-card max-width="420" class="mb-config-notices__history">
-                        <v-card-text>
-                            <p v-if="state.history.length === 0">
-                                {{ t("config.notices.empty", "Nothing has been reported yet.") }}
-                            </p>
-                            <v-list v-else density="compact">
-                                <v-list-item
-                                    v-for="notice in state.history"
-                                    :key="notice.id"
-                                    :title="notice.message"
-                                    :subtitle="`${notice.level} · ${notice.at}`"
-                                />
-                            </v-list>
-                        </v-card-text>
-                    </v-card>
-                </v-menu>
-            </v-btn>
+            <!--
+                The bell, and behind it the notification centre. It lives in the corner
+                rather than in a settings tab because the corner is where somebody is
+                looking at the moment they realise the message they wanted has gone.
+            -->
+            <NotificationCentre :state="state" />
         </div>
     </div>
 </template>
@@ -169,6 +186,28 @@ function close(id: number): void {
     min-width: 0;
 }
 
+.mb-config-notices__title {
+    font-weight: 600;
+}
+
+.mb-config-notices__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-block-start: 4px;
+}
+
+/*
+ * The dismiss control is the only way a warning or an error ever leaves the corner, so it
+ * gets a full 40px square regardless of the density the toast is painted at. A target that
+ * small is not a style choice, it is the difference between silencing a message and
+ * clicking the map behind it.
+ */
+.mb-config-notices__dismiss {
+    min-width: 40px;
+    min-height: 40px;
+}
+
 .mb-config-notices__detail {
     font-family: "Roboto Mono", ui-monospace, monospace;
     font-size: 0.6875rem;
@@ -184,9 +223,8 @@ function close(id: number): void {
     pointer-events: auto;
 }
 
-.mb-config-notices__history {
-    max-height: 60vh;
-    overflow-y: auto;
+.mb-config-notices__dismiss-all {
+    min-height: 40px;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import { sanitizeHtml } from "@material-bluemap/viewer";
 import type { BlueMapApp } from "@material-bluemap/viewer";
 import { useBlueMap } from "./useBlueMap";
+import ChangelogViewer from "../changelog/ChangelogViewer.vue";
 
 /**
  * The Info page: upstream renders `info.content` from the locale file straight through
@@ -111,6 +112,13 @@ function describe(error: unknown): string {
 const appVersion = ref<string | null>(null);
 const versionFailure = ref<string | null>(null);
 
+/**
+ * Whether the changelog fold is open, which is what decides whether the viewer is built.
+ * Driven by the element's own `toggle` event rather than by a click handler, so keyboard
+ * activation and the browser's find-in-page auto-expansion both keep it in step.
+ */
+const changelogOpen = ref(false);
+
 onMounted(() => {
     const read = versionReader();
     if (read === null) return;
@@ -153,6 +161,23 @@ onMounted(() => {
             )
         }}
     </p>
+
+    <!--
+        Every released version, with the commit that made each change. Folded rather than
+        expanded: this page is what somebody opens to read the controls, and 35 versions
+        of history unrolled above them would bury it.
+
+        The viewer is built when the fold is opened rather than mounted and hidden. A
+        closed `<details>` still holds its children in the document, so mounting it here
+        would put every entry's text - 88 commit messages - into this page's accessible
+        name and into anything that reads its content, while showing none of it. Built on
+        demand, the page says what it says and the history arrives when it is asked for.
+    -->
+    <v-divider class="mb-info-page__rule" />
+    <details class="mb-info-page__changelog" @toggle="changelogOpen = ($event.target as HTMLDetailsElement).open">
+        <summary>{{ t("info.changelog", "Changelog, every released version") }}</summary>
+        <ChangelogViewer v-if="changelogOpen" />
+    </details>
 </template>
 
 <style>
@@ -160,6 +185,21 @@ onMounted(() => {
     padding: 8px 16px 16px;
     font-size: 0.8125rem;
     line-height: 1.5;
+}
+
+.mb-info-page__rule {
+    margin: 1rem 0;
+}
+
+.mb-info-page__changelog > summary {
+    cursor: pointer;
+    padding: 0.25rem 0;
+    font-weight: 500;
+}
+
+.mb-info-page__changelog > summary:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
 }
 
 .mb-info-page img {

@@ -145,10 +145,29 @@ describe("the search predicate", () => {
 });
 
 describe("adversarial input", () => {
-    it("returns rather than hanging on a backtracking pattern against a bounded sample", () => {
+    /*
+     * This assertion used to read `expect(result.error).toBeNull()` against twenty
+     * characters of `a`, and it passed for the wrong reason: twenty characters is
+     * about a million steps, which returns. The size limits allow twenty *thousand*,
+     * which is 2^20000 and does not, and the wall-clock budget never gets a look in
+     * because it is checked between matches and the first one never completes.
+     *
+     * So the shape is refused before it is compiled, and what is asserted here is the
+     * refusal. `regexRisk.test.ts` next door holds the rest: which shapes are caught,
+     * which ordinary patterns must keep working, and the timing proof against a sample
+     * the size limits alone would have waved through.
+     */
+    it("refuses a nested unbounded quantifier rather than hanging on one", () => {
         const started = Date.now();
         const result = evaluatePattern("(a+)+$", "", `${"a".repeat(20)}b`);
+
         expect(Date.now() - started).toBeLessThan(5000);
+        expect(result.matches).toEqual([]);
+        expect(result.error).toContain("exponential time");
+    });
+
+    it("still runs the same search written without the redundant nesting", () => {
+        const result = evaluatePattern("a+$", "", `${"a".repeat(20)}b`);
         expect(result.error).toBeNull();
     });
 });

@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiCloudSearchOutline } from "@mdi/js";
 import { VAlert, VBtn, VProgressCircular, VTextField } from "vuetify/components";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import DownloadRowCard from "./DownloadRowCard.vue";
 import ReleaseAssetList from "./ReleaseAssetList.vue";
 import { DEFAULT_RELEASE, adviseOnDownloadFailure, createDownloads, type DownloadRow } from "./downloads.js";
@@ -87,6 +89,51 @@ const activeAssets = computed(() =>
 
 const canLook = computed(
     () => downloads.available && owner.value.trim() !== "" && repo.value.trim() !== "" && !downloads.discovering.value,
+);
+
+/*
+ * The rows below get their own search, separate from the one over a release's assets.
+ *
+ * They are two different collections that happen to sit on one screen: the assets are
+ * what a release offers, the rows are what this machine has fetched, is fetching, or
+ * failed to fetch, across every session it can read back. The second list is the one
+ * that grows without bound, and the one somebody comes back to a week later looking
+ * for a particular world by name. One shared field would filter whichever list was
+ * touched last, which is precisely the failure the contract names.
+ *
+ * The three fields above are not search bars and get no builder: owner, repository
+ * and tag address a release rather than filter one, and a regular expression in any
+ * of them would be a string sent to GitHub, not a pattern run here.
+ */
+const rowQuery = ref("");
+const rowRegex = ref(false);
+const rowFlags = ref("i");
+
+const rowMatcher = computed(() => createSettingMatcher(rowQuery.value, rowRegex.value, rowFlags.value));
+
+/**
+ * What a row can be found by: the file name, the repository it came from, its tag, and
+ * the id, which is all a row started in another session has until its first event lands.
+ * Only text that is on screen, so searching for something visible finds the row showing it.
+ */
+function rowText(row: DownloadRow): string[] {
+    return [row.asset, row.repository, row.tag, row.downloadId].filter((value) => value !== "");
+}
+
+const shownRows = computed(() =>
+    downloads.rows.value.filter((row) => rowText(row).some((value) => rowMatcher.value.test(value))),
+);
+
+const rowSample = computed(() => downloads.rows.value.map((row) => rowText(row).join(" ")).join("\n"));
+
+const rowSummary = computed(() =>
+    rowMatcher.value.active
+        ? t(
+              "downloads.rows.searchSummary",
+              { shown: shownRows.value.length, total: downloads.rows.value.length },
+              "Showing {shown} of {total}",
+          )
+        : "",
 );
 
 const startAdvice = computed(() => {
@@ -274,8 +321,38 @@ defineExpose({ downloads });
                 }}
             </v-alert>
 
+            <!--
+                Only once there is something to filter. A search bar over an empty list is
+                a control that cannot do anything, and the empty state below already says
+                what is going on far better than "showing 0 of 0" would.
+            -->
+            <div v-if="downloads.rows.value.length > 0" class="mb-downloads__search">
+                <ConfigSearchField
+                    v-model="rowQuery"
+                    v-model:regex="rowRegex"
+                    v-model:flags="rowFlags"
+                    :label="t('downloads.rows.searchLabel', 'Search what is on this machine')"
+                    :placeholder="t('downloads.rows.searchHint', 'file name, repository or tag')"
+                    :sample="rowSample"
+                    :summary="rowSummary"
+                />
+            </div>
+
+            <p
+                v-if="downloads.rows.value.length > 0 && shownRows.length === 0"
+                class="mb-downloads__note"
+                role="status"
+            >
+                {{
+                    t(
+                        "downloads.rows.noMatch",
+                        "Nothing on this machine matches that search. Clearing it brings every download back; none of them was removed.",
+                    )
+                }}
+            </p>
+
             <DownloadRowCard
-                v-for="row in downloads.rows.value"
+                v-for="row in shownRows"
                 :key="row.downloadId"
                 :row="row"
                 :can-cancel="downloads.canCancel"
@@ -343,6 +420,11 @@ defineExpose({ downloads });
     gap: 8px;
     flex-wrap: wrap;
     margin-block: 12px;
+}
+
+.mb-downloads__search {
+    margin-block-start: 12px;
+    max-width: 420px;
 }
 
 .mb-downloads__where .v-text-field {

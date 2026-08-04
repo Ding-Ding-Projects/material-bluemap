@@ -3,9 +3,16 @@
  *
  * The engine is the host JavaScript runtime's own `RegExp` (ECMAScript dialect), evaluated
  * locally on the main thread. Nothing is transmitted or persisted: patterns and sample text
- * live only in component state. The limits below keep a catastrophic-backtracking pattern
- * from freezing the interface.
+ * live only in component state.
+ *
+ * The limits below bound a pattern that is merely slow. A pattern that is exponentially slow
+ * is a different problem, because the wall-clock budget is checked between matches and an
+ * exponential pattern never returns from the first one, so its shape is refused before it is
+ * compiled — see `../config/regexRisk.ts` for the argument and for what it deliberately does
+ * not detect.
  */
+
+import { backtrackingRefusal } from "../config/regexRisk.js";
 
 /** Longest pattern the builder will compile. */
 export const MAX_PATTERN_LENGTH = 512;
@@ -63,6 +70,8 @@ export function compilePattern(pattern: string, flags: string): CompileResult {
             error: `Pattern is longer than the ${MAX_PATTERN_LENGTH} character limit.`,
         };
     }
+    const refusal = backtrackingRefusal(pattern);
+    if (refusal !== null) return { regex: null, error: refusal };
     try {
         return { regex: new RegExp(pattern, normalizeFlags(flags)), error: null };
     } catch (error) {
