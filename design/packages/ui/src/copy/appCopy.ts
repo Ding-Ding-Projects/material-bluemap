@@ -68,12 +68,20 @@
  */
 
 import type { FixedString, VoicedString } from "../components/setup/setupStrings.js";
+import { SURFACE_FACTS, SURFACE_FIXED, SURFACE_VOICED } from "./surfaces/index.js";
 
 /* -------------------------------------------------------------------------- */
 /* VOICED: five levels per language                                           */
 /* -------------------------------------------------------------------------- */
 
 export const APP_VOICED = {
+    /*
+     * One module per screen, in `surfaces/`. They are spread first so that anything written
+     * directly below wins a collision, which keeps this file's own entries authoritative
+     * while the surface modules grow underneath them.
+     */
+    ...SURFACE_VOICED,
+
     /* ---------------------------------------------------------------- */
     /* Destructive: what a delete takes, and what it leaves behind       */
     /* ---------------------------------------------------------------- */
@@ -944,6 +952,7 @@ export const APP_VOICED = {
 /* -------------------------------------------------------------------------- */
 
 export const APP_FIXED = {
+    ...SURFACE_FIXED,
     "settings.consent.title": { en: "Mojang download consent", yue: "Mojang 下載同意" },
     "settings.java.title": { en: "Java runtime", yue: "Java 執行環境" },
     "settings.storage.title": { en: "Where rendered maps go", yue: "算好嘅地圖去邊度" },
@@ -1030,6 +1039,7 @@ export const APP_FIXED = {
  * `level.dat` in Cantonese too.
  */
 export const FACTS = {
+    ...SURFACE_FACTS,
     "config.maps.deleteAction": {
         en: ["{path}", "config folder", "undo"],
         yue: ["{path}", "設定資料夾", "復原"],
