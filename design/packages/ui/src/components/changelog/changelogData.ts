@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "f6307576dbcedec562a91aac60d7e297e4474e27",
+        shortSha: "f6307576db",
+        date: "2026-08-04T03:11:39-04:00",
+        subject: "Check the PR head for generated changelog drift",
+        details: "Pull-request CI now checks the real branch tip instead of GitHub's temporary merge ref, so the history-derived changelog is judged against the commits that actually exist on the branch. The old checkout made a ghost commit and then blamed the notes for not inviting it to dinner.\n\nPR CI 而家睇返真正 branch tip，唔再畀 GitHub 臨時 merge ref 嚇親 changelog；舊 checkout 自己變隻幽靈 commit，仲怪份 notes 冇請佢食飯。",
+        category: "build",
+        areas: ["build"],
+        files: 1,
+    },
+    {
         sha: "8e6875b8c557d83a3aa2289b09674afdaeaccd42",
         shortSha: "8e6875b8c5",
         date: "2026-08-04T03:07:18-04:00",

@@ -36,6 +36,10 @@ full message for the in-app changelog viewer.
 - Test localized Pages controls - [`a5c10d70ab`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a5c10d70ab37a1faef614ae6bfdc97f8a2ba552b)
 - Localize Pages shell and anchor changelog ranges - [`5375a9195c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5375a9195c05a6fbd584c20751fb5d2cc17c195d)
 
+### Build, release and tooling
+
+- Check the PR head for generated changelog drift - [`f6307576db`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f6307576dbcedec562a91aac60d7e297e4474e27)
+
 ### Documentation
 
 - Bring the changelog, the handoff and the world docs up to what shipped - [`553b532617`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/553b5326177a9a9cf4ee3f8d247685da4ae5be38)
