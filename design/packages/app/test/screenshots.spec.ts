@@ -933,20 +933,32 @@ test("captures the map and server profile manager", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
     await attempt("Profile manager", async () => {
-        await page
-            .locator('.mb-shell-fab[aria-label="Servers"]')
-            .first()
-            .click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForSelector(".v-overlay--active .v-card", {
-            state: "visible",
+        // It used to open from a floating button, and this clicked that button. The shell
+        // removed it when it became tabbed - a tab and a FAB reaching one surface are two
+        // navigation models arguing on one screen - so this waited fifteen seconds for a
+        // control that was deliberately deleted, and the capture quietly left the set.
+        const serversTab = page.locator('[role="tab"]', { hasText: /maps and servers/i }).first();
+        await serversTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        if ((await serversTab.getAttribute("aria-selected")) !== "true") {
+            // The label, not the tab: a tab carries its own close button, and a click on the
+            // tab's centre is a coin toss between selecting it and closing it.
+            await serversTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+        }
+        await page.waitForSelector('[role="tabpanel"]', { state: "visible", timeout: ELEMENT_TIMEOUT });
+        // `attached`, not `visible`: the listbox is always rendered, but with no maps and no
+        // servers yet it has no rows, so it has no height, and Playwright calls a
+        // zero-height element invisible. Waiting for it to be seen is waiting for somebody
+        // to add a server first.
+        await page.waitForSelector(".mb-profiles__list", {
+            state: "attached",
             timeout: ELEMENT_TIMEOUT,
         });
         await page.waitForTimeout(500);
         await shoot(
             "profiles-manager",
-            "The maps and servers manager, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with the fields for adding another",
+            "The maps and servers manager on its own tab, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with the fields for adding another",
+            { mapArea: "covered" },
         );
-        await dismiss();
     });
 });
 
@@ -1246,21 +1258,22 @@ test("captures the notification corner and its history", async () => {
             { crop: corner, cropped: "the notification corner" },
         );
 
-        await page
-            .locator('[aria-label="Notification history"]')
-            .first()
-            .click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForSelector(".mb-config-notices__history", {
+        // The bell is found by its class, not by an accessible name: that name carries the
+        // unread count, so it changes with the notices in the corner. It also stopped being
+        // "Notification history" when the flat list became a real notification centre, and
+        // this selector went on waiting fifteen seconds for it.
+        await page.locator(".mb-notice-bell").first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-notice-centre", {
             state: "visible",
             timeout: ELEMENT_TIMEOUT,
         });
         await page.waitForTimeout(500);
         await shoot(
             "notifications-history",
-            "The notification history, so a message that has already faded away is still readable",
+            "The notification centre, so a message that has already faded away is still readable, searchable and filterable by level",
             {
-                crop: page.locator(".mb-config-notices__history"),
-                cropped: "the notification history panel",
+                crop: page.locator(".mb-notice-centre"),
+                cropped: "the notification centre",
             },
         );
         await dismiss();
