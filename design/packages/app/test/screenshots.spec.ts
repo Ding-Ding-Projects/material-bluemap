@@ -702,6 +702,23 @@ test.afterAll(async () => {
     await target?.close();
 });
 
+test("captures the render location choice for routing evidence", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    const worldTab = page.locator('[role="tab"]', { hasText: /Make a map/i }).first();
+    await worldTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    if ((await worldTab.getAttribute("aria-selected")) !== "true") await worldTab.click();
+    const card = page.locator(".mb-run-location");
+    await card.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    await card.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    await shoot(
+        "run-location",
+        "The render-location choice: local, Docker on this computer, and another machine over SSH, with Docker's real daemon state and the route that will actually be used",
+        { crop: card, cropped: "the render-location card", mapArea: "covered" },
+    );
+});
+
 /* -------------------------------------------------------------------------- */
 /* The window itself                                                          */
 /* -------------------------------------------------------------------------- */

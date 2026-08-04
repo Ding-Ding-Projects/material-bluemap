@@ -364,6 +364,12 @@ The make-a-map wizard on its "Review" step. Real Electron app. The map was rende
 
 The release downloads panel, which offers to fetch a world from a GitHub release for somebody with no Minecraft save on this machine. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the release downloads panel rather than showing the whole window.
 
+## run-location
+
+![The render-location choice, with local, Docker and SSH routes, and Docker's real daemon state](run-location.png)
+
+The render-location choice, with local, Docker and SSH routes, and Docker's real daemon state. Real Electron app. The map was not loaded for this capture, so the card is shown in the Make a map surface with Docker's daemon truthfully reported as not running; the disabled Docker choice cannot silently fall back to local. This image is cropped to the render-location card.
+
 ## Not captured
 
 Nothing was substituted for these. They are listed so the gap is visible.
@@ -374,4 +380,3 @@ Nothing was substituted for these. They are listed so the gap is visible.
 - **Release asset list and download progress**: listing a release's assets and downloading one both need real traffic to github.com, which the offline guard refuses; the panel is captured in the state it is in before anything has been asked for
 - **Render progress panel**: it only exists while a render is actually running, which needs a Java runtime, an accepted Mojang download consent and minutes of work; this run declined that consent
 - **Interrupted renders**: it only appears when a previous render was interrupted and left a session behind, and the throwaway profile this run used has never started one
-
