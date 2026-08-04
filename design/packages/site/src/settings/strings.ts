@@ -322,4 +322,15 @@ export const SETTINGS_STRINGS: StringTable = {
         en: "This cannot be undone.",
         yue: "呢個動作冇得復原。",
     },
+    "confirm.super.instructions": {
+        en: "Enter RESET in the first box and ALL in the second. Then move the full-range slider to authorize this exact action.",
+        yue: "第一格輸入 RESET，第二格輸入 ALL，跟住推滿條滑桿，先可以批准呢個指定動作。",
+    },
+    "confirm.super.firstLabel": { en: "Key one: RESET", yue: "第一條匙：RESET" },
+    "confirm.super.secondLabel": { en: "Key two: ALL", yue: "第二條匙：ALL" },
+    "confirm.super.sliderLabel": { en: "Authorization slider", yue: "授權滑桿" },
+    "confirm.super.locked": { en: "Two keys are still required.", yue: "仲差兩條匙。" },
+    "confirm.super.unlocked": { en: "Both keys accepted. Slide all the way.", yue: "兩條匙啱晒，推到盡頭啦。" },
+    "confirm.super.complete": { en: "Authorization complete.", yue: "授權完成。" },
+    "confirm.super.emergency": { en: "Emergency exit", yue: "緊急退出" },
 };

@@ -134,6 +134,32 @@
     color: var(--md-sys-color-on-surface-variant);
 }
 
+/* Super-confirmation gate: two keys unlock the full-range slider. */
+.mb-confirm--super {
+    max-width: min(620px, calc(100vw - 32px));
+    color: var(--md-sys-color-on-surface);
+    background: var(--md-sys-color-surface-container-high);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-large, 16px);
+    padding: 24px;
+}
+.mb-confirm-key-row { display: grid; gap: 6px; margin-block: 12px; }
+.mb-confirm-key { width: 100%; }
+.mb-confirm-slider { width: 100%; margin-block: 8px 14px; accent-color: var(--md-sys-color-error); }
+.mb-confirm-progress {
+    min-height: 42px;
+    display: grid;
+    place-items: center;
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+    background: linear-gradient(90deg, var(--md-sys-color-error-container) var(--mb-confirm-progress, 0%), var(--md-sys-color-surface-container) var(--mb-confirm-progress, 0%));
+    color: var(--md-sys-color-on-surface);
+    transition: background 120ms linear;
+}
+.mb-confirm-progress--moving { animation: mb-confirm-pulse 520ms ease-in-out infinite alternate; }
+.mb-confirm-progress--complete { background: var(--md-sys-color-error); color: var(--md-sys-color-on-error); }
+@keyframes mb-confirm-pulse { from { transform: scaleX(0.99); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .mb-confirm-progress--moving { animation: none; } }
+
 .mb-capability-note {
     max-width: 68ch;
     margin: 4px 0 0;
