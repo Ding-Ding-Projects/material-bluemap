@@ -17,12 +17,27 @@ const workspaceRoot = fileURLToPath(new URL("../../", import.meta.url));
 const committedScreenshots = fileURLToPath(new URL("../../../docs/screenshots", import.meta.url));
 
 /**
- * The site is served from https://ding-ding-projects.github.io/material-bluemap/, a project
- * subpath rather than a domain root. `base` has to carry that prefix or every emitted asset
- * URL points at the account root and 404s while the deploy itself stays green.
+ * The site is served from a **project subpath** - https://<owner>.github.io/<repo>/ - and
+ * not from a domain root, so `base` has to carry that prefix or every emitted asset URL
+ * points at the account root and 404s while the deploy itself stays green.
+ *
+ * The repository name is read from the environment rather than written in, because it is
+ * not a constant: a fork, a rename or a second repository publishing the same site all
+ * serve it from a different prefix. A CI probe in a repository named
+ * `material-bluemap-ci-probe` built a site whose every asset pointed at
+ * `/material-bluemap/`, which is exactly the silent failure the base-path gate exists to
+ * catch, arriving through the one door the gate could not see because it was checking
+ * against the same hard-coded value.
+ *
+ * `SITE_BASE` wins when set. Otherwise the GitHub Actions-provided `GITHUB_REPOSITORY`
+ * ("owner/name") supplies the name. Outside CI, with neither set, the default keeps a
+ * plain `pnpm build` working the way it always did.
  */
+const repositoryName = process.env["GITHUB_REPOSITORY"]?.split("/")[1];
+const base = process.env["SITE_BASE"] ?? (repositoryName ? `/${repositoryName}/` : "/material-bluemap/");
+
 export default defineConfig({
-    base: "/material-bluemap/",
+    base,
     server: {
         fs: {
             // Setting `allow` replaces the default rather than adding to it, so the

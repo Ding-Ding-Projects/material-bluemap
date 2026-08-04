@@ -70,13 +70,24 @@ jobs:
         run: pnpm --filter "@material-bluemap/site..." run build
 
       # The failure this catches is silent: a build configured with a root base emits
-      # absolute URLs, the deployment goes green, and every page 404s because the site
-      # is served from /material-bluemap/ and not from a domain root. This is a gate.
+      # absolute URLs, the deployment goes green, and every page 404s because the site is
+      # served from a project subpath and not from a domain root. This is a gate.
+      #
+      # The expected prefix is derived from the repository rather than written in, and so
+      # is the build's own base, so the two cannot drift and a fork or a rename publishes
+      # a site that actually loads. A CI probe in a differently-named repository is what
+      # found this: the build hard-coded one prefix, the gate asserted the same one, and
+      # they agreed with each other while disagreeing with where the site was served.
       - name: Assert the built output carries the project subpath
         working-directory: design/packages/site
-        run: node scripts/assert-base-path.mjs --dist dist --base /material-bluemap/
+        run: node scripts/assert-base-path.mjs --dist dist --base "/${GITHUB_REPOSITORY#*/}/"
 
+      # `enablement` matters in a repository that has never published Pages: without it
+      # this step fails with "Get Pages site failed ... Not Found", which reads as a broken
+      # build and is actually a repository setting nobody has turned on yet.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - uses: actions/upload-pages-artifact@v3
         with:
