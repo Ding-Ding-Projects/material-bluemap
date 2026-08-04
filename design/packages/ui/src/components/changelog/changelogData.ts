@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "acd7674aa3c648c5658b756790fda58d0299e718",
+        shortSha: "acd7674aa3",
+        date: "2026-08-04T14:53:23-04:00",
+        subject: "Preserve regex mode when reopening bulk close builder",
+        details: "The bulk-close dialog now tells the shared builder which mode it is already in, so reopening a regex query does not dress up as plain text and wander off with the wrong meaning.\\n\\n大量關閉個 builder 而家會記住自己係 regex mode，重開唔會扮純文字再走錯路，條式唔使重新考牌。",
+        category: "site",
+        areas: ["site"],
+        files: 1,
+    },
+    {
         sha: "5499b828e8ee073b801ca02342fdbeee4aaa6930",
         shortSha: "5499b828e8",
         date: "2026-08-04T14:51:59-04:00",
