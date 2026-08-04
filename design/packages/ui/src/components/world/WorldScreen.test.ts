@@ -303,6 +303,7 @@ describe("a world that already has a project", () => {
                 {
                     id: "overworld",
                     name: "Overworld",
+                    world: null,
                     dimension: "minecraft:overworld",
                     config: "",
                     storage: "file",

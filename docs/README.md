@@ -37,6 +37,8 @@ because two copies of one explanation drift apart and only one of them gets edit
 | [Renders that survive being interrupted](./resumable-renders.md) | Render-state caches, completion markers, and resuming rather than restarting. |
 | [Large worlds and rendered maps](./large-worlds.md) | Splitting anything past a release asset's ceiling into checksummed parts, and rejoining it. |
 | [Backing up a world or a rendered map](./backup.md) | Packing a folder, splitting it and publishing it as release assets with a Cheap LFS v1 pointer — and why Git LFS was rejected on cost. |
+| [Worlds from somebody else's release](./world-sources.md) | Any public repository's release as a world source, including a split published as `SHA256SUMS` plus `.part.NNNN` rather than as a manifest. |
+| [Rendering on a remote host](./remote-render.md) | Handing a render to a Linux machine over SSH and running it there in Docker — keys only, host keys checked, and the map brought home. |
 | [Rendering a world that lives in a private repository](./private-world-rendering.md) | Encrypted worlds rendered on public runners, and what that does and does not protect. |
 | [1.12.2 worlds](./legacy-1-12-worlds.md) | Writing pre-flattening worlds from the generator, and the render harness that checks one reads back as a map. |
 

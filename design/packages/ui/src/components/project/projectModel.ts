@@ -265,6 +265,7 @@ export function projectFromWizard(
     const map: ProjectMap = {
         id: answers.mapId,
         name: answers.mapName.trim() === "" ? answers.mapId : answers.mapName.trim(),
+        world: answers.world,
         dimension: answers.dimension,
         config: answers.config,
         storage: "file",
@@ -399,6 +400,7 @@ export function withMapAdded(project: ProjectFile, map: NewMap): ProjectFile {
     const added: ProjectMap = {
         id: map.id,
         name: map.name.trim() === "" ? map.id : map.name.trim(),
+        world: map.world,
         dimension,
         config: text,
         storage: map.storage ?? "file",

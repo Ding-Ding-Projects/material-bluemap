@@ -32,11 +32,13 @@ on:
     inputs:
       # GitHub documents a cap of TEN workflow_dispatch inputs; this file had twelve. The
       # three location fields are one field whose meaning follows `world-source`, which
-      # leaves a slot spare.
+      # leaves a slot spare - and `world-repository` below is what now occupies it. This
+      # file is therefore exactly at the cap: adding an eleventh input means folding two
+      # existing ones together first.
       #
-      # (This was not what made the workflow undispatchable - that was an arithmetic
-      # expression further down, see the comment on the "Say where the map went" step.
-      # Being over a documented limit was worth fixing on its own.)
+      # (Being over the limit was not what made the workflow undispatchable - that was an
+      # arithmetic expression further down, see the comment on the "Say where the map went"
+      # step. It was worth fixing on its own.)
       world-source:
         description: Where the world comes from
         type: choice
@@ -51,6 +53,12 @@ on:
           release-asset: asset name or glob, optionally "tag/glob" (default tag: latest)
         type: string
         default: worlds/world
+      world-repository:
+        description: >-
+          release-asset only. owner/name of the repository whose release holds the world.
+          Blank means this repository.
+        type: string
+        default: ''
       dimension:
         description: Dimension to render
         type: choice
@@ -190,9 +198,15 @@ jobs:
         working-directory: design
         run: pnpm install --frozen-lockfile
 
+      # `@material-bluemap/parts` is built beside the planner because the release-asset
+      # source rejoins split archives with `scripts/join-parts.mjs`, which is a thin
+      # command line over that package. The `...` suffix pulls each filter's own
+      # dependencies; `parts` is not one of the planner's, so it is named separately.
       - name: Build the planner
         working-directory: design
-        run: pnpm --filter "@material-bluemap/render-actions..." run build
+        run: |
+          pnpm --filter "@material-bluemap/render-actions..." run build
+          pnpm --filter "@material-bluemap/parts" run build
 
       - name: Fetch the world
         id: fetch
@@ -201,6 +215,7 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
           SOURCE: ${{ inputs.world-source }}
           WORLD: ${{ inputs.world }}
+          WORLD_REPOSITORY: ${{ inputs.world-repository }}
         run: |
           set -euo pipefail
           mkdir -p world-in
@@ -229,20 +244,170 @@ jobs:
                 */*) RELEASE_TAG="${WORLD%/*}"; RELEASE_ASSET="${WORLD##*/}" ;;
                 *)   RELEASE_TAG="latest";      RELEASE_ASSET="$WORLD" ;;
               esac
-              echo "Release: $RELEASE_TAG   asset: $RELEASE_ASSET"
-              if [ "$RELEASE_TAG" = "latest" ]; then
-                gh release download --pattern "$RELEASE_ASSET" --dir . --clobber
-              else
-                gh release download "$RELEASE_TAG" --pattern "$RELEASE_ASSET" --dir . --clobber
+
+              # Without `--repo`, `gh release download` can only ever read a release in the
+              # repository the run is happening in. That is the whole reason this input
+              # exists: a world published by somebody else was unreachable from here, and
+              # the failure read as a missing asset rather than as a missing flag.
+              repo_flags=()
+              if [ -n "$WORLD_REPOSITORY" ]; then
+                slashes="$(printf '%s' "$WORLD_REPOSITORY" | tr -cd '/' | wc -c)"
+                if [ "$slashes" != "1" ] \
+                  || [ "${WORLD_REPOSITORY#/}" != "$WORLD_REPOSITORY" ] \
+                  || [ "${WORLD_REPOSITORY%/}" != "$WORLD_REPOSITORY" ]; then
+                  echo "::error::'world-repository' must be owner/name, and was '$WORLD_REPOSITORY'."
+                  exit 1
+                fi
+                repo_flags=(--repo "$WORLD_REPOSITORY")
               fi
-              archive=$(find . -maxdepth 1 -name '*.zip' -print -quit)
-              if [ -z "$archive" ]; then
-                echo "::error::the release download produced no zip archive"
+              tag_flags=()
+              if [ "$RELEASE_TAG" != "latest" ]; then
+                tag_flags=("$RELEASE_TAG")
+              fi
+              echo "Release: $RELEASE_TAG   asset: $RELEASE_ASSET   repository: ${WORLD_REPOSITORY:-this one}"
+
+              mkdir -p release-in
+              # Everything whose name begins with the asset: the whole file when it was
+              # published whole, and every `<name>.part.NNNN` / `<name>.NNN` when it was not.
+              # The trailing `*` is what lets one input find a split and an unsplit archive
+              # alike, so nobody has to know how a stranger chose to publish theirs.
+              gh release download "${tag_flags[@]}" "${repo_flags[@]}" \
+                --pattern "${RELEASE_ASSET}*" --dir release-in --clobber
+              # The checksum list, in a call of its own. `gh` fails a download in which no
+              # pattern matched anything, and a release carrying a `.parts.json` instead has
+              # no `SHA256SUMS` at all - which is not an error.
+              gh release download "${tag_flags[@]}" "${repo_flags[@]}" \
+                --pattern 'SHA256SUMS' --dir release-in --clobber || true
+              ls -la release-in
+
+              shopt -s nullglob
+              manifests=(release-in/*.parts.json)
+              parts=(release-in/"${RELEASE_ASSET}".part.[0-9]* release-in/"${RELEASE_ASSET}".[0-9][0-9][0-9])
+              wholes=(release-in/*.zip)
+              shopt -u nullglob
+
+              archive=""
+              if [ ${#manifests[@]} -gt 0 ]; then
+                # Published the way this project publishes one. The manifest already carries
+                # a digest for every part AND one for the whole file, so nothing is derived.
+                echo "Rejoining from ${manifests[0]}"
+                node scripts/join-parts.mjs "${manifests[0]}" --out .
+                archive="$(basename "${manifests[0]}" .parts.json)"
+              elif [ ${#parts[@]} -gt 0 ]; then
+                if [ ! -f release-in/SHA256SUMS ]; then
+                  echo "::error::${RELEASE_ASSET} is published in ${#parts[@]} parts and the release carries neither SHA256SUMS nor a .parts.json. A part that arrived short produces an archive that still unzips and a world that corrupts later, so this will not be joined unverified."
+                  exit 1
+                fi
+
+                # Verified BEFORE anything is joined, against the release's own digests, by
+                # coreutils' own reader. `--strict` is what makes an unparseable line a
+                # failure rather than a skipped check; `--ignore-missing` keeps the list
+                # usable when it also names assets this render never asked for.
+                echo "Checking ${#parts[@]} parts against SHA256SUMS"
+                ( cd release-in && sha256sum --check --strict --ignore-missing SHA256SUMS )
+
+                # The join itself is `scripts/join-parts.mjs` - the same code the desktop
+                # application runs and the same code a person runs by hand - so there is
+                # exactly one joiner in this repository. It reads a `<name>.parts.json`,
+                # which a SHA256SUMS release does not publish, so one is derived here from
+                # the parts that have just been verified.
+                #
+                # The whole-file digest below is DERIVED, not published: it proves the join
+                # wrote what it read - a truncated write, a full disk - and nothing about
+                # what the publisher had. The per-part digests checked above are the only
+                # external authority, which is exactly why they are checked first.
+                width=""
+                index=0
+                expected=""
+                for part in "${parts[@]}"; do
+                  suffix="${part##*.}"
+                  if [ -z "$width" ]; then
+                    width="${#suffix}"
+                    # A run may start at 0 or at 1 - both are published and neither is wrong -
+                    # but it has to be contiguous from wherever it starts.
+                    expected=$((10#$suffix))
+                    if [ "$expected" -gt 1 ]; then
+                      echo "::error::${RELEASE_ASSET} starts at part $expected, so parts before it were never published."
+                      exit 1
+                    fi
+                  fi
+                  # Fixed-width names are what make the shell's lexicographic glob order the
+                  # numeric order. Mixed widths would sort `.999` after `.1000`, and joining
+                  # parts in the wrong order produces an archive nobody can open.
+                  if [ "${#suffix}" != "$width" ]; then
+                    echo "::error::${RELEASE_ASSET} numbers its parts with different widths, so their order cannot be read from their names."
+                    exit 1
+                  fi
+                  index=$((10#$suffix))
+                  if [ "$index" != "$expected" ]; then
+                    echo "::error::${RELEASE_ASSET} jumps to part $index where part $expected was expected; joining what is here would produce a shorter archive that still unzips."
+                    exit 1
+                  fi
+                  expected=$((expected + 1))
+                done
+
+                total_bytes=0
+                max_bytes=0
+                entries=""
+                position=0
+                for part in "${parts[@]}"; do
+                  name="$(basename "$part")"
+                  # A name carrying a quote or a backslash cannot be written into JSON here
+                  # without an escaper, and GitHub does not produce one. Refused rather than
+                  # emitted broken.
+                  case "$name" in
+                    *\"*|*\\*)
+                      echo "::error::the part name '$name' cannot be written into a manifest."
+                      exit 1
+                      ;;
+                  esac
+                  bytes="$(stat -c %s "$part")"
+                  digest="$(awk -v want="$name" '{ n = $2; sub(/^\*/, "", n); if (n == want) { print tolower($1); exit } }' release-in/SHA256SUMS)"
+                  if [ -z "$digest" ]; then
+                    echo "::error::SHA256SUMS does not list $name, so it was never verified."
+                    exit 1
+                  fi
+                  total_bytes=$((total_bytes + bytes))
+                  if [ "$bytes" -gt "$max_bytes" ]; then max_bytes="$bytes"; fi
+                  position=$((position + 1))
+                  if [ "$position" -gt 1 ]; then entries="${entries},"; fi
+                  entries="${entries}"$'\n'"        { \"index\": ${position}, \"name\": \"${name}\", \"bytes\": ${bytes}, \"sha256\": \"${digest}\" }"
+                done
+
+                whole_sha="$(cat "${parts[@]}" | sha256sum | cut -d' ' -f1)"
+                {
+                  printf '{\n'
+                  printf '    "version": 1,\n'
+                  printf '    "file": "%s",\n' "$RELEASE_ASSET"
+                  printf '    "bytes": %s,\n' "$total_bytes"
+                  printf '    "sha256": "%s",\n' "$whole_sha"
+                  printf '    "partSize": %s,\n' "$max_bytes"
+                  printf '    "parts": [%s\n' "$entries"
+                  printf '    ]\n'
+                  printf '}\n'
+                } > "release-in/${RELEASE_ASSET}.parts.json"
+                echo "Derived ${RELEASE_ASSET}.parts.json for ${#parts[@]} verified parts."
+
+                node scripts/join-parts.mjs "release-in/${RELEASE_ASSET}.parts.json" --out .
+                archive="$RELEASE_ASSET"
+              elif [ ${#wholes[@]} -gt 0 ]; then
+                archive="$(basename "${wholes[0]}")"
+                mv "${wholes[0]}" "$archive"
+              else
+                echo "::error::the release download produced neither a zip archive nor a set of parts"
                 exit 1
               fi
-              archive=${archive#./}
-              echo "Downloaded $archive"
+
+              if [ ! -f "$archive" ]; then
+                echo "::error::expected $archive after the download, and it is not there"
+                exit 1
+              fi
+              echo "Unpacking $archive ($(du -h "$archive" | cut -f1))"
               unzip -q "$archive" -d world-in
+              # The parts and the joined archive both go before the render starts. A 6.6 GB
+              # world is 6.6 GB of parts plus 6.6 GB of archive plus the unpacked tree, and
+              # a runner does not have room for all three.
+              rm -rf release-in "$archive"
               ;;
           esac
           echo "Contents of world-in:"

@@ -598,6 +598,7 @@ describe("syncing a config that was never generated", () => {
         const text = syncMapConfig({
             id: "sparse",
             name: "Sparse",
+            world: null,
             dimension: "minecraft:the_end",
             config: "",
             storage: "archive",

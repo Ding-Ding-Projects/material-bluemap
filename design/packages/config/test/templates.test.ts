@@ -92,12 +92,35 @@ describe("generateConfigSet reproduces what the Java CLI writes", () => {
 
     const byPath = new Map(generated.map((file) => [file.path, file.text]));
 
+    /**
+     * The fixtures were captured from the Java CLI on Linux, so they hold LF - and
+     * `generateConfigSet` deliberately writes CRLF on Windows, because that is what the Java
+     * CLI writes there and these files are read by it rather than by us.
+     *
+     * Comparing the raw text therefore asserted the platform the test happened to run on,
+     * and it did: green in CI, eight failures on a Windows machine, for a difference that is
+     * the correct behaviour. The content is compared with line endings normalised, and the
+     * line endings get an assertion of their own below that names the rule rather than
+     * inheriting it from however git checked a fixture out.
+     */
     it.each(["core.conf", "webapp.conf", "webserver.conf", "maps/overworld.conf", "maps/nether.conf", "maps/end.conf", "storages/file.conf", "storages/sql.conf"])(
-        "writes %s byte for byte",
+        "writes %s byte for byte, allowing for the host's line endings",
         (path) => {
-            expect(byPath.get(path)).toBe(readFileSync(join(fixtureRoot, path), "utf8"));
+            const generatedText = byPath.get(path)?.replaceAll("\r\n", "\n");
+            const fixture = readFileSync(join(fixtureRoot, path), "utf8").replaceAll("\r\n", "\n");
+            expect(generatedText).toBe(fixture);
         },
     );
+
+    it("uses the line endings the Java CLI would use on this platform", () => {
+        // The rule stated once, rather than eight fixtures quietly encoding it. Upstream
+        // writes with the platform's own separator, and a config full of the wrong one is
+        // the kind of difference that survives review and confuses a diff months later.
+        const text = byPath.get("core.conf") ?? "";
+        const wantsCarriageReturn = process.platform === "win32";
+        expect(text.includes("\n")).toBe(true);
+        expect(text.includes("\r\n")).toBe(wantsCarriageReturn);
+    });
 
     it("writes exactly the files the CLI writes, and no plugin.conf", () => {
         expect(generated.map((file) => file.path)).toEqual([
