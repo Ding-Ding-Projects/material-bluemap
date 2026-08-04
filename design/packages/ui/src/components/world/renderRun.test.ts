@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createI18n } from "vue-i18n";
 import {
+    LOG_LIMIT,
     adviseOnFailure,
     classifyFailure,
     createRenderRun,
@@ -175,20 +176,32 @@ describe("watching a render", () => {
         run.dispose();
     });
 
-    it("keeps the log bounded and in order", () => {
+    it("keeps the log bounded and in order, and counts what the cap took", () => {
+        // The two status lines the run writes for itself are part of the same stream, so
+        // the arithmetic below includes them: 58 engine lines past the cap plus those two
+        // is 60 lines off the front.
         const fake = fakeBridge(OK);
         const run = createRenderRun(fake.bridge);
 
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
         fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
-        for (let line = 0; line < 260; line++) {
+        for (let line = 0; line < LOG_LIMIT + 58; line++) {
             fake.emit({ type: "log", renderId: "world-abc", level: "info", message: `line ${line}`, at: "t" });
         }
 
-        expect(run.log.value).toHaveLength(200);
-        expect(run.log.value[0]?.message).toBe("line 60");
-        expect(run.log.value[199]?.message).toBe("line 259");
+        expect(run.log.value).toHaveLength(LOG_LIMIT);
+        // Counted rather than silently forgotten: the console prints this number, because
+        // a ring that quietly loses its own beginning looks exactly like a complete log.
+        expect(run.logDropped.value).toBe(60);
+        expect(run.log.value[0]?.message).toBe("line 58");
+        expect(run.log.value[LOG_LIMIT - 1]?.message).toBe(`line ${LOG_LIMIT + 57}`);
         run.dispose();
+    });
+
+    it("keeps far more than a panel-sized window, because the reason is printed first", () => {
+        // The setup warning that explains a failed render is printed in the first seconds.
+        // A 200-line ring had thrown it away long before the render ended.
+        expect(LOG_LIMIT).toBeGreaterThanOrEqual(10_000);
     });
 
     it("reports a finish with where the tiles went", async () => {
@@ -356,6 +369,171 @@ describe("watching a render", () => {
 
         run.reset();
         expect(run.state.value).toBe("running");
+        run.dispose();
+    });
+});
+
+/**
+ * The run narrating itself into the same stream as the engine.
+ *
+ * The value of these lines is entirely in their position. "Stopping." between the last
+ * progress tick and the engine's own farewell is what turns a wall of output into an
+ * account of what happened, and a status shown anywhere other than in the log cannot do
+ * that however prominently it is drawn.
+ */
+describe("the run's own status lines", () => {
+    /** The keys of the app's own lines, in the order they were written. */
+    function narrative(run: ReturnType<typeof createRenderRun>): string[] {
+        return run.log.value.filter((line) => line.origin === "app").map((line) => line.text?.key ?? "");
+    }
+
+    it("brackets the engine's output with starting, running and stopped", async () => {
+        const fake = fakeBridge(OK, { resolveNow: true });
+        const run = createRenderRun(fake.bridge);
+
+        const started = run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({ type: "log", renderId: "world-abc", level: "INFO", message: "Loading resources...", at: "t1" });
+        await started;
+
+        expect(narrative(run)).toEqual([
+            "world.console.signal.starting",
+            "world.console.signal.running",
+            "world.console.signal.stoppedCode",
+        ]);
+        run.dispose();
+    });
+
+    it("says which code the engine exited with, rather than only that it failed", async () => {
+        const failed: RenderResult = {
+            ok: false,
+            renderId: "world-abc",
+            failure: failure("cli-failed", { exitCode: 1 }),
+        };
+        const fake = fakeBridge(failed, { resolveNow: true });
+        const run = createRenderRun(fake.bridge);
+
+        await run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+
+        const last = run.log.value.at(-1);
+        expect(last?.text?.key).toBe("world.console.signal.stoppedCode");
+        expect(last?.text?.values.code).toBe(1);
+        run.dispose();
+    });
+
+    it("writes one closing line even though the end arrives as an event and as a result", async () => {
+        // Both paths are needed: a render refused before anything was spawned emits no
+        // events at all. Without the guard the ordinary path says "Stopped." twice.
+        const fake = fakeBridge(OK, { resolveNow: true });
+        const run = createRenderRun(fake.bridge);
+
+        const started = run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "finished",
+            renderId: "world-abc",
+            dataRoot: "/var/maps/world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            durationMs: 254_000,
+            at: "t9",
+        });
+        await started;
+
+        const closings = narrative(run).filter((key) => key.startsWith("world.console.signal.stopped"));
+        expect(closings).toHaveLength(1);
+        run.dispose();
+    });
+
+    it("names a cancellation as one, and says the tiles are kept", async () => {
+        const cancelled: RenderResult = { ok: false, renderId: "world-abc", failure: failure("cancelled") };
+        const fake = fakeBridge(cancelled, { resolveNow: true });
+        const run = createRenderRun(fake.bridge);
+
+        await run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+
+        expect(narrative(run)).toContain("world.console.signal.stoppedCancelled");
+        run.dispose();
+    });
+
+    it("carries no annotations on its own lines, only on the engine's", () => {
+        // Running the advice table over this app's own sentences would let a status line
+        // trigger advice about output the engine never printed.
+        const fake = fakeBridge(OK);
+        const run = createRenderRun(fake.bridge);
+
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+
+        for (const line of run.log.value) expect(line.annotations).toEqual([]);
+        run.dispose();
+    });
+});
+
+describe("advice beside the engine's line", () => {
+    function startedRun() {
+        const fake = fakeBridge(OK);
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        return { fake, run };
+    }
+
+    function log(fake: ReturnType<typeof fakeBridge>, message: string, level = "INFO"): void {
+        fake.emit({ type: "log", renderId: "world-abc", level, message, at: "t" });
+    }
+
+    it("annotates the line as it arrives, never rewriting it", () => {
+        const { fake, run } = startedRun();
+        log(fake, "Address already in use", "ERROR");
+
+        const line = run.log.value.at(-1);
+        expect(line?.message).toBe("Address already in use");
+        expect(line?.level).toBe("error");
+        expect(line?.annotations.map((advice) => advice.kind)).toEqual(["port-conflict"]);
+        run.dispose();
+    });
+
+    it("offers the estimate tip once for a render that prints a hundred estimates", () => {
+        const { fake, run } = startedRun();
+        for (let tick = 0; tick < 100; tick++) {
+            log(fake, `updating map 'overworld': ${tick}.0% (ETA: 47 seconds)`);
+        }
+
+        const tips = run.log.value.flatMap((line) => line.annotations).filter((a) => a.kind === "render-threads");
+        expect(tips).toHaveLength(1);
+        run.dispose();
+    });
+
+    it("re-arms the one-shot tips when the run is set up again", async () => {
+        const fake = fakeBridge(OK, { resolveNow: true });
+        const run = createRenderRun(fake.bridge);
+
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        log(fake, "updating map 'overworld': 5.0% (ETA: 47 seconds)");
+        fake.finish();
+        await Promise.resolve();
+
+        run.reset();
+        expect(run.log.value).toEqual([]);
+        expect(run.logDropped.value).toBe(0);
+
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        log(fake, "updating map 'overworld': 5.0% (ETA: 47 seconds)");
+
+        expect(run.log.value.at(-1)?.annotations.map((advice) => advice.kind)).toEqual(["render-threads"]);
+        run.dispose();
+    });
+
+    it("leaves the great majority of the engine's output alone", () => {
+        const { fake, run } = startedRun();
+        for (const message of ["Loading resources...", "Loading map 'overworld'...", "Stopped."]) {
+            log(fake, message);
+        }
+
+        const engineLines = run.log.value.filter((line) => line.origin === "engine");
+        expect(engineLines.flatMap((line) => line.annotations)).toEqual([]);
         run.dispose();
     });
 });

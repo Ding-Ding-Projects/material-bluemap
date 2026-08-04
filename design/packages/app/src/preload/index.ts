@@ -749,6 +749,27 @@ export interface ProjectHistoryListing {
     remotes: string[];
 }
 
+export interface ProjectSummaryRow {
+    world: string;
+    file: string;
+    id: string | null;
+    name: string | null;
+    maps: number | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+    fromWizard: boolean | null;
+    worldName: string | null;
+    /** Set when a project is there and would not open. The row still appears. */
+    problem: string | null;
+}
+
+export interface ProjectListing {
+    projects: ProjectSummaryRow[];
+    /** How many worlds were looked at, so an empty list can say why it is empty. */
+    scanned: number;
+    problems: { world: string; message: string }[];
+}
+
 export interface ProjectBridge {
     read(worldFolder: string): Promise<ProjectReadOutcome>;
     discover(worldFolder: string): Promise<ProjectPresence>;
@@ -767,6 +788,26 @@ export interface ProjectBridge {
     ): Promise<ProjectSaveResult>;
     history(worldFolder: string, limit?: number): Promise<ProjectHistoryListing>;
     restore(worldFolder: string, id: string): Promise<HistoryRestoreResult>;
+
+    /**
+     * Every world this machine knows about that carries a project.
+     *
+     * Composed here rather than in the main process because it is the join of two
+     * subsystems that were built independently and neither should own the other: the world
+     * catalogue knows where worlds are, and the project layer knows which of them carry a
+     * file. A folder that cannot be read contributes a problem rather than taking the
+     * worlds on every other drive off the screen with it.
+     */
+    listProjects(): Promise<ProjectListing>;
+    /** The same shape the screen wants, over `read`. */
+    readProject(world: string): Promise<
+        | { ok: true; project: ProjectFileContents; file: string }
+        | { ok: false; failure: ProjectReadFailure }
+    >;
+    writeProject(
+        world: string,
+        project: ProjectFileContents,
+    ): Promise<{ ok: true; file: string } | { ok: false; message: string }>;
 }
 
 interface HistoryBridge {
@@ -1558,6 +1599,60 @@ const bridge: MaterialBlueMapBridge = {
             ipcRenderer.invoke("project:save", worldFolder, project, replaceUnreadable === true),
         history: (worldFolder, limit) => ipcRenderer.invoke("project:history", worldFolder, limit),
         restore: (worldFolder, id) => ipcRenderer.invoke("project:restore", worldFolder, id),
+
+        listProjects: async () => {
+            const folders = (await ipcRenderer.invoke("world:folders")) as { id: string }[];
+            const worlds: { path: string; name: string | null }[] = [];
+            const problems: { world: string; message: string }[] = [];
+            for (const folder of folders) {
+                try {
+                    const scan = (await ipcRenderer.invoke("world:scan", folder.id)) as {
+                        worlds: { path: string; name: string | null }[];
+                    };
+                    for (const world of scan.worlds) worlds.push({ path: world.path, name: world.name });
+                } catch (error) {
+                    problems.push({
+                        world: folder.id,
+                        message: error instanceof Error ? error.message : String(error),
+                    });
+                }
+            }
+            const presence = (await ipcRenderer.invoke(
+                "project:discoverMany",
+                worlds.map((world) => world.path),
+            )) as ProjectPresence[];
+            const named = new Map(worlds.map((world) => [world.path, world.name]));
+            return {
+                // A project that will not parse is still listed, with its problem: a row
+                // that vanishes reads as settings that were lost.
+                projects: presence
+                    .filter((row) => row.present)
+                    .map((row) => ({
+                        world: row.worldFolder,
+                        file: row.path,
+                        id: row.id,
+                        name: row.name,
+                        maps: row.mapCount,
+                        createdAt: null,
+                        updatedAt: row.updatedAt,
+                        fromWizard: row.fromWizard,
+                        worldName: named.get(row.worldFolder) ?? null,
+                        problem: row.problem,
+                    })),
+                scanned: worlds.length,
+                problems,
+            };
+        },
+        readProject: async (world) => {
+            const outcome = (await ipcRenderer.invoke("project:read", world)) as ProjectReadOutcome;
+            return outcome.ok
+                ? { ok: true as const, project: outcome.project, file: outcome.path }
+                : { ok: false as const, failure: outcome.failure };
+        },
+        writeProject: async (world, project) => {
+            const saved = (await ipcRenderer.invoke("project:save", world, project, false)) as ProjectSaveResult;
+            return saved.ok ? { ok: true as const, file: saved.path } : { ok: false as const, message: saved.reason };
+        },
     },
 
     history: {

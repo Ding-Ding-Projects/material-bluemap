@@ -1,7 +1,15 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiCloudUploadOutline, mdiCog, mdiFileCogOutline, mdiMapOutline, mdiMapPlus, mdiServerNetwork } from "@mdi/js";
+import {
+    mdiCloudUploadOutline,
+    mdiCog,
+    mdiFileCogOutline,
+    mdiFolderMultipleOutline,
+    mdiMapOutline,
+    mdiMapPlus,
+    mdiServerNetwork,
+} from "@mdi/js";
 import type { MenuPage } from "@material-bluemap/viewer";
 import MapView from "./components/MapView.vue";
 import ProfileManager from "./components/ProfileManager.vue";
@@ -16,6 +24,7 @@ import { AppTitleBar } from "./components/shell/index.js";
 import { FirstRunSetup } from "./components/setup/index.js";
 import { AppSettings, type SettingsAnchor } from "./components/settings/index.js";
 import { WorldScreen } from "./components/world/index.js";
+import { ProjectsScreen } from "./components/project/index.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
 import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
@@ -58,12 +67,17 @@ useBlueMapTheme(currentApp);
  */
 const PAGE_MAP = "map";
 const PAGE_WORLD = "world";
+const PAGE_PROJECTS = "projects";
 const PAGE_SERVERS = "servers";
 const PAGE_BACKUPS = "backups";
 
 const pages = computed<TabPage[]>(() => [
     { id: PAGE_MAP, label: t("tabs.page.map", "Map"), icon: mdiMapOutline },
     { id: PAGE_WORLD, label: t("tabs.page.world", "Make a map"), icon: mdiMapPlus },
+    // Next to the guide rather than at the end of the strip, because they are the two ends
+    // of one job: the guide asks five questions and writes a project, and this is where
+    // every other setting that project can carry actually lives.
+    { id: PAGE_PROJECTS, label: t("tabs.page.projects", "Projects"), icon: mdiFolderMultipleOutline },
     { id: PAGE_SERVERS, label: t("tabs.page.servers", "Maps and servers"), icon: mdiServerNetwork },
     { id: PAGE_BACKUPS, label: t("tabs.page.backups", "Backups"), icon: mdiCloudUploadOutline },
 ]);
@@ -139,6 +153,21 @@ function openRenderedMap(dataRoot: string, mapIds: readonly string[]): void {
 }
 
 /**
+ * Which world's project the projects page should open when it gets there.
+ *
+ * The guide writes a project and offers to open it, and the world somebody chose may
+ * already have had one. Both land here, and the page reads it as a prop rather than being
+ * called as a component: a tab panel that is not the active one is never rendered, so at
+ * the moment this decides to navigate there is no component to call a method on.
+ */
+const projectToOpen = ref<string | null>(null);
+
+function openProject(world: string): void {
+    projectToOpen.value = world;
+    revealPage(PAGE_PROJECTS);
+}
+
+/**
  * Choosing a map takes you to the map.
  *
  * The two places that set an active profile - the wizard finishing a render, and a row in the
@@ -161,6 +190,26 @@ watch(
 const settingsOpen = ref(false);
 const settingsAnchor = ref<SettingsAnchor | null>(null);
 const settingsMissing = ref(false);
+
+/**
+ * Bumped every time the settings surface closes.
+ *
+ * The shell is the only thing that knows this happened. Settings is an in-app dialog rather
+ * than another window, so a surface underneath it sees no focus or visibility event when it
+ * closes - and the Mojang download consent, which the wizard and the projects screen both
+ * point people at, is changed inside it.
+ *
+ * That was a real defect: the review step warned that consent was missing, its
+ * **Open the setting** button opened Settings, accepting there worked and persisted, and
+ * the warning stayed for the life of the window because consent had been sampled once at
+ * mount and never read again. The counter is how the surfaces underneath find out.
+ * `components/world/consentState.ts` records why this is a fallback for a shared store.
+ */
+const settingsEpoch = ref(0);
+
+watch(settingsOpen, (open) => {
+    if (!open) settingsEpoch.value += 1;
+});
 
 function openSettings(anchor: SettingsAnchor | null = null, missing = false): void {
     settingsAnchor.value = anchor;
@@ -420,6 +469,26 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <template #world>
                             <div class="mb-world-host mb-interactive">
                                 <WorldScreen
+                                    :settings-epoch="settingsEpoch"
+                                    @consent="openSettings('mojang-download-consent')"
+                                    @settings="revealSetting"
+                                    @open-map="openRenderedMap"
+                                    @open-project="openProject"
+                                />
+                            </div>
+                        </template>
+
+                        <!--
+                            Projects: the settings a world renders with, all of them, before
+                            a render starts. Its own scroll container for the same reason the
+                            guide has one - the editor is far taller than a short window, and
+                            the Save button must never be the thing that ends up off-screen.
+                        -->
+                        <template #projects>
+                            <div class="mb-world-host mb-interactive">
+                                <ProjectsScreen
+                                    :settings-epoch="settingsEpoch"
+                                    :open-world="projectToOpen"
                                     @consent="openSettings('mojang-download-consent')"
                                     @settings="revealSetting"
                                     @open-map="openRenderedMap"

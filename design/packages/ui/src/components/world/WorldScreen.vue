@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiMapPlus, mdiProgressClock } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardText, VIcon } from "vuetify/components";
 import InterruptedRenders from "./InterruptedRenders.vue";
 import RenderRunPanel from "./RenderRunPanel.vue";
 import WorldWizard from "./WorldWizard.vue";
+import { consentIsAccepted, refreshConsent } from "./consentState.js";
 import { createRenderRun } from "./renderRun.js";
 import { createResumeOffers } from "./resumeOffers.js";
 import {
@@ -22,6 +23,8 @@ import {
 } from "./worldBridge.js";
 import { createBridgeConfigHost, provideConfigHost, type ConfigHost } from "../config/configHost.js";
 import { provideSettingsOpener } from "../downloads/index.js";
+import { resolveProjectHost, type ProjectHost } from "../project/projectHost.js";
+import { projectFromWizard } from "../project/projectModel.js";
 
 /**
  * The surface that turns "no map loaded" into a rendered map.
@@ -53,8 +56,21 @@ const props = withDefaults(
         optionalBridge?: OptionalWorldBridge | null;
         /** Same convention, for the file-system host the pickers use. */
         host?: ConfigHost | null;
+        /** Same convention, for the host that reads and writes project files. */
+        projectHost?: ProjectHost | null;
+        /**
+         * Bumped by the shell whenever the settings surface closes.
+         *
+         * The one signal this screen cannot produce for itself. Settings is an in-app
+         * dialog rather than another window, so accepting the Mojang download inside it
+         * fires no focus or visibility event out here, and without this the review step's
+         * own **Open the setting** remedy would keep warning about a consent that has just
+         * been given. See `consentState.ts` for why this is a fallback for a shared store
+         * rather than the shape this would take if the settings row could publish.
+         */
+        settingsEpoch?: number;
     }>(),
-    {},
+    { settingsEpoch: 0 },
 );
 
 const emit = defineEmits<{
@@ -66,6 +82,13 @@ const emit = defineEmits<{
     openMap: [dataRoot: string, mapIds: readonly string[]];
     /** The wizard was closed without starting anything. */
     cancel: [];
+    /**
+     * Take the person to the project for this world.
+     *
+     * Emitted when the guide has just written one, and when the world they chose already
+     * had one. The shell owns the navigation; this only says where to go.
+     */
+    openProject: [world: string];
 }>();
 
 const { t } = useI18n();
@@ -73,6 +96,7 @@ const { t } = useI18n();
 const bridge = props.bridge === undefined ? resolveWorldBridge() : props.bridge;
 const optional = props.optionalBridge === undefined ? resolveOptionalWorldBridge() : props.optionalBridge;
 const host = props.host === undefined ? createBridgeConfigHost() : props.host;
+const projects = props.projectHost === undefined ? resolveProjectHost() : props.projectHost;
 provideConfigHost(host);
 
 /**
@@ -90,11 +114,97 @@ provideSettingsOpener((target) => emit("settings", target));
 const run = createRenderRun(bridge);
 const offers = createResumeOffers(bridge);
 
-const consentAccepted = ref(false);
+/**
+ * Consent is read, not remembered.
+ *
+ * It used to be a `ref(false)` filled in once by `onMounted`, which made the review step's
+ * remedy a dead end: accepting the download in Settings changed nothing on screen, for the
+ * life of the window. `consentState.ts` holds the value now and this only ever reads it,
+ * so there is one answer in the application rather than one per surface.
+ */
+const consentAccepted = consentIsAccepted;
 const storage = ref<{ current: string; default: string } | null>(null);
 const startFailure = ref<string | null>(null);
 /** The map config the wizard produced, kept so a finished render can still show it. */
 const lastConfig = ref("");
+
+/* -------------------------------------------------------------------------- */
+/* The project this world already has, and the one the guide writes            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The project found at the world the person has chosen, if any.
+ *
+ * Read as they choose a world rather than at the end, because the point of offering it is
+ * that they do not answer five questions first and then find out.
+ */
+const existingProject = ref<{ name: string; maps: number } | null>(null);
+/** The world the guide has just written a project into, so it can be offered. */
+const wroteProjectFor = ref<string | null>(null);
+const projectFailure = ref<string | null>(null);
+
+/** Which world the last probe was for, so a stale answer cannot overwrite a newer one. */
+let probedWorld = "";
+
+async function lookForProject(folder: string): Promise<void> {
+    probedWorld = folder;
+    if (projects === null || folder === "") {
+        existingProject.value = null;
+        return;
+    }
+    try {
+        const answer = await projects.readProject(folder);
+        // The field can have moved on while this was in flight. Answering for a folder the
+        // person is no longer looking at is how a stale offer ends up on screen.
+        if (probedWorld !== folder) return;
+        existingProject.value = answer.ok ? { name: answer.project.name, maps: answer.project.maps.length } : null;
+    } catch {
+        if (probedWorld === folder) existingProject.value = null;
+    }
+}
+
+/**
+ * Writes the project the guide's answers describe.
+ *
+ * This is what stops the guide being a dead end. The same five answers that start a render
+ * become a file at the root of the world, so the next render is a button rather than the
+ * same five questions - and every setting the guide did not ask about is reachable in the
+ * editor rather than gone.
+ *
+ * A failure here never fails the render. The render is what the person asked for and it is
+ * already under way; not being able to write a settings file beside it is worth saying and
+ * is not worth stopping for.
+ */
+async function writeProject(request: RenderRequest, configText: string, storageDirectory: string): Promise<void> {
+    const map = request.maps[0];
+    if (projects === null || map === undefined || map.world.trim() === "") return;
+
+    const project = projectFromWizard({
+        world: map.world,
+        mapId: map.id,
+        mapName: map.name ?? map.id,
+        dimension: map.dimension ?? "minecraft:overworld",
+        sorting: map.sorting ?? 0,
+        config: configText,
+        outputFolder: storageDirectory === "" ? null : storageDirectory,
+        force: request.force ?? false,
+        fixEdges: request.fixEdges ?? false,
+        metrics: request.metrics ?? false,
+        threads: request.renderThreads ?? null,
+    });
+
+    try {
+        const answer = await projects.writeProject(map.world, project);
+        if (answer.ok) {
+            wroteProjectFor.value = map.world;
+            projectFailure.value = null;
+        } else {
+            projectFailure.value = answer.message;
+        }
+    } catch (error) {
+        projectFailure.value = error instanceof Error ? error.message : String(error);
+    }
+}
 
 const wizardOpen = computed(() => run.state.value === "idle");
 const canInspect = computed(() => canInspectWorlds(optional));
@@ -132,20 +242,35 @@ function watchRender(renderId: string): void {
     run.expect(renderId);
 }
 
+/**
+ * Every moment the consent record can have changed under this screen.
+ *
+ * Not a poll: each of these is an event, and between them nothing runs. A read that fails
+ * leaves the last known answer alone rather than flipping it to "not accepted", so a
+ * transient bridge error never looks like the user's own answer changing under them.
+ */
+function rereadConsent(): void {
+    void refreshConsent(bridge);
+}
+
+/** The shell closing its settings surface, which is where consent is actually given. */
+watch(() => props.settingsEpoch, rereadConsent);
+
 onMounted(async () => {
     // Asked for here rather than left to the interrupted-renders panel, which only
     // mounts when there is a bridge and only renders when it has something to offer.
     // What is running right now has to be known either way.
     void offers.load();
-    if (bridge !== null) {
-        try {
-            consentAccepted.value = (await bridge.readConsent()).accepted;
-        } catch {
-            // Not knowing means the review step warns, which is the safe direction:
-            // it points at the setting rather than promising a render that would stop.
-            consentAccepted.value = false;
-        }
+    rereadConsent();
+
+    // The record can also be changed by another window or another process, and those do
+    // reach a renderer as real events. Registered here rather than in `consentState.ts`
+    // so the listeners live exactly as long as a surface that shows consent is on screen.
+    if (typeof window !== "undefined") {
+        window.addEventListener("focus", rereadConsent);
+        document.addEventListener("visibilitychange", rereadConsent);
     }
+
     try {
         storage.value = await readStorageDirectory(optional);
     } catch {
@@ -155,6 +280,10 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     run.dispose();
+    if (typeof window !== "undefined") {
+        window.removeEventListener("focus", rereadConsent);
+        document.removeEventListener("visibilitychange", rereadConsent);
+    }
 });
 
 function probe(folder: string) {
@@ -186,9 +315,13 @@ function withConfig(request: RenderRequest, configText: string): RenderRequest {
     return { ...request, maps: [{ ...only, config: configText }] };
 }
 
-async function start(request: RenderRequest, configText: string): Promise<void> {
+async function start(request: RenderRequest, configText: string, storageDirectory: string): Promise<void> {
     lastConfig.value = configText;
     startFailure.value = null;
+    // Written before the render rather than after it, so a render that is cancelled, fails,
+    // or outlives the window still leaves the answers behind. A guide whose output survives
+    // only a successful render is a guide that asks the same five questions after a crash.
+    await writeProject(request, configText, storageDirectory);
     // The config the wizard produced travels with the request rather than being kept
     // beside it. Ninety-odd settings that reach a preview pane and stop there are
     // settings the interface only claimed to apply.
@@ -204,6 +337,11 @@ async function start(request: RenderRequest, configText: string): Promise<void> 
 function again(): void {
     run.reset();
     void offers.load();
+}
+
+/** The world whose existing project the guide offered to open. */
+function openExistingProject(): void {
+    if (probedWorld !== "") emit("openProject", probedWorld);
 }
 
 /**
@@ -278,17 +416,52 @@ async function resume(renderId: string): Promise<void> {
             {{ startFailure }}
         </v-alert>
 
+        <!--
+            The guide's answers, kept. This is the difference between a wizard and a dead
+            end: what was answered once is a file now, editable in full and re-runnable
+            without answering anything again.
+        -->
+        <v-alert
+            v-if="wroteProjectFor !== null"
+            type="success"
+            density="compact"
+            variant="tonal"
+            class="mb-3"
+        >
+            {{
+                t(
+                    "world.screen.wroteProject",
+                    "Those answers are now a project at the root of that world, so this render can be repeated without setting anything up again. Every other setting BlueMap has is in the editor.",
+                )
+            }}
+            <template #append>
+                <v-btn variant="tonal" size="small" @click="emit('openProject', wroteProjectFor)">
+                    {{ t("world.screen.openProject", "Open the project") }}
+                </v-btn>
+            </template>
+        </v-alert>
+
+        <v-alert v-if="projectFailure" type="warning" density="compact" variant="tonal" class="mb-3">
+            {{
+                t(
+                    "world.screen.projectFailed",
+                    { message: projectFailure },
+                    "The render is going ahead, but the project file could not be written into the world folder, so these answers are not kept: {message}",
+                )
+            }}
+        </v-alert>
+
         <v-card v-if="wizardOpen" class="mb-world-screen__card">
             <v-card-text>
                 <header class="mb-world-screen__intro">
                     <h2 class="mb-world-screen__title">
-                        {{ t("world.screen.title", "Make a map") }}
+                        {{ t("world.screen.title", "Make a map, the quick way") }}
                     </h2>
                     <p class="mb-world-screen__blurb">
                         {{
                             t(
                                 "world.screen.blurb",
-                                "Point this at a Minecraft world, answer five short steps, and BlueMap renders it into a map you can walk around. Everything it can be told is here, so nothing has to be written into a config file by hand.",
+                                "Point this at a Minecraft world, answer five short steps, and BlueMap renders it into a map you can walk around. It writes a project into that world as it goes, so the answers are kept: rendering it again is one button, and every setting this guide did not ask about is on the Projects tab.",
                             )
                         }}
                     </p>
@@ -302,9 +475,13 @@ async function resume(renderId: string): Promise<void> {
                     :separator="separator"
                     :probe="probe"
                     :apply-storage="applyStorage"
+                    :existing-project="existingProject"
                     @start="start"
                     @consent="emit('consent')"
                     @cancel="emit('cancel')"
+                    @step="rereadConsent"
+                    @world="lookForProject"
+                    @open-project="openExistingProject"
                 />
             </v-card-text>
         </v-card>

@@ -1,0 +1,744 @@
+<script setup lang="ts">
+import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import {
+    mdiArrowDown,
+    mdiArrowUp,
+    mdiDeleteOutline,
+    mdiMap,
+    mdiMapPlus,
+} from "@mdi/js";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VCardActions,
+    VCardText,
+    VCardTitle,
+    VChip,
+    VDialog,
+    VDivider,
+    VList,
+    VListItem,
+    VSelect,
+    VSpacer,
+    VSwitch,
+    VTextField,
+} from "vuetify/components";
+import { DIMENSION_OPTIONS, type FieldMeta, type PlainValue, type ProjectFile } from "@material-bluemap/config";
+import ConfigFileForm from "../config/ConfigFileForm.vue";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
+import { clearFieldValue, replaceText, setFieldValue } from "../config/configModel.js";
+import {
+    findMap,
+    mapIdProblem,
+    mapIds,
+    openMapFile,
+    orderedMaps,
+    previewMapId,
+    storageIds,
+    withMapAdded,
+    withMapConfig,
+    withMapEnabled,
+    withMapIdentity,
+    withMapMoved,
+    withMapRemoved,
+} from "./projectModel.js";
+
+/**
+ * A project's maps: the list, the identity of the one selected, and every setting in its
+ * `maps/<id>.conf`.
+ *
+ * The settings themselves are rendered by `../config/ConfigFileForm.vue`, which is the
+ * component the options editor already uses for all ninety-odd of them. Nothing here names
+ * a setting: the groups, the controls, the documentation and the defaults are read from
+ * `@material-bluemap/config`, so a setting added to the schema appears here with no change
+ * to this file.
+ *
+ * ## Why this is not `../config/MapsScreen.vue`
+ *
+ * That screen edits a `ConfigWorkspace`, which is a folder of files keyed by file name, and
+ * derives a map's id from its file name with `sanitiseMapId` - a rule that allows capitals
+ * because it mirrors what BlueMap derives from a file on disk. A project keeps its maps as
+ * records with an explicit id that the project schema constrains to `[a-z0-9_-]`, plus two
+ * facts a config folder has nowhere to put: which storage the map belongs to, and whether
+ * it takes part in a render at all. Routing a project through a workspace and back would
+ * lose the second of those on every save, and would apply the looser id rule on the way.
+ *
+ * So the layout and the behaviour follow that screen deliberately - list on the left,
+ * editor on the right, its own search with the anchored builder, the two-key gate on the
+ * delete - while the identity above the form is the project's own.
+ */
+const props = withDefaults(
+    defineProps<{
+        project: ProjectFile;
+        /** The world folder the project lives at the root of; the generated config's `world`. */
+        world: string;
+        selectedId?: string | null;
+        highlightPath?: string | null;
+        /** The platform separator, so generated paths read the way the platform writes them. */
+        separator?: string;
+    }>(),
+    { selectedId: null, highlightPath: null, separator: "/" },
+);
+
+const emit = defineEmits<{
+    "update:project": [value: ProjectFile];
+    "update:selectedId": [value: string | null];
+    consent: [];
+    notify: [message: string];
+}>();
+
+const { t } = useI18n();
+
+/**
+ * Vuetify's props and `exactOptionalPropertyTypes` disagree about `undefined`, so the
+ * optional pass-through is normalised once here rather than coalesced at the binding.
+ */
+const highlight = computed(() => props.highlightPath ?? null);
+
+/* -------------------------------------------------------------------------- */
+/* The list                                                                   */
+/* -------------------------------------------------------------------------- */
+
+const query = ref("");
+const regexMode = ref(false);
+// `i` because nobody means case-sensitively when they type a map name, and `m` because a
+// row's searchable text is several lines, so `^` and `$` are only useful per line.
+const flags = ref("im");
+
+const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
+
+const maps = computed(() => orderedMaps(props.project));
+
+function rowText(id: string, name: string, dimension: string): string {
+    return `${name}\n${id}\n${dimension}`;
+}
+
+const listed = computed(() => maps.value.filter((map) => matcher.value.test(rowText(map.id, map.name, map.dimension))));
+
+const searchSummary = computed(() =>
+    matcher.value.error !== null
+        ? t("project.maps.badPattern", "The pattern is not valid, so nothing is listed.")
+        : matcher.value.active
+          ? t("project.maps.listSummary", { shown: listed.value.length, total: maps.value.length }, "{shown} of {total} maps match.")
+          : "",
+);
+
+const selected = computed(() => (props.selectedId === null ? undefined : findMap(props.project, props.selectedId)));
+
+/**
+ * Keeps a selection pointing at a map that is really there.
+ *
+ * Renaming a map changes its id, and deleting one takes it away entirely, so a selection
+ * held by id goes stale in both cases. Left alone the panel would show its empty state
+ * immediately after a rename, which reads as the map having been lost.
+ */
+watch(
+    () => props.project,
+    () => {
+        if (props.selectedId !== null && findMap(props.project, props.selectedId) !== undefined) return;
+        emit("update:selectedId", maps.value[0]?.id ?? null);
+    },
+    { immediate: true },
+);
+
+const file = computed(() => (selected.value === undefined ? null : openMapFile(selected.value)));
+
+const storages = computed(() => storageIds(props.project));
+
+const dimensionItems = computed(() => {
+    const known = DIMENSION_OPTIONS.map((option) => ({ value: String(option.value), title: option.label }));
+    const current = selected.value?.dimension;
+    // A world may hold a dimension this build has never heard of. Adding it to the list is
+    // what stops the select from silently showing nothing for a perfectly valid value.
+    if (current !== undefined && !known.some((item) => item.value === current)) {
+        known.push({ value: current, title: current });
+    }
+    return known;
+});
+
+/* -------------------------------------------------------------------------- */
+/* Editing the selected map's settings                                        */
+/* -------------------------------------------------------------------------- */
+
+function onSet(field: FieldMeta, value: PlainValue): void {
+    const map = selected.value;
+    const open = file.value;
+    if (map === undefined || open === null) return;
+    emit("update:project", withMapConfig(props.project, map.id, setFieldValue(open, field, value).text));
+}
+
+function onClear(field: FieldMeta): void {
+    const map = selected.value;
+    const open = file.value;
+    if (map === undefined || open === null) return;
+    emit("update:project", withMapConfig(props.project, map.id, clearFieldValue(open, field).text));
+}
+
+function onRawText(text: string): void {
+    const map = selected.value;
+    const open = file.value;
+    if (map === undefined || open === null) return;
+    emit("update:project", withMapConfig(props.project, map.id, replaceText(open, text).text));
+}
+
+/* -------------------------------------------------------------------------- */
+/* Identity                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The id being typed into the rename field, held apart from the map until it is applied.
+ *
+ * Applying every keystroke would rename the map to `n`, then `ne`, then `net` on the way to
+ * `nether`, and each of those is a real id change that rewrites the config text. So the
+ * field holds a draft, the preview shows what it will become, and Apply is what commits it.
+ */
+const draftId = ref("");
+const draftIdTouched = ref(false);
+
+watch(
+    selected,
+    (map) => {
+        draftId.value = map?.id ?? "";
+        draftIdTouched.value = false;
+    },
+    { immediate: true },
+);
+
+/** The id the draft becomes, shown live under the field. This is the whole point of it. */
+const draftPreview = computed(() => previewMapId(draftId.value));
+
+const draftProblem = computed(() => {
+    const map = selected.value;
+    if (map === undefined) return null;
+    if (draftPreview.value === map.id) return null;
+    return mapIdProblem(draftPreview.value, mapIds(props.project, map.id));
+});
+
+const draftProblemText = computed(() => {
+    const problem = draftProblem.value;
+    // `t(key, named, fallback)`, and no filling afterwards: vue-i18n compiles the fallback
+    // as a message too, so it consumes `{id}` as a named parameter of its own and the id
+    // the message is complaining about is already gone by the time anything else could
+    // substitute it. The values have to go in before the message is compiled.
+    return problem === null ? "" : t(problem.key, problem.vars ?? {}, problem.fallback);
+});
+
+const draftDiffers = computed(() => selected.value !== undefined && draftPreview.value !== selected.value.id);
+
+function applyId(): void {
+    const map = selected.value;
+    if (map === undefined || !draftDiffers.value || draftProblem.value !== null) return;
+    const next = draftPreview.value;
+    emit("update:project", withMapIdentity(props.project, map.id, { id: next }));
+    emit("update:selectedId", next);
+    emit(
+        "notify",
+        t(
+            "project.maps.renamed",
+            { from: map.id, to: next },
+            "The map id is now {to}. Tiles already rendered under {from} stay where they are; nothing here moves or deletes them.",
+        ),
+    );
+}
+
+function setName(name: string): void {
+    const map = selected.value;
+    if (map === undefined) return;
+    emit("update:project", withMapIdentity(props.project, map.id, { name }));
+}
+
+function setDimension(dimension: string): void {
+    const map = selected.value;
+    if (map === undefined) return;
+    emit("update:project", withMapIdentity(props.project, map.id, { dimension }));
+}
+
+function setSorting(sorting: number): void {
+    const map = selected.value;
+    if (map === undefined || !Number.isFinite(sorting)) return;
+    emit("update:project", withMapIdentity(props.project, map.id, { sorting: Math.trunc(sorting) }));
+}
+
+function setStorage(storage: string): void {
+    const map = selected.value;
+    if (map === undefined) return;
+    emit("update:project", withMapIdentity(props.project, map.id, { storage }));
+}
+
+function setEnabled(enabled: boolean): void {
+    const map = selected.value;
+    if (map === undefined) return;
+    emit("update:project", withMapEnabled(props.project, map.id, enabled));
+}
+
+function move(delta: -1 | 1): void {
+    const map = selected.value;
+    if (map === undefined) return;
+    emit("update:project", withMapMoved(props.project, map.id, delta));
+}
+
+const position = computed(() => maps.value.findIndex((map) => map.id === (selected.value?.id ?? "")));
+const canMoveUp = computed(() => position.value > 0);
+const canMoveDown = computed(() => position.value >= 0 && position.value < maps.value.length - 1);
+
+/* -------------------------------------------------------------------------- */
+/* Adding one                                                                 */
+/* -------------------------------------------------------------------------- */
+
+const createOpen = ref(false);
+const createName = ref("");
+const createId = ref("");
+const createIdTouched = ref(false);
+const createDimension = ref("minecraft:overworld");
+
+/**
+ * The id a new map's name becomes, live, while the name is being typed.
+ *
+ * This is the preview the whole feature turns on. The id is a folder on disk and a segment
+ * of the URL a tile is served from, so somebody typing `My World!` sees `my-world-` while
+ * they are typing rather than meeting it for the first time in a path three screens later.
+ * Editing the id field directly stops it following the name, exactly as the guide's own
+ * identity step does.
+ */
+const createIdPreview = computed(() => previewMapId(createIdTouched.value ? createId.value : createName.value));
+
+const createProblem = computed(() => mapIdProblem(createIdPreview.value, mapIds(props.project)));
+
+const createProblemText = computed(() => {
+    const problem = createProblem.value;
+    return problem === null ? "" : t(problem.key, problem.vars ?? {}, problem.fallback);
+});
+
+const createDimensionItems = computed(() =>
+    DIMENSION_OPTIONS.map((option) => ({ value: String(option.value), title: option.label })),
+);
+
+function openCreate(): void {
+    createName.value = "";
+    createId.value = "";
+    createIdTouched.value = false;
+    createDimension.value = "minecraft:overworld";
+    createOpen.value = true;
+}
+
+function confirmCreate(): void {
+    if (createProblem.value !== null) return;
+    const id = createIdPreview.value;
+    const name = createName.value.trim() === "" ? id : createName.value.trim();
+
+    emit(
+        "update:project",
+        withMapAdded(props.project, {
+            id,
+            name,
+            dimension: createDimension.value,
+            world: props.world,
+            separator: props.separator,
+        }),
+    );
+    emit("update:selectedId", id);
+    emit(
+        "notify",
+        t(
+            "project.maps.added",
+            { id },
+            "Added the map {id}, written from BlueMap's own template so every setting arrives explained. Nothing is on disk until the project is saved.",
+        ),
+    );
+    createOpen.value = false;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Removing one                                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * What removing a map costs, said as the gate requires: exactly, and without softening.
+ *
+ * The tile note is the one people get wrong. Removing a map stops it being rendered and
+ * stops it being served, and leaves every tile already drawn exactly where it is - so
+ * somebody doing this to reclaim disk space gets none of it back, and somebody doing it to
+ * hide a map has left the tiles readable to anything already pointed at them.
+ */
+const removalCosts = computed(() => {
+    const map = selected.value;
+    if (map === undefined) return [];
+    return [
+        t("project.maps.deleteMap", { id: map.id, name: map.name }, "The map {name}, id {id}"),
+        t("project.maps.deleteSettings", "Every setting in its config, including anything tuned by hand"),
+        t(
+            "project.maps.deleteTiles",
+            { id: map.id },
+            "Tiles already rendered under {id} are NOT deleted. They stay on the disk, and the space is not coming back; remove them yourself if you want it.",
+        ),
+    ];
+});
+
+function confirmRemoval(): void {
+    const map = selected.value;
+    if (map === undefined) return;
+    emit("update:project", withMapRemoved(props.project, map.id));
+    emit("update:selectedId", null);
+    emit("notify", t("project.maps.deleted", { id: map.id }, "The map {id} is out of this project. It is written when you save."));
+}
+</script>
+
+<template>
+    <div class="mb-project-maps">
+        <aside class="mb-project-maps__list" :aria-label="t('project.maps.listLabel', 'Maps in this project')">
+            <ConfigSearchField
+                v-model="query"
+                v-model:regex="regexMode"
+                v-model:flags="flags"
+                :label="t('project.maps.search', 'Search maps')"
+                :placeholder="t('project.maps.searchHint', 'name, id or dimension')"
+                :sample="maps.map((map) => rowText(map.id, map.name, map.dimension)).join('\n')"
+                :summary="searchSummary"
+            />
+
+            <v-list density="compact" nav class="mt-2" :aria-label="t('project.maps.listLabel', 'Maps in this project')">
+                <v-list-item
+                    v-for="map in listed"
+                    :key="map.id"
+                    :active="map.id === selectedId"
+                    :prepend-icon="mdiMap"
+                    :title="map.name"
+                    :subtitle="map.id"
+                    @click="emit('update:selectedId', map.id)"
+                >
+                    <template #append>
+                        <v-chip v-if="!map.enabled" size="x-small" variant="tonal">
+                            {{ t("project.maps.offChip", "off") }}
+                        </v-chip>
+                    </template>
+                </v-list-item>
+            </v-list>
+
+            <p v-if="listed.length === 0" class="mb-project-maps__note">
+                {{
+                    maps.length === 0
+                        ? t("project.maps.none", "This project has no maps yet. Add one to say what should be rendered.")
+                        : t("project.maps.noMatch", "No map matches that search.")
+                }}
+            </p>
+
+            <v-btn :prepend-icon="mdiMapPlus" color="primary" variant="tonal" block class="mt-2" @click="openCreate">
+                {{ t("project.maps.new", "Add a map") }}
+            </v-btn>
+            <!--
+                Adding a map is a form somebody completes or cancels, so it needs their
+                attention - but it does not need the rest of the application taken away
+                while they fill it in. It opens in place, under the button that asked for
+                it, rather than as a dialog: nothing behind it has to be stopped, and the
+                map list it is about stays readable beside it.
+            -->
+            <v-card v-if="createOpen" variant="tonal" class="mb-project-maps__create mt-2">
+                <v-card-title>{{ t("project.maps.newTitle", "Add a map to this project") }}</v-card-title>
+                <v-card-text class="mb-project-maps__form">
+                    <v-text-field
+                        v-model="createName"
+                        :label="t('project.maps.name', 'Name shown in the web app')"
+                        variant="outlined"
+                        density="compact"
+                        hide-details="auto"
+                    />
+                    <v-text-field
+                        v-model="createId"
+                        :label="t('project.maps.id', 'Map id')"
+                        :placeholder="createIdPreview"
+                        :error-messages="createProblemText ? [createProblemText] : []"
+                        variant="outlined"
+                        density="compact"
+                        spellcheck="false"
+                        autocapitalize="off"
+                        hide-details="auto"
+                        @update:model-value="createIdTouched = true"
+                    />
+                    <p class="mb-project-maps__preview" aria-live="polite">
+                        {{
+                            createIdPreview === ""
+                                ? t("project.maps.idPreviewEmpty", "Type a name and the id appears here.")
+                                : t(
+                                      "project.maps.idPreviewNew",
+                                      { id: createIdPreview },
+                                      "Becomes the folder and the address segment {id}",
+                                  )
+                        }}
+                    </p>
+                    <v-select
+                        v-model="createDimension"
+                        :items="createDimensionItems"
+                        :label="t('project.maps.dimension', 'Dimension')"
+                        item-title="title"
+                        item-value="value"
+                        variant="outlined"
+                        density="compact"
+                        hide-details="auto"
+                    />
+
+                    <v-alert v-if="createProblemText" type="warning" density="compact" variant="tonal">
+                        {{ createProblemText }}
+                    </v-alert>
+                    <p class="mb-project-maps__note">
+                        {{
+                            t(
+                                "project.maps.templateNote",
+                                "The map is written from BlueMap's own template for that dimension, so it arrives with every setting explained in place. Every one of them is editable here before anything renders.",
+                            )
+                        }}
+                    </p>
+                </v-card-text>
+                <v-divider />
+                <v-card-actions>
+                    <v-btn variant="text" @click="createOpen = false">{{ t("project.maps.cancel", "Cancel") }}</v-btn>
+                    <v-spacer />
+                    <v-btn color="primary" variant="flat" :disabled="createProblem !== null" @click="confirmCreate">
+                        {{ t("project.maps.create", "Add the map") }}
+                    </v-btn>
+                </v-card-actions>
+            </v-card>
+        </aside>
+
+        <section class="mb-project-maps__editor">
+            <template v-if="selected && file">
+                <v-card variant="tonal" class="mb-project-maps__identity">
+                    <v-card-text>
+                        <div class="mb-project-maps__grid">
+                            <v-text-field
+                                :model-value="selected.name"
+                                :label="t('project.maps.name', 'Name shown in the web app')"
+                                variant="outlined"
+                                density="compact"
+                                hide-details="auto"
+                                @update:model-value="setName"
+                            />
+
+                            <div class="mb-project-maps__id">
+                                <v-text-field
+                                    v-model="draftId"
+                                    :label="t('project.maps.id', 'Map id')"
+                                    :error-messages="draftProblemText ? [draftProblemText] : []"
+                                    variant="outlined"
+                                    density="compact"
+                                    spellcheck="false"
+                                    autocapitalize="off"
+                                    hide-details="auto"
+                                    @update:model-value="draftIdTouched = true"
+                                />
+                                <!--
+                                    The live preview. `aria-live` because the text under the
+                                    field changes as a consequence of typing elsewhere in it,
+                                    which a screen-reader user would otherwise never hear.
+                                -->
+                                <p class="mb-project-maps__preview" aria-live="polite">
+                                    {{
+                                        t(
+                                            "project.maps.idPreview",
+                                            { id: draftPreview },
+                                            "Becomes the folder and the address segment {id}",
+                                        )
+                                    }}
+                                </p>
+                                <v-btn
+                                    v-if="draftDiffers"
+                                    :disabled="draftProblem !== null"
+                                    variant="tonal"
+                                    size="small"
+                                    @click="applyId"
+                                >
+                                    {{ t("project.maps.applyId", { id: draftPreview }, "Rename to {id}") }}
+                                </v-btn>
+                            </div>
+
+                            <v-select
+                                :model-value="selected.dimension"
+                                :items="dimensionItems"
+                                :label="t('project.maps.dimension', 'Dimension')"
+                                item-title="title"
+                                item-value="value"
+                                variant="outlined"
+                                density="compact"
+                                hide-details="auto"
+                                @update:model-value="setDimension"
+                            />
+
+                            <v-select
+                                :model-value="selected.storage"
+                                :items="storages"
+                                :label="t('project.maps.storage', 'Storage the tiles go into')"
+                                variant="outlined"
+                                density="compact"
+                                hide-details="auto"
+                                @update:model-value="setStorage"
+                            />
+
+                            <v-text-field
+                                :model-value="selected.sorting"
+                                :label="t('project.maps.sorting', 'Sorting')"
+                                :hint="t('project.maps.sortingHint', 'Lower sorts first in the web app\'s map list.')"
+                                type="number"
+                                variant="outlined"
+                                density="compact"
+                                hide-details="auto"
+                                @update:model-value="(value: string) => setSorting(Number(value))"
+                            />
+
+                            <v-switch
+                                :model-value="selected.enabled"
+                                :label="
+                                    selected.enabled
+                                        ? t('project.maps.enabled', 'Rendered when this project runs')
+                                        : t('project.maps.disabled', 'Kept in the project, not rendered')
+                                "
+                                color="primary"
+                                density="compact"
+                                hide-details
+                                inset
+                                @update:model-value="(value: boolean | null) => setEnabled(value === true)"
+                            />
+                        </div>
+
+                        <div class="mb-project-maps__actions">
+                            <v-btn
+                                :prepend-icon="mdiArrowUp"
+                                :disabled="!canMoveUp"
+                                variant="text"
+                                size="small"
+                                :aria-label="t('project.maps.moveUpOne', { name: selected.name }, 'Move {name} earlier in the list')"
+                                @click="move(-1)"
+                            >
+                                {{ t("project.maps.moveUp", "Earlier") }}
+                            </v-btn>
+                            <v-btn
+                                :prepend-icon="mdiArrowDown"
+                                :disabled="!canMoveDown"
+                                variant="text"
+                                size="small"
+                                :aria-label="t('project.maps.moveDownOne', { name: selected.name }, 'Move {name} later in the list')"
+                                @click="move(1)"
+                            >
+                                {{ t("project.maps.moveDown", "Later") }}
+                            </v-btn>
+
+                            <v-spacer />
+
+                            <ConfigSuperConfirm
+                                :title="t('project.maps.deleteTitle', 'Take this map out of the project')"
+                                :action="
+                                    t(
+                                        'project.maps.deleteAction',
+                                        { id: selected.id },
+                                        'This removes the map {id} and every setting it holds from this project when you save. It cannot be undone from here.',
+                                    )
+                                "
+                                :affected="removalCosts"
+                                :confirm-label="t('project.maps.deleteConfirm', { id: selected.id }, 'Remove the map {id}')"
+                                @confirm="confirmRemoval"
+                            >
+                                <template #activator="{ props: activatorProps }">
+                                    <v-btn v-bind="activatorProps" :prepend-icon="mdiDeleteOutline" color="error" variant="tonal" size="small">
+                                        {{ t("project.maps.delete", "Remove this map") }}
+                                    </v-btn>
+                                </template>
+                            </ConfigSuperConfirm>
+                        </div>
+                    </v-card-text>
+                </v-card>
+
+                <ConfigFileForm
+                    :file="file"
+                    :title="selected.name"
+                    :subtitle="
+                        t(
+                            'project.maps.formSubtitle',
+                            { id: selected.id },
+                            'Map {id}. Everything BlueMap reads about this map lives in this one file, and all of it can be set before a render starts.',
+                        )
+                    "
+                    :highlight-path="highlight"
+                    @set="onSet"
+                    @clear="onClear"
+                    @consent="emit('consent')"
+                    @update:text="onRawText"
+                />
+            </template>
+
+            <p v-else class="mb-project-maps__note">
+                {{ t("project.maps.pick", "Pick a map on the left, or add one.") }}
+            </p>
+        </section>
+
+    </div>
+</template>
+
+<style>
+.mb-project-maps {
+    display: grid;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+    gap: 20px;
+    align-items: start;
+}
+
+/* One column below the breakpoint, and at high display scales where the same thing happens. */
+@media (max-width: 900px) {
+    .mb-project-maps {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.mb-project-maps__identity {
+    margin-block-end: 16px;
+    border-radius: 12px;
+}
+
+.mb-project-maps__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+.mb-project-maps__id {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+}
+
+.mb-project-maps__preview {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    overflow-wrap: anywhere;
+}
+
+.mb-project-maps__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-block-start: 12px;
+}
+
+.mb-project-maps__note {
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    text-wrap: pretty;
+}
+
+.mb-project-maps__create {
+    border-radius: 12px;
+}
+
+.mb-project-maps__form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+</style>

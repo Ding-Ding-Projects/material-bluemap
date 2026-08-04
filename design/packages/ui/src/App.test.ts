@@ -30,6 +30,8 @@ import { ConfigScreen } from "./components/config/index.js";
 import { dismissAll } from "./components/config/notifications.js";
 import { CommandPalette } from "./components/palette/index.js";
 import { WorldScreen } from "./components/world/index.js";
+import { ProjectsScreen } from "./components/project/index.js";
+import { AppSettings } from "./components/settings/index.js";
 import { appearanceTargets } from "./components/appearance/index.js";
 import { addLocalMap, profilesStore, removeProfile } from "./stores/profiles.js";
 import { notices, raiseNotice } from "./stores/notices.js";
@@ -162,16 +164,26 @@ function configHost(): HTMLElement | null {
  * An unpinned tab with no unsaved work announces exactly its visible label, so this is also
  * the string on screen; the assertions read better for saying it once.
  */
+/**
+ * The shell's own strip, not every tablist in the document.
+ *
+ * Scoped deliberately. A page is free to contain tabs of its own - the project editor has
+ * seven, and other surfaces have their own - so an unscoped `[role="tab"]` query answers a
+ * different question from the one these assertions ask, and starts failing the day an
+ * unrelated surface grows a tab strip. What is being asserted here is the shell's pages.
+ */
+function shellTabs(): HTMLElement[] {
+    return [...document.querySelectorAll<HTMLElement>('.mb-shell-tabs [role="tab"]')];
+}
+
 function tabButton(label: string): HTMLElement {
-    const node = document.querySelector<HTMLElement>(`[role="tab"][aria-label="${label}"]`);
-    if (node === null) throw new Error(`the shell renders no tab labelled ${label}`);
+    const node = shellTabs().find((tab) => tab.getAttribute("aria-label") === label);
+    if (node === undefined) throw new Error(`the shell renders no tab labelled ${label}`);
     return node;
 }
 
 function tabLabels(): (string | null)[] {
-    return [...document.querySelectorAll('[role="tab"]')].map((node) =>
-        node.getAttribute("aria-label"),
-    );
+    return shellTabs().map((node) => node.getAttribute("aria-label"));
 }
 
 beforeEach(() => {
@@ -192,10 +204,10 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("separates the shell into four pages behind one persistent strip", () => {
+    it("separates the shell into five pages behind one persistent strip", () => {
         shell();
 
-        expect(tabLabels()).toEqual(["Map", "Make a map", "Maps and servers", "Backups"]);
+        expect(tabLabels()).toEqual(["Map", "Make a map", "Projects", "Maps and servers", "Backups"]);
     });
 
     it("opens on the map, which is where the map-state message lives", () => {
@@ -229,6 +241,34 @@ describe("the tab strip", () => {
         await settle();
 
         expect(app.findComponent(ProfileManager).exists()).toBe(true);
+    });
+
+    it("reaches the projects surface through its tab, rather than only existing in the bundle", async () => {
+        // The whole feature is "configure every map setting before rendering starts", and a
+        // configuration surface nobody can open configures nothing. This project has shipped
+        // five features that were built, tested and unreachable; a tab test is cheap.
+        const app = shell();
+        expect(app.findComponent(ProjectsScreen).exists()).toBe(false);
+
+        tabButton("Projects").click();
+        await settle();
+
+        expect(app.findComponent(ProjectsScreen).exists()).toBe(true);
+    });
+
+    it("takes the wizard's finished project to that same page", async () => {
+        // The guide writes a project file and offers to open it. Without this the offer
+        // would be a button that changes nothing, which is the dead end the project format
+        // exists to remove.
+        const app = shell();
+        tabButton("Make a map").click();
+        await settle();
+
+        app.findComponent(WorldScreen).vm.$emit("open-project", "C:/saves/Survival");
+        await settle();
+
+        expect(app.findComponent(ProjectsScreen).exists()).toBe(true);
+        expect(app.findComponent(ProjectsScreen).props("openWorld")).toBe("C:/saves/Survival");
     });
 
     it("reaches the backup screen through its tab, rather than only existing in the bundle", async () => {
@@ -265,6 +305,30 @@ describe("the tab strip", () => {
 
         expect(document.querySelector(".mb-map-page")).not.toBeNull();
         expect(app.findComponent(ProfileManager).exists()).toBe(false);
+    });
+});
+
+describe("the settings surface closing", () => {
+    it("tells the pages underneath, so a setting changed in it is not read once and forgotten", async () => {
+        // The shell is the only thing that sees this happen: Settings is an in-app dialog,
+        // not another window, so nothing underneath it gets a focus or visibility event.
+        // Mojang download consent is changed in there, and the wizard used to sample it once
+        // at mount - which made the review step's own "Open the setting" remedy a dead end.
+        const app = shell();
+        tabButton("Make a map").click();
+        await settle();
+
+        const before = app.findComponent(WorldScreen).props("settingsEpoch");
+
+        const settings = document.querySelector<HTMLButtonElement>('button[aria-label="Settings"]');
+        expect(settings).not.toBeNull();
+        settings?.click();
+        await settle();
+
+        app.findComponent(AppSettings).vm.$emit("update:open", false);
+        await settle();
+
+        expect(app.findComponent(WorldScreen).props("settingsEpoch")).not.toBe(before);
     });
 });
 

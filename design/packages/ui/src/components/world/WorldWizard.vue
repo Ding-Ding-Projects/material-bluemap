@@ -17,13 +17,24 @@ import type { RenderRequest } from "./worldBridge.js";
 /**
  * The create-a-map wizard: five steps between "no map" and a render running.
  *
- * The rules live in `wizardModel.ts` as plain functions over refs, so what this
- * component does is arrange them: it never decides whether a world is valid, what
- * a map id may contain, or which settings reach a render.
+ * This is **the quick way in, not the only one**, and it says so on screen. It asks for the
+ * least a render needs and offers sensible answers to the rest; the project editor holds
+ * every setting BlueMap has, for a world that wants them. The two are not two features:
+ * finishing here writes a project file, so five answers produce something that can be
+ * reopened and edited in full rather than one render and then nothing.
  *
- * The step header is navigation, not decoration. A step nobody can answer yet is
- * disabled and says so; every answered step can be gone back to; and the whole
- * strip is keyboard-reachable with the current step announced.
+ * That is also why a world that already has a project is offered it. Re-running a guide
+ * over a world somebody has already set up would either duplicate the map or quietly
+ * overwrite the settings they chose, and both are worse than a sentence saying the project
+ * is there.
+ *
+ * The rules live in `wizardModel.ts` as plain functions over refs, so what this component
+ * does is arrange them: it never decides whether a world is valid, what a map id may
+ * contain, or which settings reach a render.
+ *
+ * The step header is navigation, not decoration. A step nobody can answer yet is disabled
+ * and says so; every answered step can be gone back to; and the whole strip is
+ * keyboard-reachable with the current step announced.
  */
 const props = withDefaults(
     defineProps<{
@@ -43,6 +54,15 @@ const props = withDefaults(
         applyStorage?:
             | ((value: string) => Promise<{ ok: true; directory: string } | { ok: false; message: string }>)
             | null;
+        /**
+         * The project the chosen world already carries, when it carries one.
+         *
+         * Reported rather than acted on: the guide never opens or overwrites anything by
+         * itself. It says the project is there and offers to open it, because running five
+         * questions over a world somebody has already set up would either add a second copy
+         * of the same map or quietly replace the settings they chose.
+         */
+        existingProject?: { readonly name: string; readonly maps: number } | null;
     }>(),
     {
         consentAccepted: false,
@@ -51,16 +71,35 @@ const props = withDefaults(
         storage: null,
         probe: null,
         applyStorage: null,
+        existingProject: null,
     },
 );
 
 const emit = defineEmits<{
-    /** Everything is answered; start this render with this map config beside it. */
-    start: [request: RenderRequest, configText: string];
+    /**
+     * Everything is answered; start this render with this map config beside it.
+     *
+     * The storage folder travels too, because the screen above writes a project file from
+     * these answers and a project records where its render output goes. Reading it back off
+     * the request is not possible: the request has no field for it.
+     */
+    start: [request: RenderRequest, configText: string, storageDirectory: string];
+    /** The chosen world folder changed, so anything that depends on it can be re-read. */
+    world: [folder: string];
+    /** The person would rather open the project this world already has. */
+    openProject: [];
     /** Opens the app's own download-consent setting. */
     consent: [];
     /** The person closed the wizard without starting anything. */
     cancel: [];
+    /**
+     * The person moved to a different step.
+     *
+     * Reported so the screen above can re-read anything that may have changed while they
+     * were somewhere else - consent, in particular, which used to be sampled once at mount
+     * and left the review step warning about a download that had already been accepted.
+     */
+    step: [step: WizardStep];
 }>();
 
 const { t } = useI18n();
@@ -175,6 +214,8 @@ async function inspect(folder: string): Promise<void> {
 watch(
     () => wizard.step.value,
     (step) => {
+        emit("step", step);
+
         if (step !== "identity") return;
         const path = wizard.worldPath.value.trim();
         if (path === "") return;
@@ -231,14 +272,66 @@ function goTo(step: WizardStep): void {
 
 function start(): void {
     if (!canStart.value) return;
-    emit("start", wizard.toRenderRequest(), wizard.configText());
+    emit("start", wizard.toRenderRequest(), wizard.configText(), wizard.storageDirectory.value.trim());
 }
+
+/**
+ * The chosen world, reported upward so the screen can look for a project in it.
+ *
+ * Watched rather than emitted from `inspect()`, because the path is also set by typing into
+ * the field, by a drop, and by the world list - and a route that forgot to report would be
+ * a world whose existing project is silently not offered.
+ */
+watch(
+    () => wizard.worldPath.value,
+    (folder) => emit("world", folder.trim()),
+);
 
 defineExpose({ wizard });
 </script>
 
 <template>
     <div class="mb-world-wizard">
+        <!--
+            Said plainly, above the steps: this is the short route, and there is a longer
+            one. A guide that never mentions the editor is a guide people assume is all
+            there is, which is how ninety settings end up unreachable in practice.
+        -->
+        <p class="mb-world-wizard__mode">
+            {{
+                t(
+                    "world.wizard.easyMode",
+                    "Easy mode. Five short questions, sensible answers for the rest, and a project file written at the end so nothing has to be answered twice. Everything BlueMap can be told is in the project editor afterwards.",
+                )
+            }}
+        </p>
+
+        <!--
+            A world that already has a project is offered it rather than run through the
+            guide again. Nothing is opened or overwritten here; this is a sentence and a
+            button, and carrying on with the guide stays available beside it.
+        -->
+        <v-alert
+            v-if="existingProject"
+            type="info"
+            density="compact"
+            variant="tonal"
+            class="mb-world-wizard__existing"
+        >
+            {{
+                t(
+                    "world.wizard.hasProject",
+                    { name: existingProject.name, maps: existingProject.maps },
+                    "This world already has a project, {name}, with {maps} maps in it. Opening it keeps everything that was set up; carrying on here adds another map and leaves the rest alone.",
+                )
+            }}
+            <template #append>
+                <v-btn variant="tonal" size="small" @click="emit('openProject')">
+                    {{ t("world.wizard.openProject", "Open the project") }}
+                </v-btn>
+            </template>
+        </v-alert>
+
         <nav class="mb-world-wizard__steps" :aria-label="t('world.wizard.stepsLabel', 'Wizard steps')">
             <v-btn
                 v-for="step in steps"
@@ -384,6 +477,18 @@ defineExpose({ wizard });
     display: flex;
     flex-direction: column;
     min-height: 0;
+}
+
+.mb-world-wizard__mode {
+    padding: 4px 4px 0;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    text-wrap: pretty;
+}
+
+.mb-world-wizard__existing {
+    margin: 8px 4px 0;
 }
 
 .mb-world-wizard__steps {

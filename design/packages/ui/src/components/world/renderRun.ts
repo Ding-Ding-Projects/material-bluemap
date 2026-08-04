@@ -19,9 +19,26 @@
  * wrote, so the panel can name the engine that produced it. The app promises never
  * to switch renderer silently; that record is what turns the promise into
  * something a person can check.
+ *
+ * The engine's output is kept as console lines rather than as strings: each carries
+ * its level, who wrote it, and whatever advice this app has about it. Two things
+ * come out of that. The log reads as a narrative, because the run writes its own
+ * status lines into the same stream the engine writes into, so "starting", "running"
+ * and "stopped with code 1" appear in order beside the output they bracket. And a
+ * line the app knows something useful about arrives already annotated, once, at the
+ * moment it arrives, rather than being re-matched every time the console re-renders
+ * or is filtered, which is what would make a once-per-render tip depend on whether
+ * somebody had typed in the search box.
  */
 
-import { computed, ref, type ComputedRef, type Ref } from "vue";
+import { computed, ref, shallowRef, type ComputedRef, type Ref } from "vue";
+import { createAnnotator, type ConsoleText } from "../console/annotations.js";
+import {
+    CONSOLE_LINE_CAP,
+    appendLine,
+    normaliseLevel,
+    type ConsoleLine,
+} from "../console/consoleModel.js";
 import type {
     EngineDescription,
     RenderEvent,
@@ -37,14 +54,64 @@ import type { Translate } from "./worldFolder.js";
 
 export type RunState = "idle" | "starting" | "running" | "finished" | "failed" | "cancelled";
 
-/** How many log lines are kept. The engine is chatty and the panel is not a terminal. */
-export const LOG_LIMIT = 200;
+/**
+ * How many log lines are kept.
+ *
+ * The console owns the number; this is the name the rest of the flow has always known
+ * it by. It is stated on screen along with how many lines have been dropped, because a
+ * ring that quietly forgets its own beginning is how the setup warning a render printed
+ * in its first second stops existing by the time anybody looks.
+ */
+export const LOG_LIMIT = CONSOLE_LINE_CAP;
 
-export interface RenderLogLine {
-    readonly id: number;
-    readonly level: string;
-    readonly message: string;
-    readonly at: string;
+/**
+ * One line of the console.
+ *
+ * An alias rather than a second declaration, so the panel, the console and this file
+ * cannot end up with three subtly different ideas of what a log line is.
+ */
+export type RenderLogLine = ConsoleLine;
+
+/**
+ * The run narrating itself into the engine's own log.
+ *
+ * Held as keys and fallbacks rather than as sentences because this file has no
+ * translator: `createRenderRun` is built from a bridge and nothing else. Translating
+ * where the line is drawn also means a status line changes language when the language
+ * mode does, rather than keeping whichever one was active when it was written.
+ */
+const SIGNALS = {
+    starting: { key: "world.console.signal.starting", fallback: "Starting the render.", values: {} },
+    running: { key: "world.console.signal.running", fallback: "Running.", values: {} },
+    watching: {
+        key: "world.console.signal.watching",
+        fallback: "Watching a render that was already going.",
+        values: {},
+    },
+    stopping: {
+        key: "world.console.signal.stopping",
+        fallback: "Stopping. Every tile already drawn is kept.",
+        values: {},
+    },
+    cancelled: {
+        key: "world.console.signal.stoppedCancelled",
+        fallback: "Stopped. You stopped it, and every tile already drawn is kept.",
+        values: {},
+    },
+    failed: {
+        key: "world.console.signal.stoppedFailed",
+        fallback: "Stopped. The render did not finish.",
+        values: {},
+    },
+} as const satisfies Readonly<Record<string, ConsoleText>>;
+
+/** `Stopped.` with the number the engine actually exited with, when there is one. */
+function stoppedWithCode(code: number): ConsoleText {
+    return {
+        key: "world.console.signal.stoppedCode",
+        fallback: "Stopped. The engine exited with code {code}.",
+        values: { code },
+    };
 }
 
 /** The engine's phases, in the order it goes through them. */
@@ -315,6 +382,14 @@ export interface RenderRun {
     readonly durationMs: Ref<number | null>;
     readonly failure: Ref<RenderFailure | null>;
     readonly log: Ref<readonly RenderLogLine[]>;
+    /**
+     * How many lines the cap has dropped off the front of this render.
+     *
+     * Kept so the console can say it out loud. Nothing else in this file uses it, which
+     * is the point: the alternative is a console that silently shows the last ten
+     * thousand lines of a longer log and looks exactly like a complete one.
+     */
+    readonly logDropped: Ref<number>;
     readonly cancelling: Ref<boolean>;
     readonly startedAt: Ref<string | null>;
     /** True while a render is in flight, which is what disables the start control. */
@@ -351,11 +426,40 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
     const dataRoot = ref<string | null>(null);
     const durationMs = ref<number | null>(null);
     const failure = ref<RenderFailure | null>(null);
-    const log = ref<readonly RenderLogLine[]>([]);
+    /**
+     * Shallow on purpose, and this is a performance decision with a measured cause.
+     *
+     * A deep `ref` wraps every element it hands out in a reactive proxy, so reading the
+     * array to append to it re-proxied all ten thousand lines, once per line: appending
+     * the log of a long render took nearly six seconds of pure overhead in a test that
+     * did nothing else. Nothing ever mutates a line after it is written, so there is
+     * nothing for deep reactivity to observe; replacing the array is the change, and a
+     * shallow ref reports exactly that.
+     */
+    const log = shallowRef<readonly RenderLogLine[]>([]);
+    const logDropped = ref(0);
     const cancelling = ref(false);
     const startedAt = ref<string | null>(null);
 
     let nextLogId = 1;
+    /**
+     * The advice table's one-shot state, which belongs to this run and not to the app.
+     *
+     * A tip offered on the first estimate of one render is worth offering again on the
+     * first estimate of the next. A shared annotator would show it to whoever rendered
+     * first and to nobody afterwards, which is indistinguishable from the feature not
+     * working.
+     */
+    const annotator = createAnnotator();
+    /**
+     * True once the end of the run has been written into the log.
+     *
+     * The end arrives twice on the ordinary path: as an event, and again in the result
+     * `settle` applies. Both are needed, because a render refused before anything was
+     * spawned emits no events at all. This is what stops the ordinary path printing
+     * "Stopped." twice.
+     */
+    let ended = false;
     /**
      * True between asking for a render and learning its id.
      *
@@ -391,10 +495,58 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         return event.renderId === renderId.value;
     }
 
+    function push(line: RenderLogLine): void {
+        const result = appendLine(log.value, line, LOG_LIMIT);
+        log.value = result.lines;
+        logDropped.value += result.dropped;
+    }
+
+    /** One line of the engine's own output, annotated as it arrives. */
     function append(level: string, message: string, at: string): void {
-        const line: RenderLogLine = { id: nextLogId++, level, message, at };
-        const next = [...log.value, line];
-        log.value = next.length > LOG_LIMIT ? next.slice(next.length - LOG_LIMIT) : next;
+        push({
+            id: nextLogId++,
+            level: normaliseLevel(level),
+            origin: "engine",
+            message,
+            text: null,
+            at,
+            annotations: annotator.annotate(message),
+        });
+    }
+
+    /**
+     * One line of this app narrating what it is doing.
+     *
+     * Written into the same stream as the engine's output rather than shown somewhere
+     * else, because the value of it is the ordering: "Stopping." between the last
+     * progress tick and the engine's own farewell is what turns a wall of output into an
+     * account of what happened.
+     */
+    function signal(text: ConsoleText): void {
+        push({
+            id: nextLogId++,
+            level: "signal",
+            origin: "app",
+            message: "",
+            text,
+            at: new Date().toISOString(),
+            // The app does not annotate its own sentences. Running the table over them
+            // would let a status line the app wrote trigger advice about a line the
+            // engine never printed.
+            annotations: [],
+        });
+    }
+
+    /** The one closing line, whichever of the two paths reaches the end first. */
+    function noteEnd(text: ConsoleText): void {
+        if (ended) return;
+        ended = true;
+        signal(text);
+    }
+
+    /** How a failure ends the narrative: with the engine's exit code when it ran. */
+    function endedByFailure(reason: RenderFailure): ConsoleText {
+        return reason.exitCode === null ? SIGNALS.failed : stoppedWithCode(reason.exitCode);
     }
 
     /**
@@ -434,6 +586,7 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
                 mapIds.value = event.mapIds;
                 startedAt.value = event.at;
                 phase.value = "starting";
+                signal(SIGNALS.running);
                 break;
             case "phase":
                 phase.value = event.phase;
@@ -453,17 +606,22 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
                 engine.value = event.engine;
                 durationMs.value = event.durationMs;
                 cancelling.value = false;
+                // Zero rather than "no code": the engine ran to completion, and the
+                // number a person would look for in a terminal is the one it exited with.
+                noteEnd(stoppedWithCode(0));
                 void loadProvenance();
                 break;
             case "failed":
                 state.value = "failed";
                 failure.value = event.failure;
                 cancelling.value = false;
+                noteEnd(endedByFailure(event.failure));
                 void loadProvenance();
                 break;
             case "cancelled":
                 state.value = "cancelled";
                 cancelling.value = false;
+                noteEnd(SIGNALS.cancelled);
                 void loadProvenance();
                 break;
         }
@@ -484,9 +642,12 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         durationMs.value = null;
         failure.value = null;
         log.value = [];
+        logDropped.value = 0;
         cancelling.value = false;
         startedAt.value = null;
         adopting = false;
+        ended = false;
+        annotator.reset();
     }
 
     function expect(id: string): void {
@@ -494,6 +655,7 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         reset();
         renderId.value = id;
         state.value = "starting";
+        signal(SIGNALS.watching);
     }
 
     /**
@@ -514,11 +676,14 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
             mapIds.value = result.mapIds;
             engine.value = result.engine;
             durationMs.value = result.durationMs;
+            noteEnd(stoppedWithCode(0));
         } else if (result.failure.code === "cancelled") {
             if (state.value !== "cancelled") state.value = "cancelled";
+            noteEnd(SIGNALS.cancelled);
         } else if (state.value !== "failed" && state.value !== "cancelled") {
             state.value = "failed";
             failure.value = result.failure;
+            noteEnd(endedByFailure(result.failure));
         }
 
         cancelling.value = false;
@@ -531,6 +696,7 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         reset();
         state.value = "starting";
         adopting = true;
+        signal(SIGNALS.starting);
 
         let result: RenderResult;
         try {
@@ -548,6 +714,7 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
                 detail: null,
                 exitCode: null,
             };
+            noteEnd(SIGNALS.failed);
             return null;
         }
 
@@ -560,6 +727,7 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         const id = renderId.value;
         if (bridge === null || id === null || !active.value) return false;
         cancelling.value = true;
+        signal(SIGNALS.stopping);
         try {
             return await bridge.cancelRender(id);
         } catch {
@@ -586,6 +754,7 @@ export function createRenderRun(bridge: WorldBridge | null): RenderRun {
         durationMs,
         failure,
         log,
+        logDropped,
         cancelling,
         startedAt,
         active,

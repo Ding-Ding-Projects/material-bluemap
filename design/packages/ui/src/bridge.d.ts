@@ -302,6 +302,32 @@ interface BlueMapProjectBridge {
     ): Promise<BlueMapProjectSaveResult>;
     history(worldFolder: string, limit?: number): Promise<BlueMapProjectHistoryListing>;
     restore(worldFolder: string, id: string): Promise<BlueMapHistoryRestoreResult>;
+
+    /** Every world this machine knows about that carries a project. */
+    listProjects(): Promise<{
+        projects: {
+            world: string;
+            file: string;
+            id: string | null;
+            name: string | null;
+            maps: number | null;
+            createdAt: string | null;
+            updatedAt: string | null;
+            fromWizard: boolean | null;
+            worldName: string | null;
+            problem: string | null;
+        }[];
+        scanned: number;
+        problems: { world: string; message: string }[];
+    }>;
+    readProject(world: string): Promise<
+        | { ok: true; project: BlueMapProjectFile; file: string }
+        | { ok: false; failure: BlueMapProjectReadFailure }
+    >;
+    writeProject(
+        world: string,
+        project: BlueMapProjectFile,
+    ): Promise<{ ok: true; file: string } | { ok: false; message: string }>;
 }
 
 interface BlueMapHistoryBridge {

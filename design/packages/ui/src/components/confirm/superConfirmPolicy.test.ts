@@ -260,6 +260,19 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "Cancelling leaves the bytes already fetched on disk and the row moves to a " +
             "resumable state, so the action costs time rather than data.",
     },
+    "components/eula/EulaViewer.vue": {
+        count: 2,
+        destroys: "many tabs at once, along with any unsaved work they were holding",
+        standing: "gated",
+        gatedIn: "components/tabs/TabClosePanel.vue",
+        note:
+            "The same shape as components/tabs/TabbedNavigation.vue's own entry: this viewer " +
+            "runs a close plan only in response to an apply event from TabStrip, which emits " +
+            "one only from the close panel or the plan confirm, both of which show the " +
+            "reviewable preview and then the gate. Its second call removes a tab group, which " +
+            "closes no tab at all. Nothing here touches a clause of the document; a closed tab " +
+            "is a way back in, and the viewer's own note says so.",
+    },
     "components/github/GitHubStatusRow.vue": {
         count: 1,
         destroys: "the stored GitHub token, and the grant on the account when GitHub honours the revocation",
@@ -313,11 +326,48 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "history host, which snapshots the folder first and records the write as a new " +
             "revision that can itself be undone.",
     },
+    "components/project/ProjectsScreen.vue": {
+        count: 1,
+        destroys:
+            "a world's project file, and with it every map, storage and render setting that " +
+            "world was set up to render with",
+        standing: "gated",
+        gatedIn: "components/project/ProjectList.vue",
+        note:
+            "The one call in the whole project feature that takes anything away. Everything " +
+            "else there writes or reads. The gate names each file, and says out loud that the " +
+            "Minecraft world and its already-rendered tiles are both untouched, because those " +
+            "are the two things people assume and neither is true.",
+    },
+    "components/project/projectHost.ts": {
+        count: 0,
+        destroys:
+            "a world's project file, through the host adapter every project surface shares",
+        standing: "type-only",
+        note:
+            "The seam rather than the deletion, exactly as components/history/historyHost.ts " +
+            "is. It is declared with a count of zero because the detector cannot see it: " +
+            "`deleteProject` is an optional method, so every appearance of it is written " +
+            "`deleteProject?(...)`, `deleteProject?.(...)` or as a bare property test, and none " +
+            "of those is the `name(` shape the pattern matches. Recorded here anyway so the " +
+            "inventory covers the route rather than only the call, and so a future change that " +
+            "makes it required is noticed as a count that has drifted from zero.",
+    },
     "components/menu/SettingsMenu.vue": {
         count: 2,
         destroys: "every saved viewer setting in this browser, followed by a reload",
         standing: "gated",
         gatedIn: "components/menu/SettingsMenu.vue",
+    },
+    "components/settings/dockPlacement.ts": {
+        count: 1,
+        destroys: "the remembered placement of every dockable surface, in this browser profile",
+        standing: "reversible",
+        note:
+            "The global reset behind the placement controls. It forgets a stored preference " +
+            "rather than any content, every surface returns to the default it shipped with, " +
+            "and the same controls write the choice again the next time one is made. Its own " +
+            "comment gives the reason it removes the key rather than writing an empty record.",
     },
     "components/setup/firstRunFlow.ts": {
         count: 3,

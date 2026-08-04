@@ -15,7 +15,7 @@
  * stays in, and the state this panel is nearly always rendered in.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
@@ -28,6 +28,27 @@ import type {
     RenderSummary,
     WorldBridge,
 } from "./worldBridge.js";
+
+beforeAll(() => {
+    // jsdom has no layout engine. The console's level filter is a Vuetify chip group,
+    // which observes its own size, and opening the disclosure throws without this.
+    globalThis.ResizeObserver = class {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+    } as unknown as typeof ResizeObserver;
+
+    globalThis.matchMedia = ((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+    })) as unknown as typeof globalThis.matchMedia;
+});
 
 const ENGINE: EngineDescription = {
     id: "upstream-java",
@@ -221,7 +242,10 @@ describe("what the panel says, rendered", () => {
         run.dispose();
     });
 
-    it("counts the engine's output lines on the button that reveals them", () => {
+    it("counts the console's lines on the button that reveals it", () => {
+        // Five, not three: the run writes "Starting the render." and "Running." into the
+        // same stream, which is what makes the log read as an account of what happened
+        // rather than as an undated wall of engine output.
         const { fake, run } = startedRun();
         for (const line of ["one", "two", "three"]) {
             fake.emit({ type: "log", renderId: "world-abc", level: "info", message: line, at: "t" });
@@ -229,7 +253,37 @@ describe("what the panel says, rendered", () => {
 
         const wrapper = render(run);
 
-        expect(wrapper.text()).toContain("Show the engine's output (3 lines)");
+        expect(wrapper.text()).toContain("Show the console (5 lines)");
+        wrapper.unmount();
+        run.dispose();
+    });
+
+    /**
+     * The console is a disclosure because this panel also renders inside the wizard,
+     * where a four-hundred-pixel log between the progress bar and the Stop button pushes
+     * the control somebody is reaching for off the screen.
+     */
+    it("keeps the console behind the disclosure until it is asked for", async () => {
+        const { fake, run } = startedRun();
+        fake.emit({
+            type: "log",
+            renderId: "world-abc",
+            level: "ERROR",
+            message: "Address already in use",
+            at: "t",
+        });
+
+        const wrapper = render(run);
+        expect(wrapper.find(".mb-console").exists()).toBe(false);
+
+        const toggle = wrapper.findAll("button").find((candidate) => candidate.text().includes("Show the console"));
+        await toggle?.trigger("click");
+
+        expect(wrapper.find(".mb-console").exists()).toBe(true);
+        // And the advice arrives with it, beside the engine's own sentence rather than
+        // in place of it.
+        expect(wrapper.text()).toContain("Address already in use");
+        expect(wrapper.text()).toContain("mod on the Minecraft server");
         wrapper.unmount();
         run.dispose();
     });

@@ -20,7 +20,8 @@ import {
     VIcon,
     VProgressLinear,
 } from "vuetify/components";
-import { adviseOnFailure, formatDuration, phaseLabel } from "./renderRun.js";
+import RenderConsole from "../console/RenderConsole.vue";
+import { LOG_LIMIT, adviseOnFailure, formatDuration, phaseLabel } from "./renderRun.js";
 import type { RenderRun } from "./renderRun.js";
 import type { SettingsTarget } from "./worldBridge.js";
 
@@ -278,6 +279,14 @@ function openMap(): void {
 
             <p v-if="engineLine" class="mb-world-run__note mb-world-run__engine">{{ engineLine }}</p>
 
+            <!--
+                The console is a disclosure rather than always-open because this panel
+                also renders in the middle of a wizard, and a four-hundred-pixel log
+                between the progress bar and the Stop button pushes the control somebody
+                is reaching for off the screen. What is behind the disclosure is a real
+                console, not a `<pre>`: levels, search, filter, sticky scrolling, copy and
+                export. See `components/console/RenderConsole.vue`.
+            -->
             <div v-if="run.log.value.length > 0" class="mb-world-run__logs">
                 <v-btn
                     :append-icon="logOpen ? mdiChevronUp : mdiChevronDown"
@@ -289,11 +298,17 @@ function openMap(): void {
                 >
                     {{
                         logOpen
-                            ? t("world.run.hideLog", "Hide the engine's output")
-                            : t("world.run.showLog", { n: run.log.value.length }, "Show the engine's output ({n} lines)")
+                            ? t("world.run.hideLog", "Hide the console")
+                            : t("world.run.showLog", { n: run.log.value.length }, "Show the console ({n} lines)")
                     }}
                 </v-btn>
-                <pre v-if="logOpen" class="mb-world-run__pre">{{ run.log.value.map((line) => line.message).join("\n") }}</pre>
+                <RenderConsole
+                    v-if="logOpen"
+                    :lines="run.log.value"
+                    :dropped="run.logDropped.value"
+                    :cap="LOG_LIMIT"
+                    @settings="(target: SettingsTarget) => emit('settings', target)"
+                />
             </div>
         </v-card-text>
     </v-card>
