@@ -2,6 +2,13 @@ import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type { IpcRendererEvent } from "electron";
 import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
 import type {
+    CiPreflight,
+    CiSyncEvent,
+    CiSyncRequest,
+    CiSyncResult,
+    CiSyncState,
+} from "../main/cirender/index.js";
+import type {
     MapStorageDefaultReadout,
     RenderMemoryReadout,
     RenderMemoryWriteResult,
@@ -1330,6 +1337,23 @@ interface MaterialBlueMapBridge {
      * Only a *description* of the feed crosses, never its token: the credential stays in
      * the main process, and a test serialises this whole object to prove it is not in here.
      */
+    /* ---- Handing a render to GitHub's machines --------------------------- */
+
+    /**
+     * What a sync would do, before it does any of it.
+     *
+     * Says which credential route would be used, whether the world has to be uploaded at
+     * all, what the repository's visibility means, and what a workflow's inputs cannot
+     * carry - so the refusals arrive before an upload rather than inside one.
+     */
+    ciRenderPreflight(request: CiSyncRequest): Promise<{ ok: true; value: CiPreflight } | { ok: false; message: string }>;
+    startCiRender(request: CiSyncRequest): Promise<CiSyncResult>;
+    /** Polls a recorded run without starting anything. Resuming and starting are one call. */
+    checkCiRender(syncId: string): Promise<CiSyncResult>;
+    listCiRenders(): Promise<{ ok: true; value: readonly CiSyncState[] } | { ok: false; message: string }>;
+    cancelCiRender(syncId: string): Promise<boolean>;
+    onCiRenderEvent(listener: (event: CiSyncEvent) => void): () => void;
+
     updateState(): Promise<UpdateState>;
     checkForUpdates(): Promise<UpdateState>;
     /**
@@ -1494,6 +1518,19 @@ const bridge: MaterialBlueMapBridge = {
         // paths, never to resolve one - every real path is joined in the main process,
         // where the separator is the platform's own.
         pathSeparator: process.platform === "win32" ? "\\" : "/",
+    },
+
+    ciRenderPreflight: (request) => ipcRenderer.invoke("cirender:preflight", request),
+    startCiRender: (request) => ipcRenderer.invoke("cirender:start", request),
+    checkCiRender: (syncId) => ipcRenderer.invoke("cirender:check", syncId),
+    listCiRenders: () => ipcRenderer.invoke("cirender:list"),
+    cancelCiRender: (syncId) => ipcRenderer.invoke("cirender:cancel", syncId),
+    onCiRenderEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: CiSyncEvent): void => listener(payload);
+        ipcRenderer.on("cirender:event", forward);
+        return () => {
+            ipcRenderer.off("cirender:event", forward);
+        };
     },
 
     updateState: () => ipcRenderer.invoke("update:state"),

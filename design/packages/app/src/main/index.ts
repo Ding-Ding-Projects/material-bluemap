@@ -2,6 +2,7 @@ import { app, autoUpdater, BrowserWindow, ipcMain, session, clipboard, dialog, s
 import {
     acceptDownload,
     completeFirstRun,
+    hasAcceptedDownload,
     needsFirstRun,
     readConsent,
     revokeDownloadConsent,
@@ -32,6 +33,8 @@ import {
     type InstalledUpdates,
 } from "./update/index.js";
 import { RenderMemoryStore, registerFileHandlers, windowsMapStorageDefault } from "./files/index.js";
+import { installCiRenderIpc } from "./cirender/ipc.js";
+import type { CiRenderIpc } from "./cirender/ipc.js";
 import { registerProjectHandlers } from "./project/index.js";
 import type { ProjectIpc } from "./project/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
@@ -469,6 +472,39 @@ function startFileAccess(render: RenderIpc): RenderMemoryStore {
     return renderMemory;
 }
 
+/**
+ * Handing a render to GitHub's runners.
+ *
+ * It borrows rather than duplicates: the backup runner uploads the world, the download side
+ * fetches the result, and the token comes from the same source the downloader uses. A second
+ * uploader would be a second thing to keep correct about digests and resumption.
+ *
+ * `eulaAccepted` is a reader and nothing else. Mojang's acceptance is a real legal act that
+ * lives in `consent.ts`; there is deliberately no channel here whose name could set it.
+ */
+let ciRenderIpc: CiRenderIpc | null = null;
+
+function startCiRenders(render: RenderIpc, github: GitHubIpc, backup: BackupIpc): CiRenderIpc {
+    if (ciRenderIpc !== null) return ciRenderIpc;
+    ciRenderIpc = installCiRenderIpc({
+        ipcMain,
+        storageDir: () => render.storageDirectory(),
+        token: releaseTokenSource({ session: github.session }),
+        eulaAccepted: () => hasAcceptedDownload(),
+        backup: backup.runner,
+        account: () => github.session.status().account?.login ?? null,
+        mounts: localMaps,
+        broadcast: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (window.isDestroyed()) continue;
+                window.webContents.send("cirender:event", event);
+            }
+        },
+        appVersion: app.getVersion(),
+    });
+    return ciRenderIpc;
+}
+
 async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
@@ -477,6 +513,7 @@ async function createWindow(): Promise<void> {
     const github = startGitHubSignIn();
     startDownloads(render, github);
     startBackups(render, github);
+    startCiRenders(render, github, startBackups(render, github));
     startWorldInspection();
     startJavaDiscovery();
     startConfigEditing();
