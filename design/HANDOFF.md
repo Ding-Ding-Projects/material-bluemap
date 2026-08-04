@@ -2,8 +2,8 @@
 
 ## Pages continuation checkpoint (2026-08-04)
 
-The fresh `pages-material3-continuation` linked worktree starts at `origin/main` `a23b540` and
-closes the next Pages contract gaps. The persisted shell language/tone settings now feed the
+The `pages-material3-continuation` linked worktree carries the merged Pages contract work and
+closes the next hosted-capture gap. The persisted shell language/tone settings now feed the
 search package, so every regex field refreshes its visible label, placeholder, builder title and
 results when the visitor changes mode or either funny slider. Search results carrying
 `article#section` now land on the exact documentation heading rather than reopening the article
@@ -21,17 +21,20 @@ its new cards, searches, dialogs or controls outside the editor.
 Verification in this linked worktree:
 
 - `pnpm --filter @material-bluemap/site typecheck` — passed.
-- Focused site tests — **39 passed** across localization, article-command, settings-tab search,
-  content, date-range, changelog and search suites.
+- Focused site tests — **127 passed** across 13 files, including localization, article-command,
+  settings-tab search, content, date-range, changelog and search suites.
 - `pnpm lint` — passed.
-- `pnpm --filter @material-bluemap/site build` — passed (196 modules transformed).
-- `node scripts/build-changelog.mjs --check` — passed (40 versions, 97 entries).
-- A prior local full-monorepo `pnpm test` run remains red on CRLF byte-exact HOCON fixture
-  expectations and unresolved `@material-bluemap/nbt` package-entry resolution. The newest
-  remote CI run, [30884892507](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30884892507),
-  also reports one concurrent world-mount failure: `mounts.test.ts` expected `.minecraft` but
-  received `.`. Those failures are outside this Pages change and are recorded, not relabelled as
-  Pages success.
+- `pnpm build` — passed for all workspace packages; the site production bundle transformed 205
+  modules.
+- `node scripts/build-changelog.mjs --check` — passed (43 versions, 119 entries).
+- Hosted CI run [30887123867](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30887123867)
+  passed workflow lint, **4,232 tests with 22 skipped**, all seven jars, Java test-world render,
+  and the Windows installer. Its screenshot job passed 15 tests but exposed one harness defect:
+  the wizard is a separate tab and the fresh shell was still on the map tab.
+- Commit `b9be794` makes the screenshot harness follow the visible **Make a map** tab before
+  waiting for `.mb-world-wizard`. Hosted run
+  [30888631389](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30888631389)
+  is the current pending proof for that correction.
 
 This is source, type, focused-unit, lint and production-bundle evidence. A cheap headless
 Windows capture of the live GitHub Pages site remains a separate runtime/UI boundary.
