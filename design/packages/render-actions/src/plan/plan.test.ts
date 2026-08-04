@@ -1,3 +1,4 @@
+import { DEFAULT_MERGE_GROUP_SIZE } from "../resume/mergeTree.js";
 import { describe, expect, it } from "vitest";
 import {
     GITHUB_MATRIX_JOB_LIMIT,
@@ -257,5 +258,46 @@ describe("planning for speed rather than merely for the budget", () => {
         const perShardSeconds = plan.estimate.seconds / plan.shards.length;
 
         expect(perShardSeconds).toBeLessThanOrEqual(10 * 60);
+    });
+});
+
+describe("not buying speed with the map itself", () => {
+    // The boundary that matters here is not time. Up to one merge group the run assembles
+    // one complete map, which can be downloaded and hosted; past it the map is delivered
+    // as partials no runner ever holds together. Sharding harder for speed and quietly
+    // handing back a pile of parts would be a worse answer, not a faster one.
+    const big = denseWorld(40);
+
+    it("stops at the largest plan that still produces one whole map", () => {
+        const plan = planShards(big, { mapId: "world", budgetSeconds: 4 * 3600, maxJobs: 256, ...layout });
+
+        expect(plan.shards.length).toBeLessThanOrEqual(DEFAULT_MERGE_GROUP_SIZE);
+        expect(plan.decision.join(" ")).toContain("one complete map");
+    });
+
+    it("crosses it anyway when the budget leaves no choice", () => {
+        // A shard that cannot finish inside a job's time limit does not finish at all, so
+        // here a map in parts genuinely beats no map.
+        const plan = planShards(big, { mapId: "world", budgetSeconds: 60, maxJobs: 256, ...layout });
+
+        expect(plan.shards.length).toBeGreaterThan(DEFAULT_MERGE_GROUP_SIZE);
+    });
+
+    it("still crosses it when a person asked for a specific count", () => {
+        const plan = planShards(big, {
+            mapId: "world",
+            budgetSeconds: 4 * 3600,
+            maxJobs: 256,
+            forceShards: 64,
+            ...layout,
+        });
+
+        expect(plan.shards.length).toBeGreaterThan(DEFAULT_MERGE_GROUP_SIZE);
+    });
+
+    it("says nothing about the limit when the plan was never near it", () => {
+        const plan = planShards(denseWorld(2), { mapId: "world", budgetSeconds: 4 * 3600, ...layout });
+
+        expect(plan.decision.join(" ")).not.toContain("one complete map");
     });
 });
