@@ -26,15 +26,15 @@ Verification in this linked worktree:
 - `pnpm lint` — passed.
 - `pnpm build` — passed for all workspace packages; the site production bundle transformed 205
   modules.
-- `node scripts/build-changelog.mjs --check` — passed (43 versions, 119 entries).
-- Hosted CI run [30887123867](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30887123867)
+- `node scripts/build-changelog.mjs --check` — passed (44 versions, 123 entries).
+- Hosted CI run [30890865475](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30890865475)
   passed workflow lint, **4,232 tests with 22 skipped**, all seven jars, Java test-world render,
-  and the Windows installer. Its screenshot job passed 15 tests but exposed one harness defect:
-  the wizard is a separate tab and the fresh shell was still on the map tab.
-- Commit `b9be794` makes the screenshot harness follow the visible **Make a map** tab before
-  waiting for `.mb-world-wizard`. Hosted run
-  [30888631389](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30888631389)
-  is the current pending proof for that correction.
+  the Windows installer, and the full screenshot suite. The screenshot correction is therefore
+  verified on the merged default branch, not merely on the continuation branch.
+- Pages workflow [30892326119](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30892326119)
+  passed both site build and deployment. The live bundle at
+  `https://ding-ding-projects.github.io/material-bluemap/` contains the settings-tab search and
+  article command palette strings from the merged build.
 
 This is source, type, focused-unit, lint and production-bundle evidence. A cheap headless
 Windows capture of the live GitHub Pages site remains a separate runtime/UI boundary.

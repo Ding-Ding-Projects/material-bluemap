@@ -42,11 +42,11 @@ sample provider.
 
 - `pnpm test --run packages/site/src/settings/tabSearch.test.ts` — one structural test confirms
   every schema tab has a unique search field and adjacent builder slot.
-- Focused Pages suites — 39 tests passed across seven files, including localization, content,
+- Focused Pages suites — 127 tests passed across 13 files, including localization, content,
   changelog, article-palette, regex-builder and settings-tab search coverage.
 - `pnpm --filter @material-bluemap/site typecheck`
 - `pnpm lint`
-- `pnpm --filter @material-bluemap/site build` — 196 modules transformed.
+- `pnpm --filter @material-bluemap/site build` — 205 modules transformed.
 
 ## Suggested articles
 
