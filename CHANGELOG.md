@@ -20,9 +20,50 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Interface
+
+- Let the palette find the History tab, and stop the README claiming seven - [`2437bc69a7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2437bc69a750aa19cc96b14dec775495ac48df34)
+
+### Desktop shell
+
+- Photograph the backup screen, which shipped without a picture - [`fc9679098b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/fc9679098b1fd6d8aa7850da409d312a720c54eb)
+
+### Build, release and tooling
+
+- Refresh the committed captures with a command instead of a memory - [`0008dd4df1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0008dd4df1e57a29327cf1772e719fb5307ee11f)
+
+### Documentation
+
+- Merge current default work before integrating Pages docs - [`12432939ae`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/12432939aec0a423693303b1f35719a3a18027ed) _(summary of 16 commits, also listed here)_
+- Photograph the History tab, and every wizard step, from a green run - [`531b817588`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/531b8175889dfd9c7f50de9683dba48b5f84dc1e)
+- Mention the Pages tab appearance editor - [`542e7eeeaa`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/542e7eeeaaac172737a1d093cade00ddc6d57c3a)
+
+## 0.1.0-build.193 - 2026-08-04
+
+Tagged at [`a796eab97f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a796eab97fde7252401ed0f25de729485b4dd68d).
+
+### Build, release and tooling
+
+- Find the world archive instead of parsing ls, which shellcheck refuses - [`a796eab97f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a796eab97fde7252401ed0f25de729485b4dd68d)
+
+## 0.1.0-build.192 - 2026-08-04
+
+Tagged at [`715d5c4c52`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/715d5c4c526d940abb21ff4cb996d615c948518c).
+
 ### Desktop shell
 
 - Generate the world the wizard needs instead of noting its absence - [`49af1816f7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/49af1816f77c5dcd796c883985692342890617bb)
+
+### Landing page and documentation site
+
+- Document three shipped features, and stop betting tests on the runner's disk - [`715d5c4c52`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/715d5c4c526d940abb21ff4cb996d615c948518c)
+
+## 0.1.0-build.189 - 2026-08-04
+
+Tagged at [`8491f0d3c3`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8491f0d3c39a02358fe0adf213fece51603bdf90).
+
+### Desktop shell
+
 - Point the capture harness at controls that still exist - [`8491f0d3c3`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8491f0d3c39a02358fe0adf213fece51603bdf90)
 
 ## 0.1.0-build.187 - 2026-08-04

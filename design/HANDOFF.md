@@ -203,6 +203,11 @@ documentation article and teleports to its exact disclosure. `decoratePage` regi
 semantic controls as instance appearance targets so the published Pages surface does not leave
 its new cards, searches, dialogs or controls outside the editor.
 
+The Pages tab strip now keeps its normal management menus while adding Edit tab appearance and
+Edit group appearance, with Shift+right-click opening the same anchored editor directly. The
+feature article is `docs/site/tab-appearance-editors.md`; the desktop application's equivalent
+remains a separate cross-surface gap.
+
 Verification in this linked worktree:
 
 - `pnpm --filter @material-bluemap/site typecheck` — passed.
