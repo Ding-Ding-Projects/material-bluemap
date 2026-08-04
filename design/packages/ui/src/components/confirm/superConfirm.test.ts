@@ -696,7 +696,10 @@ describe("removing a saved map or server actually removes it, and only then", ()
     async function openRowGate(): Promise<VueWrapper<unknown>> {
         const host = mountIn(ProfileManager, {});
         await settle();
-        document.querySelector<HTMLElement>(".v-list-item__append button")?.click();
+        // The row's own actions. The list is a real listbox now rather than a `v-list`, and
+        // the delete button sits beside the option rather than inside it, because ARIA
+        // forbids an interactive descendant of an `option`.
+        document.querySelector<HTMLElement>(".mb-profiles__actions button")?.click();
         await settle();
         return host;
     }
@@ -752,7 +755,7 @@ describe("removing a saved map or server actually removes it, and only then", ()
         const host = mountIn(ProfileManager, {});
         await settle();
 
-        const buttons = document.querySelectorAll<HTMLElement>(".v-list-item__append button");
+        const buttons = document.querySelectorAll<HTMLElement>(".mb-profiles__actions button");
         buttons[1]?.click();
         await settle();
 
