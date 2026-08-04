@@ -85,9 +85,17 @@ jobs:
       # `enablement` matters in a repository that has never published Pages: without it
       # this step fails with "Get Pages site failed ... Not Found", which reads as a broken
       # build and is actually a repository setting nobody has turned on yet.
+      #
+      # Creating the site needs more than the workflow token carries, though - the job's
+      # `pages: write` permission lets it publish to a site that exists, not bring one into
+      # being - so the same token chain the release job uses is offered first and the
+      # workflow token remains the last resort. A repository where none of them may create
+      # a Pages site gets a clear refusal from this step rather than a green deploy nobody
+      # can visit.
       - uses: actions/configure-pages@v5
         with:
           enablement: true
+          token: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
 
       - uses: actions/upload-pages-artifact@v3
         with:
