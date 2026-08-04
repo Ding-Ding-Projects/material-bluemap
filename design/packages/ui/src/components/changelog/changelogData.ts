@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "c386e76272bf9810fef3c0c65c236aa06e33e2a2",
+        shortSha: "c386e76272",
+        date: "2026-08-04T15:16:46-04:00",
+        subject: "Preserve config line endings across Windows and Unix",
+        details: "Config files now keep the newline style they arrived with, while fresh output matches the host; the test maps also admit that null is a real world. The code no longer turns every Windows save into a tiny formatting earthquake.\n\n設定檔而家會保留原本嘅換行風格，新生成檔案就跟返主機；測試地圖亦承認 null 真係一個世界。等個 code 唔好再將 Windows 儲存變成迷你格式地震。",
+        category: "services",
+        areas: ["services", "shell"],
+        files: 8,
+    },
+    {
         sha: "0e4f831538a2d0b9f3b02e98a83fb0711dd905fe",
         shortSha: "0e4f831538",
         date: "2026-08-04T15:05:27-04:00",

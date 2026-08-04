@@ -26,6 +26,7 @@ full message for the in-app changelog viewer.
 
 ### Server, CLI and configuration
 
+- Preserve config line endings across Windows and Unix - [`c386e76272`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c386e76272bf9810fef3c0c65c236aa06e33e2a2)
 - Let one project cover several worlds, without pretending to know where they are - [`88924b0a44`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/88924b0a4438f718aafd20524db3b8c33d6e81c8)
 - Give a world a project file, so its settings outlive one render - [`1eb15bc46e`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1eb15bc46edcc51de18cedd3395e3ba3064a0fce)
 
