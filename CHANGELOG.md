@@ -58,6 +58,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Record the latest registered flows in the handoff - [`6e3260fd9e`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6e3260fd9ed421a8f407d96b6e3eba891119df08)
 - Align handoff with the current default tip - [`cee6779b6b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cee6779b6b3eb2e5bbda4f365e983fb466c060d5)
 - Record the fresh full workspace gate - [`393401be9f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/393401be9f1dd8a0bf49506267dda5cd028fa0fa)
 - Document current workspace verification - [`ab2ae1ee02`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ab2ae1ee0213ac83af5d5e2355c0275690f22011)

@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "6e3260fd9ed421a8f407d96b6e3eba891119df08",
+        shortSha: "6e3260fd9e",
+        date: "2026-08-04T16:41:31-04:00",
+        subject: "Record the latest registered flows in the handoff",
+        details: "The handoff and roadmap now name the registered bridge and update-banner wiring, carry the 171-entry history count, and point at the exact current hosted-proof boundary. The project plan has stopped reading like it missed the last train.\\n\\nHandoff 同 roadmap 而家記埋 registered bridge、update banner、171-entry history，同 exact hosted-proof boundary。Project plan 唔再似趕唔切尾班車。",
+        category: "docs",
+        areas: ["docs"],
+        files: 2,
+    },
+    {
         sha: "56fcd97fc6f00e9675a4e1fd70992f3e203bb77c",
         shortSha: "56fcd97fc6",
         date: "2026-08-04T16:38:14-04:00",
