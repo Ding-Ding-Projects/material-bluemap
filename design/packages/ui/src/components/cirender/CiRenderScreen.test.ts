@@ -419,3 +419,50 @@ describe("what it says about an upload", () => {
         expect(wrapper.text()).toContain("BlueMap's defaults");
     });
 });
+
+describe("hosting the finished map on GitHub Pages", () => {
+    it("does not ask for it unless somebody says so", async () => {
+        // Rendering a world is a private act until the person says otherwise. A default
+        // that put somebody's world on the open web the first time they pressed the
+        // button would be wrong even in a repository that is already public.
+        const started: CiSyncResult[] = [];
+        const wrapper = mountScreen(fakeBridge(preflight({ uploadNeeded: false, worldChanged: false }), started));
+        await check(wrapper);
+
+        const box = wrapper.find('[data-test="publish-pages"] input');
+        expect((box.element as HTMLInputElement).checked).toBe(false);
+
+        await wrapper.find('[data-test="start"]').trigger("click");
+        await flushPromises();
+        expect(JSON.parse(started[0]?.ok === false ? started[0].failure.message : "{}")).toMatchObject({
+            output: "artifact",
+        });
+    });
+
+    it("asks the workflow to publish when it is ticked", async () => {
+        const started: CiSyncResult[] = [];
+        const wrapper = mountScreen(fakeBridge(preflight({ uploadNeeded: false, worldChanged: false }), started));
+        await check(wrapper);
+
+        await wrapper.find('[data-test="publish-pages"] input').setValue(true);
+        await wrapper.find('[data-test="start"]').trigger("click");
+        await flushPromises();
+
+        expect(JSON.parse(started[0]?.ok === false ? started[0].failure.message : "{}")).toMatchObject({
+            output: "artifact-and-pages",
+        });
+    });
+
+    it("says where the map lands and what a map in parts means, before it is started", async () => {
+        // Two things somebody would otherwise find out afterwards: the map goes under the
+        // documentation site rather than over it, and a world too big to assemble on one
+        // runner cannot be hosted this way at all.
+        const wrapper = mountScreen(fakeBridge(preflight({ uploadNeeded: false, worldChanged: false })));
+        await check(wrapper);
+        await wrapper.find('[data-test="publish-pages"] input').setValue(true);
+
+        const text = wrapper.text();
+        expect(text).toContain("/map/");
+        expect(text).toContain("in parts");
+    });
+});
