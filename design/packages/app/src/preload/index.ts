@@ -1,5 +1,13 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type { IpcRendererEvent } from "electron";
+import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
+import type {
+    MapStorageDefaultReadout,
+    RenderMemoryReadout,
+    RenderMemoryWriteResult,
+    RevealResult,
+    RevealRootReadout,
+} from "../main/files/index.js";
 import type {
     BackupEvent,
     BackupListing,
@@ -1314,6 +1322,40 @@ interface MaterialBlueMapBridge {
      */
     project: ProjectBridge;
 
+    /* ---- Keeping the application current ------------------------------- */
+
+    /**
+     * What the updater knows right now.
+     *
+     * Only a *description* of the feed crosses, never its token: the credential stays in
+     * the main process, and a test serialises this whole object to prove it is not in here.
+     */
+    updateState(): Promise<UpdateState>;
+    checkForUpdates(): Promise<UpdateState>;
+    /**
+     * Quits into the installer, if nothing is in the way.
+     *
+     * Refuses rather than throwing when a render is running: that is hours of work, and
+     * this is the moment the guard is re-read rather than an earlier sample.
+     */
+    restartToInstallUpdate(): Promise<UpdateRestartResult>;
+    onUpdateEvent(listener: (state: UpdateState) => void): () => void;
+
+    /* ---- Folders this application owns ---------------------------------- */
+
+    /** Shows a path in Explorer. Refused unless it is inside a folder this app owns. */
+    revealPath(path: string): Promise<RevealResult>;
+    /** Those folders, read fresh, so a storage directory somebody moved is the one allowed. */
+    revealRoots(): Promise<RevealRootReadout[]>;
+    /** Where rendered maps would go by default, and why, when OneDrive moved Documents. */
+    mapStorageDefault(): Promise<MapStorageDefaultReadout>;
+    /** The ceiling the render JVM runs under, with the units stated both ways. */
+    renderMemory(): Promise<RenderMemoryReadout>;
+    setRenderMemory(setting: {
+        mode: "automatic" | "manual";
+        megabytes: number;
+    }): Promise<RenderMemoryWriteResult>;
+
     /* ---- Backing a world or a rendered map up to GitHub ------------------ */
 
     /** Repositories the signed-in account can actually write to. */
@@ -1453,6 +1495,23 @@ const bridge: MaterialBlueMapBridge = {
         // where the separator is the platform's own.
         pathSeparator: process.platform === "win32" ? "\\" : "/",
     },
+
+    updateState: () => ipcRenderer.invoke("update:state"),
+    checkForUpdates: () => ipcRenderer.invoke("update:check"),
+    restartToInstallUpdate: () => ipcRenderer.invoke("update:restart"),
+    onUpdateEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, state: UpdateState): void => listener(state);
+        ipcRenderer.on("update:event", forward);
+        return () => {
+            ipcRenderer.off("update:event", forward);
+        };
+    },
+
+    revealPath: (path) => ipcRenderer.invoke("files:reveal", path),
+    revealRoots: () => ipcRenderer.invoke("files:revealRoots"),
+    mapStorageDefault: () => ipcRenderer.invoke("files:mapStorageDefault"),
+    renderMemory: () => ipcRenderer.invoke("files:renderMemory"),
+    setRenderMemory: (setting) => ipcRenderer.invoke("files:setRenderMemory", setting),
 
     project: {
         read: (worldFolder) => ipcRenderer.invoke("project:read", worldFolder),

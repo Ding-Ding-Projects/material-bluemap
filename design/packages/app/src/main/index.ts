@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, session, clipboard, dialog } from "electron";
+import { app, autoUpdater, BrowserWindow, ipcMain, session, clipboard, dialog, shell } from "electron";
 import {
     acceptDownload,
     completeFirstRun,
@@ -23,6 +23,15 @@ import type { RenderIpc } from "./render/ipc.js";
 import { installDownloadIpc } from "./download/ipc.js";
 import type { DownloadIpc } from "./download/ipc.js";
 import { releaseTokenSource } from "./download/token.js";
+import { totalmem } from "node:os";
+import {
+    engineFromAutoUpdater,
+    installUpdateIpc,
+    resolveFeed,
+    UPDATE_EVENT_CHANNEL,
+    type InstalledUpdates,
+} from "./update/index.js";
+import { RenderMemoryStore, registerFileHandlers, windowsMapStorageDefault } from "./files/index.js";
 import { registerProjectHandlers } from "./project/index.js";
 import type { ProjectIpc } from "./project/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
@@ -210,7 +219,16 @@ function startRendering(): RenderIpc {
     if (renderIpc !== null) return renderIpc;
 
     const userData = app.getPath("userData");
-    const storageDir = defaultStorageDirectory(userData);
+    // Documents rather than the app's own data folder, because a tile tree is the person's
+    // output rather than this application's state - and redirected out of OneDrive when
+    // Windows has moved Documents there, with the reason carried alongside so the move is
+    // explained rather than discovered. Only a profile that has never chosen a folder is
+    // affected, so an existing install keeps its maps exactly where they are.
+    const windowsDefault = windowsMapStorageDefault({
+        reported: app.getPath("documents"),
+        home: app.getPath("home"),
+    });
+    const storageDir = windowsDefault?.directory ?? defaultStorageDirectory(userData);
     const render = installRenderIpc({
         storageDir,
         defaultStorageDir: storageDir,
@@ -393,6 +411,64 @@ function startProjects(): ProjectIpc {
     return projectIpc;
 }
 
+/**
+ * Keeping the application current, and reaching the folders it owns.
+ *
+ * The installer has emitted the pair Electron's updater reads since it was configured and
+ * nothing consumed it, so every release so far was an update nobody was offered.
+ *
+ * `renderInProgress` is a function rather than a value for the same reason `roots` is: both
+ * are asked at the moment they matter. A render that started after the check would be hours
+ * of work thrown away by a restart, and the maps folder can be moved while the app runs, so
+ * a captured list would keep allowing the folder somebody left.
+ */
+let updatesInstalled: InstalledUpdates | null = null;
+
+function startUpdates(render: RenderIpc): void {
+    if (updatesInstalled !== null) return;
+    updatesInstalled = installUpdateIpc(ipcMain, {
+        currentVersion: app.getVersion(),
+        feed: resolveFeed({
+            packaged: app.isPackaged,
+            platform: process.platform,
+            arch: process.arch,
+            version: app.getVersion(),
+            repository: "Ding-Ding-Projects/material-bluemap",
+            environment: process.env,
+        }),
+        engine: process.platform === "win32" ? engineFromAutoUpdater(autoUpdater) : null,
+        renderInProgress: () => render.orchestrator.activeRenderIds().length > 0,
+        broadcast: (state) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(UPDATE_EVENT_CHANNEL, state);
+            }
+        },
+    });
+    app.on("will-quit", () => updatesInstalled?.dispose());
+}
+
+let renderMemory: RenderMemoryStore | null = null;
+let filesRegistered = false;
+
+function startFileAccess(render: RenderIpc): RenderMemoryStore {
+    renderMemory ??= new RenderMemoryStore({
+        dataDir: app.getPath("userData"),
+        totalMemoryBytes: totalmem(),
+    });
+    if (filesRegistered) return renderMemory;
+    filesRegistered = true;
+    registerFileHandlers(ipcMain, {
+        shell,
+        documents: { reported: app.getPath("documents"), home: app.getPath("home") },
+        memory: renderMemory,
+        roots: () => [
+            { id: "maps", label: "the folder rendered maps go in", path: render.storageDirectory() },
+            { id: "data", label: "this app's own data folder", path: app.getPath("userData") },
+        ],
+    });
+    return renderMemory;
+}
+
 async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
@@ -406,6 +482,8 @@ async function createWindow(): Promise<void> {
     startConfigEditing();
     startConfigHistory();
     startProjects();
+    startFileAccess(render);
+    startUpdates(render);
 
     const window = new BrowserWindow({
         width: 1280,
