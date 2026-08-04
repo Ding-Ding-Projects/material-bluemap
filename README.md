@@ -63,6 +63,43 @@ Open a section to see the rest. Each capture's own caption sits beside it in
 what method, and every surface the run could not reach.
 
 <details>
+<summary><b>Starting a render: the guide, step by step</b></summary>
+
+Captured from the installed Windows build on an off-screen desktop, driving the real
+packaged app. The Mojang download consent was **declined** in this run, which is why the
+review step says the render would stop before it started: that is the app being honest
+about a decision nobody made, not a failure.
+
+**Where rendered maps are stored**, asked once during setup and changeable later in
+Settings. Nothing is written to disk until the first render starts.
+
+![The setup step that chooses where rendered maps are stored](docs/screenshots/guide-0-where-maps-are-stored.png)
+
+**Choosing a world.** The folder is checked as soon as it is given, and the dimensions
+offered come from the world itself rather than from a list of vanilla defaults - here one
+dimension with one region file.
+
+![The guide's first step with a world folder accepted and its dimensions read](docs/screenshots/guide-1-world-validated.png)
+
+**Where the map is written.** The folder every tile, the viewer copy and the engine's
+working files go under, plus the map's own storage setting.
+
+![The guide's step four, choosing the folder the rendered map is written to](docs/screenshots/guide-2-where-it-goes.png)
+
+**What is about to happen.** The world, the dimension, the map id, the folder it is
+written to and the engine that will run, stated before anything starts.
+
+![The guide's review step listing the world, dimension, map, destination folder and engine](docs/screenshots/guide-3-review-and-start.png)
+
+**Maps and servers.** A finished render becomes an entry in this same list, beside any
+remote BlueMap server, so switching between a map rendered here and one served elsewhere
+is the same action.
+
+![The maps and servers list, holding a remote BlueMap server entry](docs/screenshots/guide-4-map-server-list.png)
+
+</details>
+
+<details>
 <summary><b>Window sizes, display scales and colour schemes</b> - where clipping and sizing defects appear first</summary>
 
 | | |
