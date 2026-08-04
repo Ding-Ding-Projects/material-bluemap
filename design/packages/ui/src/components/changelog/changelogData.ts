@@ -24,6 +24,17 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "8fd2fc5b1f03fa7c4a06e0618b1a1a688825a466",
+        shortSha: "8fd2fc5b1f",
+        date: "2026-08-04T14:18:40-04:00",
+        subject: "Merge pull request #25 from Ding-Ding-Projects/pages-material3-continuation",
+        details: "Document shipped Pages tab appearance",
+        category: "docs",
+        areas: ["docs", "interface"],
+        files: 3,
+        summarizes: 5,
+    },
+    {
         sha: "12432939aec0a423693303b1f35719a3a18027ed",
         shortSha: "12432939ae",
         date: "2026-08-04T14:16:04-04:00",
@@ -33,6 +44,26 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
         areas: ["docs", "shell", "interface", "site", "services", "build"],
         files: 142,
         summarizes: 16,
+    },
+    {
+        sha: "542e7eeeaaac172737a1d093cade00ddc6d57c3a",
+        shortSha: "542e7eeeaa",
+        date: "2026-08-04T04:59:32-04:00",
+        subject: "Mention the Pages tab appearance editor",
+        details: "The handoff now names the shipped tab and group appearance paths alongside the existing Pages appearance coverage, and keeps the desktop-app boundary explicit. Documentation should not make a freshly decorated tab wear an old label.\\n\\nHandoff 而家寫明 tab 同 group appearance 已經喺 Pages 出街，同時講清楚 desktop app 仲係另一條界線。啱啱執靚嘅 tab 唔應該再著住舊標籤。",
+        category: "docs",
+        areas: ["docs"],
+        files: 1,
+    },
+    {
+        sha: "1eb15bc46edcc51de18cedd3395e3ba3064a0fce",
+        shortSha: "1eb15bc46e",
+        date: "2026-08-04T14:16:11-04:00",
+        subject: "Give a world a project file, so its settings outlive one render",
+        details: "The wizard collected five answers, started a render, and forgot all of\nit. Everything else BlueMap can be told - ninety-odd settings per map,\nseveral maps per world, storages, the web app, the web server - had no\nhome between runs, so the second render asked the same five questions\nand offered none of the rest.\n\nA project is that home, and it lives at the root of the world it\nrenders. That placement is the design rather than a convenience: a world\ncarries its own settings, so opening it on another machine, after a\nreinstall, or three months later finds the maps and options set up for\nit instead of an empty form.\n\nThree refusals are built into the schema rather than left to reviewers.\n\nIt holds no world path, because the file is inside the world - two\nsources of truth for where a world lives go wrong precisely when a\nproject needs to still work, which is the moment somebody moves or\ncopies the folder.\n\nIt refuses a storage carrying connection-properties. This file travels\nin a folder people zip up and send to each other, so a database password\nreaching it is not something to catch in review later.\n\nAnd a file from a newer app is refused outright rather than partly read.\nThe dangerous version of that failure is not a crash: it is loading the\nfields this build understands, ignoring the rest, and deleting them on\nthe next save.\n\nMaps and the four singleton configs keep whole HOCON bodies rather than\na modelled subset, so a project cannot quietly lose the eighty-five\nsettings nobody gave a named field to.\n\n---\n\n精靈問完五條問題、開咗個 render,然後乜都唔記得。BlueMap 其他講得出\n嘅嘢 —— 每張地圖九十幾個設定、一個世界可以有幾張地圖、儲存、網頁應用、\n網頁伺服器 —— 兩次執行之間根本冇地方住,所以第二次 render 又問返同樣\n嗰五條問題,其餘一概唔提。\n\nProject 就係嗰個「屋企」,而佢住喺佢所渲染嗰個世界嘅根目錄。呢個位置\n係設計,唔係就手:世界自己帶住自己嘅設定,所以喺第二部機開、重灌之後\n開、或者三個月之後開,見到嘅係當初嗰套地圖同選項,唔係一張白表格。\n\n三個「唔准」直接寫死喺 schema,唔靠人 review:唔存世界路徑(檔案本身\n就喺世界入面);唔准 storage 帶住 connection-properties(呢個檔會俾人\n壓縮咗傳嚟傳去);見到新版本嘅檔案直接拒絕,唔會讀一半 —— 讀一半嘅\n真正災難唔係死機,係下次儲存時靜靜雞刪走佢睇唔明嗰堆嘢。",
+        category: "services",
+        areas: ["services"],
+        files: 3,
     },
     {
         sha: "2437bc69a750aa19cc96b14dec775495ac48df34",
@@ -72,16 +103,6 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
         details: "The images at docs/screenshots are what the README, the feature\ndocuments and the wiki point at, and until now they were refreshed when\nsomebody remembered to. A surface that changed three commits ago and is\nstill illustrated by a picture of the old one is worse than no picture:\na reader cannot tell which they are looking at, and the caption\nunderneath will confidently describe the wrong thing.\n\nSo: one command. It finds the newest CI run that still holds a\nscreenshots artifact - walking back rather than asking for the newest,\nbecause artifacts expire and a run whose capture job was skipped is\nsuccessful and empty - downloads it, refuses any file that does not\nbegin with the PNG signature, and writes the set here with its\ncaptions.md and manifest.json, which are evidence rather than\ndecoration.\n\nTwo deliberate refusals. It generates nothing and substitutes nothing,\nso a surface this run could not photograph stays missing and is named\nin the manifest. And it never deletes: a picture that is only in the\nrepository is a gap in this run, not a file to remove, and deleting it\nwould turn one missing surface into a broken page in every document\nstill linking to it.\n\n--check reports drift and writes nothing.\n\n---\n\ndocs/screenshots 入面啲圖,係 README、功能文件同 wiki 指住嘅嗰啲,\n而一直以來,更新與否全靠有人記得。三個 commit 之前已經改咗嘅畫面,\n仲用舊圖示住,衰過冇圖:讀者根本分唔出自己望緊邊個版本,而下面段\n說明仲會好肯定咁講錯嘢。\n\n所以:一條指令搞掂。佢會由新到舊搵返最近一個仲有截圖 artifact 嘅 CI\nrun(要行返轉頭,唔可以淨係攞最新嗰個 —— artifact 會過期,而截圖\njob 被跳過嗰個 run 一樣係「成功」但空空如也),下載、驗每個檔案開頭\n係咪真係 PNG,然後連 captions.md 同 manifest.json 一齊寫落嚟。\n\n兩樣特登唔做:一,唔生成、唔代替,所以今次影唔到嘅畫面就係影唔到,\n喺 manifest 度有名有姓;二,唔刪嘢 —— 淨係喺 repo 度有嘅圖,代表今次\n個 run 有窿,唔係代表嗰個檔案要死,剷咗佢就會將「一個畫面冇影到」變\n成「所有指住佢嘅文件都爛」。",
         category: "build",
         areas: ["build"],
-        files: 1,
-    },
-    {
-        sha: "542e7eeeaaac172737a1d093cade00ddc6d57c3a",
-        shortSha: "542e7eeeaa",
-        date: "2026-08-04T04:59:32-04:00",
-        subject: "Mention the Pages tab appearance editor",
-        details: "The handoff now names the shipped tab and group appearance paths alongside the existing Pages appearance coverage, and keeps the desktop-app boundary explicit. Documentation should not make a freshly decorated tab wear an old label.\\n\\nHandoff 而家寫明 tab 同 group appearance 已經喺 Pages 出街，同時講清楚 desktop app 仲係另一條界線。啱啱執靚嘅 tab 唔應該再著住舊標籤。",
-        category: "docs",
-        areas: ["docs"],
         files: 1,
     }
 ];

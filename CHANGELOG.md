@@ -24,6 +24,10 @@ full message for the in-app changelog viewer.
 
 - Let the palette find the History tab, and stop the README claiming seven - [`2437bc69a7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2437bc69a750aa19cc96b14dec775495ac48df34)
 
+### Server, CLI and configuration
+
+- Give a world a project file, so its settings outlive one render - [`1eb15bc46e`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1eb15bc46edcc51de18cedd3395e3ba3064a0fce)
+
 ### Desktop shell
 
 - Photograph the backup screen, which shipped without a picture - [`fc9679098b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/fc9679098b1fd6d8aa7850da409d312a720c54eb)
@@ -34,9 +38,10 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Merge pull request #25 from Ding-Ding-Projects/pages-material3-continuation - [`8fd2fc5b1f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8fd2fc5b1f03fa7c4a06e0618b1a1a688825a466) _(summary of 5 commits, also listed here)_
 - Merge current default work before integrating Pages docs - [`12432939ae`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/12432939aec0a423693303b1f35719a3a18027ed) _(summary of 16 commits, also listed here)_
-- Photograph the History tab, and every wizard step, from a green run - [`531b817588`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/531b8175889dfd9c7f50de9683dba48b5f84dc1e)
 - Mention the Pages tab appearance editor - [`542e7eeeaa`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/542e7eeeaaac172737a1d093cade00ddc6d57c3a)
+- Photograph the History tab, and every wizard step, from a green run - [`531b817588`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/531b8175889dfd9c7f50de9683dba48b5f84dc1e)
 
 ## 0.1.0-build.193 - 2026-08-04
 
