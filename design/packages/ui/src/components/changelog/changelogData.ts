@@ -24,6 +24,26 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "4c20d5ced2d0e77e0d52f99a20327a796e2822b1",
+        shortSha: "4c20d5ced2",
+        date: "2026-08-04T03:06:34-04:00",
+        subject: "Give every settings tab its own search",
+        details: "Each settings panel now owns a localized plain-text search field and adjacent regex builder, with a focused structural test and stable global/sticky regex matching. The settings page no longer asks one search box to impersonate five tabs at once.\n\n每個設定分類而家都有自己條搜尋欄同正則建構器，仲有測試幫手睇住；唔使再叫一個搜尋框扮五個分類，個 regex 游標亦唔會周街亂跑。",
+        category: "docs",
+        areas: ["docs", "site"],
+        files: 5,
+    },
+    {
+        sha: "3ccd32c636571e34e86a59b1920ba7aac9716273",
+        shortSha: "3ccd32c636",
+        date: "2026-08-04T03:03:57-04:00",
+        subject: "Search the settings page's own tabs, and pin it with a test",
+        details: "Work found uncommitted in this worktree and preserved rather than left\nwhere a wiped directory would take it. It is coherent: the site's 13\ntest files and 125 tests pass with it in place.\n\nThe settings page gains a search over its own tab strip, its strings,\nand a test covering the matching.\n\nCommitted by a concurrent session that found it unsaved. Whoever owns\nthis branch should fold it into their own work as they see fit; it is\non the branch it was written on and nothing was merged or rebased.\n\n---\n\n呢啲嘢喺 worktree 度未 commit,執返起身,唔好留喺度俾人一鏟就冇。\n睇過係完整嘅:個 site 13 個 test 檔、125 個 test 全部照過。\n\n係另一個 session 幫手 commit 嘅,冇 merge 冇 rebase,原本喺邊條\nbranch 就留喺邊條。",
+        category: "site",
+        areas: ["site"],
+        files: 3,
+    },
+    {
         sha: "6080c4be7f3de2304a18db298efd00b95a5096ec",
         shortSha: "6080c4be7f",
         date: "2026-08-04T02:56:57-04:00",
