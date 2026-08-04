@@ -96,6 +96,13 @@ export { LowresLayer, type TileUpdateListener } from "./map/lowres/LowresLayer.j
 export { LowresTile } from "./map/lowres/LowresTile.js";
 export { LowresTileManager } from "./map/lowres/LowresTileManager.js";
 
+// map/rendermanager (what decides a tile should not be rendered at all)
+export {
+    TileUpdateStrategy,
+    WorldRegionUpdateTask,
+    type WorldRegionUpdateResult,
+} from "./map/rendermanager/WorldRegionUpdateTask.js";
+
 // map/renderstate (what makes a re-render incremental)
 // (CellStorage.Cell is prefixed: storage/GridStorage already exports a `Cell`)
 export {

@@ -45,6 +45,8 @@ const REQUIRED_EXPORTS = [
     "BmMap",
     "HiresModelManager",
     "LowresTileManager",
+    // the per-region task that decides which tiles to render, delete or leave alone
+    "WorldRegionUpdateTask",
 ];
 
 function emit(result) {
@@ -186,6 +188,7 @@ async function render(engine, options) {
         FileStorage,
         Compression,
         BmMap,
+        WorldRegionUpdateTask,
     } = engine;
 
     const shared = await import(
@@ -293,29 +296,36 @@ async function render(engine, options) {
         settings,
     );
 
-    // --- render ----------------------------------------------------------------------
-    const tileGrid = map.getHiresModelManager().getTileGrid();
-    const tiles = [];
-    for (const region of world.listRegions()) {
-        const min = world.getRegionGrid().getCellMin(region, tileGrid);
-        const max = world.getRegionGrid().getCellMax(region, tileGrid);
-        for (let x = min.getX(); x <= max.getX(); x++)
-            for (let z = min.getY(); z <= max.getY(); z++) tiles.push(new Vector2i(x, z));
-    }
-
-    // de-duplicate: a hires tile can straddle two regions
-    const seen = new Set();
+    /*
+     * --- render ------------------------------------------------------------------------
+     *
+     * One `WorldRegionUpdateTask` per region, which is what BlueMapCLI's `MapUpdateTask`
+     * does. It matters that this is not a tile loop: the task is where upstream decides a
+     * tile should NOT be rendered, and driving `renderTile` directly skips every one of
+     * those decisions.
+     *
+     * That is not a subtlety the gate can forgive. Rendering the whole region-to-tile box
+     * unconditionally produced 253 tiles the reference does not have (ungenerated terrain
+     * past the world's edge, which upstream renders as nothing and *deletes*), left the
+     * lowres meta of those tiles holding real terrain where the reference holds the
+     * transparent black `unrenderTile` stamps, and wrote no render state at all, because
+     * the state is marked by the task rather than by the render.
+     */
     let rendered = 0;
-    for (const tile of tiles) {
-        const key = tile.getX() + ":" + tile.getY();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        await map.renderTile(tile);
-        rendered++;
+    let deleted = 0;
+    for (const region of world.listRegions()) {
+        const task = new WorldRegionUpdateTask(map, region);
+        const result = await task.run();
+        rendered += result.rendered;
+        deleted += result.deleted;
     }
 
     await map.save();
 
+    // "chosen for rendering", not "rendered": a tile whose action is RENDER can still fail
+    // its preconditions inside the task and be unrendered instead. Saying "rendered" here
+    // would overstate by exactly the tiles the gate cares most about.
+    process.stderr.write(`[ts] ${rendered} tile(s) chosen for rendering, ${deleted} deleted\n`);
     return { mapDirectory: join(storageRoot, mapId), tiles: rendered };
 }
 
