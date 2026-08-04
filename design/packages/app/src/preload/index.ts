@@ -1395,6 +1395,38 @@ interface MaterialBlueMapBridge {
      * all, what the repository's visibility means, and what a workflow's inputs cannot
      * carry - so the refusals arrive before an upload rather than inside one.
      */
+    /* ---- Worlds published as somebody else's release --------------------- */
+
+    /** Reads `owner/repo`, a URL or a release link into the pieces an API path needs. */
+    parseWorldSource(text: string): Promise<unknown>;
+    /** What that release actually holds: one archive, or parts and their checksums. */
+    discoverWorldSource(request: unknown): Promise<unknown>;
+    /** Fetches it. Progress arrives on the ordinary download events, not a second stream. */
+    fetchWorldSource(request: unknown): Promise<unknown>;
+    cancelWorldSource(id: string): Promise<boolean>;
+    activeWorldSources(): Promise<readonly string[]>;
+
+    /* ---- Handing a render to a Linux machine over SSH --------------------- */
+
+    /** Checks a target's shape. There is no password field, here or anywhere. */
+    validateRemoteTarget(target: unknown): Promise<unknown>;
+    /** Says in words what is sent, what is never sent, and what is left behind. */
+    describeRemoteTarget(target: unknown): Promise<unknown>;
+    /** ssh, host key, docker, disk - in that order, each with its own sentence. */
+    remotePreflight(target: unknown): Promise<unknown>;
+    /**
+     * Records a host key the person has just been shown and accepted.
+     *
+     * The main process re-scans and writes only a key it offered, so this cannot be used to
+     * put a line of its choosing into a trust store.
+     */
+    trustRemoteHostKey(request: unknown): Promise<unknown>;
+    /** Renders there. Progress arrives on the ordinary render events, like a local one. */
+    startRemoteRender(request: unknown): Promise<unknown>;
+    /** Asks the remote daemon to stop the container, not merely hangs up the ssh. */
+    cancelRemoteRender(renderId: string): Promise<boolean>;
+    activeRemoteRenders(): Promise<readonly string[]>;
+
     ciRenderPreflight(request: CiSyncRequest): Promise<{ ok: true; value: CiPreflight } | { ok: false; message: string }>;
     startCiRender(request: CiSyncRequest): Promise<CiSyncResult>;
     /** Polls a recorded run without starting anything. Resuming and starting are one call. */
@@ -1569,6 +1601,20 @@ const bridge: MaterialBlueMapBridge = {
         // where the separator is the platform's own.
         pathSeparator: process.platform === "win32" ? "\\" : "/",
     },
+
+    parseWorldSource: (text) => ipcRenderer.invoke("worldsource:parse", text),
+    discoverWorldSource: (request) => ipcRenderer.invoke("worldsource:discover", request),
+    fetchWorldSource: (request) => ipcRenderer.invoke("worldsource:fetch", request),
+    cancelWorldSource: (id) => ipcRenderer.invoke("worldsource:cancel", id),
+    activeWorldSources: () => ipcRenderer.invoke("worldsource:active"),
+
+    validateRemoteTarget: (target) => ipcRenderer.invoke("remote:validate", target),
+    describeRemoteTarget: (target) => ipcRenderer.invoke("remote:describe", target),
+    remotePreflight: (target) => ipcRenderer.invoke("remote:preflight", target),
+    trustRemoteHostKey: (request) => ipcRenderer.invoke("remote:trustHostKey", request),
+    startRemoteRender: (request) => ipcRenderer.invoke("remote:render", request),
+    cancelRemoteRender: (renderId) => ipcRenderer.invoke("remote:cancel", renderId),
+    activeRemoteRenders: () => ipcRenderer.invoke("remote:active"),
 
     ciRenderPreflight: (request) => ipcRenderer.invoke("cirender:preflight", request),
     startCiRender: (request) => ipcRenderer.invoke("cirender:start", request),

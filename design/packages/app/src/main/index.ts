@@ -34,6 +34,14 @@ import {
 } from "./update/index.js";
 import { RenderMemoryStore, registerFileHandlers, windowsMapStorageDefault } from "./files/index.js";
 import { registerEulaHandlers } from "./eula/index.js";
+import { join } from "node:path";
+import { homedir } from "node:os";
+import { registerWorldSourceHandlers } from "./worldsource/index.js";
+import type { WorldSourceIpc } from "./worldsource/index.js";
+import { RemoteRenderOrchestrator, registerRemoteHandlers } from "./remote/index.js";
+import type { RemoteIpc } from "./remote/index.js";
+import { DOWNLOAD_EVENT_CHANNEL } from "./download/ipc.js";
+import { RENDER_EVENT_CHANNEL } from "./render/ipc.js";
 import { installCiRenderIpc } from "./cirender/ipc.js";
 import type { CiRenderIpc } from "./cirender/ipc.js";
 import { registerProjectHandlers } from "./project/index.js";
@@ -510,15 +518,76 @@ function startCiRenders(render: RenderIpc, github: GitHubIpc, backup: BackupIpc)
     return ciRenderIpc;
 }
 
+/**
+ * Worlds published as somebody else's release, including the split ones.
+ *
+ * Broadcast on the DOWNLOAD channel and handed the downloader the panel already lists,
+ * both deliberately: a world fetched from another repository is a download like any other,
+ * and a second instance or a second channel would mean a second list, with a transfer in
+ * one of them that the other could neither show nor stop.
+ */
+let worldSourceIpc: WorldSourceIpc | null = null;
+
+function startWorldSources(render: RenderIpc, downloads: DownloadIpc, github: GitHubIpc): WorldSourceIpc {
+    if (worldSourceIpc !== null) return worldSourceIpc;
+    worldSourceIpc = registerWorldSourceHandlers(ipcMain, {
+        storageDir: () => render.storageDirectory(),
+        onEvent: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(DOWNLOAD_EVENT_CHANNEL, event);
+            }
+        },
+        token: releaseTokenSource({ session: github.session }),
+        downloader: downloads.downloader,
+    });
+    return worldSourceIpc;
+}
+
+/**
+ * Handing a render to a Linux machine over SSH.
+ *
+ * Reports on the RENDER channel for the same reason: a remote render appears in the same
+ * list, moves the same bar and is stopped by the same button as a local one.
+ *
+ * Two `known_hosts` are read - this application's own and the user's - and only the
+ * application's is ever written, so trusting a host here never edits a file the rest of
+ * their SSH depends on.
+ */
+let remoteIpc: RemoteIpc | null = null;
+
+function startRemoteRendering(render: RenderIpc): RemoteIpc {
+    if (remoteIpc !== null) return remoteIpc;
+    const knownHostsFile = join(app.getPath("userData"), "known_hosts");
+    const orchestrator = new RemoteRenderOrchestrator({
+        storageDir: () => render.storageDirectory(),
+        resolveEngine: upstreamJavaEngine({
+            dataDir: app.getPath("userData"),
+            resourcesPath: app.isPackaged ? process.resourcesPath : null,
+        }),
+        hasConsent: hasAcceptedDownload,
+        onEvent: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(RENDER_EVENT_CHANNEL, event);
+            }
+        },
+        knownHostsFile,
+        userKnownHostsFile: join(homedir(), ".ssh", "known_hosts"),
+    });
+    remoteIpc = registerRemoteHandlers(ipcMain, { orchestrator, knownHostsFile });
+    return remoteIpc;
+}
+
 async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
     registerIpc();
     const render = startRendering();
     const github = startGitHubSignIn();
-    startDownloads(render, github);
+    const downloads = startDownloads(render, github);
     startBackups(render, github);
     startCiRenders(render, github, startBackups(render, github));
+    startWorldSources(render, downloads, github);
+    startRemoteRendering(render);
     startWorldInspection();
     startJavaDiscovery();
     startConfigEditing();

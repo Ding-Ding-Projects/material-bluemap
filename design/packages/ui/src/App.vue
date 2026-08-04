@@ -29,6 +29,7 @@ import { CommandPalette, usePaletteShortcut } from "./components/palette/index.j
 import { AppearanceTarget } from "./components/appearance/index.js";
 import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
+import { UpdateBanner, createUpdates } from "./components/update/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
 import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js";
@@ -112,6 +113,30 @@ const mapPageActive = computed(() => tabs.value?.activePage?.id === PAGE_MAP);
  * the system browser, which is the one route that already refuses anything that is not
  * HTTPS. A renderer that opened URLs itself would be a second policy to keep in step.
  */
+/**
+ * The updater, mounted once for the whole shell.
+ *
+ * One controller, because two would each check on their own schedule and each stage their
+ * own copy - and the banner and the settings row would then disagree about what is ready.
+ * A refusal becomes an ordinary notice rather than a thrown error: "a render is running"
+ * is a sentence, not a fault.
+ */
+const updates = createUpdates({
+    onRefusal: (message: string) => {
+        raiseNotice("warning", message);
+    },
+});
+const restartingForUpdate = ref(false);
+
+async function restartForUpdate(): Promise<void> {
+    restartingForUpdate.value = true;
+    try {
+        await updates.restart();
+    } finally {
+        restartingForUpdate.value = false;
+    }
+}
+
 function openInBrowser(url: string): void {
     window.open(url, "_blank", "noopener,noreferrer");
 }
@@ -375,6 +400,20 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
         >
             <AppTitleBar />
         </AppearanceTarget>
+
+        <!--
+            Under the title bar and above everything else, because an update that is ready
+            is worth seeing and worth nothing if it interrupts. It never covers a page, and
+            it waits: restarting is the person's decision and the render guard is re-read
+            at the moment they press it.
+        -->
+        <UpdateBanner
+            :model="updates.banner.value"
+            :busy="restartingForUpdate"
+            @restart="restartForUpdate"
+            @dismiss="updates.dismiss()"
+            @open-notes="openInBrowser"
+        />
 
         <v-main class="mb-main">
             <!--
