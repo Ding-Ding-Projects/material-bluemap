@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "5499b828e8ee073b801ca02342fdbeee4aaa6930",
+        shortSha: "5499b828e8",
+        date: "2026-08-04T14:51:59-04:00",
+        subject: "Wire searchable menus and shell regex builder",
+        details: "Menu filtering now owns its field, guided builder, bounded regex matching, and honest no-results state, so tab, group, overflow, and page-action menus stop pretending a list is a search surface. The shell RegexBuilderSlot also gets a real non-persistent provider and carries regex mode and flags into the tab-list matcher.\\n\\n選單搜尋而家有自己條輸入欄、砌式工具同清楚嘅冇結果提示，分頁、群組、溢出同頁面操作唔再扮一碟靜態餸。RegexBuilderSlot 終於有真正 provider，分頁清單唔會開完正規表示式又偷偷當純文字。",
+        category: "site",
+        areas: ["site", "docs", "interface"],
+        files: 15,
+    },
+    {
         sha: "6b5fdd7f824bbfac05976142e14341059ee860a3",
         shortSha: "6b5fdd7f82",
         date: "2026-08-04T14:37:31-04:00",
