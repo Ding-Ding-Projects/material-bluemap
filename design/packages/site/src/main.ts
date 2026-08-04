@@ -65,6 +65,9 @@ import { ThemeController } from "./theme/ThemeController.js";
 import { createCommandPalette, type PaletteCommand } from "./shell/commandPalette.js";
 import { registerAppearanceTarget } from "./appearance/editor/contextMenu.js";
 import { setSearchLocale } from "./search/strings.js";
+import { createSearchSurface } from "./search/searchSurface.js";
+import type { CandidateField } from "./search/runSearch.js";
+import type { NotificationRecord } from "./notifications/Notifications.js";
 
 /* -------------------------------------------------------------------------- */
 /* Small DOM helpers                                                          */
@@ -730,12 +733,61 @@ function boot(): void {
             const title = el("h1", "mb-page-title");
             i18n.bindText(title, "site.notificationTitle");
             view.appendChild(title);
-            const list = el("div", "notification-centre");
-            notifications.renderCentre(list);
-            view.appendChild(list);
+            const fields: readonly CandidateField<NotificationRecord, "title" | "body">[] = [
+                { name: "title", get: (record) => i18n.text(record.title) },
+                { name: "body", get: (record) => record.body === null ? "" : i18n.text(record.body) },
+            ];
+            const search = createSearchSurface({
+                fieldId: "notifications.history",
+                labelText: i18n.t("site.searchNotifications"),
+                placeholder: i18n.t("site.searchNotificationsPlaceholder"),
+                labelTextSource: () => i18n.t("site.searchNotifications"),
+                placeholderSource: () => i18n.t("site.searchNotificationsPlaceholder"),
+                resultsLabel: i18n.t("site.notificationEntries"),
+                fields,
+                items: () => notifications.list(),
+                subscribe: (listener) => notifications.subscribe(listener),
+                renderResult: ({ item }) => {
+                    const row = el("article", "notification-centre__item");
+                    const heading = el("h2", "notification-centre__title", i18n.text(item.title));
+                    const time = el("time", "notification-centre__time", item.at.toLocaleTimeString());
+                    time.setAttribute("datetime", item.at.toISOString());
+                    row.append(heading, time);
+                    if (item.body !== null) row.append(el("p", "notification-centre__body", i18n.text(item.body)));
+                    return row;
+                },
+            });
+            view.appendChild(search.element);
+            const actions = el("div", "mb-changelog-actions");
+            const clearButton = el("button", "md-button md-button--outlined");
+            clearButton.type = "button";
+            i18n.bindText(clearButton, "site.clearNotifications");
+            const exportButton = el("button", "md-button md-button--outlined");
+            exportButton.type = "button";
+            i18n.bindText(exportButton, "site.exportNotifications");
+            const status = el("p", "mb-help");
+            status.setAttribute("role", "status");
+            status.setAttribute("aria-live", "polite");
+            clearButton.addEventListener("click", () => {
+                notifications.clearAll();
+                i18n.bindText(status, "site.notificationsCleared");
+            });
+            exportButton.addEventListener("click", () => {
+                const lines = notifications.list().map((record) => `- ${record.at.toISOString()} [${record.severity}] ${i18n.text(record.title)}${record.body === null ? "" : ` — ${i18n.text(record.body)}`}`);
+                const blob = new Blob([`# ${i18n.t("site.notificationTitle")}\n\n${lines.join("\n")}\n`], { type: "text/markdown;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "material-bluemap-notifications.md";
+                link.click();
+                URL.revokeObjectURL(url);
+                i18n.bindText(status, "site.notificationsExported");
+            });
+            actions.append(clearButton, exportButton, status);
+            view.appendChild(actions);
             host.replaceChildren(view);
             decoratePage(host, "notifications", appearance);
-            return notifications.subscribe(() => notifications.renderCentre(list));
+            return () => search.destroy();
         },
     });
 
