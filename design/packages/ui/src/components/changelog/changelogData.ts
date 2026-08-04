@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "b9391b858476c6aa7aebdda23088567bb6c95c7e",
+        shortSha: "b9391b8584",
+        date: "2026-08-04T03:15:34-04:00",
+        subject: "Keep mounted folder labels cross-platform",
+        details: "Default mount labels now parse both slash styles instead of asking the host OS to dirname a foreign path. A Windows .minecraft\\\\saves path therefore keeps its useful .minecraft label on Linux CI, where the old parser quietly returned ..\n\n而家兩種 slash 都識得拆，唔再叫主機 OS 用自己嗰套 dirname 去解讀外地 path；Windows 嘅 .minecraft\\\\saves 喺 Linux CI 都會保留 .minecraft，唔會無端端變 .。",
+        category: "shell",
+        areas: ["shell"],
+        files: 1,
+    },
+    {
         sha: "f6307576dbcedec562a91aac60d7e297e4474e27",
         shortSha: "f6307576db",
         date: "2026-08-04T03:11:39-04:00",
