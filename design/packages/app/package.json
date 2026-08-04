@@ -12,7 +12,8 @@
         "test": "vitest run",
         "package": "node build.mjs && electron-builder --dir --config electron-builder.config.cjs",
         "make": "node build.mjs && electron-builder --win --config electron-builder.config.cjs --publish never",
-        "screenshots": "playwright test --config playwright.config.ts"
+        "screenshots": "playwright test --config playwright.config.ts",
+        "typecheck": "tsc -p tsconfig.json --noEmit"
     },
     "devDependencies": {
         "electron": "^37.10.3",

@@ -22,6 +22,7 @@ import { installRenderIpc } from "./render/ipc.js";
 import type { RenderIpc } from "./render/ipc.js";
 import { installDownloadIpc } from "./download/ipc.js";
 import type { DownloadIpc } from "./download/ipc.js";
+import { releaseTokenSource } from "./download/token.js";
 import { installGitHubIpc } from "./github/ipc.js";
 import type { GitHubIpc } from "./github/ipc.js";
 import { openExternalHttps } from "./github/external.js";
@@ -233,9 +234,12 @@ function startRendering(): RenderIpc {
  */
 let downloadIpc: DownloadIpc | null = null;
 
-function startDownloads(render: RenderIpc): DownloadIpc {
+function startDownloads(render: RenderIpc, github: GitHubIpc): DownloadIpc {
     if (downloadIpc !== null) return downloadIpc;
-    downloadIpc = installDownloadIpc({ storageDir: () => render.storageDirectory() });
+    downloadIpc = installDownloadIpc({
+        storageDir: () => render.storageDirectory(),
+        token: releaseTokenSource({ session: github.session }),
+    });
     return downloadIpc;
 }
 
@@ -316,8 +320,7 @@ async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
     registerIpc();
-    startDownloads(startRendering());
-    startGitHubSignIn();
+    startDownloads(startRendering(), startGitHubSignIn());
     startWorldInspection();
     startJavaDiscovery();
     startConfigEditing();

@@ -75,7 +75,7 @@ export interface DownloadIpcOptions {
      * Read every time rather than captured, and never required: a public release
      * downloads with no token at all, which is the case this exists to serve.
      */
-    readonly token?: () => string | null;
+    readonly token?: () => string | null | Promise<string | null>;
     readonly concurrency?: number;
 }
 

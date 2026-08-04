@@ -1,23 +1,24 @@
 {
-  "name": "@material-bluemap/viewer",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "description": "three.js map viewer library ported from the BlueMap webapp",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@material-bluemap/shared": "workspace:*",
-    "dompurify": "^3.4.12",
-    "hammerjs": "2.0.8",
-    "three": "0.147.0"
-  },
-  "devDependencies": {
-    "@types/hammerjs": "^2.0.46",
-    "@types/three": "0.147.1"
-  }
+    "name": "@material-bluemap/viewer",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "three.js map viewer library ported from the BlueMap webapp",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "test": "vitest run",
+        "typecheck": "tsc -p tsconfig.json --noEmit"
+    },
+    "dependencies": {
+        "@material-bluemap/shared": "workspace:*",
+        "dompurify": "^3.4.12",
+        "hammerjs": "2.0.8",
+        "three": "0.147.0"
+    },
+    "devDependencies": {
+        "@types/hammerjs": "^2.0.46",
+        "@types/three": "0.147.1"
+    }
 }

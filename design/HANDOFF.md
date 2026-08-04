@@ -48,12 +48,26 @@ document says so.
 
 ### What does not work yet
 
-- **The TypeScript mesher does not yet match the Java engine.** The oracle ran its first
-  real comparison on 2026-08-03: 48 of 57 compared files differed. Three known problem
-  areas: the texture list is missing about 839 entries and formats numbers differently;
-  tile file paths split into folders differently; the TypeScript meshes contain roughly
-  half the geometry Java produces. Until the gate passes, local rendering uses the Java
-  engine and that is correct behaviour, not a bug.
+- **The TypeScript mesher does not yet match the Java engine.** The oracle compared them
+  on 2026-08-03: 49 of 57 compared files differ. Until the gate passes, local rendering
+  uses the Java engine, and that is correct behaviour rather than a bug.
+
+  Three causes are now known precisely, which is a change from the earlier guesses:
+  1. **The texture list.** Its number and string spelling now match Java exactly. What
+     still differs is that Java and the port use different PNG encoders, so the same image
+     comes out as different bytes — same pixels, different file. The list is also still
+     missing entries (Java has 2092, the port has 1253) for a reason not yet found.
+  2. **253 extra tile files, and six missing `rstate/` files.** One shared cause: a Java
+     class called `WorldRegionUpdateTask` has not been ported. It is what decides a tile
+     should be skipped, and it is what records what was rendered. Tile paths are fine —
+     that earlier guess was wrong.
+  3. **Missing geometry.** Partly fixed: tiles are now about 20% larger after a change
+     that loads a tile's chunks before meshing it. More remains.
+
+- **A warning for anyone measuring the gate: build first.** `tools/oracle` runs the
+  *compiled* engine, so a run measures the last build rather than the current source. It
+  now compiles automatically, but a report older than 2026-08-03 late-evening may have been
+  grading a stale build.
 - Phases E, G, H, I are not started. Phase C has three unfinished exit checks.
 - The contract issues (#6 to #13) are open: regex builder everywhere, tabs, appearance
   editors, language-mode completeness, the command palette, the changelog viewer, the
@@ -64,10 +78,16 @@ document says so.
 Run these from the repository root. All should succeed today.
 
 ```bash
-cd design && npx vitest run          # every unit test (about 3000, under 30 seconds)
+cd design && npx vitest run          # every unit test (about 3200, under 30 seconds)
+cd design && pnpm typecheck          # type-checks all 13 packages (vue-tsc for the ui one)
+cd design && pnpm lint
 node tools/oracle/selftest.mjs       # proves the byte-comparison gate can detect planted differences
 node tools/oracle/compare.mjs --seed 7 --size 200   # the real gate; currently reports divergences, exit 1
 ```
+
+The gate compiles the engine itself before rendering, so it always grades the current
+source. That takes a few extra seconds and is deliberate — see the 2026-08-03 late section
+at the bottom for the wrong conclusion its absence produced.
 
 ### If you are picking this up
 
@@ -724,3 +744,113 @@ and the comment no longer opens with the magic word.
 
 Merged-tree verification for the wave: **app + ui 1245 tests green**, `vue-tsc`, `tsc`
 and `eslint` clean, both bundles built (12 Roboto Mono woff2 subsets in dist).
+
+---
+
+## Update, 2026-08-03, late — the gate was grading a stale build
+
+The headline is a process defect, not a code one, and it invalidates two previously
+recorded gate measurements.
+
+**`tools/oracle/render-ts.mjs` imports the engine's built `dist/`**, because it runs as its
+own node process and node does not read TypeScript. Nothing built it first. So a gate run
+measured whatever was last compiled rather than what was in `src/` — and those differ for
+exactly as long as somebody is editing the mesher, which is the whole time the harness is
+useful.
+
+This had already produced a wrong conclusion. The working tree carried two real fixes (the
+textures-file number spelling, and the missing-chunk preload). A run after them returned a
+report byte-identical to the one from before them: same first-differing offset (55), same
+file sizes, same 48-of-57. The natural reading is "the fixes did nothing". The fixes were
+fine; `dist/` was three hours old.
+
+`lib/tsEngine.mjs` now compiles the engine before every render, and a compile failure is
+thrown rather than reported as `unavailable` — "the engine cannot render yet" is an honest
+statement about Phase D's progress, and source that does not compile is a different thing
+that must not hide behind it. (`lib/util.mjs`'s `run` gained an opt-in `shell`, because
+`pnpm` on Windows is a `.cmd` shim that `CreateProcess` will not execute directly.)
+
+### What the gate actually says now, measured against a fresh build
+
+| | before | after |
+|---|---|---|
+| `textures.json.gz` first differing byte | 55 | **499** |
+| hires `tiles/0/x0/z0.prbm.gz` (ts bytes) | 193 116 | **232 740** |
+| compared / differing | 57 / 48 | 57 / 49 |
+
+The differing count went *up* by one because a lowres tile that previously matched by
+accident now does not; the two headline numbers are real movement.
+
+### textures.json: the writer is now gson-exact, and what remains is a png encoder
+
+Two spelling divergences were closed, both in `map/TextureGallery.ts`, both pinned by new
+tests (`javaDoubleToString`, `writeGsonString`; 36 tests in that file now):
+
+- **numbers** — java writes a `double` as `1.0`/`0.0` and switches to `4.985044943168759E-4`
+  outside `10^-3 <= |d| < 10^7`. Of the reference document's 8368 numeric tokens, 713 were
+  spelled differently and **none** differed in the digits, so the port borrows javascript's
+  shortest-round-trip digits and rebuilds only java's shell around them.
+- **strings** — gson's default `htmlSafe` escapes `<`, `>`, `&`, `=` and `'`. The `=` is
+  the one that mattered: every texture is a base64 data-url, and the reference document
+  spells that padding `\u003d` 2074 times.
+
+The divergence that remains at offset 499 was decoded from the base64 and is **not a
+texture-data problem at all**. Both sides carry the same 16x16 image; their `IHDR` chunks
+differ:
+
+```
+java (ImageIO)  : bitDepth 4, colourType 3   (palette)
+port (pngjs)    : bitDepth 8, colourType 6   (truecolour + alpha)
+```
+
+Upstream's `Texture.from` encodes with `ImageIO.write(image, "png", os)`
+(`resourcepack/texture/Texture.java:151`); the port uses `PNG.sync.write(image)`. Both
+decode to identical pixels and `getTextureImage()` reads either back correctly, so nothing
+in the renderer can tell them apart — but the gate compares bytes. Closing it means
+reproducing `ImageIO`'s encoder (palette-vs-truecolour decision, filter choice, zlib
+settings). Recorded in `docs/deviations.md`; it is its own piece of work, not a tweak.
+
+The element-count gap is unrelated and still open: java 2092 entries, port 1253.
+
+### The 253 extra tiles and the six missing `rstate/` files have one shared cause
+
+Diagnosed and adversarially verified: **`WorldRegionUpdateTask` is not ported.**
+
+- The tile-path codec is correct. `FileGridStorage.getItemPath` matches upstream exactly;
+  the odd-looking `tiles/0/x1/0/z1.prbm.gz` is upstream's own digit-folder encoding.
+- The port renders every tile in the region's bounds — 17x17 = **289**. Java renders the
+  **36** fully backed by generated chunks. 289 − 36 = **253**, the exact `onlyInPorted`
+  count. Upstream's gate is `checkTileRenderPreconditions`
+  (`common/.../rendermanager/WorldRegionUpdateTask.java:341-384`), whose non-null return
+  means `unrenderTile`, never `renderTile`.
+- The `rstate/` files are empty for the same reason. The renderstate layer *is* ported and
+  correctly wired into `BmMap` (constructed at `BmMap.ts:154-156`, saved at `:322-324`,
+  paths and `SHIFT` values byte-matching upstream). But `CellStorage.saveCell` early-returns
+  on an unmodified cell, and the only production callers of `set(...)` live in that same
+  unported task (`:226-229`, `:239-244`, `:249-253`).
+
+Everything the port needs already exists: `TileState`, `TileActionResolver`,
+`RenderSettings.isInsideRenderBoundariesOfCell`, `Chunk.isGenerated`/`hasLightData`/
+`getInhabitedTime`, `Region.iterateAllChunks`. The precondition checks have to become
+`async` (the ported `getChunk` is sync-with-empty-fallback), exactly as the new
+`HiresModelManager` preload already does. Note for whoever ports it: `renderTime` is
+`System.currentTimeMillis()/1000`, so the comparator will need to normalise it or the three
+`.tiles.dat` files will read as `differing` rather than `onlyInReference`.
+
+### Two smaller things, both of the "built, tested, unreachable" family
+
+- **`download/token.ts` existed and nothing called it.** It resolves a token from the
+  sign-in first and `GH_TOKEN` second — written precisely so that signing in inside the
+  application makes a private release fetchable — and `startDownloads` never used it, so
+  the behaviour it was written for did not exist. Now wired through `main/index.ts`, with
+  10 tests it did not have (`ipc.ts`'s `token` option widened to allow a promise).
+- **The `ui` package was not type-checked by anything.** `pnpm build` runs it through Vite,
+  which transpiles per file and never checks a template, and plain `tsc` cannot read a
+  `.vue` import at all. A `vue-shim.d.ts` was briefly added to silence that and was
+  **removed instead**: it typed every component as `any`, which is worse than the gap, and
+  `vue-tsc` — already a devDependency — reads `.vue` natively and passes clean. Every
+  package now has a `typecheck` script (`vue-tsc` for `ui`, `tsc` elsewhere), a root
+  `pnpm typecheck` runs all 13, and CI runs it between `lint` and `build`.
+
+Verification for this section: **209 files, 3204 passed, 2 skipped**; `pnpm typecheck`
+clean across all 13 packages; `pnpm lint` clean.

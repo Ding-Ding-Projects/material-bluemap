@@ -64,6 +64,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
+      # Type-checks every package, including the `ui` one that `tsc` alone cannot read:
+      # a `.vue` import is a "cannot find module" to plain tsc, so that package runs
+      # `vue-tsc`. `pnpm build` does not cover this — `ui` builds through Vite, which
+      # transpiles per file and never type-checks a template.
+      - run: pnpm typecheck
       - run: pnpm build
       - run: pnpm test
 

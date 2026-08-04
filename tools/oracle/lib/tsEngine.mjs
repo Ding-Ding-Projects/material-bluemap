@@ -7,11 +7,49 @@
  * reports `unavailable` with the exact missing exports, and that travels through here
  * unchanged so the report can say "the TypeScript engine produced no output" and name
  * why.
+ *
+ * ## The engine is compiled first, every run
+ *
+ * `render-ts.mjs` imports the engine's built `dist/`, because it runs as its own node
+ * process and node does not read TypeScript. That means a run measures whatever was last
+ * compiled, NOT what is in `src/` — and the two are different for exactly as long as
+ * somebody is editing the mesher, which is the whole time this harness is useful.
+ *
+ * This has already cost a real diagnosis: a session fixed the textures-file number
+ * spelling and the missing-chunk preload, re-ran the gate, and read back a report
+ * byte-identical to the one from before the fixes — the same first-differing offset, the
+ * same file sizes. The natural conclusion is "the fix did nothing", and the fix was fine;
+ * `dist/` was three hours old. A harness whose failure mode is *silently grading the wrong
+ * tree* is worse than one that refuses to run, so the build below is not a convenience.
  */
 
 import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { log, run } from "./util.mjs";
+
+/**
+ * Compiles the engine so the render below imports what `src/` currently says.
+ *
+ * A build failure is thrown rather than swallowed: `unavailable` means "the engine cannot
+ * render yet", which is a fact about the port's progress that the report is entitled to
+ * state calmly. Source that does not compile is a different thing entirely, and reporting
+ * it as "produced no output" would hide a broken tree behind a sentence about Phase D.
+ */
+async function buildEngine(repoRoot) {
+    log("[oracle] compiling the TypeScript engine (so this run grades src/, not a stale dist/)");
+    const built = await run("pnpm", ["--filter", "./packages/engine", "run", "build"], {
+        cwd: join(repoRoot, "design"),
+        capture: true,
+        // `pnpm` is a `.cmd` shim on Windows, which CreateProcess will not run directly
+        shell: process.platform === "win32",
+    });
+    if (built.code !== 0) {
+        throw new Error(
+            "the TypeScript engine does not compile, so there is nothing to grade:\n" +
+                (built.stderr || built.stdout).trim(),
+        );
+    }
+}
 
 /**
  * @returns {Promise<{status: "rendered"|"unavailable"|"error", mapDirectory?: string,
@@ -26,6 +64,8 @@ export async function renderWithTypeScriptEngine({
     dimension,
     clientJar,
 }) {
+    await buildEngine(repoRoot);
+
     const storageRoot = join(workDirectory, "ported", "web", "maps");
     await rm(join(workDirectory, "ported"), { recursive: true, force: true });
     await mkdir(storageRoot, { recursive: true });

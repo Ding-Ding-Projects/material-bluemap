@@ -57,6 +57,37 @@ export interface World {
     preloadRegionChunks(x: number, z: number, chunkFilter?: (pos: Vector2i) => boolean): Promise<void>;
 
     /**
+     * Loads every chunk of the given (inclusive) chunk-range into the chunk cache (if
+     * there is a cache), so that {@link World#getChunk} and
+     * {@link World#getChunkAtBlock} can serve all of them afterwards.
+     *
+     * Port-only — upstream has no counterpart, and needs none: its chunk-cache is a
+     * caffeine {@code LoadingCache}, so upstream's {@code getChunkAtBlock} simply blocks
+     * and loads the chunk on a miss. Javascript can not block, so the synchronous
+     * accessors of this interface answer a miss with an *empty* chunk and merely schedule
+     * the load (the chunk-io deviation, see docs/deviations.md) — and a synchronous
+     * render-pass never yields, so that scheduled load can not resolve before the pass
+     * has already read air where the chunk should have been. Whoever is about to read
+     * blocks through the synchronous accessors therefore has to declare the chunk-window
+     * it will touch and await it first; the caller owns chunk availability, it is not
+     * something to be inherited from whatever an earlier caller happened to warm.
+     *
+     * The range is per-chunk rather than per-region on purpose:
+     * {@link World#preloadRegionChunks} warms one whole 32x32-chunk region, which is both
+     * far more than a reader needs and — because a read-window as small as a single hires
+     * tile can straddle up to four regions — not actually a superset of it.
+     *
+     * A range whose max is smaller than its min loads nothing; chunks that do not exist
+     * on disk resolve to the empty chunk, which is a loaded answer rather than a miss.
+     */
+    preloadChunks(
+        minChunkX: number,
+        minChunkZ: number,
+        maxChunkX: number,
+        maxChunkZ: number,
+    ): Promise<void>;
+
+    /**
      * Invalidates the complete chunk cache (if there is a cache), so that every chunk has to be reloaded from disk
      */
     invalidateChunkCache(): void;

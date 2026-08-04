@@ -11,6 +11,7 @@
         "bootstrap": "node ../scripts/bootstrap.mjs",
         "bootstrap:check": "node ../scripts/bootstrap.mjs --check",
         "build": "pnpm -r --fail-if-no-match --filter \"./packages/**\" run build",
+        "typecheck": "pnpm -r --fail-if-no-match --filter \"./packages/**\" run typecheck",
         "test": "vitest run",
         "test:watch": "vitest",
         "lint": "eslint .",

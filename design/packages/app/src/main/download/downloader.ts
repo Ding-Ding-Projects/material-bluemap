@@ -234,12 +234,19 @@ export interface ReleaseDownloaderOptions {
     /** Overridable so a test never touches the network. Defaults to global `fetch`. */
     readonly fetch?: FetchLike;
     /**
-     * `GH_TOKEN` when it is set. Read through a function because a token can be set,
-     * changed or removed while the application is running.
+     * The token to run under, asked for again at the start of every operation.
      *
-     * A public release never needs one and must never be made to require one.
+     * A function, and one that may answer asynchronously, because the honest source of a
+     * token is the signed-in session and the session renews a token that is close to
+     * expiring - which is a network call. A synchronous provider that returned a snapshot
+     * would dodge exactly that renewal, and would be wrong for the case this exists for:
+     * somebody who signs in a minute after the window opened.
+     *
+     * See `token.ts` for the source the application actually passes: the sign-in first,
+     * `GH_TOKEN` second, nothing third. A public release never needs one and must never be
+     * made to require one.
      */
-    readonly token?: () => string | null;
+    readonly token?: () => string | null | Promise<string | null>;
     /** How many parts are fetched at once. Four by default. */
     readonly concurrency?: number;
     /** How many times one part is re-fetched after a failed digest. Once by default. */
@@ -252,6 +259,50 @@ export interface ReleaseDownloaderOptions {
 interface ActiveDownload {
     readonly controller: AbortController;
     readonly startedAt: number;
+}
+
+/**
+ * The token one operation runs under, and the two decisions that follow from it.
+ *
+ * This exists so that a token is resolved **once** per public operation and then read many
+ * times, rather than being asked for again inside every helper. Resolving it is asynchronous
+ * - it can renew a credential against GitHub - while choosing a URL and building headers
+ * happen deep inside a loop over twenty parts, where they have to be immediate.
+ *
+ * Passed down the call chain rather than kept on the downloader, because several downloads
+ * run at once: an instance field would be one download's credential decision being read by
+ * another download's part fetch, in whichever order the two happened to interleave. It is
+ * also what keeps the URL choice below coherent - every request in one operation agrees
+ * about whether it is authenticated, so a run cannot start against the API and finish
+ * against the CDN because a sign-in expired in the middle of it.
+ */
+interface AssetAccess {
+    readonly token: string | null;
+    /** Where a part is actually fetched from. */
+    url(asset: ReleaseAsset): string;
+    headers(): Record<string, string>;
+}
+
+/**
+ * With a token, the API URL, because it is the only one that works for a private release
+ * and because undici drops the `Authorization` header on the cross-origin redirect to
+ * storage, so the token never reaches the CDN.
+ *
+ * Without one, the browser download URL, which needs no authentication and is not subject
+ * to the unauthenticated API's sixty-requests-an-hour limit. A twenty-part world would
+ * otherwise spend a third of that limit on a single download.
+ */
+function assetAccess(token: string | null): AssetAccess {
+    return {
+        token,
+        url(asset: ReleaseAsset): string {
+            return token === null ? asset.downloadUrl : asset.apiUrl;
+        },
+        headers(): Record<string, string> {
+            if (token === null) return { "user-agent": "material-bluemap" };
+            return { ...apiHeaders(token), accept: "application/octet-stream" };
+        },
+    };
 }
 
 export class ReleaseDownloader {
@@ -284,7 +335,11 @@ export class ReleaseDownloader {
         | { readonly ok: false; readonly failure: DownloadFailure }
     > {
         try {
-            const release = await fetchRelease(owner, repo, tag, this.lookupOptions());
+            // Inside the try with the lookup: a token source that throws is reported as a
+            // typed failure the interface can show, rather than as a rejection escaping a
+            // method whose whole contract is that it answers.
+            const access = await this.access();
+            const release = await fetchRelease(owner, repo, tag, this.lookupOptions(access));
             return { ok: true, release, downloads: availableDownloads(release) };
         } catch (error) {
             return { ok: false, failure: this.describe(error, `${owner}/${repo}`) };
@@ -298,8 +353,17 @@ export class ReleaseDownloader {
         }
 
         let release: ReleaseInfo;
+        let access: AssetAccess;
         try {
-            release = await fetchRelease(request.owner, request.repo, request.tag, this.lookupOptions());
+            // One resolution for the whole download, taken before anything is fetched, so
+            // the release lookup and every part that follows it run under the same account.
+            access = await this.access();
+            release = await fetchRelease(
+                request.owner,
+                request.repo,
+                request.tag,
+                this.lookupOptions(access),
+            );
         } catch (error) {
             return this.reportFailure("", this.describe(error, `${request.owner}/${request.repo}`));
         }
@@ -330,7 +394,7 @@ export class ReleaseDownloader {
         const startedAt = Date.now();
         this.active.set(downloadId, { controller, startedAt });
         try {
-            return await this.run(downloadId, request, release, chosen, controller, startedAt);
+            return await this.run(downloadId, request, release, chosen, controller, startedAt, access);
         } finally {
             this.active.delete(downloadId);
         }
@@ -343,6 +407,7 @@ export class ReleaseDownloader {
         chosen: AvailableDownload,
         controller: AbortController,
         startedAt: number,
+        access: AssetAccess,
     ): Promise<DownloadResult> {
         const workspace = downloadWorkspace(this.storageDir(), downloadId);
         const archive = archivePath(workspace, chosen.name);
@@ -373,15 +438,21 @@ export class ReleaseDownloader {
             let partsTotal: number;
 
             if (chosen.kind === "split") {
-                const manifest = await this.fetchManifest(downloadId, workspace, chosen.manifest, controller);
+                const manifest = await this.fetchManifest(
+                    downloadId,
+                    workspace,
+                    chosen.manifest,
+                    controller,
+                    access,
+                );
                 partsTotal = manifest.parts.length;
-                await this.fetchParts(downloadId, workspace, chosen.parts, manifest, controller);
+                await this.fetchParts(downloadId, workspace, chosen.parts, manifest, controller, access);
                 const joined = await this.rejoin(downloadId, workspace, manifest, controller);
                 bytes = joined.bytes;
                 sha256 = joined.sha256;
             } else {
                 partsTotal = 1;
-                const whole = await this.fetchWhole(downloadId, chosen.asset, archive, controller);
+                const whole = await this.fetchWhole(downloadId, chosen.asset, archive, controller, access);
                 bytes = whole.bytes;
                 sha256 = whole.sha256;
             }
@@ -445,11 +516,12 @@ export class ReleaseDownloader {
         workspace: DownloadWorkspace,
         asset: ReleaseAsset,
         controller: AbortController,
+        access: AssetAccess,
     ): Promise<PartsManifest> {
         const path = join(workspace.partsDir, asset.name);
-        await downloadToFile(this.assetUrl(asset), path, {
+        await downloadToFile(access.url(asset), path, {
             fetch: this.fetch(),
-            headers: this.assetHeaders(),
+            headers: access.headers(),
             signal: controller.signal,
         });
         const manifest = await readManifest(path);
@@ -471,6 +543,7 @@ export class ReleaseDownloader {
         assets: readonly ReleaseAsset[],
         manifest: PartsManifest,
         controller: AbortController,
+        access: AssetAccess,
     ): Promise<void> {
         this.emit({ type: "phase", downloadId, phase: "downloading", at: this.timestamp() });
 
@@ -516,7 +589,7 @@ export class ReleaseDownloader {
                     return;
                 }
                 try {
-                    await this.fetchOnePart(workspace, asset, record, controller, (total) => {
+                    await this.fetchOnePart(workspace, asset, record, controller, access, (total) => {
                         progressByPart.set(record.index, total);
                         publish(record.name);
                     });
@@ -549,6 +622,7 @@ export class ReleaseDownloader {
         asset: ReleaseAsset,
         record: PartRecord,
         controller: AbortController,
+        access: AssetAccess,
         onBytes: (total: number) => void,
     ): Promise<void> {
         const path = join(workspace.partsDir, record.name);
@@ -557,9 +631,9 @@ export class ReleaseDownloader {
 
         for (let attempt = 0; attempt < attempts; attempt++) {
             controller.signal.throwIfAborted();
-            await downloadToFile(this.assetUrl(asset), path, {
+            await downloadToFile(access.url(asset), path, {
                 fetch: this.fetch(),
-                headers: this.assetHeaders(),
+                headers: access.headers(),
                 signal: controller.signal,
                 expectedBytes: record.bytes,
                 onBytes: (_delta, total) => onBytes(total),
@@ -608,12 +682,13 @@ export class ReleaseDownloader {
         asset: ReleaseAsset,
         destination: string,
         controller: AbortController,
+        access: AssetAccess,
     ): Promise<{ bytes: number; sha256: string }> {
         this.emit({ type: "phase", downloadId, phase: "downloading", at: this.timestamp() });
         const startedAt = Date.now();
-        const result = await downloadToFile(this.assetUrl(asset), destination, {
+        const result = await downloadToFile(access.url(asset), destination, {
             fetch: this.fetch(),
-            headers: this.assetHeaders(),
+            headers: access.headers(),
             signal: controller.signal,
             expectedBytes: asset.size,
             onBytes: (_delta, total) => {
@@ -681,41 +756,27 @@ export class ReleaseDownloader {
         return this.options.fetch ?? ((url, init) => globalThis.fetch(url, init));
     }
 
-    private token(): string | null {
-        return this.options.token?.() ?? null;
+    /**
+     * Asks the token source, once, for the operation that is about to run.
+     *
+     * The `await` is the reason this is here at all rather than beside the other one-line
+     * accessors: the source is allowed to renew a credential, which takes a round trip,
+     * and a download that resolved its token twenty times would make twenty of them.
+     */
+    private async access(): Promise<AssetAccess> {
+        return assetAccess((await this.options.token?.()) ?? null);
     }
 
-    private lookupOptions(): {
+    private lookupOptions(access: AssetAccess): {
         fetch: FetchLike;
         token: string | null;
         apiBase?: string;
     } {
         return {
             fetch: this.fetch(),
-            token: this.token(),
+            token: access.token,
             ...(this.options.apiBase === undefined ? {} : { apiBase: this.options.apiBase }),
         };
-    }
-
-    /**
-     * The URL a part is actually fetched from.
-     *
-     * With a token, the API URL, because it is the only one that works for a private
-     * release and because undici drops the `Authorization` header on the cross-origin
-     * redirect to storage, so the token never reaches the CDN.
-     *
-     * Without one, the browser download URL, which needs no authentication and is not
-     * subject to the unauthenticated API's sixty-requests-an-hour limit. A twenty-part
-     * world would otherwise spend a third of that limit on a single download.
-     */
-    private assetUrl(asset: ReleaseAsset): string {
-        return this.token() === null ? asset.downloadUrl : asset.apiUrl;
-    }
-
-    private assetHeaders(): Record<string, string> {
-        const token = this.token();
-        if (token === null) return { "user-agent": "material-bluemap" };
-        return { ...apiHeaders(token), accept: "application/octet-stream" };
     }
 
     private timestamp(): string {

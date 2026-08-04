@@ -1,6 +1,7 @@
 import { Color, Grid, Vector2i, type Vector3i } from "@material-bluemap/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GridStorage } from "../../storage/GridStorage.js";
+import { Chunk } from "../../world/Chunk.js";
 import type { World } from "../../world/World.js";
 import type { TextureGallery } from "../TextureGallery.js";
 import type { TileMetaConsumer } from "../TileMetaConsumer.js";
@@ -55,7 +56,64 @@ class FakeStorage implements Partial<GridStorage> {
     }
 }
 
-const world = { getId: () => "test:world" } as unknown as World;
+/** the chunk {@link TestWorld} hands out once a chunk-position has been preloaded */
+const LOADED_CHUNK: Chunk = new (class extends Chunk {})();
+
+/**
+ * A world with the availability behaviour the ported {@link MCAWorld} actually has: the
+ * synchronous accessors serve the chunk-cache and answer anything not in it with the
+ * empty chunk, and only an *awaited* `preloadChunks` puts chunks into that cache. A
+ * caller that reads blocks without preloading them therefore sees air everywhere, which
+ * is precisely the failure this manager has to prevent — so the fake reproduces it
+ * rather than pretending every chunk is always there.
+ *
+ * It also records every preload it is asked for, so the tests can pin the chunk-window
+ * the manager derives from a tile.
+ */
+class TestWorld {
+    readonly preloads: [number, number, number, number][] = [];
+
+    private readonly loadedChunks = new Set<string>();
+    private readonly chunkGrid = new Grid(16);
+
+    getId(): string {
+        return "test:world";
+    }
+
+    getChunkGrid(): Grid {
+        return this.chunkGrid;
+    }
+
+    getChunkAtBlock(x: number, z: number): Chunk {
+        return this.getChunk(this.chunkGrid.getCellX(x), this.chunkGrid.getCellY(z));
+    }
+
+    getChunk(chunkX: number, chunkZ: number): Chunk {
+        return this.loadedChunks.has(chunkX + "," + chunkZ) ? LOADED_CHUNK : Chunk.EMPTY_CHUNK;
+    }
+
+    async preloadChunks(
+        minChunkX: number,
+        minChunkZ: number,
+        maxChunkX: number,
+        maxChunkZ: number,
+    ): Promise<void> {
+        this.preloads.push([minChunkX, minChunkZ, maxChunkX, maxChunkZ]);
+
+        // the chunks appear only after a turn of the event-loop, the way a real load off
+        // the disk does — so a caller that forgets to await this observes nothing
+        await Promise.resolve();
+
+        for (let x = minChunkX; x <= maxChunkX; x++) {
+            for (let z = minChunkZ; z <= maxChunkZ; z++) {
+                this.loadedChunks.add(x + "," + z);
+            }
+        }
+    }
+}
+
+let world: TestWorld;
+
 const resourcePack = {} as never;
 const textureGallery = {} as unknown as TextureGallery;
 const renderSettings = {} as unknown as RenderSettings;
@@ -65,7 +123,7 @@ function makeManager(
     tileGrid = new Grid(new Vector2i(16, 16)),
 ): InstanceType<typeof HiresModelManager> {
     return new HiresModelManager(
-        world,
+        world as unknown as World,
         storage as unknown as GridStorage,
         resourcePack,
         textureGallery,
@@ -76,6 +134,7 @@ function makeManager(
 
 beforeEach(() => {
     passes.length = 0;
+    world = new TestWorld();
     vi.restoreAllMocks();
 });
 
@@ -102,6 +161,98 @@ describe("HiresModelManager", () => {
         expect([modelMin.getX(), modelMin.getY(), modelMin.getZ()]).toEqual([32, -2147483648, -48]);
         expect([modelMax.getX(), modelMax.getY(), modelMax.getZ()]).toEqual([47, 2147483647, -33]);
         expect([modelAnchor.getX(), modelAnchor.getY(), modelAnchor.getZ()]).toEqual([32, 0, -48]);
+    });
+
+    /*
+     * The chunk-availability contract (port-only, see HiresModelManager#render): the
+     * synchronous World accessors answer an unloaded chunk with air, so the manager has
+     * to await the tile's chunk-window itself instead of inheriting whatever earlier
+     * tiles warmed. Without the preload every one of these fails — the render sees the
+     * empty chunk for every column, which is the 18x18-block hole the oracle found in
+     * the far quadrant of every hires tile.
+     */
+    describe("chunk availability", () => {
+        /** the map's real hires tile-grid: 32x32 blocks, offset by the settings' [2, 2] */
+        const hiresGrid = new Grid(new Vector2i(32, 32), new Vector2i(2, 2));
+
+        it("has every column of the tile backed by a loaded chunk on a cold cache", async () => {
+            const columnsOnLoadedChunk = new Set<string>();
+            const columnsOnEmptyChunk = new Set<string>();
+            passes.push({
+                render: (_w, modelMin, modelMax) => {
+                    // the same (x, z) walk BlockRenderPass does over the tile
+                    for (let x = modelMin.getX(); x <= modelMax.getX(); x++) {
+                        for (let z = modelMin.getZ(); z <= modelMax.getZ(); z++) {
+                            const target =
+                                world.getChunkAtBlock(x, z) === Chunk.EMPTY_CHUNK
+                                    ? columnsOnEmptyChunk
+                                    : columnsOnLoadedChunk;
+                            target.add(x + "," + z);
+                        }
+                    }
+                },
+            });
+
+            await makeManager(new FakeStorage(), hiresGrid).render(
+                new Vector2i(5, 5),
+                () => undefined,
+                true,
+            );
+
+            expect(columnsOnEmptyChunk.size).toBe(0);
+            expect(columnsOnLoadedChunk.size).toBe(32 * 32);
+        });
+
+        it("preloads the tile's chunk-window, margin included, before the first pass runs", async () => {
+            let preloadsWhenPassRan = -1;
+            let chunkUnderTileCorner: Chunk | null = null;
+            passes.push({
+                render: (_w, _min, modelMax) => {
+                    preloadsWhenPassRan = world.preloads.length;
+                    chunkUnderTileCorner = world.getChunkAtBlock(modelMax.getX(), modelMax.getZ());
+                },
+            });
+
+            const manager = makeManager(new FakeStorage(), hiresGrid);
+            await manager.render(new Vector2i(5, 5), () => undefined, true);
+
+            expect(preloadsWhenPassRan).toBe(1);
+            expect(chunkUnderTileCorner).toBe(LOADED_CHUNK);
+            // tile 5 spans blocks 162..193, so with the ±2 margin chunks 10..12 — the
+            // 2*tile .. 2*tile+2 block of chunks a 32-block tile on a 16-block chunk-grid
+            // reaches into
+            expect(world.preloads).toEqual([[10, 10, 12, 12]]);
+
+            // and a tile at negative coordinates floors its chunk-positions rather than
+            // truncating them: blocks -30..1 by 2..33 -> chunks -2..0 by 0..2
+            await manager.render(new Vector2i(-1, 0), () => undefined, true);
+            expect(world.preloads[1]).toEqual([-2, 0, 0, 2]);
+        });
+
+        it("preloads the chunks for an unsaved render too", async () => {
+            passes.push({ render: () => undefined });
+
+            await makeManager(new FakeStorage(), hiresGrid).render(
+                new Vector2i(0, 0),
+                () => undefined,
+                false,
+            );
+
+            expect(world.preloads).toEqual([[0, 0, 2, 2]]);
+        });
+
+        it("asks the world's own chunk-grid for the window, so other grids stay correct", async () => {
+            passes.push({ render: () => undefined });
+
+            // a 2x2-block tile-grid: the whole tile (plus margin) lives in one chunk
+            await makeManager(new FakeStorage(), new Grid(new Vector2i(2, 2))).render(
+                new Vector2i(3, 3),
+                () => undefined,
+                true,
+            );
+
+            expect(world.preloads).toEqual([[0, 0, 0, 0]]);
+        });
     });
 
     it("runs the passes in registry order, each over a freshly anchored view", async () => {

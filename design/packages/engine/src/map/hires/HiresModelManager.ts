@@ -36,6 +36,23 @@ const INTEGER_MIN_VALUE = -2147483648;
 const INTEGER_MAX_VALUE = 2147483647;
 
 /**
+ * How far outside its own bounds a tile's render-passes reach when they read blocks.
+ *
+ * A pass meshes only the blocks between modelMin and modelMax, but meshing a block
+ * consults its neighborhood, so a block sitting on the tile's edge reads across that
+ * edge: face-culling and the ambient-occlusion samples look at the directly adjacent
+ * blocks (±1), and the blended block-color calculators average the biome color over a
+ * horizontal radius of 2 — `BlendedBlockColorCalculator`'s default `horizontalBlend`,
+ * which every blended calculator type in the registry uses. Two blocks is therefore the
+ * widest horizontal reach any pass has, and the chunks holding those blocks have to be
+ * loaded as well or the edge columns mesh (and take their color) against phantom air.
+ *
+ * This is a margin on the *preload*, not on what gets meshed: loading a chunk the passes
+ * end up not reading costs a cache-entry and nothing else.
+ */
+const NEIGHBOR_BLOCK_MARGIN = 2;
+
+/**
  * upstream: map/hires/HiresModelManager.java
  *
  * Owns the hires render passes and turns "render tile (x,z)" into a .prbm item in the
@@ -97,6 +114,37 @@ export class HiresModelManager {
             this.tileGrid.getCellMaxY(tile.getY()),
         );
         const modelAnchor = new Vector3i(modelMin.getX(), 0, modelMin.getZ());
+
+        /*
+         * Port-only: make every chunk this tile can read present before any pass starts.
+         *
+         * Upstream renders straight into a blocking LoadingCache, so a chunk that is not
+         * cached yet is loaded on the spot and the pass never sees a hole. The ported
+         * synchronous World accessors can not block — on a miss they schedule the load
+         * and hand out an empty chunk (the chunk-io deviation, docs/deviations.md) — and
+         * a synchronous pass never yields, so that load resolves long after the pass has
+         * finished reading air. Without this await a tile is meshed against whatever
+         * chunks *earlier tiles* happened to fault in: every column inside a chunk no
+         * neighbouring tile had already touched comes out empty, and the columns beside
+         * it grow faces against that phantom air. Which chunks those are depends on the
+         * tile order, which is exactly the kind of result a render must not have.
+         *
+         * Awaiting the whole window here — rather than per pass, per column, or not at
+         * all — is what makes a cold-cache render identical to a warm-cache one. It only
+         * guarantees presence: a chunk that was already loaded is meshed exactly as
+         * before, because nothing about the passes themselves changes.
+         *
+         * The window is derived from the tile bounds through the world's own chunk-grid,
+         * so it stays correct for any tile size, grid offset, or chunk size rather than
+         * assuming the 3x3 chunk block that the default 32x32 hires grid happens to give.
+         */
+        const chunkGrid = this.world.getChunkGrid();
+        await this.world.preloadChunks(
+            chunkGrid.getCellX(modelMin.getX() - NEIGHBOR_BLOCK_MARGIN),
+            chunkGrid.getCellY(modelMin.getZ() - NEIGHBOR_BLOCK_MARGIN),
+            chunkGrid.getCellX(modelMax.getX() + NEIGHBOR_BLOCK_MARGIN),
+            chunkGrid.getCellY(modelMax.getZ() + NEIGHBOR_BLOCK_MARGIN),
+        );
 
         if (save) {
             const model = ArrayTileModel.instancePool().claimInstance();

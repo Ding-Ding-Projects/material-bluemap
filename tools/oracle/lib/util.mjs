@@ -11,7 +11,15 @@ import { join, relative, sep } from "node:path";
  *
  * @param {string} command
  * @param {string[]} args
- * @param {{cwd?: string, env?: Record<string, string>, quiet?: boolean, capture?: boolean}} [options]
+ * `shell` is opt-in and defaults to off, because a shell re-parses the arguments and every
+ * path this harness passes around is a Windows path with spaces in it. The one caller that
+ * needs it is spawning `pnpm`, which on Windows is a `.cmd` shim that `CreateProcess`
+ * cannot execute directly.
+ *
+ * @param {string} command
+ * @param {string[]} args
+ * @param {{cwd?: string, env?: Record<string, string>, quiet?: boolean, capture?: boolean,
+ *          shell?: boolean}} [options]
  * @returns {Promise<{code: number, stdout: string, stderr: string}>}
  */
 export function run(command, args, options = {}) {
@@ -20,7 +28,7 @@ export function run(command, args, options = {}) {
             cwd: options.cwd,
             env: { ...process.env, ...(options.env ?? {}) },
             stdio: ["ignore", "pipe", "pipe"],
-            shell: false,
+            shell: options.shell ?? false,
         });
 
         let stdout = "";

@@ -1,28 +1,29 @@
 {
-  "name": "@material-bluemap/engine",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "description": "BlueMap render engine port: world parsing, resource packs, tile rendering, storage",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@bokuweb/zstd-wasm": "^0.0.27",
-    "@material-bluemap/nbt": "workspace:*",
-    "@material-bluemap/shared": "workspace:*",
-    "chokidar": "^4.0.3",
-    "lru-cache": "^11.5.2",
-    "lz4js": "^0.2.0",
-    "pngjs": "^7.0.0",
-    "xxhash-wasm": "^1.1.0",
-    "yauzl-promise": "^4.0.0"
-  },
-  "devDependencies": {
-    "@types/pngjs": "^6.0.5",
-    "@types/yauzl-promise": "^4.0.1"
-  }
+    "name": "@material-bluemap/engine",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "BlueMap render engine port: world parsing, resource packs, tile rendering, storage",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "test": "vitest run",
+        "typecheck": "tsc -p tsconfig.json --noEmit"
+    },
+    "dependencies": {
+        "@bokuweb/zstd-wasm": "^0.0.27",
+        "@material-bluemap/nbt": "workspace:*",
+        "@material-bluemap/shared": "workspace:*",
+        "chokidar": "^4.0.3",
+        "lru-cache": "^11.5.2",
+        "lz4js": "^0.2.0",
+        "pngjs": "^7.0.0",
+        "xxhash-wasm": "^1.1.0",
+        "yauzl-promise": "^4.0.0"
+    },
+    "devDependencies": {
+        "@types/pngjs": "^6.0.5",
+        "@types/yauzl-promise": "^4.0.1"
+    }
 }

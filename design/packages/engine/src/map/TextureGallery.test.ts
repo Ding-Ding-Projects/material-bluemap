@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { type JsonObject, type JsonValue } from "../resources/adapter/JsonMapper.js";
 import { ResourcePool } from "../resources/pack/ResourcePool.js";
 import { Texture } from "../resources/pack/resourcepack/texture/Texture.js";
-import { TextureGallery } from "./TextureGallery.js";
+import { javaDoubleToString, TextureGallery } from "./TextureGallery.js";
 
 const MISSING_TEXTURE_KEY = "bluemap:block/missing";
 
@@ -380,6 +380,91 @@ describe("TextureGallery", () => {
         it("exposes the raw and the gzipped path", () => {
             expect(TextureGallery.TEXTURES_FILE_NAME).toBe("textures.json");
             expect(TextureGallery.TEXTURES_FILE_NAME_GZIP).toBe("textures.json.gz");
+        });
+    });
+
+    /*
+     * These pin the two ways the written document is spelled differently from what
+     * `JSON.stringify` would produce. Both were measured against a java-rendered reference
+     * `textures.json`, and both are gate-visible: the file is compared byte for byte, so a
+     * document that parses to the same value is still a failure if it is spelled otherwise.
+     */
+    describe("the gson-compatible spelling", () => {
+        describe("javaDoubleToString", () => {
+            it("keeps the fraction java prints and javascript drops", () => {
+                // the whole-number case, which is most of the colour components in a real
+                // document: java writes 1.0/0.0, `String(1)` writes 1
+                expect(javaDoubleToString(1)).toBe("1.0");
+                expect(javaDoubleToString(0)).toBe("0.0");
+                expect(javaDoubleToString(-0)).toBe("-0.0");
+                expect(javaDoubleToString(100)).toBe("100.0");
+                expect(javaDoubleToString(-2)).toBe("-2.0");
+            });
+
+            it("spells a plain decimal over java's whole plain range", () => {
+                expect(javaDoubleToString(0.5)).toBe("0.5");
+                expect(javaDoubleToString(0.001)).toBe("0.001");
+                expect(javaDoubleToString(0.8335329294204712)).toBe("0.8335329294204712");
+                // 10^7 is the top of the plain range; 9999999.5 is inside it
+                expect(javaDoubleToString(9999999.5)).toBe("9999999.5");
+            });
+
+            it("switches to java's exponent form outside that range, and writes no plus", () => {
+                // the second form the reference document actually contains
+                expect(javaDoubleToString(4.985044943168759e-4)).toBe("4.985044943168759E-4");
+                // below 10^-3: javascript would write 0.0001
+                expect(javaDoubleToString(0.0001)).toBe("1.0E-4");
+                // at and above 10^7: javascript would write 10000000
+                expect(javaDoubleToString(1e7)).toBe("1.0E7");
+                expect(javaDoubleToString(1.5e21)).toBe("1.5E21");
+            });
+
+            it("keeps java's spelling of the non-finite values", () => {
+                // gson switches to lenient inside `toJson`, so upstream really does emit
+                // these bare literals rather than refusing
+                expect(javaDoubleToString(Number.NaN)).toBe("NaN");
+                expect(javaDoubleToString(Number.POSITIVE_INFINITY)).toBe("Infinity");
+                expect(javaDoubleToString(Number.NEGATIVE_INFINITY)).toBe("-Infinity");
+            });
+        });
+
+        describe("html-safe string escaping", () => {
+            /** the written document for one texture whose key is the given string */
+            function writtenDocument(formatted: string): string {
+                const gallery = new TextureGallery();
+                gallery.put(poolOf(opaqueTexture(formatted)));
+                return gallery.writeTexturesFile();
+            }
+
+            it("escapes the base64 padding that made the reference document differ", () => {
+                // the actual first divergence once the numbers agreed: a texture is
+                // written as a base64 data-url, and base64 padding is '='
+                const document = writtenDocument("minecraft:block/stone");
+                expect(document).toContain("\\u003d");
+                expect(document).not.toMatch(/[^\\]=/);
+            });
+
+            it("escapes each of gson's five html-safe characters", () => {
+                // in a resource key, where the divergence would otherwise be invisible
+                const document = writtenDocument("minecraft:block/a<b>c&d=e'f");
+                for (const [character, escape] of [
+                    ["<", "\\u003c"],
+                    [">", "\\u003e"],
+                    ["&", "\\u0026"],
+                    ["=", "\\u003d"],
+                    ["'", "\\u0027"],
+                ] as const) {
+                    expect(document).toContain(escape);
+                    expect(document).not.toContain(character);
+                }
+            });
+
+            it("still parses to the value it spelled", () => {
+                // the escaping is a spelling difference and must not be a value one.
+                // Ordinal 0 is always the missing-texture, so the put key is ordinal 1.
+                const parsed = JSON.parse(writtenDocument("minecraft:block/a=b")) as JsonObject[];
+                expect(parsed[1]?.["resourcePath"]).toBe("minecraft:block/a=b");
+            });
         });
     });
 });

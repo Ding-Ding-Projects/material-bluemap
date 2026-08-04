@@ -9,6 +9,7 @@ import { Compression } from "../../storage/compression/Compression.js";
 import { BlockState } from "../BlockState.js";
 import { Chunk } from "../Chunk.js";
 import { DimensionType } from "../DimensionType.js";
+import { Region } from "../Region.js";
 import { WorldLoaderType } from "../WorldLoaderType.js";
 import { Chunk_1_12 } from "./chunk/Chunk_1_12.js";
 import { ANVIL, MCAWorld } from "./MCAWorld.js";
@@ -214,6 +215,121 @@ describe("MCAWorld.load", () => {
         );
 
         expect(world.getDimensionType()).toBe(custom);
+    });
+});
+
+/*
+ * Port-only API (see World#preloadChunks): the synchronous accessors answer a cache-miss
+ * with the empty chunk, so a reader has to make its chunk-window present first. The
+ * region-granular preloadRegionChunks can not do that job — a read-window can straddle
+ * several regions — which is what the second test here pins.
+ */
+describe("MCAWorld.preloadChunks", () => {
+    /**
+     * A region whose chunks resolve on a later turn of the event-loop, the way a real
+     * region-file's do. That delay is the whole point: the synchronous accessors can not
+     * wait for it, so only an awaited preload can make the chunks visible to them.
+     */
+    class FakeRegion extends Region<Chunk> {
+        constructor(private readonly chunks: ReadonlyMap<string, Chunk>) {
+            super();
+        }
+
+        override async loadChunk(chunkX: number, chunkZ: number): Promise<Chunk> {
+            await Promise.resolve();
+            return this.chunks.get(chunkX + "," + chunkZ) ?? this.emptyChunk();
+        }
+
+        override iterateAllChunks(): Promise<void> {
+            throw new Error("preloadChunks loads chunk-by-chunk, not region-by-region");
+        }
+
+        override emptyChunk(): Chunk {
+            return Chunk.EMPTY_CHUNK;
+        }
+
+        override exists(): boolean {
+            return true;
+        }
+    }
+
+    /** a chunk with its own identity, so a test can tell which one it got */
+    function distinctChunk(): Chunk {
+        return new (class extends Chunk {})();
+    }
+
+    function installBlockRegion(world: MCAWorld, regionX: number, regionZ: number, region: FakeRegion): void {
+        world.getBlockChunkGrid()["regionCache"].set(regionX + "," + regionZ, region);
+    }
+
+    it("makes every chunk of the range available to the synchronous accessors", async () => {
+        const world = await MCAWorld.load(tempWorldFolder(), OVERWORLD, null, dataPackStub());
+
+        const chunks = new Map<string, Chunk>();
+        for (let x = 0; x <= 2; x++) {
+            for (let z = 0; z <= 2; z++) chunks.set(x + "," + z, distinctChunk());
+        }
+        // on disk, but outside the range that gets preloaded
+        chunks.set("3,0", distinctChunk());
+        installBlockRegion(world, 0, 0, new FakeRegion(chunks));
+
+        await world.preloadChunks(0, 0, 2, 2);
+
+        for (let x = 0; x <= 2; x++) {
+            for (let z = 0; z <= 2; z++) {
+                expect(world.getChunk(x, z)).toBe(chunks.get(x + "," + z));
+            }
+        }
+        // and through the block-position accessor the render-passes actually use
+        expect(world.getChunkAtBlock(2 * 16 + 15, 15)).toBe(chunks.get("2,0"));
+
+        // outside the range nothing was loaded, so the miss still answers with air
+        expect(world.getChunk(3, 0)).toBe(Chunk.EMPTY_CHUNK);
+    });
+
+    it("loads a range that straddles four regions", async () => {
+        const world = await MCAWorld.load(tempWorldFolder(), OVERWORLD, null, dataPackStub());
+
+        // chunk (x, z) lives in region (x >> 5, z >> 5), so the four chunks around the
+        // origin sit in four different region-files
+        const corners = new Map<string, Chunk>([
+            ["-1,-1", distinctChunk()],
+            ["-1,0", distinctChunk()],
+            ["0,-1", distinctChunk()],
+            ["0,0", distinctChunk()],
+        ]);
+        for (const [key, chunk] of corners) {
+            const [x, z] = key.split(",").map(Number) as [number, number];
+            installBlockRegion(world, x >> 5, z >> 5, new FakeRegion(new Map([[key, chunk]])));
+        }
+
+        await world.preloadChunks(-1, -1, 0, 0);
+
+        for (const [key, chunk] of corners) {
+            const [x, z] = key.split(",").map(Number) as [number, number];
+            expect(world.getChunk(x, z)).toBe(chunk);
+        }
+    });
+
+    it("warms the entity chunk-cache alongside the block one", async () => {
+        const world = await MCAWorld.load(tempWorldFolder(), OVERWORLD, null, dataPackStub());
+
+        await world.preloadChunks(0, 0, 1, 1);
+
+        const entityCache = world.getEntityChunkGrid()["chunkCache"];
+        // no entities-folder on disk: the loads resolve to the empty entity-chunk, which
+        // is still a *loaded* answer and is what iterateEntities then finds cached
+        expect([...entityCache.keys()].sort()).toEqual(["0,0", "0,1", "1,0", "1,1"]);
+        expect(entityCache.has("2,0")).toBe(false);
+    });
+
+    it("loads nothing for an empty range", async () => {
+        const world = await MCAWorld.load(tempWorldFolder(), OVERWORLD, null, dataPackStub());
+
+        await world.preloadChunks(1, 1, 0, 0);
+
+        expect(world.getBlockChunkGrid()["chunkCache"].size).toBe(0);
+        expect(world.getEntityChunkGrid()["chunkCache"].size).toBe(0);
     });
 });
 

@@ -659,13 +659,40 @@ repeated here):
   (`textures.json`) and `TextureGallery.TEXTURES_FILE_NAME_GZIP` (`textures.json.gz`),
   standing in for upstream's `"textures.json" + Compression#getFileSuffix()` in
   `storage/file/FileMapStorage`.
-- **`TextureGallery`'s json is written by `JSON.stringify`.** gson html-escapes `=`, `<`,
-  `>`, `&` and `'` inside string values by default, so upstream writes a texture's base64
-  `=` padding as `\u003d`; `JSON.stringify` emits those characters literally. The parsed
-  json value is identical, only its spelling differs. Reading goes through the strict
-  `JSON.parse` rather than `adapter/JsonMapper`'s lenient parser, because the gallery's
-  gson instance is `ResourcesGson.addAdapter(new GsonBuilder())` *without* the
-  `setLenient()` that `ResourcesGson.INSTANCE` adds.
+- **`TextureGallery`'s json is written by a gson-compatible writer — no longer a
+  deviation.** This entry used to say the file was written by `JSON.stringify` and that
+  only its *spelling* differed. That was true, and it stopped being acceptable the moment
+  the Phase D gate began comparing this file byte for byte: a document that parses to the
+  same value is still a failure there. `writeGsonDocument` in `map/TextureGallery.ts` now
+  reproduces gson's `JsonWriter` on both counts.
+  - **Numbers**, via `javaDoubleToString`: java writes a `double` as `1.0`/`0.0`, and
+    switches to `4.985044943168759E-4` outside `10^-3 <= |d| < 10^7`, where javascript
+    writes `1`/`0` and `0.0004985044943168759`. Measured over the reference document's
+    8368 numeric tokens, 713 were spelled differently and **none** differed in the digits
+    themselves, so the function borrows javascript's shortest-round-trip digits and
+    rebuilds only java's shell around them.
+  - **Strings**, via `writeGsonString`: gson's default `htmlSafe` escapes `<`, `>`, `&`,
+    `=` and `'` as `\u00XX`, plus U+2028/U+2029. The `=` is the one that mattered here —
+    every texture is a base64 data-url and base64 padding is `=`, which the reference
+    document spells `\u003d` 2074 times.
+
+  Reading still goes through the strict `JSON.parse` rather than `adapter/JsonMapper`'s
+  lenient parser, because the gallery's gson instance is
+  `ResourcesGson.addAdapter(new GsonBuilder())` *without* the `setLenient()` that
+  `ResourcesGson.INSTANCE` adds.
+- **The base64 png inside a texture is encoded by pngjs, not by `ImageIO`, and the two pick
+  different png formats.** Upstream's `Texture.from` writes the image with
+  `ImageIO.write(image, "png", os)` (`resourcepack/texture/Texture.java:151`); the port
+  uses `PNG.sync.write(image)`. For the same 16x16 texture, `ImageIO` emits a **palette**
+  png (`IHDR` bit-depth 4, colour-type 3) where pngjs emits **truecolour + alpha**
+  (bit-depth 8, colour-type 6). Both decode to the same pixels and `getTextureImage()`
+  reads either back correctly, so nothing in the renderer can tell them apart — but the
+  encoded bytes differ, so `textures.json` differs, and the gate compares that file byte
+  for byte. This is the divergence that remains in it now that the writer above is
+  gson-exact: *pixel-identical, byte-different*. Closing it means reproducing `ImageIO`'s
+  png encoder — its palette-vs-truecolour decision, its filter choice and its zlib
+  settings — which is a much larger job than the writer was, and is tracked separately
+  rather than smuggled in here.
 - **`TextureGallery` declares `ResourcePack.MISSING_TEXTURE` locally**, the same way
   `model/Face.ts` and `entitystate/Part.ts` do, instead of importing it from
   `ResourcePack` — that import would pull the whole pack-loader into the gallery for one

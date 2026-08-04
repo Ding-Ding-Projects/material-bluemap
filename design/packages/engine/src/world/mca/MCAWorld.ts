@@ -161,6 +161,37 @@ export class MCAWorld implements World {
         await this.entityChunkGrid.preloadRegionChunks(x, z, chunkFilter);
     }
 
+    /**
+     * Port-only (see {@link World#preloadChunks}): warms the chunk-caches for a
+     * chunk-range, so the synchronous accessors stop answering with the empty chunk.
+     *
+     * Both grids are warmed, exactly like {@link MCAWorld#preloadRegionChunks} does, so
+     * that "these chunks are loaded" means the same thing whichever way the caller asked
+     * for it. The block-grid is the one the synchronous accessors read; the entity-grid
+     * is already awaited by {@link MCAWorld#iterateEntities} and is warmed here only so
+     * that await finds it cached.
+     *
+     * The loads run one after another rather than all at once: {@link ChunkGrid#getChunk}
+     * resolves from the cache without touching the disk (and dedups a load that is
+     * already in flight), so on a warm cache this loop is a walk over resolved promises,
+     * and on a cold one it keeps the io-pressure of a render identical to the on-demand
+     * loading it replaces. Load order can not influence the result either way — nothing
+     * reads a block until every chunk in the range is in the cache.
+     */
+    async preloadChunks(
+        minChunkX: number,
+        minChunkZ: number,
+        maxChunkX: number,
+        maxChunkZ: number,
+    ): Promise<void> {
+        for (let x = minChunkX; x <= maxChunkX; x++) {
+            for (let z = minChunkZ; z <= maxChunkZ; z++) {
+                await this.blockChunkGrid.getChunk(x, z);
+                await this.entityChunkGrid.getChunk(x, z);
+            }
+        }
+    }
+
     invalidateChunkCache(): void;
     invalidateChunkCache(x: number, z: number): void;
     invalidateChunkCache(x?: number, z?: number): void {
