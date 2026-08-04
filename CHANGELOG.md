@@ -22,6 +22,8 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Put the licence in front of people, and let them decide where a panel sits - [`80369ec080`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/80369ec080d1fda83376e0ccc026e9ccd3045b8c)
+- Make a project the thing you edit, and the wizard the quick way in - [`f4d3abd693`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f4d3abd6936b52ebd0c6daa7c13ca054dde6ba85)
 - Let the palette find the History tab, and stop the README claiming seven - [`2437bc69a7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2437bc69a750aa19cc96b14dec775495ac48df34)
 
 ### Server, CLI and configuration
@@ -32,26 +34,24 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- Remote renders over SSH, worlds from any release, and a test that stopped asserting its own platform - [`897ecad166`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/897ecad1662c59e5a87affd1d89627b289d91d71)
 - Complete CI render project-map fixtures - [`7c07514aba`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7c07514aba98258c0d774eae2c63623d1ee86651)
 - Merge current default history into Pages continuation - [`857a16da4a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/857a16da4af93c85647fdad172695d852ab1c2c6) _(summary of 5 commits, also listed here)_
+- Merge current default history into Pages continuation - [`0e4f831538`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0e4f831538a2d0b9f3b02e98a83fb0711dd905fe) _(summary of 3 commits, also listed here)_
 - Let the renderer ask for a render it will not run itself - [`b600dc3e2f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b600dc3e2f75e333b3c967ed9b37c2731c0e70e4)
 - Hand a render to GitHub's machines, for people whose own machine cannot - [`180c8627b3`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/180c8627b3b56283306da72e8489814efbc8b0f4)
 - Turn the updater on, and put rendered maps somewhere a person can find - [`039ee266ce`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/039ee266ce6737c1f056c1827c763ff469ef85c8)
 - Consume the update feed the installer has been producing all along - [`4a8a5703cd`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4a8a5703cd03d64b0de40f7dd5a62fee75b7146a)
-- Merge current default history into Pages continuation - [`0e4f831538`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0e4f831538a2d0b9f3b02e98a83fb0711dd905fe) _(summary of 3 commits, also listed here)_
 - Wire the project and the deeper history across to the renderer - [`55a6f41400`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/55a6f414005f537b19380caff43fcaea3ad5e13a)
 - Render in a container or on this machine, and diagnose a failure before guessing at it - [`d7cbd34ab3`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d7cbd34ab36616ec160a6bb7369366d43fdcaca5)
 - Photograph the backup screen, which shipped without a picture - [`fc9679098b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/fc9679098b1fd6d8aa7850da409d312a720c54eb)
 
 ### Landing page and documentation site
 
+- Merge pull request #26 from Ding-Ding-Projects/pages-material3-full-continuation - [`5c1254ce44`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5c1254ce44e227d2f383d8d67f01dfbee65964d3) _(summary of 20 commits, also listed here)_
 - Preserve regex mode when reopening bulk close builder - [`acd7674aa3`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/acd7674aa3c648c5658b756790fda58d0299e718)
 - Wire searchable menus and shell regex builder - [`5499b828e8`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5499b828e8ee073b801ca02342fdbeee4aaa6930)
 - Close Pages appearance and discovery gaps - [`6b5fdd7f82`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6b5fdd7f824bbfac05976142e14341059ee860a3)
-
-### Build, release and tooling
-
-- Refresh the committed captures with a command instead of a memory - [`0008dd4df1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0008dd4df1e57a29327cf1772e719fb5307ee11f)
 
 ### Documentation
 
@@ -64,6 +64,14 @@ full message for the in-app changelog viewer.
 - Merge current default work before integrating Pages docs - [`12432939ae`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/12432939aec0a423693303b1f35719a3a18027ed) _(summary of 16 commits, also listed here)_
 - Mention the Pages tab appearance editor - [`542e7eeeaa`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/542e7eeeaaac172737a1d093cade00ddc6d57c3a)
 - Photograph the History tab, and every wizard step, from a green run - [`531b817588`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/531b8175889dfd9c7f50de9683dba48b5f84dc1e)
+
+## 0.1.0-build.196 - 2026-08-04
+
+Tagged at [`0008dd4df1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0008dd4df1e57a29327cf1772e719fb5307ee11f).
+
+### Build, release and tooling
+
+- Refresh the committed captures with a command instead of a memory - [`0008dd4df1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0008dd4df1e57a29327cf1772e719fb5307ee11f)
 
 ## 0.1.0-build.193 - 2026-08-04
 
