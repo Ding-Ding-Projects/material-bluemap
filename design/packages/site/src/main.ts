@@ -632,7 +632,7 @@ function boot(): void {
     const notifications = new Notifications(i18n, notificationHost);
 
     const model = new TabModel(prefs, i18n);
-    const tabs = new TabsController({ i18n, model, notifications, shortcuts, regex });
+    const tabs = new TabsController({ i18n, model, notifications, shortcuts, regex, appearance });
     const settingsView = createSettingsPage({ prefs, appearance, theme });
     const tabLabelKey = {
         home: "site.homeTab",

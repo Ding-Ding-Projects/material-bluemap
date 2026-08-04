@@ -9,7 +9,7 @@ export const tabbedShell: Article = {
     category: "application",
     status: "shipped",
     statusNote:
-        "On the default branch and mounted by the shell, with six test files running in CI covering the model, the four searches, the close plans, storage, the menus and the mounted strip. Per-tab and per-group appearance beyond the group colour is deliberately absent rather than stubbed out, so the wider tab contract this feeds is still open.",
+        "On the default branch and mounted by the shell, with six test files running in CI covering the model, the four searches, the close plans, storage, the menus and the mounted strip. The Pages strip now opens the anchored tab and group appearance editor from normal and Shift+right-click menus; the desktop application's equivalent remains a separate gap, so the wider cross-surface contract is still open.",
 
     sections: [
         {
@@ -215,9 +215,9 @@ export const tabbedShell: Article = {
                 {
                     kind: "callout",
                     tone: "warning",
-                    title: "What is deliberately absent",
+                    title: "What remains outside this surface",
                     content:
-                        "Per-tab and per-group appearance beyond the group colour is not built. The model carries an opaque record on both and storage round-trips it, which is the attach point, and nothing in the tab code reads inside it. Until an editor is wired to those records the wider tab contract is not met, and the contract page says so rather than this one implying otherwise.",
+                        "The Pages tab code now reads its appearance records: normal right-click keeps management actions and adds Edit tab appearance or Edit group appearance, while Shift+right-click opens the same anchored editor directly. The desktop application's equivalent is not wired by this Pages change, so the contract page continues to call out that cross-surface gap rather than implying the two products are one surface.",
                 },
             ],
         },

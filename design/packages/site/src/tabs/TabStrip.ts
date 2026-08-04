@@ -37,6 +37,9 @@ import type { Notifications } from "../notifications/Notifications.js";
 import type { RegexBuilderSlot } from "../platform/RegexBuilderSlot.js";
 import type { ShortcutRegistry } from "../platform/shortcuts.js";
 import type { StringKey } from "../i18n/strings.js";
+import type { AppearanceController } from "../appearance/controller.js";
+import { openAppearanceEditor } from "../appearance/editor/appearanceEditor.js";
+import { t } from "../settings/i18n.js";
 
 export interface TabStripDeps {
     readonly i18n: I18n;
@@ -44,6 +47,8 @@ export interface TabStripDeps {
     readonly notifications: Notifications;
     readonly shortcuts: ShortcutRegistry;
     readonly regex: RegexBuilderSlot;
+    /** The site-level appearance controller, shared with every tab's editor. */
+    readonly appearance: AppearanceController;
 }
 
 interface PanelRecord {
@@ -217,6 +222,16 @@ export class TabStrip {
         });
         header.addEventListener("contextmenu", (event) => {
             event.preventDefault();
+            if (event.shiftKey) {
+                openAppearanceEditor({
+                    anchor: header,
+                    kind: "tab-group",
+                    instance: group.id,
+                    instanceLabel: group.name,
+                    controller: this.deps.appearance,
+                });
+                return;
+            }
             this.openGroupMenu(header, group.id, event.clientX, event.clientY);
         });
         header.addEventListener("dragover", (event) => {
@@ -300,6 +315,16 @@ export class TabStrip {
         });
         tab.addEventListener("contextmenu", (event) => {
             event.preventDefault();
+            if (event.shiftKey) {
+                openAppearanceEditor({
+                    anchor: tab,
+                    kind: "tab",
+                    instance: id,
+                    instanceLabel: model.label(id),
+                    controller: this.deps.appearance,
+                });
+                return;
+            }
             this.openTabMenu(tab, id, event.clientX, event.clientY);
         });
         tab.addEventListener("dragstart", (event) => {
@@ -521,6 +546,17 @@ export class TabStrip {
         });
         entries.push({ kind: "separator" });
         entries.push({
+            render: (label) => { label.textContent = t("editor.openTab"); },
+            shortcut: "Shift + right-click",
+            onSelect: () => openAppearanceEditor({
+                anchor,
+                kind: "tab",
+                instance: id,
+                instanceLabel: model.label(id),
+                controller: this.deps.appearance,
+            }),
+        });
+        entries.push({
             render: (label) => i18n.bindText(label, "tabs.menu.closeContaining"),
             onSelect: () => this.openBulkClose(false, { kind: "all", groupId: null }),
         });
@@ -572,6 +608,17 @@ export class TabStrip {
         }
 
         entries.push({ kind: "separator" });
+        entries.push({
+            render: (label) => { label.textContent = t("editor.openGroup"); },
+            shortcut: "Shift + right-click",
+            onSelect: () => openAppearanceEditor({
+                anchor,
+                kind: "tab-group",
+                instance: groupId,
+                instanceLabel: group.name,
+                controller: this.deps.appearance,
+            }),
+        });
         entries.push({
             render: (label) => i18n.bindText(label, "tabs.menu.closeContaining"),
             onSelect: () => this.openBulkClose(false, { kind: "group", groupId }),

@@ -9,7 +9,7 @@ export const contractTabNavigation: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "The application shell now navigates by tabs, and that strip is shipped and documented separately: overflow that never clips, reordering, pinning, groups, all four searches, five bulk closes with a reviewable plan, and the six orderings restored on the next launch. One clause is unmet: per-tab and per-group appearance is deliberately absent, so there is no Edit tab appearance command and no anchored editor beside a tab. Partial credit does not apply, so this stays specified. Tracked as issue 7.",
+        "The application shell now navigates by tabs, and that strip is shipped and documented separately: overflow that never clips, reordering, pinning, groups, all four searches, five bulk closes with a reviewable plan, and the six orderings restored on the next launch. The Pages site now also wires Edit tab appearance and Edit group appearance into its normal and Shift+right-click paths. The desktop application's per-tab and per-group editors remain outside this Pages change, so the cross-surface contract stays specified. Tracked as issue 7.",
 
     sections: [
         {
@@ -28,12 +28,11 @@ export const contractTabNavigation: Article = {
                             href: repoFile("docs/tabbed-navigation.md"),
                             external: true,
                         },
-                        ". What is missing is the decoration clause: per-tab and per-group appearance beyond a ",
-                        "group colour is deliberately absent rather than half-built, so there is no Edit tab ",
-                        "appearance command and no anchored editor beside a tab. The model carries an opaque ",
-                        "record on both a tab and a group and storage round-trips it verbatim, which is the ",
-                        "attach point rather than the feature. A contract with an unmet clause is a pending ",
-                        "contract, so this page stays marked as unbuilt. Progress is tracked as ",
+                        ". The Pages site now wires the decoration path too: normal right-click retains tab ",
+                        "management and adds Edit tab appearance or Edit group appearance; Shift+right-click ",
+                        "opens the same anchored editor directly. The desktop application's equivalent is ",
+                        "still outside this change, so the cross-surface contract remains pending rather than ",
+                        "pretending one surface completed the other. Progress is tracked as ",
                         { link: "issue 7", href: issue(7), external: true },
                         ".",
                     ],
