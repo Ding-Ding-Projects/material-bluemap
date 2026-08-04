@@ -111,3 +111,15 @@ export {
 
 // resuming an interrupted run, and rendering a world too large for one matrix
 export * from "./resume/index.js";
+
+// preparing a rendered map for a host that only serves files
+export {
+    NOJEKYLL_FILE,
+    PAGES_MAX_FILE_BYTES,
+    PAGES_SOFT_SITE_LIMIT_BYTES,
+    prepareStaticHost,
+    StaticHostError,
+    type PrepareStaticHostOptions,
+    type StaticHostMap,
+    type StaticHostReport,
+} from "./pages/staticHost.js";
