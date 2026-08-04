@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "ab2ae1ee0213ac83af5d5e2355c0275690f22011",
+        shortSha: "ab2ae1ee02",
+        date: "2026-08-04T15:23:46-04:00",
+        subject: "Document current workspace verification",
+        details: "The handoff now records the real default history, the full 4,810-test workspace gate, and the honest hosted-queue boundary; the roadmap stops pretending a site-only count is the whole weather report.\n\nHandoff 而家記低真正 default history、4,810 個測試嘅完整 workspace gate，同 hosted queue 仲未驗證嘅事實；roadmap 唔再扮 site-only 數字就係全份天氣報告。",
+        category: "docs",
+        areas: ["docs"],
+        files: 2,
+    },
+    {
         sha: "857a16da4af93c85647fdad172695d852ab1c2c6",
         shortSha: "857a16da4a",
         date: "2026-08-04T15:20:48-04:00",
