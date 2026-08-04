@@ -383,7 +383,13 @@ exactly like any other exception. Three signals are treated as out-of-memory:
    and never completed — what the operating system's own OOM killer leaves behind. The
    progress requirement is what stops this swallowing a genuine spawn failure.
 
-**3. Choose JVM arguments that make the ending honest rather than pretend to fix it.**
+**3. Convert large worlds in batches**, one JVM at a time — see
+[Batched conversion](#batched-conversion) below. This is the one genuine mitigation, and it
+works whichever account of the memory behaviour is correct: if it is a leak, a fresh JVM per
+batch reclaims everything on exit; if the world is simply too large for available RAM, a
+smaller slice needs less. Either way the peak is bounded by the batch rather than the world.
+
+**4. Choose JVM arguments that make the ending honest rather than pretend to fix it.**
 `RECOMMENDED_JVM_ARGS` is `["-XX:+ExitOnOutOfMemoryError"]`, and the notable thing about it
 is the absence of `-Xmx`. Leaving the heap ceiling off means the JVM's own default applies —
 a documented, predictable fraction of physical RAM, and not a claim by this app that the
@@ -391,6 +397,172 @@ problem is handled. `-XX:+ExitOnOutOfMemoryError` is not a mitigation either: it
 nothing about whether the conversion succeeds. It makes the JVM halt at the first
 `OutOfMemoryError` on any thread and print a line the classifier above recognises, instead
 of letting the process thrash for minutes and then exit 1 like any other crash.
+
+### Large worlds: resumable, margin-protected batches
+
+When the measured world is in the high-risk range, the desktop app can convert it in bounded
+batches rather than pretending one JVM has an unlimited appetite. It first asks Chunker's
+`SETTINGS` pass which region files actually exist, then groups each dimension into batches of at
+most 64 regions, sized toward a 100 MiB source-data budget. Every batch is passed to Chunker with
+`-p` pruning boxes expanded by one chunk on every side. That margin is deliberate: Chunker's
+pre-transform handlers inspect immediate neighbour columns when deciding fences, panes, stairs,
+doors and other connected blocks. Only the batch's owned `r.<x>.<z>.mca` files are kept; the
+partial margin files are discarded rather than allowed to overwrite the complete file produced
+by its owning batch.
+
+The output remains under a sibling `.converting` directory until every batch has merged and the
+assembled world passes the same `level.dat` plus region-file verification as a single-pass
+conversion. `batches.json` is written atomically after each merge. If a JVM fails, the completed
+batches remain in the staging directory and the next attempt resumes from the first unfinished
+batch; if the plan changes, the old merged state is removed instead of mixing two carve-ups.
+Cancel stops the live JVM and prevents the next batch from starting. A failure, cancellation or
+unreadable `SETTINGS` report never creates a directory that looks renderable, and the original
+Bedrock world is never modified.
+
+The planner and runner are unit-tested with injected Chunker processes and real temporary
+directories. The current suite covers malformed settings reports, dimension separation, margin
+geometry, ownership filtering, sequential execution, progress scaling, retry/resume, plan
+changes, cancellation, parallel region directories and the final staging rename. It does not
+claim an end-to-end conversion of a real Bedrock world; that still needs a real world, Chunker
+and a Java runtime.
+
+### Batched conversion
+
+A world past the memory threshold is converted in pieces: one JVM per batch, sequentially,
+each fully exited before the next starts. Worlds under the threshold take the single-pass
+path, unchanged — batching is machinery, and machinery that runs when it is not needed is a
+new way to be wrong.
+
+Four things had to be true for this to be possible, and all four were established by reading
+Chunker's source rather than assumed.
+
+#### 1. The CLI really can convert a subset
+
+`-p` / `--pruning` takes a chunk bounding box per dimension:
+
+```json
+{ "configs": { "minecraft:overworld": {
+    "include": true,
+    "regions": [{ "minChunkX": -1, "minChunkZ": -1, "maxChunkX": 32, "maxChunkZ": 32 }] } } }
+```
+
+`include: true` keeps what is inside the boxes and discards the rest; several boxes union.
+This is `com.hivemc.chunker.pruning.PruningRegion`, the same mechanism the web app's pruning
+tab drives.
+
+#### 2. Pruning skips reading, so it genuinely bounds memory
+
+The idea would have been pointless if pruning were a filter applied after conversion. It is
+not. In `BedrockWorldReader`, whole regions are gated before any task is scheduled, and
+columns before the reader is even constructed:
+
+```java
+for (ChunkCoordPair chunkCoordPair : region.getValue()) {
+    if (!converter.shouldProcessColumn(dimension, chunkCoordPair)) continue;
+    Task.async("Creating Column Reader", ..., () -> createColumnReader(chunkCoordPair))
+```
+
+An excluded chunk is never read, never decoded, never held.
+
+#### 3. The trap: a naive batcher produces subtly broken worlds
+
+> [!WARNING]
+> This is the part that would have made a straightforward implementation actively harmful.
+
+Chunker infers block states from **neighbouring columns** after reading
+(`ColumnPreTransformConversionHandler`): fences, walls, panes, bars, tripwire, redstone,
+stems, double chests, doors and stair shapes all have their connection state decided by what
+is in the adjacent chunk. When a required neighbour never arrives — because pruning excluded
+it — the final `flushColumns()` transforms the column anyway, and `handlePreTransform` simply
+drops the unresolved edges:
+
+```java
+// Remove null values and map them back to column, null values are just unresolved edges
+requiredColumns.forEach(((edge, columnData) -> { if (columnData == null) return; ... }));
+```
+
+So a column at the edge of a pruned area is converted **as though the neighbouring chunk were
+empty**. Nothing hangs, nothing is dropped, and the world converts cleanly — and is quietly
+wrong along every batch boundary. A fence that renders unconnected looks like a fence somebody
+built that way. That is exactly the failure that is worse than refusing.
+
+#### 4. The fix: convert with a margin, keep only what the margin protected
+
+Each batch is a set of whole 32×32 **regions**, and its pruning boxes are those regions grown
+by **one chunk** on every side. Every chunk of every region the batch *owns* therefore has all
+its neighbours loaded, and its connection states are decided with complete information. The
+margin spills into neighbouring regions, whose files are consequently partial — so after the
+batch runs, only the region files it owns are kept and the partial ones are discarded.
+
+One chunk is enough, and that is a property of the handlers rather than a hope: a pre-transform
+reads its *immediate* neighbour columns' blocks. The transitive clustering in `trySolve` decides
+when columns are processed together, not how far a connection query reaches.
+
+Because every region file is produced by exactly one batch, complete, **merging is a file
+copy**. Nothing ever splices chunks inside an Anvil file — the one operation that would put the
+format's sector allocation at risk.
+
+#### What is not sliced: the input
+
+A Bedrock world is a single LevelDB database whose keys interleave every dimension and chunk.
+Cutting it up outside Chunker would mean writing a LevelDB editor and would risk corrupting the
+original — the one thing this feature promises never to touch. **All slicing is expressed to
+Chunker as pruning**, and the original is only ever opened for reading.
+
+#### Planning, and why it is never guessed
+
+The batch plan needs to know which regions exist. Chunker answers that itself: `-f SETTINGS`
+runs its settings-only writer, which reports the world without converting it and writes
+`data.json`:
+
+```json
+{ "maps": [...], "settings": {...},
+  "dimensions": { "minecraft:overworld": [[regionX, regionZ], ...] } }
+```
+
+The region set is `chunkerWorld.getRegions()` — the world's own index — so this is an
+enumeration rather than a second full read.
+
+If that report is missing or malformed, the conversion is **refused**. A plan built from a
+half-read world would convert some unknown subset and report success, which is silent data
+loss. There is deliberately no fallback to a guessed grid.
+
+#### On disk, during and after
+
+```
+<output>.converting/          the staging root - the name says "unfinished"
+  world/                      the merged Java world, built up batch by batch
+  batches.json                which batches are already merged in
+  batch-<n>/                  one batch's raw output, deleted once merged
+<output>                      appears only at the very end, by rename
+```
+
+**Resuming.** A merged batch is recorded in `batches.json` before the next starts, so a
+conversion stopped by a failure, a cancellation or a closed app carries on from the first
+unmerged batch. The ledger records a plan key; if the world or batch size has changed since,
+the completed set is discarded rather than merging two incompatible carve-ups into one world.
+The ledger is written *after* the merge and *before* the batch directory is deleted, so a crash
+between the two costs one repeated batch rather than a missing region.
+
+**Failure and cancellation** keep the staging root — it holds the completed batches a retry
+will skip — and it keeps its `.converting` name, so nothing mistakes it for a world.
+
+**Progress** is reported across the whole job rather than per batch, alongside which batch is
+running. A bar that ran 0–100 once per batch and snapped back would read as the conversion
+restarting.
+
+#### What batching does not fix
+
+- **Fidelity is unchanged.** Entities and structure data still do not convert.
+- **A single batch can still exhaust memory** if one batch's share is itself too large. The
+  batch size is chosen from the world's measured bytes per region, which is an estimate.
+- **The world-level files** (`level.dat`, `data/`, `datapacks/`) come from the first successful
+  batch. They are derived from the source world's level data rather than from the chunks a
+  batch happened to read, so each batch's copy says the same thing — but this is reasoning
+  about Chunker's behaviour, not something measured here.
+- **Paintings and item frames** are the one entity class Chunker converts, and they are
+  relocated to the chunk they belong to. One near a batch edge could in principle be relocated
+  into a discarded margin region and lost.
 
 ### Nothing that looks like a world
 
@@ -473,7 +645,7 @@ npx tsc -p packages/app --noEmit
 npx eslint packages/app
 ```
 
-All three are clean. The Bedrock suites are 84 tests across five files, and **none of them
+All three are clean. The Bedrock suites are 121 tests across seven files, and **none of them
 needs Chunker, a JVM, or a Bedrock world on disk** — the process runner is injected and
 detection runs against fixtures built from empty files, because a Bedrock world's *shape* is
 the whole of what detection reads.
@@ -484,7 +656,9 @@ the whole of what detection reads.
 | `chunker.test.ts` | Chunker absent reported honestly with licence and search paths; never rejecting; configured over downloaded; a missing configured jar reported rather than replaced; version read from a jar name, and `null` rather than a guess |
 | `convert.test.ts` | The documented command line; `--keepOriginalNBT` never passed; **no `-Xmx` in the recommended JVM arguments**; progress parsing including a comma decimal separator; the failure that exits zero; **out-of-memory recognised from exit 12, from a worker-thread stack trace that exits 1, and from an OS kill — but not from a spawn failure or a cancellation**; **the OOM message never suggesting a bigger heap**; verification rejecting a `level.dat` with no terrain; **a cancelled conversion cleaning up after itself**; **a failed conversion leaving nothing that looks like a world**; a stale staging directory cleared |
 | `memory.test.ts` | Silence below the threshold and on an unmeasured world; the warning above it sized against the world; that it names whose limitation it is, promises the cleanup that actually happens, attributes the figure to observation rather than upstream, and **never offers more memory as the fix** |
-| `ipc.test.ts` | Channels registered and disposed from one list; every refusal a value; the memory warning present on the pre-conversion call and absent for a small world; the recommended JVM arguments reaching the conversion; a Java world refused before anything runs; cancel reaching the live conversion, and answering false when there is nothing to cancel |
+| `batch.test.ts` | Malformed settings reports refused; dimension-separated, row-major plans; one-chunk margin geometry; ownership filtering and custom-dimension paths |
+| `batchConvert.test.ts` | One JVM at a time; settings planning; margin spill discarded; atomic ledger; progress scaling; failure and cancellation staging; retry/resume; plan changes; parallel region directories; final rename |
+| `ipc.test.ts` | Channels registered and disposed from one list; every refusal a value; the memory warning present on the pre-conversion call and absent for a small world; the recommended JVM arguments reaching the conversion; high-risk worlds routed through the injected batcher; a Java world refused before anything runs; cancel reaching the live conversion, and answering false when there is nothing to cancel |
 
 The detection fixtures go through the real `inspectWorldFolder`, so the two halves are proven
 to agree — a hand-written listing could satisfy the detector perfectly while the reader never

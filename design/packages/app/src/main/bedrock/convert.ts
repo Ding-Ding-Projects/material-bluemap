@@ -192,7 +192,16 @@ export interface ChunkerRunOptions {
     /** Where the Java world is written. Should be a staging path. */
     readonly outputDirectory: string;
     readonly outputFormat?: string;
-    /** Extra JVM arguments, before `-jar`. `-Xmx4G` is the usual one. */
+    /**
+     * A pruning JSON file for `-p`, restricting the conversion to part of the world.
+     *
+     * Used by the batched path in `batchConvert.ts`. A path rather than an inline JSON object
+     * even though Chunker accepts both: a batch's config can list dozens of bounding boxes,
+     * and a JSON object of that size on a command line runs into the platform's argument
+     * limit and into every layer that quotes it differently.
+     */
+    readonly pruningFile?: string;
+    /** Extra JVM arguments, before `-jar`. See {@link RECOMMENDED_JVM_ARGS}. */
     readonly jvmArgs?: readonly string[];
     readonly cwd?: string;
     readonly env?: NodeJS.ProcessEnv;
@@ -263,6 +272,7 @@ export class ChunkerConversion {
         args.push("-i", options.inputDirectory);
         args.push("-f", options.outputFormat ?? DEFAULT_JAVA_TARGET);
         args.push("-o", options.outputDirectory);
+        if (options.pruningFile !== undefined) args.push("-p", options.pruningFile);
         // `--keepOriginalNBT` is deliberately never passed. Chunker only honours it when
         // input and output formats match, and refuses the whole conversion with
         // `System.exit(0)` when they differ - which for a Bedrock-to-Java conversion is
@@ -620,6 +630,7 @@ export async function convertBedrockWorld(
         inputDirectory: options.inputDirectory,
         outputDirectory: staging,
         ...(options.outputFormat === undefined ? {} : { outputFormat: options.outputFormat }),
+        ...(options.pruningFile === undefined ? {} : { pruningFile: options.pruningFile }),
         ...(options.jvmArgs === undefined ? {} : { jvmArgs: options.jvmArgs }),
         ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
         ...(options.env === undefined ? {} : { env: options.env }),

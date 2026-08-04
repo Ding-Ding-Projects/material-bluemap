@@ -93,6 +93,40 @@ export {
 } from "./convert.js";
 
 export {
+    GLOBAL_WORLD_ENTRIES,
+    MARGIN_CHUNKS,
+    MAX_REGIONS_PER_BATCH,
+    REGION_CHUNKS,
+    REGION_DIRECTORIES,
+    TARGET_BATCH_BYTES,
+    dimensionDirectory,
+    ownedRegionFiles,
+    parseSettingsRegions,
+    planBatches,
+    pruningConfigFor,
+    regionsPerBatch,
+    type ConversionBatch,
+    type DimensionRegions,
+    type PruningBox,
+    type PruningConfigFile,
+    type RegionCoord,
+} from "./batch.js";
+
+export {
+    LEDGER_FILE,
+    MERGED_DIRECTORY,
+    SETTINGS_FORMAT,
+    convertBedrockWorldInBatches,
+    mergeBatchOutput,
+    planKeyFor,
+    readLedger,
+    writeLedger,
+    type BatchLedger,
+    type BatchProgress,
+    type BatchedConversionOptions,
+} from "./batchConvert.js";
+
+export {
     MEMORY_RISK_APPROACHING_FRACTION,
     MEMORY_RISK_THRESHOLD_BYTES,
     assessMemoryRisk,

@@ -54,6 +54,7 @@ import {
     type ConversionOutcome,
     type ConvertWorldOptions,
 } from "./convert.js";
+import { convertBedrockWorldInBatches, type BatchProgress } from "./batchConvert.js";
 import { assessMemoryRisk, type MemoryRisk } from "./memory.js";
 import { detectBedrockWorld, readBedrockLevelName, type BedrockWorldDetection } from "./detect.js";
 import { fidelityNotesFor, type FidelityBriefing } from "./fidelity.js";
@@ -120,6 +121,10 @@ export interface ChunkerStatus {
 
 export type ConversionProgressEvent =
     | ({ readonly conversionId: string } & ConversionEvent)
+    | ({
+          readonly conversionId: string;
+          readonly kind: "batch";
+      } & BatchProgress)
     | {
           readonly conversionId: string;
           readonly kind: "download";
@@ -165,6 +170,8 @@ export interface BedrockIpcOptions {
     readonly find?: (options: FindChunkerOptions) => Promise<ChunkerLookup>;
     readonly fetch?: (options: FetchChunkerOptions) => Promise<{ readonly jarPath: string }>;
     readonly convert?: (options: ConvertWorldOptions) => Promise<ConversionOutcome>;
+    /** Injected in tests. The batched path, used only for worlds past the memory threshold. */
+    readonly convertInBatches?: typeof convertBedrockWorldInBatches;
     readonly inspect?: typeof inspectWorldFolder;
 }
 
@@ -183,6 +190,7 @@ export function registerBedrockHandlers(
     const find = options.find ?? findChunker;
     const fetch = options.fetch ?? fetchChunker;
     const convert = options.convert ?? convertBedrockWorld;
+    const convertInBatches = options.convertInBatches ?? convertBedrockWorldInBatches;
     const broadcast = options.broadcast ?? ((): void => undefined);
 
     /** In-flight conversions, so `bedrock:cancel` can reach the right one. */
@@ -390,7 +398,76 @@ export function registerBedrockHandlers(
             // no-op with the live run's own cancel the instant the run exists.
             const handle: { cancel(): void } = { cancel: () => undefined };
             running.set(conversionId, handle);
+
+            const measured =
+                typeof sizeBytes === "number" && Number.isFinite(sizeBytes) ? sizeBytes : null;
+            const onStart = (live: { cancel(): void }): void => {
+                handle.cancel = () => {
+                    live.cancel();
+                };
+            };
+
+            /**
+             * Writes the provenance record into a world that was just converted.
+             *
+             * Shared by both paths, because a batched conversion is no less a conversion and
+             * a world assembled from forty JVMs is exactly the one somebody will later want
+             * the origin of. Never fatal: a converted world with no sidecar is still a
+             * converted world, and refusing over a missing note would throw away hours.
+             */
+            const recordConversion = async (outcome: {
+                readonly outputDirectory: string;
+                readonly sourceEdition: string | null;
+                readonly targetEdition: string | null;
+                readonly durationMs: number;
+                readonly regionFiles: number;
+            }): Promise<void> => {
+                await writeConversionRecord(
+                    outcome.outputDirectory,
+                    buildConversionRecord({
+                        converterVersion: lookup.version ?? versionFromJarName(lookup.jarPath),
+                        converterPath: lookup.jarPath,
+                        javaVersion: java.version,
+                        sourceWorld: world,
+                        sourceName: await readBedrockLevelName(world),
+                        sourceEdition: outcome.sourceEdition,
+                        targetEdition: outcome.targetEdition,
+                        targetFormat,
+                        durationMs: outcome.durationMs,
+                        regionFiles: outcome.regionFiles,
+                        appVersion: options.appVersion ?? null,
+                    }),
+                ).catch(() => undefined);
+            };
+
             try {
+                // Batching is machinery, and machinery that runs when it is not needed is a
+                // new way to be wrong: it costs a settings pass, a JVM per batch and a merge,
+                // and its correctness rests on a margin scheme that a single pass does not
+                // need at all. So the whole-world path stays the default and batching is
+                // reserved for worlds large enough that one pass is unlikely to finish.
+                if (assessMemoryRisk(measured).level === "high") {
+                    const batched = await convertInBatches({
+                        javaExecutable: java.executable,
+                        jarPath: lookup.jarPath,
+                        inputDirectory: world,
+                        outputDirectory,
+                        outputFormat: targetFormat,
+                        sourceBytes: measured,
+                        jvmArgs: options.jvmArgs ?? RECOMMENDED_JVM_ARGS,
+                        onEvent: (event) => {
+                            broadcast({ conversionId, ...event });
+                        },
+                        onBatch: (progress) => {
+                            broadcast({ conversionId, kind: "batch", ...progress });
+                        },
+                        onStart,
+                    });
+                    if (batched.ok) await recordConversion(batched);
+                    broadcast({ conversionId, kind: "finished", outcome: batched });
+                    return { ...batched, conversionId };
+                }
+
                 const outcome = await convert({
                     javaExecutable: java.executable,
                     jarPath: lookup.jarPath,
@@ -399,10 +476,7 @@ export function registerBedrockHandlers(
                     outputFormat: targetFormat,
                     // Only phrases an out-of-memory failure; the conversion is identical
                     // without it. See `sourceBytes` on ConvertWorldOptions.
-                    sourceBytes:
-                        typeof sizeBytes === "number" && Number.isFinite(sizeBytes)
-                            ? sizeBytes
-                            : null,
+                    sourceBytes: measured,
                     // Defaulted rather than left empty: the recommended set exists to make an
                     // out-of-memory ending recognisable, and a caller that simply did not
                     // think about JVM flags should still get that.
@@ -410,37 +484,12 @@ export function registerBedrockHandlers(
                     onEvent: (event) => {
                         broadcast({ conversionId, ...event });
                     },
-                    onStart: (live) => {
-                        handle.cancel = () => {
-                            live.cancel();
-                        };
-                    },
+                    onStart,
                 });
 
-                if (outcome.ok) {
-                    // Written before the outcome is reported, so a world that is on screen
-                    // as converted always already carries the record saying what it is. The
-                    // failure to write it is deliberately not fatal: a converted world with
-                    // no provenance file is still a converted world, and refusing the
-                    // conversion over a missing sidecar would throw away twenty minutes of
-                    // work for a note.
-                    await writeConversionRecord(
-                        outcome.outputDirectory,
-                        buildConversionRecord({
-                            converterVersion: lookup.version ?? versionFromJarName(lookup.jarPath),
-                            converterPath: lookup.jarPath,
-                            javaVersion: java.version,
-                            sourceWorld: world,
-                            sourceName: await readBedrockLevelName(world),
-                            sourceEdition: outcome.sourceEdition,
-                            targetEdition: outcome.targetEdition,
-                            targetFormat,
-                            durationMs: outcome.durationMs,
-                            regionFiles: outcome.regionFiles,
-                            appVersion: options.appVersion ?? null,
-                        }),
-                    ).catch(() => undefined);
-                }
+                // Written before the outcome is reported, so a world that is on screen as
+                // converted always already carries the record saying what it is.
+                if (outcome.ok) await recordConversion(outcome);
 
                 broadcast({ conversionId, kind: "finished", outcome });
                 return { ...outcome, conversionId };

@@ -76,6 +76,18 @@ const CHUNKER_MISSING: ChunkerLookup = {
     searched: ["/data/chunker/chunker-cli-1.19.1.jar"],
 };
 
+/** A successful conversion, for tests whose subject is which path was taken. */
+function okOutcome(): ConversionOutcome {
+    return {
+        ok: true,
+        outputDirectory: "/worlds/MyWorld (Java)",
+        regionFiles: 9,
+        sourceEdition: "Bedrock 1.21.30",
+        targetEdition: "Java 1.21.4",
+        durationMs: 1000,
+    };
+}
+
 function options(overrides: Partial<BedrockIpcOptions> = {}): BedrockIpcOptions {
     return {
         dataDir: "/data",
@@ -270,9 +282,43 @@ describe("bedrock:convert", () => {
             },
         });
 
-        await call("bedrock:convert", { world: "/worlds/MyWorld", sizeBytes: 900_000_000 });
+        await call("bedrock:convert", { world: "/worlds/MyWorld", sizeBytes: 30 * 1024 * 1024 });
 
-        expect(seen).toBe(900_000_000);
+        expect(seen).toBe(30 * 1024 * 1024);
+    });
+
+    it("converts a small world in one pass, because batching it would be machinery for nothing", async () => {
+        const whole = vi.fn(async () => okOutcome());
+        const batched = vi.fn(async () => okOutcome());
+        const { call } = install({ convert: whole, convertInBatches: batched });
+
+        await call("bedrock:convert", { world: "/worlds/Small", sizeBytes: 30 * 1024 * 1024 });
+
+        expect(whole).toHaveBeenCalledOnce();
+        expect(batched).not.toHaveBeenCalled();
+    });
+
+    it("converts a world past the threshold in batches", async () => {
+        const whole = vi.fn(async () => okOutcome());
+        const batched = vi.fn(async () => okOutcome());
+        const { call } = install({ convert: whole, convertInBatches: batched });
+
+        await call("bedrock:convert", { world: "/worlds/Big", sizeBytes: 1400 * 1024 * 1024 });
+
+        // One pass is unlikely to finish a world this size, so the batched path takes over.
+        expect(batched).toHaveBeenCalledOnce();
+        expect(whole).not.toHaveBeenCalled();
+    });
+
+    it("converts an unmeasured world in one pass rather than guessing it is huge", async () => {
+        const whole = vi.fn(async () => okOutcome());
+        const batched = vi.fn(async () => okOutcome());
+        const { call } = install({ convert: whole, convertInBatches: batched });
+
+        await call("bedrock:convert", { world: "/worlds/Unmeasured" });
+
+        expect(whole).toHaveBeenCalledOnce();
+        expect(batched).not.toHaveBeenCalled();
     });
 
     it("converts and reports the outcome", async () => {
