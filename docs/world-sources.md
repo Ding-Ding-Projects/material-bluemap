@@ -140,10 +140,17 @@ the same one a person runs by hand. There is exactly one joining implementation 
 and this feature did not add a second.
 
 > [!NOTE]
-> Disk. A 6.6 GB world is 6.6 GB of parts plus 6.6 GB of joined archive plus the unpacked tree, and a
-> hosted runner does not have room for all three at once. The parts and the archive are deleted as
-> soon as the world is unpacked. A world much past this size needs the runner's larger volume or a
-> self-hosted runner, and that is a real limit rather than a bug.
+> Disk, measured rather than assumed. An earlier version of this note said a hosted runner "does not
+> have room for all three at once", meaning the parts, the joined archive and the unpacked tree. That
+> was wrong, and it was wrong in the direction that discourages people from trying.
+>
+> A standard runner reports **145 GB total with 87 GB free before anything is cleaned up**. Rendering
+> the 6.6 GB Andyville world peaked around 21 GB above baseline while holding all three copies, and
+> finished with 104 GB still free. The parts and the archive are still deleted as soon as the world is
+> unpacked, because there is no reason to carry them — but that is tidiness, not necessity.
+>
+> Where the ceiling actually is has **not** been established: no run has been pushed until it ran out.
+> 6.6 GB is not close to it.
 
 The workflow input cap is also a real limit: GitHub documents **ten** `workflow_dispatch` inputs and
 `world-repository` is the tenth. An eleventh means folding two existing ones together first.
@@ -227,9 +234,18 @@ The workflow is checked with `actionlint` **and** `shellcheck` installed. That p
 actionlint silently skips every shell check when shellcheck is absent and still exits 0, so a clean
 run without it proves only that the YAML parsed.
 
-Not yet verified: an actual dispatched run against the 6.6 GB Andyville release. The layout, the
-digests and the join are exercised against real bytes in the tests; the runner's disk headroom for a
-world that size is not, and the note above says so rather than implying it has been.
+Verified since, on a real dispatched run against the 6.6 GB Andyville release: the four parts and
+`SHA256SUMS` downloaded cross-repo in 55 seconds, all four verified `OK`, a manifest derived from the
+verified parts, the join checked against it, and the archive unpacked — 8.1 GB of world. The planner
+then measured 1,461 region files and 929,898 chunks and produced a six-shard plan, and the first
+shard rendered 3,462 hires tiles.
+
+That run also exposed three defects this feature had been hiding rather than causing: the planner
+looked for the overworld only at the world root while this save keeps every dimension under
+`dimensions/`; every render job installed Java 21 to run a jar the build compiles with Java 25; and
+the disk note above was simply false. All three are fixed.
+
+Still not verified: the merge into a complete map, and where the disk ceiling actually is.
 
 ## Related reading
 

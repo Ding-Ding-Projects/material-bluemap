@@ -99,13 +99,24 @@ describe("measuring a generated world", () => {
 });
 
 describe("dimension to region directory", () => {
-    it("puts the overworld at the world root and the others where minecraft does", () => {
-        expect(regionDirectoryCandidates("/w", "minecraft:overworld")).toEqual([join("/w", "region")]);
+    it("tries the world root first for the overworld, and the others where minecraft does", () => {
+        expect(regionDirectoryCandidates("/w", "minecraft:overworld")[0]).toBe(join("/w", "region"));
         expect(regionDirectoryCandidates("/w", "minecraft:the_nether")[0]).toBe(
             join("/w", "DIM-1", "region"),
         );
         expect(regionDirectoryCandidates("/w", "minecraft:the_end")[0]).toBe(
             join("/w", "DIM1", "region"),
+        );
+    });
+
+    it("also looks under dimensions/ for the overworld, as the renderer already did", () => {
+        // A real 6.6 GB save keeps every dimension under `dimensions/`, including the
+        // overworld, and this planner reported "no region files" over 1,461 of them while
+        // BlueMap rendered the same world without complaint. The nether and the end had
+        // this fallback from the start; only the overworld did not, which is why no
+        // ordinary world ever showed it.
+        expect(regionDirectoryCandidates("/w", "minecraft:overworld")).toContain(
+            join("/w", "dimensions", "minecraft", "overworld", "region"),
         );
     });
 

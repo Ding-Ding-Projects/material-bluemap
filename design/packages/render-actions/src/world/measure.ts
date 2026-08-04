@@ -62,7 +62,21 @@ export function regionDirectoryCandidates(worldDirectory: string, dimension: str
     const normalized = dimension.includes(":") ? dimension : "minecraft:" + dimension;
     const [namespace = "minecraft", path = "overworld"] = normalized.split(":", 2);
 
-    if (normalized === "minecraft:overworld") return [join(worldDirectory, "region")];
+    // The overworld gets the `dimensions/` fallback too, which it did not until a real
+    // 6.6 GB save was planned in CI and reported "no region files for dimension
+    // minecraft:overworld" over a world holding 1,461 of them.
+    //
+    // The nether and the end already had this fallback and the overworld did not, so the
+    // asymmetry was invisible on any world that keeps the overworld at the root - which is
+    // most of them. A save that keeps every dimension under `dimensions/` planned as empty
+    // while BlueMap itself rendered it perfectly well: upstream's own
+    // `MCAWorld.resolveDimensionFolder` tries `dimensions/<namespace>/<value>` first. The
+    // renderer knew about this layout and only the planner did not.
+    if (normalized === "minecraft:overworld")
+        return [
+            join(worldDirectory, "region"),
+            join(worldDirectory, "dimensions", namespace, path, "region"),
+        ];
     if (normalized === "minecraft:the_nether")
         return [
             join(worldDirectory, "DIM-1", "region"),
