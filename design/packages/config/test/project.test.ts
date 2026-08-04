@@ -148,6 +148,24 @@ describe("a map inside a project", () => {
         if (parsed.success) expect(parsed.data.maps[0]?.config).toBe(body);
     });
 
+    it("maps to the world it lives in by default, and can name another", () => {
+        // One project per world would scatter the settings that describe one server across
+        // several files, so a map may point at a sibling world. Null means "the world this
+        // project is in", which is both the ordinary case and the one that survives a move.
+        const parsed = projectFileSchema.safeParse({
+            ...project(),
+            maps: [
+                { id: "home", name: "Home", dimension: "minecraft:overworld", config: "" },
+                { id: "creative", name: "Creative", dimension: "minecraft:overworld", config: "", world: "../creative" },
+            ],
+        });
+        expect(parsed.success).toBe(true);
+        if (parsed.success) {
+            expect(parsed.data.maps[0]?.world).toBeNull();
+            expect(parsed.data.maps[1]?.world).toBe("../creative");
+        }
+    });
+
     it("refuses a map id that would not survive being a folder name", () => {
         const parsed = projectFileSchema.safeParse({
             ...project(),
