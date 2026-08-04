@@ -171,6 +171,26 @@ function close(id: number): void {
 
 .mb-config-notices__toast {
     border-radius: 12px;
+
+    /*
+     * An overlay paints its own surface.
+     *
+     * `variant="tonal"` is a tinted film, not a background: Vuetify draws the level's
+     * colour at low opacity and lets whatever sits behind it show through. Over an empty
+     * page nobody notices. Over a paragraph - which is exactly where a toast lands, since
+     * it is anchored over the content - the page's text reads straight through the
+     * notification's text and both become unreadable. A screenshot of the options editor
+     * caught it doing precisely that, two sentences printed on top of each other.
+     *
+     * So the tint keeps its job of saying info from warning from error, and gets an opaque
+     * surface underneath to be a tint *of*. The shadow and the hairline are what make it
+     * read as a thing lying on top of the page rather than a coloured patch of it.
+     */
+    background-color: rgb(var(--v-theme-surface));
+    box-shadow:
+        0 6px 16px rgb(0 0 0 / 28%),
+        0 1px 3px rgb(0 0 0 / 22%);
+    border: 1px solid rgb(var(--v-border-color) / 0.22);
 }
 
 .mb-config-notices__body {

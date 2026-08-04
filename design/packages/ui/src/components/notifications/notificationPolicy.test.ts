@@ -323,6 +323,19 @@ describe("the corner's layout, read from the stylesheet because jsdom computes n
         expect(ruleBody(corner, ".mb-config-notices__toast")).not.toContain("position:");
     });
 
+    it("paints its own surface, so the page underneath cannot read through it", () => {
+        // A toast lands on top of content by definition. Vuetify's tonal variant is a
+        // tinted film rather than a background, and over a paragraph it printed the page's
+        // words and the notification's words on top of each other - caught in a screenshot
+        // of the options editor, where both became unreadable.
+        const toast = ruleBody(corner, ".mb-config-notices__toast");
+        expect(toast).toContain("background-color:");
+        // A tint, however pretty, is not a surface: the fill has to be opaque.
+        expect(toast).not.toMatch(/background-color:[^;]*(transparent|rgba?\([^)]*0?\.\d)/);
+        // And it has to read as something lying on the page rather than part of it.
+        expect(toast).toContain("box-shadow:");
+    });
+
     it("gives the dismiss control a 40px target rather than the 24px one it had", () => {
         const dismiss = ruleBody(corner, ".mb-config-notices__dismiss");
         expect(dismiss).toContain("min-height: 40px");

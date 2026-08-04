@@ -26,6 +26,7 @@ import * as directives from "vuetify/directives";
 import App from "./App.vue";
 import ProfileManager from "./components/ProfileManager.vue";
 import { BackupScreen } from "./components/backup/index.js";
+import PagesScreen from "./components/pages/PagesScreen.vue";
 import { CiRenderScreen } from "./components/cirender/index.js";
 import { RunLocationCard } from "./components/remote/index.js";
 import { ConfigScreen } from "./components/config/index.js";
@@ -206,7 +207,7 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("separates the shell into six pages behind one persistent strip", () => {
+    it("separates the shell into seven pages behind one persistent strip", () => {
         shell();
 
         expect(tabLabels()).toEqual([
@@ -216,6 +217,7 @@ describe("the tab strip", () => {
             "GitHub runners",
             "Maps and servers",
             "Backups",
+            "Publish to Pages",
         ]);
     });
 
@@ -303,6 +305,16 @@ describe("the tab strip", () => {
         await settle();
 
         expect(app.findComponent(CiRenderScreen).exists()).toBe(true);
+    });
+
+    it("reaches the Pages-hosting surface through its tab, rather than leaving it in the bundle", async () => {
+        const app = shell();
+        expect(app.findComponent(PagesScreen).exists()).toBe(false);
+
+        tabButton("Publish to Pages").click();
+        await settle();
+
+        expect(app.findComponent(PagesScreen).exists()).toBe(true);
     });
 
     it("puts the choice of where a render runs on the page where a render is started", async () => {

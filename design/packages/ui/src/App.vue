@@ -10,6 +10,7 @@ import {
     mdiMapOutline,
     mdiMapPlus,
     mdiServerNetwork,
+    mdiWeb,
 } from "@mdi/js";
 import type { MenuPage } from "@material-bluemap/viewer";
 import MapView from "./components/MapView.vue";
@@ -31,6 +32,7 @@ import { CommandPalette, usePaletteShortcut } from "./components/palette/index.j
 import { AppearanceTarget } from "./components/appearance/index.js";
 import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
+import PagesScreen from "./components/pages/PagesScreen.vue";
 import { UpdateBanner, createUpdates } from "./components/update/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
@@ -74,6 +76,7 @@ const PAGE_PROJECTS = "projects";
 const PAGE_CIRENDER = "cirender";
 const PAGE_SERVERS = "servers";
 const PAGE_BACKUPS = "backups";
+const PAGE_PAGES = "pages";
 
 const pages = computed<TabPage[]>(() => [
     { id: PAGE_MAP, label: t("tabs.page.map", "Map"), icon: mdiMapOutline },
@@ -90,6 +93,7 @@ const pages = computed<TabPage[]>(() => [
     { id: PAGE_CIRENDER, label: t("tabs.page.ciRender", "GitHub runners"), icon: mdiCloudSyncOutline },
     { id: PAGE_SERVERS, label: t("tabs.page.servers", "Maps and servers"), icon: mdiServerNetwork },
     { id: PAGE_BACKUPS, label: t("tabs.page.backups", "Backups"), icon: mdiCloudUploadOutline },
+    { id: PAGE_PAGES, label: t("tabs.page.pages", "Publish to Pages"), icon: mdiWeb },
 ]);
 
 const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
@@ -614,6 +618,14 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                         @open="openInBrowser"
                                         @restore="revealBackupRestore"
                                     />
+                                </div>
+                            </div>
+                        </template>
+
+                        <template #pages>
+                            <div class="mb-world-host mb-interactive">
+                                <div class="mb-shell-centre">
+                                    <PagesScreen @open="openInBrowser" />
                                 </div>
                             </div>
                         </template>
