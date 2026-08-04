@@ -24,8 +24,11 @@ import { dirname, join } from "node:path";
 
 import {
     HISTORY_CHANNELS,
+    MAX_RESTORE_BYTES,
     describeChanges,
     describeFile,
+    describeFileRestore,
+    describeSettingRestore,
     folderSlug,
     historyRoot,
     joinNames,
@@ -42,6 +45,7 @@ import {
     type HistoryStatus,
     type HistoryWrite,
     type RestoreResult,
+    type RevisionCompareResult,
     type RevisionDiffResult,
 } from "./index.js";
 
@@ -333,6 +337,13 @@ describe.skipIf(!hasGit)("a real repository, on a real disk", { timeout: 60_000 
         restore: (id: string) => Promise<RestoreResult>;
         label: (id: string, text: string) => Promise<HistoryWrite>;
         diff: (id: string) => Promise<RevisionDiffResult>;
+        compare: (from: string | null, to: string) => Promise<RevisionCompareResult>;
+        restoreFiles: (id: string, paths: readonly string[]) => Promise<RestoreResult>;
+        restoreSettings: (
+            id: string,
+            files: readonly { path: string; text: string }[],
+            keys: readonly string[],
+        ) => Promise<RestoreResult>;
         discard: (keep: number) => Promise<HistoryWrite>;
     }> {
         const { folder, dataDir } = await project();
@@ -349,6 +360,10 @@ describe.skipIf(!hasGit)("a real repository, on a real disk", { timeout: 60_000 
             restore: (id) => call<RestoreResult>("history:restore", folder, id),
             label: (id, text) => call<HistoryWrite>("history:label", folder, id, text),
             diff: (id) => call<RevisionDiffResult>("history:diff", folder, id),
+            compare: (from, to) => call<RevisionCompareResult>("history:compare", folder, from, to),
+            restoreFiles: (id, paths) => call<RestoreResult>("history:restoreFiles", folder, id, paths),
+            restoreSettings: (id, files, keys) =>
+                call<RestoreResult>("history:restoreSettings", folder, id, files, keys),
             discard: (keep) => call<HistoryWrite>("history:discardOlder", folder, keep),
         };
     }
@@ -679,5 +694,423 @@ describe.skipIf(!hasGit)("a real repository, on a real disk", { timeout: 60_000 
         expect(index.projects.map((entry) => entry.folder)).toEqual([app.folder]);
         expect(index.projects[0]?.repository).toBe(repositoryPath(app.dataDir, app.folder));
         expect(index.projects[0]?.lastSnapshot).not.toBeNull();
+    });
+
+    /* ---------------------------------------------------------------------- */
+    /* Comparing any two revisions                                            */
+    /* ---------------------------------------------------------------------- */
+
+    /**
+     * The gap these close is not "there is no compare button", it is that a history where
+     * every revision can only be read against its immediate parent cannot answer the
+     * question people actually have: *what has changed since the config last worked?* Four
+     * saves ago is four patches to read and merge in your head, and nobody does it.
+     */
+    describe("comparing any two revisions, not only a revision with its parent", () => {
+        it("reports what changed between two revisions several apart", async () => {
+            const app = await wired();
+            await app.snapshot(); // 1: core + overworld
+            await put(app.folder, "maps/nether.conf", 'world: "world"\n');
+            await app.snapshot(); // 2: + nether
+            await put(app.folder, "webapp.conf", "enabled: true\n");
+            await app.snapshot(); // 3: + webapp
+            await put(app.folder, "core.conf", 'accept-download: true\ndata: "bluemap"\n');
+            await app.snapshot(); // 4: core changed
+
+            const revisions = (await app.list()).revisions;
+            const newest = revisions[0]?.id ?? "";
+            const oldest = revisions[3]?.id ?? "";
+
+            const compared = await app.compare(oldest, newest);
+            expect(compared.ok).toBe(true);
+            if (!compared.ok) return;
+
+            // Everything the three intervening revisions did, in one answer.
+            expect(compared.files.map((file) => `${file.status} ${file.path}`).sort()).toEqual([
+                "added maps/nether.conf",
+                "added webapp.conf",
+                "modified core.conf",
+            ]);
+            expect(compared.from).toBe(oldest);
+            expect(compared.to).toBe(newest);
+        });
+
+        it("sends both sides whole, so the interface can name the setting rather than the line", async () => {
+            const app = await wired();
+            await app.snapshot();
+            await put(app.folder, "core.conf", 'accept-download: true\ndata: "bluemap"\n');
+            await app.snapshot();
+
+            const revisions = (await app.list()).revisions;
+            const compared = await app.compare(revisions[1]?.id ?? "", revisions[0]?.id ?? "");
+            expect(compared.ok).toBe(true);
+            if (!compared.ok) return;
+
+            const core = compared.files.find((file) => file.path === "core.conf");
+            expect(core?.before).toBe('accept-download: false\ndata: "bluemap"\n');
+            expect(core?.after).toBe('accept-download: true\ndata: "bluemap"\n');
+            expect(core?.withheld).toBeNull();
+            // The raw patch is still there for anybody who wants it.
+            expect(core?.patch).toContain("+accept-download: true");
+        });
+
+        it("sends no text for the side a file did not exist on, rather than an empty string", async () => {
+            const app = await wired();
+            await app.snapshot();
+            await put(app.folder, "maps/nether.conf", 'world: "world"\n');
+            await app.snapshot();
+
+            const revisions = (await app.list()).revisions;
+            const compared = await app.compare(revisions[1]?.id ?? "", revisions[0]?.id ?? "");
+            expect(compared.ok).toBe(true);
+            if (!compared.ok) return;
+
+            const added = compared.files.find((file) => file.path === "maps/nether.conf");
+            expect(added?.status).toBe("added");
+            // Null, not "": an empty file and a file that was not there are different facts,
+            // and a reader that conflated them would report every addition as an edit from
+            // blank.
+            expect(added?.before).toBeNull();
+            expect(added?.after).toBe('world: "world"\n');
+        });
+
+        it("compares a revision with whatever came before it when no older end is given", async () => {
+            const app = await wired();
+            await app.snapshot();
+            await put(app.folder, "webapp.conf", "enabled: true\n");
+            await app.snapshot();
+
+            const newest = (await app.list()).revisions[0]?.id ?? "";
+            const compared = await app.compare(null, newest);
+            expect(compared.ok).toBe(true);
+            if (!compared.ok) return;
+            expect(compared.files.map((file) => file.path)).toEqual(["webapp.conf"]);
+            expect(compared.from).toBeNull();
+        });
+
+        it("opens the very first revision, which has nothing before it", async () => {
+            const app = await wired();
+            await app.snapshot();
+
+            const first = (await app.list()).revisions[0]?.id ?? "";
+            const compared = await app.compare(null, first);
+            expect(compared.ok).toBe(true);
+            if (!compared.ok) return;
+            expect(compared.files.map((file) => file.path).sort()).toEqual([
+                "core.conf",
+                "maps/overworld.conf",
+            ]);
+            expect(compared.files.every((file) => file.status === "added")).toBe(true);
+        });
+
+        it("refuses an older end that is git syntax rather than a hash", async () => {
+            const app = await wired();
+            await app.snapshot();
+            const newest = (await app.list()).revisions[0]?.id ?? "";
+
+            for (const bad of ["HEAD@{1}", ":/message", "--", "main^{tree}"]) {
+                const answer = await app.compare(bad, newest);
+                expect(answer.ok, bad).toBe(false);
+            }
+        });
+    });
+
+    /* ---------------------------------------------------------------------- */
+    /* Putting back part of a revision                                        */
+    /* ---------------------------------------------------------------------- */
+
+    describe("a restore can be one file rather than all of them", () => {
+        it("puts one file back and leaves every other file exactly as it is", async () => {
+            const app = await wired();
+            await app.snapshot();
+
+            const wanted = (await app.list()).revisions[0]?.id ?? "";
+
+            // Two separate later edits: one somebody regrets, one they want to keep.
+            await put(app.folder, "maps/overworld.conf", 'world: "broken"\n');
+            await put(app.folder, "core.conf", 'accept-download: true\ndata: "bluemap"\n');
+            await app.snapshot();
+
+            const restored = await app.restoreFiles(wanted, ["maps/overworld.conf"]);
+            expect(restored.ok).toBe(true);
+
+            expect(await readFile(join(app.folder, "maps", "overworld.conf"), "utf8")).toBe('world: "world"\n');
+            // The edit they wanted to keep is still there. This is the whole point.
+            expect(await readFile(join(app.folder, "core.conf"), "utf8")).toContain("accept-download: true");
+        });
+
+        it("records the partial restore as a new revision that says it was partial", async () => {
+            const app = await wired();
+            await app.snapshot();
+            const wanted = (await app.list()).revisions[0]?.id ?? "";
+
+            await put(app.folder, "maps/overworld.conf", 'world: "broken"\n');
+            await app.snapshot();
+
+            const before = (await app.list()).revisions.length;
+            const restored = await app.restoreFiles(wanted, ["maps/overworld.conf"]);
+            expect(restored.ok).toBe(true);
+
+            const after = await app.list();
+            expect(after.revisions).toHaveLength(before + 1);
+            expect(after.revisions[0]?.action).toBe("restored");
+            expect(after.revisions[0]?.restoredFrom).toBe(wanted);
+            // "Put ... back", not "Restored the config as it was" - the two rows mean
+            // completely different things about every file the row does not name.
+            expect(after.revisions[0]?.label).toContain("Put the overworld map back");
+            // And nothing left the history: the state it replaced is still reachable.
+            expect(after.revisions.map((revision) => revision.id)).toContain(wanted);
+        });
+
+        it("takes a named file off the disk when it was not there at that revision", async () => {
+            const app = await wired();
+            await app.snapshot();
+            const before = (await app.list()).revisions[0]?.id ?? "";
+
+            await put(app.folder, "maps/nether.conf", 'world: "world"\n');
+            await app.snapshot();
+
+            const restored = await app.restoreFiles(before, ["maps/nether.conf"]);
+            expect(restored.ok).toBe(true);
+            expect(await exists(join(app.folder, "maps", "nether.conf"))).toBe(false);
+        });
+
+        it("names a file it could not put back rather than pretending it did", async () => {
+            const app = await wired();
+            await app.snapshot();
+            const wanted = (await app.list()).revisions[0]?.id ?? "";
+
+            const restored = await app.restoreFiles(wanted, ["core.conf", "../escape.conf"]);
+            expect(restored.ok).toBe(true);
+            if (!restored.ok) return;
+            expect(restored.skipped.map((entry) => entry.path)).toContain("../escape.conf");
+            expect(await exists(join(app.folder, "..", "escape.conf"))).toBe(false);
+        });
+
+        it("refuses an empty selection instead of silently restoring everything", async () => {
+            const app = await wired();
+            await app.snapshot();
+            const wanted = (await app.list()).revisions[0]?.id ?? "";
+
+            const restored = await app.restoreFiles(wanted, []);
+            expect(restored.ok).toBe(false);
+        });
+
+        it("lets a partial restore itself be undone, because it is only another revision", async () => {
+            const app = await wired();
+            await app.snapshot();
+            const original = (await app.list()).revisions[0]?.id ?? "";
+
+            await put(app.folder, "maps/overworld.conf", 'world: "second"\n');
+            await app.snapshot();
+            const second = (await app.list()).revisions[0]?.id ?? "";
+
+            await app.restoreFiles(original, ["maps/overworld.conf"]);
+            expect(await readFile(join(app.folder, "maps", "overworld.conf"), "utf8")).toBe('world: "world"\n');
+
+            await app.restoreFiles(second, ["maps/overworld.conf"]);
+            expect(await readFile(join(app.folder, "maps", "overworld.conf"), "utf8")).toBe('world: "second"\n');
+        });
+    });
+
+    /* ---------------------------------------------------------------------- */
+    /* Putting back one setting                                               */
+    /* ---------------------------------------------------------------------- */
+
+    describe("a restore can be one setting, merged by the editor and anchored here", () => {
+        it("writes the merged file and records it as a restore of those settings", async () => {
+            const app = await wired();
+            await app.snapshot();
+            const wanted = (await app.list()).revisions[0]?.id ?? "";
+
+            await put(app.folder, "core.conf", 'accept-download: true\ndata: "elsewhere"\n');
+            await app.snapshot();
+
+            // What the editor produces: the current file with one key taken from the old one.
+            const restored = await app.restoreSettings(
+                wanted,
+                [{ path: "core.conf", text: 'accept-download: false\ndata: "elsewhere"\n' }],
+                ["accept-download"],
+            );
+            expect(restored.ok).toBe(true);
+
+            expect(await readFile(join(app.folder, "core.conf"), "utf8")).toBe(
+                'accept-download: false\ndata: "elsewhere"\n',
+            );
+
+            const listing = await app.list();
+            expect(listing.revisions[0]?.action).toBe("restored");
+            expect(listing.revisions[0]?.restoredFrom).toBe(wanted);
+            expect(listing.revisions[0]?.label).toContain("accept-download");
+        });
+
+        it("refuses a path this editor would not write, so a crafted argument writes nothing", async () => {
+            const app = await wired();
+            await app.snapshot();
+            const wanted = (await app.list()).revisions[0]?.id ?? "";
+
+            const restored = await app.restoreSettings(
+                wanted,
+                [{ path: "../escape.conf", text: "owned: true\n" }],
+                ["owned"],
+            );
+            expect(restored.ok).toBe(true);
+            if (!restored.ok) return;
+            expect(restored.revision).toBeNull();
+            expect(restored.skipped.map((entry) => entry.path)).toEqual(["../escape.conf"]);
+            expect(await exists(join(app.folder, "..", "escape.conf"))).toBe(false);
+        });
+
+        it("refuses a file that is neither in the revision nor in the folder now", async () => {
+            const app = await wired();
+            await app.snapshot();
+            const wanted = (await app.list()).revisions[0]?.id ?? "";
+
+            // A perfectly writable config path that this folder has simply never held. It is
+            // refused because this channel restores, and there is nothing here to restore.
+            const restored = await app.restoreSettings(
+                wanted,
+                [{ path: "webserver.conf", text: "port: 8100\n" }],
+                ["port"],
+            );
+            expect(restored.ok).toBe(true);
+            if (!restored.ok) return;
+            expect(restored.revision).toBeNull();
+            expect(restored.skipped[0]?.reason).toContain("neither in the chosen revision");
+            expect(await exists(join(app.folder, "webserver.conf"))).toBe(false);
+        });
+
+        it("refuses a revision that is not in this folder's history", async () => {
+            const app = await wired();
+            await app.snapshot();
+
+            const restored = await app.restoreSettings(
+                "0123456789abcdef0123456789abcdef01234567",
+                [{ path: "core.conf", text: "accept-download: true\n" }],
+                ["accept-download"],
+            );
+            expect(restored.ok).toBe(false);
+            expect(await readFile(join(app.folder, "core.conf"), "utf8")).toContain("accept-download: false");
+        });
+
+        it("records what was on disk before merging over it", async () => {
+            const app = await wired();
+            await app.snapshot();
+            const wanted = (await app.list()).revisions[0]?.id ?? "";
+
+            // An edit made outside the editor, which the history has never seen.
+            await put(app.folder, "core.conf", 'accept-download: true\ndata: "unrecorded"\n');
+
+            await app.restoreSettings(
+                wanted,
+                [{ path: "core.conf", text: 'accept-download: false\ndata: "unrecorded"\n' }],
+                ["accept-download"],
+            );
+
+            const listing = await app.list();
+            // Three: the first snapshot, the unrecorded state caught on the way in, and the
+            // restore itself. Without the middle one, `data: "unrecorded"` would exist in no
+            // revision at all.
+            expect(listing.revisions).toHaveLength(3);
+            expect(listing.revisions[1]?.action).toBe("changed");
+        });
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The new channels, on a machine with no git                                 */
+/* -------------------------------------------------------------------------- */
+
+describe("the wider channel still never rejects", () => {
+    it("answers rather than throwing when git is missing, on every channel", async () => {
+        const ipcMain = fakeIpcMain();
+        registerHistoryHandlers(ipcMain, { dataDir: "/data", git: noGit });
+
+        const hash = "0123456789abcdef0123456789abcdef01234567";
+        const answers = await Promise.all([
+            ipcMain.handlers.get("history:compare")?.(noEvent, "/tmp/config", null, hash),
+            ipcMain.handlers.get("history:restoreFiles")?.(noEvent, "/tmp/config", hash, ["core.conf"]),
+            ipcMain.handlers
+                .get("history:restoreSettings")
+                ?.(noEvent, "/tmp/config", hash, [{ path: "core.conf", text: "a: 1\n" }], ["a"]),
+        ]);
+
+        for (const answer of answers) {
+            expect((answer as { ok: boolean }).ok).toBe(false);
+            expect((answer as { message: string }).message).toContain("Git is not installed");
+        }
+    });
+
+    it("refuses a selection that is not a list of names", async () => {
+        const ipcMain = fakeIpcMain();
+        registerHistoryHandlers(ipcMain, { dataDir: "/data", git: noGit });
+        const hash = "0123456789abcdef0123456789abcdef01234567";
+
+        for (const bad of [null, "core.conf", [1, 2], [{}]]) {
+            const answer = (await ipcMain.handlers
+                .get("history:restoreFiles")
+                ?.(noEvent, "/tmp/config", hash, bad)) as RestoreResult;
+            expect(answer.ok, JSON.stringify(bad)).toBe(false);
+        }
+    });
+
+    it("refuses merged text that is not a list of files with contents", async () => {
+        const ipcMain = fakeIpcMain();
+        registerHistoryHandlers(ipcMain, { dataDir: "/data", git: noGit });
+        const hash = "0123456789abcdef0123456789abcdef01234567";
+
+        for (const bad of [null, "core.conf", [{ path: "core.conf" }], [{ text: "a: 1\n" }], ["core.conf"]]) {
+            const answer = (await ipcMain.handlers
+                .get("history:restoreSettings")
+                ?.(noEvent, "/tmp/config", hash, bad, [])) as RestoreResult;
+            expect(answer.ok, JSON.stringify(bad)).toBe(false);
+        }
+    });
+
+    it("refuses more text than a config folder could hold, rather than writing it", async () => {
+        const ipcMain = fakeIpcMain();
+        registerHistoryHandlers(ipcMain, { dataDir: "/data", git: noGit });
+        const hash = "0123456789abcdef0123456789abcdef01234567";
+
+        const answer = (await ipcMain.handlers
+            .get("history:restoreSettings")
+            ?.(noEvent, "/tmp/config", hash, [{ path: "core.conf", text: "x".repeat(MAX_RESTORE_BYTES + 1) }], [])) as RestoreResult;
+
+        expect(answer.ok).toBe(false);
+        expect(answer.ok || answer.message).toContain("far more text");
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Labelling a partial restore                                                */
+/* -------------------------------------------------------------------------- */
+
+describe("a partial restore says it was partial", () => {
+    const target = { label: "Added the nether map", shortId: "abc123def456" };
+
+    it("names one file, and says where it came from", () => {
+        expect(describeFileRestore(target, ["maps/nether.conf"])).toBe(
+            "Put the nether map back as it was at abc123def456: Added the nether map",
+        );
+    });
+
+    it("names a few files and counts the rest, like every other label in this module", () => {
+        expect(
+            describeFileRestore(target, ["a.conf", "b.conf", "c.conf", "d.conf", "e.conf"]),
+        ).toContain("and 2 more");
+    });
+
+    it("names the settings that were put back, singular and plural alike", () => {
+        expect(describeSettingRestore(target, ["sky-color"])).toBe(
+            "Put the setting sky-color back as it was at abc123def456: Added the nether map",
+        );
+        expect(describeSettingRestore(target, ["sky-color", "ambient-light"])).toContain(
+            "the settings sky-color and ambient-light",
+        );
+    });
+
+    it("says plainly when a selection came to nothing rather than claiming a restore", () => {
+        expect(describeFileRestore(target, [])).toContain("Put nothing back");
+        expect(describeSettingRestore(target, [])).toContain("Put no settings back");
     });
 });

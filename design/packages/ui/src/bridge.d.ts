@@ -181,6 +181,129 @@ type BlueMapHistoryDiffResult =
     | { ok: true; files: BlueMapHistoryDiffFile[] }
     | { ok: false; message: string };
 
+interface BlueMapHistoryComparisonFile extends BlueMapHistoryDiffFile {
+    /** The file's whole text at the older end, or null when absent or withheld. */
+    before: string | null;
+    after: string | null;
+    /** Why a side is null despite existing there (too large, not text). Null otherwise. */
+    withheld: string | null;
+}
+
+type BlueMapHistoryCompareResult =
+    | { ok: true; from: string | null; to: string; files: BlueMapHistoryComparisonFile[] }
+    | { ok: false; message: string };
+
+interface BlueMapHistoryMergedFile {
+    path: string;
+    text: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/* A world's project                                                          */
+/* -------------------------------------------------------------------------- */
+
+/** Mirrors `ProjectBridge` in the preload, which mirrors `main/project/`. */
+type BlueMapProjectReadFailure =
+    | { kind: "absent" }
+    | { kind: "unreadable"; message: string }
+    | { kind: "not-json"; message: string }
+    | { kind: "too-new"; version: number }
+    | { kind: "invalid"; problems: string[] };
+
+interface BlueMapProjectMap {
+    id: string;
+    name: string;
+    dimension: string;
+    /** The complete `maps/<id>.conf` body, HOCON. */
+    config: string;
+    storage: string;
+    sorting: number;
+    enabled: boolean;
+    /** A world other than the one holding this project, or null for that one. */
+    world: string | null;
+}
+
+interface BlueMapProjectStorage {
+    id: string;
+    config: string;
+}
+
+interface BlueMapProjectRender {
+    threads: number | null;
+    force: boolean;
+    fixEdges: boolean;
+    metrics: boolean;
+    outputFolder: string | null;
+}
+
+interface BlueMapProjectFile {
+    version: number;
+    id: string;
+    name: string;
+    createdAt: string;
+    updatedAt: string;
+    appVersion: string | null;
+    maps: BlueMapProjectMap[];
+    storages: BlueMapProjectStorage[];
+    render: BlueMapProjectRender;
+    core: string | null;
+    webapp: string | null;
+    webserver: string | null;
+    plugin: string | null;
+    fromWizard: boolean;
+}
+
+type BlueMapProjectReadOutcome =
+    | { ok: true; worldFolder: string; path: string; project: BlueMapProjectFile; text: string }
+    | { ok: false; worldFolder: string; path: string; failure: BlueMapProjectReadFailure };
+
+interface BlueMapProjectPresence {
+    worldFolder: string;
+    path: string;
+    /** True when the file is there, whether or not this build could read it. */
+    present: boolean;
+    name: string | null;
+    id: string | null;
+    mapCount: number | null;
+    updatedAt: string | null;
+    fromWizard: boolean | null;
+    /** One sentence when a project is there and would not open. Null otherwise. */
+    problem: string | null;
+}
+
+type BlueMapProjectSaveResult =
+    | {
+          ok: true;
+          path: string;
+          project: BlueMapProjectFile;
+          historyOk: boolean;
+          revision: BlueMapHistoryRevision | null;
+          historyMessage: string;
+      }
+    | { ok: false; reason: string };
+
+interface BlueMapProjectHistoryListing {
+    available: boolean;
+    reason: string | null;
+    worldFolder: string;
+    repository: string;
+    revisions: BlueMapHistoryRevision[];
+    remotes: string[];
+}
+
+interface BlueMapProjectBridge {
+    read(worldFolder: string): Promise<BlueMapProjectReadOutcome>;
+    discover(worldFolder: string): Promise<BlueMapProjectPresence>;
+    discoverMany(worldFolders: string[]): Promise<BlueMapProjectPresence[]>;
+    save(
+        worldFolder: string,
+        project: BlueMapProjectFile,
+        replaceUnreadable?: boolean,
+    ): Promise<BlueMapProjectSaveResult>;
+    history(worldFolder: string, limit?: number): Promise<BlueMapProjectHistoryListing>;
+    restore(worldFolder: string, id: string): Promise<BlueMapHistoryRestoreResult>;
+}
+
 interface BlueMapHistoryBridge {
     status(): Promise<BlueMapHistoryStatus>;
     list(folder: string, limit?: number): Promise<BlueMapHistoryListing>;
@@ -196,6 +319,25 @@ interface BlueMapHistoryBridge {
      * the two-key confirmation gate rather than a plain button.
      */
     discardOlderRevisions(folder: string, keep: number): Promise<BlueMapHistoryWrite>;
+
+    /**
+     * What changed between two revisions, with both sides' text whole.
+     *
+     * A null `from` means the parent of `to`, or the empty tree for the first revision.
+     * Whole text rather than a patch is what lets the panel report changed settings instead
+     * of changed lines: a setting that merely moved in the file is not a change, and a
+     * comment somebody added is not a setting change, but a line diff calls both one.
+     */
+    compare(folder: string, from: string | null, to: string): Promise<BlueMapHistoryCompareResult>;
+    /** Puts back only the named files of a revision, recorded as a new revision. */
+    restoreFiles(folder: string, id: string, paths: string[]): Promise<BlueMapHistoryRestoreResult>;
+    /** Puts back individual settings, from files this side has already merged. */
+    restoreSettings(
+        folder: string,
+        id: string,
+        files: BlueMapHistoryMergedFile[],
+        keys: string[],
+    ): Promise<BlueMapHistoryRestoreResult>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -573,6 +715,15 @@ interface MaterialBlueMapBridge {
      * saying this build keeps no history.
      */
     history: BlueMapHistoryBridge;
+
+    /**
+     * A world's own record of how it should be rendered, and the history of it.
+     *
+     * A `present` row with a null `name` and a `problem` is a world whose project is there
+     * and damaged - a different thing to say than "no project", which is why this is not a
+     * boolean.
+     */
+    project: BlueMapProjectBridge;
 
     /**
      * Backing a world or a rendered map up to GitHub release assets.

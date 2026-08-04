@@ -615,7 +615,146 @@ export interface HistoryDiffFile {
 export type HistoryFilesResult = { ok: true; files: HistoryRevisionFile[] } | { ok: false; message: string };
 export type HistoryDiffResult = { ok: true; files: HistoryDiffFile[] } | { ok: false; message: string };
 
-export interface HistoryBridge {
+export interface HistoryComparisonFile extends HistoryDiffFile {
+    /** The file's whole text at the older end, or null when absent or withheld. */
+    before: string | null;
+    after: string | null;
+    /** Why a side is null despite existing there (too large, not text). Null otherwise. */
+    withheld: string | null;
+}
+
+export type HistoryCompareResult =
+    | { ok: true; from: string | null; to: string; files: HistoryComparisonFile[] }
+    | { ok: false; message: string };
+
+export interface HistoryMergedFile {
+    path: string;
+    text: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/* A world's project                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mirrors `main/project/`, restated here for the same reason the history types are: the
+ * preload is bundled separately, and importing across that boundary would drag the schema
+ * and the git layer into the renderer's bundle.
+ *
+ * Nothing here rejects. A refusal is a value, so the interface can tell "this project was
+ * written by a newer app" apart from "the disk is full" - two screens, not one red toast.
+ */
+export type ProjectReadFailure =
+    | { kind: "absent" }
+    | { kind: "unreadable"; message: string }
+    | { kind: "not-json"; message: string }
+    | { kind: "too-new"; version: number }
+    | { kind: "invalid"; problems: string[] };
+
+export interface ProjectMapEntry {
+    id: string;
+    name: string;
+    dimension: string;
+    /** The complete `maps/<id>.conf` body, HOCON. */
+    config: string;
+    storage: string;
+    sorting: number;
+    enabled: boolean;
+    /** A world other than the one holding this project, or null for that one. */
+    world: string | null;
+}
+
+export interface ProjectStorageEntry {
+    id: string;
+    config: string;
+}
+
+export interface ProjectRenderOptions {
+    threads: number | null;
+    force: boolean;
+    fixEdges: boolean;
+    metrics: boolean;
+    outputFolder: string | null;
+}
+
+export interface ProjectFileContents {
+    version: number;
+    id: string;
+    name: string;
+    createdAt: string;
+    updatedAt: string;
+    appVersion: string | null;
+    maps: ProjectMapEntry[];
+    storages: ProjectStorageEntry[];
+    render: ProjectRenderOptions;
+    core: string | null;
+    webapp: string | null;
+    webserver: string | null;
+    plugin: string | null;
+    fromWizard: boolean;
+}
+
+export type ProjectReadOutcome =
+    | { ok: true; worldFolder: string; path: string; project: ProjectFileContents; text: string }
+    | { ok: false; worldFolder: string; path: string; failure: ProjectReadFailure };
+
+export interface ProjectPresence {
+    worldFolder: string;
+    path: string;
+    /** True when the file is there, whether or not this build could read it. */
+    present: boolean;
+    name: string | null;
+    id: string | null;
+    mapCount: number | null;
+    updatedAt: string | null;
+    fromWizard: boolean | null;
+    /** One sentence when a project is there and would not open. Null otherwise. */
+    problem: string | null;
+}
+
+export type ProjectSaveResult =
+    | {
+          ok: true;
+          path: string;
+          project: ProjectFileContents;
+          /** False when the project was saved but no record of it could be kept. */
+          historyOk: boolean;
+          revision: HistoryRevision | null;
+          historyMessage: string;
+      }
+    | { ok: false; reason: string };
+
+export interface ProjectHistoryListing {
+    available: boolean;
+    reason: string | null;
+    worldFolder: string;
+    /** Shown so a person can see the history is not inside their world. */
+    repository: string;
+    revisions: HistoryRevision[];
+    remotes: string[];
+}
+
+export interface ProjectBridge {
+    read(worldFolder: string): Promise<ProjectReadOutcome>;
+    discover(worldFolder: string): Promise<ProjectPresence>;
+    discoverMany(worldFolders: string[]): Promise<ProjectPresence[]>;
+    /**
+     * Writes the project and records exactly one revision of it.
+     *
+     * Refuses rather than overwriting a project this build could not read; pass
+     * `replaceUnreadable` only after showing somebody what could not be read and asking.
+     * It never applies to a project from a newer app, which is refused outright.
+     */
+    save(
+        worldFolder: string,
+        project: ProjectFileContents,
+        replaceUnreadable?: boolean,
+    ): Promise<ProjectSaveResult>;
+    history(worldFolder: string, limit?: number): Promise<ProjectHistoryListing>;
+    restore(worldFolder: string, id: string): Promise<HistoryRestoreResult>;
+}
+
+interface HistoryBridge {
     /** Whether this machine can keep a history at all, and why not when it cannot. */
     status(): Promise<HistoryStatus>;
     /** Every revision for one config folder, newest first. */
@@ -648,6 +787,33 @@ export interface HistoryBridge {
      * puts it behind the two-key confirmation gate.
      */
     discardOlderRevisions(folder: string, keep: number): Promise<HistoryWrite>;
+
+    /**
+     * What changed between two revisions, with both sides' text.
+     *
+     * A null `from` means "whatever came before `to`" - its parent, or the empty tree for
+     * the very first revision, which otherwise could not be opened at all. Both sides come
+     * back whole so the panel can report changed *settings* rather than changed lines; a
+     * side too large or not text arrives null with `withheld` saying which.
+     */
+    compare(folder: string, from: string | null, to: string): Promise<HistoryCompareResult>;
+    /** Puts back only the named files of a revision, recorded as a new revision. */
+    restoreFiles(folder: string, id: string, paths: string[]): Promise<HistoryRestoreResult>;
+    /**
+     * Puts back individual settings from files the renderer has already merged.
+     *
+     * The merge lives in the renderer because the round-tripping HOCON writer does, and a
+     * second copy in the main process would be a second HOCON implementation to disagree
+     * with the one that writes every save. The main process still checks rather than
+     * assumes: the revision exists, every path is one this editor would write, every path
+     * is one that revision or the folder holds, and the whole payload is under a cap.
+     */
+    restoreSettings(
+        folder: string,
+        id: string,
+        files: HistoryMergedFile[],
+        keys: string[],
+    ): Promise<HistoryRestoreResult>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1138,6 +1304,16 @@ interface MaterialBlueMapBridge {
      */
     history: HistoryBridge;
 
+    /**
+     * A world's own record of how it should be rendered, and the history of it.
+     *
+     * The world list uses `discoverMany` to show which worlds carry a project. A `present`
+     * row with a null `name` and a `problem` is a world whose project is there and damaged,
+     * which is a different thing to say than "no project" - and the reason this is not a
+     * boolean.
+     */
+    project: ProjectBridge;
+
     /* ---- Backing a world or a rendered map up to GitHub ------------------ */
 
     /** Repositories the signed-in account can actually write to. */
@@ -1278,6 +1454,16 @@ const bridge: MaterialBlueMapBridge = {
         pathSeparator: process.platform === "win32" ? "\\" : "/",
     },
 
+    project: {
+        read: (worldFolder) => ipcRenderer.invoke("project:read", worldFolder),
+        discover: (worldFolder) => ipcRenderer.invoke("project:discover", worldFolder),
+        discoverMany: (worldFolders) => ipcRenderer.invoke("project:discoverMany", worldFolders),
+        save: (worldFolder, project, replaceUnreadable) =>
+            ipcRenderer.invoke("project:save", worldFolder, project, replaceUnreadable === true),
+        history: (worldFolder, limit) => ipcRenderer.invoke("project:history", worldFolder, limit),
+        restore: (worldFolder, id) => ipcRenderer.invoke("project:restore", worldFolder, id),
+    },
+
     history: {
         status: () => ipcRenderer.invoke("history:status"),
         list: (folder, limit) => ipcRenderer.invoke("history:list", folder, limit),
@@ -1287,6 +1473,10 @@ const bridge: MaterialBlueMapBridge = {
         restore: (folder, id) => ipcRenderer.invoke("history:restore", folder, id),
         label: (folder, id, label) => ipcRenderer.invoke("history:label", folder, id, label),
         discardOlderRevisions: (folder, keep) => ipcRenderer.invoke("history:discardOlder", folder, keep),
+        compare: (folder, from, to) => ipcRenderer.invoke("history:compare", folder, from, to),
+        restoreFiles: (folder, id, paths) => ipcRenderer.invoke("history:restoreFiles", folder, id, paths),
+        restoreSettings: (folder, id, files, keys) =>
+            ipcRenderer.invoke("history:restoreSettings", folder, id, files, keys),
     },
 
     listBackupRepositories: () => ipcRenderer.invoke("backup:repositories"),

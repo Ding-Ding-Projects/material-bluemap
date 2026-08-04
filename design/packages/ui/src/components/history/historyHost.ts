@@ -135,6 +135,28 @@ export interface HistoryDiffFile {
     readonly patch: string;
 }
 
+/**
+ * One file at both ends of a comparison, whole.
+ *
+ * The whole text is what turns a patch into a sentence. `-sky-color: "#7dabff"` next to
+ * `+sky-color: "#ffffff"` is two lines a reader has to diff in their head to learn one fact;
+ * `sky-color: #7dabff to #ffffff` is the fact. Producing the second needs both files
+ * entire, because a setting's value can be spread over lines a patch never carries.
+ *
+ * Either side is null when the file was not there on that side, which is a different thing
+ * from being empty and is reported as a different thing.
+ */
+export interface HistoryComparisonFile extends HistoryDiffFile {
+    readonly before: string | null;
+    readonly after: string | null;
+    /**
+     * Why a side is null despite the file existing there - too large, or not text. Null when
+     * nothing was held back. Stated rather than silent, so a file the panel usually explains
+     * falling back to a raw patch reads as a reason rather than as a bug.
+     */
+    readonly withheld: string | null;
+}
+
 export type HistoryFilesResult =
     | { readonly ok: true; readonly files: readonly HistoryRevisionFile[] }
     | { readonly ok: false; readonly message: string };
@@ -142,6 +164,22 @@ export type HistoryFilesResult =
 export type HistoryDiffResult =
     | { readonly ok: true; readonly files: readonly HistoryDiffFile[] }
     | { readonly ok: false; readonly message: string };
+
+export type HistoryCompareResult =
+    | {
+          readonly ok: true;
+          /** The older end, echoed back so the panel cannot label the comparison backwards. */
+          readonly from: string | null;
+          readonly to: string;
+          readonly files: readonly HistoryComparisonFile[];
+      }
+    | { readonly ok: false; readonly message: string };
+
+/** One file's merged text, on its way back to disk as part of a setting-level restore. */
+export interface HistoryMergedFile {
+    readonly path: string;
+    readonly text: string;
+}
 
 /** Everything the history panel asks of its environment. */
 export interface HistoryHost {
@@ -162,6 +200,48 @@ export interface HistoryHost {
      * two-key gate in front of it. Everything else here only ever adds a revision.
      */
     discardOlderRevisions(folder: string, keep: number): Promise<HistoryWrite>;
+
+    /*
+     * The three below are optional, and that is a deliberate difference from everything
+     * above.
+     *
+     * The methods above are all-or-nothing: a bridge missing any of them yields no host at
+     * all, because a panel that presented a Restore button it could not honour would be
+     * worse than one that said this build keeps no history. These three are additions to a
+     * shipped feature, so the same reasoning points the other way. A desktop shell built
+     * before them still keeps a perfectly good history, and refusing the whole panel because
+     * it cannot compare two revisions would take away the eight things it can do to punish
+     * it for the three it cannot.
+     *
+     * So they are probed one at a time and the panel offers each control only when its
+     * method is really there. Absent is a stated fact next to the control, never a button
+     * that throws.
+     */
+
+    /**
+     * What changed between two revisions, with both sides' text so the panel can name the
+     * setting rather than the line. A null `from` means "whatever came before `to`".
+     */
+    compare?(folder: string, from: string | null, to: string): Promise<HistoryCompareResult>;
+
+    /** Puts back only the named files of a revision, recorded as a new revision. */
+    restoreFiles?(folder: string, id: string, paths: readonly string[]): Promise<HistoryRestoreResult>;
+
+    /**
+     * Puts back individual settings, by handing the main process files this editor merged.
+     *
+     * The merge happens here because the HOCON reader and writer that round-trip comments and
+     * formatting live in `@material-bluemap/config`, which is the editor's, not the main
+     * process's. The main process still checks that the revision exists, that every path is
+     * one it would write anyway, and that the file is one that revision or the folder holds -
+     * and it still snapshots first and records the result as a new revision.
+     */
+    restoreSettings?(
+        folder: string,
+        id: string,
+        files: readonly HistoryMergedFile[],
+        keys: readonly string[],
+    ): Promise<HistoryRestoreResult>;
 }
 
 /**
@@ -180,6 +260,14 @@ interface BridgeHistoryApi {
     restore(folder: string, id: string): Promise<HistoryRestoreResult>;
     label(folder: string, id: string, label: string): Promise<HistoryWrite>;
     discardOlderRevisions(folder: string, keep: number): Promise<HistoryWrite>;
+    compare?(folder: string, from: string | null, to: string): Promise<HistoryCompareResult>;
+    restoreFiles?(folder: string, id: string, paths: readonly string[]): Promise<HistoryRestoreResult>;
+    restoreSettings?(
+        folder: string,
+        id: string,
+        files: readonly HistoryMergedFile[],
+        keys: readonly string[],
+    ): Promise<HistoryRestoreResult>;
 }
 
 /** Every method the panel needs, named once so the probe below cannot drift from it. */
@@ -222,6 +310,29 @@ export function historyHostFromBridge(bridge: unknown): HistoryHost | null {
         restore: (folder, id) => ready.restore(folder, id),
         label: (folder, id, text) => ready.label(folder, id, text),
         discardOlderRevisions: (folder, keep) => ready.discardOlderRevisions(folder, keep),
+
+        // Spread rather than assigned, because `exactOptionalPropertyTypes` makes
+        // `compare: undefined` a different thing from an absent `compare`, and the panel
+        // asks the second question - "is this method here?" - not the first.
+        ...(typeof ready.compare === "function"
+            ? { compare: (folder: string, from: string | null, to: string) => ready.compare?.(folder, from, to) as Promise<HistoryCompareResult> }
+            : {}),
+        ...(typeof ready.restoreFiles === "function"
+            ? {
+                  restoreFiles: (folder: string, id: string, paths: readonly string[]) =>
+                      ready.restoreFiles?.(folder, id, paths) as Promise<HistoryRestoreResult>,
+              }
+            : {}),
+        ...(typeof ready.restoreSettings === "function"
+            ? {
+                  restoreSettings: (
+                      folder: string,
+                      id: string,
+                      files: readonly HistoryMergedFile[],
+                      keys: readonly string[],
+                  ) => ready.restoreSettings?.(folder, id, files, keys) as Promise<HistoryRestoreResult>,
+              }
+            : {}),
     };
 }
 

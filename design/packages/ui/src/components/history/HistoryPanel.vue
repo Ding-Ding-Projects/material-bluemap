@@ -26,15 +26,19 @@ import {
 } from "vuetify/components";
 
 import ChangelogDateFilter from "../changelog/ChangelogDateFilter.vue";
-import type { DayKey } from "../changelog/changelogDates.js";
+import { formatDay, type DayKey } from "../changelog/changelogDates.js";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { raiseNotice } from "../../stores/notices.js";
 
+import HistoryComparison from "./HistoryComparison.vue";
 import HistoryRevisionRow from "./HistoryRevisionRow.vue";
+import { readableDiff } from "./historyDiff.js";
+import { mergeSettingsBack } from "./historyRestore.js";
 import {
     actionFacets,
     daysWithRevisions,
+    exportComparison,
     exportRevisions,
     filterRevisions,
     historySpan,
@@ -42,9 +46,10 @@ import {
     EXPORT_EXTENSIONS,
     type ExportFormat,
 } from "./historyModel.js";
+import { currentRevisionId, groupRevisionsByDay } from "./historyTimeline.js";
 import {
     useHistoryHost,
-    type HistoryDiffFile,
+    type HistoryComparisonFile,
     type HistoryHost,
     type HistoryListing,
     type HistoryRevision,
@@ -52,8 +57,8 @@ import {
 } from "./historyHost.js";
 
 /**
- * The version history of one BlueMap config folder: browse, diff, restore, label, trim and
- * export.
+ * The version history of one BlueMap config folder: browse, compare, diff, restore, label,
+ * trim and export.
  *
  * ### What this panel is looking at
  *
@@ -68,19 +73,27 @@ import {
  * the restore as a new revision on top. Nothing is rewritten and nothing is dropped, so the
  * state a restore replaced is still in this list afterwards and can be restored in turn.
  * That is the property that makes this panel usable rather than frightening, and it is
- * worth saying on screen, which the footer does.
+ * worth saying on screen, which the footer does. It holds for a whole-folder restore, for a
+ * single file, and for a single setting alike.
  *
- * ### The filters compose, and the actions come from the data
+ * ### Any two revisions, not only a revision and its parent
  *
- * The search, the date range and the action chips narrow each other rather than replacing
- * each other. The chips are built from the actions these revisions actually carry, each
- * with its count, so there is never a filter offered that is guaranteed to find nothing.
- * All of that lives in `historyModel.ts`, tested without mounting anything.
+ * Choosing A on one row and B on another compares them however far apart they are. This is
+ * the question people actually arrive with - "what has changed since the config last
+ * worked" - and without it they were reading four patches and merging them in their head,
+ * or giving up and restoring the whole folder, which loses every good change made since.
+ *
+ * ### Grouped by day, with the live state marked
+ *
+ * A history that is doing its job gets long, and forty rows of timestamps is not something
+ * anybody scans. The rows are grouped by their local day with a summary per day, and the
+ * revision that is on disk right now is marked from the *unfiltered* list, because the
+ * newest row of a filtered view is merely the newest thing that matched.
  *
  * ### Only one thing here destroys anything
  *
  * Trimming a history removes revisions for good. It is the single call on the host that
- * takes anything away, and it is the single control in this panel behind the two-key
+ * takes anything away, and the single control in this panel behind the two-key
  * super-confirmation gate. Everything else, restore included, only ever adds.
  */
 const props = withDefaults(
@@ -99,7 +112,7 @@ const props = withDefaults(
     { maxRows: 200 },
 );
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 const injected = useHistoryHost();
 const host = computed<HistoryHost | null>(() => (props.host === undefined ? injected : props.host));
@@ -108,6 +121,20 @@ const status = ref<HistoryStatus | null>(null);
 const listing = ref<HistoryListing | null>(null);
 const loading = ref(false);
 const busy = ref(false);
+
+const localeTag = computed(() => (locale.value === "none" ? "en" : locale.value));
+
+/**
+ * What the host can do beyond the eight methods every build has.
+ *
+ * Asked of the host rather than assumed, because a desktop shell built before these
+ * arrived still keeps a perfectly good history and must not lose the panel over three
+ * controls. Each is offered only when its method is really there.
+ */
+const canCompare = computed(() => typeof host.value?.compare === "function");
+const canRestorePart = computed(
+    () => typeof host.value?.restoreFiles === "function" && typeof host.value?.restoreSettings === "function",
+);
 
 /* -------------------------------------------------------------------------- */
 /* The three filters                                                          */
@@ -145,6 +172,18 @@ const outcome = computed(() =>
 );
 
 const shown = computed(() => outcome.value.revisions.slice(0, props.maxRows ?? 200));
+
+/**
+ * The revision that is on disk now, taken from the whole history rather than from the view.
+ *
+ * Marking the first filtered row would be a confident lie in exactly the situation where
+ * being wrong about which state is live matters most: somebody hunting through a filtered
+ * history for something to restore.
+ */
+const liveId = computed(() => currentRevisionId(revisions.value));
+
+/** The timeline: the filtered rows, grouped by the local day they fall on. */
+const days = computed(() => groupRevisionsByDay(shown.value, liveId.value));
 
 /** Real text for the regex builder's preview, so it previews this history and not a sample. */
 const sample = computed(() =>
@@ -185,11 +224,36 @@ function clearFilters(): void {
     chosenActions.value = [];
 }
 
+/** A day header, spelled out, with a plain sentence for the undated group. */
+function dayTitle(day: DayKey | null): string {
+    if (day === null) return t("history.timeline.undated", "Revisions with no readable date");
+    return formatDay(day, localeTag.value);
+}
+
+/* -------------------------------------------------------------------------- */
+/* What a screen reader is told                                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The one live region for the whole panel.
+ *
+ * Announcements that only exist on screen - which row the arrows moved to, which end of a
+ * comparison was chosen - are invisible to somebody who cannot see the highlight. One
+ * polite region carrying a whole sentence is the smallest thing that fixes that; several
+ * regions, or a region carrying a fragment, produce announcements that interrupt each other
+ * and say less than nothing.
+ */
+const announcement = ref("");
+
+function announce(message: string): void {
+    announcement.value = message;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Talking to the host                                                        */
 /* -------------------------------------------------------------------------- */
 
-const diffs = ref<Record<string, readonly HistoryDiffFile[]>>({});
+const diffs = ref<Record<string, readonly HistoryComparisonFile[]>>({});
 const diffErrors = ref<Record<string, string>>({});
 const expanded = ref<string | null>(null);
 
@@ -208,6 +272,9 @@ async function refresh(): Promise<void> {
     // not be the ones that were cached.
     diffs.value = {};
     diffErrors.value = {};
+    comparison.value = null;
+    comparisonError.value = null;
+    if (compareA.value !== null || compareB.value !== null) void loadComparison();
 }
 
 onMounted(() => void refresh());
@@ -216,6 +283,14 @@ watch(
     () => void refresh(),
 );
 
+/**
+ * Fetches one revision's changes against whatever came before it.
+ *
+ * Prefers `compare`, which sends both sides' text and so lets the readable diff name the
+ * setting, and falls back to `diff`, which only carries the patch. The fallback is why a
+ * shell that predates `compare` still opens rows: it gets the raw patch, which is what it
+ * always got.
+ */
 async function toggleDiff(id: string): Promise<void> {
     if (expanded.value === id) {
         expanded.value = null;
@@ -226,9 +301,22 @@ async function toggleDiff(id: string): Promise<void> {
     const current = host.value;
     if (current === null || diffs.value[id] !== undefined) return;
 
+    if (typeof current.compare === "function") {
+        const answer = await current.compare(props.folder, null, id);
+        if (answer.ok) diffs.value = { ...diffs.value, [id]: answer.files };
+        else diffErrors.value = { ...diffErrors.value, [id]: answer.message };
+        return;
+    }
+
     const answer = await current.diff(props.folder, id);
-    if (answer.ok) diffs.value = { ...diffs.value, [id]: answer.files };
-    else diffErrors.value = { ...diffErrors.value, [id]: answer.message };
+    if (answer.ok) {
+        diffs.value = {
+            ...diffs.value,
+            [id]: answer.files.map((file) => ({ ...file, before: null, after: null, withheld: null })),
+        };
+    } else {
+        diffErrors.value = { ...diffErrors.value, [id]: answer.message };
+    }
 }
 
 async function snapshotNow(): Promise<void> {
@@ -247,6 +335,29 @@ async function snapshotNow(): Promise<void> {
     }
 }
 
+/** Reports a restore's outcome the same way whichever of the three kinds it was. */
+function reportRestore(
+    restored: { ok: true; message: string; skipped: readonly { path: string; reason: string }[] } | { ok: false; message: string },
+): boolean {
+    if (!restored.ok) {
+        raiseNotice("error", restored.message);
+        return false;
+    }
+    raiseNotice("success", restored.message);
+    for (const skip of restored.skipped) {
+        raiseNotice(
+            "warning",
+            t(
+                "history.restoreSkipped",
+                { path: skip.path },
+                "{path} was left alone, because this editor does not write that file.",
+            ),
+            skip.reason,
+        );
+    }
+    return true;
+}
+
 async function restore(id: string): Promise<void> {
     const current = host.value;
     if (current === null) return;
@@ -254,24 +365,83 @@ async function restore(id: string): Promise<void> {
     busy.value = true;
     try {
         const restored = await current.restore(props.folder, id);
-        if (!restored.ok) {
-            raiseNotice("error", restored.message);
+        if (reportRestore(restored)) await refresh();
+    } finally {
+        busy.value = false;
+    }
+}
+
+/** Puts one file back, leaving every other file in the folder exactly as it is. */
+async function restoreOneFile(id: string, path: string): Promise<void> {
+    const current = host.value;
+    if (current === null || typeof current.restoreFiles !== "function") return;
+
+    busy.value = true;
+    try {
+        const restored = await current.restoreFiles(props.folder, id, [path]);
+        if (reportRestore(restored)) await refresh();
+    } finally {
+        busy.value = false;
+    }
+}
+
+/**
+ * Puts one setting back, merging it into the file as it is now.
+ *
+ * The merge happens here rather than in the main process because the HOCON reader and
+ * writer that keep comments are this package's. What the main process still does is check
+ * the revision exists, check the path is one it would write, snapshot the folder first, and
+ * record the result as a new revision. A merge that comes to nothing - because the setting
+ * already holds that value, or the file is gone - is reported, never written.
+ */
+async function restoreOneSetting(id: string, path: string, key: string): Promise<void> {
+    const current = host.value;
+    if (current === null || typeof current.restoreSettings !== "function") return;
+
+    busy.value = true;
+    try {
+        const atRevision = await current.revisionFiles(props.folder, id);
+        if (!atRevision.ok) {
+            raiseNotice("error", atRevision.message);
+            return;
+        }
+        const now = liveId.value === null ? null : await current.revisionFiles(props.folder, liveId.value);
+        if (now !== null && !now.ok) {
+            raiseNotice("error", now.message);
             return;
         }
 
-        raiseNotice("success", restored.message);
-        for (const skip of restored.skipped) {
+        const plan = mergeSettingsBack(
+            [{ path, key }],
+            new Map(atRevision.files.map((file) => [file.path, file.text])),
+            new Map((now?.ok === true ? now.files : []).map((file) => [file.path, file.text])),
+        );
+
+        for (const refusal of plan.refused) {
             raiseNotice(
                 "warning",
                 t(
-                    "history.restoreSkipped",
-                    { path: skip.path },
-                    "{path} was left alone, because this editor does not write that file.",
+                    "history.settingRefused",
+                    { key: refusal.key },
+                    "{key} was left as it is.",
                 ),
-                skip.reason,
+                refusal.reason,
             );
         }
-        await refresh();
+        for (const reformatted of plan.reformatted) {
+            raiseNotice(
+                "info",
+                t(
+                    "history.settingReformatted",
+                    { path: reformatted },
+                    "{path} is written out again in this editor's own layout, because JSON keeps no comments to preserve.",
+                ),
+            );
+        }
+        if (plan.files.length === 0) return;
+
+        const restored = await current.restoreSettings(props.folder, id, plan.files, plan.keys);
+        if (reportRestore(restored)) await refresh();
     } finally {
         busy.value = false;
     }
@@ -290,6 +460,218 @@ async function applyLabel(id: string, text: string): Promise<void> {
         busy.value = false;
     }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Comparing any two revisions                                                */
+/* -------------------------------------------------------------------------- */
+
+const compareA = ref<string | null>(null);
+const compareB = ref<string | null>(null);
+const comparison = ref<readonly HistoryComparisonFile[] | null>(null);
+const comparisonError = ref<string | null>(null);
+
+const revisionA = computed(() => revisions.value.find((entry) => entry.id === compareA.value) ?? null);
+const revisionB = computed(() => revisions.value.find((entry) => entry.id === compareB.value) ?? null);
+const comparing = computed(() => compareA.value !== null || compareB.value !== null);
+
+function roleOf(id: string): "a" | "b" | null {
+    if (compareA.value === id) return "a";
+    if (compareB.value === id) return "b";
+    return null;
+}
+
+/**
+ * Chooses one end of the comparison.
+ *
+ * Picking a revision that is already the other end swaps them rather than leaving one
+ * revision as both ends, which would compare a moment with itself and report nothing. The
+ * announcement names which end it became, because on screen that is a small coloured chip
+ * and nothing else.
+ */
+function pick(id: string, end: "a" | "b"): void {
+    if (end === "a") {
+        if (compareB.value === id) compareB.value = compareA.value;
+        compareA.value = compareA.value === id ? null : id;
+    } else {
+        if (compareA.value === id) compareA.value = compareB.value;
+        compareB.value = compareB.value === id ? null : id;
+    }
+
+    const revision = revisions.value.find((entry) => entry.id === id);
+    const chosen = roleOf(id);
+    announce(
+        chosen === null
+            ? t("history.compare.unpicked", { label: revision?.label ?? "" }, "{label} is no longer part of the comparison.")
+            : chosen === "a"
+              ? t("history.compare.pickedA", { label: revision?.label ?? "" }, "{label} is now A, the older end.")
+              : t("history.compare.pickedB", { label: revision?.label ?? "" }, "{label} is now B, the newer end."),
+    );
+
+    void loadComparison();
+}
+
+function swapEnds(): void {
+    const held = compareA.value;
+    compareA.value = compareB.value;
+    compareB.value = held;
+    announce(t("history.compare.swapped", "The comparison now runs the other way round."));
+    void loadComparison();
+}
+
+function stopComparing(): void {
+    compareA.value = null;
+    compareB.value = null;
+    comparison.value = null;
+    comparisonError.value = null;
+    announce(t("history.compare.stopped", "The comparison is closed."));
+}
+
+/**
+ * A restore asked for from inside the comparison, which always goes back to A.
+ *
+ * B is the newer end and usually half of what is on disk already; "put this back" from a
+ * comparison can only sensibly mean "return it to how A had it". The guard is not
+ * defensive noise: the comparison only renders its restore controls once both ends are
+ * chosen, but a null id would reach the main process as an unrecognised revision and come
+ * back as a refusal the user could not explain.
+ */
+function restoreFromComparison(path: string, key: string | null): void {
+    const older = compareA.value;
+    if (older === null) return;
+    if (key === null) void restoreOneFile(older, path);
+    else void restoreOneSetting(older, path, key);
+}
+
+async function loadComparison(): Promise<void> {
+    const current = host.value;
+    comparison.value = null;
+    comparisonError.value = null;
+    if (current === null || typeof current.compare !== "function") return;
+    if (compareA.value === null || compareB.value === null) return;
+
+    const answer = await current.compare(props.folder, compareA.value, compareB.value);
+    if (answer.ok) comparison.value = answer.files;
+    else comparisonError.value = answer.message;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Walking the list with the keyboard                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Which row the arrow keys would move away from.
+ *
+ * One row in the list is reachable with Tab and the rest are not, which is the roving
+ * tabindex pattern: it keeps a two-hundred-row history from being two hundred tab stops
+ * standing between the search field and the retention control. Tab still reaches every
+ * control *inside* the focused row.
+ */
+const activeIndex = ref(0);
+
+/**
+ * Keyed by revision id rather than by position, which is not a detail.
+ *
+ * The rows are drawn inside per-day sections, so a row's position in the flat list is not
+ * its position in any one of them; and a filter can renumber every row between one render
+ * and the next. A map keyed by position would then hand out the wrong element to focus, and
+ * the arrow keys would appear to skip rows at random.
+ */
+const rowRefs = new Map<string, { focusRow: () => void }>();
+
+function keepRow(id: string, instance: unknown): void {
+    if (instance === null || instance === undefined) rowRefs.delete(id);
+    else rowRefs.set(id, instance as { focusRow: () => void });
+}
+
+/** Row `index` of the flat filtered list, whatever day it happens to sit under. */
+function focusRowAt(index: number): void {
+    const bounded = Math.max(0, Math.min(index, shown.value.length - 1));
+    activeIndex.value = bounded;
+
+    const revision = shown.value[bounded];
+    if (revision === undefined) return;
+
+    rowRefs.get(revision.id)?.focusRow();
+    announce(
+        t(
+            "history.row.position",
+            { position: String(bounded + 1), total: String(shown.value.length), label: revision.label },
+            "{position} of {total}. {label}",
+        ),
+    );
+}
+
+/**
+ * The list's keyboard, handled once at the list rather than per row.
+ *
+ * Everything is ignored unless the event came from a row itself, which is what
+ * `data-revision` marks. Without that check, typing the letter `a` into the label field
+ * inside a row would choose that row as the comparison's older end, and the user would have
+ * no idea why.
+ */
+function onListKeydown(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (target === null || target.dataset["revision"] === undefined) return;
+
+    const id = target.dataset["revision"];
+    const index = shown.value.findIndex((revision) => revision.id === id);
+    if (index === -1) return;
+
+    switch (event.key) {
+        case "ArrowDown":
+            event.preventDefault();
+            focusRowAt(index + 1);
+            return;
+        case "ArrowUp":
+            event.preventDefault();
+            focusRowAt(index - 1);
+            return;
+        case "Home":
+            event.preventDefault();
+            focusRowAt(0);
+            return;
+        case "End":
+            event.preventDefault();
+            focusRowAt(shown.value.length - 1);
+            return;
+        case "Enter":
+        case " ":
+            event.preventDefault();
+            void toggleDiff(id);
+            return;
+        case "Escape":
+            if (!comparing.value) return;
+            event.preventDefault();
+            stopComparing();
+            return;
+        default:
+            break;
+    }
+
+    if (!canCompare.value) return;
+    if (event.key === "a" || event.key === "A") {
+        event.preventDefault();
+        pick(id, "a");
+    } else if (event.key === "b" || event.key === "B") {
+        event.preventDefault();
+        pick(id, "b");
+    }
+}
+
+/** Clicking a row makes it the one the arrows move from, so the two never disagree. */
+function onListFocusIn(event: FocusEvent): void {
+    const target = (event.target as HTMLElement | null)?.closest("[data-revision]") as HTMLElement | null;
+    const id = target?.dataset["revision"];
+    if (id === undefined) return;
+    const index = shown.value.findIndex((revision) => revision.id === id);
+    if (index !== -1) activeIndex.value = index;
+}
+
+// A filter that shortens the list can leave the active index past its end, which would make
+// the next arrow press focus nothing at all.
+watch(shown, (rows) => {
+    if (activeIndex.value > rows.length - 1) activeIndex.value = Math.max(0, rows.length - 1);
+});
 
 /* -------------------------------------------------------------------------- */
 /* Retention                                                                  */
@@ -343,8 +725,12 @@ const exportLabels = computed(() => ({
     range: outcome.value.active
         ? t(
               "history.exportFiltered",
-              { kept: String(outcome.value.revisions.length), total: String(revisions.value.length) },
-              "This file holds {kept} of {total} revisions, the ones the filters on screen matched.",
+              {
+                  kept: String(outcome.value.revisions.length),
+                  total: String(revisions.value.length),
+                  days: String(days.value.length),
+              },
+              "This file holds {kept} of {total} revisions, across {days} days, the ones the filters on screen matched.",
           )
         : t("history.exportAll", "This file holds every revision recorded for this folder."),
     empty: t("history.exportEmpty", "Nothing matched these filters."),
@@ -354,21 +740,47 @@ function exportText(format: ExportFormat): string {
     return exportRevisions(outcome.value.revisions, format, exportLabels.value);
 }
 
-async function copyView(): Promise<void> {
-    const text = exportText("markdown");
+const comparisonLabels = computed(() => ({
+    title: t("history.compare.exportTitle", "What changed between two revisions"),
+    between: t(
+        "history.compare.exportBetween",
+        {
+            a: revisionA.value?.shortId ?? "",
+            aLabel: revisionA.value?.label ?? "",
+            b: revisionB.value?.shortId ?? "",
+            bLabel: revisionB.value?.label ?? "",
+        },
+        "From {a} ({aLabel}) to {b} ({bLabel}).",
+    ),
+    empty: t("history.compare.exportEmpty", "These two moments hold exactly the same files."),
+}));
+
+function comparisonText(format: ExportFormat): string {
+    return exportComparison(readableDiff(comparison.value ?? []), format, comparisonLabels.value);
+}
+
+/** Writes text to the shell's clipboard when there is one, and to the browser's otherwise. */
+async function copyText(text: string): Promise<void> {
     try {
         const bridge = typeof window === "undefined" ? undefined : window.materialBluemap;
         if (bridge) await bridge.writeClipboardText(text);
         else await navigator.clipboard.writeText(text);
-        raiseNotice("success", t("history.copied", "The history on screen is on the clipboard."));
+        raiseNotice("success", t("history.copied", "What is on screen is on the clipboard."));
     } catch {
         raiseNotice("error", t("history.copyFailed", "Could not reach the clipboard."));
     }
 }
 
-function download(format: ExportFormat): void {
-    const name = `bluemap-config-history.${EXPORT_EXTENSIONS[format]}`;
-    const blob = new Blob([exportText(format)], {
+async function copyView(): Promise<void> {
+    await copyText(exportText("markdown"));
+}
+
+async function copyComparison(): Promise<void> {
+    await copyText(comparisonText("markdown"));
+}
+
+function saveFile(name: string, text: string, format: ExportFormat): void {
+    const blob = new Blob([text], {
         type: format === "json" ? "application/json" : format === "csv" ? "text/csv" : "text/plain",
     });
     const url = URL.createObjectURL(blob);
@@ -378,6 +790,14 @@ function download(format: ExportFormat): void {
     link.click();
     URL.revokeObjectURL(url);
     raiseNotice("success", t("history.exported", { name }, "Exported {name}."));
+}
+
+function download(format: ExportFormat): void {
+    saveFile(`bluemap-config-history.${EXPORT_EXTENSIONS[format]}`, exportText(format), format);
+}
+
+function downloadComparison(format: ExportFormat): void {
+    saveFile(`bluemap-config-comparison.${EXPORT_EXTENSIONS[format]}`, comparisonText(format), format);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -427,6 +847,8 @@ const canWrite = computed(() => host.value !== null && unavailable.value === nul
             </header>
 
             <v-progress-linear v-if="loading || busy" indeterminate color="primary" class="mb-history__progress" />
+
+            <p class="mb-history__announce" role="status" aria-live="polite">{{ announcement }}</p>
 
             <v-alert v-if="unavailable" type="info" variant="tonal" density="comfortable" class="mb-history__notice">
                 {{ unavailable }}
@@ -545,24 +967,96 @@ const canWrite = computed(() => host.value !== null && unavailable.value === nul
                     </v-btn>
                 </div>
 
+                <HistoryComparison
+                    v-if="comparing"
+                    :from="revisionA"
+                    :to="revisionB"
+                    :files="comparison"
+                    :error="comparisonError"
+                    :restorable="canWrite && canRestorePart"
+                    :busy="busy"
+                    @swap="swapEnds"
+                    @close="stopComparing"
+                    @copy="copyComparison"
+                    @download="downloadComparison"
+                    @restore-setting="restoreFromComparison"
+                    @restore-file="(path) => restoreFromComparison(path, null)"
+                />
+
                 <v-divider class="my-2" />
 
-                <ul v-if="shown.length > 0" class="mb-history__list">
-                    <HistoryRevisionRow
-                        v-for="(revision, index) in shown"
-                        :key="revision.id"
-                        :revision="revision"
-                        :current="index === 0 && !outcome.active"
-                        :expanded="expanded === revision.id"
-                        :diff="diffs[revision.id] ?? null"
-                        :diff-error="diffErrors[revision.id] ?? null"
-                        :busy="busy"
-                        :writable="canWrite"
-                        @toggle="toggleDiff"
-                        @restore="restore"
-                        @label="applyLabel"
-                    />
-                </ul>
+                <p v-if="canCompare && !comparing" class="mb-history__quiet">
+                    {{
+                        t(
+                            "history.compare.hint",
+                            "Choose A on one revision and B on another to see everything that changed between them. They do not have to be next to each other.",
+                        )
+                    }}
+                </p>
+
+                <div
+                    v-if="shown.length > 0"
+                    class="mb-history__timeline"
+                    :aria-label="t('history.timeline.label', 'Revisions, grouped by the day they happened')"
+                    role="group"
+                    @keydown="onListKeydown"
+                    @focusin="onListFocusIn"
+                >
+                    <section v-for="group in days" :key="group.day ?? 'undated'" class="mb-history__day">
+                        <h3 class="mb-history__dayHead">
+                            <span class="mb-history__dayName">{{ dayTitle(group.day) }}</span>
+                            <span class="mb-history__daySummary">
+                                {{
+                                    t(
+                                        "history.timeline.daySummary",
+                                        {
+                                            revisions: String(group.revisions.length),
+                                            files: String(group.files),
+                                        },
+                                        "{revisions} revisions, {files} files",
+                                    )
+                                }}
+                            </span>
+                            <span v-if="group.counts.added > 0" class="mb-history__count" data-kind="added">
+                                +{{ group.counts.added }}
+                            </span>
+                            <span v-if="group.counts.modified > 0" class="mb-history__count" data-kind="modified">
+                                ~{{ group.counts.modified }}
+                            </span>
+                            <span v-if="group.counts.deleted > 0" class="mb-history__count" data-kind="deleted">
+                                -{{ group.counts.deleted }}
+                            </span>
+                            <v-chip v-if="group.holdsCurrent" size="x-small" variant="tonal" color="primary" label>
+                                {{ t("history.timeline.holdsCurrent", "Includes what is on disk now") }}
+                            </v-chip>
+                        </h3>
+
+                        <ul class="mb-history__list">
+                            <HistoryRevisionRow
+                                v-for="revision in group.revisions"
+                                :key="revision.id"
+                                :ref="(instance) => keepRow(revision.id, instance)"
+                                :revision="revision"
+                                :current="revision.id === liveId"
+                                :active="shown[activeIndex]?.id === revision.id"
+                                :expanded="expanded === revision.id"
+                                :diff="diffs[revision.id] ?? null"
+                                :diff-error="diffErrors[revision.id] ?? null"
+                                :busy="busy"
+                                :writable="canWrite"
+                                :comparable="canCompare"
+                                :selective="canRestorePart"
+                                :compare-role="roleOf(revision.id)"
+                                @toggle="toggleDiff"
+                                @restore="restore"
+                                @label="applyLabel"
+                                @pick="pick"
+                                @restore-file="restoreOneFile"
+                                @restore-setting="restoreOneSetting"
+                            />
+                        </ul>
+                    </section>
+                </div>
 
                 <p v-else class="mb-history__empty" role="status">
                     {{
@@ -581,6 +1075,15 @@ const canWrite = computed(() => host.value !== null && unavailable.value === nul
                             "history.truncated",
                             { shown: String(shown.length), total: String(outcome.revisions.length) },
                             "Showing the newest {shown} of {total}. Narrow the search or the dates to reach the rest.",
+                        )
+                    }}
+                </p>
+
+                <p v-if="shown.length > 0" class="mb-history__quiet">
+                    {{
+                        t(
+                            "history.keyboardHint",
+                            "In the list: up and down move between revisions, Enter opens one, A and B choose the two ends of a comparison, and Escape closes it.",
                         )
                     }}
                 </p>
@@ -697,6 +1200,23 @@ const canWrite = computed(() => host.value !== null && unavailable.value === nul
     margin-block-start: 8px;
 }
 
+/*
+ * The live region is off screen rather than hidden: `display: none` and `visibility: hidden`
+ * both take an element out of the accessibility tree, which would make this announce
+ * nothing at all while looking exactly like a working implementation.
+ */
+.mb-history__announce {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+}
+
 .mb-history__notice {
     margin-block-start: 12px;
 }
@@ -746,11 +1266,61 @@ const canWrite = computed(() => host.value !== null && unavailable.value === nul
  * A flow column with its own bound, so a long history scrolls inside the panel rather than
  * pushing the retention controls off the bottom of it.
  */
-.mb-history__list {
+.mb-history__timeline {
     max-height: 60vh;
+    overflow-y: auto;
+}
+
+.mb-history__day + .mb-history__day {
+    margin-block-start: 6px;
+}
+
+/*
+ * The day header stays put while its own revisions scroll past, so the answer to "which day
+ * am I looking at" never leaves the screen. It is the whole reason to group at all.
+ */
+.mb-history__dayHead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: baseline;
+    margin: 0;
+    padding: 6px 4px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    background: rgb(var(--v-theme-surface));
+}
+
+.mb-history__dayName {
+    font-size: 0.875rem;
+}
+
+.mb-history__daySummary {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-history__count {
+    font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.mb-history__count[data-kind="added"] {
+    color: rgb(var(--v-theme-success));
+}
+
+.mb-history__count[data-kind="deleted"] {
+    color: rgb(var(--v-theme-error));
+}
+
+.mb-history__list {
     margin: 0;
     padding: 0;
-    overflow-y: auto;
     list-style: none;
 }
 
@@ -777,5 +1347,16 @@ const canWrite = computed(() => host.value !== null && unavailable.value === nul
 
 .mb-history__keep {
     flex: 0 1 170px;
+}
+
+/*
+ * Reduced motion is respected by removing the smooth scroll the timeline would otherwise
+ * do when the arrow keys move focus onto a row that is off screen. Vestibular disorders do
+ * not care that the movement was small.
+ */
+@media (prefers-reduced-motion: no-preference) {
+    .mb-history__timeline {
+        scroll-behavior: smooth;
+    }
 }
 </style>

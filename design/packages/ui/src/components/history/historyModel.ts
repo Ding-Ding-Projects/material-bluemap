@@ -29,6 +29,7 @@
 import { dayKey, inRange, type DayKey, type DayRange } from "../changelog/changelogDates.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 
+import type { ReadableFileDiff, SettingChange } from "./historyDiff.js";
 import { ACTION_ORDER, type HistoryRevision } from "./historyHost.js";
 
 /**
@@ -282,6 +283,115 @@ export function exportRevisions(
         return format === "markdown"
             ? [`## ${revision.label}`, "", `- ${revision.at} · \`${revision.id}\` · ${revision.action}`, ...note, ...files, ""]
             : [`${revision.at}  ${revision.id}  ${revision.action}`, `  ${revision.label}`, ...note, ...files, ""];
+    });
+
+    return `${[...head, ...body].join("\n")}\n`;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Exporting a comparison                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The strings around a comparison export, supplied by the caller for the same reason
+ * {@link ExportLabels} is: this file stays free of vue-i18n so it can be tested as data.
+ */
+export interface ComparisonExportLabels {
+    readonly title: string;
+    /** Which two revisions, in which direction. An export without this is unreadable later. */
+    readonly between: string;
+    readonly empty: string;
+}
+
+/** One setting change as `sky-color: #7dabff -> #ffffff`, in every text format. */
+function settingLine(change: SettingChange): string {
+    if (change.kind === "added") return `${change.key}: (not set) -> ${change.after ?? ""}`;
+    if (change.kind === "gone") return `${change.key}: ${change.before ?? ""} -> (not set)`;
+    return `${change.key}: ${change.before ?? ""} -> ${change.after ?? ""}`;
+}
+
+/**
+ * A comparison as a file, in the same four formats the history itself exports to.
+ *
+ * A comparison somebody worked to construct - two revisions a month apart, in a filtered
+ * list of two hundred - is exactly the thing they then want to paste into an issue or keep
+ * beside the config they are repairing. An on-screen-only comparison makes them retype it.
+ *
+ * Every format carries the setting-level reading *and* says which files it could not read,
+ * because an export that silently listed six of eight files would be read later as the
+ * whole answer.
+ */
+export function exportComparison(
+    files: readonly ReadableFileDiff[],
+    format: ExportFormat,
+    labels: ComparisonExportLabels,
+): string {
+    if (format === "json") {
+        return `${JSON.stringify(
+            {
+                title: labels.title,
+                between: labels.between,
+                files: files.map((file) => ({
+                    path: file.path,
+                    status: file.status,
+                    unreadable: file.unreadable,
+                    settingsChanged: file.total,
+                    settings: (file.settings ?? []).map((change) => ({
+                        key: change.key,
+                        kind: change.kind,
+                        before: change.before,
+                        after: change.after,
+                    })),
+                })),
+            },
+            null,
+            4,
+        )}\n`;
+    }
+
+    if (format === "csv") {
+        const rows = [
+            ["file", "status", "setting", "change", "before", "after"].map(csvCell).join(","),
+            ...files.flatMap((file) =>
+                (file.settings ?? []).length === 0
+                    ? [
+                          [file.path, file.status, "", "", "", file.unreadable ?? ""]
+                              .map(csvCell)
+                              .join(","),
+                      ]
+                    : (file.settings ?? []).map((change) =>
+                          [
+                              file.path,
+                              file.status,
+                              change.key,
+                              change.kind,
+                              change.before ?? "",
+                              change.after ?? "",
+                          ]
+                              .map(csvCell)
+                              .join(","),
+                      ),
+            ),
+        ];
+        return `${rows.join("\n")}\n`;
+    }
+
+    const head =
+        format === "markdown"
+            ? [`# ${labels.title}`, "", labels.between, ""]
+            : [labels.title, labels.between, ""];
+
+    if (files.length === 0) return `${[...head, labels.empty].join("\n")}\n`;
+
+    const body = files.flatMap((file) => {
+        const lines = (file.settings ?? []).map((change) =>
+            format === "markdown" ? `- \`${settingLine(change)}\`` : `    ${settingLine(change)}`,
+        );
+        const note = file.unreadable === null ? [] : [format === "markdown" ? `> ${file.unreadable}` : `  ${file.unreadable}`];
+
+        return format === "markdown"
+            ? [`## ${file.status} ${file.path}`, "", ...lines, ...note, ""]
+            : [`${file.status}  ${file.path}`, ...lines, ...note, ""];
     });
 
     return `${[...head, ...body].join("\n")}\n`;
