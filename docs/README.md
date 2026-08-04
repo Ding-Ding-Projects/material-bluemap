@@ -23,6 +23,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 | [Language modes and funny levels](./language-and-tone.md) | English, playful Hong Kong Cantonese and bilingual, with an independent funny level per language, and the rule that voice moves while facts do not. |
 | [Finding worlds](./finding-worlds.md) | The worlds already on this computer, the Minecraft folders a user can mount, and the manual routes that keep working beside them. |
 | [The regex builder and the search bars it reaches](./regex-builder.md) | The guided builder, its bounded engine, and the guard that keeps every search bar attached to one. |
+| [Local version history for config folders](./config-history.md) | An append-only git history per config folder, kept beside the app's data — restore is a new revision, and a failed history write never fails a save. |
 
 ## Rendering
 
