@@ -112,7 +112,9 @@ const goToLabel = computed(() => tx("markers.goToMarker", "Go to {name}", { name
 
         <v-list-item-title class="mb-marker-item__title">{{ label }}</v-list-item-title>
         <v-list-item-subtitle class="mb-marker-item__stats">
-            <span v-if="props.debug">{{ props.marker.type }}-marker</span>
+            <span v-if="props.debug">
+                {{ tx("markers.debugType", "{type}-marker", { type: props.marker.type }) }}
+            </span>
             <span>({{ position.x }} | {{ position.y }} | {{ position.z }})</span>
             <span v-if="!props.marker.visible">
                 {{ tx("markers.hiddenMarker", "hidden") }}

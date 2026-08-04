@@ -405,14 +405,26 @@ async function exportChosen(): Promise<void> {
  *
  * The ends clamp rather than wrap: somebody holding ArrowDown to reach the bottom of a long
  * list should stop there, not silently reappear at the top having lost their place.
+ *
+ * `ROW_OPEN_KEY` and `ROW_CHOOSE_KEY` are named once and read by both the handler below and
+ * the row menu's own `<kbd>` hint (in the template, through {@link keyLabel}), so the label
+ * a user reads can never say a key that this handler does not actually answer to.
  */
+const ROW_OPEN_KEY = "Enter";
+const ROW_CHOOSE_KEY = " ";
+
+/** The word somebody would look for on their own keyboard, for a `KeyboardEvent.key` value. */
+function keyLabel(key: string): string {
+    return key === " " ? "Space" : key;
+}
+
 function onOptionKeydown(event: KeyboardEvent, row: ProjectRow): void {
-    if (event.key === "Enter") {
+    if (event.key === ROW_OPEN_KEY) {
         event.preventDefault();
         emit("open", row.world);
         return;
     }
-    if (event.key === " " || event.key === "Spacebar") {
+    if (event.key === ROW_CHOOSE_KEY || event.key === "Spacebar") {
         // Space scrolls the card underneath if it is left alone, which moves the list out
         // from under the row the user just chose.
         event.preventDefault();
@@ -697,7 +709,9 @@ function askToForget(world: string): void {
                                 "
                             >
                                 <template #append>
-                                    <kbd class="mb-projects__kbd">Enter</kbd>
+                                    <kbd class="mb-projects__kbd">{{
+                                        t("project.list.key.open", keyLabel(ROW_OPEN_KEY))
+                                    }}</kbd>
                                 </template>
                             </v-list-item>
                             <v-list-item
@@ -725,7 +739,9 @@ function askToForget(world: string): void {
                                 "
                             >
                                 <template #append>
-                                    <kbd class="mb-projects__kbd">Space</kbd>
+                                    <kbd class="mb-projects__kbd">{{
+                                        t("project.list.key.choose", keyLabel(ROW_CHOOSE_KEY))
+                                    }}</kbd>
                                 </template>
                             </v-list-item>
                             <v-list-item
