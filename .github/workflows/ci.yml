@@ -64,12 +64,16 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
-      # Type-checks every package, including the `ui` one that `tsc` alone cannot read:
-      # a `.vue` import is a "cannot find module" to plain tsc, so that package runs
-      # `vue-tsc`. `pnpm build` does not cover this — `ui` builds through Vite, which
-      # transpiles per file and never type-checks a template.
-      - run: pnpm typecheck
       - run: pnpm build
+      # After `build`, never before: a package resolves a sibling `@material-bluemap/*`
+      # through that sibling's emitted `dist/*.d.ts`, so on a clean checkout every
+      # cross-package import is a "cannot find module" until the build has run.
+      #
+      # It is a separate step from `build` because building does not type-check
+      # everything: `ui` goes through Vite, which transpiles file by file and never
+      # checks a template, and plain `tsc` cannot read a `.vue` import at all — so that
+      # one package runs `vue-tsc` instead.
+      - run: pnpm typecheck
       - run: pnpm test
 
   package:
