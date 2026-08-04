@@ -258,17 +258,18 @@ for a run to survive.
   unexercised outside its unit tests.
 - **Decide whether to match upstream's empty-region completion semantics** in
   `WorldRegionUpdateTask`, then re-run the incremental parity check if that behaviour changes.
-- **Give the History tab a capture step**, and add it to `REQUIRED_SURFACES` in
-  `packages/app/test/screenshots.spec.ts`. `Backup screen` was added; `History` was not, so
-  the harness will not notice if that tab stops opening — precisely the failure the gate added
-  in `5c810d0` exists to catch. The projects screen, the render console, the EULA viewer and
-  the CI-render screen also have no capture step yet.
+- **The first-class screen capture gate is now complete.** `packages/app/test/screenshots.spec.ts`
+  photographs History, Projects, the CI-render screen and the EULA viewer as required local
+  surfaces, and records the render console as an explicit runtime-dependent gap when no render
+  is in flight. The captions name the real state instead of substituting a mock screen.
 - **Extend the version history past config folders and projects** to profiles, application
   settings and the maps-and-servers list, so a mistaken deletion there can also be undone.
 - **Round-trip a backup through Desktop Material**, or state permanently that the claim is
   format conformance only.
-- **Assert the options editor's setting count.** The `154 settings across eight tabs` figure
-  is recorded in `5c810d0`'s message and in no test, so it will drift silently.
+- **The options editor inventory is pinned.** `configSearch.test.ts` now asserts the generated
+  workspace exposes 154 settings across the seven configuration tabs, with History as the
+  eighth navigation tab, so a schema change cannot quietly make the published screenshot and
+  README lie.
 
 ## Deferred verification
 

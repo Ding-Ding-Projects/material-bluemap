@@ -1337,6 +1337,94 @@ test("captures the options editor, its tabs and its dialogs", async () => {
     }
 });
 
+test("captures the remaining first-class screens", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    await attempt("History", async () => {
+        await ensureOptionsEditor();
+        const historyTab = page.locator(".mb-config-screen__tabs .v-tab", { hasText: "History" }).first();
+        await historyTab.click({ timeout: ELEMENT_TIMEOUT });
+        // A fresh profile has no folder yet, so the panel deliberately renders its
+        // truthful "save this config set to one first" state rather than a fake timeline.
+        // The window is still the History screen and is the surface worth proving.
+        const history = page.locator(".mb-config-screen__window");
+        await history.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await expect(history).toContainText(/History follows a folder|save this config set/i);
+        await page.waitForTimeout(500);
+        await shoot(
+            "config-history",
+            "The config folder's version-history tab, including its honest empty state when this throwaway profile has no folder attached",
+            { crop: history, cropped: "the version-history panel", mapArea: "covered" },
+        );
+    });
+
+    await dismiss();
+
+    await attempt("Projects", async () => {
+        const projectsTab = page.locator('[role="tab"]', { hasText: /^Projects$/i }).first();
+        await projectsTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        if ((await projectsTab.getAttribute("aria-selected")) !== "true") {
+            await projectsTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+        }
+        const projects = page.locator(".mb-projects-screen");
+        await projects.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "projects-screen",
+            "The Projects screen, showing the real empty state and the path into a new render project",
+            { crop: projects, cropped: "the Projects screen", mapArea: "covered" },
+        );
+    });
+
+    await attempt("CI-render screen", async () => {
+        const ciTab = page.locator('[role="tab"]', { hasText: /GitHub runners/i }).first();
+        await ciTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        if ((await ciTab.getAttribute("aria-selected")) !== "true") {
+            await ciTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+        }
+        const ci = page.locator(".ci-render-screen");
+        await ci.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "ci-render-screen",
+            "The CI-render screen, with its honest repository fields and the preflight route that refuses before uploading anything",
+            { crop: ci, cropped: "the CI-render screen", mapArea: "covered" },
+        );
+    });
+
+    await attempt("EULA viewer", async () => {
+        await page.locator('.mb-shell-fab[aria-label="Settings"]').first().click({ timeout: ELEMENT_TIMEOUT });
+        const settings = page.locator(".mb-settings");
+        await settings.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        const readLicence = settings.locator(".mb-consent-row button").first();
+        await readLicence.click({ timeout: ELEMENT_TIMEOUT });
+        const eula = settings.locator(".mb-eula");
+        await eula.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "eula-viewer",
+            "The EULA viewer embedded in Settings, with the bundled or cached licence copy, its provenance and its searchable section tabs",
+            { crop: eula, cropped: "the EULA viewer", mapArea: "covered" },
+        );
+    });
+
+    await dismiss();
+
+    // A console only exists while a render is genuinely in flight. Keep the capture step
+    // explicit so the manifest names the missing dependency instead of making the screen
+    // look forgotten; a Java runtime, accepted download consent and a real world are not
+    // smuggled into a screenshot run merely to make a gallery look complete.
+    await attempt("Render console", async () => {
+        const consoleSurface = page.locator(".mb-console");
+        await consoleSurface.waitFor({ state: "visible", timeout: 3_000 });
+        await shoot(
+            "render-console",
+            "The live render console, with level filters, the shared regex builder and the bounded log",
+            { crop: consoleSurface, cropped: "the render console", mapArea: "covered" },
+        );
+    });
+});
+
 test("captures the notification corner and its history", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
@@ -1602,6 +1690,10 @@ const REQUIRED_SURFACES = [
     "Options editor tabs",
     "Options editor search",
     "Options editor regex builder",
+    "History",
+    "Projects",
+    "CI-render screen",
+    "EULA viewer",
     "Profile manager",
     "Notification corner",
     "Backup screen",
