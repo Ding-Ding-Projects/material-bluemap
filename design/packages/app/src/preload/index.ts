@@ -1615,10 +1615,20 @@ const bridge: MaterialBlueMapBridge = {
             const problems: { world: string; message: string }[] = [];
             for (const folder of folders) {
                 try {
-                    const scan = (await ipcRenderer.invoke("world:scan", folder.id)) as {
-                        worlds: { path: string; name: string | null }[];
-                    };
-                    for (const world of scan.worlds) worlds.push({ path: world.path, name: world.name });
+                    // `world:scan` answers with a result union rather than the scan itself:
+                    // one unplugged drive must not take the worlds on every other drive off
+                    // the screen with it, so a folder that cannot be read reports its own
+                    // message and the rest still list.
+                    const result = (await ipcRenderer.invoke("world:scan", folder.id)) as
+                        | { ok: true; scan: { worlds: { path: string; name: string | null }[] } }
+                        | { ok: false; folderId: string; message: string };
+                    if (!result.ok) {
+                        problems.push({ world: folder.id, message: result.message });
+                        continue;
+                    }
+                    for (const world of result.scan.worlds) {
+                        worlds.push({ path: world.path, name: world.name });
+                    }
                 } catch (error) {
                     problems.push({
                         world: folder.id,
