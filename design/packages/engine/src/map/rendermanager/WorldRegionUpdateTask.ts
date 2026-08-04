@@ -15,17 +15,21 @@
  * ## What it is, and is not
  *
  * Upstream's class is a `RenderTask`: `doWork()` renders one tile per call so a thread
- * pool can interleave regions and a progress bar can advance. The port keeps the
- * *decisions* exactly and drops the scheduling: {@link WorldRegionUpdateTask.run} walks
- * the same tiles in the same order and awaits each one, because the port's `renderTile`
- * is async and a faithful `doWork()` would be a synchronous method that cannot await it.
- * Nothing about which tiles are rendered, deleted or left alone changes; only who calls
- * it and when.
+ * pool can interleave regions and a progress bar can advance.
  *
- * The comparators (`regionLastUpdatedComparator`, `defaultComparator`) and the
- * `Serialized` form belong to upstream's scheduler, which the port does not have yet, so
- * they are not here. They are ordering and resumption, not correctness, and inventing a
- * scheduler to hold them would be porting a shape rather than a behaviour.
+ * Both driving styles are here, over the same decisions:
+ * - {@link WorldRegionUpdateTask.run} walks every tile of the region in one call and
+ *   reports what it did. It is what the oracle harness and any "render this region now"
+ *   caller wants, and it predates the render manager.
+ * - {@link WorldRegionUpdateTask.doWork} is upstream's slice: one tile per call, with the
+ *   same cursor, the same completion rule and the same cancellation semantics, so a
+ *   scheduler can interleave regions and report progress. It landed with the rest of the
+ *   task hierarchy, since `MapUpdateTask` is a list of these.
+ *
+ * The comparators (`regionLastUpdatedComparator`, `defaultComparator`) are here too — they
+ * decide which region a `MapUpdateTask` renders first, which is behaviour, not decoration.
+ * The `Serialized` form is still absent: it is resumption across process restarts, and it
+ * needs a serialization registry this port does not have.
  */
 
 import { Vector2i } from "@material-bluemap/shared";
@@ -38,27 +42,30 @@ import { Action, BoundsSituation } from "../renderstate/TileActionResolver.js";
 import type { ActionAndNextState } from "../renderstate/TileActionResolver.js";
 import { TileState } from "../renderstate/TileState.js";
 import { TileInfo } from "../renderstate/TileInfoRegion.js";
+import type { MapRenderTask } from "./MapRenderTask.js";
+import { RenderTask } from "./RenderTask.js";
+import { TileUpdateStrategy } from "./TileUpdateStrategy.js";
 
-/**
- * upstream: `TileUpdateStrategy` - reduced to what the port uses.
- *
- * Upstream's is an interface with `FORCE_ALL`, `FORCE_NONE` and a time-based strategy
- * that re-renders tiles older than a cutoff. The fixed forms are the two the render path
- * actually asks for today; the time-based one belongs with the scheduler that has a clock
- * to compare against.
+/*
+ * upstream: Logger.global — the logger-package is not part of this port (yet), see the
+ * equivalent note in map/BmMap.ts
  */
-export interface TileUpdateStrategy {
-    test(state: TileState): boolean;
+function logError(message: string, ex: unknown): void {
+    console.error(message, ex);
 }
 
-export const TileUpdateStrategy = {
-    /** upstream: `TileUpdateStrategy.fixed(boolean)` */
-    fixed(force: boolean): TileUpdateStrategy {
-        return { test: () => force };
-    },
-    FORCE_NONE: { test: () => false } as TileUpdateStrategy,
-    FORCE_ALL: { test: () => true } as TileUpdateStrategy,
-};
+/**
+ * `TileUpdateStrategy` used to be declared here, as `{ test }` with a `fixed()` that built
+ * a fresh object per call. It now lives in its own module with upstream's shape — a
+ * `Keyed` interface, three registered singletons including the `FORCE_EDGE` this file's
+ * copy was missing, and a `fixed()` that returns those singletons. The singleton part is
+ * not cosmetic: {@link WorldRegionUpdateTask.equals} compares strategies by identity,
+ * exactly as upstream does, so a per-call object made two identical region tasks unequal
+ * and let the same region be scheduled twice.
+ *
+ * Re-exported from here so existing importers keep working.
+ */
+export { TileUpdateStrategy } from "./TileUpdateStrategy.js";
 
 /** What one region's update did, so a caller can report it without re-deriving it. */
 export interface WorldRegionUpdateResult {
@@ -67,10 +74,21 @@ export interface WorldRegionUpdateResult {
     readonly unchanged: number;
 }
 
-export class WorldRegionUpdateTask {
+export class WorldRegionUpdateTask implements MapRenderTask {
     readonly #map: BmMap;
     readonly #regionPos: Vector2i;
     readonly #force: TileUpdateStrategy;
+
+    /* upstream's `volatile` scheduling state — see the doWork block near the bottom */
+    #nextTileX = 0;
+    #nextTileZ = 0;
+    #atWork = 0;
+    #completed = false;
+    #cancelled = false;
+    #initialised = false;
+    #nothingToDo = false;
+    /** Serialises the claim-a-tile step; upstream's `synchronized (this)`, see {@link claimTile} */
+    #claimChain: Promise<Vector2i | null> = Promise.resolve(null);
 
     #chunkGrid!: Grid;
     #tileGrid!: Grid;
@@ -95,6 +113,10 @@ export class WorldRegionUpdateTask {
 
     getRegionPos(): Vector2i {
         return this.#regionPos;
+    }
+
+    getForce(): TileUpdateStrategy {
+        return this.#force;
     }
 
     /**
@@ -169,6 +191,7 @@ export class WorldRegionUpdateTask {
         const tileCount = this.#tileSize.getX() * this.#tileSize.getY();
         this.#tileActions = new Array<ActionAndNextState | undefined>(tileCount);
         let renderCount = 0;
+        let deleteCount = 0;
 
         for (let x = 0; x < this.#tileSize.getX(); x++) {
             for (let z = 0; z < this.#tileSize.getY(); z++) {
@@ -184,6 +207,7 @@ export class WorldRegionUpdateTask {
                 const action = tileState.findActionAndNextState(changed, this.#checkTileBounds(tile));
                 this.#tileActions[this.#tileIndex(x, z)] = action;
                 if (action.action() === Action.RENDER) renderCount++;
+                if (action.action() === Action.DELETE) deleteCount++;
             }
         }
 
@@ -191,6 +215,17 @@ export class WorldRegionUpdateTask {
         // which is worth it only when most of the region is about to be read anyway.
         if (renderCount >= tileCount * 0.75)
             await world.preloadRegionChunks(this.#regionPos.getX(), this.#regionPos.getY());
+
+        // upstream: `if (tileRenderCount + tileDeleteCount == 0) completed = true;`
+        //
+        // A region with nothing to render and nothing to delete finishes here, and note
+        // what that skips: `doWork` returns before processing a single tile, so
+        // `complete()` never runs and neither the chunk hashes nor the region timestamp
+        // are written. That is upstream's behaviour and it is consistent — nothing
+        // changed, so there is nothing new to record. Only the sliced `doWork` path
+        // observes this; `run` predates it and still walks and completes unconditionally.
+        this.#nothingToDo = renderCount + deleteCount === 0;
+        this.#initialised = true;
     }
 
     /**
@@ -404,5 +439,236 @@ export class WorldRegionUpdateTask {
         }
 
         return chunksAreInhabited ? null : TileState.LOW_INHABITED_TIME;
+    }
+
+    /* ---------------------------------------------------------------------------------
+     * RenderTask - upstream's sliced driver, one tile per doWork() call.
+     *
+     * Everything below drives the same #init / #processTile / #complete above; nothing
+     * here decides anything about a tile that `run` does not decide identically.
+     * ------------------------------------------------------------------------------- */
+
+    /**
+     * upstream: `doWork()`.
+     *
+     * Upstream's body is two `synchronized` blocks around one `processTile` call. The
+     * first claims a tile and advances the cursor; the second decrements the in-flight
+     * count and completes the region when the last worker leaves. Between them the lock is
+     * released, which is what lets several threads render tiles of the same region at once.
+     *
+     * Javascript has no preemption, but it does interleave at every `await` — and both
+     * `#init` and `#processTile` await. So the claim cannot simply be a synchronous prefix
+     * the way it can in {@link CombinedRenderTask}: two callers would both see the cursor
+     * at (0,0), both await `#init`, and both render tile (0,0). {@link claimTile}
+     * serialises the whole claim through a promise chain instead, which is this port's
+     * established stand-in for `synchronized` around an await (see `BmMap.save`).
+     */
+    async doWork(): Promise<void> {
+        if (this.#cancelled || this.#completed) return;
+
+        const claimed = await this.#claimTile();
+        if (claimed === null) return;
+
+        try {
+            await this.#processTile(claimed.getX(), claimed.getY());
+        } finally {
+            // upstream has no try/finally here because its `processTile` swallows every
+            // exception itself. The ported one can still reject from the state-write in
+            // its own `finally`, and an undecremented in-flight count would wedge the
+            // region forever - it would report `completed` and never run `#complete`.
+            this.#atWork--;
+
+            if (this.#atWork <= 0 && this.#completed && !this.#cancelled) await this.#complete();
+        }
+    }
+
+    /** upstream: the first `synchronized` block of `doWork` - see the note there */
+    #claimTile(): Promise<Vector2i | null> {
+        this.#claimChain = this.#claimChain.then(
+            () => this.#claimTileNow(),
+            () => this.#claimTileNow(),
+        );
+        return this.#claimChain;
+    }
+
+    async #claimTileNow(): Promise<Vector2i | null> {
+        if (this.#cancelled || this.#completed) return null;
+
+        const tileX = this.#nextTileX;
+        const tileZ = this.#nextTileZ;
+
+        // upstream inits lazily on the first claim, inside the lock, so the cursor and the
+        // tile-actions can never be read before they exist
+        if (tileX === 0 && tileZ === 0) {
+            await this.#initForWork();
+            if (this.#cancelled || this.#completed) return null;
+        }
+
+        this.#nextTileX = tileX + 1;
+        if (this.#nextTileX >= this.#tileSize.getX()) {
+            this.#nextTileZ = tileZ + 1;
+            this.#nextTileX = 0;
+        }
+        if (this.#nextTileZ >= this.#tileSize.getY()) this.#completed = true;
+
+        this.#atWork++;
+        return new Vector2i(tileX, tileZ);
+    }
+
+    async #initForWork(): Promise<void> {
+        try {
+            await this.#init();
+        } catch (ex) {
+            // upstream logs and cancels rather than failing the whole render - one
+            // unreadable region must not take the other thousand with it. `run` raises
+            // instead, because a single-region caller has nobody else to report to.
+            //
+            // One knowing difference: upstream's catch wraps only the chunk-hash load, so
+            // it still runs the tile-action scan afterwards. Here `#init` raises out of the
+            // load and the scan is skipped. Nothing observes it - the task is cancelled, so
+            // no tile is ever processed and the actions would have been discarded.
+            logError(`Failed to load chunks for region ${this.#regionPos.toString()}`, ex);
+            this.#cancelled = true;
+            return;
+        }
+
+        if (this.#nothingToDo) this.#completed = true;
+    }
+
+    /**
+     * upstream: `!completed && !cancelled`.
+     *
+     * False means "stop calling doWork", not "succeeded" - a cancelled region and a
+     * finished one are indistinguishable here, exactly as in {@link RenderTask}.
+     */
+    hasMoreWork(): boolean {
+        return !this.#completed && !this.#cancelled;
+    }
+
+    /**
+     * upstream: `min((nextTileZ * tileSize.x + nextTileX) / (tileSize.x * tileSize.y), 1)`.
+     *
+     * The `min` is load-bearing: the cursor is advanced *before* the tile is processed, so
+     * the last claim leaves it one past the end and the raw fraction exceeds 1.
+     *
+     * Upstream guards with `if (tileSize == null) return 0`; the flag is the equivalent,
+     * since the ported fields are declared definitely-assigned and would read `undefined`.
+     */
+    estimateProgress(): number {
+        if (!this.#initialised) return 0;
+        const width = this.#tileSize.getX();
+        const height = this.#tileSize.getY();
+        return Math.min((this.#nextTileZ * width + this.#nextTileX) / (width * height), 1);
+    }
+
+    cancel(): void {
+        this.#cancelled = true;
+    }
+
+    getDescription(): string {
+        // upstream: "updating region %s".formatted(regionPos), and flow-math's Vector2i
+        // prints as "(x, y)" exactly as the ported one does
+        return `updating region ${this.#regionPos.toString()}`;
+    }
+
+    getDetail(): string | null {
+        return RenderTask.getDetail();
+    }
+
+    /** upstream: no override, so `RenderTask`'s default - `equals(task)` */
+    contains(task: RenderTask): boolean {
+        return RenderTask.contains(this, task);
+    }
+
+    /**
+     * upstream: `force == that.force && map.getId().equals(...) && regionPos.equals(...)`.
+     *
+     * `force ==` is reference identity in java, and it is kept as `===` here. That is why
+     * {@link TileUpdateStrategy.fixed} has to return singletons: with a fresh object per
+     * call, two tasks for the same region and the same strategy would compare unequal and
+     * a render manager would happily queue the region twice.
+     *
+     * `hashCode` is deliberately absent. Upstream needs it because tasks land in hash-based
+     * collections; nothing in this port keys a collection by a task, and a wrong hash that
+     * nobody reads is worse than no hash at all.
+     */
+    equals(o: unknown): boolean {
+        if ((this as unknown) === o) return true;
+        if (!(o instanceof WorldRegionUpdateTask)) return false;
+        return (
+            this.#force === o.#force &&
+            this.#map.getId() === o.#map.getId() &&
+            this.#regionPos.equals(o.#regionPos)
+        );
+    }
+
+    /**
+     * upstream: `regionLastUpdatedComparator(Comparator<WorldRegionUpdateTask> fallback)`.
+     *
+     * Renders the regions that were updated longest ago first, falling back to the given
+     * comparator when two regions were last updated at the same second - which on a first
+     * render is *every* pair, since nothing has a stored timestamp yet.
+     *
+     * The extra `lastUpdated` parameter is the one departure. Upstream reads the stored
+     * timestamp inside the comparator, on every single comparison; the ported region-state
+     * read returns a promise and a comparator cannot await. {@link readRegionLastUpdated}
+     * reads each task's value once beforehand and this closes over the result. The
+     * ordering is identical because upstream's reads are identical too: the sort is
+     * single-threaded and nothing writes region state during it, so re-reading a value
+     * O(log n) times can only ever return what one read already returned.
+     */
+    static regionLastUpdatedComparator(
+        lastUpdated: (task: WorldRegionUpdateTask) => number,
+        fallbackComparator: (a: WorldRegionUpdateTask, b: WorldRegionUpdateTask) => number,
+    ): (a: WorldRegionUpdateTask, b: WorldRegionUpdateTask) => number {
+        return (task1, task2) => {
+            const task1Modified = lastUpdated(task1);
+            const task2Modified = lastUpdated(task2);
+            // upstream: Long.signum(task1Modified - task2Modified); both values are the
+            // int32 seconds a region-state cell holds, so the difference cannot overflow
+            return task1Modified !== task2Modified
+                ? Math.sign(task1Modified - task2Modified)
+                : fallbackComparator(task1, task2);
+        };
+    }
+
+    /** upstream: `private static long regionLastUpdated(WorldRegionUpdateTask)`, read once per task */
+    static async readRegionLastUpdated(
+        tasks: Iterable<WorldRegionUpdateTask>,
+    ): Promise<(task: WorldRegionUpdateTask) => number> {
+        const values = new Map<WorldRegionUpdateTask, number>();
+        for (const task of tasks) {
+            const regionPos = task.getRegionPos();
+            values.set(
+                task,
+                await task.#map.getMapRegionState().get(regionPos.getX(), regionPos.getY()),
+            );
+        }
+        // a task the caller did not include reads as never-updated, which is what an
+        // absent region-state cell holds anyway
+        return (task) => values.get(task) ?? 0;
+    }
+
+    /**
+     * upstream: `defaultComparator(Vector2i centerRegion)` - nearest region first.
+     *
+     * Upstream widens to `Vector2l` before squaring and comments that it is to avoid
+     * overflow: two int region coordinates differ by up to 2^32, and the square of that
+     * does not fit an int. Javascript numbers are exact integers up to 2^53, which covers
+     * every squared distance for `|dx|, |dy| <= 2^26` - and Minecraft's own coordinate
+     * limit puts the furthest possible region at well under 2^17, so the whole
+     * representable range is exact here.
+     */
+    static defaultComparator(
+        centerRegion: Vector2i,
+    ): (a: WorldRegionUpdateTask, b: WorldRegionUpdateTask) => number {
+        return (task1, task2) => {
+            const t1x = task1.#regionPos.getX() - centerRegion.getX();
+            const t1z = task1.#regionPos.getY() - centerRegion.getY();
+            const t2x = task2.#regionPos.getX() - centerRegion.getX();
+            const t2z = task2.#regionPos.getY() - centerRegion.getY();
+            // upstream: Long.signum(v1.lengthSquared() - v2.lengthSquared())
+            return Math.sign(t1x * t1x + t1z * t1z - (t2x * t2x + t2z * t2z));
+        };
     }
 }

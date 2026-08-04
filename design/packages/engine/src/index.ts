@@ -102,6 +102,8 @@ export {
     WorldRegionUpdateTask,
     type WorldRegionUpdateResult,
 } from "./map/rendermanager/WorldRegionUpdateTask.js";
+export { ProgressTracker, type ProgressSupplier } from "./map/rendermanager/ProgressTracker.js";
+export { RenderManager, type RenderManagerOptions } from "./map/rendermanager/RenderManager.js";
 
 // map/renderstate (what makes a re-render incremental)
 // (CellStorage.Cell is prefixed: storage/GridStorage already exports a `Cell`)
@@ -452,3 +454,19 @@ export {
     registerLegacyResourcePackExtension,
     LegacyResourcePackExtension,
 } from "./resources/pack/resourcepack/legacy/LegacyResourcePackExtension.js";
+
+// map/rendermanager (the render task hierarchy)
+// (TileUpdateStrategy is not re-exported here: it already reaches the barrel through the
+// WorldRegionUpdateTask line above, which re-exports it from its own module.)
+export { RenderTask } from "./map/rendermanager/RenderTask.js";
+export type { MapRenderTask } from "./map/rendermanager/MapRenderTask.js";
+export { CombinedRenderTask } from "./map/rendermanager/CombinedRenderTask.js";
+export { MapSaveTask } from "./map/rendermanager/MapSaveTask.js";
+export { MapPurgeTask } from "./map/rendermanager/MapPurgeTask.js";
+export { StorageDeleteTask } from "./map/rendermanager/StorageDeleteTask.js";
+export { MapUpdateTask } from "./map/rendermanager/MapUpdateTask.js";
+export {
+    MapUpdatePreparationTask,
+    type MapUpdatePreparationTaskOptions,
+    type RenderTaskScheduler,
+} from "./map/rendermanager/MapUpdatePreparationTask.js";

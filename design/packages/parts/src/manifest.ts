@@ -43,6 +43,76 @@ export const GITHUB_ASSET_LIMIT = 2_000_000_000;
  */
 export const DEFAULT_PART_SIZE = 1_700_000_000;
 
+/**
+ * The smallest part worth writing, and the largest one that will ship.
+ *
+ * The ceiling is {@link DEFAULT_PART_SIZE}, not {@link GITHUB_ASSET_LIMIT}: a part above
+ * 1.7 GB has no headroom under the 2 GB cap, and the whole point of the margin is that the
+ * upload does not fail after the bytes have already been read and hashed.
+ *
+ * The floor exists because parts are not free. Each one is an upload, a digest, a line in
+ * the manifest and a request on the way back down, so a 6 GB world at 50 MB a part is 120
+ * round trips - and every one of them is another chance for a flaky connection to matter.
+ *
+ * Between those, smaller is not worse, it is a different trade: a part that fails is a part
+ * that is retried, so somebody on an unreliable connection loses 500 MB rather than 1.7 GB,
+ * and the machine joining them needs less room at once. That is why this is a choice rather
+ * than a constant, and why the default is left where it is.
+ */
+export const MIN_PART_SIZE = 100_000_000;
+export const MAX_PART_SIZE = DEFAULT_PART_SIZE;
+
+/**
+ * The sizes offered as choices, with the reason each one exists.
+ *
+ * Named rather than a free number box: the useful range is narrow, the trade-offs are not
+ * obvious from a byte count, and somebody typing 2 GB should be told why that will not work
+ * rather than discovering it when the upload is refused.
+ */
+export const PART_SIZE_CHOICES = [
+    { bytes: 500_000_000, label: "500 MB", why: "smallest retry, most requests - best on an unreliable connection" },
+    { bytes: 1_000_000_000, label: "1 GB", why: "a middle setting" },
+    { bytes: DEFAULT_PART_SIZE, label: "1.7 GB", why: "fewest parts, and the most to lose when one fails" },
+] as const;
+
+export interface PartSizeRefusal {
+    readonly ok: false;
+    readonly message: string;
+}
+
+/**
+ * Checks a part size before anything is read.
+ *
+ * Returns the refusal rather than throwing, because every caller has somewhere to show a
+ * sentence and none of them has anywhere useful to catch an exception. A size that is
+ * refused here costs nothing; the same size discovered at upload has already cost the
+ * reading, the hashing and the transfer.
+ */
+export function checkPartSize(bytes: unknown): { readonly ok: true; readonly bytes: number } | PartSizeRefusal {
+    if (typeof bytes !== "number" || !Number.isSafeInteger(bytes)) {
+        return { ok: false, message: "A part size has to be a whole number of bytes." };
+    }
+    if (bytes < MIN_PART_SIZE) {
+        return {
+            ok: false,
+            message:
+                `A part has to be at least ${String(Math.round(MIN_PART_SIZE / 1_000_000))} MB. ` +
+                "Smaller parts mean more uploads, more digests and more requests on the way back down, " +
+                "and each one is another chance for a connection to fail.",
+        };
+    }
+    if (bytes > MAX_PART_SIZE) {
+        return {
+            ok: false,
+            message:
+                `A part cannot be larger than ${String(Math.round(MAX_PART_SIZE / 1_000_000))} MB. ` +
+                "A release asset is capped at 2 GB, and the margin under it is what stops an upload " +
+                "failing after the bytes have already been read and hashed.",
+        };
+    }
+    return { ok: true, bytes };
+}
+
 /** `world.zip` becomes `world.zip.parts.json`. */
 export const MANIFEST_SUFFIX = ".parts.json";
 
