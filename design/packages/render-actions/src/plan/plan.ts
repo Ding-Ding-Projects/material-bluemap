@@ -10,6 +10,7 @@ import {
 } from "../bluemap.js";
 import { chunksInRegionRectangle, type WorldMeasurement } from "../world/measure.js";
 import { estimateRenderSeconds, formatDuration, type Estimate } from "./estimate.js";
+import { DEFAULT_MERGE_GROUP_SIZE } from "../resume/mergeTree.js";
 
 /** One unit of parallel work: a rectangle of the world, rendered by one Actions job. */
 export interface Shard {
@@ -75,6 +76,12 @@ export interface PlanOptions {
     measuredChunksPerSecond?: number | undefined;
     /** forces a shard count, skipping the estimate; still capped and still aligned */
     forceShards?: number | undefined;
+    /**
+     * Shards one runner can merge into a complete map, if the caller is using something
+     * other than the default. Speed is not allowed to push the plan past this, because
+     * crossing it changes what the run delivers rather than only how long it takes.
+     */
+    groupSize?: number | undefined;
     lowresTileSize: number;
     lodFactor: number;
     lodCount: number;
@@ -257,22 +264,48 @@ export function planShards(measurement: WorldMeasurement, options: PlanOptions):
     //
     // So: shard toward the job limit, but stop while each shard still does enough real work
     // to be worth its own setup.
+    // There is a third limit, and it is not about time at all.
+    //
+    // Up to one merge group, the run assembles a single complete map: one download, and a
+    // map that can be hosted. Past it, the map is delivered as parts that no single runner
+    // ever holds together - which is exactly the point of the split, but it means the
+    // person gets a pile of partials instead of a map. Buying speed by crossing that line
+    // would trade the deliverable for the schedule without ever mentioning it.
+    //
+    // So speed may take the plan up to that boundary and no further. Only the budget may
+    // cross it, because a shard that cannot finish inside a job's time limit does not
+    // finish at all, and a map in parts beats no map.
     const budgetFloor = Math.max(1, Math.ceil(estimate.seconds / budgetSeconds));
     const worthwhileShards = Math.max(
         1,
         Math.floor(estimate.seconds / (SHARD_OVERHEAD_SECONDS * SHARD_WORK_TO_OVERHEAD)),
     );
-    const requestedShards =
-        options.forceShards !== undefined
-            ? Math.max(1, options.forceShards)
-            : Math.max(budgetFloor, Math.min(worthwhileShards, maxJobs));
+    const wholeMapLimit = options.groupSize ?? DEFAULT_MERGE_GROUP_SIZE;
+    const forced = options.forceShards !== undefined;
+    // Already past the boundary for reasons speed did not choose, so extra shards cost
+    // nothing that has not been spent: the map is in parts either way.
+    const alreadyInParts = budgetFloor > wholeMapLimit;
+    const speedCeiling = forced || alreadyInParts ? maxJobs : Math.min(maxJobs, wholeMapLimit);
+
+    const requestedShards = forced
+        ? Math.max(1, options.forceShards ?? 1)
+        : Math.max(budgetFloor, Math.min(worthwhileShards, speedCeiling));
+
+    if (!forced && !alreadyInParts && worthwhileShards > wholeMapLimit) {
+        decision.push(
+            "Held to " +
+                String(wholeMapLimit) +
+                " jobs, the most that still assemble into one complete map. More would" +
+                " finish sooner but deliver the map in parts.",
+        );
+    }
 
     if (options.forceShards !== undefined)
         decision.push("Shard count was forced to " + requestedShards + ", skipping the estimate.");
 
     const regionsX = measurement.regionBounds.x.max - measurement.regionBounds.x.min + 1;
     const regionsZ = measurement.regionBounds.z.max - measurement.regionBounds.z.min + 1;
-    const grid = chooseGrid(requestedShards, regionsX, regionsZ, maxJobs);
+    const grid = chooseGrid(requestedShards, regionsX, regionsZ, speedCeiling);
 
     if (requestedShards <= 1) {
         decision.push("One job is enough, so the world is rendered whole and no merge is needed.");
