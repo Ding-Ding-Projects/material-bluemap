@@ -30,6 +30,8 @@ import { registerJavaHandlers } from "./java/ipc.js";
 import type { JavaIpc } from "./java/ipc.js";
 import { registerConfigHandlers } from "./config/index.js";
 import type { ConfigIpc } from "./config/index.js";
+import { registerHistoryHandlers } from "./history/index.js";
+import type { HistoryIpc } from "./history/index.js";
 import { registerWorldHandlers } from "./world/index.js";
 import type { WorldIpc } from "./world/index.js";
 
@@ -323,6 +325,27 @@ function startConfigEditing(): ConfigIpc {
     return configIpc;
 }
 
+/**
+ * The local version history of each config folder, for the history panel.
+ *
+ * Registered once, like everything above it. It holds nothing between calls: a repository
+ * is derived from the folder it belongs to on every call, so installing Git, deleting a
+ * history folder or opening a different project while the app is running all take effect
+ * immediately rather than at the next restart.
+ *
+ * Every history lives in its own repository under `<userData>/config-history/`, never as a
+ * `.git` inside the folder the person chose - see `main/history/store.ts` for why that
+ * distinction is the whole design. Nothing is ever pushed anywhere: there is no remote and
+ * no channel that could accept one.
+ */
+let historyIpc: HistoryIpc | null = null;
+
+function startConfigHistory(): HistoryIpc {
+    if (historyIpc !== null) return historyIpc;
+    historyIpc = registerHistoryHandlers(ipcMain, { dataDir: app.getPath("userData") });
+    return historyIpc;
+}
+
 async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
@@ -331,6 +354,7 @@ async function createWindow(): Promise<void> {
     startWorldInspection();
     startJavaDiscovery();
     startConfigEditing();
+    startConfigHistory();
 
     const window = new BrowserWindow({
         width: 1280,

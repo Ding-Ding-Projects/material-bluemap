@@ -520,6 +520,128 @@ export interface ConfigBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* The config folder's version history                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mirrors the types in `main/history/`, restated for the same reason the render types
+ * are: the preload is bundled separately, and importing across that boundary would pull
+ * `node:child_process` and the whole git layer into the renderer's bundle.
+ *
+ * Nothing on this namespace rejects. Every method resolves with a value describing what
+ * happened, including the failures, because a history write must never be able to take
+ * down the save it was recording. See `main/history/ipc.ts` for the whole argument.
+ */
+export type HistoryChangeStatus = "added" | "modified" | "deleted";
+
+export interface HistoryFileChange {
+    /** Relative to the config folder, forward slashes, e.g. `maps/nether.conf`. */
+    path: string;
+    status: HistoryChangeStatus;
+}
+
+/** The word the history panel derives its action filter from. Never a fixed list there. */
+export type HistoryAction = "started" | "created" | "changed" | "deleted" | "mixed" | "restored" | "pruned";
+
+export interface HistoryRevision {
+    id: string;
+    shortId: string;
+    /** ISO 8601. */
+    at: string;
+    /** Always names what changed, e.g. `Deleted the nether map`. Never `Updated`. */
+    label: string;
+    action: HistoryAction;
+    changes: HistoryFileChange[];
+    /** The user's own label for this revision, or null. */
+    note: string | null;
+    /** Set on a restore: the revision whose contents were written back. */
+    restoredFrom: string | null;
+}
+
+export interface HistoryStatus {
+    available: boolean;
+    version: string | null;
+    /** One sentence for the user when `available` is false. Null when it is true. */
+    reason: string | null;
+    /** Where histories are kept, beside the app's own data and never in a user's folder. */
+    root: string;
+}
+
+export interface HistoryListing {
+    available: boolean;
+    reason: string | null;
+    folder: string;
+    /** The repository's path, shown so the user can see it is not inside their folder. */
+    repository: string;
+    revisions: HistoryRevision[];
+    /** Expected to be empty. Sent so the interface can show that rather than promise it. */
+    remotes: string[];
+}
+
+export type HistoryWrite =
+    | { ok: true; revision: HistoryRevision | null; message: string }
+    | { ok: false; message: string };
+
+export interface HistorySkippedFile {
+    path: string;
+    reason: string;
+}
+
+export type HistoryRestoreResult =
+    | { ok: true; revision: HistoryRevision | null; message: string; skipped: HistorySkippedFile[] }
+    | { ok: false; message: string };
+
+export interface HistoryRevisionFile {
+    path: string;
+    text: string;
+}
+
+export interface HistoryDiffFile {
+    path: string;
+    status: HistoryChangeStatus;
+    /** A unified diff, exactly as git wrote it. */
+    patch: string;
+}
+
+export type HistoryFilesResult = { ok: true; files: HistoryRevisionFile[] } | { ok: false; message: string };
+export type HistoryDiffResult = { ok: true; files: HistoryDiffFile[] } | { ok: false; message: string };
+
+export interface HistoryBridge {
+    /** Whether this machine can keep a history at all, and why not when it cannot. */
+    status(): Promise<HistoryStatus>;
+    /** Every revision for one config folder, newest first. */
+    list(folder: string, limit?: number): Promise<HistoryListing>;
+    /**
+     * Records the folder's current state, if it differs from the last revision.
+     *
+     * Call it after a save. An unchanged folder records nothing and says so, so calling it
+     * more often than needed costs a few milliseconds rather than a panel full of rows
+     * describing events that did not happen.
+     */
+    snapshot(folder: string): Promise<HistoryWrite>;
+    /** Every config file exactly as it was at one revision. */
+    revisionFiles(folder: string, id: string): Promise<HistoryFilesResult>;
+    /** What one revision changed, file by file, as a unified diff. */
+    diff(folder: string, id: string): Promise<HistoryDiffResult>;
+    /**
+     * Writes a revision's files back, and records *that* as a new revision.
+     *
+     * Nothing is rewritten and nothing is discarded, so the state being replaced stays in
+     * the history and the restore can itself be undone.
+     */
+    restore(folder: string, id: string): Promise<HistoryRestoreResult>;
+    /** Attaches the user's own words to a revision. An empty label takes it off again. */
+    label(folder: string, id: string, label: string): Promise<HistoryWrite>;
+    /**
+     * Keeps the newest `keep` revisions and removes the rest. **Destructive.**
+     *
+     * The only call on this namespace that takes anything away, which is why the interface
+     * puts it behind the two-key confirmation gate.
+     */
+    discardOlderRevisions(folder: string, keep: number): Promise<HistoryWrite>;
+}
+
+/* -------------------------------------------------------------------------- */
 /* GitHub sign-in                                                             */
 /* -------------------------------------------------------------------------- */
 
@@ -973,6 +1095,20 @@ export interface MaterialBlueMapBridge {
      * edited in another program is what Reload shows.
      */
     config: ConfigBridge;
+
+    /**
+     * The local version history of a config folder, for the history panel.
+     *
+     * A namespace for the same reason `config` is: the panel feature-detects the whole
+     * capability at once, because a panel offering Restore on a bridge that has no
+     * `restore` is a button that throws.
+     *
+     * The history lives in its own repository beside this application's data. Nothing is
+     * ever written into the folder the user chose except by an explicit restore, and
+     * nothing is ever sent anywhere: there is no remote, no push and no channel that
+     * could accept one.
+     */
+    history: HistoryBridge;
 }
 
 const bridge: MaterialBlueMapBridge = {
@@ -1092,6 +1228,17 @@ const bridge: MaterialBlueMapBridge = {
         // paths, never to resolve one - every real path is joined in the main process,
         // where the separator is the platform's own.
         pathSeparator: process.platform === "win32" ? "\\" : "/",
+    },
+
+    history: {
+        status: () => ipcRenderer.invoke("history:status"),
+        list: (folder, limit) => ipcRenderer.invoke("history:list", folder, limit),
+        snapshot: (folder) => ipcRenderer.invoke("history:snapshot", folder),
+        revisionFiles: (folder, id) => ipcRenderer.invoke("history:revisionFiles", folder, id),
+        diff: (folder, id) => ipcRenderer.invoke("history:diff", folder, id),
+        restore: (folder, id) => ipcRenderer.invoke("history:restore", folder, id),
+        label: (folder, id, label) => ipcRenderer.invoke("history:label", folder, id, label),
+        discardOlderRevisions: (folder, keep) => ipcRenderer.invoke("history:discardOlder", folder, keep),
     },
 };
 

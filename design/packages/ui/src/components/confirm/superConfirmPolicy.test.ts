@@ -165,11 +165,13 @@ interface DestructiveFile {
  */
 const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
     "bridge.d.ts": {
-        count: 2,
-        destroys: "config files on disk, and the recorded Mojang download consent",
+        count: 3,
+        destroys:
+            "config files on disk, the recorded Mojang download consent, and older revisions of a " +
+            "config folder's version history",
         standing: "type-only",
         note:
-            "The preload bridge's shape, not a call to it. Both routes are declared again at " +
+            "The preload bridge's shape, not a call to it. All three routes are declared again at " +
             "the files that actually invoke them, and the gate belongs there.",
     },
     "components/ProfileManager.vue": {
@@ -275,6 +277,29 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
         note:
             "Issue #10: the sign-out primitive behind the row above. It moves behind the gate " +
             "when that row does, and is listed separately so the count cannot drift.",
+    },
+    "components/history/HistoryPanel.vue": {
+        count: 1,
+        destroys:
+            "older revisions of a config folder's version history, and with them the only route back " +
+            "to the states of that folder they recorded",
+        standing: "gated",
+        gatedIn: "components/history/HistoryPanel.vue",
+        note:
+            "The one call in the whole history feature that takes anything away. Everything else " +
+            "there only ever adds a revision, restore included: a restore writes the old files back " +
+            "and records that as a new revision, so the state it replaced stays in the list.",
+    },
+    "components/history/historyHost.ts": {
+        count: 3,
+        destroys:
+            "older revisions of a config folder's version history, through the host adapter the panel " +
+            "shares",
+        standing: "gated",
+        gatedIn: "components/history/HistoryPanel.vue",
+        note:
+            "The seam rather than the deletion: an interface method, the probe that refuses a bridge " +
+            "missing it, and the adapter that forwards it. Its one caller is the panel, behind the gate.",
     },
     "components/menu/SettingsMenu.vue": {
         count: 2,

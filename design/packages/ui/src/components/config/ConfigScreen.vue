@@ -29,6 +29,7 @@ import {
 } from "vuetify/components";
 import { EMPTY_INVOCATION, type CliInvocation, type FieldMeta, type PlainValue } from "@material-bluemap/config";
 import ConfigApplyDialog from "./ConfigApplyDialog.vue";
+import { HistoryPanel } from "../history/index.js";
 import ConfigFileForm from "./ConfigFileForm.vue";
 import ConfigSearchField from "./ConfigSearchField.vue";
 import MapsScreen from "./MapsScreen.vue";
@@ -120,7 +121,9 @@ const host = resolvedHost;
  */
 
 const workspace = shallowRef<ConfigWorkspace | null>(null);
-const activeScreen = ref<ScreenId>("core");
+// "history" is a tab but not a ScreenId: the settings search indexes screens by their
+// fields, and the history panel has none, so it stays out of that union on purpose.
+const activeScreen = ref<ScreenId | "history">("core");
 const selectedMapKey = ref<string | null>(null);
 const selectedStorageKey = ref<string | null>(null);
 const highlightPath = ref<string | null>(null);
@@ -395,6 +398,10 @@ async function confirmSave(): Promise<void> {
         if (currentPlan.writes.length > 0) await host.writeFiles(current.folder, currentPlan.writes);
         if (currentPlan.deletes.length > 0) await host.deleteFiles(current.folder, currentPlan.deletes);
 
+        // A history that cannot be kept must not turn a save that worked into one that
+        // failed, so this is fire-and-forget: the bridge call never rejects.
+        void window.materialBluemap?.history?.snapshot(current.folder);
+
         workspace.value = markWorkspaceSaved(current, currentPlan);
         applyOpen.value = false;
 
@@ -550,6 +557,7 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
 
             <v-tabs v-model="activeScreen" density="comfortable" show-arrows class="mb-config-screen__tabs">
                 <v-tab v-for="screen in SCREENS" :key="screen.id" :value="screen.id">{{ screen.label }}</v-tab>
+                <v-tab value="history">{{ t("config.history.tab", "History") }}</v-tab>
             </v-tabs>
             <v-divider />
 
@@ -647,6 +655,13 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                         @update:invocation="(value) => (invocation = value)"
                         @consent="emit('consent')"
                     />
+                </v-window-item>
+
+                <v-window-item value="history">
+                    <HistoryPanel v-if="workspace !== null && workspace.folder !== null" :folder="workspace.folder" />
+                    <p v-else class="mb-config-screen__note">
+                        {{ t("config.history.noFolder", "History follows a folder. Save this config set to one first.") }}
+                    </p>
                 </v-window-item>
             </v-window>
         </template>

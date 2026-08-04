@@ -75,6 +75,130 @@ interface BlueMapConfigBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* The config folder's local version history                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The local, Git-backed history of a config folder.
+ *
+ * Mirrors `HistoryBridge` in the preload, which mirrors `main/history/ipc.ts`. Three
+ * properties of that layer are worth restating here, because they are what the panel on
+ * this side is allowed to assume:
+ *
+ *  - **Nothing rejects.** Every method resolves with a value, failures included, so a
+ *    history that cannot be written can never take down the save it was recording.
+ *  - **Nothing is rewritten.** A restore writes the old files back and records *that* as a
+ *    new revision, so an undo can be undone and that undo undone in turn.
+ *  - **Nothing leaves the machine.** The repository lives beside this application's own
+ *    data, has no remote, and there is no call here that could give it one.
+ */
+type BlueMapHistoryChangeStatus = "added" | "modified" | "deleted";
+
+interface BlueMapHistoryFileChange {
+    /** Relative to the config folder, forward slashes, e.g. `maps/nether.conf`. */
+    path: string;
+    status: BlueMapHistoryChangeStatus;
+}
+
+/**
+ * The grouping word a revision carries.
+ *
+ * The panel's action filter is built from the words the revisions in front of it actually
+ * use, never from this union: a history with no restores in it offers no "restored"
+ * filter, and a word added to the main process later needs no change on this side.
+ */
+type BlueMapHistoryAction = "started" | "created" | "changed" | "deleted" | "mixed" | "restored" | "pruned";
+
+interface BlueMapHistoryRevision {
+    id: string;
+    shortId: string;
+    /** ISO 8601. */
+    at: string;
+    /** Always names what changed, e.g. `Deleted the nether map`. Never `Updated`. */
+    label: string;
+    action: BlueMapHistoryAction;
+    changes: BlueMapHistoryFileChange[];
+    /** The user's own label for this revision, or null. */
+    note: string | null;
+    /** Set on a restore: the revision whose contents were written back. */
+    restoredFrom: string | null;
+}
+
+interface BlueMapHistoryStatus {
+    available: boolean;
+    version: string | null;
+    /** One sentence for the user when `available` is false. Null when it is true. */
+    reason: string | null;
+    /** Where histories are kept, beside the app's own data and never in a user's folder. */
+    root: string;
+}
+
+interface BlueMapHistoryListing {
+    available: boolean;
+    reason: string | null;
+    folder: string;
+    repository: string;
+    revisions: BlueMapHistoryRevision[];
+    /** Expected to be empty. Sent so the panel can show that rather than promise it. */
+    remotes: string[];
+}
+
+type BlueMapHistoryWrite =
+    | { ok: true; revision: BlueMapHistoryRevision | null; message: string }
+    | { ok: false; message: string };
+
+interface BlueMapHistorySkippedFile {
+    path: string;
+    reason: string;
+}
+
+type BlueMapHistoryRestoreResult =
+    | {
+          ok: true;
+          revision: BlueMapHistoryRevision | null;
+          message: string;
+          skipped: BlueMapHistorySkippedFile[];
+      }
+    | { ok: false; message: string };
+
+interface BlueMapHistoryRevisionFile {
+    path: string;
+    text: string;
+}
+
+interface BlueMapHistoryDiffFile {
+    path: string;
+    status: BlueMapHistoryChangeStatus;
+    /** A unified diff, exactly as git wrote it. */
+    patch: string;
+}
+
+type BlueMapHistoryFilesResult =
+    | { ok: true; files: BlueMapHistoryRevisionFile[] }
+    | { ok: false; message: string };
+
+type BlueMapHistoryDiffResult =
+    | { ok: true; files: BlueMapHistoryDiffFile[] }
+    | { ok: false; message: string };
+
+interface BlueMapHistoryBridge {
+    status(): Promise<BlueMapHistoryStatus>;
+    list(folder: string, limit?: number): Promise<BlueMapHistoryListing>;
+    snapshot(folder: string): Promise<BlueMapHistoryWrite>;
+    revisionFiles(folder: string, id: string): Promise<BlueMapHistoryFilesResult>;
+    diff(folder: string, id: string): Promise<BlueMapHistoryDiffResult>;
+    restore(folder: string, id: string): Promise<BlueMapHistoryRestoreResult>;
+    label(folder: string, id: string, label: string): Promise<BlueMapHistoryWrite>;
+    /**
+     * Keeps the newest `keep` revisions and removes the rest. **Destructive.**
+     *
+     * The one call here that takes anything away, which is why the panel puts it behind
+     * the two-key confirmation gate rather than a plain button.
+     */
+    discardOlderRevisions(folder: string, keep: number): Promise<BlueMapHistoryWrite>;
+}
+
+/* -------------------------------------------------------------------------- */
 /* The worlds already on this machine                                         */
 /* -------------------------------------------------------------------------- */
 
@@ -438,6 +562,17 @@ interface MaterialBlueMapBridge {
      * what it needs.
      */
     config: BlueMapConfigBridge;
+
+    /**
+     * The local version history of a config folder, for the history panel.
+     *
+     * Declared here because this is the shell this interface ships with. `historyHost.ts`
+     * still probes for every method one at a time and refuses a partial answer, and it is
+     * right to: a released shell can load a newer renderer than the one it was built
+     * beside, and a Restore button that throws when pressed is far worse than a panel
+     * saying this build keeps no history.
+     */
+    history: BlueMapHistoryBridge;
 }
 
 interface Window {
