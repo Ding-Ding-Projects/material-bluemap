@@ -664,3 +664,10 @@ a deliberate `textures.json` mismatch:
 cd design
 npx vitest run packages/render-actions
 ```
+
+### Real Pages capture
+
+The following capture is from the hosted tiny test world, not a mock or a hand-edited image.
+It records the browser address and the map viewer after the published URL answered `200`:
+
+![Hosted tiny test world in the BlueMap viewer](screenshots/map-hosted-on-github-pages.png)
