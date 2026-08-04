@@ -44,6 +44,12 @@ export const SETTINGS_STRINGS: StringTable = {
         yue: "預設係普通文字。要用正則就開圖案建構器。",
     },
     "settings.searchClear": { en: "Clear search", yue: "清除搜尋" },
+    "settings.tabSearchLabel": { en: "Search this settings section", yue: "搜尋呢個設定分類" },
+    "settings.tabSearchPlaceholder": { en: "Search this section", yue: "搜尋呢個分類" },
+    "settings.tabSearchHint": {
+        en: "This field searches only the visible settings section. Plain text is the default; open the pattern builder for regular expressions.",
+        yue: "呢個欄位淨係搜尋目前設定分類。預設係普通文字；要用正則就開圖案建構器。",
+    },
     "settings.searchResults": {
         en: "{count} settings match",
         yue: "有 {count} 項設定合到",
