@@ -122,6 +122,25 @@ describe("generateConfigSet reproduces what the Java CLI writes", () => {
         expect(text.includes("\r\n")).toBe(wantsCarriageReturn);
     });
 
+    it("still generates when the renderer has no Node process", () => {
+        const globalWithProcess = globalThis as typeof globalThis & { process?: unknown };
+        const saved = globalWithProcess.process;
+        try {
+            delete globalWithProcess.process;
+            const rendererGenerated = generateConfigSet({
+                webroot: "web",
+                dataFolder: "data",
+                world: "world",
+                version: "renderer",
+                separator: "/",
+            });
+            expect(rendererGenerated.length).toBeGreaterThan(0);
+            expect(rendererGenerated.every((file) => !file.text.includes("\r\n"))).toBe(true);
+        } finally {
+            globalWithProcess.process = saved;
+        }
+    });
+
     it("writes exactly the files the CLI writes, and no plugin.conf", () => {
         expect(generated.map((file) => file.path)).toEqual([
             "core.conf",

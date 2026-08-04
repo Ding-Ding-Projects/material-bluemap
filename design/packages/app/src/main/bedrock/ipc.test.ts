@@ -143,6 +143,39 @@ describe("bedrock:detect", () => {
         expect(result.error).toBeNull();
     });
 
+    it("warns about the converter's memory growth before anything runs, on a big world", async () => {
+        const { call } = install();
+
+        const result = (await call("bedrock:detect", "/worlds/Big", 1_400 * 1024 * 1024)) as {
+            memory: { level: string; warn: boolean; detail: string } | null;
+        };
+
+        // On the same call the Convert button is drawn from, so it is on screen beforehand
+        // rather than after twenty minutes.
+        expect(result.memory?.level).toBe("high");
+        expect(result.memory?.warn).toBe(true);
+        expect(result.memory?.detail).toContain("limitation of the converter");
+    });
+
+    it("says nothing alarming about a small world", async () => {
+        const { call } = install();
+
+        const result = (await call("bedrock:detect", "/worlds/Small", 30 * 1024 * 1024)) as {
+            memory: { warn: boolean; detail: string } | null;
+        };
+
+        expect(result.memory?.warn).toBe(false);
+        expect(result.memory?.detail).toBe("");
+    });
+
+    it("warns about nothing when the world's size was never measured", async () => {
+        const { call } = install();
+        const result = (await call("bedrock:detect", "/worlds/Unmeasured")) as {
+            memory: { level: string; warn: boolean } | null;
+        };
+        expect(result.memory).toMatchObject({ level: "unknown", warn: false });
+    });
+
     it("leaves a Java world entirely alone", async () => {
         const { call } = install({ inspect: async () => JAVA_LISTING });
 
@@ -197,6 +230,51 @@ describe("bedrock:chunker", () => {
 });
 
 describe("bedrock:convert", () => {
+    it("runs with no heap ceiling, and with the flag that makes an OOM recognisable", async () => {
+        let seen: readonly string[] | undefined;
+        const { call } = install({
+            convert: async (convertOptions) => {
+                seen = convertOptions.jvmArgs;
+                return {
+                    ok: true,
+                    outputDirectory: "/out",
+                    regionFiles: 1,
+                    sourceEdition: null,
+                    targetEdition: null,
+                    durationMs: 1,
+                };
+            },
+        });
+
+        await call("bedrock:convert", { world: "/worlds/MyWorld" });
+
+        // A caller that never thought about JVM flags still gets the recognisable ending,
+        // and never gets an -Xmx that would imply the memory growth is handled.
+        expect(seen).toContain("-XX:+ExitOnOutOfMemoryError");
+        expect(seen?.some((arg) => arg.startsWith("-Xmx"))).toBe(false);
+    });
+
+    it("passes the world's size through only so a failure can be phrased with it", async () => {
+        let seen: number | null | undefined;
+        const { call } = install({
+            convert: async (convertOptions) => {
+                seen = convertOptions.sourceBytes;
+                return {
+                    ok: false,
+                    code: "out-of-memory",
+                    message: "…",
+                    cleanedUp: true,
+                    diagnostics: [],
+                    durationMs: 1,
+                };
+            },
+        });
+
+        await call("bedrock:convert", { world: "/worlds/MyWorld", sizeBytes: 900_000_000 });
+
+        expect(seen).toBe(900_000_000);
+    });
+
     it("converts and reports the outcome", async () => {
         const finished: unknown[] = [];
         const { call } = install({ broadcast: (event) => finished.push(event) });

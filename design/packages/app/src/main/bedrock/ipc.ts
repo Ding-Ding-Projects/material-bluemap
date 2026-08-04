@@ -49,10 +49,12 @@ import {
     convertedWorldPath,
     estimateConvertedSize,
     DEFAULT_JAVA_TARGET,
+    RECOMMENDED_JVM_ARGS,
     type ConversionEvent,
     type ConversionOutcome,
     type ConvertWorldOptions,
 } from "./convert.js";
+import { assessMemoryRisk, type MemoryRisk } from "./memory.js";
 import { detectBedrockWorld, readBedrockLevelName, type BedrockWorldDetection } from "./detect.js";
 import { fidelityNotesFor, type FidelityBriefing } from "./fidelity.js";
 import {
@@ -87,6 +89,15 @@ export interface BedrockDetectResult {
     readonly estimatedSize: { readonly low: number; readonly high: number } | null;
     /** Present when this is a Bedrock world, so the briefing is on screen before the button. */
     readonly fidelity: FidelityBriefing | null;
+    /**
+     * Whether this world is large enough that the converter will probably run out of memory.
+     *
+     * Sized against the world in front of the person rather than stated in general: a world
+     * comfortably under the threshold sets `warn: false` and carries no copy at all, because
+     * a warning shown to everybody is a warning nobody reads. Null when this is not a
+     * Bedrock world and there is nothing to convert.
+     */
+    readonly memory: MemoryRisk | null;
     /** Set when the folder could not be read at all, in which case everything above is empty. */
     readonly error: string | null;
 }
@@ -141,7 +152,14 @@ export interface BedrockIpcOptions {
     readonly appVersion?: string | null;
     /** Where events go. Supplied by the caller so no Electron value is imported here. */
     readonly broadcast?: (event: ConversionProgressEvent) => void;
-    /** JVM arguments for the conversion, e.g. `["-Xmx4G"]`. */
+    /**
+     * JVM arguments for the conversion. Defaults to {@link RECOMMENDED_JVM_ARGS}.
+     *
+     * Deliberately not a heap size. Chunker's memory use grows without bound on larger
+     * worlds, so an `-Xmx` here would not prevent the failure - it would only choose when it
+     * happens, and a larger one makes the landing worse. Read the note on
+     * {@link RECOMMENDED_JVM_ARGS} before putting a number in here.
+     */
     readonly jvmArgs?: readonly string[];
     /** Injected in tests, all of them, so nothing here needs Chunker or a JVM to be proven. */
     readonly find?: (options: FindChunkerOptions) => Promise<ChunkerLookup>;
@@ -205,20 +223,24 @@ export function registerBedrockHandlers(
                     suggestedOutput: null,
                     estimatedSize: null,
                     fidelity: null,
+                    memory: null,
                     error: null,
                 };
             }
 
+            const measured =
+                typeof sizeBytes === "number" && Number.isFinite(sizeBytes) ? sizeBytes : null;
             const lookup = await find(lookupOptions());
             return {
                 folder,
                 detection,
                 name: await readBedrockLevelName(folder),
                 suggestedOutput: convertedWorldPath(folder),
-                estimatedSize: estimateConvertedSize(
-                    typeof sizeBytes === "number" && Number.isFinite(sizeBytes) ? sizeBytes : null,
-                ),
+                estimatedSize: estimateConvertedSize(measured),
                 fidelity: fidelityNotesFor(lookup.found ? lookup.version : pinnedRelease().version),
+                // Answered here, on the same call the Convert button is drawn from, so the
+                // warning is on screen before anything runs rather than after twenty minutes.
+                memory: assessMemoryRisk(measured),
                 error: null,
             };
         },
@@ -318,10 +340,11 @@ export function registerBedrockHandlers(
             if (typeof request !== "object" || request === null) {
                 return refuse("A conversion needs a world folder to convert.");
             }
-            const { world, output, format } = request as {
+            const { world, output, format, sizeBytes } = request as {
                 world?: unknown;
                 output?: unknown;
                 format?: unknown;
+                sizeBytes?: unknown;
             };
             if (typeof world !== "string" || world.trim() === "") {
                 return refuse("A conversion needs a world folder given as text.");
@@ -374,7 +397,16 @@ export function registerBedrockHandlers(
                     inputDirectory: world,
                     outputDirectory,
                     outputFormat: targetFormat,
-                    ...(options.jvmArgs === undefined ? {} : { jvmArgs: options.jvmArgs }),
+                    // Only phrases an out-of-memory failure; the conversion is identical
+                    // without it. See `sourceBytes` on ConvertWorldOptions.
+                    sourceBytes:
+                        typeof sizeBytes === "number" && Number.isFinite(sizeBytes)
+                            ? sizeBytes
+                            : null,
+                    // Defaulted rather than left empty: the recommended set exists to make an
+                    // out-of-memory ending recognisable, and a caller that simply did not
+                    // think about JVM flags should still get that.
+                    jvmArgs: options.jvmArgs ?? RECOMMENDED_JVM_ARGS,
                     onEvent: (event) => {
                         broadcast({ conversionId, ...event });
                     },
@@ -460,6 +492,7 @@ function empty(folder: string, error: string): BedrockDetectResult {
         suggestedOutput: null,
         estimatedSize: null,
         fidelity: null,
+        memory: null,
         error,
     };
 }

@@ -66,6 +66,11 @@ Before the button, the interface has the facts to show:
 - **That the original is never modified.** Chunker only reads its input, and this app only
   ever passes the Bedrock world as `-i`.
 - **What will be lost.** See [Fidelity](#fidelity-what-conversion-loses) below.
+- **Whether the world is large enough that it will probably fail.** Sized against the world
+  in front of the person, not stated in general — see
+  [Memory](#memory-the-converter-grows-without-bound) below. A world comfortably under the
+  threshold says nothing at all, because a warning shown on every world is a warning nobody
+  reads.
 
 Progress is reported as it arrives, cancellation is available throughout, and neither a
 cancelled nor a failed conversion leaves anything behind — see
@@ -294,9 +299,98 @@ The codes that *are* meaningful:
 | Code | Meaning | What the app says |
 |---|---|---|
 | `0` | see above — only trustworthy with the other two checks | |
-| `1` | conversion threw | `chunker-failed`, with the last diagnostic |
+| `1` | conversion threw — **including most out-of-memory deaths** | `out-of-memory` if the output carries an OOM signature, otherwise `chunker-failed` |
 | `2` | picocli usage error | `bad-invocation` — this app built the command line wrong |
-| `12` | `OutOfMemoryError` | `out-of-memory` — the remedy is a larger heap, so it is named |
+| `12` | `OutOfMemoryError` on Chunker's main thread only | `out-of-memory` |
+
+### Memory: the converter grows without bound
+
+> [!IMPORTANT]
+> **Chunker's memory use grows without bound on larger worlds — past roughly **200 MB** of
+> source world it climbs until the JVM dies.**
+>
+> **This 200 MB figure is this project's own observation from running Chunker. It is not
+> something upstream documents**, and the two accounts disagree about the cause — see below.
+
+On a world past that size, out-of-memory is not an exotic case: it is the *likely* ending.
+The conversion slows down, then stops part-way. Nothing is left behind (the `.converting`
+rename guard sees to that) and the Bedrock world is not modified.
+
+#### Upstream's account, and why this app does not repeat its advice
+
+Chunker's issue tracker carries a steady stream of out-of-memory reports, and the
+maintainer's standing reply describes them as a **resource** problem — the world is big, the
+machine's RAM is finite — with the remedy being to close other applications, pass a larger
+`-Xmx`, or trim the world with a tool like MCASelector first. No issue is labelled or
+described as a leak, and no upstream document states a size threshold.
+
+That advice only holds if the memory use has a ceiling. If it grows without bound, a larger
+heap is not a fix:
+
+- it does not decide **whether** the conversion fails, only **when**; and
+- a larger one makes the landing worse, because a JVM permitted to reach most of physical
+  memory drives the machine into paging or gets killed outright by the operating system —
+  which arrives as a process that simply vanished, rather than as an `OutOfMemoryError`
+  anybody can read.
+
+So this app does not present a heap size as the remedy anywhere: not in the pre-conversion
+warning, not in the failure message, and not in its own JVM arguments.
+
+Out-of-memory reports continue against the pinned **1.19.1** — for example
+[issue #2482](https://github.com/HiveGamesOSS/Chunker/issues/2482), open, reported against
+`1.19.1-main-f642f8f`. There is therefore **no later Chunker release to point at as a fix**,
+and nothing here claims one. If upstream later documents the behaviour or ships a fix, this
+section is where the citation belongs.
+
+#### What the app actually does about it
+
+Three things, none of which is a workaround. Splitting the world, retrying with a bigger
+heap, or otherwise routing around the behaviour would be guesses about somebody else's bug.
+
+**1. Warn beforehand, sized against this world.** `main/bedrock/memory.ts` assesses the
+source world's measured size — the number the world list already computes:
+
+| Source size | Level | What is shown |
+|---|---|---|
+| under 150 MB (75% of the threshold) | `low` | **nothing at all** |
+| 150–200 MB | `approaching` | near the mark; may well convert, and what happens if it does not |
+| 200 MB and over | `high` | will probably fail, whose limitation it is, and the options that do work |
+| not measured | `unknown` | nothing — a risk invented from a size nobody measured is the same failure as an invented size |
+
+The `high` copy states plainly that giving it more memory is not a fix, that this is a
+limitation of the converter rather than of the person's world or of this app, and that the
+options that do work are a smaller world, trimming this one first, or a machine with
+considerably more RAM. The person can still start it and find out.
+
+**2. Recognise the death when it happens.** Given that Chunker exits 0 on several failure
+paths, this one gets its own classified failure and its own sentence — *"The converter ran
+out of memory, which it is known to do on worlds this size"* — rather than a generic
+"conversion failed".
+
+Exit code 12 is **not** a reliable way to spot it. Chunker's `catch (OutOfMemoryError)`
+wraps the body of `run()`, which is the **main** thread; the conversion itself runs as a
+task, and a failure on one of its worker threads is captured by
+`conversionTask.future().exceptionally(...)`, printed as `Failed with exception` plus a
+stack trace, and exited with **code 1**. The most likely out-of-memory death therefore looks
+exactly like any other exception. Three signals are treated as out-of-memory:
+
+1. an OOM-shaped line anywhere in either stream — `OutOfMemoryError`, `Java heap space`,
+   `GC overhead limit exceeded` (what a leak looks like just before the end: the heap is not
+   technically full, the collector is simply making no progress), `Terminating due to
+   java.lang.OutOfMemoryError`, `Requested array size exceeds VM limit`;
+2. exit code 12;
+3. a process that ended with **no** exit code and **no** signal, having made real progress
+   and never completed — what the operating system's own OOM killer leaves behind. The
+   progress requirement is what stops this swallowing a genuine spawn failure.
+
+**3. Choose JVM arguments that make the ending honest rather than pretend to fix it.**
+`RECOMMENDED_JVM_ARGS` is `["-XX:+ExitOnOutOfMemoryError"]`, and the notable thing about it
+is the absence of `-Xmx`. Leaving the heap ceiling off means the JVM's own default applies —
+a documented, predictable fraction of physical RAM, and not a claim by this app that the
+problem is handled. `-XX:+ExitOnOutOfMemoryError` is not a mitigation either: it changes
+nothing about whether the conversion succeeds. It makes the JVM halt at the first
+`OutOfMemoryError` on any thread and print a line the classifier above recognises, instead
+of letting the process thrash for minutes and then exit 1 like any other crash.
 
 ### Nothing that looks like a world
 
@@ -379,7 +473,7 @@ npx tsc -p packages/app --noEmit
 npx eslint packages/app
 ```
 
-All three are clean. The Bedrock suites are 57 tests across four files, and **none of them
+All three are clean. The Bedrock suites are 84 tests across five files, and **none of them
 needs Chunker, a JVM, or a Bedrock world on disk** — the process runner is injected and
 detection runs against fixtures built from empty files, because a Bedrock world's *shape* is
 the whole of what detection reads.
@@ -388,8 +482,9 @@ the whole of what detection reads.
 |---|---|
 | `detect.test.ts` | A Bedrock world detected and named; a Java world unaffected; a Java world with a stray `db` folder still Java; a fresh Java world with no terrain still Java; a `saves` folder not mistaken for a world; `levelname.txt` trimming and its absence |
 | `chunker.test.ts` | Chunker absent reported honestly with licence and search paths; never rejecting; configured over downloaded; a missing configured jar reported rather than replaced; version read from a jar name, and `null` rather than a guess |
-| `convert.test.ts` | The documented command line; `--keepOriginalNBT` never passed; progress parsing including a comma decimal separator; the failure that exits zero; verification rejecting a `level.dat` with no terrain; **a cancelled conversion cleaning up after itself**; **a failed conversion leaving nothing that looks like a world**; a stale staging directory cleared |
-| `ipc.test.ts` | Channels registered and disposed from one list; every refusal a value; a Java world refused before anything runs; cancel reaching the live conversion, and answering false when there is nothing to cancel |
+| `convert.test.ts` | The documented command line; `--keepOriginalNBT` never passed; **no `-Xmx` in the recommended JVM arguments**; progress parsing including a comma decimal separator; the failure that exits zero; **out-of-memory recognised from exit 12, from a worker-thread stack trace that exits 1, and from an OS kill — but not from a spawn failure or a cancellation**; **the OOM message never suggesting a bigger heap**; verification rejecting a `level.dat` with no terrain; **a cancelled conversion cleaning up after itself**; **a failed conversion leaving nothing that looks like a world**; a stale staging directory cleared |
+| `memory.test.ts` | Silence below the threshold and on an unmeasured world; the warning above it sized against the world; that it names whose limitation it is, promises the cleanup that actually happens, attributes the figure to observation rather than upstream, and **never offers more memory as the fix** |
+| `ipc.test.ts` | Channels registered and disposed from one list; every refusal a value; the memory warning present on the pre-conversion call and absent for a small world; the recommended JVM arguments reaching the conversion; a Java world refused before anything runs; cancel reaching the live conversion, and answering false when there is nothing to cancel |
 
 The detection fixtures go through the real `inspectWorldFolder`, so the two halves are proven
 to agree — a hand-written listing could satisfy the detector perfectly while the reader never
@@ -401,3 +496,18 @@ of which belong in the test suite. The CLI contract driven here — flags, progr
 exit codes and the three zero-exit failure paths — was read from Chunker's own source at tag
 `1.19.1` rather than observed. The size estimate is an estimate and is labelled as one
 everywhere it is shown.
+
+On memory specifically, three things are worth separating:
+
+- **Not measured here.** The 200 MB threshold is carried over as an operational observation.
+  This repository has not profiled Chunker's heap, established the threshold experimentally,
+  or confirmed that the growth is genuinely unbounded rather than merely large. The code and
+  the copy both treat it as a soft warning line, never as a hard limit.
+- **Not confirmed upstream.** Chunker documents no such limit, and its maintainers describe
+  out-of-memory as a world-size-versus-RAM problem. The attribution in the warning copy says
+  so explicitly so nobody reads the figure as upstream's.
+- **Not observed in this repository.** The OOM classification is exercised against
+  synthesised process output — a real Chunker OOM has not been captured here. The
+  `OutOfMemoryError` and `Terminating due to …` line shapes are the JVM's documented output;
+  the claim that a worker-thread OOM exits 1 rather than 12 is read from `CLI.java`'s control
+  flow rather than observed.

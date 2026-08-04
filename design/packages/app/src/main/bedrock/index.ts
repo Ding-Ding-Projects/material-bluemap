@@ -73,6 +73,7 @@ export {
     DEFAULT_JAVA_TARGET,
     EXIT_OUT_OF_MEMORY,
     EXIT_USAGE,
+    RECOMMENDED_JVM_ARGS,
     STAGING_SUFFIX,
     convertBedrockWorld,
     convertedWorldPath,
@@ -90,6 +91,14 @@ export {
     type ConvertedWorldCheck,
     type SpawnChunker,
 } from "./convert.js";
+
+export {
+    MEMORY_RISK_APPROACHING_FRACTION,
+    MEMORY_RISK_THRESHOLD_BYTES,
+    assessMemoryRisk,
+    type MemoryRisk,
+    type MemoryRiskLevel,
+} from "./memory.js";
 
 export {
     CHUNKER_README_URL,

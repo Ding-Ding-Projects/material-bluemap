@@ -32,9 +32,29 @@
  * an actual Java world. Any one of them missing is a failure, and is reported as one.
  *
  * The codes that *are* meaningful: `1` is a conversion exception, `12` is
- * `OutOfMemoryError` (chosen by Chunker, and worth naming because the remedy is a larger
- * heap rather than a different world), and `2` is picocli's usage error, which for this
- * app means it built a command line wrong.
+ * `OutOfMemoryError`, and `2` is picocli's usage error, which for this app means it built a
+ * command line wrong.
+ *
+ * ## Running out of memory is the expected failure, and exit code 12 rarely catches it
+ *
+ * Chunker's memory use grows without bound on larger worlds (see `memory.ts` for the
+ * observation and who is claiming it), so out-of-memory is not an exotic case here - on a
+ * big world it is the *likely* ending, and it deserves its own sentence rather than being
+ * folded into a generic "conversion failed".
+ *
+ * Exit code 12 is not a reliable way to spot it. Chunker's `catch (OutOfMemoryError)` wraps
+ * the body of `run()`, which is the **main** thread; the conversion itself runs as a task,
+ * and a failure on one of its worker threads is captured by `conversionTask.future()
+ * .exceptionally(...)`, printed as `Failed with exception` plus a stack trace, and exited
+ * with **code 1**. So the most likely out-of-memory death arrives looking exactly like any
+ * other exception, and a classifier keyed on exit 12 alone would mislabel it.
+ *
+ * Three signals are therefore treated as out-of-memory, in this order of reliability:
+ * an `OutOfMemoryError`-shaped line anywhere in the output (which covers both the main
+ * thread and every worker thread, and the `-XX:+ExitOnOutOfMemoryError` termination
+ * notice), exit code 12, and - only when nothing completed - a process killed outright with
+ * no exit code at all, which is what the operating system's own out-of-memory killer leaves
+ * behind on a machine driven into paging.
  *
  * ## Nothing is written where a world would be until it is a world
  *
@@ -83,6 +103,29 @@ export const DEFAULT_JAVA_TARGET = "JAVA_1_21_4";
 /** What an unfinished conversion is called on disk, so it can never be mistaken for a world. */
 export const STAGING_SUFFIX = ".converting";
 
+/**
+ * The JVM arguments to run Chunker with, and - just as deliberately - the one that is absent.
+ *
+ * **No `-Xmx`.** Chunker's memory use grows without bound on larger worlds (see
+ * `memory.ts`), and against unbounded growth a heap ceiling is not a fix, it is the point at
+ * which the failure happens. Raising it does not avoid the failure; it delays it, and a
+ * delayed one lands harder, because a JVM permitted to reach most of physical memory drives
+ * the machine into paging or gets killed by the operating system - which reaches this code
+ * as a process that vanished rather than as an `OutOfMemoryError` anybody can read. Leaving
+ * it off means the JVM's own default ceiling applies, which is a documented, predictable
+ * fraction of physical RAM and is not a claim by this app that the problem is handled.
+ *
+ * **`-XX:+ExitOnOutOfMemoryError`** is the one flag genuinely worth passing, and it is not a
+ * mitigation either - it changes nothing about whether the conversion succeeds. It makes the
+ * *failure* honest: the JVM halts at the first `OutOfMemoryError` on any thread and prints
+ * `Terminating due to java.lang.OutOfMemoryError`. Without it, Chunker catches a
+ * worker-thread failure into `exceptionally(...)` and exits 1 like any other exception,
+ * while the process may thrash for minutes first. With it the ending is immediate and
+ * carries a line {@link OUT_OF_MEMORY_LINE} recognises, which is what lets the person be
+ * told what actually happened instead of "conversion failed".
+ */
+export const RECOMMENDED_JVM_ARGS: readonly string[] = ["-XX:+ExitOnOutOfMemoryError"];
+
 /** Chunker's own exit code for running out of heap. */
 export const EXIT_OUT_OF_MEMORY = 12;
 
@@ -107,6 +150,23 @@ const CONVERTING_LINE = /^Converting from (\S+) (\S+) to (\S+) (\S+)/;
 
 /** The failure paths that exit zero. See the note at the top of the file. */
 const SILENT_FAILURE_LINE = /^Failed to find suitable (reader|writer)/;
+
+/**
+ * How a JVM says it ran out of memory, in every form this can arrive in.
+ *
+ * Matched against every line of both streams rather than only the last, because the useful
+ * one is inside a stack trace that Chunker prints before exiting with a code that says
+ * nothing about memory. `Terminating due to` is the notice the JVM itself prints under
+ * `-XX:+ExitOnOutOfMemoryError`, which is why this app passes that flag: it turns an
+ * ambiguous exit into a line that can be recognised.
+ *
+ * The narrower variants are listed alongside the general one because a
+ * `GC overhead limit exceeded` is what a *leak* looks like just before the end - the heap
+ * is technically not full, the collector is simply making no progress - and it would
+ * otherwise be classified as an ordinary crash.
+ */
+const OUT_OF_MEMORY_LINE =
+    /\b(java\.lang\.)?OutOfMemoryError\b|\bJava heap space\b|\bGC overhead limit exceeded\b|\bTerminating due to java\.lang\.OutOfMemoryError\b|\bRequested array size exceeds VM limit\b/i;
 
 export type ConversionPhase = "starting" | "converting" | "compacting" | "verifying";
 
@@ -148,6 +208,13 @@ export interface ChunkerRunResult {
     readonly completeLineSeen: boolean;
     /** Set when Chunker reported it could not read the input or write the output. */
     readonly silentFailure: string | null;
+    /**
+     * The out-of-memory line, when one appeared anywhere in the output.
+     *
+     * Far more trustworthy than the exit code for this particular failure - see the note at
+     * the top of the file for why a worker-thread OOM arrives as a plain exit 1.
+     */
+    readonly outOfMemory: string | null;
     readonly sourceEdition: string | null;
     readonly targetEdition: string | null;
     readonly lastPercent: number;
@@ -179,6 +246,7 @@ export class ChunkerConversion {
     private readonly diagnostics: string[] = [];
     private completeLineSeen = false;
     private silentFailure: string | null = null;
+    private outOfMemory: string | null = null;
     private sourceEdition: string | null = null;
     private targetEdition: string | null = null;
     private lastPercent = 0;
@@ -295,6 +363,13 @@ export class ChunkerConversion {
         const line = raw.trimEnd();
         if (line.trim() === "") return;
 
+        // Checked on every line of both streams, before anything else, because it arrives
+        // inside a stack trace whose exit code will not mention memory at all.
+        if (this.outOfMemory === null && OUT_OF_MEMORY_LINE.test(line)) {
+            this.outOfMemory = line.trim();
+            this.record(line);
+        }
+
         const progress = PROGRESS_LINE.exec(line);
         if (progress !== null) {
             const whole = Number.parseInt(progress[1] ?? "0", 10);
@@ -358,6 +433,7 @@ export class ChunkerConversion {
             cancelled: this.cancelRequested,
             completeLineSeen: this.completeLineSeen,
             silentFailure: this.silentFailure,
+            outOfMemory: this.outOfMemory,
             sourceEdition: this.sourceEdition,
             targetEdition: this.targetEdition,
             lastPercent: this.lastPercent,
@@ -480,6 +556,14 @@ export type ConversionOutcome = ConversionSuccess | ConversionFailure;
 export interface ConvertWorldOptions extends Omit<ChunkerRunOptions, "outputDirectory"> {
     /** Where the finished Java world should end up. Must not already exist. */
     readonly outputDirectory: string;
+    /**
+     * The source world's measured size, used only to phrase an out-of-memory failure.
+     *
+     * Optional and never load-bearing: it lets the message say "this world is 1.4 GB, and
+     * the converter's memory use grows without bound past about 200 MB" instead of a
+     * sizeless sentence. A conversion runs identically without it.
+     */
+    readonly sourceBytes?: number | null;
     /** Injected in tests so no conversion has to happen to prove the outcomes. */
     readonly run?: (options: ChunkerRunOptions) => {
         start(): Promise<ChunkerRunResult>;
@@ -583,6 +667,13 @@ export async function convertBedrockWorld(
         );
     }
 
+    // Before the spawn check, because a process the operating system killed for memory also
+    // arrives with no exit code, and "Chunker could not be started" would be a flatly wrong
+    // description of a conversion that ran for twenty minutes first.
+    if (outOfMemoryHappened(result)) {
+        return await fail("out-of-memory", outOfMemoryMessage(options.sourceBytes ?? null));
+    }
+
     if (result.exitCode === null && result.signal === null) {
         return await fail(
             "spawn-failed",
@@ -600,13 +691,6 @@ export async function convertBedrockWorld(
         );
     }
 
-    if (result.exitCode === EXIT_OUT_OF_MEMORY) {
-        return await fail(
-            "out-of-memory",
-            "Chunker ran out of memory. Give it a larger heap and convert again - a big " +
-                "world needs more than the default.",
-        );
-    }
     if (result.exitCode === EXIT_USAGE) {
         return await fail(
             "bad-invocation",
@@ -646,6 +730,58 @@ export async function convertBedrockWorld(
         targetEdition: result.targetEdition,
         durationMs: result.durationMs,
     };
+}
+
+/**
+ * Whether this run died for memory.
+ *
+ * Three signals, deliberately in this order. The printed error is the reliable one and
+ * covers every thread; exit code 12 only fires for an out-of-memory on Chunker's main
+ * thread; and a process that ended with neither an exit code nor a signal, having produced
+ * real progress and no completion, is what an operating system's own out-of-memory killer
+ * leaves behind - which is exactly the ending a heap allowed to grow until the machine
+ * pages produces.
+ *
+ * The last of the three requires `lastPercent > 0` so it cannot swallow a genuine spawn
+ * failure: a JVM that never started has no progress to its name.
+ */
+function outOfMemoryHappened(result: ChunkerRunResult): boolean {
+    if (result.cancelled) return false;
+    if (result.outOfMemory !== null) return true;
+    if (result.exitCode === EXIT_OUT_OF_MEMORY) return true;
+    return (
+        result.exitCode === null &&
+        result.signal === null &&
+        result.lastPercent > 0 &&
+        !result.completeLineSeen
+    );
+}
+
+/**
+ * What to say when it does, which is not "try a bigger heap".
+ *
+ * The remedy Chunker's own issue tracker offers is a larger `-Xmx`. That advice assumes the
+ * failure is a world too big for the available RAM; if the converter's memory use grows
+ * without bound then a larger heap only postpones the same ending, and postponing it makes
+ * it land harder - a JVM allowed to reach most of physical memory takes the machine into
+ * paging or gets killed outright by the operating system. Repeating that advice here would
+ * send somebody to run the same twenty-minute conversion again with a number changed and
+ * nothing else, so this names the limitation instead and offers the options that do work.
+ */
+function outOfMemoryMessage(sourceBytes: number | null): string {
+    const size =
+        sourceBytes !== null && sourceBytes > 0
+            ? ` This world is ${(sourceBytes / (1024 * 1024 * 1024)).toFixed(1)} GB.`
+            : "";
+    return (
+        `The converter ran out of memory, which it is known to do on worlds this size.` +
+        `${size} Chunker's memory use grows without bound past roughly 200 MB of world, so ` +
+        `this is a limitation of the converter rather than of your world, your computer or ` +
+        `this app - and giving it more memory does not fix it, it only moves the failure ` +
+        `later. Nothing was left behind and your Bedrock world was not modified. What does ` +
+        `help is converting a smaller world, trimming this one first, or using a machine ` +
+        `with considerably more RAM.`
+    );
 }
 
 /**

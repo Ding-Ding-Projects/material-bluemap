@@ -21,7 +21,12 @@ export interface GeneratedConfigFile {
 
 /** Match the line endings Java writes on the host where the config is created. */
 function nativeLineEndings(text: string): string {
-    const newline = process.platform === "win32" ? "\r\n" : "\n";
+    // This package is shared by Node and the renderer. The latter deliberately has no
+    // Node `process`, so asking for `process.platform` here makes the first generated
+    // workspace throw before the options editor can assign it. A browser has no platform
+    // distinction we need to preserve; its LF fallback is the honest portable answer.
+    const platform = (globalThis as { process?: { platform?: string } }).process?.platform;
+    const newline = platform === "win32" ? "\r\n" : "\n";
     return text.replace(/\r?\n/g, newline);
 }
 

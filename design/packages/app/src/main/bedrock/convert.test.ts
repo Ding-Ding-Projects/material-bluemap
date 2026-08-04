@@ -21,6 +21,7 @@ import {
     DEFAULT_JAVA_TARGET,
     EXIT_OUT_OF_MEMORY,
     EXIT_USAGE,
+    RECOMMENDED_JVM_ARGS,
     STAGING_SUFFIX,
     convertBedrockWorld,
     convertedWorldPath,
@@ -105,10 +106,24 @@ describe("the command line", () => {
         // Chunker refuses it outright when input and output formats differ - which for
         // Bedrock-to-Java is always - and refuses by calling System.exit(0), so the app
         // would report a cheerful success over an empty folder.
-        const args = new ChunkerConversion({ ...RUN_OPTIONS, jvmArgs: ["-Xmx4G"] }).arguments();
+        const args = new ChunkerConversion({
+            ...RUN_OPTIONS,
+            jvmArgs: RECOMMENDED_JVM_ARGS,
+        }).arguments();
         expect(args).not.toContain("-k");
         expect(args).not.toContain("--keepOriginalNBT");
-        expect(args[0]).toBe("-Xmx4G");
+        expect(args[0]).toBe("-XX:+ExitOnOutOfMemoryError");
+    });
+
+    it("recommends no heap ceiling, because one would imply the leak is handled", () => {
+        // Chunker's memory use grows without bound on larger worlds, so an -Xmx does not
+        // decide whether the conversion succeeds - only when it fails, and a larger one
+        // makes the landing worse. Shipping a number here would tell every reader of this
+        // code that the problem was dealt with.
+        expect(RECOMMENDED_JVM_ARGS.some((arg) => arg.startsWith("-Xmx"))).toBe(false);
+        expect(RECOMMENDED_JVM_ARGS.some((arg) => arg.startsWith("-Xms"))).toBe(false);
+        // What it does carry makes the failure recognisable rather than preventing it.
+        expect(RECOMMENDED_JVM_ARGS).toContain("-XX:+ExitOnOutOfMemoryError");
     });
 });
 
@@ -181,6 +196,56 @@ describe("reading Chunker's output", () => {
         expect(result.silentFailure).toContain("Failed to find suitable reader");
     });
 
+    it("spots an OutOfMemoryError in a stack trace, whatever the exit code says", async () => {
+        const result = await new ChunkerConversion({
+            ...RUN_OPTIONS,
+            spawn: fakeSpawn({
+                stdout: ["12.00%", "48.00%"],
+                stderr: [
+                    "Failed with exception",
+                    "java.lang.OutOfMemoryError: Java heap space",
+                    "\tat com.hivemc.chunker.conversion.WorldConverter.convert(WorldConverter.java:214)",
+                ],
+                code: 1,
+            }),
+        }).start();
+
+        // Exit 1, not 12 - the code alone says only "an exception happened".
+        expect(result.exitCode).toBe(1);
+        expect(result.outOfMemory).toContain("OutOfMemoryError");
+    });
+
+    it("spots the JVM's own ExitOnOutOfMemoryError notice", async () => {
+        const result = await new ChunkerConversion({
+            ...RUN_OPTIONS,
+            spawn: fakeSpawn({
+                stdout: ["30.00%"],
+                stderr: ["Terminating due to java.lang.OutOfMemoryError: Java heap space"],
+                code: 3,
+            }),
+        }).start();
+
+        expect(result.outOfMemory).toContain("Terminating due to");
+    });
+
+    it("spots a collector making no progress, which is what a leak looks like at the end", async () => {
+        const result = await new ChunkerConversion({
+            ...RUN_OPTIONS,
+            spawn: fakeSpawn({ stderr: ["GC overhead limit exceeded"], code: 1 }),
+        }).start();
+
+        expect(result.outOfMemory).toContain("GC overhead limit exceeded");
+    });
+
+    it("does not see memory trouble in an ordinary run", async () => {
+        const result = await new ChunkerConversion({
+            ...RUN_OPTIONS,
+            spawn: fakeSpawn({ stdout: ["50.00%", "Conversion complete!"] }),
+        }).start();
+
+        expect(result.outOfMemory).toBeNull();
+    });
+
     it("does not reject when the process cannot be spawned at all", async () => {
         const result = await new ChunkerConversion({
             ...RUN_OPTIONS,
@@ -248,6 +313,7 @@ function baseResult(): ChunkerRunResult {
         cancelled: false,
         completeLineSeen: false,
         silentFailure: null,
+        outOfMemory: null,
         sourceEdition: "Bedrock 1.21.30",
         targetEdition: "Java 1.21.4",
         lastPercent: 0,
@@ -416,23 +482,107 @@ describe("a whole conversion", () => {
             expect(existsSync(output)).toBe(false);
         });
 
-        it("names running out of memory, because the remedy is a bigger heap", async () => {
-            const outcome = await convertBedrockWorld({
-                ...RUN_OPTIONS,
-                outputDirectory: join(root, "Oom (Java)"),
-                run: () => ({
-                    cancel: () => undefined,
-                    start: async (): Promise<ChunkerRunResult> => ({
-                        ...baseResult(),
-                        exitCode: EXIT_OUT_OF_MEMORY,
+        describe("running out of memory, which is the expected ending on a big world", () => {
+            const oomOutcome = async (result: Partial<ChunkerRunResult>, sourceBytes?: number) =>
+                await convertBedrockWorld({
+                    ...RUN_OPTIONS,
+                    outputDirectory: join(root, `Oom-${String(Math.random()).slice(2)} (Java)`),
+                    ...(sourceBytes === undefined ? {} : { sourceBytes }),
+                    run: () => ({
+                        cancel: () => undefined,
+                        start: async (): Promise<ChunkerRunResult> => ({
+                            ...baseResult(),
+                            ...result,
+                        }),
                     }),
-                }),
+                });
+
+            it("is recognised from Chunker's own exit code 12", async () => {
+                const outcome = await oomOutcome({ exitCode: EXIT_OUT_OF_MEMORY });
+                expect(outcome).toMatchObject({ ok: false, code: "out-of-memory" });
             });
 
-            expect(outcome.ok).toBe(false);
-            if (outcome.ok) throw new Error("unreachable");
-            expect(outcome.code).toBe("out-of-memory");
-            expect(outcome.message).toContain("larger heap");
+            it("is recognised from a stack trace on a worker thread, which exits 1", async () => {
+                // The path that actually happens. Chunker's catch(OutOfMemoryError) only
+                // covers its main thread; a worker-thread failure goes through
+                // exceptionally(...) and exits 1, so a classifier keyed on 12 alone would
+                // report this as a generic crash.
+                const outcome = await oomOutcome({
+                    exitCode: 1,
+                    outOfMemory: "java.lang.OutOfMemoryError: Java heap space",
+                });
+                expect(outcome).toMatchObject({ ok: false, code: "out-of-memory" });
+            });
+
+            it("is recognised from a process the operating system killed outright", async () => {
+                // No exit code, no signal, real progress made: what an OS out-of-memory
+                // killer leaves behind on a machine driven into paging.
+                const outcome = await oomOutcome({
+                    exitCode: null,
+                    signal: null,
+                    lastPercent: 61.5,
+                });
+                expect(outcome).toMatchObject({ ok: false, code: "out-of-memory" });
+            });
+
+            it("does not mistake a failure to spawn for one", async () => {
+                // No progress was ever made, so nothing ran to exhaust anything.
+                const outcome = await oomOutcome({
+                    exitCode: null,
+                    signal: null,
+                    lastPercent: 0,
+                    diagnostics: ["spawn java ENOENT"],
+                });
+                expect(outcome).toMatchObject({ ok: false, code: "spawn-failed" });
+            });
+
+            it("does not mistake a cancellation for one", async () => {
+                const outcome = await oomOutcome({
+                    cancelled: true,
+                    exitCode: null,
+                    signal: null,
+                    lastPercent: 44,
+                });
+                expect(outcome).toMatchObject({ ok: false, code: "cancelled" });
+            });
+
+            it("says it is a known limitation of the converter, and never suggests a bigger heap", async () => {
+                const outcome = await oomOutcome(
+                    { exitCode: EXIT_OUT_OF_MEMORY },
+                    1_500_000_000,
+                );
+
+                expect(outcome.ok).toBe(false);
+                if (outcome.ok) throw new Error("unreachable");
+                expect(outcome.message).toContain("known to do on worlds this size");
+                expect(outcome.message).toContain("limitation of the converter");
+                // Sized against the world in front of them rather than a generic sentence.
+                expect(outcome.message).toContain("1.4 GB");
+                // The honesty requirement: more memory is a delay, not a fix, so the message
+                // must not send somebody to repeat a twenty-minute failure with a bigger number.
+                expect(outcome.message).toContain("does not fix it");
+                expect(outcome.message).not.toMatch(/-Xmx|larger heap|more memory does help/);
+            });
+
+            it("still leaves nothing that looks like a world", async () => {
+                const output = join(root, "OomCleanup (Java)");
+                const outcome = await convertBedrockWorld({
+                    ...RUN_OPTIONS,
+                    outputDirectory: output,
+                    run: (o) => ({
+                        cancel: () => undefined,
+                        async start(): Promise<ChunkerRunResult> {
+                            await mkdir(o.outputDirectory, { recursive: true });
+                            await writeFile(join(o.outputDirectory, "level.dat"), "");
+                            return { ...baseResult(), exitCode: 1, outOfMemory: "OutOfMemoryError" };
+                        },
+                    }),
+                });
+
+                expect(outcome).toMatchObject({ ok: false, code: "out-of-memory" });
+                expect(existsSync(output)).toBe(false);
+                expect(existsSync(`${output}${STAGING_SUFFIX}`)).toBe(false);
+            });
         });
 
         it("names a command line this app built wrongly as this app's fault", async () => {
