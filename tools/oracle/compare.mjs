@@ -35,6 +35,7 @@ import { describeError } from "./lib/diff.mjs";
 import {
     buildCliJar,
     findClientJar,
+    findResourceExtensions,
     findCliJar,
     generateWorld,
     renderReference,
@@ -243,6 +244,18 @@ async function main() {
                 "typescript render will have no resources to work from",
         );
 
+    // BlueMap's own bundled pack, which the java render unpacked on its way past. Without
+    // it the ported gallery is 839 textures short, because the extensions' blocks-atlas is
+    // what contributes the root-level directory source covering `item/`, `entity/` and the
+    // four flow/bell textures.
+    const resourceExtensions = await findResourceExtensions(reference.dataDirectory);
+    report.steps.resourceExtensions = resourceExtensions;
+    if (resourceExtensions === null)
+        log(
+            "[oracle] no resourceExtensions.zip in the reference data directory; the " +
+                "typescript render will be missing the textures only it contributes",
+        );
+
     // 4. the ported render
     const ported = await renderWithTypeScriptEngine({
         repoRoot: REPO_ROOT,
@@ -252,6 +265,7 @@ async function main() {
         mapName: options.mapName,
         dimension: options.dimension,
         clientJar,
+        resourceExtensions,
     });
     report.steps.ported = ported;
 

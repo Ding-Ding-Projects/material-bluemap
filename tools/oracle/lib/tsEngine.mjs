@@ -63,6 +63,7 @@ export async function renderWithTypeScriptEngine({
     mapName,
     dimension,
     clientJar,
+    resourceExtensions,
 }) {
     await buildEngine(repoRoot);
 
@@ -89,6 +90,8 @@ export async function renderWithTypeScriptEngine({
         dimension,
     ];
     if (clientJar !== null && clientJar !== undefined) args.push("--client-jar", clientJar);
+    if (resourceExtensions !== null && resourceExtensions !== undefined)
+        args.push("--resource-extensions", resourceExtensions);
 
     log("[oracle] rendering with the TypeScript engine");
     const result = await run(process.execPath, args, { capture: true });

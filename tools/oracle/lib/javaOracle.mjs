@@ -295,3 +295,21 @@ export async function findClientJar(dataDirectory) {
     const last = candidates[candidates.length - 1];
     return last === undefined ? null : join(dataDirectory, last.split("/").join("/"));
 }
+
+/**
+ * Finds `resourceExtensions.zip` — BlueMap's own bundled resource-pack, which the java
+ * render unpacks into its data directory on the way past
+ * (`BlueMapService#getPackRoots`, common/.../BlueMapService.java:350-366).
+ *
+ * Taken from the reference render's data directory for the same reason the client jar is:
+ * the point of the gate is that both engines load *the same* resources, and a second copy
+ * extracted separately is a second thing that can drift.
+ *
+ * @param {string} dataDirectory
+ * @returns {Promise<string|null>}
+ */
+export async function findResourceExtensions(dataDirectory) {
+    const found = await listFiles(dataDirectory);
+    const match = found.find((name) => /(^|\/)resourceExtensions\.zip$/.test(name));
+    return match === undefined ? null : join(dataDirectory, match.split("/").join("/"));
+}

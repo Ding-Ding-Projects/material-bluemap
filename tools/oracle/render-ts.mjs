@@ -73,20 +73,44 @@ function parseArgs(argv) {
 }
 
 /**
- * Reads `pack.mcmeta` out of the resource roots so the pack-version is the one the
- * resources actually declare, rather than a number hard-coded here that goes stale the
- * next time Mojang bumps the format.
+ * The pack versions, read from the client jar's own `version.json`.
+ *
+ * This is where upstream gets them: `MinecraftVersion#load` parses `version.json` out of
+ * the vanilla jar, and `BlueMapService` then builds
+ * `new ResourcePack(minecraftVersion.getResourcePackVersion())` and
+ * `new DataPack(minecraftVersion.getDataPackVersion())` — two *different* versions, each
+ * with a minor component.
+ *
+ * The `pack.mcmeta` route this used to take cannot work, and failed silently rather than
+ * loudly, which is why it survived: the vanilla client jar carries no `pack.mcmeta` at
+ * all, and `resourceExtensions.zip`'s holds only an `overlays` block with no `pack`
+ * object. Both roots therefore answered nothing and the whole render ran on the hard-coded
+ * fallback of 34.
+ *
+ * That number is not merely stale, it selects a different pack. `resourceExtensions.zip`
+ * declares overlays with format ranges — `mc1_21_9` (min 67), `mc26_1` (min 77),
+ * `beds` (max 85), `signs` (max 86) — so at 88 the applied set is
+ * {mc1_15, mc1_17, mc1_20_3, mc1_21_9, mc26_1} and at 34 it is
+ * {mc1_15, mc1_17, mc1_20_3, beds, signs}: different chest, banner, bed and sign models,
+ * a different set of used textures, and therefore a different gallery.
+ *
+ * @returns {Promise<{resource: [number, number], data: [number, number]} | null>}
  */
-async function readPackFormat(roots) {
+async function readPackVersions(roots) {
     for (const root of roots) {
         try {
-            const meta = root.resolve("pack.mcmeta");
-            if (!(await meta.isRegularFile())) continue;
-            const parsed = JSON.parse(await meta.readText());
-            const format = parsed?.pack?.pack_format;
-            if (typeof format === "number") return format;
+            const file = root.resolve("version.json");
+            if (!(await file.isRegularFile())) continue;
+            const packVersion = JSON.parse(await file.readText())?.pack_version;
+            const resourceMajor = packVersion?.resource_major;
+            const dataMajor = packVersion?.data_major;
+            if (typeof resourceMajor !== "number" || typeof dataMajor !== "number") continue;
+            return {
+                resource: [resourceMajor, packVersion.resource_minor ?? 0],
+                data: [dataMajor, packVersion.data_minor ?? 0],
+            };
         } catch {
-            // a pack without a readable mcmeta simply does not answer
+            // a root without a readable version.json simply does not answer
         }
     }
     return null;
@@ -181,12 +205,31 @@ async function render(engine, options) {
     const mapName = options["map-name"] ?? mapId;
     const dimension = Key.parse(options.dimension ?? "minecraft:overworld");
 
-    // --- resources -------------------------------------------------------------------
+    /*
+     * --- resources ---------------------------------------------------------------------
+     *
+     * The order here IS the resource-pack precedence, and it reproduces upstream's
+     * `BlueMapService#getPackRoots` (common/.../BlueMapService.java:336-397) followed by
+     * `getOrLoadResourcePack` (:297-302):
+     *
+     *     packs folder (none here) -> extra packs -> mods (none) -> resourceExtensions.zip
+     *     -> the vanilla client jar, appended last by `packRoots.addLast(vanillaResourcePack)`
+     *
+     * `resourceExtensions.zip` is BlueMap's own bundled pack, and leaving it out is not a
+     * cosmetic difference. It ships `assets/minecraft/atlases/blocks.json` holding a single
+     * root-level directory source:
+     *
+     *     {"sources":[{"type":"minecraft:directory","prefix":"","source":""}]}
+     *
+     * `Atlas#add` unions that with the client jar's own blocks-atlas, which covers only
+     * `block/`, `entity/conduit` and two singles — so upstream's texture gallery gains every
+     * remaining texture namespace, and this harness's did not. That is 839 missing textures
+     * (796 `item/*`, 39 `entity/*`, 4 `block/*` that only the extensions' own models
+     * reference), java 2092 entries against 1253 here, and about 1.01 MB of the 1.04 MB
+     * `textures.json` byte gap. It also moves every ordinal after the first missing one,
+     * which is why the hires tiles referenced the wrong textures too.
+     */
     const resourceRoots = [];
-    if (options["client-jar"] !== undefined) {
-        const fileSystem = await ZipFileSystem.openFile(resolve(options["client-jar"]));
-        resourceRoots.push(...fileSystem.getRootDirectories());
-    }
     for (const extra of (options["resource-pack"] ?? "").split(";").filter(Boolean)) {
         const path = resolve(extra);
         const fileSystem = path.endsWith(".zip")
@@ -195,19 +238,38 @@ async function render(engine, options) {
         if (typeof fileSystem.getRootDirectories === "function")
             resourceRoots.push(...fileSystem.getRootDirectories());
     }
+    if (options["resource-extensions"] !== undefined) {
+        const fileSystem = await ZipFileSystem.openFile(resolve(options["resource-extensions"]));
+        resourceRoots.push(...fileSystem.getRootDirectories());
+    }
+    // last, exactly as upstream appends it: a lower-priority fallback under every pack above
+    if (options["client-jar"] !== undefined) {
+        const fileSystem = await ZipFileSystem.openFile(resolve(options["client-jar"]));
+        resourceRoots.push(...fileSystem.getRootDirectories());
+    }
     if (resourceRoots.length === 0)
         throw new Error(
             "no resources to render with: pass --client-jar (the harness takes it out of " +
                 "the java reference render's data directory)",
         );
 
-    const packFormat = (await readPackFormat(resourceRoots)) ?? 34;
-    process.stderr.write(`[ts] loading resources (pack_format ${packFormat})\n`);
+    const packVersions = await readPackVersions(resourceRoots);
+    if (packVersions === null)
+        throw new Error(
+            "no version.json in any resource root: the pack versions decide which overlays " +
+                "apply, and guessing one silently renders against a different set of models",
+        );
+    const [resourceMajor, resourceMinor] = packVersions.resource;
+    const [dataMajor, dataMinor] = packVersions.data;
+    process.stderr.write(
+        `[ts] loading resources (resource pack ${resourceMajor}.${resourceMinor}, ` +
+            `data pack ${dataMajor}.${dataMinor})\n`,
+    );
 
-    const dataPack = new DataPack(new PackVersion(packFormat, 0));
+    const dataPack = new DataPack(new PackVersion(dataMajor, dataMinor));
     await dataPack.loadResources(resourceRoots);
 
-    const resourcePack = new ResourcePack(new PackVersion(packFormat, 0));
+    const resourcePack = new ResourcePack(new PackVersion(resourceMajor, resourceMinor));
     await resourcePack.loadResources(resourceRoots);
 
     // --- world -----------------------------------------------------------------------
