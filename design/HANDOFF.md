@@ -25,9 +25,11 @@ Verification in this linked worktree:
 - `pnpm lint` — passed.
 - `pnpm --filter @material-bluemap/site build` — passed (190 modules transformed).
 - `node scripts/build-changelog.mjs --check` — passed (40 versions, 97 entries).
-- The full monorepo `pnpm test` remains red for pre-existing repository-wide failures: CRLF
-  byte-exact HOCON fixture expectations and unresolved `@material-bluemap/nbt` package entry
-  resolution. Those failures are outside this Pages change and are recorded, not relabelled as
+- A prior local full-monorepo `pnpm test` run remains red on CRLF byte-exact HOCON fixture
+  expectations and unresolved `@material-bluemap/nbt` package-entry resolution. The newest
+  remote CI run, [30884892507](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30884892507),
+  also reports one concurrent world-mount failure: `mounts.test.ts` expected `.minecraft` but
+  received `.`. Those failures are outside this Pages change and are recorded, not relabelled as
   Pages success.
 
 This is source, type, focused-unit, lint and production-bundle evidence. A cheap headless
