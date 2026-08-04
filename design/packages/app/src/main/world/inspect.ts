@@ -76,6 +76,20 @@ export interface WorldFolderListing {
     readonly folder: string;
     readonly entries: readonly WorldFolderEntry[];
     readonly regionFiles: Readonly<Record<string, number>>;
+    /**
+     * LevelDB files counted under a `db` directory, or null when there was none to count.
+     *
+     * This is the one fact that separates a Bedrock Edition world from a Java one that
+     * happens to have a folder called `db` beside it; `bedrock/detect.ts` is what turns it
+     * into a verdict. Null covers both "there is no `db` directory here" and "there is one
+     * and it could not be read", for the same reason `regionFiles` omits a directory it
+     * could not open: zero would state as fact that the database is empty, and an empty
+     * chunk database is a different and much more alarming thing than an unread one.
+     *
+     * Costs nothing for a Java world. The directory is only opened when a real `db`
+     * directory was found in the listing, which no Minecraft-written Java world has.
+     */
+    readonly leveldbFiles: number | null;
 }
 
 /** The file that makes a folder a world. Compared lower-cased; emitted lower-case. */
@@ -86,6 +100,9 @@ const REGION = "region";
 
 /** Where a datapack or mod dimension lives, since 1.16. */
 const DIMENSIONS = "dimensions";
+
+/** Where a Bedrock Edition world keeps its LevelDB chunk database. */
+const LEVELDB = "db";
 
 /** The two dimension folders Minecraft writes beside the overworld. */
 const VANILLA_DIMENSIONS = ["DIM-1", "DIM1"] as const;
@@ -186,11 +203,19 @@ export async function inspectWorldFolder(folder: string): Promise<WorldFolderLis
         await readCustomDimensions(join(root, dimensions), entries, regionFiles);
     }
 
+    // A Bedrock world's chunk database. Only opened when a real `db` directory is
+    // actually here, so a Java world - which never has one - pays nothing for this.
+    let leveldbFiles: number | null = null;
+    const database = findDirectory(directories, LEVELDB);
+    if (database !== null) {
+        leveldbFiles = await countLevelDbFiles(join(root, database));
+    }
+
     // Only worth asking when this is not itself a world. A `level.dat` at the top
     // settles the question, and the wizard never looks at these markers once it has one.
     if (!hasLevelDat) await probeWorldsInside(root, directories, entries);
 
-    return { folder: root, entries, regionFiles };
+    return { folder: root, entries, regionFiles, leveldbFiles };
 }
 
 /**
@@ -261,6 +286,53 @@ async function countRegionFiles(directory: string): Promise<number | null> {
         return null;
     }
     return count;
+}
+
+/**
+ * How many LevelDB files a `db` directory holds, or null when it could not be read.
+ *
+ * Counted from the directory entries, never stat-ed, exactly like the region-file count
+ * above and for the same reason: a mature Bedrock world's database is thousands of files
+ * and none of their names answers a question anybody asks here.
+ *
+ * The count stops at the first file that proves the point. This is a yes-or-no question -
+ * "is there a real chunk database in here" - and reading forty thousand directory entries
+ * to answer it with a bigger number would make opening a world list visibly slower for a
+ * fact nothing displays.
+ */
+async function countLevelDbFiles(directory: string): Promise<number | null> {
+    let count = 0;
+    try {
+        const dir = await opendir(directory);
+        for await (const entry of dir) {
+            if (entry.isDirectory()) continue;
+            if (!isLevelDbFile(entry.name)) continue;
+            count += 1;
+            break;
+        }
+    } catch {
+        return null;
+    }
+    return count;
+}
+
+/**
+ * The file names LevelDB actually writes: the manifest, the current-manifest pointer, the
+ * write-ahead logs and the sorted tables.
+ *
+ * Named individually rather than counting every file in the directory, because the point
+ * of the count is to distinguish a chunk database from an unrelated folder that happens to
+ * be called `db`. A folder of a person's own notes would otherwise read as a Bedrock world.
+ */
+function isLevelDbFile(name: string): boolean {
+    const lower = name.toLowerCase();
+    return (
+        lower.endsWith(".ldb") ||
+        lower.endsWith(".sst") ||
+        lower.endsWith(".log") ||
+        lower === "current" ||
+        lower.startsWith("manifest-")
+    );
 }
 
 /** The subdirectories of a directory, bounded, and empty when it could not be read. */

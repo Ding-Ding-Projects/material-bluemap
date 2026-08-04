@@ -32,6 +32,7 @@
 
 import { lstat, opendir } from "node:fs/promises";
 import { join } from "node:path";
+import { detectBedrockWorld, readBedrockLevelName } from "../bedrock/detect.js";
 import { inspectWorldFolder } from "./inspect.js";
 import { readLevelDat, type MinecraftGameMode } from "./levelDat.js";
 
@@ -48,6 +49,15 @@ export const MAX_SIZE_ENTRIES = 20_000;
 
 /** How deep the size walk follows a world's own directory tree. */
 const MAX_SIZE_DEPTH = 8;
+
+/**
+ * Which edition a world belongs to.
+ *
+ * `unknown` is a real answer rather than a placeholder: a folder with a `level.dat` that
+ * neither reader could make sense of has not been shown to be either edition, and guessing
+ * "java" for it would restore exactly the confusion this field exists to remove.
+ */
+export type MinecraftEdition = "java" | "bedrock" | "unknown";
 
 export interface MinecraftWorldSummary {
     /** Which mounted folder this world was found in. */
@@ -81,6 +91,23 @@ export interface MinecraftWorldSummary {
     readonly sizeComplete: boolean;
     /** Why the details are missing, when they are. Null when `level.dat` read cleanly. */
     readonly detailsError: string | null;
+    /**
+     * Which edition this world is, so a Bedrock one is named rather than reported broken.
+     *
+     * A Bedrock world has a `level.dat`, so it has always listed here - but that file is
+     * little-endian NBT behind an eight-byte header, so `readLevelDat` fails on it and the
+     * row appeared with a `detailsError` and no name. That reads as "your world is
+     * corrupt". It is not corrupt; it is the other edition, which is a different sentence
+     * with a different next step, and this field is what lets the interface say it.
+     */
+    readonly edition: MinecraftEdition;
+    /**
+     * The one-sentence explanation, when this is a Bedrock world. Empty otherwise.
+     *
+     * Carried rather than re-derived in the interface, so the words and the markers that
+     * justify them cannot drift apart.
+     */
+    readonly editionNote: string;
 }
 
 export interface SavesScan {
@@ -152,11 +179,20 @@ async function readWorld(
     const listing = await inspectWorldFolder(path).catch(() => null);
     const size = await measureFolder(path);
 
+    // Only asked when the Java reader failed. A `level.dat` that parsed as Java NBT is a
+    // Java world and no amount of Bedrock-shaped evidence should override that, so this
+    // costs a working world nothing and cannot reclassify one.
+    const bedrock =
+        details === null && listing !== null ? detectBedrockWorld(listing) : null;
+    const isBedrock = bedrock?.bedrock === true;
+
     return {
         folderId,
         path,
         directoryName,
-        name: details?.levelName ?? null,
+        // Bedrock keeps its display name in a plain text file rather than in `level.dat`,
+        // so a world the Java reader could not touch still gets its real name on screen.
+        name: details?.levelName ?? (isBedrock ? await readBedrockLevelName(path) : null),
         lastPlayed: details?.lastPlayed ?? null,
         versionName: details?.versionName ?? null,
         snapshot: details?.snapshot ?? null,
@@ -167,7 +203,12 @@ async function readWorld(
         regionFiles: listing?.regionFiles ?? {},
         sizeBytes: size.bytes,
         sizeComplete: size.complete,
-        detailsError,
+        // Replaced rather than kept for a Bedrock world. The old value was the Java NBT
+        // reader complaining about a header it did not recognise, which described a real
+        // failure of the wrong question - the file is fine, it is simply not Java's.
+        detailsError: isBedrock ? null : detailsError,
+        edition: isBedrock ? "bedrock" : details !== null ? "java" : "unknown",
+        editionNote: bedrock?.explanation ?? "",
     };
 }
 

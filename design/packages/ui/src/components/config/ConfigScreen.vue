@@ -339,30 +339,51 @@ function draftWorkspace(): void {
  * point - an options editor whose options cannot be seen is not an options editor.
  */
 onMounted(async () => {
+    // Content first, before anything is awaited at all.
+    //
+    // Everything below this line asks the main process something, and every one of those
+    // questions can hang rather than fail - a hang no `catch` can rescue, because the
+    // promise never settles. Awaiting even one of them before showing anything means the
+    // editor's empty state is what somebody sees for as long as the answer takes, and for
+    // ever if it never comes. That is exactly what happened: a fresh profile opened the
+    // options editor on "Nothing is open yet" and stayed there, with every setting in the
+    // application built, reachable and invisible.
+    //
+    // So the defaults go up synchronously, and everything real replaces them when it
+    // arrives. The cost is a screen that may briefly show BlueMap's defaults before showing
+    // the person's own folder; the alternative cost was a screen that showed nothing.
+    if (host === null) previewWorkspace();
+    else draftWorkspace();
+
     await readConsent();
     if (props.initialFolder !== null && host !== null) {
         await openFolderAt(props.initialFolder);
         return;
     }
-    if (host === null) {
-        previewWorkspace();
-        return;
-    }
+    if (host === null) return;
 
+    // Settings first, folder second, and deliberately in that order.
+    //
+    // Looking for an existing folder means asking the main process, and this used to be
+    // awaited before anything was shown - so every millisecond of that lookup was a screen
+    // reading "Nothing is open yet", and a lookup that never answered left it that way for
+    // good. A `catch` does not rescue a promise that simply never settles.
+    //
+    // So the defaults go up straight away and the folder, if there is one, replaces them.
+    // The worst case is a screen that briefly shows BlueMap's defaults before showing the
+    // person's own settings; the old worst case was a screen that showed nothing at all and
+    // gave no reason.
     const existing = await host.suggestConfigFolder().catch(() => "");
-    if (existing !== "") {
-        try {
-            const contents = await host.readFolder(existing);
-            if (contents.files.length > 0) {
-                await openFolderAt(existing);
-                return;
-            }
-        } catch {
-            // Nothing there to carry on from, which is the ordinary first-run case rather
-            // than a failure worth telling anybody about. Fall through to the defaults.
-        }
+    if (existing === "") return;
+    try {
+        const contents = await host.readFolder(existing);
+        // Only when it really holds something. An empty folder is not a config set, and
+        // opening it would replace the defaults with nothing.
+        if (contents.files.length > 0) await openFolderAt(existing);
+    } catch {
+        // Nothing there to carry on from, which is the ordinary first-run case rather than
+        // a failure worth telling anybody about. The defaults are already on screen.
     }
-    draftWorkspace();
 });
 
 watch(consentAccepted, () => syncConsentIntoCore());

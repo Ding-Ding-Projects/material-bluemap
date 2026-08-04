@@ -1039,14 +1039,18 @@ test("captures the backup screen", async () => {
 test("captures the settings surface and every section in it", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
-    const drawer = page.locator(".v-navigation-drawer.mb-settings");
+    // `.mb-settings` itself, not the Vuetify drawer it used to live inside. The settings
+    // surface can now be floating or docked to any edge, so its chrome is `DockedSurface`
+    // rather than `v-navigation-drawer` - and a selector naming the old chrome cannot match
+    // in any placement, which is how two required captures went missing at once.
+    const drawer = page.locator(".mb-settings");
 
     await attempt("Settings drawer", async () => {
         await page
             .locator('.mb-shell-fab[aria-label="Settings"]')
             .first()
             .click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForSelector(".v-navigation-drawer.mb-settings.v-navigation-drawer--active", {
+        await page.waitForSelector(".mb-settings", {
             state: "visible",
             timeout: ELEMENT_TIMEOUT,
         });
@@ -1058,7 +1062,7 @@ test("captures the settings surface and every section in it", async () => {
     // section added in `packages/ui` arrives in this set without anybody remembering to
     // add it. `data-anchor` is what `SettingsSection.vue` puts on every one of them.
     await attempt("Settings sections", async () => {
-        const sections = page.locator(".v-navigation-drawer.mb-settings .mb-setting[data-anchor]");
+        const sections = page.locator(".mb-settings .mb-setting[data-anchor]");
         const count = await sections.count();
         expect(count, "the settings drawer rendered no sections").toBeGreaterThan(0);
 

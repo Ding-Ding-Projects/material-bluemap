@@ -132,8 +132,20 @@ export function createRenderRouter(
     return {
         async startRender(request: RenderRequest): Promise<RenderResult> {
             const chosen = route();
+
+            // A container on this computer is still the ordinary render channel; it only
+            // needs to be told where to run. Falling through without setting this is what
+            // made choosing Docker render locally anyway - the choice was made, shown as
+            // made, and then dropped on the way to the main process, which is worse than
+            // not offering it.
+            if (chosen.location === "docker") {
+                return await base.startRender({ ...request, runtime: "docker" });
+            }
+
             if (chosen.location !== "remote" || remote === null || chosen.target === null) {
-                return await base.startRender(request);
+                // Explicit rather than absent. Absent already means local, but saying it
+                // keeps the request honest about a choice somebody actually made.
+                return await base.startRender({ ...request, runtime: "local" });
             }
             const target = chosen.target;
             const answer = await remote.startRemoteRender({

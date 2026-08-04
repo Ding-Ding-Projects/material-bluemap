@@ -304,3 +304,25 @@ describe("what the router leaves alone", () => {
         expect(made).not.toBeNull();
     });
 });
+
+describe("the chosen place actually reaches the main process", () => {
+    // This is the whole point of the router, and it was quietly not happening: the choice
+    // was made, shown as made, and dropped on the way out, so picking a container rendered
+    // on this machine anyway. A test that only exercised the remote branch could not see it.
+    it("asks for a container when a container was chosen", async () => {
+        const { made, base } = router({ location: "docker", target: null });
+
+        await made.startRender({ maps: [{ id: "overworld", world: "C:/saves/world" }] });
+
+        expect(base.started).toHaveLength(1);
+        expect((base.started[0] as { runtime?: string }).runtime).toBe("docker");
+    });
+
+    it("says local explicitly when this computer was chosen", async () => {
+        const { made, base } = router({ location: "local", target: null });
+
+        await made.startRender({ maps: [{ id: "overworld", world: "C:/saves/world" }] });
+
+        expect((base.started[0] as { runtime?: string }).runtime).toBe("local");
+    });
+});
