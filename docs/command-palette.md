@@ -41,11 +41,65 @@ behind the surface it describes:
 - the running viewer publishes its settings on `BlueMapApp`, which is where `viewerSettings.ts`
   reads and writes them.
 
-Groups are listed in catalogue order rather than sorted: the shell's own surfaces, then the
-application's settings, then the server configuration screens, then the viewer's menu pages, then
-the viewer settings that are live controls here, and the palette's own size last. Sorting would
+The one thing that is *not* derived from a registry in this package is the shell's tab strip,
+because the strip belongs to the shell. It is handed down instead, as `pages`, so the palette
+still cannot keep a list of its own. A page the catalogue has never heard of still gets a row and
+still teleports; `PAGE_NOTES` only supplies the better sentence and the extra search words where
+one is known, so a page added to the strip is reachable on the same commit rather than on the
+commit somebody remembers to describe it.
+
+Groups are listed in catalogue order rather than sorted: the shell's own overlays, then the pages
+of the tab strip, then the chrome around those pages, then the application's settings and the
+look of them, then the server configuration screens, then the viewer's menu pages, then the
+viewer settings that are live controls here, and the palette's own size last. Sorting would
 replace that judgement with the accident of what the groups happen to be called in the active
 language.
+
+### What it reaches, and what it does not
+
+Stated as a list rather than as "everything", because the rule the palette is measured against
+asks for every command, page, destination, setting and appearance control, and the honest answer
+has two columns.
+
+| Reachable, and teleported to | How it lands |
+|---|---|
+| Every page of the shell's tab strip | The strip's own `revealPage`, exactly as clicking the tab does |
+| The application settings surface, per section | Emits the render-failure flow's `SettingsTarget`; the surface scrolls to the row, focuses it and outlines it |
+| All seven options-editor tabs, and its History tab | `ConfigScreen`'s `initialScreen` |
+| The viewer's menu pages: maps, settings, info, markers, players | `menu.openPage`, the menu's own call |
+| The notification centre, the tab finder | A reveal request; the owning component opens itself, with its own focus handling |
+| The changelog viewer | Opens the viewer's Info page, then expands and scrolls to the fold |
+| The server list, on a shell with no tab strip | `openProfiles` |
+
+| Listed and searchable, but not teleported into | Why |
+|---|---|
+| The per-element appearance editors | Each one is anchored to the element it edits and opened from that element's own context menu, so there is no such thing as opening the typography editor without an element to anchor it to. The row is a `destination` that names the route — right-click, or Shift+right-click — rather than a command that would have to invent a target. |
+| The render console, the release downloads, the project editor, the backup and Pages panels | Each lives inside a page, and the page is the reachable unit. The page rows carry their words as keywords, so "console", "download" and "publish" all find the page that holds them, and the row says which page rather than implying it lands on the panel. |
+| The EULA viewer | It is rendered inside the Mojang download consent section, which *is* teleported to, outline and all. |
+
+The second table is the part worth keeping honest as this grows. A row that opened "the
+appearance editor" in the abstract would land nowhere in particular, which is the decorative
+control this project keeps finding one layer in; naming the gesture is worth more than a button
+that shrugs.
+
+### Surfaces that answer a doorbell rather than a prop
+
+Three of those destinations are panels anchored to a control two or three components below the
+shell: the notification centre behind the bell in the corner, the tab finder at the end of the
+strip, and the changelog inside the viewer's Info page. The state deciding whether each is open
+is local to the component that draws it, and correctly so — it is anchored to a control that
+component owns and closes back onto it.
+
+`components/shell/revealRequests.ts` is how the shell asks without owning that state: a counter
+per surface, incremented by `requestReveal` and watched by `onRevealRequested`. A counter rather
+than a boolean, because a boolean set to true is stuck true — the user closes the panel, asks
+again, and nothing happens. The number is never read for its value.
+
+The alternative, a template ref threaded down through every intervening component so the shell
+can call a method, is worse in two ways: every layer's public surface grows a method it does not
+use, and it breaks the moment an intervening component is conditionally rendered, which two of
+these three are. Requests raised while nobody is listening are dropped, which is why the changelog
+row is not built at all without a viewer running.
 
 ### Arriving somewhere means arriving at the control
 
@@ -74,13 +128,18 @@ something else would teach a pattern that matches the sample and nothing on scre
 
 | Setting | Where it lives | Default |
 |---|---|---|
-| Shortcut | `isPaletteShortcut()` in `palettePrefs.ts`. Control or Command with `k`, and neither Alt nor Shift. | Not user-configurable |
+| Shortcut | `isPaletteShortcut()` in `palettePrefs.ts`. Control or Command with Shift and `f`, and not Alt. | Not user-configurable |
 | Size | `localStorage`, key `material-bluemap-palette`, as `{"size":"card"}` or `{"size":"full"}` | `card` |
 
-The shortcut matches on `event.key` rather than `event.code`, so the key labelled K on the user's
-own layout is the one that works; `code` would hard-code the position of K on a US keyboard, which
-is a different key on Dvorak or AZERTY. Alt and Shift are excluded rather than ignored, so a
-future Ctrl+Shift+K belongs to whoever wants it instead of silently opening this. The listener
+This was Ctrl+K until the documentation site next door was found to be answering Ctrl+Shift+F,
+which meant the product shipped two shortcuts for one feature and whichever one a person had
+learned was wrong half the time. Both are Ctrl+Shift+F now.
+
+The shortcut matches on `event.key` rather than `event.code`, so the key labelled F on the user's
+own layout is the one that works; `code` would hard-code the position of F on a US keyboard, which
+is a different key on Dvorak or AZERTY. Both cases of the letter are accepted, because layouts
+disagree about whether Shift+F reports `F` or `f`. Alt is excluded rather than ignored, so a
+future Ctrl+Alt+Shift+F belongs to whoever wants it instead of silently opening this. The listener
 sits on `window` in the capture phase, because a palette is meant to be reachable from anywhere
 including from inside a text field, and a bubbling listener can be beaten by anything that stops
 propagation on the way up. `preventDefault` is called only when the shortcut actually matched.
@@ -93,8 +152,13 @@ in the list itself.
 `canRouteConfigScreens` is the shell's promise that it can open the options editor at a named
 tab. It defaults to false, and while it is false the settings tabs are one row carrying all seven
 tabs' words in its searchable text rather than seven rows that would all open the same first tab.
-The History row is present either way, and in both cases says it opens the editor and names the
-tab to pick rather than pretending to land there.
+The History row is present either way: it routes to the History tab where the shell can route,
+and names the tab to pick where it cannot, rather than pretending to land there. The desktop
+shell passes `true` — `ConfigScreen` takes an `initialScreen`, so all eight rows land on their
+own tab.
+
+Every action after `openProfiles` on `PaletteShellActions` is optional, and its absence removes
+rows rather than producing rows that do nothing. That is what a smaller host, or a test, gets.
 
 ## Failure modes
 
@@ -141,9 +205,9 @@ for the header.
 | Test | What it holds |
 |---|---|
 | `paletteItems.test.ts` | The haystack covers title, group, description, keywords, the value text and a destination's `where`; a toggle contributes no value text and a choice contributes every option label; an inactive matcher keeps everything and an invalid one keeps nothing; grouping preserves first-seen order; the sample is one row per line. |
-| `paletteCatalog.test.ts` | Every settings anchor and every options-editor screen is represented; rows derived from a registry carry that registry's own copy; the editor collapses to one row until the shell promises it can route, and expands to seven when it does; a setting row's `set` reaches the same write path the owning surface uses. |
-| `palettePrefs.test.ts` | The shortcut matches Control and Command with either case of K and refuses Alt or Shift; a blocked storage returns the default rather than throwing; a stored value that is not a known size is discarded; the binding toggles rather than only opening. |
-| `CommandPalette.test.ts` | Mounted: nothing renders until it opens, the search box takes focus and gives it back to the opener on close, the search narrows the list, a broken pattern is reported rather than showing the last good result, the down arrow moves from the box onto the first row, a destination emits the reveal handler's own target, a setting row writes and persists, and the palette opens as a card and remembers being made full-window. |
+| `paletteCatalog.test.ts` | Every settings anchor and every options-editor screen is represented; rows derived from a registry carry that registry's own copy; the editor collapses to one row until the shell promises it can route, and expands to seven when it does; a setting row's `set` reaches the same write path the owning surface uses. Then: a row per page of the strip, each going to that page; a page the catalogue has never heard of still listed and still navigating; no page rows for a shell that will not navigate; the Servers row dropped once the strip carries that page and restored when there is no strip; History routing for real; the notification centre, tab finder and changelog opening, with the changelog absent without a viewer; the appearance preset applied and cleared through `commitAppearance`, and the global reset emptying every element. |
+| `palettePrefs.test.ts` | The shortcut matches Control and Command with Shift and either case of F, refuses Alt, refuses a bare F and a plain Ctrl+F, and refuses the Ctrl+K this used to be; a blocked storage returns the default rather than throwing; a stored value that is not a known size is discarded. |
+| `CommandPalette.test.ts` | Mounted: nothing renders until it opens, the search box takes focus and gives it back to the opener on close, the search narrows the list, a broken pattern is reported rather than showing the last good result, the down arrow moves from the box onto the first row, a destination emits the reveal handler's own target, a setting row writes and persists, and the palette opens as a card and remembers being made full-window. Plus the binding itself, on a host arranged as `App.vue` is: Ctrl+Shift+F opens the palette and toggles it shut, it swallows only the keystroke it acted on while leaving plain Ctrl+F and the old Ctrl+K alone, and it still works from inside a text field that stops propagation, which is what the capture phase is for. |
 
 Run them with `npx vitest run packages/ui/src/components/palette` from `design/`.
 

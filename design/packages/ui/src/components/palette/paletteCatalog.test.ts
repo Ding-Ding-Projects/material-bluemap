@@ -28,6 +28,8 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { BlueMapApp } from "@material-bluemap/viewer";
+import { withGlobalReset } from "../appearance/appearanceStore.js";
+import { appearanceState, commitAppearance } from "../appearance/useAppearance.js";
 import { SCREENS } from "../config/configSearch.js";
 import { SETTINGS_ANCHORS, SETTINGS_SECTIONS } from "../settings/settingsSections.js";
 import { buildPaletteCatalog, type PaletteCatalogInput, type PaletteShellActions } from "./paletteCatalog.js";
@@ -187,6 +189,66 @@ function input(overrides: Partial<PaletteCatalogInput> = {}): PaletteCatalogInpu
         ...overrides,
     };
 }
+
+/**
+ * A shell that can do everything, recording which door was opened.
+ *
+ * Separate from {@link actions} rather than folded into it, because the difference between
+ * the two is the thing under test in half the cases below: the optional actions exist so a
+ * host that cannot do something gets no row for it, and a helper that always supplied them
+ * would make that assertion impossible to write.
+ */
+function fullActions(): PaletteShellActions & {
+    pagesOpened: string[];
+    configOpened: (string | null)[];
+    noticeCentre: number;
+    tabFinder: number;
+    changelog: number;
+} {
+    const state = {
+        pagesOpened: [] as string[],
+        configOpened: [] as (string | null)[],
+        noticeCentre: 0,
+        tabFinder: 0,
+        changelog: 0,
+    };
+    return {
+        get pagesOpened() {
+            return state.pagesOpened;
+        },
+        get configOpened() {
+            return state.configOpened;
+        },
+        get noticeCentre() {
+            return state.noticeCentre;
+        },
+        get tabFinder() {
+            return state.tabFinder;
+        },
+        get changelog() {
+            return state.changelog;
+        },
+        revealSetting: () => {},
+        openSettings: () => {},
+        openConfig: (screen) => state.configOpened.push(screen),
+        openProfiles: () => {},
+        openPage: (pageId) => state.pagesOpened.push(pageId),
+        openNoticeCentre: () => state.noticeCentre++,
+        openTabFinder: () => state.tabFinder++,
+        openChangelog: () => state.changelog++,
+    };
+}
+
+/** A strip standing in for the shell's, with ids this file deliberately does not all know. */
+const PAGES = [
+    { id: "map", label: "Map" },
+    { id: "world", label: "Make a map" },
+    { id: "projects", label: "Projects" },
+    { id: "cirender", label: "GitHub runners" },
+    { id: "servers", label: "Maps and servers" },
+    { id: "backups", label: "Backups" },
+    { id: "pages", label: "Publish to Pages" },
+] as const;
 
 function byId(items: readonly PaletteItem[], id: string): PaletteItem {
     const found = items.find((item) => item.id === id);
@@ -479,5 +541,181 @@ describe("the settings rows write, and persist what they wrote", () => {
         expect(row.control.options.map((option) => option.id)).toEqual(["card", "full"]);
         row.control.set("full");
         expect(setSize).toHaveBeenCalledWith("full");
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The shell's pages                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The gap this group was added to close, asserted from both directions.
+ *
+ * Coverage on its own would pass for a builder that listed seven pages written down here,
+ * which is the drift the design exists to prevent, so the interesting cases are the one about
+ * a page this file does not recognise and the one about the row deliberately *not* built
+ * because the strip already carries it.
+ */
+describe("the shell's pages", () => {
+    it("has a row per page of the strip it was handed, and each one goes to that page", () => {
+        const shell = fullActions();
+        const items = buildPaletteCatalog(input({ actions: shell, pages: PAGES }));
+
+        for (const page of PAGES) {
+            const row = byId(items, `page.${page.id}`);
+            if (row.kind !== "destination") throw new Error(`${page.id} is a ${row.kind}`);
+            expect(row.title).toBe(page.label);
+            expect(row.where).toContain(page.label);
+            row.go();
+        }
+
+        expect(shell.pagesOpened).toEqual(PAGES.map((page) => page.id));
+    });
+
+    it("still lists a page it has never heard of, with a plain explanation rather than none", () => {
+        const shell = fullActions();
+        const items = buildPaletteCatalog(input({ actions: shell, pages: [{ id: "telemetry", label: "Telemetry" }] }));
+
+        const row = byId(items, "page.telemetry");
+        if (row.kind !== "destination") throw new Error("expected a destination");
+        expect(row.title).toBe("Telemetry");
+        expect(row.description.trim()).not.toBe("");
+        expect(row.where).toContain("Telemetry");
+
+        row.go();
+        expect(shell.pagesOpened).toEqual(["telemetry"]);
+    });
+
+    it("builds no page rows for a shell that cannot show a page", () => {
+        // A strip without `openPage` is a host that will not navigate. Seven rows that close
+        // the palette and do nothing would be worse than no rows at all.
+        const items = buildPaletteCatalog(input({ actions: actions(), pages: PAGES }));
+        expect(items.filter((item) => item.id.startsWith("page."))).toEqual([]);
+    });
+
+    it("drops its own Servers row once the strip carries that page, so nothing is listed twice", () => {
+        const withStrip = buildPaletteCatalog(input({ actions: fullActions(), pages: PAGES }));
+        expect(withStrip.some((item) => item.id === "shell.profiles")).toBe(false);
+        expect(withStrip.some((item) => item.id === "page.servers")).toBe(true);
+
+        // A host with no strip still needs a way to the server list, so the row comes back.
+        const withoutStrip = buildPaletteCatalog(input({ actions: actions() }));
+        expect(withoutStrip.some((item) => item.id === "shell.profiles")).toBe(true);
+    });
+
+    it("keeps the row for the page you are already on, because the list is not about where you stand", () => {
+        const items = buildPaletteCatalog(input({ actions: fullActions(), pages: PAGES }));
+        expect(items.some((item) => item.id === "page.map")).toBe(true);
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The History tab, and the chrome around the pages                           */
+/* -------------------------------------------------------------------------- */
+
+describe("the surfaces that are not pages", () => {
+    it("lands on the History tab for real once the shell can route", () => {
+        const shell = fullActions();
+        const row = byId(buildPaletteCatalog(input({ actions: shell, canRouteConfigScreens: true })), "config.history");
+        if (row.kind !== "destination") throw new Error("expected a destination");
+
+        row.go();
+        expect(shell.configOpened).toEqual(["history"]);
+    });
+
+    it("does not claim to land there while the shell cannot route, and says which tab to pick", () => {
+        const shell = fullActions();
+        const row = byId(buildPaletteCatalog(input({ actions: shell })), "config.history");
+        if (row.kind !== "destination") throw new Error("expected a destination");
+
+        expect(row.where).toContain("History");
+        row.go();
+        expect(shell.configOpened).toEqual([null]);
+    });
+
+    it("opens the notification centre and the tab finder, which are the two corners people forget", () => {
+        const shell = fullActions();
+        const items = buildPaletteCatalog(input({ actions: shell }));
+
+        const centre = byId(items, "chrome.noticeCentre");
+        const finder = byId(items, "chrome.tabFinder");
+        if (centre.kind !== "command" || finder.kind !== "command") throw new Error("expected commands");
+
+        centre.run();
+        finder.run();
+        expect(shell.noticeCentre).toBe(1);
+        expect(shell.tabFinder).toBe(1);
+    });
+
+    it("offers the changelog only with a viewer running, because it is a fold inside the viewer", () => {
+        const shell = fullActions();
+
+        const closed = buildPaletteCatalog(input({ actions: shell }));
+        expect(closed.some((item) => item.id === "chrome.changelog")).toBe(false);
+
+        const open = buildPaletteCatalog(input({ actions: shell, app: fakeApp({}).app }));
+        const row = byId(open, "chrome.changelog");
+        if (row.kind !== "command") throw new Error("expected a command");
+        row.run();
+        expect(shell.changelog).toBe(1);
+    });
+
+    it("builds none of the three for a shell that did not offer them", () => {
+        const items = buildPaletteCatalog(input({ actions: actions(), app: fakeApp({}).app }));
+        expect(items.filter((item) => item.id.startsWith("chrome."))).toEqual([]);
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Appearance                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The preset row is a real control, so what is asserted is that the store changed - not that
+ * a function was called. `commitAppearance` is the single write path every appearance change
+ * goes through, so choosing a preset here and choosing it in the editor are the same act, and
+ * this checks the act rather than the wiring around it.
+ */
+describe("the appearance rows", () => {
+    it("applies a preset through the same write path the editor uses", () => {
+        commitAppearance(withGlobalReset(appearanceState().value));
+
+        const row = settingRow(buildPaletteCatalog(input()), "appearance.preset");
+        if (row.control.kind !== "choice") throw new Error("expected a choice");
+
+        // Nothing chosen reads as an explicit "no preset" option rather than as a blank.
+        expect(row.control.value).toBe("none");
+        expect(row.control.options.map((option) => option.id)).toContain("builtin.highContrast");
+
+        row.control.set("builtin.highContrast");
+        expect(appearanceState().value.activePreset).toBe("builtin.highContrast");
+
+        // And back out again, because a choice you cannot leave is not a choice.
+        const after = settingRow(buildPaletteCatalog(input()), "appearance.preset");
+        if (after.control.kind !== "choice") throw new Error("expected a choice");
+        expect(after.control.value).toBe("builtin.highContrast");
+        after.control.set("none");
+        expect(appearanceState().value.activePreset).toBe("");
+    });
+
+    it("resets every element back to the app's own look", () => {
+        commitAppearance({ ...appearanceState().value, activePreset: "builtin.largeText" });
+
+        const row = byId(buildPaletteCatalog(input()), "appearance.reset");
+        if (row.kind !== "command") throw new Error("expected a command");
+        row.run();
+
+        expect(appearanceState().value.activePreset).toBe("");
+        expect(Object.keys(appearanceState().value.elements)).toEqual([]);
+    });
+
+    it("says where the per-element editors are instead of pretending to open one", () => {
+        // There is no such thing as opening the typography editor without an element to anchor
+        // it to, so this row is a destination naming the route rather than a command that would
+        // have to invent a target.
+        const row = byId(buildPaletteCatalog(input()), "appearance.editors");
+        if (row.kind !== "destination") throw new Error("expected a destination");
+        expect(row.where).toContain("right-click");
+        expect(row.keywords).toContain("font");
     });
 });

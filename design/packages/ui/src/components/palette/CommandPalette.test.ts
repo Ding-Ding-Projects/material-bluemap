@@ -13,13 +13,14 @@
  */
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { defineComponent, h, nextTick } from "vue";
+import { defineComponent, h, nextTick, ref } from "vue";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
 import type { BlueMapApp } from "@material-bluemap/viewer";
 import CommandPalette from "./CommandPalette.vue";
+import { usePaletteShortcut } from "./palettePrefs.js";
 import { setBlueMapApp } from "../../stores/bluemap.js";
 
 beforeAll(() => {
@@ -336,6 +337,113 @@ describe("settings rows are the real control", () => {
 
         expect(fake.state.debug).toBe(true);
         expect(fake.state.saved).toBeGreaterThan(0);
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The shortcut, as a real keystroke on a real window                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `isPaletteShortcut` is unit-tested next door against five fields of a plain object. That
+ * says the predicate is right; it says nothing about whether the listener is bound, bound to
+ * the right target, or bound in a phase that a form can beat. This is the other half, and it
+ * is here rather than there because it needs a window to dispatch on.
+ *
+ * The chord is Ctrl+Shift+F. It used to be Ctrl+K, which the documentation site disagreed
+ * with, so the case for the old chord is asserted dead: a Ctrl+K that still opened this would
+ * be an app answering two shortcuts, which is the thing that got fixed.
+ */
+describe("the Ctrl+Shift+F binding", () => {
+    /**
+     * A host that binds the shortcut, which the shared `Host` above deliberately does not.
+     *
+     * That one takes `open` as a prop so every other test can put the palette in a known state
+     * without going through the keyboard. This one is `App.vue`'s actual arrangement - a ref,
+     * `usePaletteShortcut` over it, and the palette bound to it - because the thing being
+     * tested here is precisely the wiring the other host bypasses.
+     */
+    const shortcutOpen = ref(false);
+
+    const ShortcutHost = defineComponent({
+        setup() {
+            usePaletteShortcut(shortcutOpen);
+            return () =>
+                h(VApp, null, {
+                    default: () => [
+                        h(CommandPalette, {
+                            open: shortcutOpen.value,
+                            "onUpdate:open": (value: boolean) => {
+                                shortcutOpen.value = value;
+                            },
+                        }),
+                    ],
+                });
+        },
+    });
+
+    function press(target: EventTarget, init: Partial<KeyboardEventInit> & { key: string }): KeyboardEvent {
+        const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init });
+        target.dispatchEvent(event);
+        return event;
+    }
+
+    function mountHost(): void {
+        shortcutOpen.value = false;
+        wrapper = mount(ShortcutHost, {
+            attachTo: document.body,
+            global: { plugins: [vuetify, i18n] },
+        }) as unknown as VueWrapper<InstanceType<typeof Host>>;
+    }
+
+    it("opens the palette, and closes it again, from Ctrl+Shift+F", async () => {
+        mountHost();
+        expect(rows()).toHaveLength(0);
+
+        press(window, { key: "F", ctrlKey: true, shiftKey: true });
+        await nextTick();
+        await nextTick();
+        // The rows are the proof the keystroke reached the palette rather than only the ref.
+        expect(rows().length).toBeGreaterThan(5);
+
+        // Toggling matters: the same keystroke arriving twice must not leave somebody with a
+        // palette they now have to find the Escape key for. Asserted on the state the shell
+        // holds rather than on the DOM, because Vuetify's dialog tears its overlay down across
+        // a transition and "gone yet?" would be a race rather than a fact.
+        press(window, { key: "F", ctrlKey: true, shiftKey: true });
+        await nextTick();
+        expect(shortcutOpen.value).toBe(false);
+    });
+
+    it("swallows the keystroke it acted on, and leaves every other one alone", () => {
+        mountHost();
+
+        const handled = press(window, { key: "F", ctrlKey: true, shiftKey: true });
+        expect(handled.defaultPrevented).toBe(true);
+
+        // Plain Ctrl+F still belongs to find-in-page, and the old Ctrl+K to nobody here: an
+        // app answering both chords is the thing that got fixed.
+        expect(press(window, { key: "f", ctrlKey: true }).defaultPrevented).toBe(false);
+        expect(press(window, { key: "k", ctrlKey: true }).defaultPrevented).toBe(false);
+    });
+
+    it("works from inside a text field, which is why the listener captures", async () => {
+        // A palette reachable from anywhere except the form you are filling in is a palette
+        // that is missing at the moment people most want it. The listener sits on `window` in
+        // the capture phase, so a field that stops propagation cannot beat it to the key.
+        mountHost();
+
+        const field = document.createElement("input");
+        field.addEventListener("keydown", (event) => {
+            event.stopPropagation();
+        });
+        document.body.append(field);
+        field.focus();
+
+        press(field, { key: "F", ctrlKey: true, shiftKey: true });
+        await nextTick();
+        await nextTick();
+        expect(rows().length).toBeGreaterThan(5);
     });
 });
 
