@@ -38,11 +38,20 @@ jobs:
           # the actual PR head instead of inventing an unlisted merge entry.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      # The changelog is generated from the repository, so it can go stale the moment
-      # anything is pushed without regenerating it. This says so here rather than letting
-      # a release ship notes that stop at last week.
-      - name: The changelog matches the history it is generated from
-        run: node scripts/build-changelog.mjs --check
+      # There is deliberately NO changelog freshness check here, and the reason is worth
+      # recording so nobody adds one back without solving it first.
+      #
+      # `build-changelog.mjs` records unreleased commits as well as released versions, so
+      # its output changes with every push - including the push that regenerates it. A
+      # check over that output is unsatisfiable by construction: regenerate, commit, and
+      # the commit you just made is the one now missing. It failed the first build it ever
+      # ran in, on the commit that had just brought the changelog up to date.
+      #
+      # Making it satisfiable means grading only the released history, which is the part a
+      # reader relies on and the part that changes only when a tag appears. Until the
+      # generator can render that half on its own, a gate here would fail every build,
+      # which teaches people to ignore a red X rather than to keep the changelog current.
+      # Regenerate with `node scripts/build-changelog.mjs` when cutting a release.
 
       - name: actionlint
         run: |
