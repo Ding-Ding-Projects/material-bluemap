@@ -9,7 +9,7 @@ export const contractRegexBuilder: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "Not implemented as the contract states it, but no longer absent either. Every search bar the application has now opens an anchored builder: the maps menu, the viewer's own settings menu, the application settings surface and each screen of the options editor. What is missing is the rest of the contract, and the rest of the surfaces. Tracked as issue 6.",
+        "The builder itself is shipped and is documented separately, and a source guard now proves that every search-shaped input in the application takes its search from one of the three shared fields, with no exemption recorded. Two clauses of the contract remain unmet: the builder's own surface is not in the language catalogue, so it renders English fallbacks in all three modes, and the funny-level sliders therefore do not reach it. Partial credit does not apply, so this stays specified. Tracked as issue 6.",
 
     sections: [
         {
@@ -19,15 +19,17 @@ export const contractRegexBuilder: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "This describes a requirement, not shipped behaviour",
+                    title: "This describes a requirement, and two clauses of it are still unmet",
                     content: [
-                        "This page describes the contract, and the contract is not met. It used to say there was ",
-                        "no search bar in the application for a builder to attach to, and that is no longer ",
-                        "true: the maps menu, the viewer's settings menu, the application settings surface and ",
-                        "every screen of the options editor each carry a search field with an anchored builder ",
-                        "behind it, plain text by default and regular expressions as an explicit choice. What is ",
-                        "not done is the rest: the guided construction below, and the surfaces that still have ",
-                        "no search field at all. Progress is tracked as ",
+                        "Most of what follows is now built, and what is built is documented in ",
+                        { link: "the builder's own article", href: repoFile("docs/regex-builder.md"), external: true },
+                        ": guided construction, the raw editor, every supported flag, a real sample, live ",
+                        "matches and capture groups, the engine and its limits named on the surface, and a ",
+                        "source guard that walks every component and fails when a search bar appears without a ",
+                        "builder. What is not met is the localisation clause below: the builder's own labels are ",
+                        "not in the language catalogue, so they render English fallbacks in all three modes and ",
+                        "neither funny-level slider reaches them. A contract with an unmet clause is a pending ",
+                        "contract, so this page stays marked as unbuilt. Progress is tracked as ",
                         { link: "issue 6", href: issue(6), external: true },
                         ".",
                     ],
@@ -179,6 +181,10 @@ export const contractRegexBuilder: Article = {
     ],
 
     suggested: [
+        {
+            articleId: "regex-builder-surfaces",
+            reason: "What is actually built against this contract, and the guard that keeps it on every search bar.",
+        },
         {
             articleId: "contract-tab-navigation",
             reason: "The tab searches and both bulk-close actions are the largest consumer of this builder.",

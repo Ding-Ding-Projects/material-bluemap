@@ -9,7 +9,7 @@ export const contractLocalization: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "Not implemented as the contract states it, but the first slice exists. First-run setup and the consent settings row carry all three modes, real Cantonese copy at five levels, and two independent funny-level sliders, all persisted. Everything else in the application is still English through the upstream locale loader, which is a different system. Tracked as issue 9.",
+        "The three modes, both sliders and the voice-not-facts guarantee are shipped and documented separately, the sliders are now reachable from the settings surface rather than only during first-run setup, and the catalogue is merged into the locale the application already uses so an entry starts varying at every existing call site. What is unmet is coverage: roughly a hundred keys are catalogued and the rest of the application still renders its English fallback in every mode. Partial credit does not apply, so this stays specified. Tracked as issue 9.",
 
     sections: [
         {
@@ -19,14 +19,20 @@ export const contractLocalization: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "This describes a requirement, not shipped behaviour",
+                    title: "This describes a requirement, and it is met on some surfaces rather than all",
                     content: [
-                        "This page describes the contract, and the contract is not met across the application. ",
-                        "One surface does meet it: the first-run setup flow and the consent row in settings offer ",
-                        "the three modes and both sliders, with Cantonese copy written at five levels, and the ",
-                        "choice persists. Everywhere else is the upstream webapp's locale loader and its 30 ",
-                        "bundled locales, which is upstream's translation system rather than this contract. ",
-                        "Progress is tracked as ",
+                        "It used to say one surface met this and everywhere else was untouched. The mechanism now ",
+                        "reaches every call site in the application, and what is built is documented in ",
+                        {
+                            link: "the language layer's own article",
+                            href: repoFile("docs/language-and-tone.md"),
+                            external: true,
+                        },
+                        ". What is unmet is coverage: the catalogue answers the options editor, the world wizard, ",
+                        "the settings surface, the downloads list, the notification centre and the destructive ",
+                        "action gate, and every other key still renders its English fallback in all three modes. ",
+                        "That is the designed behaviour for an uncatalogued key and it is also, plainly, not this ",
+                        "contract. Progress is tracked as ",
                         { link: "issue 9", href: issue(9), external: true },
                         ".",
                     ],
@@ -163,6 +169,10 @@ export const contractLocalization: Article = {
     ],
 
     suggested: [
+        {
+            articleId: "language-and-tone",
+            reason: "What is actually built against this contract, and exactly how far the catalogue reaches.",
+        },
         {
             articleId: "contract-super-confirmation",
             reason: "The clearest case of copy that has to stay exact at every tone level.",

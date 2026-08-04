@@ -9,7 +9,7 @@ export const contractSuperConfirmation: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "Not implemented as the contract states it, but the first gate exists. Deleting a map or a storage in the options editor goes through an anchored two-key gate with a full-range slider, an emergency exit and a return of focus. It has not been checked against the contract's own test list, and every other destructive action the app grows still has to get one. Tracked as issue 10.",
+        "The gate is shipped and documented separately, in both an anchored and a modal presentation over one shared state machine, in front of seven destructive actions, and the contract's own test list has now been run against both cards. What keeps this pending is the coverage clause: a source inventory declares every destructive call site in the application, and two of them, signing out of GitHub and the primitive behind it, are declared as gaps rather than gated. Partial credit does not apply, so this stays specified. Tracked as issue 10.",
 
     sections: [
         {
@@ -19,14 +19,21 @@ export const contractSuperConfirmation: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "This describes a requirement, not shipped behaviour",
+                    title: "This describes a requirement, and two call sites still fall outside it",
                     content: [
-                        "This page describes the contract, and the contract is not met. It used to say the app had ",
-                        "no destructive action to gate, and that is no longer true: deleting a map or a storage in ",
-                        "the options editor opens an anchored gate with two independent keys, a slider that has ",
-                        "to travel its whole range, and an emergency exit. It has not been put through the test ",
-                        "list below, and the destructive actions that arrive with later phases each still need ",
-                        "one of their own. Progress is tracked as ",
+                        "It used to say the application had no destructive action to gate at all. Seven of them ",
+                        "are gated now, both presentations run one shared state machine, and the test list below ",
+                        "has been run against both cards. What is built is documented in ",
+                        {
+                            link: "the gate's own article",
+                            href: repoFile("docs/super-confirmation.md"),
+                            external: true,
+                        },
+                        ". What keeps this pending is that a source inventory declares every destructive call ",
+                        "site in the application and two of them are declared as gaps: signing out of GitHub, ",
+                        "which revokes the stored token, and the primitive behind that row. Both are confirmed ",
+                        "inline in two steps with focus return, and neither is behind the two-key gate. Progress ",
+                        "is tracked as ",
                         { link: "issue 10", href: issue(10), external: true },
                         ".",
                     ],
@@ -140,15 +147,19 @@ export const contractSuperConfirmation: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "None of this has run",
+                    title: "The list has run; the coverage clause has not been met",
                     content:
-                        "The gate in the options editor is covered by the tests that surface carries, which check that deleting a map names the file and the map id. The contract's own list, every state of the keys and the slider, cancellation, keyboard operation, assistive-technology labels, reduced motion and localisation, has not been run against it.",
+                        "Both cards are now driven through untouched, one key, both keys, a partial slider, a full slider, cancellation, the escape path, reduced motion, keyboard-only operation and what assistive technology is told, alongside the real success paths of the operations they guard. The contract is still pending for a different reason: two declared destructive call sites are not behind it, and a gate in front of most destructive actions is a pending contract with a defect rather than a met one.",
                 },
             ],
         },
     ],
 
     suggested: [
+        {
+            articleId: "destructive-action-gate",
+            reason: "What is actually built against this contract, and the two call sites it does not cover.",
+        },
         {
             articleId: "contract-localization",
             reason: "The tone rules that this gate's copy has to survive at every level.",

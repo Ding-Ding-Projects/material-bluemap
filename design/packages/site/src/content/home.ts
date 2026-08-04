@@ -18,22 +18,32 @@
 
 import type { HomeContent } from "./types.js";
 import {
+    APPEARANCE_EDITORS_DOC_URL,
     BUILD_JARS_WORKFLOW_URL,
+    CHANGELOG_VIEWER_DOC_URL,
+    COMMAND_PALETTE_DOC_URL,
     CONTRACTS_URL,
     CONVENTIONS_URL,
     DECISIONS_URL,
     DEVIATIONS_URL,
+    DOCS_INDEX_URL,
     HANDOFF_URL,
     ISSUES_URL,
+    LANGUAGE_AND_TONE_DOC_URL,
     LARGE_WORLDS_DOC_URL,
+    LEGACY_WORLDS_DOC_URL,
+    NOTIFICATION_CENTRE_DOC_URL,
     PLAN_URL,
     PRIVATE_WORLD_DOC_URL,
+    REGEX_BUILDER_DOC_URL,
     RENDER_IN_ACTIONS_DOC_URL,
     RENDER_PRIVATE_WORKFLOW_URL,
     RENDER_WORLD_WORKFLOW_URL,
     REPO_URL,
     RESUMABLE_RENDERS_DOC_URL,
     ROADMAP_URL,
+    SUPER_CONFIRMATION_DOC_URL,
+    TABBED_NAVIGATION_DOC_URL,
     UPSTREAM_URL,
     issue,
 } from "./links.js";
@@ -371,6 +381,85 @@ export const home: HomeContent = {
             ],
         },
         {
+            id: "working",
+            title: "Working in the application",
+            lede: "The parts that are not one screen: a tab strip, a shortcut over everything, a place messages go when they leave, and the rules every surface has to keep.",
+            features: [
+                {
+                    title: "Browser-style tabs, with everything that implies",
+                    body: "A persistent strip whose overflow goes into a surface of its own rather than being clipped, with pinning, groups, four separate searches and five bulk closes, each of which shows exactly which tabs it will take before it takes them. Order, pins, groups and collapsed state come back on the next launch.",
+                    status: "shipped",
+                    statusNote:
+                        "On the default branch and mounted by the shell, with six test files in CI covering the ordering rules, the four searches, the close plans, storage, the menus and the mounted strip. Per-tab appearance beyond a group colour is deliberately absent.",
+                    articleId: "tabbed-shell",
+                    reading: [{ label: "docs/tabbed-navigation.md", href: TABBED_NAVIGATION_DOC_URL }],
+                },
+                {
+                    title: "One shortcut over every command and setting",
+                    body: "The command palette lists everything the application can do, and a row that is a setting carries the setting itself rather than a link to the screen it lives on: flipping it here and flipping it there are the same act with the same persistence. A row that opens a surface says which one.",
+                    status: "shipped",
+                    statusNote:
+                        "On the default branch with four test files in CI, one of them mounting the real component. Nobody has opened it in an installed build, and its own copy is not in the language catalogue yet.",
+                    articleId: "command-palette",
+                    reading: [{ label: "docs/command-palette.md", href: COMMAND_PALETTE_DOC_URL }],
+                },
+                {
+                    title: "Messages you can still read after they have gone",
+                    body: "A toast leaves on purpose, and the one worth reading twice is reliably the one that left. The notification centre keeps every notice of the session with its level, detail and actions, filterable by level, searchable, exportable, and restorable back into the corner with its buttons intact.",
+                    status: "shipped",
+                    statusNote:
+                        "On the default branch inside the notification corner the shell already had, with four test files in CI, two of them mounting the real components. There is no committed capture of the panel with messages in it.",
+                    articleId: "notification-centre",
+                    reading: [{ label: "docs/notification-centre.md", href: NOTIFICATION_CENTRE_DOC_URL }],
+                },
+                {
+                    title: "A changelog generated from the history, readable in the app",
+                    body: "Every version, every entry, and the full SHA of the commit that made it, generated from the repository's own tags rather than written by hand. The viewer searches the text and the commit messages, filters by date, and exports what it is showing.",
+                    status: "shipped",
+                    statusNote:
+                        "The generator and the viewer are on the default branch with four test files in CI, one of which checks every referenced commit against the repository. Generation aborts rather than emitting a reference to a commit that cannot be resolved.",
+                    articleId: "changelog-viewer",
+                    reading: [{ label: "docs/changelog-viewer.md", href: CHANGELOG_VIEWER_DOC_URL }],
+                },
+                {
+                    title: "Two keys and a slider before anything irreversible",
+                    body: "Deleting a map, a storage, a saved profile, a theme preset or a batch of tabs goes through a gate that names exactly what it is about to destroy, needs two independently turned keys, and then a slider that has to travel its whole range. An emergency exit is always there and focus always comes back.",
+                    status: "shipped",
+                    statusNote:
+                        "One state machine behind two presentations, in front of seven actions, with three test files in CI including a source inventory of every destructive call site. Two of those call sites are declared as gaps rather than gated, and the card links to where that is written down.",
+                    articleId: "destructive-action-gate",
+                    reading: [{ label: "docs/super-confirmation.md", href: SUPER_CONFIRMATION_DOC_URL }],
+                },
+                {
+                    title: "Appearance, down to the element",
+                    body: "A right-click or a keyboard chord opens an editor anchored beside the element, with a colour picker that is a continuous field rather than a grid of swatches and translates between eleven notations, and a typography editor with the depth of a word processor's font dialog. Nothing you type is silently dropped.",
+                    status: "shipped",
+                    statusNote:
+                        "The machinery is on the default branch with nine test files in CI. It is wrapped around four elements today: the title bar, the tab bar, each server profile row, and the editor's own chrome. The contract asks for every element, and the article says so.",
+                    articleId: "appearance-editor",
+                    reading: [{ label: "docs/appearance-editors.md", href: APPEARANCE_EDITORS_DOC_URL }],
+                },
+                {
+                    title: "A regex builder on every search bar, kept there by a test",
+                    body: "Plain text is the default. Turn regex on and an anchored builder opens beside the field, with guided tokens, the real sample text the search will scan, live matches and capture groups, and the engine and its limits named on screen. A pattern that would freeze the window is refused before it compiles.",
+                    status: "shipped",
+                    statusNote:
+                        "Three shared fields, three anchored builders and a source guard that walks every component and fails when a search bar appears without one. Its exemption list is currently empty. The builder's own labels are not in the language catalogue.",
+                    articleId: "regex-builder-surfaces",
+                    reading: [{ label: "docs/regex-builder.md", href: REGEX_BUILDER_DOC_URL }],
+                },
+                {
+                    title: "Three languages, and a tone slider for two of them",
+                    body: "English, playful Hong Kong Cantonese and a bilingual mode, with an independent funny level per language from fully professional to maximum playfulness. The level styles every message including errors, and a test proves that no level stops naming the file, the path or the count.",
+                    status: "shipped",
+                    statusNote:
+                        "The store, both sliders, the settings row and the catalogue are on the default branch with five test files in CI. The catalogue answers roughly a hundred keys today; every other key still renders its English fallback, which the article states plainly.",
+                    articleId: "language-and-tone",
+                    reading: [{ label: "docs/language-and-tone.md", href: LANGUAGE_AND_TONE_DOC_URL }],
+                },
+            ],
+        },
+        {
             id: "engine",
             title: "The engine underneath",
             lede: "The parts of BlueMap that were ported rather than driven: reading a world, and resolving what its blocks look like.",
@@ -382,6 +471,15 @@ export const home: HomeContent = {
                     statusNote:
                         "Proved by tests that build synthetic 1.18 and 1.12.2 worlds byte by byte and assert exact decoding, including legacy fence-connection reconstruction. They run in CI on every push.",
                     articleId: "world-reading",
+                },
+                {
+                    title: "Write a pre-flattening world, then prove it renders",
+                    body: "The generator can also write 1.12.2: numeric block ids, metadata nibbles, a flat biome array and a bedrock floor at y zero. The same seed produces the same blocks in both formats, so the modern world is a control, and diffing two renders of it isolates how the world was read rather than what was generated.",
+                    status: "shipped",
+                    statusNote:
+                        "The writer is on the default branch and 13 tests read a generated world back through this project's own reader in CI. Upstream has no pre-flattening chunk loader, so there is no Java oracle for this era and no byte-exact gate; the render harness compares against the control and says that is a weaker claim.",
+                    articleId: "legacy-world-support",
+                    reading: [{ label: "docs/legacy-1-12-worlds.md", href: LEGACY_WORLDS_DOC_URL }],
                 },
                 {
                     title: "Resource packs, atlases and textures",
@@ -451,7 +549,7 @@ export const home: HomeContent = {
         "SQL storages, the marker editor, the JavaScript addon system, static export and the three.js upgrade. The options editor models an SQL storage and writes one, and its connection test says plainly that this build carries no database client to open a connection with rather than reporting a success nobody observed.",
         "Spending the signed-in GitHub account on anything. Signing in works and stores its credential properly, and then nothing else in the application asks it for one: the download path still reads a token from the environment, so signing in does not yet make a private release asset fetchable.",
         "Live players read from local player data or RCON, measurement and waypoint tools, the screenshot gallery inside the app, scheduled renders, the multi-server dashboard and the update checker.",
-        "Four of the five cross-cutting product contracts, as contracts. The tab system and the regex builder run on this site, and the application now has real pieces of three of them: an anchored regex builder behind every search bar it has, a two-key gate in front of deleting a map or a storage, and all three language modes with both funny-level sliders in first-run setup and the consent row. A piece is not the contract, which asks for the whole of it on every surface, so all four are still counted here rather than moved to the list above.",
+        "The five cross-cutting product contracts, as contracts. All five now have substantial working machinery in the application, and each is listed as a shipped feature above with its own article. None of the five is met as written, and the remaining clause is named in each case: the regex builder's own surface is not localised, tabs cannot be decorated per tab or per group, appearance reaches four elements rather than every one, the language catalogue answers roughly a hundred keys, and two destructive call sites are declared as gaps rather than gated. A contract with an unmet clause is a pending contract, so all five stay here.",
         "macOS and Linux packaging. Windows is the only platform with an installer, and the installers are not code signed.",
     ],
 
@@ -515,6 +613,7 @@ export const home: HomeContent = {
             phase: "H",
             scope: "SQL storages, command palette, marker editor, JavaScript addon system, static export, three.js upgrade",
             status: "pending",
+            note: "The command palette landed early, out of order, alongside the contract work that gave it settings to list. The rest of the phase is untouched.",
         },
         {
             phase: "I",
@@ -525,7 +624,7 @@ export const home: HomeContent = {
             phase: "Contracts",
             scope: "The five cross-cutting product contracts",
             status: "in-progress",
-            note: "The tab system and the regex builder run on this site. In the application, three of the five have a first surface each: the regex builder, the destructive-action gate, and the language modes with their sliders. None of the five is met as written.",
+            note: "All five now have working machinery in the application as well as on this site: the tab strip, the anchored regex builder with a guard keeping it on every search bar, the appearance editor with its colour and typography pickers, the two-key gate with its inventory of destructive call sites, and the three language modes with both funny levels. Each still has one named clause unmet, so none of the five is met as written.",
         },
     ],
 
@@ -600,6 +699,16 @@ export const home: HomeContent = {
     },
 
     furtherReading: [
+        { label: "Every feature document, indexed", href: DOCS_INDEX_URL },
+        { label: "Browser-style tabbed navigation", href: TABBED_NAVIGATION_DOC_URL },
+        { label: "The command palette", href: COMMAND_PALETTE_DOC_URL },
+        { label: "The notification centre", href: NOTIFICATION_CENTRE_DOC_URL },
+        { label: "The changelog and its in-app viewer", href: CHANGELOG_VIEWER_DOC_URL },
+        { label: "Appearance editors, colour and typography", href: APPEARANCE_EDITORS_DOC_URL },
+        { label: "Super confirmation for destructive actions", href: SUPER_CONFIRMATION_DOC_URL },
+        { label: "Language modes and funny levels", href: LANGUAGE_AND_TONE_DOC_URL },
+        { label: "The regex builder and the search bars it reaches", href: REGEX_BUILDER_DOC_URL },
+        { label: "Writing and rendering 1.12.2 worlds", href: LEGACY_WORLDS_DOC_URL },
         { label: "Rendering a world in GitHub Actions", href: RENDER_IN_ACTIONS_DOC_URL },
         { label: "Rendering that survives being interrupted", href: RESUMABLE_RENDERS_DOC_URL },
         { label: "Large worlds and rendered maps", href: LARGE_WORLDS_DOC_URL },

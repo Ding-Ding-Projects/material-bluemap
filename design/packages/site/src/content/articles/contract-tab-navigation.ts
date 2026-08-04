@@ -9,7 +9,7 @@ export const contractTabNavigation: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "Not implemented in the product. The options editor does have a seven-tab strip, which is a long way short of this: nothing in it overflows into a surface of its own, reorders, pins, groups or persists, and none of the four tab searches exists. Tracked as issue 7.",
+        "The application shell now navigates by tabs, and that strip is shipped and documented separately: overflow that never clips, reordering, pinning, groups, all four searches, five bulk closes with a reviewable plan, and the six orderings restored on the next launch. One clause is unmet: per-tab and per-group appearance is deliberately absent, so there is no Edit tab appearance command and no anchored editor beside a tab. Partial credit does not apply, so this stays specified. Tracked as issue 7.",
 
     sections: [
         {
@@ -19,11 +19,21 @@ export const contractTabNavigation: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "This describes a requirement, not shipped behaviour",
+                    title: "This describes a requirement, and one clause of it is still unmet",
                     content: [
-                        "The application shell does not navigate by tabs, and the one tab strip it has, across ",
-                        "the seven screens of the options editor, is an ordinary set of tabs rather than the ",
-                        "system described here. Progress is tracked as ",
+                        "It used to say the shell did not navigate by tabs at all. It does now, and what is ",
+                        "built is documented in ",
+                        {
+                            link: "the tab system's own article",
+                            href: repoFile("docs/tabbed-navigation.md"),
+                            external: true,
+                        },
+                        ". What is missing is the decoration clause: per-tab and per-group appearance beyond a ",
+                        "group colour is deliberately absent rather than half-built, so there is no Edit tab ",
+                        "appearance command and no anchored editor beside a tab. The model carries an opaque ",
+                        "record on both a tab and a group and storage round-trips it verbatim, which is the ",
+                        "attach point rather than the feature. A contract with an unmet clause is a pending ",
+                        "contract, so this page stays marked as unbuilt. Progress is tracked as ",
                         { link: "issue 7", href: issue(7), external: true },
                         ".",
                     ],
@@ -174,6 +184,10 @@ export const contractTabNavigation: Article = {
     ],
 
     suggested: [
+        {
+            articleId: "tabbed-shell",
+            reason: "What is actually built against this contract, and the one clause it does not reach.",
+        },
         {
             articleId: "contract-regex-builder",
             reason: "Every one of the four searches and both bulk closes depends on it.",

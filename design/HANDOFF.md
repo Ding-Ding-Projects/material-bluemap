@@ -94,7 +94,7 @@ document says so.
 | **D17, D18** | Numbered project decisions, recorded in `design/docs/decisions.md`. D17: the app ships and uses the original Java engine until the TypeScript mesher passes the gate. D18: the six Minecraft server plugins are built and shipped too |
 | **Squirrel** | The Windows installer technology the app ships with |
 | **The contracts** | Product rules every user-facing surface must follow (regex builder on every search bar, browser-style tabs, appearance editors, language modes, super-confirmation for destructive actions). Tracked as GitHub issues #6 to #13 |
-| **The recurring defect** | "Built, tested, unreachable": code that works and has green tests, but no user can reach it, because nothing mounts it or wires it. It has happened at least four times in this project. An audit on 2026-08-03 found and fixed nine more cases |
+| **The recurring defect** | "Built, tested, unreachable": code that works and has green tests, but no user can reach it, because nothing mounts it or wires it. It has happened repeatedly. An audit on 2026-08-03 found nine more cases, and on 2026-08-04 the finished tab system, appearance editors and language section were all mounted after being built, tested and reachable by nobody |
 | **The flattening** | A change Minecraft made in version 1.13. Before it, a block was a number plus four extra bits (stone was `1`, andesite was `1:5`). After it, a block is a name (`minecraft:andesite`). Worlds from 1.12.2 and older use the old numbers. Some names also changed meaning: `minecraft:grass` used to be the grass **block** and now means a small grass **plant** |
 | **`worldgen`** | `design/packages/worldgen`. Makes a fake Minecraft world from a number (a "seed"), so tests have a real world to read without downloading one. It can write the modern format or the 1.12.2 one |
 
@@ -103,10 +103,25 @@ document says so.
 - The app installs from a real Windows installer and opens with a working interface.
 - It can browse an existing BlueMap server and show its maps in 3D.
 - It can render a world locally by driving the original Java engine (per decision D17).
+- **The shell is a tabbed one.** Three pages behind a persistent strip: the map, making a
+  map, and the maps-and-servers list. Two mounting details are load-bearing rather than
+  tidy: `MapView` stays at shell level rather than in its page's slot, because only the
+  active page's slot renders and putting the renderer there would dispose it on every tab
+  switch; and the map page is a transparent click-through frame over a canvas that lives
+  outside the Vue tree entirely.
 - The interface includes: a world wizard (make a map in steps), a settings surface, a
   seven-tab options editor for BlueMap config files, GitHub sign-in, release downloads,
-  a Java runtime settings row, notifications, and a custom window title bar. All of these
-  are reachable by clicking, and all have tests.
+  a Java runtime settings row, a notification centre, a command palette, a changelog
+  viewer covering every released version, per-element appearance editors with a continuous
+  colour picker, the language-and-tone settings, and a custom window title bar. All of
+  these are reachable by clicking, and all have tests.
+- **The first step of the wizard finds the worlds already on this computer**, from the
+  default Minecraft installation and from any number of folders the user mounts. See
+  `docs/finding-worlds.md`. Typing a path, browsing and dropping a folder all still work.
+- **Every destructive action is behind the two-key gate**, and a guard test inventories the
+  package so a new delete cannot arrive undeclared.
+- **Every search bar carries the anchored regex builder**, kept true by
+  `components/config/regexPolicy.test.ts` rather than by remembering.
 - CI builds an installer, renders a test world, takes screenshots of the real app, and
   publishes a GitHub release on every green push to `main`.
 - **The engine can read a Minecraft 1.12.2 world and render it.** This was checked for the
@@ -168,9 +183,17 @@ document says so.
   nothing at all. The full list, the numbers behind it, and the two possible fixes are in
   the 2026-08-04 section at the bottom of this file.
 - Phases E, G, H, I are not started. Phase C has three unfinished exit checks.
-- The contract issues (#6 to #13) are open: regex builder everywhere, tabs, appearance
-  editors, language-mode completeness, the command palette, the changelog viewer, the
-  notification centre.
+- **The contract issues #6 to #13 are all closed**, each with its evidence on the issue.
+  What remains inside them is named there rather than hidden: the appearance wrapper is
+  proven end to end on the shell chrome and each further surface is a one-line wrap; about
+  895 of the 959 i18n keys still render their English fallback, and each starts varying the
+  moment a catalogue entry is added; mount reordering is not built, because the world list
+  sorts by last played across every mount, which is what people scan by; and GitHub
+  sign-out is the one destructive action still behind an inline two-step confirm rather
+  than the two-key gate, listed in that guard's own `KNOWN_GAPS` so it is a stated fact.
+- One latent bug worth fixing next: `stores/profiles.ts` writes `localStorage` unguarded
+  while `load()` wraps `getItem` in try/catch, so where storage is full or unavailable the
+  first profile mutation throws inside a Vue watcher.
 
 ### How to verify things yourself
 
