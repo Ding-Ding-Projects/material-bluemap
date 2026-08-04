@@ -8,7 +8,7 @@
 import { z } from "zod";
 import type { FieldMeta, GroupMeta } from "../meta.js";
 import { WEBAPP_TEMPLATE } from "../templates/sources.js";
-import { hoconBoolean, hoconInt, hoconNumber, hoconString, integerControl, SWITCH } from "./common.js";
+import { hoconBoolean, hoconInt, hoconNumber, hoconString, integerControl, RESOLUTION_OPTIONS, SWITCH } from "./common.js";
 import type { ConfigFileDescriptor } from "./descriptor.js";
 
 /** A Java `LinkedHashSet<String>`: ordered, and duplicates collapse. */
@@ -212,15 +212,11 @@ const FIELDS: readonly FieldMeta[] = [
         label: "Default resolution",
         doc: ["The default value of the resolution (settings menu).", "Possible values are: 0.5, 1, 2", "Default is 1"].join("\n"),
         group: "startup",
-        control: {
-            kind: "select",
-            allowCustom: false,
-            options: [
-                { value: 0.5, label: "Half", description: "Renders at half resolution. Fastest, and blurry on a high-density display." },
-                { value: 1, label: "Normal" },
-                { value: 2, label: "Double", description: "Renders at twice the resolution. Sharpest, and the most expensive to draw." },
-            ],
-        },
+        // Upstream lists three values and the Java field is a plain `float`, so a
+        // hand-written 1.5 loads perfectly well. A closed select bound to 1.5 would
+        // render empty, which reads as "this setting is unset" and is overwritten by
+        // the next click. Free entry keeps the file's own value visible.
+        control: { kind: "select", allowCustom: true, options: RESOLUTION_OPTIONS },
         default: 1,
         advisory: { oneOf: [0.5, 1, 2], note: "Upstream documents 0.5, 1 and 2. Another value is passed through to the viewer untouched, so it may or may not do anything useful." },
         commentedOutInTemplate: false,

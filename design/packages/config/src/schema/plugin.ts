@@ -77,7 +77,11 @@ const FIELDS: readonly FieldMeta[] = [
             "Possible values are: survival, creative, spectator or adventure.",
         ].join("\n"),
         group: "hiding",
-        control: { kind: "list", itemLabel: "Game mode", unique: true, item: { kind: "select", allowCustom: false, options: GAME_MODE_OPTIONS } },
+        // Upstream's field is a `List<String>`, not a list of an enum, so a value
+        // outside these four loads without complaint and then simply never matches a
+        // player. Offering the four with free entry beside them shows the real answer
+        // set while leaving a typo in an existing file visible instead of blanking it.
+        control: { kind: "list", itemLabel: "Game mode", unique: true, item: { kind: "select", allowCustom: true, options: GAME_MODE_OPTIONS } },
         default: [],
         templateValue: { value: ["spectator"], note: "The generated file hides spectators, although the Java field starts empty." },
         commentedOutInTemplate: false,

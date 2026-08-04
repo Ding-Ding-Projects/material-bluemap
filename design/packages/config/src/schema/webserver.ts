@@ -12,7 +12,7 @@
 import { z } from "zod";
 import type { FieldMeta, GroupMeta } from "../meta.js";
 import { WEBSERVER_TEMPLATE } from "../templates/sources.js";
-import { hoconBoolean, hoconInt, hoconString, integerControl, SWITCH } from "./common.js";
+import { ACCESS_LOG_TOKENS, hoconBoolean, hoconInt, hoconString, integerControl, LISTEN_ADDRESS_OPTIONS, SWITCH } from "./common.js";
 import type { ConfigFileDescriptor } from "./descriptor.js";
 
 export const webserverConfigSchema = z.object({
@@ -91,7 +91,12 @@ const FIELDS: readonly FieldMeta[] = [
             'Default is "0.0.0.0" (reachable from anywhere that can route to this machine).',
         ].join("\n"),
         group: "network",
-        control: { kind: "text", monospace: true, placeholder: "0.0.0.0" },
+        // Three of the four listed values are not addresses: "", "0.0.0.0" and "::0"
+        // share one branch in resolveIp and bind the wildcard, and "#getLocalHost" is
+        // a keyword. None of that is discoverable from an empty text field, and the
+        // field is undocumented upstream, so the list is the only place a person will
+        // meet the keyword. Free entry stays open for a real host name or address.
+        control: { kind: "select", allowCustom: true, options: LISTEN_ADDRESS_OPTIONS },
         default: "0.0.0.0",
         commentedOutInTemplate: false,
         hidden: true,
@@ -187,7 +192,11 @@ const FIELDS: readonly FieldMeta[] = [
             'Default is "%1$s \\"%3$s %4$s %5$s\\" %6$s %7$s"                         | 10.10.10.10 "GET /assets/file.png HTTP/1.1" 200 OK',
         ].join("\n"),
         group: "logging",
-        control: { kind: "text", monospace: true },
+        // A java.util.Formatter template really is free text, so it stays a text
+        // field. What is not free is the argument list: seven numbered placeholders,
+        // each meaning one thing. Carrying them as insertable tokens makes the closed
+        // half of an open field reachable without pretending the field is a select.
+        control: { kind: "text", monospace: true, tokens: ACCESS_LOG_TOKENS },
         default: '%1$s "%3$s %4$s %5$s" %6$s %7$s',
         commentedOutInTemplate: false,
         hidden: false,

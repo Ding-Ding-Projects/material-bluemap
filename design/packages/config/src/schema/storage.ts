@@ -17,7 +17,19 @@
 import { z } from "zod";
 import type { FieldMeta, GroupMeta } from "../meta.js";
 import { FILE_STORAGE_TEMPLATE, SQL_STORAGE_TEMPLATE } from "../templates/sources.js";
-import { COMPRESSION_OPTIONS, formatKey, hoconBoolean, hoconInt, hoconString, integerControl, namespacedKey, SQL_DIALECT_OPTIONS, SWITCH } from "./common.js";
+import {
+    BLUEMAP_NAMESPACE,
+    COMPRESSION_OPTIONS,
+    formatKey,
+    hoconBoolean,
+    hoconInt,
+    hoconString,
+    integerControl,
+    namespacedKey,
+    SQL_DIALECT_OPTIONS,
+    STORAGE_TYPE_OPTIONS,
+    SWITCH,
+} from "./common.js";
 import type { ConfigFileDescriptor } from "./descriptor.js";
 
 const STORAGE_TYPE_DOC = [
@@ -36,11 +48,6 @@ const COMPRESSION_DOC = [
     "The default is: gzip",
 ].join("\n");
 
-const STORAGE_TYPE_OPTIONS = [
-    { value: "file", label: "File", description: "Tiles are written to a folder on disk." },
-    { value: "sql", label: "SQL", description: "Tiles are written to a database through JDBC." },
-];
-
 function storageTypeField(defaultNote: string): FieldMeta {
     return {
         path: "storage-type",
@@ -50,7 +57,14 @@ function storageTypeField(defaultNote: string): FieldMeta {
         label: "Storage type",
         doc: `${STORAGE_TYPE_DOC}\n${defaultNote}`,
         group: "type",
-        control: { kind: "select", allowCustom: false, options: STORAGE_TYPE_OPTIONS },
+        // The registry is closed, but the *spelling* is not: the Java default is
+        // `bluemap:file` and upstream's template writes a bare `file`, and
+        // `StorageConfig.parseKey` additionally retries a lower-cased key for old
+        // files. A closed select over the short spellings therefore showed an empty
+        // control for the Java default, which is the very value a fresh install has.
+        // The namespace makes both spellings match the same option; free entry keeps
+        // whatever third spelling an existing file happens to use.
+        control: { kind: "select", allowCustom: true, options: STORAGE_TYPE_OPTIONS, keyNamespace: BLUEMAP_NAMESPACE },
         default: "bluemap:file",
         commentedOutInTemplate: false,
         hidden: false,
@@ -69,7 +83,7 @@ function compressionField(): FieldMeta {
         label: "Compression",
         doc: COMPRESSION_DOC,
         group: "data",
-        control: { kind: "select", allowCustom: true, options: COMPRESSION_OPTIONS },
+        control: { kind: "select", allowCustom: true, options: COMPRESSION_OPTIONS, keyNamespace: BLUEMAP_NAMESPACE },
         default: "bluemap:gzip",
         templateValue: { value: "gzip", note: "The template writes the key unqualified. BlueMap reads it with the bluemap namespace, so gzip and bluemap:gzip are the same value." },
         commentedOutInTemplate: false,
@@ -230,7 +244,7 @@ const SQL_FIELDS: readonly FieldMeta[] = [
             "Set it explicitly when the URL comes from a driver whose prefix BlueMap does not recognise.",
         ].join("\n"),
         group: "connection",
-        control: { kind: "select", allowCustom: true, options: SQL_DIALECT_OPTIONS },
+        control: { kind: "select", allowCustom: true, options: SQL_DIALECT_OPTIONS, keyNamespace: BLUEMAP_NAMESPACE },
         default: null,
         commentedOutInTemplate: false,
         hidden: true,
