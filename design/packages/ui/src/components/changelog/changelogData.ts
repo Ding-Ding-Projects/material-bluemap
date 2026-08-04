@@ -24,6 +24,47 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "a5c10d70ab37a1faef614ae6bfdc97f8a2ba552b",
+        shortSha: "a5c10d70ab",
+        date: "2026-08-04T02:32:31-04:00",
+        subject: "Test localized Pages controls",
+        details: "The site now proves that bilingual bindings keep their Cantonese level independent while the English slider changes its own voice, and the date parser covers ISO, year-first slash and locale slash inputs. The contract used to trust a shrug; it now has a witness.\\n\\n而家有測試證明雙語 binding 會保持廣東話自己條搞笑滑桿，英文滑桿改英文唔會偷改另一邊；日期 parser 亦覆蓋 ISO、年先 slash 同 locale slash。以前靠記性，而家有證人。",
+        category: "site",
+        areas: ["site"],
+        files: 3,
+    },
+    {
+        sha: "f31bd13e3876a0f5eda3be9ba189c207e39035e2",
+        shortSha: "f31bd13e38",
+        date: "2026-08-04T02:30:11-04:00",
+        subject: "Merge remote-tracking branch 'origin/main' into pages-material3-continuation",
+        details: "",
+        category: "docs",
+        areas: ["docs", "interface"],
+        files: 9,
+        summarizes: 3,
+    },
+    {
+        sha: "e32de9f1aac14873ec15781645a589869b6621c0",
+        shortSha: "e32de9f1aa",
+        date: "2026-08-04T02:28:02-04:00",
+        subject: "Make the maps and servers list a listbox, and let each map be restyled",
+        details: "The list of maps and servers is now a real listbox: role and options,\none roving tab stop, arrows and Home/End moving focus, Enter and Space\nactivating, and each option named \"{map}, {where it is}\" because the\nsecond line is what tells two similarly-named rows apart. Clicking is\nunchanged.\n\nTwo structural decisions are worth the reading. Selection deliberately\ndoes NOT follow focus: activating a row switches the map and closes the\ncard, so a list where selection tracked focus could not be arrowed\nthrough at all - the first ArrowDown would close it. aria-selected\ntherefore reports the map that is open, and the arrows move focus only.\nAnd the delete button is a sibling of the option rather than a\ndescendant, because ARIA forbids an interactive descendant inside an\noption; it shares the row's roving tabindex, so a row is one composite\ntab stop instead of putting thirty delete buttons between the list and\nthe Add button.\n\nEvery row can now be restyled individually, keyed on the profile's own\npersisted id rather than its index - a deletion above would otherwise\nmigrate one map's colours onto another - and rather than the generated\nmount id, which would not survive a restart. The row's own commands sit\nabove the appearance ones in its menu, and Remove presses that row's\nexisting gate rather than mounting a second one, so two gates cannot\ndrift apart.\n\nThe search now covers the kind as well as the name and address, so\ntyping \"server\" is not a dead end. One real bug fell out while there:\nthe field appeared only above three rows, so deleting a row from a\nfour-row list while filtering took the field away with its query still\nfiltering - a list hiding rows with nothing on screen to explain why.\n\n---\n\n「地圖同伺服器」個清單而家係真.listbox:有 role、有 option、得一個\ntab 站、上下鍵同 Home/End 行得、Enter 同 Space 撳得入,每行讀出嚟係\n「邊張地圖,喺邊度」— 因為第二行先係分得出兩個似樣名嘅嘢。\n\n兩個結構決定值得講。第一,選取**故意唔跟住 focus** 行:撳落去會換\n地圖兼閂咗張卡,所以如果選取跟 focus,你㩒第一下向下鍵就已經閂咗,\n根本行唔到。第二,刪除掣係 option 嘅兄弟唔係佢個仔 — ARIA 唔准\noption 入面有得撳嘅嘢 — 而且共用同一個 tab 站,唔係要你喺清單同\n「新增」之間㩒三十次 Tab。\n\n每行而家可以獨立改外觀,認嘅係 profile 自己個 id:用位置嘅話,上面\n刪走一行,顏色就會搬咗去第二張地圖度。",
+        category: "interface",
+        areas: ["interface"],
+        files: 3,
+    },
+    {
+        sha: "ecfa1d122bc79edf891f05bdfe1adea990cf61eb",
+        shortSha: "ecfa1d122b",
+        date: "2026-08-04T02:17:19-04:00",
+        subject: "Photograph the render guide end to end, from the installed build",
+        details: "Five captures of the real packaged app on an off-screen desktop,\nwalking the path somebody actually takes: where rendered maps are\nstored, choosing a world, where the map is written, what is about to\nhappen, and the maps-and-servers list a finished render joins.\n\nThe Mojang download consent was declined in this run, deliberately.\nThat is a genuine legal acceptance about somebody else's licence and\nnot a box to click through on their behalf, and the honest consequence\nis visible in the review step: the app says the render would stop\nbefore it started, and points at the setting that would change it.\nA capture of a flow that quietly accepted an EULA to look complete\nwould be a worse picture of this product, not a better one.\n\nWorth noting what the second capture proves: the dimension list is the\nworld's own. The wizard reads the folder before showing the step that\noffers dimensions, so it says \"Overworld, 1 regions\" because that is\nwhat is on the disk, rather than offering three vanilla defaults and\nletting somebody pick one the world does not have.\n\n---\n\n五張相,影住真.裝咗出嚟嗰隻 app,喺無頭桌面度行足全程:張地圖擺\n邊、揀邊個世界、寫入邊個資料夾、開波前交代咩事、同埋 render 完會\n自己加入去嗰張「地圖同伺服器」清單。\n\nMojang 個下載同意,今次係特登撳「拒絕」嘅。嗰個係人哋條授權協議嘅\n真.法律同意,唔係代你撳一撳就算,而後果亦都老老實實影咗出嚟:\nreview 嗰版會話你知「呢個 render 未開始就會停」,仲指埋去邊度改。\n為咗張相靚啲而靜靜雞撳咗個 EULA,只會令張相更加唔誠實。\n\n第二張仲順便證明咗一件事:啲 dimension 係讀返個世界本身嘅。個精靈\n喺出嗰版之前就已經睇過個資料夾,所以佢寫「Overworld,1 regions」-\n係硬碟入面真係咁,唔係擺三個罐頭選項出嚟等你揀個世界冇嘅嗰個。",
+        category: "docs",
+        areas: ["docs"],
+        files: 6,
+    },
+    {
         sha: "5375a9195c05a6fbd584c20751fb5d2cc17c195d",
         shortSha: "5375a9195c",
         date: "2026-08-04T02:28:53-04:00",
@@ -42,31 +83,39 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
         category: "interface",
         areas: ["interface"],
         files: 2,
-    },
-    {
-        sha: "9523d9197e56fcf6ff5c6eaa616d7e24f104ac2a",
-        shortSha: "9523d9197e",
-        date: "2026-08-04T02:01:53-04:00",
-        subject: "Make every colour continuous, every typeface adjustable, and every refusal loud",
-        details: "The appearance layer: a colour picker that is a real continuous field\nrather than a swatch grid, a translator across all eleven listed\nspaces, a typography editor with the contract's twenty-seven\nproperties, and an anchored per-element editor reachable by\nright-click, Shift+right-click and the keyboard.\n\nThree decisions are worth the reading. The canonical colour is\n*unclamped* sRGB, so a wide-gamut colour survives being read rather\nthan being flattened on the way in - and clipping is then reported per\nnotation rather than per panel, because for one OKLCH colour the OKLab\nfamily is exact in the same instant the hex is wrong. The one thing\nmade impossible is writing a clipped value under the notation the user\nasked for: if the colour cannot fit, the picker writes OKLCH, says so,\nand offers to save the clipped value anyway. And a record stores\nopinions rather than values, so resetting a property removes the key\nand the element goes back to following the theme instead of being\npinned to whatever the theme said today.\n\nThe 2D field is two real range inputs, visually hidden and labelled,\nso arrows and screen readers work natively rather than through an\naria-valuetext fiction about a control holding two numbers. Properties\nthe platform refuses stay on screen with the exact CSS declaration\nthat was refused, and a missing CSS.supports assumes supported rather\nthan the reverse. A colour that cannot be parsed keeps the text the\nuser typed and is not applied; it is never quietly turned into black.\n\nTesting against published values rather than snapshots caught two real\nbugs. The CIELCH chroma floor was six orders of magnitude too small,\nso with CSS's rounded Bradford matrices every grey reported a hue. And\nthe picker discarded saturation at zero brightness: drag to black,\ndrag back, get grey.\n\nAlso here: the wizard's world check compares the folder it inspected\nrather than a field that does not exist, and the destructive-action\ninventory gains the appearance editor, which gates deleting a saved\npreset and resetting every element.\n\n75 files, 1480 tests, typecheck and lint clean.\n\n---\n\n外觀層落地:個顏色掣係真.連續嘅色域,唔係一格格俾你揀;譯到十一個\n色彩空間;字體編輯器齊晒合約要嘅二十七項;仲有右 click、Shift+右\nclick、鍵盤都開得到嘅逐個元素編輯器。\n\n三個決定值得講。個 canonical 值係**冇夾過**嘅 sRGB,所以寬色域嘅顏色\n入到嚟唔會即刻俾人捽扁;跟住「爆色」係逐個表示法報,唔係成塊板一齊\n報 — 因為同一隻 OKLCH 色,OKLab 嗰家人係啱到十足,而 hex 就已經錯咗。\n唯一整到冇可能發生嘅事:用你揀嘅格式靜靜雞寫個爆咗嘅值落去。\n\n用公開嘅標準值(唔係自己影低嘅 snapshot)嚟測,捉到兩隻真蟲:CIELCH\n個 chroma 下限細咗成六個數量級,搞到每隻灰色都報一個色相;仲有拖到\n全黑再拖返出嚟,飽和度會唔見咗,變咗灰。",
-        category: "interface",
-        areas: ["interface"],
-        files: 26,
-    },
-    {
-        sha: "6c4fb6fecc12aaa5ab4508c0cae6dc3f18bb2f6a",
-        shortSha: "6c4fb6fecc",
-        date: "2026-08-04T01:59:20-04:00",
-        subject: "Photograph every screen, gate every delete, and unblock the options editor",
-        details: "The capture harness now opens and photographs every user-facing\nsurface of the real packaged app - 58 new images, including the\nmake-a-map wizard step by step, the settings surface and all five of\nits sections, the options editor and all seven of its tabs, both super\nconfirmations mid-gesture, the menu and its regex builder, the\nnotification corner and its history. It launches with a throwaway\nprofile so first run is genuinely a first run, and it enumerates\nsurfaces from the running app rather than from a list, so a section\nadded next door arrives in the set on its own. A surface it cannot\nreach is recorded in the manifest as skipped, with the reason, because\na substitution would be worse than a gap.\n\nIt also found a real defect while doing it, which is the best argument\nfor photographing your own product: ConfigScreen provided the config\nhost and then injected it back in the same component. Vue's inject\ndoes not see its own component's provide, so the host was null in the\ndesktop build and every control that needs a file system stayed\ndisabled - the options editor could not attach to a folder at all. The\nbridge behind it had been fine since the day it was written; nothing\never asked it anything.\n\nEvery destructive action is now behind the two-key gate, and the two\ngates run on one shared state machine instead of two forked copies of\nthe same arithmetic. Deleting a saved map or server was a plain icon\nbutton that removed the row immediately; so was the save that takes\nconfig files off the disk. A guard test now inventories every\ndestructive call site in the package and makes each one declare where\nit stands, so a new delete cannot arrive unnoticed.\n\nThe language layer reaches the app rather than the setup dialog: 138\nkeys now vary by mode and level, with a test proving that at every\nlevel in every mode a delete warning still names the file and an error\nstill names the path. Tabs arrive with overflow, pinning, groups, four\nindependent searches and bulk closes whose preview is the plan that\ngets applied. And the wizard reads the world folder before showing the\nstep that offers dimensions, so the list is the world's own rather\nthan three vanilla defaults - choosing a dimension the world does not\nhave is, by that file's own comment, the second most common way to\nrender nothing.\n\n---\n\n個截圖 harness 而家真係影晒成隻 app:58 張新圖,包括整地圖精靈逐步、\n設定五個分頁、選項編輯器七頁、兩個 super confirm 做到一半嘅樣。用\n臨時 profile 開,所以第一次真係第一次;影唔到嘅畫面老實寫低「影唔到」\n同點解 - 求其搵張似樣嘅頂上,衰過冇。\n\n順手捉到一隻真蟲,而呢個正正就係「影自己隻 app」嘅價值:ConfigScreen\n自己 provide 完自己 inject,但 Vue 係唔會 inject 到自己嗰個 provide -\n即係話桌面版嗰個 host 一直係 null,成排要用檔案系統嘅掣由頭到尾撳唔\n郁。條橋一早整好晒,只係從來冇人問過佢嘢 🤦\n\n所有刪嘢動作而家一律要過兩條匙嗰道閘,兩個閘共用同一個狀態機。",
-        category: "docs",
-        areas: ["docs", "interface", "engine", "site", "shell", "build"],
-        files: 125,
     }
 ];
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
+    {
+        version: "0.1.0-build.132",
+        tag: "v0.1.0-build.132",
+        date: "2026-08-04T02:01:53-04:00",
+        commit: "9523d9197e56fcf6ff5c6eaa616d7e24f104ac2a",
+        entries: [
+            {
+                sha: "9523d9197e56fcf6ff5c6eaa616d7e24f104ac2a",
+                shortSha: "9523d9197e",
+                date: "2026-08-04T02:01:53-04:00",
+                subject: "Make every colour continuous, every typeface adjustable, and every refusal loud",
+                details: "The appearance layer: a colour picker that is a real continuous field\nrather than a swatch grid, a translator across all eleven listed\nspaces, a typography editor with the contract's twenty-seven\nproperties, and an anchored per-element editor reachable by\nright-click, Shift+right-click and the keyboard.\n\nThree decisions are worth the reading. The canonical colour is\n*unclamped* sRGB, so a wide-gamut colour survives being read rather\nthan being flattened on the way in - and clipping is then reported per\nnotation rather than per panel, because for one OKLCH colour the OKLab\nfamily is exact in the same instant the hex is wrong. The one thing\nmade impossible is writing a clipped value under the notation the user\nasked for: if the colour cannot fit, the picker writes OKLCH, says so,\nand offers to save the clipped value anyway. And a record stores\nopinions rather than values, so resetting a property removes the key\nand the element goes back to following the theme instead of being\npinned to whatever the theme said today.\n\nThe 2D field is two real range inputs, visually hidden and labelled,\nso arrows and screen readers work natively rather than through an\naria-valuetext fiction about a control holding two numbers. Properties\nthe platform refuses stay on screen with the exact CSS declaration\nthat was refused, and a missing CSS.supports assumes supported rather\nthan the reverse. A colour that cannot be parsed keeps the text the\nuser typed and is not applied; it is never quietly turned into black.\n\nTesting against published values rather than snapshots caught two real\nbugs. The CIELCH chroma floor was six orders of magnitude too small,\nso with CSS's rounded Bradford matrices every grey reported a hue. And\nthe picker discarded saturation at zero brightness: drag to black,\ndrag back, get grey.\n\nAlso here: the wizard's world check compares the folder it inspected\nrather than a field that does not exist, and the destructive-action\ninventory gains the appearance editor, which gates deleting a saved\npreset and resetting every element.\n\n75 files, 1480 tests, typecheck and lint clean.\n\n---\n\n外觀層落地:個顏色掣係真.連續嘅色域,唔係一格格俾你揀;譯到十一個\n色彩空間;字體編輯器齊晒合約要嘅二十七項;仲有右 click、Shift+右\nclick、鍵盤都開得到嘅逐個元素編輯器。\n\n三個決定值得講。個 canonical 值係**冇夾過**嘅 sRGB,所以寬色域嘅顏色\n入到嚟唔會即刻俾人捽扁;跟住「爆色」係逐個表示法報,唔係成塊板一齊\n報 — 因為同一隻 OKLCH 色,OKLab 嗰家人係啱到十足,而 hex 就已經錯咗。\n唯一整到冇可能發生嘅事:用你揀嘅格式靜靜雞寫個爆咗嘅值落去。\n\n用公開嘅標準值(唔係自己影低嘅 snapshot)嚟測,捉到兩隻真蟲:CIELCH\n個 chroma 下限細咗成六個數量級,搞到每隻灰色都報一個色相;仲有拖到\n全黑再拖返出嚟,飽和度會唔見咗,變咗灰。",
+                category: "interface",
+                areas: ["interface"],
+                files: 26,
+            },
+            {
+                sha: "6c4fb6fecc12aaa5ab4508c0cae6dc3f18bb2f6a",
+                shortSha: "6c4fb6fecc",
+                date: "2026-08-04T01:59:20-04:00",
+                subject: "Photograph every screen, gate every delete, and unblock the options editor",
+                details: "The capture harness now opens and photographs every user-facing\nsurface of the real packaged app - 58 new images, including the\nmake-a-map wizard step by step, the settings surface and all five of\nits sections, the options editor and all seven of its tabs, both super\nconfirmations mid-gesture, the menu and its regex builder, the\nnotification corner and its history. It launches with a throwaway\nprofile so first run is genuinely a first run, and it enumerates\nsurfaces from the running app rather than from a list, so a section\nadded next door arrives in the set on its own. A surface it cannot\nreach is recorded in the manifest as skipped, with the reason, because\na substitution would be worse than a gap.\n\nIt also found a real defect while doing it, which is the best argument\nfor photographing your own product: ConfigScreen provided the config\nhost and then injected it back in the same component. Vue's inject\ndoes not see its own component's provide, so the host was null in the\ndesktop build and every control that needs a file system stayed\ndisabled - the options editor could not attach to a folder at all. The\nbridge behind it had been fine since the day it was written; nothing\never asked it anything.\n\nEvery destructive action is now behind the two-key gate, and the two\ngates run on one shared state machine instead of two forked copies of\nthe same arithmetic. Deleting a saved map or server was a plain icon\nbutton that removed the row immediately; so was the save that takes\nconfig files off the disk. A guard test now inventories every\ndestructive call site in the package and makes each one declare where\nit stands, so a new delete cannot arrive unnoticed.\n\nThe language layer reaches the app rather than the setup dialog: 138\nkeys now vary by mode and level, with a test proving that at every\nlevel in every mode a delete warning still names the file and an error\nstill names the path. Tabs arrive with overflow, pinning, groups, four\nindependent searches and bulk closes whose preview is the plan that\ngets applied. And the wizard reads the world folder before showing the\nstep that offers dimensions, so the list is the world's own rather\nthan three vanilla defaults - choosing a dimension the world does not\nhave is, by that file's own comment, the second most common way to\nrender nothing.\n\n---\n\n個截圖 harness 而家真係影晒成隻 app:58 張新圖,包括整地圖精靈逐步、\n設定五個分頁、選項編輯器七頁、兩個 super confirm 做到一半嘅樣。用\n臨時 profile 開,所以第一次真係第一次;影唔到嘅畫面老實寫低「影唔到」\n同點解 - 求其搵張似樣嘅頂上,衰過冇。\n\n順手捉到一隻真蟲,而呢個正正就係「影自己隻 app」嘅價值:ConfigScreen\n自己 provide 完自己 inject,但 Vue 係唔會 inject 到自己嗰個 provide -\n即係話桌面版嗰個 host 一直係 null,成排要用檔案系統嘅掣由頭到尾撳唔\n郁。條橋一早整好晒,只係從來冇人問過佢嘢 🤦\n\n所有刪嘢動作而家一律要過兩條匙嗰道閘,兩個閘共用同一個狀態機。",
+                category: "docs",
+                areas: ["docs", "interface", "engine", "site", "shell", "build"],
+                files: 125,
+            }
+        ],
+    },
     {
         version: "0.1.0-build.130",
         tag: "v0.1.0-build.130",
