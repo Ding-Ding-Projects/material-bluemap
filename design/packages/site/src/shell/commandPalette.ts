@@ -3,6 +3,7 @@ import type { CandidateField } from "../search/runSearch.js";
 import type { SearchSurfaceView } from "../search/searchSurface.js";
 import { el } from "../search/dom.js";
 import type { Preferences } from "../platform/Preferences.js";
+import type { I18n } from "../i18n/I18n.js";
 
 export interface PaletteCommand {
     readonly id: string;
@@ -28,19 +29,27 @@ export interface CommandPaletteView {
 /** A bounded, searchable command surface shared by pages, settings, and appearance actions. */
 export function createCommandPalette(options: {
     readonly prefs: Preferences;
+    readonly i18n: I18n;
     readonly list: () => readonly PaletteCommand[];
 }): CommandPaletteView {
-    const overlay = el("div", { class: "mb-command-palette", attrs: { hidden: "", role: "dialog", "aria-modal": "true", "aria-label": "Command palette" } });
+    const overlay = el("div", { class: "mb-command-palette", attrs: { hidden: "", role: "dialog", "aria-modal": "true" } });
+    options.i18n.bindAttr(overlay, "aria-label", "site.commandPalette");
     const card = el("div", { class: "mb-command-palette__card" });
-    const heading = el("div", { class: "mb-command-palette__heading", children: [el("h2", { text: "Command palette" })] });
+    const headingTitle = el("h2");
+    options.i18n.bindText(headingTitle, "site.commandPalette");
+    const heading = el("div", { class: "mb-command-palette__heading", children: [headingTitle] });
     const size = options.prefs.readOneOf("commandPalette.size", ["card", "window"] as const, "card");
-    const toggle = el("button", { class: "md-button md-button--text", text: size === "card" ? "Use full window" : "Use bounded card", attrs: { type: "button" } });
+    const toggle = el("button", { class: "md-button md-button--text", attrs: { type: "button" } });
     let currentSize: "card" | "window" = size;
+    const refreshToggle = (): void => {
+        options.i18n.bindText(toggle, currentSize === "card" ? "site.useFullWindow" : "site.useBoundedCard");
+    };
+    refreshToggle();
     toggle.addEventListener("click", () => {
         currentSize = currentSize === "card" ? "window" : "card";
         options.prefs.write("commandPalette.size", currentSize);
         overlay.dataset.size = currentSize;
-        toggle.textContent = currentSize === "card" ? "Use full window" : "Use bounded card";
+        refreshToggle();
     });
     heading.append(toggle);
     card.append(heading);
@@ -52,9 +61,9 @@ export function createCommandPalette(options: {
         host.replaceChildren();
         surface = createSearchSurface({
             fieldId: "command-palette",
-            labelText: "Search commands, pages, settings, and appearance",
-            placeholder: "Type a command or destination",
-            resultsLabel: "Command palette results",
+            labelText: options.i18n.t("site.paletteSearchLabel"),
+            placeholder: options.i18n.t("site.paletteSearchPlaceholder"),
+            resultsLabel: options.i18n.t("site.paletteResults"),
             fields: FIELDS,
             items: options.list,
             renderResult: ({ item, hit }) => {

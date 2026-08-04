@@ -20,31 +20,38 @@ import { searchableArticles } from "./search.js";
 import type { SettingsPageView } from "../settings/page.js";
 import type { TabsController } from "../tabs/index.js";
 import { STRIP_ID } from "../tabs/index.js";
+import type { I18n } from "../i18n/I18n.js";
 
 /** The single discovery page keeps all independently-owned searches visible and independent. */
 export function createDiscoveryView(options: {
     readonly tabs: TabsController;
     readonly settings: SettingsPageView;
+    readonly i18n: I18n;
     readonly openArticle: (id: string, offset?: number) => void;
 }): HTMLElement {
     const root = el("div", { class: "mb-discovery mb-page" });
-    root.append(
-        el("h1", { class: "mb-page-title", text: "Search everything" }),
-        el("p", { class: "mb-page-subtitle", text: "Each search stays attached to its own surface, with plain text first and a full regex builder beside it." }),
-    );
+    const title = el("h1", { class: "mb-page-title" });
+    options.i18n.bindText(title, "site.discoveryTitle");
+    const subtitle = el("p", { class: "mb-page-subtitle" });
+    options.i18n.bindText(subtitle, "site.discoverySubtitle");
+    root.append(title, subtitle);
 
     const docsHost: DocsSearchHost = {
         listArticles: () => searchableArticles(),
-        openArticle: (id, offset) => options.openArticle(id.split("#", 1)[0] ?? id, offset),
+        openArticle: (id, offset) => options.openArticle(id, offset),
         subscribe: () => () => undefined,
     };
     const docsSection = el("section", { class: "mb-discovery-section" });
-    docsSection.append(el("h2", { class: "mb-section-title", text: "Documentation search" }));
+    const docsHeading = el("h2", { class: "mb-section-title" });
+    options.i18n.bindText(docsHeading, "site.docsSearchHeading");
+    docsSection.append(docsHeading);
     mountDocsSearch(docsSection, { host: docsHost, fieldId: "discover.docs" });
     root.append(docsSection);
 
     const settingsSection = el("section", { class: "mb-discovery-section" });
-    settingsSection.append(el("h2", { class: "mb-section-title", text: "Settings search" }));
+    const settingsHeading = el("h2", { class: "mb-section-title" });
+    options.i18n.bindText(settingsHeading, "site.settingsSearchHeading");
+    settingsSection.append(settingsHeading);
     mountSettingsSearch(settingsSection, { host: options.settings.search.host, fieldId: "discover.settings" });
     root.append(settingsSection);
 
@@ -98,18 +105,22 @@ export function createDiscoveryView(options: {
     };
 
     const tabSection = el("section", { class: "mb-discovery-section" });
-    tabSection.append(el("h2", { class: "mb-section-title", text: "Tab discovery" }));
+    const tabHeading = el("h2", { class: "mb-section-title" });
+    options.i18n.bindText(tabHeading, "site.tabDiscoveryHeading");
+    tabSection.append(tabHeading);
     const current = el("div", { class: "mb-discovery-grid" });
     current.append(
-        labelled("Current tab strip", createTabStripSearch({ host: tabHost }).element),
-        labelled("Tab groups", createTabGroupNameSearch({ host: tabHost }).element),
-        labelled("Every open tab", createMasterTabSearch({ host: tabHost }).element),
+        labelled(options.i18n.t("site.currentStrip"), createTabStripSearch({ host: tabHost }).element),
+        labelled(options.i18n.t("site.tabGroups"), createTabGroupNameSearch({ host: tabHost }).element),
+        labelled(options.i18n.t("site.everyOpenTab"), createMasterTabSearch({ host: tabHost }).element),
     );
     for (const group of tabHost.listGroups()) {
-        current.append(labelled(`Group: ${group.label}`, createTabGroupSearch({ host: tabHost, groupId: group.id, groupLabel: group.label }).element));
+        current.append(labelled(options.i18n.t("site.groupPrefix", { name: group.label }), createTabGroupSearch({ host: tabHost, groupId: group.id, groupLabel: group.label }).element));
     }
     tabSection.append(current);
-    tabSection.append(el("h3", { class: "mb-section-title", text: "Bulk close actions" }));
+    const bulkHeading = el("h3", { class: "mb-section-title" });
+    options.i18n.bindText(bulkHeading, "site.bulkCloseHeading");
+    tabSection.append(bulkHeading);
     tabSection.append(createBulkCloseControls({ host: tabHost }).element);
     root.append(tabSection);
     return root;

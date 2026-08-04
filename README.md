@@ -27,7 +27,10 @@ The documentation site is a Material 3 tabbed application, not a plain scroll: `
 independent regex-builder-backed searches for documentation, settings, tabs, groups and bulk
 close; `Changelog` reads the committed release history with date filters and export; `Settings`
 persists language mode, both funny-level sliders and per-element appearance controls; and
-`Ctrl+Shift+F` opens the searchable command palette. These surfaces are assembled in
+`Ctrl+Shift+F` opens the searchable command palette, and the changelog date filter is an anchored
+calendar with typed ISO/slash dates, month jumps, presets and range selection. Pages copy follows
+the persisted English, Hong Kong Cantonese or bilingual mode and both funny-level sliders while
+search builders refresh their own labels when that choice changes. These surfaces are assembled in
 `design/packages/site/src/main.ts` and verified with the site type checker, Vitest suite and
 Vite production build.
 
