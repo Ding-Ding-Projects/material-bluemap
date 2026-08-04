@@ -24,6 +24,26 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "6b5fdd7f824bbfac05976142e14341059ee860a3",
+        shortSha: "6b5fdd7f82",
+        date: "2026-08-04T14:37:31-04:00",
+        subject: "Close Pages appearance and discovery gaps",
+        details: "Register every rendered Pages element with the Material 3 appearance editor, rebuild independent group searches as user state changes, and move the bulk-close debounce declaration ahead of its eager search-field callback. Add regression coverage and update the handoff and feature docs; the page should not lose its own builder before it has even opened.\\n\\nPages 而家每個畫出嚟嘅 element 都有 Material 3 外觀 editor，user 加減 group 時每組 search 同 regex builder 會獨立重建；bulk-close 個 debounce 亦搬咗去 search field eager callback 之前，唔再未開門先跌低。測試同 handoff 一併更新，個頁面唔應該未開 builder 就先自炒。",
+        category: "site",
+        areas: ["site", "docs"],
+        files: 12,
+    },
+    {
+        sha: "0a99147394dbe1e719df9f3399da8e953a45eb3e",
+        shortSha: "0a99147394",
+        date: "2026-08-04T14:31:17-04:00",
+        subject: "Audit BlueMapGUI feature by feature, from its source rather than its readme",
+        details: "Six thousand lines of Dart read, plus both workflows and the usage\nguide, against this repository's actual files. The result is a gap\ntable with evidence for every row, so nobody has to re-derive it.\n\nThe licence finding governs everything else: the repository has no\nlicence file and the API reports none, which means all rights reserved.\nNothing may be copied - not a file, not a function, not a widget tree,\nnot a distinctive string. Every gap closed from this table is\nreimplemented from observed behaviour.\n\nTwo structural differences explain most of the table. That app drives\none long-running BlueMap process with --watch and --webserver and\nwatches its console; this one renders to completion and serves the\nresult itself. And that app shells out to a bundled jar to read HOCON,\nso it cannot show a project list without Java, while this one parses\nHOCON in TypeScript and keeps the whole config editor working with no\nJVM present. The second is worth defending rather than trading away.\n\nThe audit is as clear about what not to take: a prebuilt jar pinned to\na hardcoded hash, generating configs by running the CLI, and a config\nfile invented in BlueMap's own config directory that BlueMap does not\nread. Each is recorded with the reasoning so it is not rediscovered as\na good idea later.\n\nWhere it is ahead of us it says so plainly - a console with level\ncolouring and sticky scroll, annotating the CLI's own output with\nadvice, a max-RAM ceiling, opening a folder in the file manager, and a\nredirect that keeps a forty-gigabyte tile tree out of OneDrive.\n\n---\n\n讀咗六千行 Dart,連兩個 workflow 同使用指南,再逐項對返本倉庫真實\n嘅檔案。出嚟係一張每行都有證據嘅差距表,唔使第二個人再由頭查一次。\n\n授權嗰項凌駕一切:嗰個 repo 冇 licence 檔,API 亦都報冇,即係\n「保留一切權利」。一個字都唔可以抄 —— 唔抄檔案、唔抄函式、唔抄介面\n結構、唔抄有特色嘅字句。表入面每項要補嘅嘢,一律睇住行為重新寫過。\n\n兩個結構性差異解釋咗大半張表:嗰個 app 開一條長命 BlueMap 進程,用\n--watch 同 --webserver,然後望住個 console;呢個係渲染完就自己 serve\n結果。仲有,嗰個 app 要 shell out 去一個 jar 先讀得到 HOCON,所以冇\nJava 就連專案列表都開唔到;呢個用 TypeScript 自己讀,冇 JVM 都用得\n足成個設定編輯器。第二點值得守,唔值得換。",
+        category: "docs",
+        areas: ["docs"],
+        files: 1,
+    },
+    {
         sha: "8fd2fc5b1f03fa7c4a06e0618b1a1a688825a466",
         shortSha: "8fd2fc5b1f",
         date: "2026-08-04T14:18:40-04:00",

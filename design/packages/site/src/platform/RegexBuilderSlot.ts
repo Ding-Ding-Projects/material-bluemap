@@ -20,6 +20,8 @@ export interface RegexBuilderRequest {
     readonly field: HTMLInputElement | HTMLTextAreaElement;
     readonly pattern: string;
     readonly flags: string;
+    /** Current matching mode, so the provider can reopen the field without changing semantics. */
+    readonly mode?: "plain" | "regex";
     /** Text the builder can preview matches against. Never leaves the browser. */
     readonly sample: string;
     /** Called on every edit, so the originating field and the builder stay in step. */

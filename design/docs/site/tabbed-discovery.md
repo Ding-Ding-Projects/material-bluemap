@@ -10,6 +10,11 @@ group never borrows another field's query or regex state. Both bulk-close direct
 and share the same field-level matcher, with pinned tabs excluded by default and a reviewable
 preview before close.
 
+Every tab, group, overflow, and page-action menu also owns a keyboard-accessible local filter.
+The filter defaults to plain text and its adjacent guided builder can opt into the bounded
+ECMAScript regex engine without changing the menu command semantics. Empty matches are stated in
+the menu itself, and the builder returns focus to the menu field when it closes.
+
 ## Configuration
 
 Search mode is plain text until the visitor opts into regex. The adjacent guided builder owns the
@@ -27,8 +32,9 @@ claiming they closed. Only visible labels/titles are searched; hidden metadata i
 
 `pnpm --filter @material-bluemap/site typecheck`, the site Vitest suite, and the Vite production
 build pass in the Pages rewrite worktree. The discovery regression test mutates the group list and
-proves that the independent group fields appear and disappear with it. Runtime browser capture
-remains a separate evidence boundary.
+proves that the independent group fields appear and disappear with it; `Menu.test.ts` proves the
+menu-owned field filters commands, exposes its builder affordance and reports an honest empty
+state. Runtime browser capture remains a separate evidence boundary.
 
 ## Suggested articles
 

@@ -473,6 +473,11 @@ export class TabStrip {
         const menu = new Menu(this.overflowButton, {
             label: i18n.t("tabs.overflowButton", { count: this.overflowed.length }),
             entries,
+            search: {
+                label: i18n.t("tabs.menu.search"),
+                builderLabel: i18n.t("bulk.builderButton"),
+                noResults: i18n.t("tabs.menu.noItems"),
+            },
             align: "end",
         });
         menu.show();
@@ -565,7 +570,15 @@ export class TabStrip {
             onSelect: () => this.openBulkClose(true, { kind: "all", groupId: null }),
         });
 
-        openContextMenu(anchor, x, y, { label: i18n.t("tabs.menu.pageActions"), entries });
+        openContextMenu(anchor, x, y, {
+            label: i18n.t("tabs.menu.pageActions"),
+            entries,
+            search: {
+                label: i18n.t("tabs.menu.search"),
+                builderLabel: i18n.t("bulk.builderButton"),
+                noResults: i18n.t("tabs.menu.noItems"),
+            },
+        });
     }
 
     private openGroupMenu(anchor: HTMLElement, groupId: string, x: number, y: number): void {
@@ -632,7 +645,15 @@ export class TabStrip {
             onSelect: () => model.removeGroup(groupId),
         });
 
-        openContextMenu(anchor, x, y, { label: i18n.t("tabs.group.actions"), entries });
+        openContextMenu(anchor, x, y, {
+            label: i18n.t("tabs.group.actions"),
+            entries,
+            search: {
+                label: i18n.t("tabs.menu.search"),
+                builderLabel: i18n.t("bulk.builderButton"),
+                noResults: i18n.t("tabs.menu.noItems"),
+            },
+        });
     }
 
     /**
@@ -642,6 +663,8 @@ export class TabStrip {
      */
     private openTabListMenu(): void {
         const { i18n, model, regex } = this.deps;
+        let filterMode: "plain" | "regex" = "plain";
+        let filterFlags = "i";
 
         const header = el("div", { class: "tab-list__header" });
         const filterId = "tab-list-filter";
@@ -660,9 +683,12 @@ export class TabStrip {
                     anchor: builder,
                     field: filter,
                     pattern: filter.value,
-                    flags: "i",
+                    flags: filterFlags,
+                    mode: filterMode,
                     sample: model.allIds().map((id) => model.label(id)).join("\n"),
                     onChange: (next) => {
+                        filterMode = "regex";
+                        filterFlags = next.flags;
                         filter.value = next.pattern;
                         rebuild();
                     },
@@ -683,9 +709,9 @@ export class TabStrip {
         });
 
         const rebuild = (): void => {
-            const spec = { query: filter.value, mode: "plain" as const, caseSensitive: false };
+            const spec = { query: filter.value, mode: filterMode, caseSensitive: !filterFlags.includes("i") };
             const matcher = compileMatcher(spec);
-            const keep = (label: string): boolean => !matcher.ok || matcher.test(label);
+            const keep = (label: string): boolean => filter.value.length === 0 || (matcher.ok && matcher.test(label));
 
             const entries: MenuEntry[] = [];
             const open = model.openIds().filter((id) => keep(model.label(id)));

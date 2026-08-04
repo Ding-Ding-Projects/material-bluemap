@@ -43,7 +43,7 @@ are preserved for round-trip export, and the editor has no network or analytics 
 - Appearance target traversal test — passed (every rendered element is included; script/style/
   template plumbing is excluded).
 - `pnpm lint` — passed.
-- `pnpm --filter @material-bluemap/site exec vitest run` — 127 tests passed across 13 files.
+- `pnpm --filter @material-bluemap/site exec vitest run` — 132 tests passed across 16 files.
 - Hosted CI run `30890865475` — screenshot suite and all build/test jobs passed.
 - Pages deployment `30892326119` — Build site and Deploy to Pages passed.
 

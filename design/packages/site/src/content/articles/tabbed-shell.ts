@@ -9,7 +9,7 @@ export const tabbedShell: Article = {
     category: "application",
     status: "shipped",
     statusNote:
-        "On the default branch and mounted by the shell, with six test files running in CI covering the model, the four searches, the close plans, storage, the menus and the mounted strip. The Pages strip now opens the anchored tab and group appearance editor from normal and Shift+right-click menus; the desktop application's equivalent remains a separate gap, so the wider cross-surface contract is still open.",
+        "On the default branch and mounted by the shell, with six test files running in CI covering the model, the four searches, the close plans, storage, the menus and the mounted strip. Pages tab, group, overflow and page-action menus now each own a plain-text filter with an adjacent guided regex builder; the desktop application's equivalent remains a separate gap, so the wider cross-surface contract is still open.",
 
     sections: [
         {
@@ -24,6 +24,12 @@ export const tabbedShell: Article = {
                         "questions like where a tab goes when it is unpinned, what happens to a group's members ",
                         "when the group is removed, and which tab becomes active when the active one closes each ",
                         "have exactly one right answer that a unit test proves in a line.",
+                    ],
+                },
+                {
+                    kind: "paragraph",
+                    content: [
+                        "The menus are searches too, not decorative lists. The tab, group, overflow and page-action menus each paint their own keyboard-accessible filter, keep plain text as the default, and place the guided regex builder beside the field. A query narrows only that menu's visible commands; an empty result is named in the menu, and closing the builder returns focus to the field rather than dropping the visitor at the document root.",
                     ],
                 },
                 {
@@ -209,6 +215,10 @@ export const tabbedShell: Article = {
                         [
                             { code: "TabbedNavigation.test.ts" },
                             "Mounted: roles and roving focus, arrow keys stopping at the ends, Home and End, the advertised keyboard commands, a compact pinned tab keeping its name, a collapsed group drawn as a header with name, count and state, its members out of the focus order, and the layout written and read back on the next mount.",
+                        ],
+                        [
+                            { code: "Menu.test.ts" },
+                            "A menu-owned search field is labelled and linked to its command list, filters only matching commands, exposes the adjacent builder affordance, and reports a no-results state without changing command behaviour.",
                         ],
                     ],
                 },

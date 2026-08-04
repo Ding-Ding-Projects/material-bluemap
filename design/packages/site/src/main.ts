@@ -69,6 +69,9 @@ import { registerAppearanceTarget } from "./appearance/editor/contextMenu.js";
 import { appearanceElements } from "./appearance/editor/coverage.js";
 import { setSearchLocale } from "./search/strings.js";
 import { createSearchSurface } from "./search/searchSurface.js";
+import { createBuilderController } from "./search/builderPanel.js";
+import { sharedRegexEvaluator } from "./search/evaluator.js";
+import { SearchQueryModel } from "./search/queryModel.js";
 import type { CandidateField } from "./search/runSearch.js";
 import type { NotificationRecord } from "./notifications/Notifications.js";
 
@@ -627,6 +630,40 @@ function boot(): void {
     const appearance = new AppearanceController(prefs);
     const shortcuts = new ShortcutRegistry();
     const regex = new RegexBuilderSlot();
+    let regexFieldId = 0;
+    regex.provide({
+        open(request) {
+            regexFieldId += 1;
+            const regexMode = request.mode === "regex";
+            const model = new SearchQueryModel({
+                fieldId: `shell-regex-${regexFieldId}`,
+                initialMode: regexMode ? "regex" : "text",
+                initialQuery: regexMode ? "" : request.field.value,
+                initialFlags: request.flags,
+                persist: false,
+            });
+            if (regexMode) model.setPattern(request.pattern);
+            const unsubscribe = model.subscribe((snapshot) => {
+                if (request.field.value !== snapshot.fieldValue) request.field.value = snapshot.fieldValue;
+                request.onChange({ pattern: snapshot.pattern, flags: snapshot.flags });
+            });
+            const controller = createBuilderController({
+                model,
+                evaluator: sharedRegexEvaluator(),
+                fieldLabel: "Search",
+                sampleProvider: () => request.sample,
+                anchor: request.anchor,
+                returnFocusTo: request.field,
+            });
+            controller.toggle();
+            return {
+                close() {
+                    unsubscribe();
+                    controller.destroy();
+                },
+            };
+        },
+    });
 
     const notificationHost = el("div", "mb-notification-host");
     document.body.appendChild(notificationHost);
