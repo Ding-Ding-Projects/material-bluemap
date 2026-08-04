@@ -668,5 +668,46 @@ jobs:
             --title "material-bluemap ${{ steps.tag.outputs.tag }}" \
             --notes-file release-notes.md \
             "${assets[@]}"
+
+          # The release notes are assembled before publication because they contain
+          # the artifact tables and line count. Add the end-to-end stopwatch after
+          # `gh release create` returns so the completed timestamp covers the actual
+          # publication, not merely note composition. The first job's startedAt is
+          # read from the run itself rather than inferred from this job's clock.
+          workflow_started=$(gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.startedAt != null and .startedAt != "0001-01-01T00:00:00Z") | .startedAt] | sort | .[0]')
+          if [ -z "$workflow_started" ] || [ "$workflow_started" = "null" ]; then
+            echo "::error::could not resolve the first job start time for end-to-end release timing"
+            exit 1
+          fi
+          workflow_completed=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          workflow_started_epoch=$(date -u -d "$workflow_started" +%s)
+          workflow_completed_epoch=$(date -u -d "$workflow_completed" +%s)
+          workflow_duration_seconds=$((workflow_completed_epoch - workflow_started_epoch))
+          if [ "$workflow_duration_seconds" -lt 0 ]; then
+            echo "::error::workflow timing went backwards: $workflow_started -> $workflow_completed"
+            exit 1
+          fi
+          workflow_duration=$(printf '%02d:%02d:%02d' \
+            $((workflow_duration_seconds / 3600)) \
+            $(((workflow_duration_seconds % 3600) / 60)) \
+            $((workflow_duration_seconds % 60)))
+          {
+            echo
+            echo "## Workflow timing"
+            echo
+            echo "- Workflow started: $workflow_started"
+            echo "- Workflow completed: $workflow_completed"
+            echo "- Workflow duration: $workflow_duration"
+          } >> release-notes.md
+          gh release edit "${{ steps.tag.outputs.tag }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --notes-file release-notes.md
+          published_notes=$(gh release view "${{ steps.tag.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
+          for required_timing in "Workflow started:" "Workflow completed:" "Workflow duration:"; do
+            if ! grep -Fq "$required_timing" <<< "$published_notes"; then
+              echo "::error::published release notes are missing $required_timing"
+              exit 1
+            fi
+          done
           gh release view "${{ steps.tag.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --json isDraft,assets \
             --jq 'if .isDraft then error("release was published as a draft") else "published with \(.assets | length) assets" end'
