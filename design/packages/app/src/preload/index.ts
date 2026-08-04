@@ -10,6 +10,18 @@ import type {
     CiSyncState,
 } from "../main/cirender/index.js";
 import type {
+    Answer as PagesAnswer,
+    PagesCandidate,
+    PagesEvent,
+    PagesOwner,
+    PagesPreflight,
+    PagesPublishRequest,
+    PagesRecord,
+    PagesResult,
+    PagesStopResult,
+    PagesTarget,
+} from "../main/pages/index.js";
+import type {
     MapStorageDefaultReadout,
     RenderMemoryReadout,
     RenderMemoryWriteResult,
@@ -1462,6 +1474,34 @@ interface MaterialBlueMapBridge {
     cancelCiRender(syncId: string): Promise<boolean>;
     onCiRenderEvent(listener: (event: CiSyncEvent) => void): () => void;
 
+    /* ---- Hosting a rendered map on GitHub Pages -------------------------- */
+
+    /** Renders on this computer with a web root worth publishing. */
+    pagesRenders(): Promise<PagesAnswer<readonly PagesCandidate[]>>;
+    /** The account, and every organisation it can write to. */
+    pagesOwners(): Promise<PagesAnswer<readonly PagesOwner[]>>;
+    /**
+     * What publishing would do, before it does any of it.
+     *
+     * Writes nothing: the static-host preparation runs in preview mode, and the repository is
+     * only read. `blockers` being non-empty means the publish button must not be pressed.
+     */
+    pagesPreflight(request: PagesTarget): Promise<PagesAnswer<PagesPreflight>>;
+    /**
+     * Prepares, stages, force-pushes the publishing branch, turns Pages on and waits.
+     *
+     * Refuses when the branch exists and carries no marker written by this application, so a
+     * mistyped repository name cannot replace somebody else's site.
+     */
+    publishPages(request: PagesPublishRequest): Promise<PagesResult>;
+    /** Turns Pages off and deletes the publishing branch. Destructive; gated in the interface. */
+    stopPagesHosting(request: PagesTarget): Promise<PagesStopResult>;
+    cancelPagesPublish(renderId: string): Promise<boolean>;
+    activePagesPublishes(): Promise<readonly string[]>;
+    /** What this computer remembers publishing, so a site can be found again and taken down. */
+    publishedPages(): Promise<PagesAnswer<readonly PagesRecord[]>>;
+    onPagesEvent(listener: (event: PagesEvent) => void): () => void;
+
     updateState(): Promise<UpdateState>;
     checkForUpdates(): Promise<UpdateState>;
     /**
@@ -1669,6 +1709,22 @@ const bridge: MaterialBlueMapBridge = {
         ipcRenderer.on("cirender:event", forward);
         return () => {
             ipcRenderer.off("cirender:event", forward);
+        };
+    },
+
+    pagesRenders: () => ipcRenderer.invoke("pages:renders"),
+    pagesOwners: () => ipcRenderer.invoke("pages:owners"),
+    pagesPreflight: (request) => ipcRenderer.invoke("pages:preflight", request),
+    publishPages: (request) => ipcRenderer.invoke("pages:publish", request),
+    stopPagesHosting: (request) => ipcRenderer.invoke("pages:stop", request),
+    cancelPagesPublish: (renderId) => ipcRenderer.invoke("pages:cancel", renderId),
+    activePagesPublishes: () => ipcRenderer.invoke("pages:active"),
+    publishedPages: () => ipcRenderer.invoke("pages:published"),
+    onPagesEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: PagesEvent): void => listener(payload);
+        ipcRenderer.on("pages:event", forward);
+        return () => {
+            ipcRenderer.off("pages:event", forward);
         };
     },
 
