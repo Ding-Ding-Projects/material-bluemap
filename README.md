@@ -327,6 +327,42 @@ At the latest release the project is **97,723 lines** hand written across 607 fi
 lines across 1,021 files counting bundled data. Every release publishes the full breakdown,
 generated at the tagged commit by `scripts/count-lines.mjs`.
 
+## Rendering on GitHub Actions, for computers that cannot render locally
+
+Rendering a big Minecraft world is hours of CPU and gigabytes of disk. On a thin laptop
+that is an afternoon of the fan at full speed and, on some machines, a render that never
+finishes at all. **The point of this feature is that your computer does not do the work:**
+a GitHub standard runner has 4 vCPU, around 14 GB of free disk and nothing else to do, and
+the `Render world` workflow will use as many of them in parallel as the world needs. Your
+machine uploads the world and then waits.
+
+The desktop app drives the whole loop as one action — upload the world as release assets,
+start the workflow, follow the run and report its real per-job states, download the
+finished map, and register it so it opens exactly like a local render. It reuses the backup
+subsystem for the upload, the download subsystem for the transfer, and the render subsystem
+for the mount; there is no second uploader, downloader or credential anywhere in it. It is
+resumable, so closing the app during a four-hour render and reopening it afterwards picks
+the run back up, and it will not upload a world it can see has not changed. It can drive
+GitHub through the app's own sign-in or through an authenticated `gh` CLI, and it says
+which credential is in play.
+
+**The trade-offs, because advertising without them wastes an afternoon:**
+
+- uploading a multi-gigabyte world takes real time and bandwidth — that is the slow part now;
+- GitHub's free Actions minutes are finite for **private** repositories, while **public**
+  repositories get unlimited standard-runner minutes;
+- a very large world can still exceed a job's six-hour budget, and a world whose archive
+  would pass a release asset's 2 GiB limit is refused before anything is packed;
+- uploading a world sends it to GitHub, and a **public** repository makes it downloadable
+  by anybody. The app says both plainly and refuses without an explicit acknowledgement.
+
+Mojang's EULA is a real legal acceptance the workflow makes on the repository owner's
+behalf. The app never accepts it for you: it checks the consent given at first run and
+refuses when it is missing.
+
+[`docs/render-in-actions.md`](docs/render-in-actions.md) has the whole design, including
+how the shard merge is kept correct.
+
 ## Documentation
 
 **[ding-ding-projects.github.io/material-bluemap](https://ding-ding-projects.github.io/material-bluemap/)**

@@ -1,5 +1,20 @@
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import type { IpcRendererEvent } from "electron";
+import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
+import type {
+    CiPreflight,
+    CiSyncEvent,
+    CiSyncRequest,
+    CiSyncResult,
+    CiSyncState,
+} from "../main/cirender/index.js";
+import type {
+    MapStorageDefaultReadout,
+    RenderMemoryReadout,
+    RenderMemoryWriteResult,
+    RevealResult,
+    RevealRootReadout,
+} from "../main/files/index.js";
 import type {
     BackupEvent,
     BackupListing,
@@ -1314,6 +1329,57 @@ interface MaterialBlueMapBridge {
      */
     project: ProjectBridge;
 
+    /* ---- Keeping the application current ------------------------------- */
+
+    /**
+     * What the updater knows right now.
+     *
+     * Only a *description* of the feed crosses, never its token: the credential stays in
+     * the main process, and a test serialises this whole object to prove it is not in here.
+     */
+    /* ---- Handing a render to GitHub's machines --------------------------- */
+
+    /**
+     * What a sync would do, before it does any of it.
+     *
+     * Says which credential route would be used, whether the world has to be uploaded at
+     * all, what the repository's visibility means, and what a workflow's inputs cannot
+     * carry - so the refusals arrive before an upload rather than inside one.
+     */
+    ciRenderPreflight(request: CiSyncRequest): Promise<{ ok: true; value: CiPreflight } | { ok: false; message: string }>;
+    startCiRender(request: CiSyncRequest): Promise<CiSyncResult>;
+    /** Polls a recorded run without starting anything. Resuming and starting are one call. */
+    checkCiRender(syncId: string): Promise<CiSyncResult>;
+    listCiRenders(): Promise<{ ok: true; value: readonly CiSyncState[] } | { ok: false; message: string }>;
+    cancelCiRender(syncId: string): Promise<boolean>;
+    onCiRenderEvent(listener: (event: CiSyncEvent) => void): () => void;
+
+    updateState(): Promise<UpdateState>;
+    checkForUpdates(): Promise<UpdateState>;
+    /**
+     * Quits into the installer, if nothing is in the way.
+     *
+     * Refuses rather than throwing when a render is running: that is hours of work, and
+     * this is the moment the guard is re-read rather than an earlier sample.
+     */
+    restartToInstallUpdate(): Promise<UpdateRestartResult>;
+    onUpdateEvent(listener: (state: UpdateState) => void): () => void;
+
+    /* ---- Folders this application owns ---------------------------------- */
+
+    /** Shows a path in Explorer. Refused unless it is inside a folder this app owns. */
+    revealPath(path: string): Promise<RevealResult>;
+    /** Those folders, read fresh, so a storage directory somebody moved is the one allowed. */
+    revealRoots(): Promise<RevealRootReadout[]>;
+    /** Where rendered maps would go by default, and why, when OneDrive moved Documents. */
+    mapStorageDefault(): Promise<MapStorageDefaultReadout>;
+    /** The ceiling the render JVM runs under, with the units stated both ways. */
+    renderMemory(): Promise<RenderMemoryReadout>;
+    setRenderMemory(setting: {
+        mode: "automatic" | "manual";
+        megabytes: number;
+    }): Promise<RenderMemoryWriteResult>;
+
     /* ---- Backing a world or a rendered map up to GitHub ------------------ */
 
     /** Repositories the signed-in account can actually write to. */
@@ -1453,6 +1519,36 @@ const bridge: MaterialBlueMapBridge = {
         // where the separator is the platform's own.
         pathSeparator: process.platform === "win32" ? "\\" : "/",
     },
+
+    ciRenderPreflight: (request) => ipcRenderer.invoke("cirender:preflight", request),
+    startCiRender: (request) => ipcRenderer.invoke("cirender:start", request),
+    checkCiRender: (syncId) => ipcRenderer.invoke("cirender:check", syncId),
+    listCiRenders: () => ipcRenderer.invoke("cirender:list"),
+    cancelCiRender: (syncId) => ipcRenderer.invoke("cirender:cancel", syncId),
+    onCiRenderEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: CiSyncEvent): void => listener(payload);
+        ipcRenderer.on("cirender:event", forward);
+        return () => {
+            ipcRenderer.off("cirender:event", forward);
+        };
+    },
+
+    updateState: () => ipcRenderer.invoke("update:state"),
+    checkForUpdates: () => ipcRenderer.invoke("update:check"),
+    restartToInstallUpdate: () => ipcRenderer.invoke("update:restart"),
+    onUpdateEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, state: UpdateState): void => listener(state);
+        ipcRenderer.on("update:event", forward);
+        return () => {
+            ipcRenderer.off("update:event", forward);
+        };
+    },
+
+    revealPath: (path) => ipcRenderer.invoke("files:reveal", path),
+    revealRoots: () => ipcRenderer.invoke("files:revealRoots"),
+    mapStorageDefault: () => ipcRenderer.invoke("files:mapStorageDefault"),
+    renderMemory: () => ipcRenderer.invoke("files:renderMemory"),
+    setRenderMemory: (setting) => ipcRenderer.invoke("files:setRenderMemory", setting),
 
     project: {
         read: (worldFolder) => ipcRenderer.invoke("project:read", worldFolder),

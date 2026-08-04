@@ -1,8 +1,34 @@
 # Rendering a world in GitHub Actions
 
-Render a Minecraft world into a BlueMap map without installing anything: no Java, no
-BlueMap, no local machine doing the work. Start the **Render world** workflow, wait, and
-download the map as an artifact.
+**This is for computers that cannot render a big world themselves.** Rendering is hours of
+CPU and gigabytes of disk; on a thin laptop that is an afternoon of the fan at full speed
+and, on some machines, a render that never finishes. A GitHub standard runner has 4 vCPU,
+around 14 GB of free disk and nothing else to do, and this workflow will use as many of
+them in parallel as the world needs. Your machine uploads the world and then waits.
+
+No Java, no BlueMap and no local rendering: start the **Render world** workflow, wait, and
+download the map as an artifact. The desktop app can drive the whole loop for you — see
+[Doing it from the app](#doing-it-from-the-app) — and the map it brings back opens exactly
+like one rendered locally.
+
+### The price of that, stated up front
+
+Advertising the upside alone is how somebody wastes an afternoon, so:
+
+- **Uploading is the slow part now.** The world has to reach GitHub before anything can
+  render it. A multi-gigabyte world on a domestic connection is measured in hours, not
+  minutes, and it is bandwidth you pay for either in time or in a cap.
+- **A private repository's Actions minutes are finite.** Public repositories get unlimited
+  standard-runner minutes; private ones spend from a monthly allowance, and a sharded
+  render spends one runner-minute per runner per minute — a 30-way split burns thirty
+  times the wall-clock time.
+- **A very large world can still exceed a job's budget.** Six hours is the hard limit per
+  job; the plan splits to stay under it, and a world that needs more shards than the six
+  declared waves can hold fails in the plan step rather than rendering part of itself.
+- **There is an upload ceiling.** A world whose archive would pass a release asset's 2 GiB
+  limit cannot be sent as one asset, which is what the `release-asset` source reads.
+
+None of that makes it a bad trade for the machine this exists for. It makes it a trade.
 
 When the world is too big for one job, the workflow splits it across parallel jobs and
 merges the results. Getting that merge right is most of what this document is about,
@@ -13,6 +39,7 @@ quietly incorrect.
 <summary><b>Contents</b></summary>
 
 - [Running it](#running-it)
+- [Doing it from the app](#doing-it-from-the-app)
 - [Mojang's EULA](#mojangs-eula)
 - [How the split is decided](#how-the-split-is-decided)
 - [Why shard edges land on block 32k+2](#why-shard-edges-land-on-block-32k2)
@@ -75,11 +102,102 @@ The two workflows share the `pages` concurrency group so they queue instead of r
 and the run summary says this out loud. If you want both permanently, publish the map
 somewhere else.
 
+## Doing it from the app
+
+`design/packages/app/src/main/cirender/` drives the five manual steps above as one action:
+
+```
+upload the world  ->  start the workflow  ->  follow the run  ->  fetch the map  ->  register it
+   (main/backup/)      (cirender/actions)     (cirender/sync)    (main/download/)   (main/render/)
+```
+
+It reuses what already exists rather than reimplementing any of it. The upload is the
+backup subsystem — the same deterministic packer, the same append-only release rules, the
+same public-repository warning, word for word ([backup.md](backup.md)). The transfer and
+the unpack are the download subsystem's own. The credential comes from the app's GitHub
+session. The map is mounted by the render subsystem, so it appears in the map list beside
+every local render and the viewer cannot tell the two apart.
+
+### What it refuses, and why each refusal exists
+
+| Refusal | Why |
+| --- | --- |
+| `eula-not-accepted` | Mojang's licence has not been accepted on this computer. The app will not accept it for somebody; it points at the setting that already asks. |
+| `public-not-acknowledged` | The repository is PUBLIC and the warning has not been accepted. A world carries builds, coordinates and whatever a friend left in a chest. |
+| `upload-not-acknowledged` | Uploading a world sends it to GitHub, and that is said in as many words before it happens rather than after. |
+| `world-too-large` | The archive would pass a release asset's 2 GiB limit. Refused **before** anything is packed, from the folder's own byte total. |
+| `unsupported-dimension` | The project's map renders a dimension the workflow's `dimension` choice does not offer. Caught here rather than as GitHub's generic 422. |
+| `map-shipped-in-parts` | The run published `map-lowres` plus hires parts. Unpacking the lowres alone gives a map that loads and has no detail at any zoom, which reads as a broken render. |
+| `run-failure`, `run-timed_out`, ... | The run ended badly. The failing job is named and the tail of its log is carried back, and **no map is downloaded or registered**. |
+
+### An unchanged world is not uploaded twice
+
+Before packing anything, the world is fingerprinted: one `stat` pass hashing each file's
+relative path, size and modification time. If that matches what was uploaded last time
+**and** GitHub still holds that asset on that release, the upload is skipped entirely and
+the workflow is dispatched against the release that is already there.
+
+Both halves matter. The local record says what *was* uploaded; only GitHub can say what is
+still there, and a release somebody deleted by hand would otherwise have a re-sync dispatch
+a run whose first step cannot find the world. The fingerprint is a change detector rather
+than a content digest — a file edited and restored to exactly its old size *and* mtime
+reads as unchanged — so there is a **Upload again even if the world looks unchanged**
+control for the case where it is wrong. Computing the real digest means packing the whole
+world, which is most of the cost of the upload it would be avoiding.
+
+### It resumes, because closing the app is the likeliest interruption
+
+Every durable fact is written down as it happens: the fingerprint that was uploaded, the
+tag and asset it went to, the run that dispatch produced, and how it ended. There is no
+separate resume command — starting a sync reads that record first, so closing the
+application during a four-hour render and reopening it afterwards finds the run by its id,
+reads its outcome, and collects the map.
+
+### Two GitHub credentials, one chosen per sync
+
+A typical machine holds two: the app's own sign-in and `gh`'s. They are not
+interchangeable — `gh` routinely carries an enterprise host, an SSO session an organisation
+has already authorised, or scopes the in-app flow never asked for. So:
+
+- the **in-app sign-in is preferred** when it exists and can actually see the workflow;
+- **`gh` is a real fallback**, not an error message: `gh` on `PATH` plus `gh auth status`
+  succeeding is enough to dispatch, follow and download without signing in to the app;
+- "gh is not installed" and "gh is installed but nobody is signed in" are reported as
+  different sentences, because they have different remedies;
+- whichever is chosen **drives every call of that sync**. Dispatching on one credential and
+  downloading on another works on a machine where both are authorised and fails halfway
+  through on one where only one is;
+- the route is shown on the screen before the button and named on every failure, because
+  "permission denied" is unactionable when a person cannot tell which of their two sign-ins
+  was refused.
+
+`gh auth login` is **never** driven from inside the app. It suppresses its device-code
+prompt when stdin is not a terminal, so a spawned one prints nothing and hangs for ever;
+the app says which command to run in a real terminal and detects the result on the next
+check. Uploading is the one thing `gh` cannot do here: an upload is a backup, and rerouting
+it would mean a second uploader with its own release rules. With only `gh` available a
+world that is already published renders, and one that needs uploading is refused with that
+exact reason.
+
+### What the workflow cannot be told
+
+The map's own `maps/<id>.conf` is ninety-odd settings of HOCON and there are nine
+`workflow_dispatch` inputs, of a documented maximum of ten. **None of the map config travels
+through them.** A CI render uses BlueMap's defaults for everything the inputs do not name.
+The app reads the project's map config, lists the top-level keys it holds, and says which
+settings will not be applied — before the dispatch, not after the picture comes back
+looking ordinary.
+
 ## Mojang's EULA
 
 This workflow accepts [Mojang's EULA](https://www.minecraft.net/eula) on behalf of the
 repository owner, who has already accepted it in the desktop application. There is no
 tick box and no second confirmation: dispatch the workflow and it renders.
+
+The desktop app checks that acceptance before it dispatches anything, and refuses when it
+is missing. It has no tick box of its own for it either: the acceptance lives in one place,
+asked once at first run, and a second door onto a legal acceptance is how one becomes a
+button people click to get on with what they were doing.
 
 The acceptance is real and worth stating plainly. BlueMap downloads a Minecraft client
 jar from Mojang's servers to get the block models and textures, and it cannot render a
@@ -471,6 +589,14 @@ world: it exercised no mods, no custom resource pack, and one flat generated ter
   part; it is proportional to the lod-1 tile count, not to the hires tile count.
 - **`rstate` is not merged**, so a later incremental render of the merged map re-renders
   everything.
+- **The app's CI sync sends the world as one release asset**, so its ceiling is GitHub's
+  2 GiB per asset — refused before packing rather than discovered after an hour of it. A
+  larger world can still be rendered by this workflow through the `repository` or `url`
+  sources, or dimension by dimension.
+- **The app collects only the single `rendered-map` artifact.** A map that shipped in parts
+  is refused with the artifacts named, and assembled by hand from the run summary.
+- **Cancelling a sync in the app stops watching the run, not the run.** A render already
+  going on GitHub carries on there, and a later sync can still collect it.
 
 ## Running the pieces locally
 
