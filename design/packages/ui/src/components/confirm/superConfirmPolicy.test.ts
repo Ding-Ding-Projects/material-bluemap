@@ -353,6 +353,29 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "inventory covers the route rather than only the call, and so a future change that " +
             "makes it required is noticed as a count that has drifted from zero.",
     },
+    "components/remote/RemoteTargetEditor.vue": {
+        count: 1,
+        destroys: "one saved remote machine: its host, port, account name and the path to its key file",
+        standing: "reversible",
+        note:
+            "Nothing on any disk and nothing on the remote host. What is forgotten is four " +
+            "short fields the same form writes again in half a minute, and it deliberately " +
+            "cannot forget a secret because there is none in a target: the identity file is " +
+            "recorded as a path this application never opens, and there is no password field " +
+            "anywhere in the feature. Forgetting a machine also never touches a render in " +
+            "flight on it, which is stopped from the run panel and is declared there.",
+    },
+    "components/remote/remoteTargets.ts": {
+        count: 1,
+        destroys: "one entry of the saved-machines list, as a list operation",
+        standing: "reversible",
+        note:
+            "The pure function behind the row's Forget, in the same position as " +
+            "components/setup/setupPrefs.ts: it returns a new array without one entry and " +
+            "performs no deletion of its own. Which machine is forgotten, and whether that " +
+            "matters, is a question about the caller, and that caller is declared in its own " +
+            "right immediately above.",
+    },
     "components/menu/SettingsMenu.vue": {
         count: 2,
         destroys: "every saved viewer setting in this browser, followed by a reload",

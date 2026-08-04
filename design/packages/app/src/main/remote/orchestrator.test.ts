@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { RenderEvent, ResolvedEngine } from "../render/orchestrator.js";
 import type { EngineChildProcess, SpawnEngine } from "../runtime/process.js";
+import { ContainerHandoffStore, type ContainerHandoff } from "../runtime/handoff.js";
 import { RemoteRenderOrchestrator } from "./orchestrator.js";
 import type { PreflightReport } from "./preflight.js";
 import { fakeTransfer, testTarget, type FakeTransfer } from "./fakes.js";
@@ -109,6 +110,7 @@ function harness(
         readonly child?: () => EngineChildProcess & { readonly killed: string[] };
         readonly keepRemoteFiles?: boolean;
         readonly consent?: boolean;
+        readonly handoff?: ContainerHandoffStore;
     } = {},
 ): Harness {
     const events: RenderEvent[] = [];
@@ -132,6 +134,7 @@ function harness(
             knownHostsFile: join(workDir, "known_hosts"),
             preflight: () => Promise.resolve(options.preflight ?? healthyPreflight()),
             transfer: () => transfer,
+            ...(options.handoff === undefined ? {} : { handoff: options.handoff }),
             spawn,
         }),
     };
@@ -384,5 +387,72 @@ describe("a remote render that fails part way", () => {
         expect(result.ok).toBe(false);
         if (result.ok) return;
         expect(result.failure.remoteCode).toBe("render-failed");
+    });
+});
+
+/**
+ * The note that makes a remote render survivable.
+ *
+ * Its whole job is to exist during the window the app is not watching the container, so
+ * the two things worth proving are that it is there *while* the render runs and gone after
+ * it, whichever way it ended - a note left behind offers to reattach to a container that
+ * has already been removed.
+ */
+/** A store that keeps what it was asked to write, so the ordering can be asserted. */
+class RecordingStore extends ContainerHandoffStore {
+    readonly started: ContainerHandoff[] = [];
+
+    override async start(
+        input: Parameters<ContainerHandoffStore["start"]>[0],
+    ): Promise<ContainerHandoff> {
+        const record = await super.start(input);
+        this.started.push(record);
+        return record;
+    }
+}
+
+describe("the container's name, written down", () => {
+    it("records the container, its host and where its output goes, before it starts", async () => {
+        const handoff = new RecordingStore({ storageDir: () => storageDir, instanceId: "this-app" });
+        let writtenBeforeSpawn = -1;
+        const { orchestrator } = harness({
+            handoff,
+            child: () => {
+                // Read synchronously at the moment the container is spawned. The window
+                // between writing the note and starting the container is exactly the window
+                // in which the app being killed produces an unnamed container on a server.
+                writtenBeforeSpawn = handoff.started.length;
+                return fakeChild({ stdout: RENDER_LOG });
+            },
+        });
+
+        await orchestrator.render(request());
+
+        expect(writtenBeforeSpawn).toBe(1);
+        const record = handoff.started[0];
+        expect(record?.containerName).toBe("material-bluemap-remote-overworld-abc123");
+        expect(record?.mode).toBe("remote");
+        expect(record?.remote?.host).toBe("render.example");
+        expect(record?.remote?.storageRoot).toBe(
+            "/home/renderer/renders/overworld-abc123/web/maps",
+        );
+        expect(record?.storageRoot).toBe(join(storageDir, "overworld-abc123", "web", "maps"));
+    });
+
+    it("removes the note when the render ends, however it ended", async () => {
+        const handoff = new ContainerHandoffStore({ storageDir: () => storageDir, instanceId: "this-app" });
+        const { orchestrator } = harness({
+            handoff,
+            child: () => fakeChild({ stdout: ["[12:45:50 ERROR] something went very wrong\n"], exitCode: 1 }),
+        });
+
+        const result = await orchestrator.render(request());
+        expect(result.ok).toBe(false);
+        expect(await handoff.read("overworld-abc123")).toBeNull();
+    });
+
+    it("renders perfectly well without one, and simply cannot be picked up again", async () => {
+        const { orchestrator } = harness();
+        expect((await orchestrator.render(request())).ok).toBe(true);
     });
 });

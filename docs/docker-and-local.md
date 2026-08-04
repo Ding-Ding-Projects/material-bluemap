@@ -134,6 +134,83 @@ Every container is named, because a name is what `docker stop` and a person read
 both use, and an unnamed container can only be stopped by finding the id of a process the app has
 already lost track of. `--rm` removes it when it ends.
 
+## Picking a container back up after the app closes
+
+The same fact as cancellation, taken one step further. If killing the client does not stop the
+container, then **closing the app does not stop it either** — and unlike a cancel, nobody asked for
+it to stop. The render carries on: tiles keep landing in the bind-mounted output folder, progress
+lines keep being written to a log nobody is reading, and the app that comes back has no idea any of
+it is happening. `render/runner.ts` refuses to put a shell between itself and the JVM precisely to
+avoid an orphan like this; Docker re-creates it by a different route, and there is no way to refuse.
+
+What is missing is never the work — the work is fine, it is still running — it is the **name**. So
+the name is written down before the container starts, beside the render it belongs to:
+
+```
+<storageDir>/<renderId>/
+  render.json      which engine rendered this, and how it ended
+  session.json     what is running right now, and how far it got
+  container.json   which container is doing it, and where its output goes
+```
+
+`container.json` is written *before* `docker run`, because the window between the two is exactly the
+window in which the app being killed leaves a container nothing can name. It is removed on every way
+out of a run, so a note left behind never offers to reattach to something that has already ended,
+and it carries which app instance owns it — a fresh value on every launch, so a note owned by any
+other value is by construction one whose app is gone. That is the same test `session.json` uses and
+for the same reason: process ids are reused, and a stale one that happens to match something
+unrelated would make a dead render look alive forever.
+
+On launch, and whenever asked, each name is put to the daemon. Three answers, three things to do:
+
+| The daemon says | What happens | What you are told |
+|---|---|---|
+| `running` (or `paused`, `restarting`, `created`) | **reattach**: `docker logs --follow --tail all` is streamed and reported as a live render | *…is still going in container 'x' on this computer: the app closed, the daemon carried on. Picking it up rather than starting a second one beside it.* |
+| `exited` | **collect**: the output is a bind mount, so it is already on disk. The exit code is named | *…finished while the app was closed (exit code 137). The tiles it wrote are still where it wrote them…* |
+| no such object | **collect**, honestly. `--rm` removed it the moment it ended | *…it is removed the moment it ends, which is what `--rm` does, and its exit status went with it… run the render again if you need that confirmed. It will only redo what is missing.* |
+| nothing — the daemon is down, or there is no `docker` | **neither.** Nothing collected, nothing discarded, the note kept | *…could not say what became of container 'x'… may well still be going… Try again once that machine answers.* |
+
+**A daemon that is down is never read as a container that is gone.** "The container has ended" means
+collect the output and finish; "the machine that knows about the container did not answer" means the
+render may well still be going. Reporting the second as the first writes off a running render, so an
+unrecognised failure is `unknown` and says so.
+
+Three things worth being exact about:
+
+- **Reattaching is a launch, not a second reporting path.** `docker logs --follow` becomes an
+  ordinary `EngineLaunch`, so the same `EngineProcess`, the same `RenderOutputTracker`, the same
+  phase and progress parsing and the same cancellation apply. A reattached render emits the same
+  `RenderEvent` union as any other: same list, same bar, same cancel button. A second reporting path
+  would mean a render one half of the interface could see and the other could not stop.
+- **`--tail all` replays the log from its first line**, so a render the app missed two hours of
+  arrives at the real percentage rather than resuming with a bar at zero and no map names.
+- **`docker logs` cannot say whether the render succeeded.** Its exit code is the *client's*, and it
+  returns 0 both when a render finished and when it died. So a reattached run is judged by whether
+  the engine printed `Your maps are now all up-to-date!`, and a log that ended without it is a
+  failure rather than a success.
+
+The cost of `--rm` is paid exactly here, and it is a real cost: a container that finished while the
+app was closed has been removed, taking its logs and its exit status with it. Its **output** is
+safe, because the output folder is a bind mount rather than anything inside the container. What is
+not recoverable is the answer to "did it finish?", and the app says that in a sentence rather than
+showing a green tick it cannot justify.
+
+**Offered, never done.** Silently restarting hours of rendering because somebody reopened an app is
+not a favour, and silently discarding the record throws away the only evidence the work exists. The
+interface asks, and a declined offer is recorded so it is made once rather than on every launch.
+
+### What genuinely cannot be picked up
+
+| Situation | What the app says |
+|---|---|
+| the output folder was deleted, or the map storage directory changed | *…is not there, so there is nothing of this render left to pick up… Rendering it again is the only way forward, and it will start from nothing.* |
+| the container was removed | its output is collected; its exit status is stated as unknowable |
+| the daemon did not answer | nothing is collected and **nothing is discarded**; the note is kept, because it is the only evidence a still-running render exists |
+| a container named like this app's, with no record beside it | reported and never stopped automatically: without the record there is no way to know which render it belongs to or where its output was going |
+
+A collection that finds nothing is reported as a **failure**, not a quiet success. The one thing
+worse than losing a render is telling somebody it is on their disk when it is not.
+
 ## Failure modes
 
 | What happens | What the app does |
@@ -146,6 +223,9 @@ already lost track of. `--rm` removes it when it ends.
 | The container is killed for using too much memory | exit 137, which the repair pass reads as an out-of-memory kill even though the JVM printed nothing |
 | The web server never answers | the URL is not reported, and the reason says whether it exited or simply stayed quiet |
 | `docker stop` fails during a cancel | the cancel still completes; this process never waits on a daemon that has gone |
+| The app is closed while a container renders | the container carries on, and the next launch offers to pick it up by name rather than starting a second one |
+| The container ended while the app was closed | its output is collected; its exit status is stated as gone, never guessed at |
+| The daemon is down when the app looks for containers | nothing is collected and nothing is discarded; the note is kept and the offer is made again later |
 
 ## Security considerations
 
@@ -163,7 +243,7 @@ already lost track of. `--rm` removes it when it ends.
 
 ## Verification
 
-`design/packages/app/src/main/runtime/` carries 79 tests, none of which need Docker installed:
+`design/packages/app/src/main/runtime/` carries 126 tests, none of which need Docker installed:
 
 - `docker.test.ts` — every state of the probe, including both platforms' wordings for an
   unreachable daemon, a permission refusal, output that is not the JSON it asked for, and a
@@ -181,7 +261,23 @@ already lost track of. `--rm` removes it when it ends.
   that the engine's own directories are never created on this machine.
 - `webserver.test.ts` — that a URL is reported only after a successful connection, that the
   container case probes the published host port, and the three ways a start can honestly fail.
-- `ipc.test.ts` — the channels, the honest per-mode availability, and that no handler rejects.
+- `handoff.test.ts` — a record round-trips everything a reattach needs; a truncated, version-bumped
+  or name-less one reads as **absent** rather than as a guess; a remote record whose host will not
+  parse is refused rather than degraded to a local one, so `docker stop` is never sent to this
+  computer with a name only another machine has; ownership is taken when a record is picked up, so a
+  second reattach cannot claim it; and a note that cannot be written never fails the render.
+- `attach.test.ts` — the status and the exit code are asked for in **one** call, so they describe
+  one moment; `--tail all`; every state of the inspection, including a daemon that is down never
+  reading as a container that is gone; and the sentence each decision produces.
+- `reattach.test.ts` — **a container still running when the app starts**, reported on the same
+  events with the same percentage; **one that finished while it was away**, whose output is
+  collected rather than thrown away; **one the daemon no longer has**, said plainly; **a cancel that
+  reaches a reattached container**, asking the daemon and reporting cancellation rather than a
+  failure; a log that ended without the engine finishing reported as a failure; a collection that
+  found nothing reported as a failure; a daemon that went quiet leaving the record intact; and a
+  container with no record named rather than stopped.
+- `ipc.test.ts` — the channels, the honest per-mode availability, that no handler rejects, and that
+  a build with no reattacher still answers the container channels rather than not having them.
 
 ## Suggested articles
 
@@ -189,5 +285,7 @@ already lost track of. `--rm` removes it when it ends.
   happens next when one of these runs does not start.
 - [Renders that survive being interrupted](./resumable-renders.md) — what a cancelled or crashed
   render leaves behind, and how the next one resumes.
+- [Rendering on a remote host](./remote-render.md) — the same container problem over SSH, plus a
+  world upload that can be interrupted and carried on.
 - [Rendering a world in GitHub Actions](./render-in-actions.md) — the other place the engine runs
   somewhere that is not this computer.

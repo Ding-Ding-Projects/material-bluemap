@@ -36,6 +36,14 @@ import { RenderMemoryStore, registerFileHandlers, windowsMapStorageDefault } fro
 import { registerEulaHandlers } from "./eula/index.js";
 import { join } from "node:path";
 import { homedir } from "node:os";
+import {
+    ContainerHandoffStore,
+    ContainerReattacher,
+    localContainerAccess,
+    localContainerList,
+} from "./runtime/index.js";
+import { registerRuntimeHandlers } from "./runtime/ipc.js";
+import { containerAccessFor } from "./remote/index.js";
 import { registerWorldSourceHandlers } from "./worldsource/index.js";
 import type { WorldSourceIpc } from "./worldsource/index.js";
 import { RemoteRenderOrchestrator, registerRemoteHandlers } from "./remote/index.js";
@@ -555,6 +563,50 @@ function startWorldSources(render: RenderIpc, downloads: DownloadIpc, github: Gi
  */
 let remoteIpc: RemoteIpc | null = null;
 
+/**
+ * The record that lets a container outlive the application that started it.
+ *
+ * Shared by the local Docker path and the remote one on purpose. A container is a
+ * container: whichever daemon owns it, the app needs the same four facts to pick it back
+ * up - its name, its host, what it was rendering and where the output belongs - and two
+ * stores would mean a render that one half of the app could resume and the other could not.
+ */
+let containerHandoff: ContainerHandoffStore | null = null;
+
+function handoffStore(render: RenderIpc): ContainerHandoffStore {
+    containerHandoff ??= new ContainerHandoffStore({ storageDir: () => render.storageDirectory() });
+    return containerHandoff;
+}
+
+/**
+ * Docker's state, the runnable modes, and containers left behind by an earlier session.
+ *
+ * Reattaching reports on the RENDER channel rather than one of its own, because a picked-up
+ * render is a render: same list, same bar, same cancel button. A second channel would mean a
+ * second list, and a render in one of them that the other could neither show nor stop.
+ */
+let runtimeIpc: { dispose(): void } | null = null;
+
+function startRuntime(render: RenderIpc): void {
+    if (runtimeIpc !== null) return;
+    const knownHostsFile = join(app.getPath("userData"), "known_hosts");
+    const reattacher = new ContainerReattacher({
+        store: handoffStore(render),
+        access: containerAccessFor({
+            local: localContainerAccess(),
+            remote: { knownHostsFile, userKnownHostsFile: join(homedir(), ".ssh", "known_hosts") },
+        }),
+        listContainers: localContainerList(),
+        onEvent: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(RENDER_EVENT_CHANNEL, event);
+            }
+        },
+    });
+    runtimeIpc = registerRuntimeHandlers(ipcMain, { reattacher });
+    app.on("will-quit", () => runtimeIpc?.dispose());
+}
+
 function startRemoteRendering(render: RenderIpc): RemoteIpc {
     if (remoteIpc !== null) return remoteIpc;
     const knownHostsFile = join(app.getPath("userData"), "known_hosts");
@@ -572,6 +624,8 @@ function startRemoteRendering(render: RenderIpc): RemoteIpc {
         },
         knownHostsFile,
         userKnownHostsFile: join(homedir(), ".ssh", "known_hosts"),
+        // Without this a remote render still works and simply cannot be picked up again.
+        handoff: handoffStore(render),
     });
     remoteIpc = registerRemoteHandlers(ipcMain, { orchestrator, knownHostsFile });
     return remoteIpc;
@@ -587,6 +641,7 @@ async function createWindow(): Promise<void> {
     startBackups(render, github);
     startCiRenders(render, github, startBackups(render, github));
     startWorldSources(render, downloads, github);
+    startRuntime(render);
     startRemoteRendering(render);
     startWorldInspection();
     startJavaDiscovery();

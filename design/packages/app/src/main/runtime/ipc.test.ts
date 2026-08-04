@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import type { DockerReport } from "./docker.js";
 import { RUNTIME_CHANNELS, registerRuntimeHandlers, summariseDocker, type RuntimeModesSummary } from "./ipc.js";
+import type { ContainerReattacher, ContainerScan } from "./reattach.js";
 
 type Handler = (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown;
 
@@ -109,5 +110,107 @@ describe("the runtime channels", () => {
         });
         const answer = (await ipcMain.handlers.get("runtime:modes")?.(noEvent)) as RuntimeModesSummary;
         expect(answer.dockerImage).toBe("eclipse-temurin:21-jre");
+    });
+});
+
+/**
+ * A reattacher with only the three methods the channels touch.
+ *
+ * Cast rather than constructed, because building a real one needs a store, a temporary
+ * directory and a daemon access - none of which this file is about. What is under test
+ * here is the channel: that it exists in every build, that it never rejects, and that a
+ * build without a reattacher answers rather than throws.
+ */
+function fakeReattacher(
+    overrides: Partial<Record<"scan" | "resume" | "cancel" | "dismiss", unknown>>,
+): ContainerReattacher {
+    return {
+        scan: () => Promise.resolve({ offers: [], strays: [] }),
+        resume: (renderId: string) =>
+            Promise.resolve({ ok: true, renderId, action: "collected", dataRoot: "", message: "" }),
+        cancel: () => true,
+        dismiss: () => Promise.resolve(true),
+        activeRenderIds: () => [],
+        ...overrides,
+    } as unknown as ContainerReattacher;
+}
+
+describe("the container channels", () => {
+    it("answers with an empty scan in a build with no reattacher, rather than not existing", async () => {
+        // A channel that exists in one build and not another is a renderer that has to
+        // guess which build it is in.
+        const ipcMain = fakeIpcMain();
+        registerRuntimeHandlers(ipcMain, { probe: () => Promise.resolve(AVAILABLE) });
+        expect(await ipcMain.handlers.get("runtime:containers")?.(noEvent)).toEqual({
+            offers: [],
+            strays: [],
+        });
+        expect(await ipcMain.handlers.get("runtime:cancelContainer")?.(noEvent, "x")).toBe(false);
+    });
+
+    it("hands the scan through as it is", async () => {
+        const scan: ContainerScan = {
+            offers: [
+                {
+                    renderId: "world-abc123",
+                    containerName: "material-bluemap-world-abc123",
+                    mode: "docker",
+                    where: "this computer",
+                    mapIds: ["overworld"],
+                    startedAt: "2026-08-04T10:00:00.000Z",
+                    state: "running",
+                    action: "attach",
+                    canResume: true,
+                    suggestRestart: false,
+                    message: "still going",
+                },
+            ],
+            strays: [],
+        };
+        const ipcMain = fakeIpcMain();
+        registerRuntimeHandlers(ipcMain, {
+            probe: () => Promise.resolve(AVAILABLE),
+            reattacher: fakeReattacher({ scan: () => Promise.resolve(scan) }),
+        });
+        expect(await ipcMain.handlers.get("runtime:containers")?.(noEvent)).toEqual(scan);
+    });
+
+    it("does not reject when a scan or a reattach blows up", async () => {
+        const ipcMain = fakeIpcMain();
+        registerRuntimeHandlers(ipcMain, {
+            probe: () => Promise.resolve(AVAILABLE),
+            reattacher: fakeReattacher({
+                scan: () => Promise.reject(new Error("the daemon fell over")),
+                resume: () => Promise.reject(new Error("and again")),
+            }),
+        });
+
+        const scan = (await ipcMain.handlers.get("runtime:containers")?.(noEvent)) as ContainerScan;
+        expect(scan.offers).toEqual([]);
+        expect(scan.strays[0]?.message).toContain("the daemon fell over");
+
+        const resumed = (await ipcMain.handlers.get("runtime:reattach")?.(noEvent, "x")) as {
+            ok: boolean;
+            message: string;
+        };
+        expect(resumed.ok).toBe(false);
+        expect(resumed.message).toBe("and again");
+    });
+
+    it("refuses anything that is not a render id without going near the reattacher", async () => {
+        let asked = 0;
+        const ipcMain = fakeIpcMain();
+        registerRuntimeHandlers(ipcMain, {
+            probe: () => Promise.resolve(AVAILABLE),
+            reattacher: fakeReattacher({
+                cancel: () => {
+                    asked += 1;
+                    return true;
+                },
+            }),
+        });
+        expect(await ipcMain.handlers.get("runtime:cancelContainer")?.(noEvent, 7)).toBe(false);
+        expect(await ipcMain.handlers.get("runtime:dismissContainer")?.(noEvent, null)).toBe(false);
+        expect(asked).toBe(0);
     });
 });

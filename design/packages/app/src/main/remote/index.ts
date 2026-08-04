@@ -125,6 +125,28 @@ export {
 } from "./transfer.js";
 
 export {
+    chooseTransfer,
+    probeRsync,
+    rsyncArguments,
+    rsyncShellCommand,
+    rsyncTransfer,
+    withScpFallback,
+    type ChooseTransferOptions,
+    type RsyncOptions,
+    type RsyncSupport,
+    type RsyncTransferOptions,
+    type TransferChoice,
+    type TransferKind,
+} from "./rsync.js";
+
+export {
+    containerAccessFor,
+    remoteContainerAccess,
+    targetFromRecord,
+    type RemoteContainerAccessOptions,
+} from "./reattach.js";
+
+export {
     remoteContainerName,
     remoteDockerRunArguments,
     remotePaths,

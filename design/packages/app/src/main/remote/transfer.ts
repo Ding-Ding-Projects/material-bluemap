@@ -15,6 +15,12 @@
  * one layer down. The failure this prevents is the usual one: a cancellation path, a
  * cleanup path and a partial-transfer path that are only ever exercised against real
  * hardware, and therefore never exercised.
+ *
+ * `rsync.ts` is that door being used. It supplies a second {@link FileTransfer} that can
+ * carry an interrupted file on from where it stopped - the one thing `scp` genuinely
+ * cannot do - and falls back to this one, out loud, when either machine has no rsync. The
+ * `scp` implementation below stays the floor under everything, including the guarded
+ * remote delete and the `mkdir -p`, which rsync delegates back here rather than restating.
  */
 
 import { execFileCommandRunner, type CommandOutput, type CommandRunner } from "../runtime/command.js";

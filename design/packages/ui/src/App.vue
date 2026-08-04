@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
+    mdiCloudSyncOutline,
     mdiCloudUploadOutline,
     mdiCog,
     mdiFileCogOutline,
@@ -25,6 +26,7 @@ import { FirstRunSetup } from "./components/setup/index.js";
 import { AppSettings, type SettingsAnchor } from "./components/settings/index.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
+import { CiRenderScreen } from "./components/cirender/index.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
 import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
@@ -69,6 +71,7 @@ useBlueMapTheme(currentApp);
 const PAGE_MAP = "map";
 const PAGE_WORLD = "world";
 const PAGE_PROJECTS = "projects";
+const PAGE_CIRENDER = "cirender";
 const PAGE_SERVERS = "servers";
 const PAGE_BACKUPS = "backups";
 
@@ -79,6 +82,12 @@ const pages = computed<TabPage[]>(() => [
     // of one job: the guide asks five questions and writes a project, and this is where
     // every other setting that project can carry actually lives.
     { id: PAGE_PROJECTS, label: t("tabs.page.projects", "Projects"), icon: mdiFolderMultipleOutline },
+    // The fourth answer to "where does this render run": GitHub's machines do the work and
+    // this one only uploads and downloads. It is a page rather than a radio button on the
+    // guide because it is a workflow - a repository, two consents, an upload, and a run
+    // watched job by job - and the guide's "where it runs" card links straight to it, so all
+    // four places are named in one list without four screens to discover separately.
+    { id: PAGE_CIRENDER, label: t("tabs.page.ciRender", "GitHub runners"), icon: mdiCloudSyncOutline },
     { id: PAGE_SERVERS, label: t("tabs.page.servers", "Maps and servers"), icon: mdiServerNetwork },
     { id: PAGE_BACKUPS, label: t("tabs.page.backups", "Backups"), icon: mdiCloudUploadOutline },
 ]);
@@ -175,6 +184,17 @@ function openRenderedMap(dataRoot: string, mapIds: readonly string[]): void {
     const label = mapIds.length > 0 ? mapIds.join(", ") : t("world.rendered", "Rendered map");
     const profile = addLocalMap(dataRoot, label);
     profilesStore.activeId = profile.id;
+}
+
+/**
+ * A map that GitHub's runners produced, opened exactly as a local render's is.
+ *
+ * By the time this fires the map has already been downloaded and registered on this
+ * machine, so there is no second case to handle: the profile carries a data root and the
+ * viewer neither knows nor needs to know which of the four places drew the tiles.
+ */
+function openCiRenderedMap(where: { renderId: string; dataRoot: string; mapId: string }): void {
+    openRenderedMap(where.dataRoot, [where.mapId]);
 }
 
 /**
@@ -509,10 +529,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <div class="mb-world-host mb-interactive">
                                 <WorldScreen
                                     :settings-epoch="settingsEpoch"
+                                    :can-open-ci="true"
                                     @consent="openSettings('mojang-download-consent')"
                                     @settings="revealSetting"
                                     @open-map="openRenderedMap"
                                     @open-project="openProject"
+                                    @open-ci-render="revealPage(PAGE_CIRENDER)"
                                 />
                             </div>
                         </template>
@@ -532,6 +554,33 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     @settings="revealSetting"
                                     @open-map="openRenderedMap"
                                 />
+                            </div>
+                        </template>
+
+                        <!--
+                            Rendering on GitHub's runners: the answer for a machine that
+                            cannot render a large world at all. Its own page rather than a
+                            fourth choice on the guide, because it is a workflow with a
+                            repository, two consents and a run to watch - and it refuses
+                            before packing anything when a world would exceed a release
+                            asset's ceiling, which is a message worth arriving early.
+
+                            `rendered` carries a map that has already been downloaded and
+                            registered, so it is opened exactly as a local render's is.
+                            Mojang's licence is deliberately not accepted on that screen;
+                            it points at the settings row that already asks.
+                        -->
+                        <template #cirender>
+                            <div class="mb-world-host mb-interactive">
+                                <div class="mb-shell-centre">
+                                    <CiRenderScreen
+                                        :can-open-settings="true"
+                                        @sign-in="openSettings()"
+                                        @open-consent="openSettings('mojang-download-consent')"
+                                        @open="openInBrowser"
+                                        @rendered="openCiRenderedMap"
+                                    />
+                                </div>
                             </div>
                         </template>
 

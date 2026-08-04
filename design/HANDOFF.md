@@ -1,5 +1,414 @@
 # Handoff
 
+## Plain-language summary (start here)
+
+This section is written in short, plain sentences on purpose. It defines every term it
+uses. Read it first. Everything after it is a dated log written by people who were there;
+this section is for anyone who was not, including a small language model with no other
+context.
+
+It was last checked against the code on **2026-08-04, evening**, at commit `9f34cff` on the
+`main` branch.
+
+### What this project is
+
+Material BlueMap is a Windows desktop application. It shows 3D maps of Minecraft worlds.
+It is a TypeScript rewrite ("port") of an existing Java program called BlueMap. The
+original Java source code is kept in this repository at `vendor/BlueMap` as a git
+submodule. The port must behave exactly like the original, down to the byte, where this
+document says so.
+
+### Glossary
+
+| Term | Meaning |
+|---|---|
+| **The port** | Rewriting BlueMap's Java code as TypeScript, file by file |
+| **`design/`** | The folder holding all the TypeScript code, as a pnpm monorepo of 13 packages |
+| **The app** | The Electron desktop application (`design/packages/app` is the main process, `design/packages/ui` is the interface) |
+| **The engine / the mesher** | `design/packages/engine`. Turns Minecraft world files into 3D map tiles. This is the largest and hardest part of the port |
+| **Hires tile** | A 3D mesh file covering a small square of the world. Written in a binary format called **PRBM**, then gzipped. The file name looks like `tiles/0/x3/z7.prbm.gz` |
+| **Lowres tile** | A PNG image used when the camera is far away. Lower level of detail |
+| **`textures.json`** | A list of every block texture the map uses. Hires tiles refer to textures by their position (index) in this list |
+| **A render task** | One unit of rendering work the engine can be asked to do, such as "update this map" or "delete this map's tiles". It is not a background thread; it is an object with a `doWork()` method that is called over and over |
+| **The render manager** | `design/packages/engine/src/map/rendermanager/RenderManager.ts`. Holds a queue of render tasks and a pool of workers that drive them. Ported on 2026-08-04 |
+| **A project** | A saved set of maps, storages and settings that the app edits as one document, like a file in a word processor. Added on 2026-08-04 |
+| **Phase D** | The project phase that ports the mesher. Phases are named A through J; their status is in `ROADMAP.md` |
+| **The gate** | Phase D's exit test: a whole world rendered by both engines must come out byte-identical (PRBM bytes equal, PNG pixels equal) |
+| **The oracle** | `tools/oracle/compare.mjs`. Renders one generated world twice (Java engine, then TypeScript engine) and reports every byte that differs. This is how the gate is measured |
+| **D17, D18** | Numbered project decisions, recorded in `design/docs/decisions.md`. D17: the app ships and uses the original Java engine until the TypeScript mesher passes the gate. D18: the six Minecraft server plugins are built and shipped too |
+| **Squirrel** | The Windows installer technology the app ships with |
+| **The contracts** | Product rules every user-facing surface must follow (regex builder on every search bar, browser-style tabs, appearance editors, language modes, super-confirmation for destructive actions). Tracked as GitHub issues #6 to #13, all now closed |
+| **The recurring defect** | "Built, tested, unreachable": code that works and has green tests, but no user can reach it, because nothing mounts it or wires it. It has happened repeatedly. An audit on 2026-08-03 found nine more cases; on 2026-08-04 the tab system, the appearance editors, the language section, the remote-render subsystem, the world-source subsystem and the update banner were each mounted after being built, tested and reachable by nobody |
+| **The flattening** | A change Minecraft made in version 1.13. Before it, a block was a number plus four extra bits (stone was `1`, andesite was `1:5`). After it, a block is a name (`minecraft:andesite`). Worlds from 1.12.2 and older use the old numbers. Some names also changed meaning: `minecraft:grass` used to be the grass **block** and now means a small grass **plant** |
+| **`worldgen`** | `design/packages/worldgen`. Makes a fake Minecraft world from a number (a "seed"), so tests have a real world to read without downloading one. It can write the modern format or the 1.12.2 one |
+
+### What works right now
+
+- The app installs from a real Windows installer and opens with a working interface.
+- It can browse an existing BlueMap server and show its maps in 3D.
+- It can render a world locally by driving the original Java engine (per decision D17).
+- **The TypeScript engine now matches the Java engine byte for byte, and Phase D's gate is
+  closed.** On 2026-08-04 the oracle rendered a generated 1000x1000 world with both engines
+  and reported identical output: 995 files matched, 961 of 961 hires tiles equal byte for
+  byte after decompression, all 24 lowres tiles equal pixel for pixel, and neither side
+  holding a file the other lacked. Passing the gate does **not** switch the product over.
+  Decision D17 still stands, so local rendering uses the Java engine today. Making the
+  switch is a separate change with its own verification, and it has not been made.
+- **The shell is a tabbed one.** Pages behind a persistent strip, including the map, making
+  a map, projects, the maps-and-servers list, and backups. Two mounting details are
+  load-bearing rather than tidy: `MapView` stays at shell level rather than in its page's
+  slot, because only the active page's slot renders and putting the renderer there would
+  dispose it on every tab switch; and the map page is a transparent click-through frame
+  over a canvas that lives outside the Vue tree entirely.
+- The interface includes: a world wizard (make a map in steps), a projects screen, a
+  settings surface, an eight-tab options editor for BlueMap config files, a render console,
+  GitHub sign-in, release downloads, a Java runtime settings row, a notification centre, a
+  command palette, a changelog viewer covering every released version, per-element
+  appearance editors with a continuous colour picker, the language-and-tone settings, and a
+  custom window title bar. All of these are reachable by clicking, and all have tests.
+- **A project is now the thing you edit.** The projects screen holds a project's maps and
+  storages, and the wizard is the quick way to make one rather than the only way in. See
+  `packages/ui/src/components/project/` and `packages/app/src/main/project/`.
+- **The licence is shown before the app is used.** First run presents the EULA, and a tabbed
+  EULA viewer stays available afterwards with search and export. See
+  `docs/eula-and-consent.md`.
+- **Panels can be docked where the user wants them**, per surface, and the choice is
+  remembered. See `packages/ui/src/components/settings/dockPlacement.ts`.
+- **The app updates itself.** It reads the Squirrel update feed the installer has been
+  publishing all along, and shows a non-blocking banner offering to restart. See
+  `docs/automatic-updates.md`.
+- **A render can be run somewhere other than this machine.** Three routes exist: a remote
+  machine over SSH (`docs/remote-render.md`), a Docker container or this machine's own
+  runtime (`docs/docker-and-local.md`), and GitHub Actions
+  (`docs/render-in-actions.md`).
+- **A world can be fetched from a GitHub release**, including one split into parts across a
+  different repository, with each part's digest checked. See `docs/world-sources.md`.
+  The part size is a choice of 500 MB, 1 GB or 1.7 GB rather than a constant.
+- **A failed render is diagnosed rather than guessed at**, by a repeatable repair pass. See
+  `docs/automatic-repair.md`.
+- **Every config folder has a local version history**, so a save can be undone. The history
+  is a real git repository kept beside the app's own data folder — never a `.git` inside the
+  user's folder. It only ever adds: restoring old files is itself recorded as a new
+  revision, so an undo can be undone in turn. If the history cannot be written, the save
+  still succeeds and the app says what was lost. See `docs/config-history.md`.
+- **A world or a rendered map can be backed up to GitHub**, from the Backups tab. The folder
+  is packed into one archive, cut into parts small enough to be release assets, and
+  published as a new release, with a pointer file naming every part and its SHA-256.
+  Restoring downloads the parts, checks each digest, rejoins them and verifies the whole
+  file. See `docs/backup.md`.
+- **The first step of the wizard finds the worlds already on this computer**, from the
+  default Minecraft installation and from any number of folders the user mounts. See
+  `docs/finding-worlds.md`. Typing a path, browsing and dropping a folder all still work.
+- **A finished map can be opened in Windows Explorer** from the app, and a Documents folder
+  that Windows moved into OneDrive is detected and redirected rather than written to twice.
+- **Every destructive action is behind the two-key gate**, and a guard test inventories the
+  package so a new delete cannot arrive undeclared.
+- **Every search bar carries the anchored regex builder**, kept true by
+  `components/config/regexPolicy.test.ts` rather than by remembering.
+- CI builds an installer, renders a test world, takes screenshots of the real app, and
+  publishes a GitHub release on every green push to `main`.
+- **The engine can read a Minecraft 1.12.2 world and render it.** This was checked for the
+  first time on 2026-08-04. `worldgen` can now write a 1.12.2 world, and a test reads back
+  every single one of a million blocks in it and checks that the engine understood each
+  one. It got all of them right. A rendered 1.12.2 map comes out as a real 3D map with 23
+  different block textures in it, and no block falls back to the pink-and-black "missing
+  texture" placeholder.
+- **The engine has a render manager and a full task layer.** Ported on 2026-08-04. It is the
+  queue, the worker pool, the ordering, the progress reporting and the retirement rules that
+  turn "render one tile" into "render a map". It is exported from
+  `packages/engine/src/index.ts` and has its own tests.
+
+### What does not work yet
+
+- **Nothing outside the engine drives the render manager yet.** It is built, tested and
+  exported, but no code in `packages/app`, `packages/server` or `packages/cli` calls it. A
+  local render still goes through the Java engine. Wiring it up is real work, not a
+  one-liner, and it has not been done. This is the recurring defect described in the
+  glossary; it is named here so the next person does not mistake "ported" for "in use".
+- **Two known differences from upstream are still in `WorldRegionUpdateTask`.** Both were
+  found while porting the task layer and both were deliberately left alone, because that
+  file's `run()` method is what the closed Phase D gate measured, and changing it would
+  invalidate the gate result until the oracle is re-run.
+  1. Upstream saves the map periodically while a region is being updated (a checkpoint
+     every 60 seconds). This port's `#complete()` does not.
+  2. This port's `run()` calls `#complete()` even for a region where nothing needed
+     rendering or deleting. That writes chunk hashes upstream would not write.
+
+  Neither shows up on a first render. Both only appear when a world is rendered again over
+  an existing map ("an incremental re-render"), which is why the gate never caught them.
+  Fixing them, and re-running the oracle afterwards to prove the gate still closes, is a
+  good next task.
+- **Four kinds of block from a 1.12.2 world are drawn wrongly.** Reading the world is
+  right; drawing it is not, and the reason is not in the world reader. The reader gives back
+  the *old* block name (`minecraft:grass` for a grass block). Nothing then turns that old
+  name into the new one before the pictures are looked up. So the modern picture list is
+  asked for `minecraft:grass`, and modern Minecraft uses that name for a small grass plant.
+  Every grass block in the map is drawn as a see-through plant instead of a solid cube, and
+  you can see the dirt through the ground. Snow blocks, snow layers and podzol are drawn as
+  nothing at all. The full list, the numbers behind it, and the two possible fixes are in
+  the 2026-08-04 section near the bottom of this file.
+- **A warning for anyone measuring the gate: build first.** `tools/oracle` runs the
+  *compiled* engine, so a run measures the last build rather than the current source. It
+  now compiles automatically, but a report older than 2026-08-03 late-evening may have been
+  grading a stale build.
+- **Phase E is part done. Phases G, H and I have not been started.** Phase E's worker pool
+  and task layer landed on 2026-08-04; its watch-driven re-render, its full HTTP routes with
+  server-sent events, and its standalone server command line and Dockerfile have not. Phase
+  C has three unfinished exit checks. See `ROADMAP.md`.
+- **The version history covers config folders and projects only.** Application settings and
+  the maps-and-servers list are not snapshotted yet, so deleting one of those still cannot
+  be undone.
+- **Backup interoperability is proven against a copy of the other application's rules, not
+  against that application.** The pointer files this app writes are checked with the
+  patterns Desktop Material uses to read them. Nobody has yet made a backup here and
+  restored it there.
+- One latent bug worth fixing next: `stores/profiles.ts` writes `localStorage` unguarded
+  while `load()` wraps `getItem` in try/catch, so where storage is full or unavailable the
+  first profile mutation throws inside a Vue watcher.
+
+### The state of the automated checks, stated exactly
+
+**Locally, on this machine, on 2026-08-04 evening.** `npx vitest run` from `design/`
+reported **355 test files, 5,745 tests, 5,741 passed, 3 skipped, 1 failed**, in about 50
+seconds. `pnpm --filter @material-bluemap/ui build` succeeded.
+
+The one failure was worth reading rather than treating as a broken build, and it has already
+been resolved by somebody else. It was
+`packages/ui/src/components/confirm/superConfirmPolicy.test.ts`, the guard that refuses an
+undeclared destructive action, reacting to
+`packages/ui/src/components/remote/remoteTargets.ts` — a file that was not yet committed. A
+concurrent session is writing into this working tree, fast enough to see under a running
+measurement: a run five minutes before this one reported 353 files and 5,721 tests, and by
+17:27 that session had declared the call, after which
+`npx vitest run packages/ui/src/components/confirm/superConfirmPolicy.test.ts` passes its
+**14 tests**.
+
+The generalisable point, since this guard exists precisely to catch it: any commit that adds
+a destructive call site must declare it in `DESTRUCTIVE_FILES` in the same commit, or CI fails
+on that commit.
+
+**On GitHub's machines, no verdict is currently available for `main`.** This is a plain fact
+and not a way of avoiding a bad one:
+
+- The last CI run on `main` that finished with a verdict is
+  [30943812775](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30943812775)
+  on commit `80369ec`, and it **failed**. The reason was
+  `Could not resolve "../console/annotations.js" from "src/components/world/renderRun.ts"`
+  during `pnpm build` of `packages/ui`. The exact cause is worth understanding, because it
+  cannot be seen on a machine where the file is simply sitting on disk: commit `f4d3abd`
+  committed the **import**, and the file it imports was not committed until `897ecad`, three
+  commits later. `80369ec` sits between them, so the hosted checkout had an importer and no
+  file to import. The console files are tracked now
+  (`git ls-files packages/ui/src/components/console/` lists seven files) and the UI package
+  builds clean locally, so that specific cause is gone. The general lesson is the one this
+  project keeps relearning: a green local build proves nothing about what git actually holds.
+- Every CI run after it — for `897ecad`, `92c392f`, `2887d71`, `cee6779`, `56fcd97`,
+  `6e90336`, `6e3260f`, `c01aab6` and `3119425` — was **cancelled**, because a new push
+  superseded it before it could finish. Pushes have been arriving every 30 to 60 seconds.
+- The runs for `ecc5168` and `9f34cff` had not finished when this was written.
+- The last CI run on `main` that **succeeded** is
+  [30935770990](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30935770990)
+  on commit `0008dd4`, which published release `v0.1.0-build.196`.
+
+Do not write "CI is green" and do not write "CI is failing". The true sentence is: the local
+checks pass, and no hosted verdict for the current tip exists yet. To get one, stop pushing
+for long enough that a run survives.
+
+### How to verify things yourself
+
+Run these from the repository root. All of them succeed today, with the one exception noted
+just above: the single failure seen at 17:15 was fixed by a concurrent session by 17:27, and
+that test file now passes on its own. The full suite has not been re-run since, so the total
+below is the 17:15 figure.
+
+```bash
+cd design && npx vitest run          # every unit test (5,745 on 2026-08-04 evening, about 50 seconds)
+cd design && pnpm typecheck          # type-checks all 13 packages (vue-tsc for the ui one)
+cd design && pnpm lint
+cd design && pnpm build
+node tools/oracle/selftest.mjs       # proves the byte-comparison gate can detect planted differences
+node tools/oracle/compare.mjs --seed 7 --size 200   # the gate on a small world; identical, exit 0
+node tools/oracle/compare.mjs --seed 1 --size 1000  # the gate at full scale; identical, exit 0
+node tools/oracle/render-1-12.mjs    # renders a Minecraft 1.12.2 world; 14 checks, exit 0
+node scripts/count-lines.mjs         # the committed line counter; never count lines by hand
+```
+
+The gate compiles the engine itself before rendering, so it always grades the current
+source. That takes a few extra seconds and is deliberate — see the 2026-08-03 late section
+further down for the wrong conclusion its absence produced.
+
+### If you are picking this up
+
+1. Read this section, then `ROADMAP.md`, then the dated sections below. **This summary is
+   at the top of the file. Everything under it is the dated log: newest first down to
+   2026-08-04, then older material from 2026-08-03 that grew from the bottom up.** The dates
+   are the only reliable ordering, so read them.
+2. The most useful next piece of work is in the engine. The render manager and the task
+   layer are ported but nothing calls them, and the two `WorldRegionUpdateTask` differences
+   above are written down and unfixed. Both are described in the "Update, 2026-08-04
+   evening" section immediately below.
+3. Compare against the Java source in
+   `vendor/BlueMap/core/src/main/java/de/bluecolored/bluemap/core/`. Never weaken a
+   comparison to make it pass. If something cannot be verified, write that it was not
+   verified.
+4. Every change: run the tests, run the linter, commit with a message that says what
+   actually changed, push, and check CI.
+
+---
+
+## Update, 2026-08-04 evening — the render manager, the task layer, and a strategy that scheduled every region twice
+
+Two commits, read with `git show --stat` before being written about here. Note that the
+split is not where the two messages suggest: **`3119425` carries the source for both the
+worker pool and the whole task hierarchy**, and **`9f34cff` carries the 1,215-line test file
+for that hierarchy**. `git log --diff-filter=A` over
+`packages/engine/src/map/rendermanager/` confirms it.
+
+### `311942567f8390c9d261665160381f0fe160b9a0` — the worker pool, the progress tracker, and a part size that is a choice
+
+The engine could render a tile and could not render a map. The queue, the workers, the
+ordering, the progress reporting and the retirement rules lived in Java and nowhere else, so
+every full render went through the vendored jar. This is that layer: `RenderManager.ts` (773
+lines), `ProgressTracker.ts` (148), and the task classes listed under the next commit.
+
+**The structural fact worth keeping, and the one a plausible-looking version gets wrong: the
+pool is not N tasks running side by side.** Every worker calls `doWork()` on the *same*
+head-of-queue task until that task reports it has no more work, and only then does the head
+retire. The parallelism lives *inside* a task. Giving each worker its own task would
+benchmark faster and be a different program.
+
+Java's locks became something else in five named places, and each one is written down where
+it happened, because "JavaScript is single-threaded so this is fine" is how these ports
+break. The load-bearing one pairs the head of the queue with the count of workers currently
+in flight: retiring a task is only safe when there is no more work **and** nothing is in
+flight, read at the same instant. Reading those two at two different moments retires a task
+somebody is still working on, whose completion then decrements the count against the *next*
+task, which never retires. The queue hangs rather than failing, which is the worst kind of
+bug to find later. The guarantee is now syntactic — there is no `await` between the head
+read and the return — so it can be checked by reading it.
+
+**One thing has no upstream counterpart, and it is deliberate.** Java preempts its worker
+threads whether they cooperate or not. An async loop is not preempted, and awaiting an
+already-settled promise only drains microtasks, which run to exhaustion before any timer
+fires. A pool over tasks that never await anything real would therefore starve the very
+`stop()` call trying to reach it — unstoppable in the literal sense. The pool yields on
+elapsed time instead, so the cost stays proportional to the work rather than to the number
+of iterations.
+
+The same commit made the split-archive part size a bounded choice rather than a constant:
+**500 MB, 1 GB or 1.7 GB**, each labelled with what it trades. Smaller parts mean a failed
+transfer costs less and the joining machine needs less room at once; larger means fewer
+uploads and fewer requests. The default is unchanged so an existing install does not
+silently change what it publishes. The ceiling is 1.7 GB rather than the 2 GB asset cap
+because the margin is the point: it is what stops an upload failing after the bytes have
+already been read and hashed. See `packages/app/src/main/files/partSize.ts` and
+`packages/parts/src/partSize.test.ts`.
+
+### `9f34cff887bac82af440bc651d02ad3bb9208d87` — the task hierarchy's tests, and three defects in the strategy it uses
+
+The task layer is `RenderTask`, `MapRenderTask`, `CombinedRenderTask`, `MapUpdateTask`,
+`MapUpdatePreparationTask`, `MapSaveTask`, `MapPurgeTask`, `StorageDeleteTask` and
+`TileUpdateStrategy`. With it the engine has the whole of upstream's render loop rather than
+the worker pool alone.
+
+**It also fixed three defects in the `TileUpdateStrategy` this port already had, and the
+first one had teeth.**
+
+1. `fixed(force)` built a fresh object on every call instead of returning the two shared
+   instances. `WorldRegionUpdateTask` compares its strategy by **reference identity**, and
+   the render manager relies on that comparison to recognise a task it already holds. Two
+   otherwise identical region tasks therefore compared unequal, so the same region was
+   queued twice and rendered twice. There is now a test pinning the identity.
+2. `FORCE_EDGE` was missing outright — the strategy that redraws boundary tiles when the
+   render boundary moves but the world itself did not.
+3. None of the three strategies were registered under upstream's keys. They are now, in a
+   `Registry` in `TileUpdateStrategy.ts`.
+
+Three further places where Java's semantics do not survive the crossing are recorded in the
+code where they happen rather than assumed: `MapUpdateTask` has no public constructor,
+because upstream tells its two forms apart by collection element type and both are arrays
+here — sniffing the first element picks wrong for an empty list, which is exactly what the
+preparation task passes when it resumes; the region set is keyed by coordinate rather than
+by a JavaScript `Set`, which keys by identity and would queue a region twice again by a
+different route; and the tile claim is serialised through a promise chain rather than a
+synchronous prefix, because both sides of the claim await, and without it two callers both
+see the cursor at the same tile and both render it.
+
+### Two differences left in place on purpose
+
+`WorldRegionUpdateTask` has a shared `run()` path that the closed Phase D gate measured.
+Changing it would invalidate that result until the oracle is re-run, so two pre-existing
+differences from upstream were **recorded and not changed**:
+
+- **The periodic map checkpoint is missing.** Upstream saves the map every 60 seconds while
+  a region update runs. `#complete()` here does not.
+- **`run()` calls `#complete()` even when the region had nothing to do**, which writes chunk
+  hashes upstream would not write. The sliced `doWork()` path does follow upstream here; it
+  is `run()`, which predates the task layer, that does not.
+
+Both are only observable on an incremental re-render, which is why a first-render oracle
+never caught them. **This is work for the next person**: fix them, then re-run
+`node tools/oracle/compare.mjs` at both sizes to prove the gate still closes.
+
+### The rest of what landed on 2026-08-04, verified by `git show --stat`
+
+| Commit | What it added |
+|---|---|
+| `d7cbd34` | Render in a Docker container or on this machine, a deterministic repair pass that diagnoses a failure instead of guessing, the project main process, and the history manager. Docs: `docs/docker-and-local.md`, `docs/automatic-repair.md` |
+| `4a8a570` | The automatic-update subsystem: feed, controller, schedule, state, failure handling, the update banner and its status row. Also the reveal-in-Explorer path, the OneDrive Documents redirect, and a `-Xmx` heap ceiling for the render process. Doc: `docs/automatic-updates.md` |
+| `039ee26` | Turned that updater on in the main process and exposed it across the bridge |
+| `180c862` | Handing a render to GitHub's machines: plan, transport, sync, collect, fingerprint, and the CI-render screen. Doc: `docs/render-in-actions.md` |
+| `b600dc3` | Let the renderer ask for a render it will not run itself, over the bridge |
+| `f4d3abd` | A project is the thing you edit and the wizard is the quick way in: the projects screen, editor, maps and storages panels, plus the consent-staleness fix |
+| `80369ec` | The EULA in front of people at first run, a tabbed EULA viewer, and per-surface dock placement. Doc: `docs/eula-and-consent.md` |
+| `897ecad` | Remote renders over SSH, worlds from any release including split parts in another repository, and the render console. Docs: `docs/remote-render.md`, `docs/world-sources.md`. This is also the commit that finally tracked the console files `f4d3abd` had already started importing |
+| `92c392f` | Fixed a projects-list adapter that read a result union as if it were the payload |
+| `56fcd97` | Registered the remote-render and world-source subsystems, which nothing could reach, and mounted the update banner |
+
+### Measurement
+
+`npx vitest run` from `design/`, 2026-08-04 evening: **355 files, 5,745 tests, 5,741 passed,
+3 skipped, 1 failed**, about 50 seconds.
+
+| Package | Files | Passed | Package | Files | Passed |
+|---|---|---|---|---|---|
+| `ui` | 104 | 2,078 (1 failed, 1 skipped) | `app` | 98 | 1,542 |
+| `engine` | 88 | 1,258 (1 skipped) | `config` | 8 | 205 (1 skipped) |
+| `shared` | 9 | 196 | `render-actions` | 11 | 147 |
+| `site` | 16 | 132 | `viewer` | 7 | 57 |
+| `nbt` | 8 | 56 | `parts` | 2 | 33 |
+| `worldgen` | 3 | 32 | `server` | 1 | 5 |
+| `cli` | none yet | | | | |
+
+The single failure was `superConfirmPolicy.test.ts` reacting to a then-uncommitted file,
+`packages/ui/src/components/remote/remoteTargets.ts`, from a concurrent session. That session
+declared the call twelve minutes later and the file now passes its 14 tests on its own. It was
+never a defect in anything committed at `9f34cff`. The tree is moving fast enough to watch: a
+run five minutes before this one reported 353 files and 5,721 tests.
+
+`pnpm --filter @material-bluemap/ui build` succeeds locally, which is the exact step that
+failed on the hosted runner for `80369ec`.
+
+### CI, stated exactly
+
+The last CI run on `main` with a verdict is
+[30943812775](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30943812775)
+on `80369ec` — **failure**, `Could not resolve "../console/annotations.js"` during
+`pnpm build` of `packages/ui`, because `f4d3abd` committed the import while the console files
+stayed untracked until `897ecad`. They are tracked now. Every CI run since has been
+**cancelled by the next push**; runs for
+`ecc5168` and `9f34cff` had not finished when this was written. The last successful CI run
+on `main` is
+[30935770990](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30935770990)
+on `0008dd4`, which published `v0.1.0-build.196`. The Pages workflow did reach a verdict
+more recently: run
+[30949965713](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30949965713)
+on `ecc5168` succeeded.
+
+Neither "CI is green" nor "CI is failing" is a true statement about the current tip. There
+is no hosted verdict for it, and there will not be one until pushes stop long enough for a
+run to survive.
+
 ## Update, 2026-08-04 — destructive Pages actions now use the site gate
 
 The Pages shell now carries the super-confirmation boundary all the way to its own destructive
@@ -385,202 +794,6 @@ Evidence from the clean linked worktree:
 
 This is source, type, unit, and production-bundle evidence. A cheap headless Windows capture of
 the live GitHub Pages site remains a separate runtime/UI boundary and is not claimed by these checks.
-
-## Plain-language summary (start here)
-
-This section is written in short, plain sentences on purpose. It defines every term it
-uses. Read it first. The rest of this document is a chronological log written for people
-who were there; this section is for anyone who was not, including a small language model
-with no other context.
-
-### What this project is
-
-Material BlueMap is a Windows desktop application. It shows 3D maps of Minecraft worlds.
-It is a TypeScript rewrite ("port") of an existing Java program called BlueMap. The
-original Java source code is kept in this repository at `vendor/BlueMap` as a git
-submodule. The port must behave exactly like the original, down to the byte, where the
-document says so.
-
-### Glossary
-
-| Term | Meaning |
-|---|---|
-| **The port** | Rewriting BlueMap's Java code as TypeScript, file by file |
-| **`design/`** | The folder holding all the TypeScript code, as a pnpm monorepo of 12 packages |
-| **The app** | The Electron desktop application (`design/packages/app` is the main process, `design/packages/ui` is the interface) |
-| **The engine / the mesher** | `design/packages/engine`. Turns Minecraft world files into 3D map tiles. This is the largest and hardest part of the port |
-| **Hires tile** | A 3D mesh file covering a small square of the world. Written in a binary format called **PRBM**, then gzipped. The file name looks like `tiles/0/x3/z7.prbm.gz` |
-| **Lowres tile** | A PNG image used when the camera is far away. Lower level of detail |
-| **`textures.json`** | A list of every block texture the map uses. Hires tiles refer to textures by their position (index) in this list |
-| **Phase D** | The project phase that ports the mesher. Phases are named A through J; their status is in `ROADMAP.md` |
-| **The gate** | Phase D's exit test: a whole world rendered by both engines must come out byte-identical (PRBM bytes equal, PNG pixels equal) |
-| **The oracle** | `tools/oracle/compare.mjs`. Renders one generated world twice (Java engine, then TypeScript engine) and reports every byte that differs. This is how the gate is measured |
-| **D17, D18** | Numbered project decisions, recorded in `design/docs/decisions.md`. D17: the app ships and uses the original Java engine until the TypeScript mesher passes the gate. D18: the six Minecraft server plugins are built and shipped too |
-| **Squirrel** | The Windows installer technology the app ships with |
-| **The contracts** | Product rules every user-facing surface must follow (regex builder on every search bar, browser-style tabs, appearance editors, language modes, super-confirmation for destructive actions). Tracked as GitHub issues #6 to #13 |
-| **The recurring defect** | "Built, tested, unreachable": code that works and has green tests, but no user can reach it, because nothing mounts it or wires it. It has happened repeatedly. An audit on 2026-08-03 found nine more cases, and on 2026-08-04 the finished tab system, appearance editors and language section were all mounted after being built, tested and reachable by nobody |
-| **The flattening** | A change Minecraft made in version 1.13. Before it, a block was a number plus four extra bits (stone was `1`, andesite was `1:5`). After it, a block is a name (`minecraft:andesite`). Worlds from 1.12.2 and older use the old numbers. Some names also changed meaning: `minecraft:grass` used to be the grass **block** and now means a small grass **plant** |
-| **`worldgen`** | `design/packages/worldgen`. Makes a fake Minecraft world from a number (a "seed"), so tests have a real world to read without downloading one. It can write the modern format or the 1.12.2 one |
-
-### What works right now
-
-- The app installs from a real Windows installer and opens with a working interface.
-- It can browse an existing BlueMap server and show its maps in 3D.
-- It can render a world locally by driving the original Java engine (per decision D17).
-- **The shell is a tabbed one.** Four pages behind a persistent strip: the map, making a
-  map, the maps-and-servers list, and backups. Two mounting details are load-bearing rather
-  than tidy: `MapView` stays at shell level rather than in its page's slot, because only the
-  active page's slot renders and putting the renderer there would dispose it on every tab
-  switch; and the map page is a transparent click-through frame over a canvas that lives
-  outside the Vue tree entirely.
-- The interface includes: a world wizard (make a map in steps), a settings surface, an
-  eight-tab options editor for BlueMap config files, GitHub sign-in, release downloads,
-  a Java runtime settings row, a notification centre, a command palette, a changelog
-  viewer covering every released version, per-element appearance editors with a continuous
-  colour picker, the language-and-tone settings, and a custom window title bar. All of
-  these are reachable by clicking, and all have tests.
-- **The options editor opens on settings you can read, not on an empty screen.** It opens
-  on the BlueMap config folder this computer already uses when one is really on disk, and
-  otherwise on BlueMap's own default values, labelled as not yet saved. Until 2026-08-04 it
-  opened on "Nothing is open yet" with no tabs at all, and people reasonably concluded the
-  settings were missing. Its eight tabs are the seven config screens (Core, Maps, Storages,
-  Web app, Web server, Server plugin, Run) plus **History**.
-- **Every config folder has a local version history**, so a save can be undone. The history
-  is a real git repository kept beside the app's own data folder — never a `.git` inside the
-  user's folder. It only ever adds: restoring old files is itself recorded as a new
-  revision, so an undo can be undone in turn. If the history cannot be written, the save
-  still succeeds and the app says what was lost. See `docs/config-history.md`.
-- **A world or a rendered map can be backed up to GitHub**, from the Backups tab. The folder
-  is packed into one archive, cut into parts small enough to be release assets, and
-  published as a new release, with a pointer file naming every part and its SHA-256.
-  Restoring downloads the parts, checks each digest, rejoins them and verifies the whole
-  file. See `docs/backup.md`.
-- **The first step of the wizard finds the worlds already on this computer**, from the
-  default Minecraft installation and from any number of folders the user mounts. See
-  `docs/finding-worlds.md`. Typing a path, browsing and dropping a folder all still work.
-- **Every destructive action is behind the two-key gate**, and a guard test inventories the
-  package so a new delete cannot arrive undeclared.
-- **Every search bar carries the anchored regex builder**, kept true by
-  `components/config/regexPolicy.test.ts` rather than by remembering.
-- CI builds an installer, renders a test world, takes screenshots of the real app, and
-  publishes a GitHub release on every green push to `main`.
-- **The engine can read a Minecraft 1.12.2 world and render it.** This was checked for the
-  first time on 2026-08-04. `worldgen` can now write a 1.12.2 world, and a test reads back
-  every single one of a million blocks in it and checks that the engine understood each
-  one. It got all of them right. A rendered 1.12.2 map comes out as a real 3D map with 23
-  different block textures in it, and no block falls back to the pink-and-black "missing
-  texture" placeholder.
-
-### What does not work yet
-
-- **The TypeScript mesher matches the Java engine, and the Phase D gate passes.** On
-  2026-08-04 the oracle rendered a 1000x1000 generated world with both engines and
-  reported **identical**: 995 files matched, **961 of 961 hires tiles byte for byte after
-  decompression**, all 24 lowres tiles pixel for pixel, all six render-state files
-  agreeing on every decision, and neither side holding a file the other lacked. The
-  200x200 fixture on a different seed reports the same.
-
-  The first comparison had 49 of 57 files differing, and every cause turned out to be
-  *outside* the mesher. That is the finding worth keeping:
-
-  1. **The harness was feeding the two engines different resources.** BlueMap bundles its
-     own resource pack, `resourceExtensions.zip`, and upstream loads it alongside the
-     vanilla jar; the harness loaded only the jar, so the gallery was 839 textures short
-     and every texture index after the first gap pointed at the wrong picture. The pack
-     version was read from a file neither pack has, so it silently fell back to a number
-     that selects different models.
-  2. **The port had no per-tile update task.** `WorldRegionUpdateTask` is what decides a
-     tile should be deleted rather than rendered, and what records the render state.
-     Without it the port rendered and kept 253 tiles upstream deletes.
-  3. **The comparison itself was grading the wrong things.** Render state was compared as
-     raw bytes, so the first difference it ever found was a gzip header field; the gallery
-     was compared as bytes, so two correct PNG encoders looked like a divergence.
-  4. **A region-boundary defect only a large world could reach.** A tile at the edge of a
-     region reads chunks belonging to the *next* region, and the port's synchronous
-     `getChunk` answers a cache miss with an empty chunk, which reports itself as
-     ungenerated - so 23 tiles were erased rather than rendered. Every tile the port did
-     write was byte-identical even in that failing run. A mesher can be right about
-     everything it emits and wrong about what to emit, and only a world with a second
-     region asks that question.
-
-  **What passing the gate does and does not mean.** It means the ported engine produces
-  the same bytes as the engine it replaces, on these worlds, measured rather than argued.
-  It does not by itself switch the product over: decision D17 says the app renders with
-  upstream's Java engine until the mesher takes over, and making that switch is its own
-  change with its own verification. Local rendering still uses the Java engine today.
-
-- **A warning for anyone measuring the gate: build first.** `tools/oracle` runs the
-  *compiled* engine, so a run measures the last build rather than the current source. It
-  now compiles automatically, but a report older than 2026-08-03 late-evening may have been
-  grading a stale build.
-- **Four kinds of block from a 1.12.2 world are drawn wrongly.** Reading the world is
-  right; drawing it is not, and the reason is not in the world reader. The reader gives back
-  the *old* block name (`minecraft:grass` for a grass block). Nothing then turns that old
-  name into the new one before the pictures are looked up. So the modern picture list is
-  asked for `minecraft:grass`, and modern Minecraft uses that name for a small grass plant.
-  Every grass block in the map is drawn as a see-through plant instead of a solid cube, and
-  you can see the dirt through the ground. Snow blocks, snow layers and podzol are drawn as
-  nothing at all. The full list, the numbers behind it, and the two possible fixes are in
-  the 2026-08-04 section at the bottom of this file.
-- Phases E, G, H, I are not started. Phase C has three unfinished exit checks.
-- **The contract issues #6 to #13 are all closed**, each with its evidence on the issue.
-  What remains inside them is named there rather than hidden: the appearance wrapper is
-  proven end to end on the shell chrome and each further surface is a one-line wrap; about
-  895 of the 959 i18n keys still render their English fallback, and each starts varying the
-  moment a catalogue entry is added; mount reordering is not built, because the world list
-  sorts by last played across every mount, which is what people scan by; and GitHub
-  sign-out is the one destructive action still behind an inline two-step confirm rather
-  than the two-key gate, listed in that guard's own `KNOWN_GAPS` so it is a stated fact.
-- One latent bug worth fixing next: `stores/profiles.ts` writes `localStorage` unguarded
-  while `load()` wraps `getItem` in try/catch, so where storage is full or unavailable the
-  first profile mutation throws inside a Vue watcher.
-- **The version history covers config folders only.** Profiles, application settings and the
-  maps-and-servers list are not snapshotted yet, so deleting one of those still cannot be
-  undone.
-- **One test is slower on the CI machine than on a developer machine and fails there.**
-  `packages/app/src/main/backup/archive.test.ts`, the case named "survives a file large
-  enough to need more than one read chunk", passes locally and timed out after 5 seconds on
-  the hosted Linux runner in CI run 30927851530. It is a timeout, not a wrong answer, but a
-  test that only passes on some machines is a test nobody can trust.
-- **Backup interoperability is proven against a copy of the other application's rules, not
-  against that application.** The pointer files this app writes are checked with the
-  patterns Desktop Material uses to read them. Nobody has yet made a backup here and
-  restored it there.
-
-### How to verify things yourself
-
-Run these from the repository root. All should succeed today.
-
-```bash
-cd design && npx vitest run          # every unit test (4457 on 2026-08-04, about 30 seconds)
-cd design && pnpm typecheck          # type-checks all 13 packages (vue-tsc for the ui one)
-cd design && pnpm lint
-node tools/oracle/selftest.mjs       # proves the byte-comparison gate can detect planted differences
-node tools/oracle/compare.mjs --seed 7 --size 200   # the gate on a small world; identical, exit 0
-node tools/oracle/compare.mjs --seed 1 --size 1000  # the gate at full scale; identical, exit 0
-node tools/oracle/render-1-12.mjs    # renders a Minecraft 1.12.2 world; 14 checks, exit 0
-```
-
-The gate compiles the engine itself before rendering, so it always grades the current
-source. That takes a few extra seconds and is deliberate — see the 2026-08-03 late section
-at the bottom for the wrong conclusion its absence produced.
-
-### If you are picking this up
-
-1. Read this section, then `ROADMAP.md`, then the dated sections. **The newest dated
-   sections are at the top of this file, above this summary; the older ones are below it.**
-   The file grew from the bottom up until 2026-08-04 and from the top down after that, so
-   the two ends are both worth a look and only the dates tell you which is which.
-2. The active work is making the oracle comparison come out identical. Start from the
-   report at `tools/oracle/out/gate/report.json` and fix causes in
-   `design/packages/engine/src`, comparing against the Java source in
-   `vendor/BlueMap/core/src/main/java/de/bluecolored/bluemap/core/`.
-3. Never weaken a comparison to make it pass. If something cannot be verified, write that
-   it was not verified.
-4. Every change: run the tests, run the linter, commit with a message that says what
-   actually changed, push, and check CI.
-
----
 
 ## State (2026-08-03, after decisions D17 and D18)
 

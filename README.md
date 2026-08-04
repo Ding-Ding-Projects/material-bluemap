@@ -4,18 +4,20 @@ A from-scratch TypeScript port of [BlueMap](https://github.com/BlueMap-Minecraft
 Minecraft 3D map renderer and web viewer. It is built to ship as two things from one codebase:
 
 - a **Material Design 3 Electron desktop app** that renders local Minecraft worlds offline and
-  connects to remote BlueMap servers, and
+  connects to remote BlueMap servers — this is what ships today, and there is an installer
+  below; and
 - a **standalone headless server** (`@material-bluemap/cli`) that renders and serves the map
-  webapp to ordinary browsers.
+  webapp to ordinary browsers — this is Phase E and is currently a stub.
 
 Target world versions: Minecraft **1.12.2 through 26.x**.
 
 **How rendering works.** Local world rendering runs upstream BlueMap's own Java renderer, built
 from the vendored source and driven by the app, so a world can be rendered today rather than
-after the TypeScript mesher is finished. The TypeScript mesher is still being written and will
-replace it, gated on producing byte-identical output. Everything around the renderer, the
-viewer, the world reading layer, the resource-pack pipeline, the server and the whole interface,
-is TypeScript. See [Rendering engines](#rendering-engines).
+after the TypeScript mesher is finished. The TypeScript mesher now produces output identical to
+that renderer on the project's fixture worlds, but it is not yet what runs: switching over is a
+separate, separately verified change. Everything around the renderer — the viewer, the world
+reading layer, the resource-pack pipeline, the server and the whole interface — is TypeScript.
+See [Rendering engines](#rendering-engines).
 
 ## Status: in development, and honest about it
 
@@ -38,23 +40,69 @@ Every push to the default branch that passes lint, build and the full test suite
 Squirrel.Windows installer with its own uniquely tagged release. Read what it can and cannot do
 before installing it.
 
-**What works today.** Browsing a **remote** BlueMap server end to end: the viewer, the three.js
-scene, markers, the token-gated embedded server and its reverse proxy. The whole world-reading
-layer (NBT, compression, region containers, chunk decoders for 1.12.2 through 26.x) and the
-resource-pack pipeline are ported and unit tested.
+**What works today.** Rendering a local Minecraft world, and browsing a **remote** BlueMap
+server end to end: the viewer, the three.js scene, markers, the token-gated embedded server and
+its reverse proxy. The whole world-reading layer (NBT, compression, region containers, chunk
+decoders for 1.12.2 through 26.x) and the resource-pack pipeline are ported and unit tested.
+A render can also be handed to a remote machine over SSH, to a Docker container, or to GitHub
+Actions.
 
-> **Rendering a local world does not work yet.** The mesher is Phase D and has not been written,
-> so the app cannot turn a Minecraft save into a map. It can only display a map somebody else's
-> BlueMap server already rendered. Nothing in the app is a mock or a demo shell, which is why it
-> currently does less than a finished product would.
+> **The TypeScript mesher passes its parity gate, and it is still not what renders.** On
+> 2026-08-04 the byte-comparison oracle rendered a generated 1000x1000 world with both engines
+> and reported identical output — 961 of 961 hires tiles equal byte for byte after
+> decompression, all 24 lowres tiles equal pixel for pixel. Passing the gate does not switch
+> the product over: local rendering still drives upstream's Java engine, and making the switch
+> is a separate change with its own verification. Nothing in the app is a mock or a demo shell.
 
-Phases 0, A and B are complete and verified. Phase C is ported with its exit criteria not yet
-run. D through I are pending. See [Phase status](#phase-status).
+Phases 0, A, B and D are complete and verified. Phase C is ported with its exit criteria not
+yet run. Phase E is part done: its worker pool and render-task layer are ported, its
+watch-driven re-render, HTTP routes and standalone server are not. F is reachable and in use.
+G, H and I are pending. See [Phase status](#phase-status).
+
+<details id="features">
+<summary><b>Everything the application does</b> - the full feature list, with its article for each</summary>
+
+Every row below is built, unit tested and reachable by clicking. Each links the article that
+states its behaviour, configuration, failure modes, security considerations and verification.
+
+| Feature | What it does | Article |
+|---|---|---|
+| **Local rendering** | Turns a Minecraft save into a 3D map, driving upstream BlueMap's Java engine | [`docs/legacy-1-12-worlds.md`](docs/legacy-1-12-worlds.md) |
+| **Remote BlueMap servers** | Browses a map somebody else's server already rendered, through a token-gated proxy | — |
+| **Projects** | A project is the document you edit: its maps, its storages, its settings. The wizard is the quick way to make one | — |
+| **The map wizard** | Makes a map in steps, starting from the worlds already on this computer | [`docs/finding-worlds.md`](docs/finding-worlds.md) |
+| **The options editor** | Eight tabs over every BlueMap configuration file, with a search across all of them | — |
+| **Local version history** | An append-only git history per config folder and per project, kept beside the app's data — never inside your folder | [`docs/config-history.md`](docs/config-history.md) |
+| **The render console** | Annotated engine output rather than a raw log | [`docs/render-console.md`](docs/render-console.md) |
+| **Automatic repair** | Diagnoses a failed render and proposes an edit, behind guardrails, showing its evidence | [`docs/automatic-repair.md`](docs/automatic-repair.md) |
+| **Docker or this machine** | One render plan that resolves to a container or to the local runtime | [`docs/docker-and-local.md`](docs/docker-and-local.md) |
+| **Remote rendering over SSH** | Runs the render on another machine, with host-key handling and a preflight | [`docs/remote-render.md`](docs/remote-render.md) |
+| **Rendering in GitHub Actions** | Hands the whole render to GitHub's runners, sharded and resumable | [`docs/render-in-actions.md`](docs/render-in-actions.md) · [`docs/large-worlds.md`](docs/large-worlds.md) · [`docs/resumable-renders.md`](docs/resumable-renders.md) |
+| **Private worlds** | Sealed before they leave the machine, rendered on public runners, published only privately | [`docs/private-world-rendering.md`](docs/private-world-rendering.md) |
+| **World sources** | Fetches a world from any GitHub release, including one split into parts in another repository | [`docs/world-sources.md`](docs/world-sources.md) |
+| **Backups** | Packs a world or a rendered map, splits it and publishes it as release assets, with digests | [`docs/backup.md`](docs/backup.md) |
+| **Automatic updates** | Reads the Squirrel feed and offers a restart in a banner that never blocks | [`docs/automatic-updates.md`](docs/automatic-updates.md) |
+| **EULA and consent** | The licence at first run, a tabbed viewer afterwards, and one remembered answer about Mojang downloads | [`docs/eula-and-consent.md`](docs/eula-and-consent.md) |
+| **Changelog viewer** | Every released version, with date filters, search and export | [`docs/changelog-viewer.md`](docs/changelog-viewer.md) |
+| **Command palette** | `Ctrl+Shift+F` over every command, page and setting | [`docs/command-palette.md`](docs/command-palette.md) |
+| **Notification centre** | Nothing that only informs is a dialog; dismissed messages stay reviewable | [`docs/notification-centre.md`](docs/notification-centre.md) |
+| **The regex builder** | On every search bar, anchored beside the field it belongs to | [`docs/regex-builder.md`](docs/regex-builder.md) |
+| **Tabbed navigation** | Browser-style tabs with overflow, reordering, pinning, grouping and four discovery searches | [`docs/tabbed-navigation.md`](docs/tabbed-navigation.md) |
+| **Appearance editors** | Per-element **Edit appearance…**, with a continuous colour picker and Word-depth typography | [`docs/appearance-editors.md`](docs/appearance-editors.md) |
+| **Language and tone** | English, Hong Kong Cantonese and bilingual, each with its own funny-level slider | [`docs/language-and-tone.md`](docs/language-and-tone.md) |
+| **Super confirmation** | Two keys and a full-travel slider before anything destructive, with an emergency exit throughout | [`docs/super-confirmation.md`](docs/super-confirmation.md) |
+
+[`docs/README.md`](docs/README.md) is the index, and every article is also published on the
+[documentation site](https://ding-ding-projects.github.io/material-bluemap/).
+
+</details>
 
 ## Screenshots
 
-Every menu, dialog, panel and editor the application has, photographed from the real running
-application by the project's Playwright harness. None is a mockup. The world under the interface
+Photographed from the real running application by the project's Playwright harness. None is a
+mockup. The harness covers the shell, the wizard, the options editor, settings, the menu, the
+notification surfaces and the destructive-action gate; the surfaces added on 2026-08-04 do not
+have a capture step yet and are listed at the end of this section. The world under the interface
 was generated by `packages/worldgen` and rendered by upstream BlueMap's Java engine, then served
 to the application over loopback; the harness fails its own run if the application reaches the
 public internet while capturing.
@@ -275,6 +323,12 @@ looks similar. As of the committed set:
 The exact list for the committed set, with reasons, is the `skipped` array in
 `docs/screenshots/manifest.json`.
 
+Separately, and for a different reason, these surfaces shipped on 2026-08-04 with **no capture
+step written yet** — the harness does not attempt them, so it would not notice if one stopped
+opening: the **History** tab of the options editor, the **projects** screen, the **render
+console**, the **EULA viewer** and the **rendering-in-Actions** screen. Adding them is tracked
+in [`design/ROADMAP.md`](design/ROADMAP.md).
+
 </details>
 
 ## Build it
@@ -312,7 +366,7 @@ pnpm lint
 ```
 
 Everything except `plan.md` and repository metadata lives in `design/`, a pnpm workspace of
-ten packages.
+thirteen packages.
 
 Generate a test world without needing Minecraft, a server jar or a network connection:
 
@@ -323,9 +377,12 @@ node design/packages/worldgen/dist/cli.js --seed 1 --size 1000 --out ./test-worl
 That writes anvil format byte by byte: 3969 chunks across four region files, about 16 MB on disk
 and 8 MB zipped, in a few seconds. The same seed always produces byte-identical output.
 
-At the latest release the project is **97,723 lines** hand written across 607 files, or 112,977
-lines across 1,021 files counting bundled data. Every release publishes the full breakdown,
-generated at the tagged commit by `scripts/count-lines.mjs`.
+At release `v0.1.0-build.196`, measured at commit `0008dd4d`, the project is **288,533 lines**
+hand written across 1,258 files, or 309,624 lines across 1,738 files counting bundled data and
+binary assets. Of those hand-written lines, 284,498 are agent-written and 4,035 are
+human-written. Every release publishes the full breakdown — by category, by package and by
+authorship — generated at the tagged commit by `scripts/count-lines.mjs`. Run that script
+rather than counting by hand; it is the same command CI runs.
 
 ## Rendering on GitHub Actions, for computers that cannot render locally
 
@@ -375,9 +432,10 @@ The source of truth lives in the repository:
 | Document | What it covers |
 |---|---|
 | [`plan.md`](plan.md) | The approved full port plan. Read this first. |
+| [`docs/README.md`](docs/README.md) | The index of the per-feature articles, one file per feature |
 | [`design/README.md`](design/README.md) | The workspace: packages, development, port notes |
-| [`design/ROADMAP.md`](design/ROADMAP.md) | Phase table and status |
-| [`design/HANDOFF.md`](design/HANDOFF.md) | Current state, wave plan, verify-from-clean checklist |
+| [`design/ROADMAP.md`](design/ROADMAP.md) | Phase table and status, and what is proven versus merely built |
+| [`design/HANDOFF.md`](design/HANDOFF.md) | Current state. Its opening plain-language summary is written to be readable with no prior knowledge of the codebase |
 | [`design/docs/`](design/docs/) | Porting conventions, design decisions, deviations log |
 | [`design/docs/contracts/`](design/docs/contracts/README.md) | The five product contracts and their status |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) · [`SECURITY.md`](SECURITY.md) · [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) · [`LICENSE`](LICENSE) | Repository policy, rendered as their own tabs above |
@@ -385,6 +443,7 @@ The source of truth lives in the repository:
 
 ## Contents
 
+- [Everything the application does](#features)
 - [Rendering engines](#rendering-engines)
 - [Phase status](#phase-status)
 - [Packages](#packages)
@@ -405,10 +464,10 @@ The project ships two paths to it.
 
 | | Java engine | TypeScript mesher |
 |---|---|---|
-| Status | **primary today** | in development |
+| Status | **primary today** | passes its parity gate; not yet switched on |
 | Source | upstream BlueMap, built from `vendor/BlueMap` | `design/packages/engine` |
 | Needs a JDK | yes | no |
-| Correctness | upstream's own output, by definition | must match the Java engine byte for byte before it takes over |
+| Correctness | upstream's own output, by definition | **measured identical** to the Java engine on a 1000x1000 world and a 200x200 fixture: 961 of 961 hires tiles byte for byte after decompression, 24 of 24 lowres tiles pixel for pixel |
 
 **Why the Java engine is primary.** It renders correctly today. Writing a mesher that produces
 byte-identical geometry is months of work, and until it is finished a pure TypeScript app cannot
@@ -417,52 +476,63 @@ gives the TypeScript mesher an exact oracle to be checked against rather than a 
 approximation.
 
 **Why the TypeScript mesher still exists.** The Java path needs a JDK and carries a JVM's memory
-profile. When the mesher passes its gate, decompressed PRBM bytes identical to the Java engine's
-and lowres PNGs identical pixel for pixel across every fixture world, it becomes the default and
-the JDK requirement goes away.
+profile. The mesher's gate — decompressed PRBM bytes identical to the Java engine's and lowres
+PNGs identical pixel for pixel across every fixture world — **closed on 2026-08-04**. Passing it
+is not the same as switching over: making the mesher the default is its own change, with its own
+verification, and it has not been made. Until it is, the JDK requirement stands.
 
 The app tells you which engine rendered a map. It does not silently switch.
 
 </details>
 
 <details id="phase-status">
-<summary><b>Phase status</b> (0/A/B done, C in progress, D through I pending)</summary>
+<summary><b>Phase status</b> (0/A/B/D done, C and E part done, G/H/I pending)</summary>
 
-Mirrored from [`design/ROADMAP.md`](design/ROADMAP.md), which is the source of truth.
+Mirrored from [`design/ROADMAP.md`](design/ROADMAP.md), which is the source of truth and
+carries the reasoning behind every "part done" below.
 
 | Phase | Scope | Status |
 |---|---|---|
 | 0 | `plan.md`, submodules (plus the `v0.10.3-mc1.12` legacy tag), monorepo scaffold, CI | **Done** |
 | A | Viewer port (65 files to TS), MD3 shell, Electron shell, embedded server plus remote proxy, live-demo verification | **Done** |
 | B | shared utils, NBT, compression, MCA parsing 1.12.2 to 26.x including legacy `Chunk_1_12`, e2e synthetic-world proofs | **Done** |
-| C | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, `textures.json`) | In progress |
-| D | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks | Pending |
-| E | RenderManager worker pool, watch re-render, full HTTP routes plus SSE, config schema, standalone server CLI and Dockerfile | Pending |
-| F | Full options GUI (all settings, map wizard, storage editors, config import) | Pending |
-| G | Docker hosting GUI (dockerode instance manager) | Pending |
-| H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | Pending |
-| I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending |
-| Contracts | The five product contracts in [`design/docs/contracts/`](design/docs/contracts/README.md) | Pending, lands with F through I |
+| C | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, `textures.json`) | Ported; three exit criteria not yet run |
+| J | Java render path (toolchain discovery and provisioning, jar resolution, config writer, CLI runner, progress parser, provenance record, local map serving) | Built; driven by hand on one Windows machine |
+| D | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks | **Done, and the gate is closed** — both engines produced identical output on a 1000x1000 world |
+| E | RenderManager worker pool, watch re-render, full HTTP routes plus SSE, config schema, standalone server CLI and Dockerfile | **Part done.** The worker pool, the render-task hierarchy and the config schema are ported. Watch re-render, the HTTP routes with SSE, and the standalone CLI and Dockerfile are not, and nothing outside the engine drives the render manager yet |
+| F | Full options GUI (all settings, map wizard, storage editors, config import) | Reachable and in use; eight tabs over BlueMap's own configuration |
+| G | Docker hosting GUI (dockerode instance manager) | Pending. Rendering *in* a container landed separately — see [`docs/docker-and-local.md`](docs/docker-and-local.md) |
+| H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | Pending. The command palette shipped early |
+| I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending. Packaging and the update checker shipped early |
+| Contracts | The five product contracts in [`design/docs/contracts/`](design/docs/contracts/README.md) | **Shipped.** Issues #6 to #13 are closed, each with its evidence on the issue |
+| Delivery | Sign-in, private worlds, split archives, resumable renders, Actions rendering, remote and container rendering, world sources, updates, projects, packaging pipeline | **Landed.** Not a plan phase; see `design/ROADMAP.md` |
 
-Deferred verification flag: the lz4-java block-framing constants and PRBM byte-exactness still
-need oracle validation against a dockerized upstream Java CLI. That is recorded in
-[`design/docs/deviations.md`](design/docs/deviations.md) and is a Phase B/D exit criterion.
+Deferred verification flag: the lz4-java block-framing constants get oracle validation against
+upstream's own CLI, which now happens on every local render rather than only when someone runs
+the harness. That is recorded in
+[`design/docs/deviations.md`](design/docs/deviations.md) and tracked as
+[#3](https://github.com/Ding-Ding-Projects/material-bluemap/issues/3).
 
 </details>
 
 <details id="packages">
-<summary><b>Packages</b> (what the eight workspace packages are for)</summary>
+<summary><b>Packages</b> (what the thirteen workspace packages are for)</summary>
 
 | Package | Purpose |
 |---|---|
 | `design/packages/shared` | Wire formats (settings/textures/markers/players), config schema, math, path codecs |
 | `design/packages/nbt` | Binary NBT reader/writer with schema mapping (a BlueNBT-subset port) |
-| `design/packages/engine` | Render engine: MCA world parsing, resource packs, hires/lowres tile rendering, storage, render manager |
-| `design/packages/server` | Service facade, config, HTTP server and SSE, live data, commands, addon API |
-| `design/packages/cli` | Standalone server CLI and Docker image |
+| `design/packages/engine` | Render engine: MCA world parsing, resource packs, hires/lowres tile rendering, storage, render manager and its task hierarchy |
+| `design/packages/server` | Service facade, HTTP server and the remote proxy. Still small; its full routes and SSE are Phase E |
+| `design/packages/cli` | Standalone server CLI and Docker image. A stub — Phase E |
 | `design/packages/viewer` | three.js viewer library, a port of the BlueMap webapp core |
 | `design/packages/ui` | Material Design 3 Vue UI |
-| `design/packages/app` | Electron desktop app (embedded server, Docker hosting, options GUI) |
+| `design/packages/app` | Electron desktop app: main process, render orchestration, projects, backups, remote and container rendering, updates |
+| `design/packages/config` | The schema and control policy behind the eight-tab options editor |
+| `design/packages/parts` | Splitting and rejoining large files into release-asset-sized parts, with digests |
+| `design/packages/render-actions` | The sharding, merging and resumption logic for rendering on GitHub Actions |
+| `design/packages/worldgen` | Generates a Minecraft world from a seed, in the modern format or the 1.12.2 one, with no Minecraft and no network |
+| `design/packages/site` | The Material 3 documentation site published to GitHub Pages |
 
 </details>
 
@@ -471,8 +541,9 @@ need oracle validation against a dockerized upstream Java CLI. That is recorded 
 
 ```
 plan.md                  the approved full port plan
+docs/                    an article for every feature, indexed by docs/README.md
 design/                  the pnpm workspace (all code)
-  packages/              the eight packages above
+  packages/              the thirteen packages above
   docs/                  porting conventions, decisions, deviations, contracts
   tools/                 the worker-isolated reference regex builder
   LICENSE, NOTICE        licence and upstream attribution for the ported code
@@ -504,12 +575,16 @@ biome and light decoding through `MCAWorld`, including the legacy extension reco
 
 Structural differences, because a TypeScript port cannot reproduce them one for one:
 
-- Java jar **addons** cannot load without a JVM. An equivalent JS/ESM addon system against the
-  ported TypeScript API replaces them.
 - The six Minecraft-server **platform adapters** (paper, spigot, fabric, forge, neoforge,
-  sponge) embed BlueMap inside a server JVM and have no desktop equivalent. Live data comes
-  from remote BlueMap servers, or from local `playerdata` and RCON polling, which is a capability
-  beyond upstream.
+  sponge) embed BlueMap inside a server JVM, so they have no place inside the desktop
+  application itself. Because decision D17 put a JVM in the product, they are no longer inert:
+  **all six, plus the CLI, are built from the vendored source and attached to every release** as
+  `bluemap-*.jar` (decision D18). They are a separate download and are not needed to install the
+  desktop app. Inside the app, live data comes from remote BlueMap servers, or from local
+  `playerdata` and RCON polling, which is a capability beyond upstream.
+- Java jar **addons** are loaded by those adapter jars, not by the desktop application. An
+  equivalent JS/ESM addon system against the ported TypeScript API is planned for the app
+  itself and has not been built yet.
 - The Java **BlueMapAPI artifact** is not shipped. Its wire formats and API surface are ported
   to TypeScript.
 - **Metrics** are opt-in here. Upstream defaults to opt-out.
@@ -528,15 +603,27 @@ convention: a port that diverges silently is a port nobody can check.
 </details>
 
 <details id="product-contracts">
-<summary><b>Product contracts</b> (five cross-cutting UI requirements, none implemented yet)</summary>
+<summary><b>Product contracts</b> (five cross-cutting UI requirements, all shipped)</summary>
 
 Five contracts apply to every user-facing surface this project ships: a regex builder on every
 search bar, full browser-style tabbed navigation, per-element appearance editors with an
 infinite colour picker, English / Hong Kong Cantonese / bilingual language modes with
 per-language funny-level sliders, and super confirmation for destructive actions.
 
-**None of the five is implemented yet.** The `ui` package is currently a shell of 9 TypeScript
-and Vue source files plus 2 stylesheets. The roadmap lands the contracts with Phases F through I.
+**All five are implemented, in the desktop application and on the documentation site.** They
+were tracked as GitHub issues #6 to #13, all of which are closed with their evidence on the
+issue. Two of them are enforced by tests rather than by remembering:
+`components/config/regexPolicy.test.ts` fails if a search bar appears without its builder, and
+`components/confirm/superConfirmPolicy.test.ts` fails if a destructive call site is not
+declared with the gate that guards it.
+
+What is named as remaining sits inside the closed issues rather than being hidden: the
+appearance wrapper is proven end to end on the shell chrome with each further surface a
+one-line wrap; most of the localization keys still render their English fallback until a
+catalogue entry is added for them; and GitHub sign-out is the one destructive action still
+behind an inline two-step confirm, listed in that guard's own `KNOWN_GAPS` so it is a stated
+fact rather than an oversight.
+
 Each contract has its own document, and
 [`design/docs/contracts/README.md`](design/docs/contracts/README.md) is the index with the
 per-contract status.

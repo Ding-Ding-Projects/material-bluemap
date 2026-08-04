@@ -125,7 +125,8 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          # Matches `build-jars.yml`, which compiles at 25. See render-shard-wave.yml.
+          java-version: '25'
 
       - uses: gradle/actions/setup-gradle@v4
 

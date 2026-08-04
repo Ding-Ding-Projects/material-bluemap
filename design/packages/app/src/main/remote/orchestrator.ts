@@ -40,11 +40,30 @@
  * local `ssh` would end the log and leave the JVM rendering into somebody's disk with
  * nothing holding a handle to it. Cleanup then runs on the way out, so a cancelled render
  * does not leave a staging directory behind either.
+ *
+ * ## Closing the app is not cancelling either, which is why the container's name is written down
+ *
+ * The same fact from the other side: if killing `ssh` does not stop the container, then
+ * *quitting* does not stop it, and a render that was going when the app closed is still
+ * going when it opens again. Before the container is started its name, its host and where
+ * its output belongs are written to `container.json` beside the render
+ * (`runtime/handoff.ts`), and the note is removed on every way out of a run. That note is
+ * the whole difference between reattaching to a six-hour render and starting a second one
+ * beside it; `remote/reattach.ts` is what reads it.
+ *
+ * ## The world is sent with rsync where both machines have it
+ *
+ * `scp` cannot carry a partial file on, so an interrupted upload of a large world starts
+ * that file again from zero. `rsync.ts` detects rsync on both ends and uses it when it is
+ * there, and the log says which tool moved the files and what an interruption would cost -
+ * a transfer that quietly degrades to restart-from-zero is worse than one that never
+ * offered to resume.
  */
 
 import { mkdir, rm } from "node:fs/promises";
 import { EngineProcess } from "../runtime/process.js";
 import type { EngineLaunch } from "../runtime/plan.js";
+import type { ContainerHandoffStore } from "../runtime/handoff.js";
 import { writeEngineConfig } from "../runtime/config.js";
 import { CONTAINER_DATA_DIR, CONTAINER_WEB_ROOT, containerWorldPath } from "../runtime/mounts.js";
 import { execFileCommandRunner, type CommandRunner } from "../runtime/command.js";
@@ -74,6 +93,7 @@ import {
     type SshOptionsInput,
 } from "./ssh.js";
 import { scpTransfer, TransferError, type FileTransfer } from "./transfer.js";
+import { chooseTransfer } from "./rsync.js";
 import { describeTarget, type RemoteTarget } from "./target.js";
 
 /** What a remote render answers with. The same two shapes a local one answers with. */
@@ -112,8 +132,19 @@ export interface RemoteRenderOrchestratorOptions {
     readonly userKnownHostsFile?: string | null;
     readonly ssh?: string;
     readonly scp?: string;
+    /** The local `rsync`, when the resumable transfer is wanted under another name. */
+    readonly rsync?: string;
     readonly runner?: CommandRunner;
-    /** Injected so a test can prove the whole flow with no server and no scp. */
+    /**
+     * Where the container's name is written down so a closed app can find it again.
+     *
+     * Optional, and a build without one still renders perfectly - it simply cannot pick a
+     * render back up after the app dies, because the name of the container doing it was
+     * never written anywhere. That is stated here rather than left as a surprise: the
+     * failure it produces is a render that carries on invisibly on somebody's server.
+     */
+    readonly handoff?: ContainerHandoffStore;
+    /** Injected so a test can prove the whole flow with no server, no scp and no rsync. */
     readonly transfer?: (target: RemoteTarget) => FileTransfer;
     /** Injected so a test can answer as any preflight state. */
     readonly preflight?: (target: RemoteTarget, options: PreflightOptions) => Promise<PreflightReport>;
@@ -208,6 +239,11 @@ export class RemoteRenderOrchestrator {
             return await this.run(renderId, request, target, name, entry);
         } finally {
             this.active.delete(renderId);
+            // Every way out of `run` passes through here - success, failure, cancellation
+            // and a thrown error - which is the only place the note can be removed without
+            // one of those paths being the one that forgets. A record left behind would
+            // offer to reattach to a container that has already ended.
+            await this.options.handoff?.finish(renderId);
         }
     }
 
@@ -262,7 +298,7 @@ export class RemoteRenderOrchestrator {
         if (entry.value.cancelled) return this.cancelled(renderId);
 
         const paths = remotePaths(check.workDir, renderId);
-        const transfer = (this.options.transfer ?? ((chosen) => this.defaultTransfer(chosen)))(target);
+        const transfer = await this.pickTransfer(renderId, target);
         const transferOptions = {
             signal: entry.value.controller.signal,
             onLine: (line: string) => this.log(renderId, "INFO", line),
@@ -347,6 +383,33 @@ export class RemoteRenderOrchestrator {
                 url: null,
                 hostPort: null,
             };
+
+            // Written *before* the container is started, not after. The window between the
+            // two is small and it is exactly the window in which the app being killed
+            // produces the failure this record exists to prevent: a container rendering on
+            // somebody's server with nothing anywhere naming it.
+            await this.options.handoff?.start({
+                renderId,
+                containerName: container,
+                mode: "remote",
+                mapIds,
+                docker: this.options.ssh ?? "ssh",
+                storageRoot: workspace.storageRoot,
+                webRoot: workspace.webRoot,
+                cwd: workspace.root,
+                engine: describeEngine(engine),
+                remote: {
+                    id: target.id,
+                    host: target.host,
+                    port: target.port,
+                    user: target.user,
+                    identityFile: target.identityFile,
+                    docker: target.docker,
+                    keepRemoteFiles: target.keepRemoteFiles,
+                    root: paths.root,
+                    storageRoot: paths.storageRoot,
+                },
+            });
 
             this.log(renderId, "INFO", `Starting the render container '${container}' on ${name}.`);
             const process = new EngineProcess({
@@ -517,6 +580,31 @@ export class RemoteRenderOrchestrator {
     private fail(renderId: string, failure: RemoteFailure): RemoteRenderResult {
         this.emit({ type: "failed", renderId, failure, at: this.timestamp() });
         return { ok: false, renderId, failure };
+    }
+
+    /**
+     * Picks the resumable transfer where both machines can do it, and says which was picked.
+     *
+     * The sentence is logged before a byte moves, because it is the answer to a question
+     * somebody about to send forty gigabytes is entitled to have in advance: whether
+     * stopping it costs them the forty gigabytes. An injected transfer - which is what
+     * every test in this folder hands in - is used as given and announces nothing, because
+     * there is nothing true to announce about a fake.
+     */
+    private async pickTransfer(renderId: string, target: RemoteTarget): Promise<FileTransfer> {
+        const given = this.options.transfer;
+        if (given !== undefined) return given(target);
+
+        const choice = await chooseTransfer({
+            ...this.sshOptions(target),
+            ...(this.options.ssh === undefined ? {} : { ssh: this.options.ssh }),
+            ...(this.options.rsync === undefined ? {} : { rsync: this.options.rsync }),
+            ...(this.options.runner === undefined ? {} : { runner: this.options.runner }),
+            scpTransfer: this.defaultTransfer(target),
+            onLine: (line) => this.log(renderId, "WARNING", line),
+        });
+        this.log(renderId, "INFO", choice.message);
+        return choice.transfer;
     }
 
     private defaultTransfer(target: RemoteTarget): FileTransfer {

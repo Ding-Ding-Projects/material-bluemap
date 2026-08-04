@@ -26,6 +26,8 @@ import * as directives from "vuetify/directives";
 import App from "./App.vue";
 import ProfileManager from "./components/ProfileManager.vue";
 import { BackupScreen } from "./components/backup/index.js";
+import { CiRenderScreen } from "./components/cirender/index.js";
+import { RunLocationCard } from "./components/remote/index.js";
 import { ConfigScreen } from "./components/config/index.js";
 import { dismissAll } from "./components/config/notifications.js";
 import { CommandPalette } from "./components/palette/index.js";
@@ -204,10 +206,17 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("separates the shell into five pages behind one persistent strip", () => {
+    it("separates the shell into six pages behind one persistent strip", () => {
         shell();
 
-        expect(tabLabels()).toEqual(["Map", "Make a map", "Projects", "Maps and servers", "Backups"]);
+        expect(tabLabels()).toEqual([
+            "Map",
+            "Make a map",
+            "Projects",
+            "GitHub runners",
+            "Maps and servers",
+            "Backups",
+        ]);
     });
 
     it("opens on the map, which is where the map-state message lives", () => {
@@ -281,6 +290,51 @@ describe("the tab strip", () => {
         await settle();
 
         expect(app.findComponent(BackupScreen).exists()).toBe(true);
+    });
+
+    it("reaches the GitHub-runners surface through its tab, rather than only existing in the bundle", async () => {
+        // The seventh feature this project built, tested and left with no door. The whole
+        // path works - the main process registers it and the preload exposes all six
+        // channels - so what was missing was one tab.
+        const app = shell();
+        expect(app.findComponent(CiRenderScreen).exists()).toBe(false);
+
+        tabButton("GitHub runners").click();
+        await settle();
+
+        expect(app.findComponent(CiRenderScreen).exists()).toBe(true);
+    });
+
+    it("puts the choice of where a render runs on the page where a render is started", async () => {
+        // Three of the four places a render can go were reachable only from the bundle:
+        // the local-versus-container choice and the whole SSH path had no control anywhere
+        // in the application. This is that door.
+        const app = shell();
+        expect(app.findComponent(RunLocationCard).exists()).toBe(false);
+
+        tabButton("Make a map").click();
+        await settle();
+
+        const card = app.findComponent(RunLocationCard);
+        expect(card.exists()).toBe(true);
+        // All four answers named in one place, rather than three screens to find separately.
+        expect(card.text()).toContain("On this computer");
+        expect(card.text()).toContain("In a container on this computer");
+        expect(card.text()).toContain("On another machine, over SSH");
+        expect(card.text()).toContain("GitHub");
+    });
+
+    it("takes the guide's fourth choice to the GitHub-runners page", async () => {
+        // The card names four places and can only start three of them; the fourth is a
+        // workflow with a page of its own, and this is the link between them.
+        const app = shell();
+        tabButton("Make a map").click();
+        await settle();
+
+        app.findComponent(WorldScreen).vm.$emit("open-ci-render");
+        await settle();
+
+        expect(app.findComponent(CiRenderScreen).exists()).toBe(true);
     });
 
     it("sends the palette's server destination to that same page", async () => {

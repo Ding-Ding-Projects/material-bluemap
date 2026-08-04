@@ -25,6 +25,14 @@ import { createBridgeConfigHost, provideConfigHost, type ConfigHost } from "../c
 import { provideSettingsOpener } from "../downloads/index.js";
 import { resolveProjectHost, type ProjectHost } from "../project/projectHost.js";
 import { projectFromWizard } from "../project/projectModel.js";
+import {
+    RunLocationCard,
+    createRenderRouter,
+    resolveRemoteBridge,
+    type RemoteBridge,
+    type RemoteTarget,
+    type RunLocation,
+} from "../remote/index.js";
 
 /**
  * The surface that turns "no map loaded" into a rendered map.
@@ -69,8 +77,18 @@ const props = withDefaults(
          * rather than the shape this would take if the settings row could publish.
          */
         settingsEpoch?: number;
+        /**
+         * The remote-render channel, on the same convention as `bridge`.
+         *
+         * `undefined` means probe the Electron preload, `null` means there is deliberately
+         * none and the "where it runs" card should say so rather than offering a machine
+         * it cannot reach.
+         */
+        remoteBridge?: RemoteBridge | null;
+        /** True when the shell can open the surface that renders on GitHub's runners. */
+        canOpenCi?: boolean;
     }>(),
-    { settingsEpoch: 0 },
+    { settingsEpoch: 0, canOpenCi: false },
 );
 
 const emit = defineEmits<{
@@ -89,6 +107,8 @@ const emit = defineEmits<{
      * had one. The shell owns the navigation; this only says where to go.
      */
     openProject: [world: string];
+    /** Take the person to the surface that hands a render to GitHub's runners. */
+    openCiRender: [];
 }>();
 
 const { t } = useI18n();
@@ -111,7 +131,31 @@ provideConfigHost(host);
  */
 provideSettingsOpener((target) => emit("settings", target));
 
-const run = createRenderRun(bridge);
+/* -------------------------------------------------------------------------- */
+/* Where this render runs                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The choice, and the routing that makes it real.
+ *
+ * `createRenderRouter` wraps the ordinary bridge and changes exactly two of its methods, so
+ * a render sent over SSH arrives at `RenderRunPanel` as the same events a local one does -
+ * same bar, same log, same Cancel button. The alternative was a second progress panel for
+ * remote renders, which is a second thing to keep in step and the one that would get behind.
+ *
+ * The route is read *at the moment a render is started* rather than captured when the router
+ * was built, so a machine chosen after the wizard opened is the machine the render goes to.
+ */
+const remote = props.remoteBridge === undefined ? resolveRemoteBridge() : props.remoteBridge;
+const runLocation = ref<RunLocation>("local");
+const runTarget = ref<RemoteTarget | null>(null);
+
+const router = createRenderRouter(bridge, remote, () => ({
+    location: runLocation.value,
+    target: runTarget.value,
+}));
+
+const run = createRenderRun(router ?? bridge);
 const offers = createResumeOffers(bridge);
 
 /**
@@ -280,6 +324,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     run.dispose();
+    router?.dispose();
     if (typeof window !== "undefined") {
         window.removeEventListener("focus", rereadConsent);
         document.removeEventListener("visibilitychange", rereadConsent);
@@ -450,6 +495,24 @@ async function resume(renderId: string): Promise<void> {
                 )
             }}
         </v-alert>
+
+        <!--
+            Where the render runs, put where the render is started rather than in settings.
+            All four answers in one list: this computer, a container on it, a machine over
+            SSH, and GitHub's runners. It is above the guide because it changes what the
+            guide's last button does, and a choice offered after the button has been pressed
+            is not a choice.
+        -->
+        <RunLocationCard
+            v-if="wizardOpen"
+            :remote-bridge="remote"
+            :can-render-locally="bridge !== null"
+            :location="runLocation"
+            :can-open-ci="canOpenCi"
+            @update:location="(value: RunLocation) => (runLocation = value)"
+            @update:target="(value: RemoteTarget | null) => (runTarget = value)"
+            @open-ci="emit('openCiRender')"
+        />
 
         <v-card v-if="wizardOpen" class="mb-world-screen__card">
             <v-card-text>

@@ -70,7 +70,12 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '21'
+          # Must match the version `build-jars.yml` compiles the jar with. It compiles at
+          # 25, and running that jar on 21 fails with `UnsupportedClassVersionError: class
+          # file version 69.0` before a single tile is drawn - which is exactly what
+          # happened, and which surfaced three jobs later as a missing artifact rather
+          # than as the version mismatch it was.
+          java-version: '25'
 
       - name: Install
         working-directory: design
@@ -191,6 +196,7 @@ jobs:
           key: ${{ steps.shard.outputs.cache-key }}
 
       - name: Report what this shard produced
+        id: report
         if: always()
         shell: bash
         run: |
@@ -213,6 +219,24 @@ jobs:
           if [ "${{ steps.render.outcome }}" = "failure" ]; then
             echo "::warning::Shard ${{ matrix.shard }} did not finish. Its state is cached; re-dispatch this workflow to carry it on."
           fi
+          echo "hires=$hires" >> "$GITHUB_OUTPUT"
+
+      # `continue-on-error` above is right for the case it was written for - a shard that
+      # ran out of time has hours of real tiles, and the steps after it are what get them
+      # off the runner. It is wrong for a render that failed having produced nothing: that
+      # job reported success, uploaded no artifact because there were no files to upload,
+      # and the run broke three jobs later with "Artifact not found for name: webapp",
+      # which points at the merge and says nothing about the engine refusing to start.
+      #
+      # That is exactly what a Java version mismatch did. So: a failed render that drew at
+      # least one tile is still a partial success worth collecting, and a failed render
+      # that drew nothing fails here, next to the reason.
+      - name: A render that produced nothing is a failed render
+        if: always() && steps.render.outcome == 'failure' && steps.report.outputs.hires == '0'
+        shell: bash
+        run: |
+          echo "::error::Shard ${{ matrix.shard }} rendered no tiles at all. The engine did not run:"                "check the Render step's output above for the real reason. Its exit was swallowed so that"                "a shard which merely ran out of time could still hand over the tiles it had drawn."
+          exit 1
 
       # Uploaded whether or not it finished. The marker inside says which it was, and the
       # merge refuses any shard whose marker is missing rather than merging it short.

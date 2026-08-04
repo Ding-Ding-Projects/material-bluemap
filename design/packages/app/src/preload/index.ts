@@ -1395,6 +1395,25 @@ interface MaterialBlueMapBridge {
      * all, what the repository's visibility means, and what a workflow's inputs cannot
      * carry - so the refusals arrive before an upload rather than inside one.
      */
+    /* ---- Where a render runs, and containers left behind ------------------ */
+
+    /**
+     * Docker's state in five distinct answers, with the client version reported even when
+     * the daemon is down - which is what lets a screen say "Docker 29.6.1 is installed but
+     * its daemon is not running" rather than collapsing that into "Docker is not available".
+     */
+    dockerRuntime(): Promise<unknown>;
+    /** Where a render could run, and whether each place is actually up. */
+    runtimeModes(): Promise<unknown>;
+    /** Containers from an earlier session: still running, finished while away, or gone. */
+    containerOffers(): Promise<unknown>;
+    /** Picks one back up. Reports on the ordinary render events, like any other render. */
+    reattachContainer(renderId: string): Promise<unknown>;
+    /** Stops a reattached container by asking its daemon, not by hanging up. */
+    cancelContainer(renderId: string): Promise<boolean>;
+    /** Forgets a record without touching whatever it points at. */
+    dismissContainer(renderId: string): Promise<boolean>;
+
     /* ---- Worlds published as somebody else's release --------------------- */
 
     /** Reads `owner/repo`, a URL or a release link into the pieces an API path needs. */
@@ -1601,6 +1620,13 @@ const bridge: MaterialBlueMapBridge = {
         // where the separator is the platform's own.
         pathSeparator: process.platform === "win32" ? "\\" : "/",
     },
+
+    dockerRuntime: () => ipcRenderer.invoke("runtime:docker"),
+    runtimeModes: () => ipcRenderer.invoke("runtime:modes"),
+    containerOffers: () => ipcRenderer.invoke("runtime:containers"),
+    reattachContainer: (renderId) => ipcRenderer.invoke("runtime:reattach", renderId),
+    cancelContainer: (renderId) => ipcRenderer.invoke("runtime:cancelContainer", renderId),
+    dismissContainer: (renderId) => ipcRenderer.invoke("runtime:dismissContainer", renderId),
 
     parseWorldSource: (text) => ipcRenderer.invoke("worldsource:parse", text),
     discoverWorldSource: (request) => ipcRenderer.invoke("worldsource:discover", request),

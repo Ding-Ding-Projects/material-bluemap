@@ -88,6 +88,55 @@ export {
 } from "./process.js";
 
 export {
+    attachArguments,
+    decideReattach,
+    inspectArguments,
+    inspectContainer,
+    listAppContainers,
+    listArguments,
+    readInspection,
+    type ContainerInspection,
+    type ContainerState,
+    type InspectOptions,
+    type ReattachAction,
+    type ReattachDecision,
+} from "./attach.js";
+
+export {
+    CONTAINER_HANDOFF_FILE,
+    CONTAINER_HANDOFF_VERSION,
+    ContainerHandoffStore,
+    handoffFile,
+    isHandedOff,
+    listContainerHandoffs,
+    newContainerHandoff,
+    readContainerHandoff,
+    writeContainerHandoff,
+    type ContainerHandoff,
+    type ContainerHandoffStatus,
+    type ContainerHandoffStoreOptions,
+    type ContainerMode,
+    type NewHandoffInput,
+    type RemoteHandoffTarget,
+} from "./handoff.js";
+
+export {
+    CONTAINER_PREFIX,
+    ContainerReattacher,
+    localContainerAccess,
+    localContainerList,
+    type CollectReport,
+    type ContainerAccess,
+    type ContainerOffer,
+    type ContainerReattacherOptions,
+    type ContainerScan,
+    type LocalContainerAccessOptions,
+    type ReattachRefusalCode,
+    type ReattachResult,
+    type StrayContainer,
+} from "./reattach.js";
+
+export {
     engineStorageRoot,
     writeEngineConfig,
     type EngineMapRequest,
