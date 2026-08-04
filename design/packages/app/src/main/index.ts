@@ -23,6 +23,8 @@ import type { RenderIpc } from "./render/ipc.js";
 import { installDownloadIpc } from "./download/ipc.js";
 import type { DownloadIpc } from "./download/ipc.js";
 import { releaseTokenSource } from "./download/token.js";
+import { registerProjectHandlers } from "./project/index.js";
+import type { ProjectIpc } from "./project/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
 import type { BackupIpc } from "./backup/ipc.js";
 import { installGitHubIpc } from "./github/ipc.js";
@@ -375,6 +377,22 @@ function startConfigHistory(): HistoryIpc {
     return historyIpc;
 }
 
+/**
+ * A world's project file, and the local history of it.
+ *
+ * Registered once and holding nothing between calls, like the config history beside it. The
+ * repository is derived from the world folder on every call and lives under the app's own
+ * data directory - never as a `.git` inside somebody's world, which would drop an object
+ * store next to their region files and change what every backup tool sees.
+ */
+let projectIpc: ProjectIpc | null = null;
+
+function startProjects(): ProjectIpc {
+    if (projectIpc !== null) return projectIpc;
+    projectIpc = registerProjectHandlers(ipcMain, { dataDir: app.getPath("userData") });
+    return projectIpc;
+}
+
 async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
@@ -387,6 +405,7 @@ async function createWindow(): Promise<void> {
     startJavaDiscovery();
     startConfigEditing();
     startConfigHistory();
+    startProjects();
 
     const window = new BrowserWindow({
         width: 1280,
