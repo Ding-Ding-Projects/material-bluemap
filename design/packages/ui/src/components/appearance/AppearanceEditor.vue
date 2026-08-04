@@ -17,6 +17,8 @@ import {
 } from "vuetify/components";
 
 import ColorField from "./ColorField.vue";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import TypographyEditor from "./TypographyEditor.vue";
 import { SURFACE_PROPERTIES, type SurfacePropertyId } from "./appearanceRecord.js";
@@ -78,6 +80,25 @@ const target = useAppearanceTarget(() => props.targetId);
 const self = useAppearanceTarget("appearance.editor");
 
 const tab = ref<"typography" | "surface" | "presets">("typography");
+
+/*
+ * A search per tab, not one search over the editor.
+ *
+ * The Text tab has carried its own since it was written; Surface and Presets had none at
+ * all, which is the shape of gap a guard test cannot see - a file with no search bar
+ * passes a rule about search bars carrying builders, because it has nothing to check.
+ *
+ * Three fields rather than one because the rule is that a builder belongs to the field the
+ * person is typing in. One shared query silently applying to whichever tab was last open
+ * is exactly what that rule exists to prevent.
+ */
+const surfaceSearch = ref("");
+const surfaceSearchRegex = ref(false);
+const surfaceSearchFlags = ref("i");
+
+const presetSearch = ref("");
+const presetSearchRegex = ref(false);
+const presetSearchFlags = ref("i");
 const presetName = ref("");
 const importMessage = ref("");
 const importError = ref("");
@@ -87,6 +108,24 @@ const resolved = computed(() => resolveTarget(state.value, props.targetId));
 const style = computed(() => target.style.value);
 
 const userPresets = computed(() => state.value.presets.filter((entry) => !entry.builtIn));
+
+/** The surface properties this tab is showing, after its own search. */
+const surfaceRows = computed(() => {
+    const matcher = createSettingMatcher(surfaceSearch.value, surfaceSearchRegex.value, surfaceSearchFlags.value);
+    return SURFACE_PROPERTIES.filter((id) => matcher.test(`${surfaceLabel(id)} ${id}`));
+});
+
+const surfaceCorpus = computed(() =>
+    SURFACE_PROPERTIES.map((id) => `${surfaceLabel(id)} ${id}`).join("\n"),
+);
+
+/** Presets after their own search. Built-in and saved alike: a name is a name. */
+const visiblePresets = computed(() => {
+    const matcher = createSettingMatcher(presetSearch.value, presetSearchRegex.value, presetSearchFlags.value);
+    return userPresets.value.filter((entry) => matcher.test(entry.name));
+});
+
+const presetCorpus = computed(() => state.value.presets.map((entry) => entry.name).join("\n"));
 
 const presetChoices = computed(() => [
     { title: t("appearance.preset.none", "Do not follow a preset"), value: "" },
@@ -267,8 +306,27 @@ async function onFileChosen(event: Event): Promise<void> {
             </v-window-item>
 
             <v-window-item value="surface">
+                <ConfigSearchField
+                    v-model="surfaceSearch"
+                    v-model:regex="surfaceSearchRegex"
+                    v-model:flags="surfaceSearchFlags"
+                    :label="t('appearance.surface.search', 'Search the surface settings')"
+                    :sample="surfaceCorpus"
+                    :summary="
+                        t(
+                            'appearance.surface.searchSummary',
+                            { shown: surfaceRows.length, total: SURFACE_PROPERTIES.length },
+                            'Showing {shown} of {total} settings.',
+                        )
+                    "
+                />
+
+                <p v-if="surfaceRows.length === 0" class="mb-appearance-editor__hint">
+                    {{ t("appearance.surface.noMatch", "No surface setting matches that search.") }}
+                </p>
+
                 <div class="mb-appearance-editor__surface">
-                    <div v-for="id in SURFACE_PROPERTIES" :key="id" class="mb-appearance-editor__row">
+                    <div v-for="id in surfaceRows" :key="id" class="mb-appearance-editor__row">
                         <ColorField
                             v-if="id === 'backgroundColor'"
                             :model-value="resolved.surface.backgroundColor"
@@ -356,8 +414,31 @@ async function onFileChosen(event: Event): Promise<void> {
                         </v-btn>
                     </div>
 
+                    <ConfigSearchField
+                        v-if="userPresets.length > 0"
+                        v-model="presetSearch"
+                        v-model:regex="presetSearchRegex"
+                        v-model:flags="presetSearchFlags"
+                        :label="t('appearance.preset.search', 'Search the saved presets')"
+                        :sample="presetCorpus"
+                        :summary="
+                            t(
+                                'appearance.preset.searchSummary',
+                                { shown: visiblePresets.length, total: userPresets.length },
+                                'Showing {shown} of {total} saved presets.',
+                            )
+                        "
+                    />
+
+                    <p
+                        v-if="userPresets.length > 0 && visiblePresets.length === 0"
+                        class="mb-appearance-editor__hint"
+                    >
+                        {{ t("appearance.preset.noMatch", "No saved preset matches that search.") }}
+                    </p>
+
                     <ul class="mb-appearance-editor__presetList">
-                        <li v-for="entry in userPresets" :key="entry.id" class="mb-appearance-editor__row">
+                        <li v-for="entry in visiblePresets" :key="entry.id" class="mb-appearance-editor__row">
                             <span class="mb-appearance-editor__rowLabel">{{ entry.name }}</span>
                             <!--
                                 Gated, because a saved preset is user work with no copy

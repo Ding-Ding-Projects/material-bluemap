@@ -103,6 +103,49 @@ function usesSharedSearchField(source: string): boolean {
     );
 }
 
+/**
+ * Surfaces that must *have* a search, not merely wire one correctly if they happen to.
+ *
+ * The rule above catches a search bar done wrongly. It cannot catch a search bar that was
+ * never written: a settings surface with no input at all has nothing search-shaped in it,
+ * so it passes a rule about search-shaped inputs by having none. That is how the appearance
+ * editor's Surface and Presets tabs went without one while every guard stayed green.
+ *
+ * So this list is the inverted assertion. A settings, preferences, properties or collection
+ * surface belongs here, and adding one to the application means adding it here too. It is
+ * deliberately a hand-written list rather than a pattern: a pattern that guessed which
+ * files are settings surfaces would quietly stop matching the day somebody renamed one,
+ * and a guard that silently stops guarding is worse than no guard.
+ */
+const MUST_CARRY_A_SEARCH = [
+    "components/config/ConfigScreen.vue",
+    "components/appearance/AppearanceEditor.vue",
+    "components/appearance/TypographyEditor.vue",
+    "components/backup/BackupScreen.vue",
+    "components/cirender/CiRenderScreen.vue",
+    "components/remote/RemoteTargetEditor.vue",
+    "components/settings/AppSettings.vue",
+];
+
+describe("a settings surface has a search at all, which the rule below cannot see", () => {
+    it("finds every listed surface, so a rename cannot quietly empty this list", () => {
+        const present = new Set(componentFiles(UI_SRC));
+        for (const file of MUST_CARRY_A_SEARCH) {
+            expect(present.has(file), `${file} is listed here but no longer exists`).toBe(true);
+        }
+    });
+
+    it("gives each of them a search field wired to the builder", () => {
+        const missing = MUST_CARRY_A_SEARCH.filter(
+            (file) => !usesSharedSearchField(readFileSync(join(UI_SRC, file), "utf8")),
+        );
+        expect(
+            missing,
+            "these surfaces let somebody hunt by eye for a setting they could have typed the name of",
+        ).toEqual([]);
+    });
+});
+
 describe("every search bar offers the regex builder", () => {
     const files = componentFiles(UI_SRC).filter((file) => !THE_MACHINERY.has(file));
 
