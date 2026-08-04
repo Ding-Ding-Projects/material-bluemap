@@ -48,9 +48,15 @@ document says so.
 
 ### What does not work yet
 
-- **The TypeScript mesher now matches the Java engine on a small world, and a large one
-  is being proven.** The oracle's first real comparison had 49 of 57 files differing.
-  Every cause turned out to be *outside* the mesher, which is the finding worth keeping:
+- **The TypeScript mesher matches the Java engine, and the Phase D gate passes.** On
+  2026-08-04 the oracle rendered a 1000x1000 generated world with both engines and
+  reported **identical**: 995 files matched, **961 of 961 hires tiles byte for byte after
+  decompression**, all 24 lowres tiles pixel for pixel, all six render-state files
+  agreeing on every decision, and neither side holding a file the other lacked. The
+  200x200 fixture on a different seed reports the same.
+
+  The first comparison had 49 of 57 files differing, and every cause turned out to be
+  *outside* the mesher. That is the finding worth keeping:
 
   1. **The harness was feeding the two engines different resources.** BlueMap bundles its
      own resource pack, `resourceExtensions.zip`, and upstream loads it alongside the
@@ -62,22 +68,21 @@ document says so.
      tile should be deleted rather than rendered, and what records the render state.
      Without it the port rendered and kept 253 tiles upstream deletes.
   3. **The comparison itself was grading the wrong things.** Render state was compared as
-     raw bytes, so the first difference it ever found was a gzip header field; the
-     gallery was compared as bytes, so two correct PNG encoders looked like a divergence.
+     raw bytes, so the first difference it ever found was a gzip header field; the gallery
+     was compared as bytes, so two correct PNG encoders looked like a divergence.
+  4. **A region-boundary defect only a large world could reach.** A tile at the edge of a
+     region reads chunks belonging to the *next* region, and the port's synchronous
+     `getChunk` answers a cache miss with an empty chunk, which reports itself as
+     ungenerated - so 23 tiles were erased rather than rendered. Every tile the port did
+     write was byte-identical even in that failing run. A mesher can be right about
+     everything it emits and wrong about what to emit, and only a world with a second
+     region asks that question.
 
-  With those fixed the 200x200 fixture reports **identical**: every hires tile byte for
-  byte after decompression, every lowres tile pixel for pixel.
-
-  A 1000x1000 run then found a real defect the small world could not reach. At a region
-  boundary a tile reads chunks belonging to the *next* region; the port's synchronous
-  `getChunk` answers a cache miss with an empty chunk, which reports itself as ungenerated,
-  so 23 tiles were erased rather than rendered. Every tile the port did write was still
-  byte-identical: 938 of 938. The fix preloads a tile's chunk range before the precondition
-  check, and its full-scale verification is running as this is written. **Until that run is
-  green, the gate is proven at 200x200 and not at 1000x1000.**
-
-  Until it is proven at full scale, local rendering uses the Java engine, and that is
-  correct behaviour rather than a bug.
+  **What passing the gate does and does not mean.** It means the ported engine produces
+  the same bytes as the engine it replaces, on these worlds, measured rather than argued.
+  It does not by itself switch the product over: decision D17 says the app renders with
+  upstream's Java engine until the mesher takes over, and making that switch is its own
+  change with its own verification. Local rendering still uses the Java engine today.
 
 - **A warning for anyone measuring the gate: build first.** `tools/oracle` runs the
   *compiled* engine, so a run measures the last build rather than the current source. It
@@ -97,8 +102,8 @@ cd design && npx vitest run          # every unit test (about 3200, under 30 sec
 cd design && pnpm typecheck          # type-checks all 13 packages (vue-tsc for the ui one)
 cd design && pnpm lint
 node tools/oracle/selftest.mjs       # proves the byte-comparison gate can detect planted differences
-node tools/oracle/compare.mjs --seed 7 --size 200   # the real gate; identical, exit 0
-node tools/oracle/compare.mjs --seed 1 --size 1000  # full scale; the run that found the region-boundary defect
+node tools/oracle/compare.mjs --seed 7 --size 200   # the gate on a small world; identical, exit 0
+node tools/oracle/compare.mjs --seed 1 --size 1000  # the gate at full scale; identical, exit 0
 ```
 
 The gate compiles the engine itself before rendering, so it always grades the current
