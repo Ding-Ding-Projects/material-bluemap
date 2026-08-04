@@ -90,6 +90,16 @@ const owner = ref("");
 const repo = ref("");
 const acknowledgeUpload = ref(false);
 const acknowledgePublic = ref(false);
+
+/**
+ * Whether the finished map is published to the repository's Pages site as well as
+ * downloaded.
+ *
+ * Off by default, deliberately. Rendering a world is a private act until somebody says
+ * otherwise, and a switch that quietly put a person's world on the open web the first
+ * time they used it would be the wrong default even in a public repository.
+ */
+const publishToPages = ref(false);
 const forceUpload = ref(false);
 
 const preflight = computed<CiPreflight | null>(() => renders.preflight.value);
@@ -219,6 +229,7 @@ async function start(): Promise<void> {
         acknowledgeUpload: acknowledgeUpload.value,
         acknowledgePublic: acknowledgePublic.value,
         forceUpload: forceUpload.value,
+        output: publishToPages.value ? "artifact-and-pages" : "artifact",
     });
     if (result?.ok === true && result.outcome === "rendered") {
         emit("rendered", {
@@ -458,6 +469,31 @@ onBeforeUnmount(() => {
                         data-test="force-upload"
                         :label="t('cirender.force', 'Upload again even if the world looks unchanged')"
                     />
+                    <VCheckbox
+                        v-model="publishToPages"
+                        density="compact"
+                        data-test="publish-pages"
+                        :label="
+                            t(
+                                'cirender.pages.publish',
+                                'Also host the finished map on this repository’s GitHub Pages site',
+                            )
+                        "
+                    />
+                    <p v-if="publishToPages" class="text-caption text-medium-emphasis mb-2">
+                        {{
+                            t(
+                                "cirender.pages.explain",
+                                "The map is published under the documentation site at /map/, so publishing it does not take that site down. Anybody with the link can see the map, whether or not the repository is private.",
+                            )
+                        }}
+                        {{
+                            t(
+                                "cirender.pages.parts",
+                                "A world too large to assemble on one runner is delivered in parts instead, and a map in parts cannot be hosted this way. The run says so plainly and the map is still downloadable.",
+                            )
+                        }}
+                    </p>
 
                     <VBtn
                         :prepend-icon="mdiCloudSyncOutline"
