@@ -178,6 +178,14 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
         standing: "gated",
         gatedIn: "components/ProfileManager.vue",
     },
+
+    "components/appearance/AppearanceEditor.vue": {
+        count: 2,
+        destroys:
+            "a user-saved appearance preset, and with it the settings every element following that preset was inheriting",
+        standing: "gated",
+        gatedIn: "components/appearance/AppearanceEditor.vue",
+    },
     "components/config/ConfigMarkerSetsField.vue": {
         count: 2,
         destroys: "a marker set from the map config being edited",

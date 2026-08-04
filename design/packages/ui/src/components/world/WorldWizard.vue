@@ -179,7 +179,7 @@ watch(
         const path = wizard.worldPath.value.trim();
         if (path === "") return;
         const read = wizard.inspection.value;
-        if (!read.unchecked && read.path === path) return;
+        if (!read.unchecked && read.folder === path) return;
         void inspect(path);
     },
 );
