@@ -5,8 +5,9 @@
 The default branch now carries the complete remote-render, cross-repository world-source and
 render-console implementation at `897ecad1662c59e5a87affd1d89627b289d91d71`, the world-scan
 bridge repair at `92c392ff0d3f86081211951f00bf1c13b36d819e`, the site/docs follow-up at
-`28bcd3a124bd2c6321d529569d5447528d33a73c`, and the generated changelog refresh at
-`2887d71dcd2593b723b73529603656a448bc3b32`. The renderer imports are therefore present in the
+`28bcd3a124bd2c6321d529569d5447528d33a73c`, the handoff correction at `cee6779b6b3eb2e5bbda4f365e983fb466c060d5`,
+the registered bridge/update-banner wiring at `56fcd97fc6f00e9675a4e1fd70992f3e203bb77c`, and
+the generated changelog refresh at `6e9033674dff637e8535b94c4d292c80e7669c03`. The renderer imports are therefore present in the
 default-branch tree rather than relying on an uncommitted checkout.
 
 The full local workspace gate is green at that feature tip:
@@ -16,14 +17,14 @@ The full local workspace gate is green at that feature tip:
 - `pnpm lint`: passed.
 - `pnpm build`: all workspace packages passed; the existing large-JavaScript-chunk notices are
   warnings only.
-- `node scripts/build-changelog.mjs --check`: **53 versions and 169 entries**, every SHA resolved.
+- `node scripts/build-changelog.mjs --check`: **53 versions and 171 entries**, every SHA resolved.
 
 The Pages build and deployment for the previous default tip `80369ec080d1fda83376e0ccc026e9ccd3045b8c`
 are externally verified: GitHub Actions run
 `30943812059 <https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30943812059>`
 completed successfully, and `https://ding-ding-projects.github.io/material-bluemap/` returned 200.
 The deployed bundle contains the menu-search, regex-builder, appearance-coverage and dynamic
-group-search markers. The Pages and CI runs for current tip `2887d71` are pending; a pending
+group-search markers. The Pages and CI runs for current tip `6e90336` are pending; a pending
 workflow is not represented here as a green result or a live deployment.
 
 ## Update, 2026-08-04 — current continuation tip and workspace verification
