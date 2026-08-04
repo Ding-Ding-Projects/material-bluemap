@@ -10,6 +10,8 @@ automatically, and one command does it by hand.
 
 - [What a split asset looks like](#what-a-split-asset-looks-like)
 - [Getting one with the desktop application](#getting-one-with-the-desktop-application)
+  - [Where it is](#where-it-is)
+  - [What it does](#what-it-does)
 - [Getting one from a command line](#getting-one-from-a-command-line)
 - [Publishing one](#publishing-one)
 - [The manifest format](#the-manifest-format)
@@ -41,8 +43,33 @@ whatever the upload path adds. The margin costs one extra part every six, once, 
 
 ## Getting one with the desktop application
 
+### Where it is
+
+There is a surface for this now, and it is where the question is actually asked. The map wizard's
+first step, the one that wants to know which world folder to render, carries a disclosure reading
+**No world on this machine? Download one from a release**. Opening it puts the downloads panel in
+place, inside the step. A download that finishes is offered back to the wizard as the world to
+render, so "I have no world" and "render this world" are one flow rather than two.
+
+Two behaviours there are deliberate and read as omissions if they are not stated:
+
+- **Opening the panel fetches nothing.** It reconciles with what is already on disk and already in
+  flight, which touches no network. Reading a release is a network request and waits for the
+  button, because a panel that called GitHub every time a wizard step was opened would spend
+  somebody's rate limit on a question they never asked.
+- **Every download in the application appears here, whoever started it.** Progress is broadcast to
+  every window, so a download started elsewhere, or before this panel was opened, is shown too.
+  Nothing is filtered to "mine": an invisible download is a download somebody starts twice.
+
+A build with no Electron bridge, which is what a plain browser tab is, says so and offers no
+button. There is no fallback that could work: a browser tab has nowhere to write a twenty gigabyte
+world, no way to resume a ranged request into a file, and no zip reader that streams.
+
+### What it does
+
 Nothing has to be done about the split. The application reads the release, sees the manifest,
-presents it as the one download it really is (`test-world-seed-1739.zip`), and then:
+presents it as the one download it really is (`test-world-seed-1739.zip`) with a chip saying how
+many parts it arrives in, and then:
 
 1. fetches the manifest first, because it is a few kilobytes and it is the only thing that says how
    large the real download is;
@@ -53,12 +80,27 @@ presents it as the one download it really is (`test-world-seed-1739.zip`), and t
 5. unpacks the archive into the application's storage directory.
 
 Progress is pushed to the interface as it happens: bytes transferred, parts done, the part being
-worked on right now, an overall percentage and an estimate. A download can be cancelled at any
-point, and cancelling keeps everything already transferred, so starting it again continues rather
-than begins.
+worked on right now, an overall percentage and an estimate. The byte counts are exact; the overall
+percentage is a weighted estimate across the transfer, the rejoin and the unpack, and says that it
+is one. A download can be cancelled at any point, and cancelling keeps everything already
+transferred, so starting it again continues rather than begins.
+
+Each row is in one of five states, and they are kept apart because they mean different things:
+
+| State | What it means |
+|---|---|
+| Running | In flight now |
+| Interrupted | The record says running, and nothing is. The application or the machine stopped before an ending could be written |
+| Finished | Verified and unpacked |
+| Failed | Sorted into one of ten kinds, each with its own explanation, and a button to the setting that would fix it where one would |
+| Cancelled | Somebody pressed stop. **Not** a failure, and resumable |
 
 A **public** release needs no token and is never asked for one. `GH_TOKEN` is used when the
-environment has it, which is what makes a private release and a rate-limited runner work.
+environment has it, which is what makes a private release and a rate-limited runner work. Note that
+signing in to GitHub inside the application does **not** feed this path: the sign-in session and
+the downloader's token are not wired together, so a private asset still needs the environment
+variable. That is a gap rather than a design, and it is stated here rather than left for somebody
+to discover by signing in and finding nothing changed.
 
 Everything lives under the storage directory, one folder per download:
 
@@ -240,12 +282,19 @@ re-copied from the first part that disagreed.
 | Zip extraction and every path-escape case | `design/packages/app/src/main/download/extract.test.ts` |
 | The zip reader itself: store, deflate, Zip64, CRC failure, truncation | `design/packages/app/src/main/download/zip.test.ts` |
 | The whole download path, end to end, against a real split archive | `design/packages/app/src/main/download/downloader.test.ts` |
+| The rows, the failure classification, and events winning over the on-disk record | `design/packages/ui/src/components/downloads/downloads.test.ts` |
+| The panel: reconciling a download already in flight, and reading back a finished one | `design/packages/ui/src/components/downloads/ReleaseDownloads.test.ts` |
 
 Run them with:
 
 ```sh
-cd design && npx vitest run packages/parts packages/app
+cd design && npx vitest run packages/parts packages/app packages/ui/src/components/downloads
 ```
+
+**What none of them prove.** Every test above drives a stand-in for GitHub's endpoints. No asset
+has been fetched from github.com through the application's own panel, so the parts that depend on
+GitHub's behaviour rather than on this code, the redirect to storage and the rate limits in
+particular, are unproven against the service. There is no capture of the panel either.
 
 The package was also exercised at a size that is genuinely inconvenient: a 400 MB file split into
 three 150 MB parts and rejoined, with the SHA-256 compared on both sides, and a rejoin deliberately
@@ -262,3 +311,5 @@ interrupted mid-part and resumed. Both matched the source digest.
   why that order is the design.
 - `design/packages/app/src/main/download/zip.ts` - the zip reader, including why it is written by
   hand and what Zip64 changes.
+- `design/packages/ui/src/components/downloads/` - the panel itself, the rows it keeps, and how a
+  failure is turned into an explanation and a route to the setting that would fix it.

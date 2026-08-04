@@ -20,7 +20,7 @@ export const screenshotsCopy = {
     caveat: "The map under the interface is real and was rendered by the same workflow run: CI generates a world with a fresh seed on every push, renders it with upstream BlueMap's Java engine built in that run, and serves it to the harness, which fails the job if the application reaches the public internet while capturing. When a capture shows a broken or empty window, that is the state the build was in: the harness publishes what it found rather than hiding it.",
     committedHeading: "Committed to this repository",
     committedLead:
-        "These are tracked in git, so they travel with every clone and this page shows them whether or not a workflow artifact could be collected for the build. They are also what the landing page shows.",
+        "These are tracked in git, so they travel with every clone and this page shows them whether or not a workflow artifact could be collected for the build. They are also what the landing page shows. The record below describes the harness run that produced the sized and themed set; the captures taken outside it, an installed build and the two of the title bar, say so in their own captions.",
     committedSourceLabel: "Captured by",
     committedMethodLabel: "How",
     committedCommitLabel: "Commit",

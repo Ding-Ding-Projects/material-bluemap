@@ -9,7 +9,7 @@ export const contractTabNavigation: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "Not implemented in the product. The interface navigates with an app bar and a navigation drawer: there is no tab strip, no group model and nothing persisted. Tracked as issue 7.",
+        "Not implemented in the product. The options editor does have a seven-tab strip, which is a long way short of this: nothing in it overflows into a surface of its own, reorders, pins, groups or persists, and none of the four tab searches exists. Tracked as issue 7.",
 
     sections: [
         {
@@ -21,7 +21,9 @@ export const contractTabNavigation: Article = {
                     tone: "not-implemented",
                     title: "This describes a requirement, not shipped behaviour",
                     content: [
-                        "The application shell has a navigation drawer, not tabs. Progress is tracked as ",
+                        "The application shell does not navigate by tabs, and the one tab strip it has, across ",
+                        "the seven screens of the options editor, is an ordinary set of tabs rather than the ",
+                        "system described here. Progress is tracked as ",
                         { link: "issue 7", href: issue(7), external: true },
                         ".",
                     ],
@@ -164,7 +166,8 @@ export const contractTabNavigation: Article = {
                     kind: "callout",
                     tone: "not-implemented",
                     title: "None of this has run",
-                    content: "There is no tab strip to test.",
+                    content:
+                        "The options editor's tab strip is exercised by that surface's own tests, which is not this list: there is nothing yet to overflow, reorder, pin, group, search or persist.",
                 },
             ],
         },

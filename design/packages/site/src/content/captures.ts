@@ -95,6 +95,22 @@ const RECORDS: readonly CaptureRecord[] = [
         featured: true,
     },
     {
+        file: "titlebar-zoom-1920.png",
+        aspectRatio: "480 / 11",
+        title: "The Material title bar, full width",
+        configuration: "cropped from a 1920 by 1080 capture of the packaged application on Windows",
+        alt: "The material-bluemap application's own title bar, cropped to the full width of a 1920 pixel window: the circular application logo and the title Material BlueMap on the left, and minimize, maximize and close buttons drawn by the application on the right. No operating system caption bar is present, because the window is frameless.",
+        featured: false,
+    },
+    {
+        file: "shell-titlebar-1920x1080.png",
+        aspectRatio: "16 / 9",
+        title: "The frameless window, whole",
+        configuration: "1920 by 1080, the packaged application on Windows, at first run",
+        alt: "The material-bluemap application window at 1920 by 1080 pixels with its own Material title bar across the top edge and no operating system chrome. In front is the first-run setup dialog, offering English, Cantonese and bilingual language modes and two separate funny-level sliders; behind it is the map wizard. Three round buttons for settings, servers and server configuration sit in the bottom left corner, and the notification history button, reading zero, sits in the bottom right.",
+        featured: false,
+    },
+    {
         file: "theme-dark.png",
         aspectRatio: "8 / 5",
         title: "Dark colour scheme",

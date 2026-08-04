@@ -315,11 +315,36 @@ export const home: HomeContent = {
                 },
                 {
                     title: "Every BlueMap setting, edited in the app",
-                    body: "The options surface reads and writes BlueMap's own configuration format rather than a parallel one of its own, so a file the application wrote is a file upstream's renderer reads.",
+                    body: "A button in the corner opens the seven-screen options editor over the whole window, pointed at a real config folder. It reads and writes BlueMap's own configuration format rather than a parallel one of its own, keeping the comments that explain each setting, so a file the application wrote is a file upstream's renderer reads.",
                     status: "ported-unverified",
                     statusNote:
-                        "The configuration schema and the editing surface are built and tested. The phase is in progress and out of order: it was unblocked early because it never needed the TypeScript render manager.",
+                        "The schema, the editor and the bridge that lets it touch a folder are built and tested, and the editor is reachable from the application at last. What has not happened is the check that matters: a config written here, loaded by the real Java server, compared value for value.",
                     articleId: "options-gui",
+                },
+                {
+                    title: "Get a world out of a release, without leaving the wizard",
+                    body: "The step that asks where your world is also offers to fetch one. A world published in 1.7 GB parts arrives as the single file it really is: every part checked as it lands, rejoined, checked again whole, and unpacked, with real byte counts rather than a spinner.",
+                    status: "ported-unverified",
+                    statusNote:
+                        "The downloader, the zip reader and the panel are built and tested, including one test that drives the whole path against a real split archive. Nothing has been fetched from github.com through this surface, so what GitHub itself does is proved against a stand-in.",
+                    articleId: "release-downloads",
+                    reading: [{ label: "docs/large-worlds.md", href: LARGE_WORLDS_DOC_URL }],
+                },
+                {
+                    title: "Sign in to GitHub, only when something private needs it",
+                    body: "A device flow that shows the code large and verbatim, counts down only from what the main process actually said, and keeps its four endings apart. A pasted token is the other way in. The credential never reaches the interface at all.",
+                    status: "ported-unverified",
+                    statusNote:
+                        "Built and covered by 126 tests, all of which drive a stand-in for GitHub's endpoints. No code has been typed on github.com from a packaged build, and the signed-in account does not reach the download path yet.",
+                    articleId: "github-sign-in",
+                },
+                {
+                    title: "A window that draws its own chrome",
+                    body: "Frameless, with the application's own Material title bar, its own window buttons, and the viewer's controls starting below the bar rather than under it. One notification corner for the whole application, and both typefaces bundled so nothing is fetched to draw a word.",
+                    status: "shipped",
+                    statusNote:
+                        "On the default branch, with the title bar captured from the packaged application and those captures committed. Nobody has pressed the three window buttons in an installed build, and no test asserts that the typefaces are bundled.",
+                    articleId: "desktop-shell-chrome",
                 },
                 {
                     title: "A localhost server nothing else can reach",
@@ -423,9 +448,10 @@ export const home: HomeContent = {
         "Rendering a local world in TypeScript. The mesher is written and unit tested, and the parity comparison that would let it take over has not run.",
         "The standalone headless server, its full HTTP routes and event stream, and its Docker image.",
         "The Docker hosting GUI for managing BlueMap server containers.",
-        "SQL storages, the marker editor, the JavaScript addon system, static export and the three.js upgrade.",
+        "SQL storages, the marker editor, the JavaScript addon system, static export and the three.js upgrade. The options editor models an SQL storage and writes one, and its connection test says plainly that this build carries no database client to open a connection with rather than reporting a success nobody observed.",
+        "Spending the signed-in GitHub account on anything. Signing in works and stores its credential properly, and then nothing else in the application asks it for one: the download path still reads a token from the environment, so signing in does not yet make a private release asset fetchable.",
         "Live players read from local player data or RCON, measurement and waypoint tools, the screenshot gallery inside the app, scheduled renders, the multi-server dashboard and the update checker.",
-        "Four of the five cross-cutting product contracts. The tab system and the regex builder are running on this site; the per-element appearance editors, the language modes with their funny-level sliders and the super-confirmation gate land with the phases that give them surfaces to apply to.",
+        "Four of the five cross-cutting product contracts, as contracts. The tab system and the regex builder run on this site, and the application now has real pieces of three of them: an anchored regex builder behind every search bar it has, a two-key gate in front of deleting a map or a storage, and all three language modes with both funny-level sliders in first-run setup and the consent row. A piece is not the contract, which asks for the whole of it on every surface, so all four are still counted here rather than moved to the list above.",
         "macOS and Linux packaging. Windows is the only platform with an installer, and the installers are not code signed.",
     ],
 
@@ -482,7 +508,7 @@ export const home: HomeContent = {
             phase: "F",
             scope: "Full options GUI: every setting, the map wizard, storage editors, config import",
             status: "in-progress",
-            note: "Unblocked early by the Java render path, because it writes BlueMap's own configuration and invokes the renderer rather than needing the TypeScript render manager.",
+            note: "Unblocked early by the Java render path, because it writes BlueMap's own configuration and invokes the renderer rather than needing the TypeScript render manager. The editor now opens from the application and edits a real folder; the exit check against the upstream Java server has not run.",
         },
         { phase: "G", scope: "Docker hosting GUI for managing BlueMap server containers", status: "pending" },
         {
@@ -499,7 +525,7 @@ export const home: HomeContent = {
             phase: "Contracts",
             scope: "The five cross-cutting product contracts",
             status: "in-progress",
-            note: "The tab system and the regex builder are running on this site. The remaining three land alongside the phases that give them surfaces.",
+            note: "The tab system and the regex builder run on this site. In the application, three of the five have a first surface each: the regex builder, the destructive-action gate, and the language modes with their sliders. None of the five is met as written.",
         },
     ],
 

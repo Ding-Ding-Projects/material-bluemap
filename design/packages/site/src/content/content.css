@@ -467,6 +467,15 @@
     aspect-ratio: 16 / 9;
 }
 
+/*
+ * The title bar cropped to full width: 1920 by 44, which is 480 / 11. A crop is a real
+ * shape rather than an odd one, and giving it its own rule keeps it from silently losing
+ * its reserved box and shoving the gallery around as it loads.
+ */
+.mb-shot-image[data-ratio="480 / 11"] {
+    aspect-ratio: 480 / 11;
+}
+
 .mb-shot-lead .mb-shot-image {
     border-radius: var(--md-sys-shape-corner-large);
     box-shadow: var(--md-sys-elevation-level1);

@@ -9,7 +9,7 @@ export const contractSuperConfirmation: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "Not implemented in the product, and there is nothing to gate: the app exposes no destructive action yet. The first ones arrive with the options and Docker hosting screens. Tracked as issue 10.",
+        "Not implemented as the contract states it, but the first gate exists. Deleting a map or a storage in the options editor goes through an anchored two-key gate with a full-range slider, an emergency exit and a return of focus. It has not been checked against the contract's own test list, and every other destructive action the app grows still has to get one. Tracked as issue 10.",
 
     sections: [
         {
@@ -21,9 +21,12 @@ export const contractSuperConfirmation: Article = {
                     tone: "not-implemented",
                     title: "This describes a requirement, not shipped behaviour",
                     content: [
-                        "No destructive operation exists in the app today, so there is nothing gated and nothing ",
-                        "to gate. Deleting profiles, maps, render output and containers arrive with Phases F and G. ",
-                        "Progress is tracked as ",
+                        "This page describes the contract, and the contract is not met. It used to say the app had ",
+                        "no destructive action to gate, and that is no longer true: deleting a map or a storage in ",
+                        "the options editor opens an anchored gate with two independent keys, a slider that has ",
+                        "to travel its whole range, and an emergency exit. It has not been put through the test ",
+                        "list below, and the destructive actions that arrive with later phases each still need ",
+                        "one of their own. Progress is tracked as ",
                         { link: "issue 10", href: issue(10), external: true },
                         ".",
                     ],
@@ -138,7 +141,8 @@ export const contractSuperConfirmation: Article = {
                     kind: "callout",
                     tone: "not-implemented",
                     title: "None of this has run",
-                    content: "There is no destructive action and no gate to test.",
+                    content:
+                        "The gate in the options editor is covered by the tests that surface carries, which check that deleting a map names the file and the map id. The contract's own list, every state of the keys and the slider, cancellation, keyboard operation, assistive-technology labels, reduced motion and localisation, has not been run against it.",
                 },
             ],
         },

@@ -102,6 +102,20 @@ export const javaRenderPath: Article = {
                     ],
                 },
                 {
+                    kind: "paragraph",
+                    content: [
+                        "That record is also what the run panel reads. Every ending, whether the render ",
+                        "finished, failed or was stopped, names the engine that produced it, and it prefers the ",
+                        { code: "render.json" },
+                        " on disk over the description the events carried: the record is what actually wrote ",
+                        "the tiles, and the expectation is only what was about to run. Where there is no record ",
+                        "the panel falls back to that expectation and words it differently, rather than naming ",
+                        "an engine on the strength of what was expected. The application's own version is shown ",
+                        "on its information page for the same reason, so a support question can be answered ",
+                        "from the screen rather than guessed at.",
+                    ],
+                },
+                {
                     kind: "callout",
                     tone: "note",
                     title: "The TypeScript engine is still the destination",

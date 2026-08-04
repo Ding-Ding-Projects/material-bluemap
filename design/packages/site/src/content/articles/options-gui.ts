@@ -9,7 +9,7 @@ export const optionsGui: Article = {
     category: "application",
     status: "ported-unverified",
     statusNote:
-        "The schema, the round-tripping HOCON editor and the screens are built and covered by 175 tests in the config package and 311 in the interface package. What has not run is the plan's exit check: a config authored here loaded by the real Java server and compared value for value.",
+        "The schema, the round-tripping HOCON editor, the seven screens and the main-process bridge that lets them touch a real folder are all built, and the editor is now reachable from the application itself. 176 tests cover the config package, 176 the editor's own interface modules and 75 the bridge, all running in CI. What has not run is the plan's exit check: a config authored here loaded by the real Java server and compared value for value.",
 
     sections: [
         {
@@ -26,6 +26,20 @@ export const optionsGui: Article = {
                         " is mostly comments explaining what each setting does, and a GUI that rebuilt the file ",
                         "from a plain object would silently delete all of it the first time somebody changed a ",
                         "number.",
+                    ],
+                },
+                {
+                    kind: "paragraph",
+                    content: [
+                        "It also has a door now, which it did not for most of its existence: the whole editor ",
+                        "was built, tested and mounted nowhere. A third button in the application's own ",
+                        "corner cluster opens it over the full window, Escape closes it, and focus returns to ",
+                        "the button that opened it. It is reachable whether or not a map is open, because ",
+                        "configuration is not a step in making a first map: it is how somebody points this at ",
+                        "a folder BlueMap is already using, which is exactly the case where there is a map on ",
+                        "screen already. The wizard behind it is left mounted and made inert rather than torn ",
+                        "down, so somebody four steps in who opens the configuration to check a path does not ",
+                        "come back to an empty first step.",
                     ],
                 },
                 {
@@ -54,9 +68,16 @@ export const optionsGui: Article = {
                         ],
                         [
                             { strong: "Maps and storages are managed, not just edited." },
-                            " Create, clone, rename and delete a map; add a file or SQL storage and test the ",
-                            "connection against the real database; see which maps a storage is holding before ",
-                            "removing it.",
+                            " Create, clone, rename and delete a map; add a file or an SQL storage; see which ",
+                            "maps a storage is holding before removing it. The SQL connection test answers ",
+                            "honestly about what this build can actually do, which is described below.",
+                        ],
+                        [
+                            { strong: "The folder is a real folder on a real disk." },
+                            " Choosing one opens the platform's own picker, reading it walks the folder and ",
+                            "its maps and storages subfolders, and saving writes the files back. Nothing is ",
+                            "cached between calls, which is what lets somebody edit a config in another ",
+                            "program, come back, press Reload and see what is really there.",
                         ],
                         [
                             { strong: "The command line is a screen too." },
@@ -153,6 +174,61 @@ export const optionsGui: Article = {
                         },
                     ],
                 },
+                {
+                    kind: "table",
+                    caption: "The seven things the editor can ask the main process to do",
+                    columns: ["Channel", "What it does"],
+                    rows: [
+                        [{ code: "config:readFolder" }, "Reads every config file in a folder, and in its maps and storages subfolders."],
+                        [{ code: "config:writeFiles" }, "Writes a batch of files. Every path is checked before anything is written."],
+                        [{ code: "config:deleteFiles" }, "Deletes files by name. A file that is already gone is not an error."],
+                        [{ code: "config:pickDirectory" }, "Opens the platform's folder picker."],
+                        [{ code: "config:pickFile" }, "Opens the platform's file picker, for a JDBC driver jar."],
+                        [{ code: "config:testSqlConnection" }, "Answers what would happen if a connection were opened. See below."],
+                        [{ code: "config:suggestFolder" }, "Where the application would keep a config folder if nobody chose one."],
+                    ],
+                },
+                {
+                    kind: "definitions",
+                    items: [
+                        {
+                            term: "What a file may be named",
+                            description:
+                                "Only the shapes BlueMap's own config loader recognises: core, webapp, webserver or plugin at the top of the folder, a map under maps, a storage under storages, with a .conf or .json suffix. That is deliberately tighter than refusing traversal. Refusing only the escapes would still let the editor be talked into overwriting a level.dat in a folder somebody pointed it at by mistake; refusing everything that is not a config file the editor models means the worst a wrong folder costs is a file that was already a config file.",
+                        },
+                        {
+                            term: "A batch is all or nothing before it starts",
+                            description:
+                                "Every path in a save is checked before the first byte is written, so one bad name writes none of the others either. That is the difference between a refusal and a half-applied save, and it matters because the editor marks a save as done only when the whole batch resolves.",
+                        },
+                        {
+                            term: "Where a folder is suggested",
+                            description:
+                                "Beside the rendered maps rather than inside them. A config folder holding a maps subfolder, sitting next to a maps folder full of tiles, is a pair of names nobody would untangle twice.",
+                        },
+                        {
+                            term: "Caps",
+                            description:
+                                "512 files and four megabytes per file, both far above anything real, so that a folder which is not a config folder cannot turn a read into a file crawler or a write into a way to fill a disk.",
+                        },
+                    ],
+                },
+                {
+                    kind: "callout",
+                    tone: "note",
+                    title: "The SQL connection test refuses, and says why",
+                    content: [
+                        "A JDBC driver is a Java library. BlueMap loads the one named in its storage file inside ",
+                        "its own virtual machine when it renders; the part of the application that would run ",
+                        "this test is a Node process, and there is nothing in it to open the connection with. ",
+                        "Shipping a MySQL, MariaDB, PostgreSQL and SQL Server client alongside a map renderer to ",
+                        "answer a test button is not a trade this project made. So the button reports that the ",
+                        "connection was not attempted and why, names the dialect it would have used, confirms ",
+                        "the shape of the URL, and never claims a success nobody observed. The lookup is a seam ",
+                        "rather than a constant, so a build that does carry a client can supply one, and both ",
+                        "the success and the failure paths are covered by tests instead of by hope.",
+                    ],
+                },
             ],
         },
         {
@@ -183,9 +259,29 @@ export const optionsGui: Article = {
                                 "In a plain browser tab there is no file access. That is a stated fact, not a disabled-looking button that silently does nothing: editing, validating, previewing and copying the file text all keep working, and the surface says what is missing.",
                         },
                         {
+                            term: "A name points outside the folder",
+                            description:
+                                "Refused, by the shape of the name rather than by resolving it. Nothing is joined onto the folder until the shape has been proved, so there is no moment at which a climbing path exists as a resolved path that only a later check would catch. Absolute paths are refused in the spelling they arrived in, because a drive letter, a network share and a leading slash are each absolute on some platform and this process may not be running on the one the sender had in mind.",
+                        },
+                        {
+                            term: "A link is in the way",
+                            description:
+                                "Reading skips it, because a directory read never follows a link and a folder that cannot be descended is a folder with nothing in it. Writing cannot be silent about it the same way: the alternative is quietly creating a second maps folder beside the one somebody set up, so a link where a folder or a file should be is refused by name.",
+                        },
+                        {
+                            term: "The folder is not there",
+                            description:
+                                "Rejected rather than answered with an empty listing. This folder holds no config and this folder is not there send somebody to two different places, and an editor shown an empty folder will cheerfully offer to create the maps that are already sitting in it.",
+                        },
+                        {
+                            term: "A name Windows reserves for a device",
+                            description:
+                                "Refused. A file called CON is not a file on Windows, it is the console: opening it for writing succeeds, writes nothing to disk, and leaves the editor believing it saved a map. This is the one refusal here that protects against a mistake rather than an attack, and it costs nothing on the platforms where those names are ordinary.",
+                        },
+                        {
                             term: "A write fails",
                             description:
-                                "The reason is reported verbatim rather than flattened to something went wrong. When a write fails because a folder is read-only, that sentence is the whole answer.",
+                                "The reason is reported verbatim rather than flattened to something went wrong. When a write fails because a folder is read-only, that sentence is the whole answer. Every reason is written for a person: read-only disk, no space left, another program holding the file open, an account that is not allowed to change it.",
                         },
                         {
                             term: "A map points at a storage that does not exist",
@@ -209,8 +305,11 @@ export const optionsGui: Article = {
                     kind: "list",
                     items: [
                         "The editor itself never touches a disk. Everything that reads or writes goes through a host interface, which exists only where the app actually has that privilege, so the same code runs in a browser tab with no file access at all.",
+                        "The folder somebody chose is the whole of the capability, and the interface cannot widen it. A compromised renderer naming a file inside that folder is an ordinary thing to imagine, and the name it sends is checked against the shapes BlueMap loads before any path is built from it.",
                         "Config text is parsed as data. Nothing in a config file is executed or evaluated, and the refused HOCON features are refused rather than partially implemented.",
-                        "The SQL connection properties field is marked secret so it can be kept out of logs and exported diagnostics. A connection test opens a real connection and reports what the driver said, which is the only way to answer the question honestly, so it is a deliberate outbound action taken when somebody presses it.",
+                        "The SQL connection properties field is marked secret so it can be kept out of logs and exported diagnostics, and a connection result never repeats the URL back. A JDBC URL routinely carries a password in its query string, and that message is shown on screen, copied into issues and captured in screenshots; naming the dialect says what went wrong without carrying the credential along with it.",
+                        "This build opens no database connection, so pressing the test button makes no outbound request at all. A build that supplied a driver would be making one deliberately, at the moment somebody pressed it, and nowhere else.",
+                        "Errors cross the bridge as one sentence written for a person. Every rejection is rethrown as a fresh error, so a subsystem's stack, syscall or error code never becomes interface copy.",
                         "Mojang EULA acceptance is not editable here. It belongs to the consent record and its own surface, so no settings screen can quietly flip it.",
                         "Deleting a map or a storage is a destructive action and uses the app's two-key confirmation gate rather than a plain confirm.",
                         "Paths chosen through the picker are absolute. The CLI resolves relative paths against its working directory, which is how a render writes tens of megabytes into whatever directory the app happened to be launched from.",
@@ -242,7 +341,8 @@ export const optionsGui: Article = {
                         "Every descriptor is checked against its own schema, so a field the GUI would never show and a control that would write a key BlueMap ignores are both build failures rather than surprises.",
                         "The HOCON reader and writer are tested for round-tripping: a parse and an unmodified write returns the original text, and a single-key edit changes only that key.",
                         "The CLI flag model is tested for the cases where flags cancel each other out, which is the whole reason the run screen states what will happen rather than listing what was ticked.",
-                        "The interface package carries 311 tests and the config package 175, both running in CI on every push.",
+                        "The bridge is tested without Electron anywhere near it, native picker included, because Electron arrives as a type and the dialog is a parameter. 75 tests cover it: every refused path shape, the link cases in both directions, the caps, the case-insensitive maps folder, and both answers the connection test can give.",
+                        "176 tests cover the config package and 176 the editor's own modules in the interface package, all running in CI on every push.",
                     ],
                 },
                 {
@@ -267,7 +367,8 @@ export const optionsGui: Article = {
                     ordered: true,
                     items: [
                         "No config written by this GUI has been loaded by the upstream Java server and compared value for value.",
-                        "The SQL connection test has not been exercised against a real database in CI.",
+                        "No database connection has ever been opened, because this build carries no client to open one with. The refusal is tested; a successful connection is tested against a supplied driver rather than a real database.",
+                        "Nobody has opened the editor from an installed build, chosen a folder BlueMap already uses, and saved into it by hand.",
                         "The screens have not been captured at every supported width and display scale, so clipping at the longest localised strings is unproven rather than known good.",
                     ],
                 },
@@ -292,6 +393,10 @@ export const optionsGui: Article = {
             articleId: "contract-super-confirmation",
             reason: "The gate in front of deleting a map or a storage.",
         },
+        {
+            articleId: "desktop-shell-chrome",
+            reason: "The shell this editor opens inside, and the notification corner its saves report through.",
+        },
     ],
 
     sources: [
@@ -300,6 +405,10 @@ export const optionsGui: Article = {
         {
             label: "packages/ui/src/components/config",
             href: repoFile("design/packages/ui/src/components/config"),
+        },
+        {
+            label: "packages/app/src/main/config/ipc.ts",
+            href: repoFile("design/packages/app/src/main/config/ipc.ts"),
         },
         { label: "design/ROADMAP.md", href: ROADMAP_URL },
     ],

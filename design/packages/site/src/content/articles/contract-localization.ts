@@ -9,7 +9,7 @@ export const contractLocalization: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "Not implemented in the product. The interface ports the upstream locale loader with 30 upstream locales, which is a different thing: the three required modes, the Cantonese copy and both sliders do not exist. Tracked as issue 9.",
+        "Not implemented as the contract states it, but the first slice exists. First-run setup and the consent settings row carry all three modes, real Cantonese copy at five levels, and two independent funny-level sliders, all persisted. Everything else in the application is still English through the upstream locale loader, which is a different system. Tracked as issue 9.",
 
     sections: [
         {
@@ -21,8 +21,12 @@ export const contractLocalization: Article = {
                     tone: "not-implemented",
                     title: "This describes a requirement, not shipped behaviour",
                     content: [
-                        "What exists today is the upstream webapp's locale loader and its 30 bundled locales. That ",
-                        "is upstream's translation system, not this contract. Progress is tracked as ",
+                        "This page describes the contract, and the contract is not met across the application. ",
+                        "One surface does meet it: the first-run setup flow and the consent row in settings offer ",
+                        "the three modes and both sliders, with Cantonese copy written at five levels, and the ",
+                        "choice persists. Everywhere else is the upstream webapp's locale loader and its 30 ",
+                        "bundled locales, which is upstream's translation system rather than this contract. ",
+                        "Progress is tracked as ",
                         { link: "issue 9", href: issue(9), external: true },
                         ".",
                     ],
@@ -150,8 +154,9 @@ export const contractLocalization: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "None of this has run",
-                    content: "There are no modes and no sliders to test.",
+                    title: "None of this has run against the application as a whole",
+                    content:
+                        "The setup flow's own modes and levels are covered by that surface's tests, including the rule that a funny level can never reach the consent facts. The contract's list is about every message in every surface, and against that the application is untested because most of it has no mode to test.",
                 },
             ],
         },

@@ -9,7 +9,7 @@ export const contractRegexBuilder: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "Not implemented in the product. A working reference builder is vendored in the repository, and the interface has no search bar for it to attach to yet. Tracked as issue 6.",
+        "Not implemented as the contract states it, but no longer absent either. Every search bar the application has now opens an anchored builder: the maps menu, the viewer's own settings menu, the application settings surface and each screen of the options editor. What is missing is the rest of the contract, and the rest of the surfaces. Tracked as issue 6.",
 
     sections: [
         {
@@ -21,9 +21,13 @@ export const contractRegexBuilder: Article = {
                     tone: "not-implemented",
                     title: "This describes a requirement, not shipped behaviour",
                     content: [
-                        "The application interface currently has an app bar, a navigation drawer and a profile ",
-                        "manager. There is no search bar anywhere in it, so there is nothing for a builder to be ",
-                        "attached to. Progress is tracked as ",
+                        "This page describes the contract, and the contract is not met. It used to say there was ",
+                        "no search bar in the application for a builder to attach to, and that is no longer ",
+                        "true: the maps menu, the viewer's settings menu, the application settings surface and ",
+                        "every screen of the options editor each carry a search field with an anchored builder ",
+                        "behind it, plain text by default and regular expressions as an explicit choice. What is ",
+                        "not done is the rest: the guided construction below, and the surfaces that still have ",
+                        "no search field at all. Progress is tracked as ",
                         { link: "issue 6", href: issue(6), external: true },
                         ".",
                     ],
@@ -148,8 +152,9 @@ export const contractRegexBuilder: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "The contract sets the test list, and none of it has run because there is nothing to run it ",
-                        "against. When the builder lands, these are the cases that decide whether it counts.",
+                        "The contract sets the test list, and it is not the list the builders in the application ",
+                        "are tested against today. Those have their own bounded engine and its own suite; what ",
+                        "follows is what the contract itself would require before it counted as met.",
                     ],
                 },
                 {

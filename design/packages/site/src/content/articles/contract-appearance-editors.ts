@@ -9,7 +9,7 @@ export const contractAppearanceEditors: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "Not implemented in the product. There is a single Material Design 3 theme configured in one file, no per-element editor, no colour picker and no persisted appearance state. Tracked as issue 8.",
+        "Not implemented in the product. There is a single Material Design 3 theme configured in one file, no per-element editor and no persisted appearance state. The one colour picker in the application edits a BlueMap setting rather than the interface, which is data, not chrome. Tracked as issue 8.",
 
     sections: [
         {

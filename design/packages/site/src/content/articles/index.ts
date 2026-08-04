@@ -13,7 +13,10 @@ import { viewerRemoteMode } from "./viewer-remote-mode.js";
 import { embeddedServer } from "./embedded-server.js";
 import { electronSecurity } from "./electron-security.js";
 import { firstRunConsent } from "./first-run-consent.js";
+import { desktopShellChrome } from "./desktop-shell-chrome.js";
 import { optionsGui } from "./options-gui.js";
+import { githubSignIn } from "./github-sign-in.js";
+import { releaseDownloads } from "./release-downloads.js";
 import { worldReading } from "./world-reading.js";
 import { javaRenderPath } from "./java-render-path.js";
 import { resourcePacks } from "./resource-packs.js";
@@ -31,8 +34,11 @@ export const articles: readonly Article[] = [
     viewerRemoteMode,
     embeddedServer,
     electronSecurity,
+    desktopShellChrome,
     firstRunConsent,
     optionsGui,
+    releaseDownloads,
+    githubSignIn,
     worldReading,
     javaRenderPath,
     resourcePacks,
