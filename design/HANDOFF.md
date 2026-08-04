@@ -1,5 +1,28 @@
 # Handoff
 
+## Update, 2026-08-04 — render console, remote/world-source wiring, and hosted Pages proof
+
+The default branch now carries the complete remote-render, cross-repository world-source and
+render-console implementation at `897ecad1662c59e5a87affd1d89627b289d91d71`, followed by the
+generated changelog refresh at `14b6235`. The renderer imports are therefore present in the
+default-branch tree rather than relying on an uncommitted checkout.
+
+The full local workspace gate is green at that feature tip:
+
+- `pnpm exec vitest run --silent`: **349 files passed, 5,602 tests passed, 3 skipped**.
+- `pnpm typecheck`: all **13 packages** passed.
+- `pnpm lint`: passed.
+- `pnpm build`: all workspace packages passed; the existing large-JavaScript-chunk notices are
+  warnings only.
+- `node scripts/build-changelog.mjs --check`: **53 versions and 167 entries**, every SHA resolved.
+
+The Pages build and deployment for the previous default tip `80369ec080d1fda83376e0ccc026e9ccd3045b8c`
+are externally verified: GitHub Actions run
+`30943812059 <https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30943812059>`
+completed successfully, and `https://ding-ding-projects.github.io/material-bluemap/` returned 200.
+The deployed bundle contains the menu-search, regex-builder, appearance-coverage and dynamic
+group-search markers. A new Pages run is required for the newer `897ecad`/`14b6235` tip.
+
 ## Update, 2026-08-04 — current continuation tip and workspace verification
 
 The `pages-material3-full-continuation` linked checkout now carries the current default

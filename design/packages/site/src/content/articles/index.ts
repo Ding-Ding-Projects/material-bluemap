@@ -52,6 +52,7 @@ import { contractTabNavigation } from "./contract-tab-navigation.js";
 import { contractAppearanceEditors } from "./contract-appearance-editors.js";
 import { contractLocalization } from "./contract-localization.js";
 import { contractSuperConfirmation } from "./contract-super-confirmation.js";
+import { renderConsole } from "./render-console.js";
 
 export const articles: readonly Article[] = [
     viewerRemoteMode,
@@ -68,6 +69,7 @@ export const articles: readonly Article[] = [
     tabbedShell,
     commandPalette,
     notificationCentre,
+    renderConsole,
     changelogViewer,
     appearanceEditor,
     destructiveActionGate,

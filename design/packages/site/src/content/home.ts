@@ -39,6 +39,7 @@ import {
     PRIVATE_WORLD_DOC_URL,
     REGEX_BUILDER_DOC_URL,
     RENDER_IN_ACTIONS_DOC_URL,
+    RENDER_CONSOLE_DOC_URL,
     RENDER_PRIVATE_WORKFLOW_URL,
     RENDER_WORLD_WORKFLOW_URL,
     REPO_URL,
@@ -439,6 +440,15 @@ export const home: HomeContent = {
                         "On the default branch inside the notification corner the shell already had, with four test files in CI, two of them mounting the real components. There is no committed capture of the panel with messages in it.",
                     articleId: "notification-centre",
                     reading: [{ label: "docs/notification-centre.md", href: NOTIFICATION_CENTRE_DOC_URL }],
+                },
+                {
+                    title: "A render console that does not throw away the useful line",
+                    body: "The engine's output stays in a bounded, searchable console with a written level beside its colour, a detached-scroll state, advice links and copy/export. When the cap drops older lines, the console says how many instead of pretending the visible slice is complete.",
+                    status: "shipped",
+                    statusNote:
+                        "Mounted by the render screen on the default branch, with model and component tests covering follow/detach behaviour, dropped-line accounting, advice navigation, reduced motion, copy/export and invalid patterns.",
+                    articleId: "render-console",
+                    reading: [{ label: "docs/render-console.md", href: RENDER_CONSOLE_DOC_URL }],
                 },
                 {
                     title: "A changelog generated from the history, readable in the app",

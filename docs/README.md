@@ -26,6 +26,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 | [Local version history for config folders](./config-history.md) | An append-only git history per config folder, kept beside the app's data — restore is a new revision, and a failed history write never fails a save. |
 | [The Minecraft licence and the consent that refers to it](./eula-and-consent.md) | The licence step at first run, the fetched-and-cached document in its tabbed viewer, the offsets that make categorising navigation rather than editing, and the placement every docked panel remembers. |
 | [Automatic updates](./automatic-updates.md) | The Squirrel feed the installer always emitted and nothing consumed, the persistent restart banner, and the render in flight that holds it — plus opening a folder the app wrote, keeping tiles out of OneDrive, and a memory ceiling for the render JVM. |
+| [Render console](./render-console.md) | The bounded, searchable render log: level text beside colour, detached-scroll state, advice links, copy/export, and an honest dropped-line count. |
 
 ## Rendering
 
