@@ -213,14 +213,21 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             try {
                 const expression = new RegExp(spec.query, spec.flags);
                 markInvalidPattern(false);
-                installMatcher((setting) => expression.test([
-                    setting.label,
-                    setting.description,
-                    setting.valueText,
-                    setting.tabLabel,
-                    setting.sectionLabel ?? "",
-                    ...(setting.keywords ?? []),
-                ].join(" ")));
+                installMatcher((setting) => {
+                    // Global and sticky flags make RegExp.test stateful. Reset the
+                    // cursor for every setting so repeated filtering cannot alternate
+                    // false negatives as the same predicate is reused for visibility
+                    // and result counts.
+                    expression.lastIndex = 0;
+                    return expression.test([
+                        setting.label,
+                        setting.description,
+                        setting.valueText,
+                        setting.tabLabel,
+                        setting.sectionLabel ?? "",
+                        ...(setting.keywords ?? []),
+                    ].join(" "));
+                });
             } catch {
                 markInvalidPattern(true);
                 installMatcher(null);

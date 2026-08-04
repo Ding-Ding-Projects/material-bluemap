@@ -21,10 +21,10 @@ its new cards, searches, dialogs or controls outside the editor.
 Verification in this linked worktree:
 
 - `pnpm --filter @material-bluemap/site typecheck` — passed.
-- Focused site tests — **38 passed** across localization, article-command, content, date-range,
-  changelog and search suites.
+- Focused site tests — **39 passed** across localization, article-command, settings-tab search,
+  content, date-range, changelog and search suites.
 - `pnpm lint` — passed.
-- `pnpm --filter @material-bluemap/site build` — passed (190 modules transformed).
+- `pnpm --filter @material-bluemap/site build` — passed (196 modules transformed).
 - `node scripts/build-changelog.mjs --check` — passed (40 versions, 97 entries).
 - A prior local full-monorepo `pnpm test` run remains red on CRLF byte-exact HOCON fixture
   expectations and unresolved `@material-bluemap/nbt` package-entry resolution. The newest
@@ -35,6 +35,10 @@ Verification in this linked worktree:
 
 This is source, type, focused-unit, lint and production-bundle evidence. A cheap headless
 Windows capture of the live GitHub Pages site remains a separate runtime/UI boundary.
+
+The settings page now gives every schema tab its own scoped search field and adjacent full regex
+builder. The page-level field remains the cross-tab index; local fields combine with it without
+sharing query, matcher or invalid-state storage. See `docs/site/settings-tab-search.md`.
 
 ## Pages rewrite checkpoint (2026-08-04)
 
