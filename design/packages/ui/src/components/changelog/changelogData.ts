@@ -24,6 +24,26 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "56fcd97fc6f00e9675a4e1fd70992f3e203bb77c",
+        shortSha: "56fcd97fc6",
+        date: "2026-08-04T16:38:14-04:00",
+        subject: "Register the two subsystems nobody could reach, and show the update banner",
+        details: "Remote rendering over SSH and worlds from another repository's release\nwere both complete, both tested, and both registered nowhere. Neither\nhad a channel the renderer could call, so the only thing shipping them\nachieved was a larger bundle.\n\nBoth broadcast on an existing channel rather than one of their own, and\nthat is the design rather than a shortcut. A world fetched from somebody\nelse's release is a download: it belongs in the downloads list, stops\nwith the downloads button, and is handed the very same downloader\ninstance the panel is already watching - a second instance would run\ntransfers that panel could neither show nor cancel. A remote render is a\nrender: same list, same bar, same stop button, so a second event channel\nwould mean a render one half of the interface could not see.\n\nThe remote side reads two known_hosts files, this application's own and\nthe user's, and writes only its own. Trusting a host from here never\nedits the file the rest of somebody's SSH depends on.\n\nThe update banner is mounted under the title bar, over one controller\nfor the whole shell. Two controllers would each check on their own\nschedule and stage their own copy, and the banner and the settings row\nwould then disagree about what is ready. A refusal arrives as an\nordinary notice rather than a thrown error, because \"a render is\nrunning\" is a sentence, not a fault.\n\n5602 tests green.\n\n---\n\n經 SSH 嘅遠端渲染,同埋由第二個 repo 嘅 release 攞世界,兩樣都做好、\n都有測試、都冇喺任何地方註冊過。兩樣都冇一條 renderer 叫得到嘅 channel,\n所以出咗街嘅唯一成果,就係個 bundle 大咗。\n\n兩樣都行返現有嘅 channel,唔開自己嗰條,而呢個係設計,唔係求其:由人哋\nrelease 攞返嚟嘅世界,本質就係一個下載,應該喺下載清單度、用下載嗰粒掣\n停,而且要交返俾面板本身望住嗰個 downloader —— 另開一個,就會有面板睇\n唔到又停唔到嘅傳輸。遠端渲染本質就係渲染:同一張清單、同一條進度條、\n同一粒停止掣。\n\n遠端嗰邊會讀兩個 known_hosts(本 app 自己嗰個同用戶嗰個),但只寫自己\n嗰個。喺呢度信任一部主機,永遠唔會改到人哋成套 SSH 都靠住嗰個檔案。\n\n更新橫額掛咗喺標題列下面,成個 shell 共用一個控制器。兩個控制器就會各自\n按自己個時間表去檢查、各自備妥一份,然後橫額同設定頁就會就「邊個版本\n準備好咗」各執一詞。",
+        category: "shell",
+        areas: ["shell", "interface"],
+        files: 3,
+    },
+    {
+        sha: "cee6779b6b3eb2e5bbda4f365e983fb466c060d5",
+        shortSha: "cee6779b6b",
+        date: "2026-08-04T16:33:48-04:00",
+        subject: "Align handoff with the current default tip",
+        details: "The handoff now names the world-scan repair, site documentation commits and the 169-entry changelog, and labels the exact current CI and Pages state as pending. A handoff should not make yesterday's stopwatch wear today's hat.\\n\\nHandoff 而家記埋 world-scan 修正、site docs commits 同 169-entry changelog，仲清楚標明 current CI/Pages 係 pending。Handoff 唔應該將昨日個碼錶戴喺今日個頭上。",
+        category: "docs",
+        areas: ["docs"],
+        files: 1,
+    },
+    {
         sha: "28bcd3a124bd2c6321d529569d5447528d33a73c",
         shortSha: "28bcd3a124",
         date: "2026-08-04T16:18:14-04:00",

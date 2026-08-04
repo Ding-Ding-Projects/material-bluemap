@@ -34,6 +34,7 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- Register the two subsystems nobody could reach, and show the update banner - [`56fcd97fc6`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/56fcd97fc6f00e9675a4e1fd70992f3e203bb77c)
 - Read the scan result, not the wrapper around it - [`92c392ff0d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/92c392ff0d3f86081211951f00bf1c13b36d819e)
 - Remote renders over SSH, worlds from any release, and a test that stopped asserting its own platform - [`897ecad166`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/897ecad1662c59e5a87affd1d89627b289d91d71)
 - Complete CI render project-map fixtures - [`7c07514aba`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7c07514aba98258c0d774eae2c63623d1ee86651)
@@ -57,6 +58,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Align handoff with the current default tip - [`cee6779b6b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cee6779b6b3eb2e5bbda4f365e983fb466c060d5)
 - Record the fresh full workspace gate - [`393401be9f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/393401be9f1dd8a0bf49506267dda5cd028fa0fa)
 - Document current workspace verification - [`ab2ae1ee02`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ab2ae1ee0213ac83af5d5e2355c0275690f22011)
 - Merge current default branch into Pages continuation - [`76153d0965`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/76153d0965556208e9095faf8bee43046801308a) _(summary of 3 commits, also listed here)_
