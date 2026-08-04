@@ -685,3 +685,28 @@ On memory specifically, three things are worth separating:
   `OutOfMemoryError` and `Terminating due to …` line shapes are the JVM's documented output;
   the claim that a worker-thread OOM exits 1 rather than 12 is read from `CLI.java`'s control
   flow rather than observed.
+
+On batching, the mechanism is proven from source but **no batched world has been produced and
+inspected here**. These are the specific claims a reviewer should want evidence for before
+trusting a batched world:
+
+- **That a one-chunk margin is sufficient.** Argued from the pre-transform handlers reading
+  only immediate neighbour columns. If any handler reaches two chunks, batch boundaries would
+  still carry wrong connection states — the exact failure the margin exists to prevent, and
+  invisible without a side-by-side comparison against a single-pass conversion.
+- **That region files from separate passes are independent.** Anvil files are per-32×32-area
+  and this is how every world-editing tool treats them, but this repository has not diffed a
+  batched world against a single-pass one to confirm the merge is lossless.
+- **That the world-level files are batch-invariant.** Taking `level.dat` and `data/` from the
+  first successful batch assumes each batch would have written the same thing. Reasoned, not
+  measured.
+- **That `-f SETTINGS` is cheap.** It reports `chunkerWorld.getRegions()`, which is an index
+  rather than a chunk read, so it should not itself exhaust memory on a world too large to
+  convert in one pass. Not profiled.
+- **The `data.json` shape** is read from `SettingsLevelWriter.flushLevel` at `1.19.1`. A
+  Chunker whose output format moves would be refused rather than misread — the parser rejects
+  anything unexpected — but the refusal would need a code change to fix.
+
+The single highest-value verification, if a Bedrock world and a JVM are available, is to
+convert one world both ways and diff the results. That is what would turn the margin argument
+from sound reasoning into a demonstrated fact.

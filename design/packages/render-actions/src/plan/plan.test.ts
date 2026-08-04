@@ -6,7 +6,10 @@ import {
     type ClosedRange,
 } from "../bluemap.js";
 import type { RegionMeasurement, WorldMeasurement } from "../world/measure.js";
-import { alignedCuts, chooseGrid, planShards, splitAxis, validatePlanAlignment } from "./plan.js";
+import { alignedCuts, chooseGrid, planShards, splitAxis, validatePlanAlignment,
+    SHARD_OVERHEAD_SECONDS,
+    SHARD_WORK_TO_OVERHEAD,
+} from "./plan.js";
 
 /** A dense square world of `size` by `size` regions, every region full. */
 function denseWorld(size: number, chunksPerRegion = 1024, bytesPerChunk = 4104): WorldMeasurement {
@@ -213,5 +216,46 @@ describe("alignment validation", () => {
         const problems = validatePlanAlignment(plan);
         expect(problems.length).toBeGreaterThan(0);
         expect(problems.join("\n")).toContain("inside a hires tile");
+    });
+});
+
+describe("planning for speed rather than merely for the budget", () => {
+    // A world the size of the real one that exposed this: estimated in the tens of hours,
+    // against a four-hour budget. The old planner asked only "how few shards still fit?"
+    // and answered six, so the run finished inside its budget and took most of a day while
+    // fifty-eight allowed jobs sat unused.
+    const big = denseWorld(40);
+
+    it("uses far more than the fewest shards that would fit the budget", () => {
+        const plan = planShards(big, { mapId: "world", budgetSeconds: 4 * 3600, maxJobs: 64, ...layout });
+        const fewestThatFit = Math.ceil(plan.estimate.seconds / (4 * 3600));
+
+        expect(plan.requestedShards).toBeGreaterThan(fewestThatFit);
+        expect(plan.shards.length).toBeGreaterThan(fewestThatFit);
+    });
+
+    it("never asks for more jobs than it was allowed", () => {
+        const plan = planShards(big, { mapId: "world", budgetSeconds: 4 * 3600, maxJobs: 8, ...layout });
+        expect(plan.shards.length).toBeLessThanOrEqual(8);
+    });
+
+    it("leaves each shard enough real work to be worth its own setup", () => {
+        // The limit that stops this asking for the maximum every time. A shard pays for a
+        // checkout, an install, a build and a download of the whole world before it draws
+        // anything, so slicing until each renders for a minute would spend the run moving
+        // the world around rather than rendering it.
+        const plan = planShards(big, { mapId: "world", budgetSeconds: 4 * 3600, maxJobs: 256, ...layout });
+        const perShardSeconds = plan.estimate.seconds / plan.shards.length;
+
+        expect(perShardSeconds).toBeGreaterThanOrEqual(SHARD_OVERHEAD_SECONDS * SHARD_WORK_TO_OVERHEAD * 0.5);
+    });
+
+    it("still fits the budget when the budget is the tighter limit", () => {
+        // A short budget must still win: the point is to be faster, never to be slower or
+        // to plan a shard that cannot finish in the time a job is given.
+        const plan = planShards(big, { mapId: "world", budgetSeconds: 10 * 60, maxJobs: 256, ...layout });
+        const perShardSeconds = plan.estimate.seconds / plan.shards.length;
+
+        expect(perShardSeconds).toBeLessThanOrEqual(10 * 60);
     });
 });

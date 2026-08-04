@@ -84,6 +84,26 @@ export interface PlanOptions {
  * Splits a region-coordinate axis into `parts` contiguous ranges as evenly as possible.
  * The leftovers go to the leading ranges, so no range is ever empty.
  */
+/**
+ * What one shard job costs before it draws a tile: checkout, install, build, and pulling the
+ * whole world artifact down.
+ *
+ * A round figure rather than a measurement, and deliberately on the high side. It exists to
+ * stop the planner slicing a world so finely that the jobs spend their lives setting up, so
+ * being wrong upwards costs a few fewer shards while being wrong downwards costs a run that
+ * moves gigabytes in order to render for a minute.
+ */
+export const SHARD_OVERHEAD_SECONDS = 240;
+
+/**
+ * How much real rendering a shard should do for every second of its own setup.
+ *
+ * At six, a shard paying four minutes of overhead is expected to render for at least
+ * twenty-four minutes. Lower buys more parallelism at a worse ratio; higher leaves speed
+ * unused.
+ */
+export const SHARD_WORK_TO_OVERHEAD = 6;
+
 export function splitAxis(range: ClosedRange, parts: number): ClosedRange[] {
     const length = range.max - range.min + 1;
     const count = Math.max(1, Math.min(parts, length));
@@ -221,10 +241,31 @@ export function planShards(measurement: WorldMeasurement, options: PlanOptions):
             ".",
     );
 
+    // Enough shards to fit the budget is the FLOOR, not the answer.
+    //
+    // This used to be the whole calculation, and it planned for "will it finish" rather than
+    // "when will it finish". A world estimated at 23 hours against a four-hour budget got six
+    // shards of nearly three hours each, while `max-jobs` defaulted to sixty-four and GitHub
+    // allows two hundred and fifty-six. The run fit its budget and took most of a day for no
+    // reason.
+    //
+    // More shards is not free, which is what stops this simply asking for the maximum. Every
+    // shard pays the same fixed cost before it renders anything - a checkout, an install, a
+    // build, and a download of the entire world artifact, which for a 6.6 GB world is
+    // gigabytes per job. Slicing until each shard renders for a minute would spend the run
+    // moving the world around rather than drawing tiles.
+    //
+    // So: shard toward the job limit, but stop while each shard still does enough real work
+    // to be worth its own setup.
+    const budgetFloor = Math.max(1, Math.ceil(estimate.seconds / budgetSeconds));
+    const worthwhileShards = Math.max(
+        1,
+        Math.floor(estimate.seconds / (SHARD_OVERHEAD_SECONDS * SHARD_WORK_TO_OVERHEAD)),
+    );
     const requestedShards =
         options.forceShards !== undefined
             ? Math.max(1, options.forceShards)
-            : Math.max(1, Math.ceil(estimate.seconds / budgetSeconds));
+            : Math.max(budgetFloor, Math.min(worthwhileShards, maxJobs));
 
     if (options.forceShards !== undefined)
         decision.push("Shard count was forced to " + requestedShards + ", skipping the estimate.");

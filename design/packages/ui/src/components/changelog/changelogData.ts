@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "6e17d09de58ca6c57b85a0e6e26ac0effea1ae29",
+        shortSha: "6e17d09de5",
+        date: "2026-08-04T18:52:00-04:00",
+        subject: "Close the missing screen capture gaps",
+        details: "The screenshot harness now photographs History, Projects, the CI-render screen and the EULA viewer as required local surfaces, while naming the genuinely unavailable render console instead of hiding its absence. The options editor test also pins the documented 154-setting inventory, so the gallery and its README cannot wander off into folklore.\\n\\nScreenshot harness 而家會影 History、Projects、CI-render 同 EULA viewer；真正要 render 先有嘅 console 就老實寫明缺咩，唔再扮冇事。Options editor 亦鎖實 154 個 setting，等 gallery 同 README 唔會一齊去講古。",
+        category: "interface",
+        areas: ["interface", "docs", "shell"],
+        files: 5,
+    },
+    {
         sha: "55bb19e86055e8f5266861eddebdf6a82fcb18b3",
         shortSha: "55bb19e860",
         date: "2026-08-04T18:51:46-04:00",
