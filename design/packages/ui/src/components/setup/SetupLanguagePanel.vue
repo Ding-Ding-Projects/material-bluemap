@@ -188,9 +188,23 @@ function reset(): void {
     color: rgb(var(--v-theme-primary));
 }
 
+/*
+ * `v-slider`'s own tick-mark labels (the "1" through "5" under the track) are positioned
+ * a fixed offset below the track rather than contributing to the slider's own document-flow
+ * height, so this paragraph's clearance from them depends on its own line box rather than
+ * on anything Vuetify reserves. A CJK font's line-height metrics at the same font-size
+ * render taller than the Latin fallback's, which was enough for 中間落墨 ("Balanced" in
+ * Cantonese) to render stacked on top of the "1" tick label while the English "Balanced"
+ * sat cleanly below it - reproduced identically in the first-run wizard and the Settings
+ * drawer's Language and tone section, both places this component is mounted. An explicit
+ * margin and line-height, rather than the browser's font-dependent defaults, keeps the gap
+ * the same regardless of which font a given language happens to fall back to.
+ */
 .mb-setup-language__level {
     margin: 0;
+    margin-block-start: 20px;
     font-size: 0.8125rem;
+    line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
