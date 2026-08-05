@@ -38,10 +38,25 @@ import { SETUP_STEPS, createFirstRunController, type SetupStep } from "./firstRu
  * viewport and its body scrolls inside that cap, so at 800x600 and at 200% display scale
  * the action row stays on screen instead of the last step being cut off with no way to
  * reach the buttons.
+ *
+ * **`finished` is the "start here" path's other half.** The welcome step can only ever
+ * describe where the wizard is, because it is shown before the shell's tab strip is
+ * something anybody has had a reason to touch; this event is what lets `App.vue` act on
+ * that description the moment it becomes true, by switching straight to "Make a map"
+ * once setup genuinely completes. It fires only on a real `finish()` success, never on
+ * `dismissAfterFailure` - a completion that did not land is not a reason to navigate
+ * anywhere.
  */
 const i18n = useSetupI18n();
 
 const flow = createFirstRunController();
+
+const emit = defineEmits<{ finished: [] }>();
+
+async function onFinish(): Promise<void> {
+    const succeeded = await flow.finish();
+    if (succeeded) emit("finished");
+}
 
 const titleId = useId();
 const progressId = useId();
@@ -227,7 +242,7 @@ function onStorageInput(value: string): void {
                         variant="tonal"
                         :disabled="flow.busy.value || flow.storageProblem.value !== null"
                         :loading="flow.busy.value"
-                        @click="flow.finish"
+                        @click="onFinish"
                     >
                         {{ i18n.t("action.finish") }}
                     </v-btn>

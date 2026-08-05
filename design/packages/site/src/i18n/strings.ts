@@ -1080,6 +1080,10 @@ export const FIXED = {
         yue: "開啟每個元素的 Material 外觀編輯器",
     },
     "site.editAppearance": { en: "Edit appearance…", yue: "編輯外觀…" },
+    "site.brandAria": {
+        en: "material-bluemap: go to Home",
+        yue: "material-bluemap：返回主頁",
+    },
 } as const satisfies Record<string, FixedString>;
 
 export type VoicedKey = keyof typeof VOICED;

@@ -16,6 +16,8 @@ export { default as SetupEulaStep } from "./SetupEulaStep.vue";
 export { default as SetupLanguagePanel } from "./SetupLanguagePanel.vue";
 export { default as LanguageSettingsRow } from "./LanguageSettingsRow.vue";
 export { default as SetupText } from "./SetupText.vue";
+export { default as WelcomeIntro } from "./WelcomeIntro.vue";
+export { default as WelcomeSurface } from "./WelcomeSurface.vue";
 
 export {
     SETUP_STEPS,

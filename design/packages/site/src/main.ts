@@ -12,6 +12,7 @@
 import "./theme/tokens.css";
 import "./theme/base.css";
 import "./tabs/tabs.css";
+import "./shell/shell.css";
 import "./notifications/notifications.css";
 import "./settings/settings.css";
 import "./search/search.css";
@@ -48,6 +49,7 @@ import type {
     HomeFeature,
     HomeLink,
     HomeSectionCopy,
+    HomeStat,
     RepoCapture,
 } from "./content/index.js";
 import { maybeShowDimSum } from "./dimsum/index.js";
@@ -185,37 +187,86 @@ interface PageNavigation {
 
 /* ---- Home ---------------------------------------------------------------- */
 
+/**
+ * The eyebrow pill above the H1.
+ *
+ * The release-availability status word used to be the first line of plain paragraph text
+ * a reader hit; here it is promoted to its own small labelled element, which is both a
+ * third type rung above the title on the first screen and a preview of the honest answer
+ * to "does this actually work" before the reader has scrolled anywhere.
+ */
+function heroEyebrow(): HTMLElement {
+    const text = releaseAvailability.available
+        ? `Verified release · v${releaseAvailability.release.version}`
+        : "No verified release yet";
+    return el("p", "mb-hero-eyebrow", text);
+}
+
+/**
+ * One compact tonal tile in the hero's stat preview.
+ *
+ * This is a preview, not a second copy of the record: the same stat, with its full detail
+ * sentence, still renders in `renderStats` below in reading order. Marking the preview grid
+ * `aria-hidden` (done by the caller) keeps a screen-reader user from hearing every number
+ * twice; a sighted visitor gets the colour and the count on the first screen instead of
+ * 950 pixels down.
+ */
+function heroStatTile(stat: HomeStat, tone: number): HTMLElement {
+    const tile = el("div", "mb-hero-stat");
+    tile.dataset.tone = String(tone);
+    tile.appendChild(el("p", "mb-hero-stat-value", stat.value));
+    tile.appendChild(el("p", "mb-hero-stat-label", stat.label));
+    return tile;
+}
+
 function renderHero(host: HTMLElement): void {
     const hero = el("header", "mb-hero");
-    hero.appendChild(el("h1", "mb-hero-title", home.title));
-    hero.appendChild(el("p", "mb-hero-tagline", home.tagline));
-    hero.appendChild(el("p", "mb-hero-summary", home.summary));
+    const grid = el("div", "mb-hero-grid");
+
+    const main = el("div", "mb-hero-main");
+    main.appendChild(heroEyebrow());
+    main.appendChild(el("h1", "mb-hero-title", home.title));
+    main.appendChild(el("p", "mb-hero-tagline", home.tagline));
+    main.appendChild(el("p", "mb-hero-summary", home.summary));
 
     // The download button is absent, never wrong: if no verified release with a real
     // installer was found at build time, the page says so instead of guessing a URL.
     if (releaseAvailability.available) {
         const release = releaseAvailability.release;
-        hero.appendChild(el("p", "mb-download-lead", downloadCopy.availableLead));
+        main.appendChild(el("p", "mb-download-lead", downloadCopy.availableLead));
 
         const download = el("a", "mb-download");
         download.href = release.installer.url;
         download.textContent = downloadButtonLabel(release);
         download.setAttribute("aria-label", downloadAccessibleName(release));
         download.rel = "noopener noreferrer";
-        hero.appendChild(download);
+        main.appendChild(download);
 
-        hero.appendChild(el("p", "mb-download-detail", downloadDetailLine(release)));
+        main.appendChild(el("p", "mb-download-detail", downloadDetailLine(release)));
     } else {
-        hero.appendChild(el("h2", "mb-download-heading", downloadCopy.unavailableHeading));
-        hero.appendChild(el("p", "mb-download-detail", downloadCopy.unavailableLead));
-        hero.appendChild(el("p", "mb-download-detail", releaseAvailability.reason));
+        main.appendChild(el("h2", "mb-download-heading", downloadCopy.unavailableHeading));
+        main.appendChild(el("p", "mb-download-detail", downloadCopy.unavailableLead));
+        main.appendChild(el("p", "mb-download-detail", releaseAvailability.reason));
 
         const link = el("a", "mb-download-link", downloadCopy.unavailableLinkLabel);
         link.href = downloadCopy.unavailableLinkHref;
         link.rel = "noopener noreferrer";
-        hero.appendChild(link);
+        main.appendChild(link);
     }
-    hero.appendChild(el("p", "mb-download-caveat", downloadCopy.caveat));
+    main.appendChild(el("p", "mb-download-caveat", downloadCopy.caveat));
+    grid.appendChild(main);
+
+    // The first row of stats, previewed here rather than only 950px down the page. Every
+    // value and label still renders in full, with its detail sentence, in `renderStats`.
+    const preview = home.stats.slice(0, 4);
+    if (preview.length > 0) {
+        const statsGrid = el("div", "mb-hero-stats");
+        statsGrid.setAttribute("aria-hidden", "true");
+        preview.forEach((stat, index) => statsGrid.appendChild(heroStatTile(stat, index)));
+        grid.appendChild(statsGrid);
+    }
+
+    hero.appendChild(grid);
     host.appendChild(hero);
 }
 
@@ -406,10 +457,31 @@ function renderPhases(host: HTMLElement): void {
     wrapper.appendChild(note);
 }
 
+/**
+ * The path for a reader who has never heard of BlueMap before landing on this page.
+ *
+ * Placed directly after the hero, ahead of the vocabulary-assuming intro paragraphs below
+ * it: a visitor who does not yet know what a "world" or a "map" is should not have to read
+ * three sections of scale and engine comparisons before finding out what to actually do.
+ * The glossary button is a real activation, not a link the block model has no way to wire
+ * to the SPA's own navigation.
+ */
+function renderGettingStarted(host: HTMLElement, navigation: PageNavigation): void {
+    const wrapper = sectionFor(host, home.gettingStartedSection);
+    const prose = el("div", "mb-prose");
+    renderBlocks(prose, home.gettingStarted);
+    wrapper.appendChild(prose);
+
+    const actions = el("div", "mb-card-actions");
+    actions.appendChild(articleButton("glossary", navigation, "Read the glossary of terms"));
+    wrapper.appendChild(actions);
+}
+
 function renderHome(host: HTMLElement, navigation: PageNavigation): void {
     const root = page(host);
 
     renderHero(root);
+    renderGettingStarted(root, navigation);
 
     const intro = el("div", "mb-prose");
     renderBlocks(intro, home.intro);
@@ -454,6 +526,12 @@ function renderDocs(host: HTMLElement): void {
         if (inCategory.length === 0) continue;
 
         const wrapper = section(root, ARTICLE_CATEGORY_LABELS[category]);
+        // A responsive grid of tiles reads as a catalogue; the uniform vertical stack it
+        // replaces read as one more settings list. `[open]` articles span the full row
+        // (see .mb-article-grid > .mb-article[open] in content.css) so expanded prose,
+        // tables and code never get squeezed into a narrow tile.
+        const grid = el("div", "mb-article-grid");
+        wrapper.appendChild(grid);
         for (const article of inCategory) {
             const details = el("details", "mb-article");
             details.id = articleElementId(article.id);
@@ -480,6 +558,9 @@ function renderDocs(host: HTMLElement): void {
 
             if (article.suggested.length > 0) {
                 body.appendChild(el("h3", "mb-article-section", "Suggested articles"));
+                // Its own tonal panel rather than one more plain list under a label, so the
+                // one place every article points somewhere else is visually distinct.
+                const suggestedBox = el("div", "mb-suggested");
                 const list = el("ul", "mb-prose-list");
                 for (const suggestion of article.suggested) {
                     const target = findArticle(suggestion.articleId);
@@ -488,7 +569,8 @@ function renderDocs(host: HTMLElement): void {
                     li.appendChild(document.createTextNode(`: ${suggestion.reason}`));
                     list.appendChild(li);
                 }
-                body.appendChild(list);
+                suggestedBox.appendChild(list);
+                body.appendChild(suggestedBox);
             }
 
             // Sources were modelled and never rendered, which made every article's
@@ -497,7 +579,7 @@ function renderDocs(host: HTMLElement): void {
             body.appendChild(linkList(article.sources));
 
             details.appendChild(body);
-            wrapper.appendChild(details);
+            grid.appendChild(details);
         }
     }
 }
@@ -591,6 +673,9 @@ function renderScreenshots(host: HTMLElement): void {
 
 /** The mount point index.html provides. */
 const ROOT_ID = "site-root";
+
+/** The id the skip link jumps to, and the id the main landmark carries. */
+const MAIN_CONTENT_ID = "mb-main-content";
 
 /**
  * Renders the failure instead of leaving a blank page.
@@ -889,12 +974,30 @@ function boot(): void {
         },
     });
 
+    // The first focusable thing on the page: a real jump past the tab strip straight to the
+    // page content, for keyboard and screen-reader visitors alike. Invisible until focused.
+    const skipLink = el("a", "md-skip-link");
+    skipLink.href = `#${MAIN_CONTENT_ID}`;
+    i18n.bindText(skipLink, "shell.skipToContent");
+    root.appendChild(skipLink);
+
     // The strip exposes its bar and its panel host separately, so the shell decides
-    // the layout rather than the tab module dictating it.
-    root.appendChild(tabs.strip.bar);
+    // the layout rather than the tab module dictating it. Wrapping the bar together with a
+    // brand mark in one sticky, elevated topbar is what makes the strip read as the site's
+    // own chrome rather than as one more row of content; the tab module's markup, classes
+    // and behaviour are untouched by the wrapper.
+    const topbar = el("div", "mb-shell-topbar");
+    topbar.appendChild(createBrand(i18n, appearance, () => tabs.reveal("home")));
+    topbar.appendChild(tabs.strip.bar);
+    root.appendChild(topbar);
+
     const main = el("main", "mb-main");
+    main.id = MAIN_CONTENT_ID;
     main.appendChild(tabs.strip.panels);
     root.appendChild(main);
+
+    root.appendChild(createShellFooter(i18n, appearance));
+
     document.body.appendChild(
         createShellPalette({
             prefs,
@@ -911,6 +1014,58 @@ function boot(): void {
     // 10% per load, non-blocking, never focus-stealing, and there is deliberately no
     // setting to switch it off.
     maybeShowDimSum({ i18n, host: document.body });
+}
+
+/**
+ * The site's own brand mark.
+ *
+ * It is a real control, not a logo pasted into the corner: it always returns the visitor to
+ * Home, carries a localised accessible name, and is itself an appearance target with the
+ * usual context-menu and Shift+right-click editor, exactly like every other element on the
+ * page.
+ */
+function createBrand(
+    i18n: I18n,
+    appearance: AppearanceController,
+    goHome: () => void,
+): HTMLButtonElement {
+    const brand = el("button", "mb-brand");
+    brand.type = "button";
+
+    const mark = el("span", "mb-brand-mark", "M");
+    mark.setAttribute("aria-hidden", "true");
+    brand.appendChild(mark);
+
+    // The proper noun stays literal text; only the accessible label (below) is localised,
+    // matching how every other proper noun on the site is handled.
+    brand.appendChild(el("span", "mb-brand-word", "material-bluemap"));
+
+    i18n.bindAttr(brand, "aria-label", "site.brandAria");
+    brand.addEventListener("click", goHome);
+    registerAppearanceTarget(
+        brand,
+        { kind: "card", instance: "brand", instanceLabel: "Site brand mark" },
+        appearance,
+    );
+    return brand;
+}
+
+/**
+ * The one honest line about hosting, repeated at the bottom of every page: no external
+ * scripts, fonts, images or analytics. It is itself an appearance target, and its copy
+ * follows the language mode and both funny levels exactly like the rest of the site.
+ */
+function createShellFooter(i18n: I18n, appearance: AppearanceController): HTMLElement {
+    const footer = el("footer", "mb-shell-footer");
+    const note = el("p", "mb-shell-footer-note");
+    i18n.bindText(note, "shell.footerNote");
+    footer.appendChild(note);
+    registerAppearanceTarget(
+        footer,
+        { kind: "card", instance: "footer", instanceLabel: "Site footer" },
+        appearance,
+    );
+    return footer;
 }
 
 function decoratePage(host: HTMLElement, pageId: string, appearance: AppearanceController): void {

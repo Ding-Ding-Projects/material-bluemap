@@ -23,33 +23,133 @@
 
 /* ---- Hero ---------------------------------------------------------------------------- */
 
+/*
+ * A real elevated tonal surface rather than a 1px outline. This is the token file's own
+ * elevation system (`--md-sys-elevation-level1`), which existed unused before this pass:
+ * every card on the page, hero included, drew a flat outline instead of a shadow.
+ */
 .mb-hero {
+    padding: clamp(var(--md-sys-spacing-6), 4vw, var(--md-sys-spacing-12));
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    background: var(--md-sys-color-surface-container-low);
+    box-shadow: var(--md-sys-elevation-level1);
+}
+
+/*
+ * Two zones on a wide viewport: the pitch on the left, a coloured proof-of-scope preview
+ * on the right, so the numbers that used to sit 950px below the fold are visible on the
+ * first screen. Below the breakpoint the preview drops beneath the pitch, matching the
+ * responsive pattern already proven for this page at narrow widths.
+ */
+.mb-hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--md-sys-spacing-8);
+    align-items: center;
+}
+
+@media (min-width: 56.25rem) {
+    .mb-hero-grid {
+        grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr);
+    }
+}
+
+.mb-hero-main {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: var(--md-sys-spacing-4);
-    padding: clamp(var(--md-sys-spacing-6), 4vw, var(--md-sys-spacing-12));
-    border: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: var(--md-sys-shape-corner-extra-large);
-    /*
-     * A tonal container rather than a picture. There is no hero image that would be honest
-     * here, and a gradient over a screenshot is how a landing page starts lying.
-     */
-    background: var(--md-sys-color-surface-container-low);
+    min-width: 0;
+}
+
+.mb-hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 var(--md-sys-spacing-3);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
 }
 
 .mb-hero-title {
-    font-family: var(--md-sys-typescale-display-small-font);
-    /* Shrinks with the viewport so the longest title never pushes the page sideways. */
+    font-family: var(--md-sys-typescale-display-medium-font);
+    /* Shrinks with the viewport so the longest title never pushes the page sideways. Widened
+       from a display-small ceiling to display-medium: the title scale existed but nothing on
+       either page ever climbed to it, so the "expressive" jolt never registered at a glance. */
     font-size: clamp(
         var(--md-sys-typescale-headline-medium-size),
-        6vw,
-        var(--md-sys-typescale-display-small-size)
+        7vw,
+        var(--md-sys-typescale-display-medium-size)
     );
-    font-weight: var(--md-sys-typescale-display-small-weight);
-    line-height: 1.15;
-    letter-spacing: var(--md-sys-typescale-display-small-tracking);
+    font-weight: var(--md-sys-typescale-display-medium-weight);
+    line-height: 1.1;
+    letter-spacing: var(--md-sys-typescale-display-medium-tracking);
     overflow-wrap: anywhere;
+}
+
+/*
+ * The compact 2x2 (auto-fit) preview of the first four stats, one per tonal container role
+ * so the "vibrant seed-derived scheme" tokens.css already declares actually reaches a
+ * viewer's first screen instead of staying achromatic above the fold.
+ */
+.mb-hero-stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--md-sys-spacing-3);
+    align-self: stretch;
+}
+
+.mb-hero-stat {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-1);
+    min-width: 0;
+    padding: var(--md-sys-spacing-4);
+    border-radius: var(--md-sys-shape-corner-medium);
+    box-shadow: var(--md-sys-elevation-level1);
+}
+
+.mb-hero-stat[data-tone="0"] {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+
+.mb-hero-stat[data-tone="1"] {
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.mb-hero-stat[data-tone="2"] {
+    background: var(--md-sys-color-tertiary-container);
+    color: var(--md-sys-color-on-tertiary-container);
+}
+
+.mb-hero-stat[data-tone="3"] {
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+}
+
+.mb-hero-stat-value {
+    font-family: var(--md-sys-typescale-title-large-font);
+    font-size: clamp(
+        var(--md-sys-typescale-title-medium-size),
+        2.4vw,
+        var(--md-sys-typescale-title-large-size)
+    );
+    font-weight: var(--md-sys-typescale-title-large-weight);
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+}
+
+.mb-hero-stat-label {
+    font-size: var(--md-sys-typescale-label-medium-size);
+    line-height: var(--md-sys-typescale-label-medium-line-height);
+    opacity: 0.9;
 }
 
 .mb-hero-tagline {
@@ -179,19 +279,51 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
 }
 
+/*
+ * Four container roles, cycling, instead of one flat surface repeated for every card. This
+ * is the tonal palette tokens.css already declares (primary/secondary/tertiary-container
+ * plus a neutral fourth) reaching the grid it was declared for; a shadow that lifts on
+ * hover replaces the outline so the card reads as a raised tonal surface rather than a
+ * bordered box.
+ */
 .mb-stat {
     display: flex;
     flex-direction: column;
     gap: var(--md-sys-spacing-1);
     min-width: 0;
     padding: var(--md-sys-spacing-4);
-    border: 1px solid var(--md-sys-color-outline-variant);
     border-radius: var(--md-sys-shape-corner-large);
     background: var(--md-sys-color-surface-container-lowest);
+    box-shadow: var(--md-sys-elevation-level1);
+    transition: box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.mb-stat:hover {
+    box-shadow: var(--md-sys-elevation-level2);
+}
+
+.mb-stat:nth-of-type(4n + 1) {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+
+.mb-stat:nth-of-type(4n + 2) {
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.mb-stat:nth-of-type(4n + 3) {
+    background: var(--md-sys-color-tertiary-container);
+    color: var(--md-sys-color-on-tertiary-container);
+}
+
+.mb-stat:nth-of-type(4n + 4) {
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
 }
 
 .mb-stat-value {
-    color: var(--md-sys-color-primary);
+    color: inherit;
     font-family: var(--md-sys-typescale-headline-medium-font);
     /* A long value such as a version range has to shrink rather than overflow its card. */
     font-size: clamp(
@@ -205,13 +337,21 @@
 }
 
 .mb-stat-label {
+    color: inherit;
     font-family: var(--md-sys-typescale-title-small-font);
     font-size: var(--md-sys-typescale-title-small-size);
     font-weight: var(--md-sys-typescale-title-small-weight);
 }
 
+/*
+ * Inherited rather than the fixed on-surface-variant it used to be: each card now paints
+ * one of four container colours, and the M3 "on-<role>-container" tone that colour comes
+ * with is what stays contrast-safe against it. A flat on-surface-variant would fail that
+ * contrast on at least one of the four roles in one of the two colour schemes.
+ */
 .mb-stat-detail {
-    color: var(--md-sys-color-on-surface-variant);
+    color: inherit;
+    opacity: 0.82;
     font-size: var(--md-sys-typescale-body-small-size);
     line-height: var(--md-sys-typescale-body-small-line-height);
 }
@@ -230,15 +370,24 @@
     gap: var(--md-sys-spacing-3);
     min-width: 0;
     padding: var(--md-sys-spacing-5);
-    border: 1px solid var(--md-sys-color-outline-variant);
+    border: 1px solid transparent;
     border-radius: var(--md-sys-shape-corner-large);
     background: var(--md-sys-color-surface-container-lowest);
+    box-shadow: var(--md-sys-elevation-level1);
+    transition:
+        box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.mb-engine:hover {
+    box-shadow: var(--md-sys-elevation-level2);
 }
 
 /*
  * The engine that actually runs is the single most misreadable thing on this page, so it
  * is marked with a border rather than only with words. The words still say it: the flag
- * below is text, not a colour.
+ * below is text, not a colour. Fill and border-colour are the only things this pass
+ * changes here; the `data-runs` flag and what it names stay exactly as they were.
  */
 .mb-engine[data-runs="true"] {
     border-color: var(--md-sys-color-primary);
@@ -599,15 +748,31 @@
 
 /* ---- Documentation articles ---------------------------------------------------------- */
 
-.mb-article {
-    border: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: var(--md-sys-shape-corner-large);
-    background: var(--md-sys-color-surface-container-lowest);
-    overflow: hidden;
+/*
+ * The index used to be a uniform stack of same-height rows — visually indistinguishable
+ * from a settings list one tab over. It reads as a catalogue now: a responsive grid of
+ * tiles, each one small enough that the shape scale can actually step down from the
+ * hero's extra-large radius, which is the concrete "large surfaces get bigger corners,
+ * small ones get smaller" rule applied for the first time in this codebase.
+ */
+.mb-article-grid {
+    display: grid;
+    align-items: start;
+    gap: var(--md-sys-spacing-3);
+    grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
 }
 
-.mb-article + .mb-article {
-    margin-top: var(--md-sys-spacing-3);
+/* An opened article carries a full reading column of prose, tables and code — squeezing
+   that into one grid cell would defeat the reading-measure work below. */
+.mb-article-grid > .mb-article[open] {
+    grid-column: 1 / -1;
+}
+
+.mb-article {
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-surface-container-lowest);
+    overflow: hidden;
 }
 
 .mb-article-summary {
@@ -641,16 +806,26 @@
 .mb-article-title {
     flex: 1 1 14rem;
     min-width: 0;
-    font-family: var(--md-sys-typescale-title-medium-font);
-    font-size: var(--md-sys-typescale-title-medium-size);
-    font-weight: var(--md-sys-typescale-title-medium-weight);
+    font-family: var(--md-sys-typescale-title-large-font);
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: var(--md-sys-typescale-title-large-weight);
+    line-height: var(--md-sys-typescale-title-large-line-height);
     overflow-wrap: anywhere;
 }
 
 .mb-article-body {
     display: flex;
     flex-direction: column;
-    gap: var(--md-sys-spacing-3);
+    gap: var(--md-sys-spacing-4);
+    /*
+     * A local, article-scoped reading measure. `--md-sys-measure` (74ch, in tokens.css)
+     * stays untouched as the site-wide default; this narrows it for opened article prose
+     * specifically, because a 74ch line is comfortable in a two-column layout but too
+     * wide once the grid above lets an article span the whole viewport. Every descendant
+     * that reads `var(--md-sys-measure)` — the lede, prose paragraphs, lists, definitions
+     * — inherits this without a second declaration anywhere.
+     */
+    --md-sys-measure: 66ch;
     padding: var(--md-sys-spacing-5) var(--md-sys-spacing-4) var(--md-sys-spacing-6);
 }
 
@@ -661,13 +836,41 @@
 }
 
 .mb-article-section {
-    margin-top: var(--md-sys-spacing-2);
+    margin-top: var(--md-sys-spacing-6);
+    padding-top: var(--md-sys-spacing-3);
+    border-top: 1px solid var(--md-sys-color-outline-variant);
     font-family: var(--md-sys-typescale-title-small-font);
     font-size: var(--md-sys-typescale-title-small-size);
     font-weight: var(--md-sys-typescale-title-small-weight);
     text-transform: uppercase;
     letter-spacing: var(--md-sys-typescale-label-large-tracking);
     color: var(--md-sys-color-on-surface-variant);
+}
+
+/* The very first section heading follows straight after the lede/status note, so the
+   divider above it would only pinch the two together rather than separating anything. */
+.mb-article-lede + .mb-article-section,
+.mb-status-note + .mb-article-section {
+    margin-top: var(--md-sys-spacing-3);
+    padding-top: 0;
+    border-top: 0;
+}
+
+/*
+ * Suggested articles are the one place this project asks every article to point
+ * somewhere else, so they get their own tonal panel instead of trailing off as one more
+ * plain list under a label — the same "a card that looks different says something
+ * different" idea the rest of this pass applies to the index itself.
+ */
+.mb-suggested {
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-4);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-tertiary-container);
+    color: var(--md-sys-color-on-tertiary-container);
+}
+
+.mb-suggested .mb-prose-list li::marker {
+    color: var(--md-sys-color-on-tertiary-container);
 }
 
 /* ---- Prose, as emitted by the block renderer ----------------------------------------- */
@@ -773,6 +976,13 @@
     white-space: nowrap;
 }
 
+/* A zebra tint makes a wide row-dense table (the port-progress table, feature matrices)
+   scannable at a glance instead of relying on the 1px rule between every row. */
+.mb-prose-table tbody tr:nth-child(even) th,
+.mb-prose-table tbody tr:nth-child(even) td {
+    background: color-mix(in srgb, var(--md-sys-color-surface-container-low) 55%, transparent);
+}
+
 .mb-prose-table tbody tr:last-child th,
 .mb-prose-table tbody tr:last-child td {
     border-bottom: 0;
@@ -792,13 +1002,18 @@
 
 /* ---- Code ---------------------------------------------------------------------------- */
 
+/*
+ * One step up from the table's medium radius: code and tables now read as two distinct
+ * chrome families instead of the same rounded-rectangle-with-a-header-bar module, which
+ * is the concrete "vary the shape by role" idea the rest of this pass applies elsewhere.
+ */
 .mb-code-figure {
     display: flex;
     flex-direction: column;
     max-width: 100%;
     min-width: 0;
     border: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: var(--md-sys-shape-corner-medium);
+    border-radius: var(--md-sys-shape-corner-large);
     overflow: hidden;
 }
 
@@ -973,7 +1188,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .mb-download {
+    .mb-download,
+    .mb-changelog-entry,
+    .mb-stat,
+    .mb-engine {
         transition: none;
     }
 }
@@ -1023,12 +1241,20 @@
     gap: var(--md-sys-spacing-4);
 }
 
+/*
+ * A tonal toolbar strip rather than a bare inline row of controls, so the filter and the
+ * export/copy actions read as two distinct control surfaces instead of loose buttons
+ * floating on the page background.
+ */
 .mb-changelog-filters,
 .mb-changelog-actions {
     display: flex;
     flex-wrap: wrap;
     align-items: end;
-    gap: var(--md-sys-spacing-2);
+    gap: var(--md-sys-spacing-2) var(--md-sys-spacing-3);
+    padding: var(--md-sys-spacing-3);
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-surface-container-low);
 }
 
 .mb-changelog-date {
@@ -1039,21 +1265,31 @@
     line-height: var(--md-sys-typescale-body-small-line-height);
 }
 
+/*
+ * A real elevated tile rather than a flat outlined row: the entry lifts on hover the same
+ * way the rest of this pass lifts a card, one motion vocabulary reused instead of a second
+ * one invented for this surface.
+ */
 .mb-changelog-entry {
     display: grid;
     gap: var(--md-sys-spacing-2);
     padding: var(--md-sys-spacing-4);
-    border: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: var(--md-sys-shape-corner-medium);
-    background: var(--md-sys-color-surface-container-lowest);
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-surface-container-low);
+    box-shadow: var(--md-sys-elevation-level1);
+    transition: box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.mb-changelog-entry:hover {
+    box-shadow: var(--md-sys-elevation-level2);
 }
 
 .mb-changelog-entry__title {
     margin: 0;
-    font-family: var(--md-sys-typescale-title-medium-font);
-    font-size: var(--md-sys-typescale-title-medium-size);
-    font-weight: var(--md-sys-typescale-title-medium-weight);
-    line-height: var(--md-sys-typescale-title-medium-line-height);
+    font-family: var(--md-sys-typescale-title-large-font);
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: var(--md-sys-typescale-title-large-weight);
+    line-height: var(--md-sys-typescale-title-large-line-height);
 }
 
 .mb-changelog-entry__commit {
@@ -1218,10 +1454,17 @@
     gap: var(--md-sys-spacing-1);
 }
 
+/*
+ * A circular day cell, matching Material's own date picker component rather than the
+ * small-radius rectangle every other control on this row uses — the calendar is the one
+ * place a fully round shape is the correct, unexaggerated read rather than a stylistic
+ * flourish.
+ */
 .mb-date-range__day {
     min-height: var(--md-sys-min-touch-target);
+    aspect-ratio: 1;
     border: 1px solid transparent;
-    border-radius: var(--md-sys-shape-corner-small);
+    border-radius: var(--md-sys-shape-corner-full);
     background: transparent;
     color: var(--md-sys-color-on-surface);
     cursor: pointer;

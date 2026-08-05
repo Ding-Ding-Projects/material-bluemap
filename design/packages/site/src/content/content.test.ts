@@ -268,6 +268,7 @@ const homeLinks: readonly HomeLink[] = [
 
 /** Every section's title and lede, so headings are covered by the copy rules too. */
 const homeSections = [
+    home.gettingStartedSection,
     home.statsSection,
     home.enginesSection,
     home.showcaseSection,
@@ -297,6 +298,7 @@ describe("copy rules", () => {
         ...homeFeatures.flatMap((feature) => [feature.title, feature.body, feature.statusNote]),
         ...homeLinks.map((link) => link.label),
         ...home.intro.flatMap(blockStrings),
+        ...home.gettingStarted.flatMap(blockStrings),
         ...home.buildIt.flatMap(blockStrings),
         ...home.phases.flatMap((phase) => [phase.phase, phase.scope, ...(phase.note === undefined ? [] : [phase.note])]),
         ...contentStrings(home.phaseNote),

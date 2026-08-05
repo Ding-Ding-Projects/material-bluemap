@@ -164,6 +164,16 @@ async function copyConfig(): Promise<void> {
                             )
                         }}
                     </dd>
+
+                    <dt>{{ t("world.review.javaLabel", "Java runtime") }}</dt>
+                    <dd>
+                        {{
+                            t(
+                                "world.review.javaValue",
+                                "If this computer does not already have a suitable Java runtime, the app fetches one into its own folder before rendering starts. It is not installed system-wide.",
+                            )
+                        }}
+                    </dd>
                 </dl>
             </v-card-text>
         </v-card>

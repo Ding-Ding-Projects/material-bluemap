@@ -36,6 +36,7 @@ import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
 import { AppSettings } from "./components/settings/index.js";
 import { EulaSurface } from "./components/eula/index.js";
+import { FirstRunSetup, WelcomeSurface } from "./components/setup/index.js";
 import { appearanceTargets } from "./components/appearance/index.js";
 import { addLocalMap, profilesStore, removeProfile } from "./stores/profiles.js";
 import { notices, raiseNotice } from "./stores/notices.js";
@@ -456,6 +457,66 @@ describe("the licence viewer", () => {
         expect(fab?.getAttribute("aria-expanded")).toBe("true");
         expect(panel?.style.display).not.toBe("none");
         expect(panel?.textContent).toContain("The Minecraft licence");
+    });
+});
+
+describe("\"what is this?\"", () => {
+    it("reaches the docked welcome panel through its own FAB, and stays reachable after first run", async () => {
+        // Same "built, tested, unreachable" regression the EULA test above guards against,
+        // for `WelcomeSurface`'s own claim to be a standalone route rather than only
+        // existing inside the welcome step's bundle.
+        const app = shell();
+        expect(app.findComponent(WelcomeSurface).exists()).toBe(true);
+        expect(app.findComponent(WelcomeSurface).props("open")).toBe(false);
+
+        const fab = document.querySelector<HTMLButtonElement>('button[aria-label="What is this?"]');
+        expect(fab).not.toBeNull();
+        expect(fab?.getAttribute("aria-expanded")).toBe("false");
+
+        const panel = document.querySelector<HTMLElement>('[role="dialog"].mb-welcome-surface');
+        expect(panel).not.toBeNull();
+        expect(panel?.style.display).toBe("none");
+
+        fab?.click();
+        await settle();
+
+        expect(app.findComponent(WelcomeSurface).props("open")).toBe(true);
+        expect(fab?.getAttribute("aria-expanded")).toBe("true");
+        expect(panel?.style.display).not.toBe("none");
+        expect(panel?.textContent).toContain("What is this?");
+        expect(panel?.textContent).toContain("BlueMap turns a Minecraft world into a 3D map");
+    });
+
+    it("switches to \"Make a map\" and closes itself when \"Start here\" is pressed", async () => {
+        const app = shell();
+        const fab = document.querySelector<HTMLButtonElement>('button[aria-label="What is this?"]');
+        fab?.click();
+        await settle();
+
+        const start = [
+            ...document.querySelectorAll<HTMLButtonElement>(".mb-welcome-surface button"),
+        ].find((candidate) => (candidate.textContent ?? "").trim() === "Start here");
+        expect(start, "no 'Start here' button in the panel").not.toBeUndefined();
+
+        start?.click();
+        await settle();
+
+        expect(tabButton("Make a map").getAttribute("aria-selected")).toBe("true");
+        expect(app.findComponent(WelcomeSurface).props("open")).toBe(false);
+    });
+
+    it("lands on \"Make a map\" the moment first-run setup genuinely completes", async () => {
+        // The other half of the same "start here" pointer: somebody who has never opened
+        // the panel at all still ends up exactly where the welcome step told them to go,
+        // the instant "Finish setup" succeeds. `FirstRunSetup` decides for itself whether
+        // to show anything with no bridge installed, so its own `finished` event is
+        // exercised directly here rather than by driving all four of its steps again -
+        // `FirstRunSetup.test.ts` already proves the event fires only on a real success.
+        const app = shell();
+        await app.findComponent(FirstRunSetup).vm.$emit("finished");
+        await settle();
+
+        expect(tabButton("Make a map").getAttribute("aria-selected")).toBe("true");
     });
 });
 

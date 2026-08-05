@@ -266,6 +266,18 @@ export interface HomeContent {
     readonly summary: string;
     readonly intro: readonly Block[];
 
+    /**
+     * A step-by-step path for a reader who has never heard of BlueMap before landing here.
+     * The intro above explains what the project is; this says what to actually do about it,
+     * in the same three-fact order the desktop app's own first-run welcome step uses
+     * (`packages/ui/src/components/setup/setupStrings.ts`'s `welcome.*` keys), reworded for
+     * a website visitor rather than someone already inside the app. Keeping the two in step
+     * is deliberate: the honest-expectations disclosure at the end of both is the same fact,
+     * said once and not left to drift into two different claims.
+     */
+    readonly gettingStartedSection: HomeSectionCopy;
+    readonly gettingStarted: readonly Block[];
+
     readonly statsSection: HomeSectionCopy;
     readonly stats: readonly HomeStat[];
     readonly statsNote: InlineContent;

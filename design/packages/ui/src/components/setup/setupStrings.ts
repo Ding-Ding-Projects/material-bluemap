@@ -189,7 +189,9 @@ export const FIXED = {
     "setup.progress": { en: "Step {step} of {total}", yue: "第 {step} 步，共 {total} 步" },
 
     "step.welcome": { en: "Welcome", yue: "歡迎" },
-    "welcome.limitations": { en: "What does not work yet", yue: "而家仲未得嘅嘢" },
+    "welcome.limitations": { en: "Good to know before you start", yue: "開始之前，你要知道嘅嘢" },
+    "welcome.viewerTitle": { en: "What is this?", yue: "呢個係咩嚟㗎？" },
+    "action.startHere": { en: "Start here", yue: "由呢度開始" },
     "step.consent": { en: "Minecraft files", yue: "Minecraft 檔案" },
     "step.storage": { en: "Map storage", yue: "地圖存放位置" },
 
@@ -326,34 +328,87 @@ export const VOICED = {
     },
     "welcome.what": {
         en: [
-            "Material BlueMap is a desktop application for BlueMap, the Minecraft 3D map renderer. It connects to BlueMap servers and shows their maps, and it is being built to render a world from your own save on this computer.",
-            "Material BlueMap is a desktop application for BlueMap, the Minecraft 3D map renderer. It connects to BlueMap servers and shows their maps, and it is being built to render a world from your own save on this computer.",
-            "Material BlueMap is a desktop application for BlueMap, the Minecraft 3D map renderer. It connects to BlueMap servers and shows their maps in 3D, and it is being built to render a world from your own save on this computer.",
-            "Material BlueMap is your Minecraft world seen from above, and from the side, and from wherever else you fancy. It connects to BlueMap servers and shows their maps in 3D, and it is being built to render a world from your own save on this computer.",
-            "Material BlueMap flies you around Minecraft worlds without the fall damage. It connects to BlueMap servers and shows their maps in 3D, and it is being built to render a world from your own save on this computer.",
+            "BlueMap turns a Minecraft world into a 3D map you can open in a browser. This app renders a world from your own save on this computer, and it can also connect to a BlueMap server elsewhere and show its map.",
+            "BlueMap turns a Minecraft world into a 3D map you can open in a browser. This app renders a world from your own save on this computer, and it can also connect to a BlueMap server elsewhere and show its map.",
+            "BlueMap turns a Minecraft world into a 3D map you open in a browser. This app renders your own save right here on this computer, and it can also connect to a BlueMap server elsewhere and show its map.",
+            "BlueMap turns your Minecraft world into a 3D map you open in a browser, no mods required. This app renders your own save right here on this computer, and it can also connect to a BlueMap server elsewhere and show its map.",
+            "BlueMap turns your Minecraft world into a 3D map you can fly through in a browser, no mods, no fuss. This app renders your own save right here on this computer, and it can also connect to a BlueMap server elsewhere and show its map.",
         ],
         yue: [
-            "Material BlueMap 係 BlueMap 嘅桌面應用程式，BlueMap 就係 Minecraft 嘅 3D 地圖算圖工具。佢可以連去 BlueMap 伺服器睇佢哋嘅地圖，而由你自己嘅存檔喺呢部電腦算圖嘅功能仲喺度做緊。",
-            "Material BlueMap 係 BlueMap 嘅桌面應用程式，BlueMap 就係 Minecraft 嘅 3D 地圖算圖工具。佢可以連去 BlueMap 伺服器睇佢哋嘅地圖，而由你自己嘅存檔喺呢部電腦算圖嘅功能仲喺度做緊。",
-            "Material BlueMap 係 BlueMap 嘅桌面版，BlueMap 就係將 Minecraft 世界整成 3D 地圖嗰個工具。佢可以連去 BlueMap 伺服器，用 3D 睇佢哋嘅地圖；至於用你自己嘅存檔喺呢部電腦算圖，就仲喺度做緊。",
-            "Material BlueMap 帶你由天上望落你個 Minecraft 世界，想點望都得。佢可以連去 BlueMap 伺服器用 3D 睇地圖；用你自己嘅存檔喺呢部電腦算圖嗰部分，仲喺度趕工。",
-            "Material BlueMap 俾你喺 Minecraft 世界上面飛嚟飛去，仲唔使食跌落地嘅傷害。佢可以連去 BlueMap 伺服器用 3D 睇地圖；用你自己嘅存檔喺呢部電腦算圖，就仲喺度趕工中。",
+            "BlueMap 可以將 Minecraft 世界變成一個喺瀏覽器度打得開嘅 3D 地圖。呢個程式可以喺呢部電腦度，由你自己嘅存檔算圖，亦都可以連去第度嘅 BlueMap 伺服器，睇佢哋嘅地圖。",
+            "BlueMap 可以將 Minecraft 世界變成一個喺瀏覽器度打得開嘅 3D 地圖。呢個程式可以喺呢部電腦度，由你自己嘅存檔算圖，亦都可以連去第度嘅 BlueMap 伺服器，睇佢哋嘅地圖。",
+            "BlueMap 將 Minecraft 世界變成一個喺瀏覽器打得開嘅 3D 地圖。呢個程式而家可以喺呢部電腦，用你自己嘅存檔算圖，亦可以連去第度嘅 BlueMap 伺服器睇地圖。",
+            "BlueMap 可以將你個 Minecraft 世界變做一個喺瀏覽器度飛得嘅 3D 地圖，唔使裝 mod。呢個程式而家可以喺呢部電腦，用你自己嘅存檔算圖，亦都連得去第度嘅 BlueMap 伺服器睇地圖。",
+            "BlueMap 分分鐘可以將你個 Minecraft 世界，變做一個喺瀏覽器度隨便飛嘅 3D 地圖，唔使裝 mod，唔使煩。呢個程式而家可以喺呢部電腦，用你自己嘅存檔算圖，仲可以連去第度嘅 BlueMap 伺服器睇地圖添。",
         ],
     },
-    "welcome.cannot": {
+    /**
+     * What you end up with, in one sentence, before any jargon has a chance to arrive.
+     * A screen that asks somebody to pick a world folder and read ninety-two settings
+     * without ever saying what all of it produces is the "add one" empty state the
+     * scouting pass flagged everywhere else in the app; this is where that gets fixed
+     * at the source, once, before the wizard is ever opened.
+     */
+    "welcome.result": {
         en: [
-            "What it cannot do yet: render a world from your own save. Reading the world files and the resource packs is finished and tested. The renderer itself runs upstream BlueMap's Java engine, and the part of the application that drives it is still being written. Browsing a BlueMap server works today, from end to end.",
-            "What it cannot do yet, stated plainly: render a world from your own save. Reading the world files and the resource packs is finished and tested. The renderer itself runs upstream BlueMap's Java engine, and the part of the application that drives it is still being written. Browsing a BlueMap server works today, from end to end.",
-            "What it cannot do yet, because pretending otherwise helps nobody: render a world from your own save. Reading the world files and the resource packs is finished and tested. The renderer runs upstream BlueMap's Java engine, and the part of the application that drives it is still being written. Browsing a BlueMap server works today, from end to end.",
-            "The honest bit, before you find out the hard way: it cannot render a world from your own save yet. Reading the world files and the resource packs is finished and tested. The renderer runs upstream BlueMap's Java engine, and the part that drives it is still being written. Browsing a BlueMap server works today, from end to end.",
-            "Now the part every other installer hides in a changelog: rendering your own save does not work yet. Reading the world files and the resource packs is done and tested. The renderer runs upstream BlueMap's Java engine, and the part that drives it is still on the workbench. Browsing a BlueMap server works today, from end to end.",
+            "What you will have at the end: a small website, a folder of files you can open in your own browser. You can also publish it later if you want to share it.",
+            "What you will have at the end: a small website, a folder of files you can open in your own browser. You can also publish it later if you want to share it.",
+            "What you end up with is a small website: a folder of files you open in your own browser. Publish it later, from the Publish to Pages tab, if you want to share it.",
+            "What you walk away with is a tiny website of your own: a folder of files that opens straight in your browser. Share it later with a click, from Publish to Pages, if you fancy.",
+            "What you walk away with is a pocket-sized website, made from your own Minecraft world: a folder of files that opens straight in your browser, one click away from being shared with the world through Publish to Pages.",
         ],
         yue: [
-            "而家仲未做到嘅嘢：由你自己嘅存檔算圖。讀取世界檔案同資源包嘅部分已經完成同測試好。算圖本身係行上游 BlueMap 嘅 Java 引擎，而程式入面負責驅動佢嗰部分仲寫緊。連去 BlueMap 伺服器瀏覽地圖，今日已經由頭到尾都用得。",
-            "而家仲未做到嘅嘢，直接講：由你自己嘅存檔算圖。讀取世界檔案同資源包嘅部分已經完成同測試好。算圖本身係行上游 BlueMap 嘅 Java 引擎，而程式入面負責驅動佢嗰部分仲寫緊。連去 BlueMap 伺服器瀏覽地圖，今日已經由頭到尾都用得。",
-            "講定唔好扮嘢：而家仲未可以由你自己嘅存檔算圖。讀取世界檔案同資源包嗰邊已經搞掂又測試過。算圖本身行緊上游 BlueMap 嘅 Java 引擎，程式度驅動佢嗰橛仲寫緊。連去 BlueMap 伺服器睇地圖，今日已經完全用得。",
-            "老實話講埋先，唔好等你自己撞板：而家仲未可以由你自己嘅存檔算圖。讀世界檔案同資源包已經搞掂晒又測試過。算圖行緊上游 BlueMap 嘅 Java 引擎，驅動佢嗰橛仲喺度寫。連 BlueMap 伺服器睇地圖就已經完全冇問題。",
-            "以下呢段，人哋通常會收埋喺更新日誌最底：而家仲未可以由你自己嘅存檔算圖。讀世界檔案同資源包已經搞掂又測試過。算圖行緊上游 BlueMap 嘅 Java 引擎，驅動佢嗰橛仲喺工作枱上面。連 BlueMap 伺服器睇地圖就已經完全冇問題。",
+            "最後你會有嘅嘢：一個細細嘅網站，即係一個資料夾入面裝住啲檔案，可以喺自己個瀏覽器度打開。之後想同人分享嘅話，仲可以發佈出去。",
+            "最後你會有嘅嘢：一個細細嘅網站，即係一個資料夾入面裝住啲檔案，可以喺自己個瀏覽器度打開。之後想同人分享嘅話，仲可以發佈出去。",
+            "最後你會有一個細細嘅網站：一個資料夾，入面啲檔案可以直接喺自己瀏覽器打開。想同人分享嘅話，去「Publish to Pages」個分頁發佈就得。",
+            "最後你會攞到一個屬於自己嘅細細網站：一個資料夾，入面啲檔案掂手就喺瀏覽器度打開。想炫耀嘅話，去「Publish to Pages」撳一下就發佈得。",
+            "最後你會攞到一個袖珍網站，用返你個 Minecraft 世界整出嚟：一個資料夾，掂手就喺瀏覽器度打開，仲一撳制就可以喺「Publish to Pages」度全世界睇得到。",
+        ],
+    },
+    /**
+     * The "start here" pointer, stated as expectation rather than as a live button:
+     * this step is inside a blocking modal, and telling somebody where the door is
+     * before they get there is the whole job. `App.vue` also lands somebody on the
+     * wizard directly the moment setup finishes, so the pointer here is a promise the
+     * shell keeps a few clicks later rather than the only route that keeps it.
+     */
+    "welcome.startHere": {
+        en: [
+            "When you are ready, open \"Make a map\". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. Rendering typically takes a few minutes for a small world, and longer for a large one.",
+            "When you are ready, open \"Make a map\". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. Rendering typically takes a few minutes for a small world, and longer for a large one.",
+            "When you are ready, open \"Make a map\". Its first step already looks for worlds saved on this computer, so there is usually nothing to type. A small world typically renders in a few minutes; a large one can take hours.",
+            "Ready? Open \"Make a map\". It already knows where your worlds live on this computer, so you probably will not type a single path. A small world is done in a few minutes; a big one can take hours, so put the kettle on.",
+            "Ready to fly? Open \"Make a map\". It already knows where your worlds are hiding on this computer, so typing a path is optional at best. A small world wraps up in a few minutes; a sprawling one can run for hours, kettle strongly advised.",
+        ],
+        yue: [
+            "準備好嘅時候，打開「Make a map」。第一步已經會自動搵返呢部電腦入面嘅存檔，通常唔使自己打路徑。細嘅世界通常幾分鐘就算完，大嘅就要耐啲，可能要幾個鐘。",
+            "準備好嘅時候，打開「Make a map」。第一步已經會自動搵返呢部電腦入面嘅存檔，通常唔使自己打路徑。細嘅世界通常幾分鐘就算完，大嘅就要耐啲，可能要幾個鐘。",
+            "準備好嘅時候，打開「Make a map」。第一步已經自動搵晒呢部電腦入面嘅存檔，一般唔使打路徑。細世界通常幾分鐘搞掂，大世界就可能要幾個鐘。",
+            "準備好未？打開「Make a map」就得。佢已經自動搵晒你部機入面嘅存檔，基本上唔使自己打路徑。細世界幾分鐘搞掂，大世界就要幾個鐘，不如去斟返杯茶先。",
+            "準備飛未？打開「Make a map」，佢已經自動幫你搵晒部機入面嘅存檔，連路徑都唔使打。細世界幾分鐘就搞惦，大世界隨時要幾個鐘，斟返杯茶等佢都得。",
+        ],
+    },
+    /**
+     * Set honest expectations before commitment, not just at it: the wizard's own review
+     * step (`world.review.javaValue` in `copy/surfaces/world.ts`) repeats the Java fact
+     * right before the render button, but somebody deciding whether to bother at all
+     * deserves to know it here too, alongside the one Mojang download the app ever asks
+     * about, so both are on the record before a single click has happened.
+     */
+    "welcome.cannot": {
+        en: [
+            "Before you start: rendering runs on Java. If this computer does not already have a suitable version, the app can fetch one into its own folder, never installed system-wide. Minecraft's own client file is downloaded too, using the answer you give on the next step; you are not asked twice.",
+            "Before you start: rendering runs on Java. If this computer does not already have a suitable version, the app can fetch one into its own folder, never installed system-wide. Minecraft's own client file is downloaded too, using the answer you give on the next step; you are not asked twice.",
+            "Good to know before you start: rendering runs on Java. If this computer does not already have a suitable version, the app fetches one into its own folder rather than installing anything system-wide. Minecraft's own client file also gets downloaded, using the answer you give on the next step, so you are not asked twice.",
+            "Two things worth knowing before you dive in: rendering needs Java, and if this machine does not have a suitable copy the app quietly fetches its own, tucked away in its own folder rather than spread across your system. Minecraft's client file rides along on the very next step's answer, so nobody asks you twice.",
+            "Two little secrets before you dive in: rendering runs on Java, and if this machine is Java-less the app happily fetches its own copy, tucked away in its own folder rather than smeared across your whole system. Minecraft's client file hitches a ride on the very next step's answer, so nobody grills you about it twice.",
+        ],
+        yue: [
+            "開始之前：算圖係用 Java 嚟做嘅。如果呢部電腦未有合適嘅版本，程式可以幫手攞一份，放喺自己嘅資料夾入面，唔會裝落成部電腦。Minecraft 嘅客戶端檔案都會下載，用嘅係下一步你俾嘅答案，唔會問多次。",
+            "開始之前：算圖係用 Java 嚟做嘅。如果呢部電腦未有合適嘅版本，程式可以幫手攞一份，放喺自己嘅資料夾入面，唔會裝落成部電腦。Minecraft 嘅客戶端檔案都會下載，用嘅係下一步你俾嘅答案，唔會問多次。",
+            "開始之前，你要知道：算圖係用 Java 嚟做嘅。如果呢部電腦未有合適版本，程式會幫手攞一份，放喺自己嘅資料夾，唔會裝到成部電腦度。Minecraft 嘅客戶端檔案都會下載，用返下一步你答嘅答案，唔會再問多次。",
+            "落手之前，有兩件事你要知：算圖靠 Java 撐住，如果呢部機冇合適版本，程式會靜靜雞幫你攞一份，收埋喺自己個資料夾，唔會周圍裝。Minecraft 嘅客戶端檔案就搭下一步你嘅答案順風車，唔會再問你多次。",
+            "落手之前，兩個小秘密話你知：算圖靠 Java 撐場，如果呢部機冇 Java，程式就會自己靜靜雞攞一份返嚟，收埋喺自己個資料夾，唔會周圍裝到成部機都係。Minecraft 嘅客戶端檔案就搭埋下一步你個答案嘅順風車，唔會再煩多次問你。",
         ],
     },
     "welcome.lead": {

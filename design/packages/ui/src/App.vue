@@ -9,6 +9,7 @@ import {
     mdiFileDocumentOutline,
     mdiFolderMultipleOutline,
     mdiGavel,
+    mdiHelpCircleOutline,
     mdiMapOutline,
     mdiMapPlus,
     mdiServerNetwork,
@@ -26,7 +27,7 @@ import { MarkerMenu } from "./components/markers/index.js";
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
 import { AppTitleBar } from "./components/shell/index.js";
 import { requestReveal } from "./components/shell/revealRequests.js";
-import { FirstRunSetup } from "./components/setup/index.js";
+import { FirstRunSetup, WelcomeSurface } from "./components/setup/index.js";
 import { useSetupI18n } from "./components/setup/setupI18n.js";
 import { AppSettings, type SettingsSectionAnchor } from "./components/settings/index.js";
 import { EulaSurface } from "./components/eula/index.js";
@@ -310,6 +311,40 @@ function revealSetting(target: SettingsTarget): void {
  * is the "anywhere".
  */
 const eulaOpen = ref(false);
+
+/* -------------------------------------------------------------------------- */
+/* "What is this?"                                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The standalone "what is this?" panel, alongside first-run setup's own welcome step.
+ * `WelcomeSurface` is `EulaSurface`'s twin: "mount one in the shell and open it from
+ * anywhere", and this is that mount plus its own FAB. It is how the welcome step's
+ * content stays reachable once setup is complete and never shown again unprompted -
+ * exactly as `firstRunFlow.ts` intends first-run setup itself to behave.
+ */
+const welcomeOpen = ref(false);
+
+/**
+ * "Start here" was pressed inside the panel: close it and land on the one place a
+ * beginner actually wants to go. The welcome step can only ever describe this route,
+ * because it is shown before the tab strip is something anybody has had a reason to
+ * touch; both this and `onFirstRunFinished` below are what make that description true.
+ */
+function onWelcomeStart(): void {
+    revealPage(PAGE_WORLD);
+}
+
+/**
+ * First-run setup finished for real - not merely dismissed after a failure. The "start
+ * here" pointer the welcome step gives is a promise the shell keeps immediately: landing
+ * directly on "Make a map", where the wizard's own first step already lists the worlds
+ * already found on this computer, rather than leaving the newcomer on an empty map tab
+ * with eight unexplained destinations to choose between.
+ */
+function onFirstRunFinished(): void {
+    revealPage(PAGE_WORLD);
+}
 
 /* -------------------------------------------------------------------------- */
 /* Server configuration                                                       */
@@ -780,6 +815,22 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         />
                     </template>
                 </v-tooltip>
+
+                <v-tooltip :text="setupI18n.t('welcome.viewerTitle')" location="end">
+                    <template #activator="{ props: tooltipProps }">
+                        <v-btn
+                            v-bind="tooltipProps"
+                            class="mb-shell-fab mb-interactive"
+                            :icon="mdiHelpCircleOutline"
+                            color="surface"
+                            variant="flat"
+                            elevation="3"
+                            :aria-label="setupI18n.t('welcome.viewerTitle')"
+                            :aria-expanded="welcomeOpen"
+                            @click="welcomeOpen = !welcomeOpen"
+                        />
+                    </template>
+                </v-tooltip>
             </div>
 
             <AppSettings
@@ -796,6 +847,18 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 through the first-run step or the consent settings row.
             -->
             <EulaSurface :open="eulaOpen" @update:open="eulaOpen = $event" />
+
+            <!--
+                `WelcomeSurface`'s own twin route: the welcome step's "what is this?"
+                content, reachable from its own FAB rather than only met once at first run.
+                Its "Start here" button is the live half of the wizard pointer the welcome
+                step can only ever describe.
+            -->
+            <WelcomeSurface
+                :open="welcomeOpen"
+                @update:open="welcomeOpen = $event"
+                @start="onWelcomeStart"
+            />
 
             <!--
                 Every destination emits back here rather than opening anything itself, so
@@ -822,7 +885,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             invisible when it is not. It is mounted outside v-main so its blocking dialog -
             the only one in this application - is never a child of a click-through layer.
         -->
-        <FirstRunSetup />
+        <FirstRunSetup @finished="onFirstRunFinished" />
 
         <!--
             The one notification corner, mounted for the same reason and in the same place:

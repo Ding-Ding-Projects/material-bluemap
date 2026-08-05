@@ -299,6 +299,35 @@
     display: none;
 }
 
+/*
+ * A short entrance for whichever panel just became visible. The outgoing panel is hidden in
+ * the same tick a new one is shown (TabStrip.ts's own `record.node.hidden = !active`, left
+ * untouched here), so there is never a moment with two panels laid out at once - only the
+ * incoming one fades and settles in, with reduced motion collapsing the token duration to a
+ * single frame, exactly as every other transition on the site already does.
+ */
+.tab-panel:not([hidden]) {
+    animation: mb-tab-panel-in var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+@keyframes mb-tab-panel-in {
+    from {
+        opacity: 0;
+        transform: translateY(var(--md-sys-spacing-2));
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .tab-panel:not([hidden]) {
+        animation: none;
+    }
+}
+
 /* ---- Page list and prompts ----------------------------------------------------------- */
 
 .tab-list__header {

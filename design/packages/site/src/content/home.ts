@@ -98,6 +98,68 @@ export const home: HomeContent = {
     ],
 
     /* ---------------------------------------------------------------------- */
+    /* Getting started                                                        */
+    /* ---------------------------------------------------------------------- */
+
+    /*
+     * The three facts above are pitched at someone who already knows what BlueMap and a
+     * Minecraft world are. This section is for someone who does not: the same three facts
+     * the desktop application's own first-run welcome step opens with (`welcome.what`,
+     * `welcome.result`, `welcome.cannot` in packages/ui/src/components/setup/setupStrings.ts),
+     * reworded for a website visitor who has not opened the app yet rather than someone
+     * already inside it. Kept in step deliberately: the honest Java-and-Mojang disclosure at
+     * the end is one fact, said once, not a second explanation that could drift from the
+     * app's own.
+     */
+    gettingStartedSection: {
+        title: "New here? Start with this",
+        lede: "Everything above assumes some BlueMap vocabulary already. This does not.",
+    },
+
+    gettingStarted: [
+        {
+            kind: "paragraph",
+            content: [
+                "BlueMap turns a Minecraft world into a 3D map you can open in a browser. This ",
+                "project renders a world from your own save on your own computer, or connects to ",
+                "a BlueMap server somebody else already runs and shows its map, all from one ",
+                "desktop application.",
+            ],
+        },
+        {
+            kind: "list",
+            ordered: true,
+            items: [
+                [
+                    "Download the Windows installer below, or build the application from source ",
+                    "if you are on another platform.",
+                ],
+                [
+                    "Open it and either point its wizard at a world folder on this computer, or ",
+                    "add the address of a BlueMap server somebody else runs. The wizard looks for ",
+                    "worlds already on this computer first, so there is usually nothing to type.",
+                ],
+                [
+                    "A small world typically renders in a few minutes, a large one longer. When ",
+                    "it finishes, the map opens in the same window: a small website, a folder of ",
+                    "files you can also open in your own browser or publish later.",
+                ],
+            ],
+        },
+        {
+            kind: "callout",
+            tone: "note",
+            title: "Before you start",
+            content: [
+                "Rendering runs on Java. If this computer does not already have a suitable ",
+                "version, the application fetches one into its own folder, never installed ",
+                "system-wide. Minecraft's own client file is downloaded too, using the one ",
+                "consent decision the app asks for at first run rather than asking twice.",
+            ],
+        },
+    ],
+
+    /* ---------------------------------------------------------------------- */
     /* Scale                                                                  */
     /* ---------------------------------------------------------------------- */
 
