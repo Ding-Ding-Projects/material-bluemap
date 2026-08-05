@@ -49,7 +49,7 @@ exclusions **S2 and S4 are withdrawn**; S1 and S3 still stand.
 | E | RenderManager worker pool, watch re-render, full HTTP routes + SSE, config schema (every option), standalone server CLI + Dockerfile | **Part done.** See below for the split |
 | F | Full options GUI (all settings, map wizard, storage editors, config import) | **Reachable, and it now opens on settings.** `App.vue` mounts the Material title bar, the world wizard, first-run setup and the settings surface. Three gaps closed: the preload never exposed the window controls (a frameless window with no minimise or close); only 6 of a map's 92 settings could reach a render; and (`5c810d0`) the editor opened on "Nothing is open yet" with no tabs once it resolved a real bridge, so it now opens on the config folder BlueMap already uses, or on BlueMap's defaults labelled as unsaved. Its controls were swept in `6b8ef7b`: registry-key selects no longer render blank against values BlueMap writes, and both colour fields use the continuous picker with alpha, kept true by `packages/config/test/controlPolicy.test.ts` |
 | G | Docker hosting GUI (dockerode instance manager) | Pending |
-| H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | Pending |
+| H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | **Part done.** SQL storages ported (issue #32, see below); command palette, marker editor, JS addon system, static export and the three.js upgrade remain Pending |
 | I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending |
 | Contracts | Regex builder everywhere · full tab system · per-element appearance editors · EN/HK-Cantonese/bilingual + funny-level · super confirmation · local version history (see `docs/contracts/`) | Pages mounts the discovery searches, live-localized command palette, anchored changelog range picker, notification centre, and two-key gate. **Local version history landed for config folders** (`1b77779`, `docs/config-history.md`): an isolated git repository beside the app data directory, append-only including restore, a History tab, and trim behind the two-key gate. **Projects joined it on 2026-08-04** (`f4d3abd`, `packages/app/src/main/project/history.ts`), under their own repository root so one repository never mirrors two folders. It does not yet cover profiles, application settings or the maps-and-servers list. Remaining desktop-app contract work is tracked in the open issues |
 | Pages | Material 3 GitHub Pages shell, tabbed discovery, repository-backed changelog, command palette, notification centre and responsive documentation surface | **Built and locally verified; the newest hosted proof is still a Pages deployment, not a CI verdict.** The site adds every-rendered-element appearance coverage, dynamic per-group discovery searches, searchable tab/group/overflow menus with adjacent builders, cross-platform config line-ending preservation, and a site-owned super-confirmation gate for notification clearing, tab closes, group removal and bulk-close actions (`2ba959d`). The desktop app now also has a `Publish to Pages` tab (`22b475a`, `e7bd403`) with preflight size/limit facts, guarded branch ownership, live-only status, durable resume checkpoints, recorded-site status refresh and a two-key stop-hosting gate. The screenshot harness captures it and refuses stale UI/main/preload bundles (`54559eb`). Local continuation verification is **381 files, 6,174 passed, 3 skipped** before this follow-up; the Pages host now adds 37 main-process tests for resume and refresh. Site typecheck/build and repository lint remain required. Pages run `30949965713` succeeded for `ecc5168` and run `30943812059` succeeded for `80369ec`, whose live site returned 200 with the menu-search, regex-builder, appearance-coverage and dynamic-group-search markers. The exact latest CI `30960216270` and Pages `30960216143` runs for `54559eb` remain pending. The `site` package contributes 132 of the workspace's tests. A runtime/headless capture of the live site remains a separate boundary |
@@ -343,6 +343,51 @@ What is **not** yet proven, and so keeps this phase open:
   texture
 
 Until those run, "ported" is the honest word and "done" is not.
+
+## Phase H, SQL storages: what is ported and what is not
+
+Ported on 2026-08-05 (issue #32), in `packages/engine/src/storage/sql/`: `SQLStorage`,
+`SQLMapStorage`, `SQLGridStorage`, `SQLItemStorage`, `Database` and the four-dialect
+registry (`MySQL`, `MariaDB` — sharing `MySQLCommandSet`, exactly as upstream's
+`Dialect.java` shares one `Impl` between them — `PostgreSQL`, `SQLite`), implementing the
+same `Storage`/`MapStorage`/`GridStorage`/`ItemStorage` interfaces `FileStorage` already
+does. Every dialect's SQL text is transcribed verbatim from `AbstractCommandSet.java` and
+the three `*CommandSet.java` files, checked by a 90-assertion statement-for-statement
+contract test rather than eyeballed. `packages/engine/src/storage/StorageFactory.ts` is
+new: the seam that turns a parsed `FileStorageConfig`/`SqlStorageConfig` from
+`@material-bluemap/config` into a real, working `Storage` — before this, nothing built an
+SQL storage from config at all, which was the defect issue #32 opened over.
+
+Drivers are optional dependencies (`sql.js`, `mysql2`, `pg` — all pure JavaScript/WASM, no
+native N-API code, consistent with the packaging constraint fixed in `e976ee9`), loaded
+through a non-literal dynamic `import()` so esbuild cannot inline them into the app
+bundle; a missing driver raises `MissingSqlDriverError` naming the package rather than
+surfacing a raw module-resolution stack trace.
+
+**Proven, with a real (WASM) SQLite engine**, not a hand-rolled fake: item and grid
+round trips, gzip compression byte-identical between two independent compress calls
+(Node's `zlib.gzip` embeds no timestamp), paging past 1000 rows for both grid tiles and
+map ids, purge across multiple 1000-row rounds with monotonic progress, real file
+persistence across a storage reopen, `StorageDeleteTask` wired against `SQLMapStorage`
+exactly as it already is against `FileMapStorage`, and byte-for-byte identical hires
+`.prbm.gz` tiles between file storage and SQL storage using the engine's own real PRBM
+oracle fixtures (the same tiles `PRBMWriter.test.ts` checks against the real Java writer).
+
+**Not proven — stated rather than glossed over:**
+
+- **MySQL and PostgreSQL against a real server.** No server was available on this
+  machine. What *is* checked: the exact SQL text (contract tests against upstream's Java
+  source), connection-URL parsing, the `?` → `$1, $2, ...` placeholder translation
+  node-postgres needs, and driver-error classification against synthetic errors carrying
+  the documented codes (`ER_DUP_ENTRY`, SQLSTATE `23505`, etc.) — not against errors a
+  real server actually produced.
+- **Cross-compatibility with upstream's Java engine** — a map upstream's CLI wrote into
+  SQLite read correctly by this port, and the reverse — which needs a JVM run this
+  environment does not have. The schema and every statement are transcribed exactly from
+  the Java source so that this *should* hold; "should" is deliberate, not "does".
+- **`driver-jar`/`driver-class`** (a custom JDBC driver jar): there is no javascript
+  equivalent of loading an arbitrary classpath jar at runtime, so `StorageFactory` refuses
+  a config that sets either, by name, rather than silently ignoring the setting.
 
 ## Test counts
 

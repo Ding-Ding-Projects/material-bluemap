@@ -17,7 +17,13 @@ type Mysql2PoolConnection = Awaited<ReturnType<Mysql2Pool["getConnection"]>>;
 /** mysql2 error codes this port treats as transient (worth the one extra `Database.run` attempt). */
 const RECOVERABLE_CODES = new Set(["PROTOCOL_CONNECTION_LOST", "ECONNRESET", "ETIMEDOUT"]);
 
-function mapMySqlError(ex: unknown): Error {
+/**
+ * Exported for its own test: no real MySQL/MariaDB server is available on this machine
+ * to trigger these errors for real, so the classification is checked directly against
+ * synthetic errors carrying the exact codes mysql2 documents for a duplicate-key error
+ * and a dropped connection.
+ */
+export function mapMySqlError(ex: unknown): Error {
     if (ex instanceof Error) {
         const code = (ex as Error & { code?: string }).code;
         if (code === "ER_DUP_ENTRY") return new SqlUniqueViolationError(ex.message, { cause: ex });

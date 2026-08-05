@@ -1012,6 +1012,57 @@ instead of a second pipeline. Nothing in `ResourcePack`, `Pack` or the atlas-lay
   compared byte for byte after decompression, and lowres PNGs pixel for pixel (decision
   D3), which is the Phase D gate.
 
+### storage/sql (issue #32)
+
+- **JDBC becomes a small driver-agnostic connection contract, not one shared client.**
+  Upstream's `Database` wraps one JDBC `DataSource`; any dialect works because the JDBC
+  driver hides the wire protocol. There is no javascript equivalent — MySQL, PostgreSQL
+  and SQLite each need a completely different client library — so `SqlConnectionHandle`/
+  `SqlDriverAdapter` (`Database.ts`) is this port's substitute, and each dialect's driver
+  module (`drivers/*.ts`) implements it against its own library.
+- **The four-dialect `Impl` class in upstream's `Dialect.java` splits into a
+  `createCommandSet` and a `createDriverAdapter` per dialect** (`Dialect.ts`). Upstream's
+  version only needs the former, because a JDBC `Driver` is already interchangeable.
+- **A driver package is optional and loaded through a non-literal dynamic `import()`**
+  (`drivers/loadOptionalModule.ts`), so esbuild cannot inline `mysql2`/`pg`/`sql.js` into
+  the app bundle, and a missing one raises `MissingSqlDriverError` naming the package
+  rather than a raw module-resolution stack trace — no upstream equivalent; JDBC has no
+  concept of an optional npm dependency.
+- **Generated-key retrieval re-runs the `SELECT` instead of reading back a
+  driver-generated id.** Upstream's `findOrCreate*Key` methods use JDBC's
+  `Statement.RETURN_GENERATED_KEYS`; node-postgres has no equivalent short of an
+  `INSERT ... RETURNING` clause, which would change the literal statement text this port
+  keeps byte-for-byte identical to upstream's. The four `create*KeyStatement()` texts are
+  therefore unchanged, and `AbstractCommandSet.findOrCreateKey` just re-selects after a
+  successful insert — one extra round trip on the very first write of a brand-new key,
+  paid once per key per process since every result is cached.
+- **No recovery for the SELECT-then-INSERT race upstream also does not guard against.**
+  Two processes creating the same brand-new map/compression/storage key at the same
+  moment can both see an empty `SELECT` and both attempt the `INSERT`; upstream has no
+  handling for this either (its per-cache `synchronized` block only serializes callers
+  within one JVM process), so this port matches that rather than inventing a recovery
+  path — one that would have to special-case PostgreSQL anyway, since a constraint
+  violation there aborts the whole surrounding transaction in a way SQLite and MySQL do
+  not.
+- **`PageSpliterator` becomes `collectPages`, an eager async loop** (`PageSpliterator.ts`),
+  consistent with every other lazy `Stream` in this port's storage layer already being
+  collected (see the buffer-oriented/array-returning notes above). It stops one round
+  trip earlier than upstream's `refill()` when a page comes back short: since every page
+  here reports its true length, a short page unambiguously is the last one.
+- **`mapKey`'s find-or-create semantics recreate a deleted map's row on the very next
+  grid/item access.** Checked directly against `AbstractCommandSet.java` before writing
+  `SqlStorage.sqlite.test.ts`'s test for it — this is upstream's actual behavior (`mapKey`
+  has no notion of "this map existed and was deleted"), not a port-introduced bug.
+- **`driver-jar`/`driver-class` are refused, not silently ignored.** `StorageFactory.ts`
+  throws a named `InvalidStorageConfigError` for a config that sets either — there is no
+  way to load an arbitrary JDBC jar from a classpath at runtime in javascript, and this
+  port always uses its own built-in driver for the resolved dialect regardless, so
+  letting the setting through unused would be a silent lie about what it does.
+- **Not proven: MySQL/PostgreSQL against a real server, or cross-compatibility with
+  upstream's Java engine reading/writing the same SQLite file.** No server or JVM was
+  available in this environment. See `ROADMAP.md`'s Phase H section for exactly what is
+  and is not covered.
+
 ## map/hires — the tile-model and the PRBM writer (Phase D wave 1)
 
 The .prbm bytes this package writes are compared byte for byte against the Java writer's

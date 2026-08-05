@@ -31,7 +31,13 @@ const RECOVERABLE_NODE_CODES = new Set(["ECONNRESET", "ETIMEDOUT"]);
 /** Postgres SQLSTATE for a unique-constraint violation. */
 const UNIQUE_VIOLATION_SQLSTATE = "23505";
 
-function mapPostgresError(ex: unknown): Error {
+/**
+ * Exported for its own test: no real PostgreSQL server is available on this machine, so
+ * the classification is checked directly against synthetic errors carrying the exact
+ * SQLSTATE codes Postgres documents for a unique-constraint violation and a few
+ * transient shutdown states.
+ */
+export function mapPostgresError(ex: unknown): Error {
     if (ex instanceof Error) {
         const code = (ex as Error & { code?: string }).code;
         if (code === UNIQUE_VIOLATION_SQLSTATE) return new SqlUniqueViolationError(ex.message, { cause: ex });
