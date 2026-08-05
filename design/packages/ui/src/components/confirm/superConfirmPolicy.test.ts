@@ -409,6 +409,20 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "inventory covers the route rather than only the call, and so a future change that " +
             "makes it required is noticed as a count that has drifted from zero.",
     },
+    "components/remote/RemoteHostingPanel.vue": {
+        count: 1,
+        destroys:
+            "the running container hosting a map on the person's own server and, unless the target " +
+            "keeps its files, the uploaded copy of the world and its tiles too",
+        standing: "gated",
+        gatedIn: "components/remote/RemoteHostingPanel.vue",
+        note:
+            "The one call in the whole hosting feature that takes anything away. Named " +
+            "removeHosting rather than stop, the same way PagesScreen.vue's own stop call is " +
+            "named removeHosting, so this detector's net actually catches it. The gate names " +
+            "exactly what a republish costs (the whole upload again, not a resume) before the " +
+            "container is ever torn down.",
+    },
     "components/remote/RemoteTargetEditor.vue": {
         count: 1,
         destroys: "one saved remote machine: its host, port, account name and the path to its key file",
