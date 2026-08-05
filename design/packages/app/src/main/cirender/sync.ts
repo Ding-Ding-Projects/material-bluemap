@@ -98,6 +98,18 @@ const ZIP_ENTRY_OVERHEAD_BYTES = 256;
  * dropped connection costs one part rather than the whole archive. Here a split archive
  * is unusable, so the split point is pushed out to the asset ceiling and the size guard
  * above is what keeps anything larger from being attempted.
+ *
+ * **This is not a setting, and a settings-exposure pass should not turn it into one.**
+ * It looks like the same "how big is a part" trade-off `docs/backup.md` deliberately
+ * declines to expose, and on inspection it is a narrower case than that: because a split
+ * archive cannot be rendered at all here, this value has exactly one usable range - large
+ * enough that any archive under {@link CI_MAX_WORLD_BYTES} never gets split - and that
+ * range's floor already equals its ceiling, both being GitHub's own asset cap. Lowering it
+ * would not trade anything for anything; it would only start splitting archives that used
+ * to upload whole, and the very next check (`result.summary.parts !== 1`) would then fail
+ * the sync outright. Raising it past the cap does nothing, since GitHub refuses the upload
+ * either way. There is no point on either side of this value where a person is better off
+ * for having moved it.
  */
 export const CI_UPLOAD_PART_SIZE_BYTES = CHEAP_LFS_LEGACY_MAXIMUM_PART_SIZE_BYTES;
 
