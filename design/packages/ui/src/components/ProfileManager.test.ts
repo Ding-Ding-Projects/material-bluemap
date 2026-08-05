@@ -518,6 +518,59 @@ describe("editing one map's appearance", () => {
         expect(bodyText()).not.toContain("Appearance of Beta Creative");
     });
 
+    /**
+     * The row menu's Open command shows the keys that do the same thing.
+     *
+     * Asserted on the rendered `<kbd>` rather than on the source, because the two ways this
+     * can be wrong are both invisible to a reader of the component: the `#append` slot can
+     * be dropped by a Vuetify version that renders the item differently, and the label can
+     * quietly stop matching the handler. The second half of the test is the one that
+     * matters - the same keys are pressed at a row and shown to open it, so the hint is
+     * checked against the behaviour it advertises rather than against itself.
+     */
+    it("shows the keys that open a row beside the menu command that does the same", async () => {
+        mountManager();
+        await settle();
+
+        optionNamed("Gamma Skyblock").dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true }),
+        );
+        await settle();
+
+        const open = [...document.querySelectorAll<HTMLElement>(".v-list-item")].find((item) =>
+            item.textContent?.includes("Open this map"),
+        );
+        const hint = open?.querySelector("kbd");
+        expect(hint?.textContent?.trim()).toBe("Enter / Space");
+    });
+
+    it("names, in that hint, keys the row really answers to", async () => {
+        // The hint is only worth showing if pressing what it names does what it claims. Both
+        // keys are pressed at a row here, so a hint that drifted away from `onOptionKeydown`
+        // fails on the half that stopped being true rather than passing on its own wording.
+        for (const [key, id] of [
+            ["Enter", "gamma"],
+            [" ", "home"],
+        ] as const) {
+            mountManager();
+            await settle();
+
+            press(optionNamed(id === "gamma" ? "Gamma Skyblock" : "Home World"), key);
+            await settle();
+
+            expect(profilesStore.activeId, key).toBe(id);
+            host?.unmount();
+            host = null;
+            document.body.innerHTML = "";
+            profilesStore.profiles.splice(
+                0,
+                profilesStore.profiles.length,
+                ...FIXTURES.map((profile) => ({ ...profile })),
+            );
+            profilesStore.activeId = "beta";
+        }
+    });
+
     it("opens the map from the row menu's own command", async () => {
         mountManager();
         await settle();
