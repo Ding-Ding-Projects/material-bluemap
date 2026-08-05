@@ -9,7 +9,7 @@ export const githubSignIn: Article = {
     category: "application",
     status: "ported-unverified",
     statusNote:
-        "The device flow, the pasted-token path, the credential store and the settings section are built and covered by 79 tests in the main process and 47 in the interface, all running in CI. Every one of those tests drives a stand-in for GitHub's endpoints: no sign-in has been completed against github.com from a packaged build, so the protocol is proved against its specification rather than against the server.",
+        "The device flow, the pasted-token path, the credential store, the settings section and the multi-account layer are built and covered by 166 tests in the main process and the interface, all running in CI, and every one of those drives a stand-in for GitHub's endpoints. A separate, gated file now drives the real client id against the real device-code and token endpoints and a real account's token against the real API, and all four calls came back exactly as coded. What that run could not supply is the one step GitHub deliberately keeps human-only: nobody has clicked Authorize on the verification page for this application, so a completed sign-in against the live server is still unproven.",
 
     sections: [
         {
@@ -206,10 +206,12 @@ export const githubSignIn: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "126 tests cover this: 79 in the main process across the client resolution, the device ",
-                        "flow, the token exchange and verification, the credential store, the session and the ",
-                        "redactor, and 47 in the interface across the state the section holds and the section ",
-                        "itself. All of them run in CI on every push.",
+                        "166 tests cover this: 91 in the main process across the client resolution, the device ",
+                        "flow, the token exchange and verification, the credential store, the multi-account ",
+                        "registry, the session and the redactor, and 75 in the interface across the state the ",
+                        "section holds, the section itself, and the account list built on top of it. All of ",
+                        "them run in CI on every push, and every one of them drives a stand-in for GitHub's ",
+                        "endpoints.",
                     ],
                 },
                 {
@@ -222,14 +224,38 @@ export const githubSignIn: Article = {
                     ],
                 },
                 {
+                    kind: "paragraph",
+                    content: [
+                        { strong: "A separate, gated file now closes part of that gap for real: " },
+                        { code: "github.realAccount.test.ts" },
+                        ". It is skipped by default, exactly like the port's real-database suite, and turns ",
+                        "into a live run when two environment variables are set. Neither needs a secret this ",
+                        "application does not already ship or a credential minted for the purpose:",
+                    ],
+                },
+                {
+                    kind: "list",
+                    items: [
+                        "MBM_TEST_GITHUB_LIVE=1 asks the real https://github.com/login/device/code for a real code, using this application's own committed client id and its real required scopes, and confirms GitHub answers with a code shaped exactly as the panel promises to render it, a working verification URL, and a real deadline. It then sends one real poll to https://github.com/login/oauth/access_token with that device code and confirms the answer is authorization_pending or slow_down rather than a hard error, which is the honest result of nobody having approved it, and is only reachable at all if this application's client id is real, registered, and has the device flow turned on.",
+                        "MBM_TEST_GITHUB_TOKEN=<a working token> runs verifyToken against the real GET /user with an already-approved, ordinary GitHub token, and it resolved a real account and correctly computed insufficient-scopes against that token's real, live scope list, which is the one failure that still proves the round trip worked: GitHub said who the token belonged to before saying it could not do the job. checkRepositoryAccess then read this project's own public repository through the same real token and got back ok: true, private: false.",
+                    ],
+                },
+                {
                     kind: "callout",
                     tone: "warning",
-                    title: "Nobody has signed in to the real GitHub from a packaged build",
+                    title: "The protocol now talks to the real server; nobody has clicked Authorize",
                     content: [
-                        "Every test here drives a stand-in for GitHub's endpoints, which is what makes the ",
-                        "awkward paths reachable at all, and it is also the limit of what they prove. No user ",
-                        "code has been typed on github.com from an installed build of this application, and there ",
-                        "is no capture of the section. See the ",
+                        "The gated run above is real: this application's own client id was accepted by the real ",
+                        "device-code endpoint, a real poll got the real “not yet” answer, and a real account's ",
+                        "token was verified and used to read a real repository, all against api.github.com and ",
+                        "github.com rather than a stand-in. What it did not and could not supply is the interactive ",
+                        "step GitHub deliberately keeps out of reach of any script: a person visiting the ",
+                        "verification page, typing the code, and pressing Authorize. Nor does any credential ",
+                        "available for this check carry all three scopes this application asks for at once, so ",
+                        "a signInWithToken call that ends in ok: true has not been produced against the live ",
+                        "server either. Both are the same kind of gap: a human decision GitHub requires in the ",
+                        "moment, and neither is a defect in the code. There is still no capture of the section ",
+                        "signed in. See the ",
                         { link: "roadmap", href: ROADMAP_URL, external: true },
                         ".",
                     ],
@@ -279,6 +305,10 @@ export const githubSignIn: Article = {
 
     sources: [
         { label: "packages/app/src/main/github", href: repoFile("design/packages/app/src/main/github") },
+        {
+            label: "packages/app/src/main/github/github.realAccount.test.ts",
+            href: repoFile("design/packages/app/src/main/github/github.realAccount.test.ts"),
+        },
         {
             label: "packages/ui/src/components/github",
             href: repoFile("design/packages/ui/src/components/github"),

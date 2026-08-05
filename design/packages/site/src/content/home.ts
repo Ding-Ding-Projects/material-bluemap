@@ -413,7 +413,7 @@ export const home: HomeContent = {
                     body: "A button in the corner opens the seven-screen options editor over the whole window, pointed at a real config folder. It reads and writes BlueMap's own configuration format rather than a parallel one of its own, keeping the comments that explain each setting, so a file the application wrote is a file upstream's renderer reads.",
                     status: "ported-unverified",
                     statusNote:
-                        "The schema, the editor and the bridge that lets it touch a folder are built and tested, and the editor is reachable from the application at last. What has not happened is the check that matters: a config written here, loaded by the real Java server, compared value for value.",
+                        "The schema, the editor and the bridge that lets it touch a folder are built and tested, and the editor is reachable from the application at last. The check that matters has now run: a config written here, edited by hand through a packaged build and saved into a folder the real Java CLI generated, was loaded by that same CLI and read back correctly. It has not yet run as a standing part of CI, and the screens have not been captured at every width and scale.",
                     articleId: "options-gui",
                 },
                 {
@@ -456,7 +456,7 @@ export const home: HomeContent = {
                     body: "A device flow that shows the code large and verbatim, counts down only from what the main process actually said, and keeps its four endings apart. A pasted token is the other way in. The credential never reaches the interface at all.",
                     status: "ported-unverified",
                     statusNote:
-                        "Built and covered by 126 tests, all of which drive a stand-in for GitHub's endpoints. No code has been typed on github.com from a packaged build. The account now reaches the download path and the backup path, and neither has been run against real GitHub.",
+                        "Built and covered by 166 tests, all of which drive a stand-in for GitHub's endpoints. A gated real-account file now proves the app's own client id and a real account's token against the live server; nobody has clicked Authorize on GitHub's own page, which no script can do for them. The account now reaches the download path and the backup path, and neither has been run against real GitHub.",
                     articleId: "github-sign-in",
                 },
                 {
