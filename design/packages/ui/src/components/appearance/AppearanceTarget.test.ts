@@ -466,3 +466,52 @@ describe("editing changes the element", () => {
         expect(targetElement().getAttribute("style") ?? "").toContain("font-size: 27px");
     });
 });
+
+describe("the wrapper's own cursor", () => {
+    /**
+     * Regression for "the full GUI has a mouse click cursor": both `<v-menu>`s above bind
+     * `:activator="root"`, and Vuetify's own `useActivator` composable writes `aria-haspopup`
+     * and `aria-controls` onto whatever the activator points at - correct ARIA for a real
+     * popup owner, and also exactly what Vuetify's own normalize stylesheet answers with
+     * `[aria-controls] { cursor: pointer }`. That rule assumes the attribute sits on a small,
+     * dedicated trigger; here it sits on the wrapper the appearance contract puts around
+     * *every* rendered element, and `cursor` inherits - so left unanswered, one attribute
+     * turned into a pointer cursor over headings, empty panels, the title bar's own drag
+     * region, prose nobody can click. Confirmed live against the packaged desktop build via
+     * `document.elementFromPoint` + `getComputedStyle` before this fix (`.mb-titlebar-drag`
+     * read `cursor: pointer`, inherited from this wrapper two ancestors up) and after it
+     * (back to `auto`, with the title bar's real buttons and the real tabs still `pointer`).
+     *
+     * A `?raw` style-source read rather than a mounted `getComputedStyle` assertion, for the
+     * same reason `tabGroupPickerMount.test.ts` reads `TabGroupPicker.vue?raw`: this
+     * workspace's `vitest.config.ts` does not enable `test.css`, so a mounted component's
+     * `<style>` block is never injected into jsdom's `document.head`, and `getComputedStyle`
+     * would read empty (or, worse, silently "pass" by never seeing the leak at all) regardless
+     * of what this file actually declares.
+     */
+    async function styleBlock(): Promise<string> {
+        const source = (await import("./AppearanceTarget.vue?raw")).default as string;
+        const match = /<style>([\s\S]*)<\/style>/.exec(source);
+        return match?.[1] ?? "";
+    }
+
+    it("answers Vuetify's [aria-controls] pointer cursor with its own auto, at higher specificity", async () => {
+        const css = await styleBlock();
+        // `[aria-controls]` and one class both carry specificity (0,1,0): the class has to be
+        // doubled to (0,2,0) to settle it outright rather than relying on source-order luck.
+        const rule = /\.mb-appearance-target\.mb-appearance-target\s*\{[^}]*\}/.exec(css);
+        expect(rule).not.toBeNull();
+        expect(rule?.[0]).toContain("cursor: auto");
+    });
+
+    it("never itself answers with cursor: pointer, which is the one value that would leak", async () => {
+        // The wrapper is never a left-click target - it opens on right-click and on a
+        // keyboard shortcut only - so `pointer` here would be both wrong for the wrapper and,
+        // because it wraps arbitrary host content, wrong for everything inside it too.
+        // Comments are stripped first: this very file's own doc comments above quote Vuetify's
+        // `[aria-controls] { cursor: pointer }` rule in prose, which would otherwise trip the
+        // same regex this test uses to check the *declarations*.
+        const css = (await styleBlock()).replace(/\/\*[\s\S]*?\*\//g, "");
+        expect(css).not.toMatch(/cursor:\s*pointer/);
+    });
+});

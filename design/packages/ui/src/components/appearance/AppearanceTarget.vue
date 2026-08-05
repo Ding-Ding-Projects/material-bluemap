@@ -323,6 +323,31 @@ function onKeydown(event: KeyboardEvent): void {
     display: contents;
 }
 
+/*
+ * Neither `<v-menu>` above is decorative: Vuetify's own `useActivator` composable writes
+ * `aria-haspopup` and `aria-controls` onto whatever element the `activator` prop points
+ * at, which here is `root` - the wrapper itself. That is correct ARIA (a screen reader
+ * should be told this element owns a popup), and it is also exactly what trips Vuetify's
+ * own normalize stylesheet: `[aria-controls] { cursor: pointer }` exists to give a small,
+ * dedicated trigger - a disclosure button, a combobox - a hand cursor. It was never
+ * written with "the wrapper around every rendered element in the application" in mind.
+ *
+ * `cursor` inherits, and this wrapper is `display: contents`, so left unanswered that one
+ * attribute turned into a pointer cursor over literally everything on screen: headings,
+ * empty panels, the title bar's drag region, prose nobody can click - "the full GUI has a
+ * mouse click cursor" as filed. The wrapper itself is not a left-click target (it opens on
+ * right-click and on a keyboard shortcut only), so `auto` is also the honest cursor for it,
+ * not just the fix for its descendants.
+ *
+ * `[aria-controls]` and a single class both carry specificity (0,1,0), so a plain
+ * `.mb-appearance-target { cursor: auto }` would only win by source-order luck. The class
+ * is doubled to reach (0,2,0) and settle it outright, which is a smaller hammer than
+ * `!important` for a rule that only ever needs to out-rank one specific selector.
+ */
+.mb-appearance-target.mb-appearance-target {
+    cursor: auto;
+}
+
 .mb-appearance-target--box {
     display: inline-block;
     min-inline-size: 0;
