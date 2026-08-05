@@ -50,7 +50,15 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-const contentCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "content.css"), "utf8");
+// Normalized to LF: a Windows checkout with core.autocrlf=true (the Git-for-Windows default,
+// and this project is Windows-only) reads this file back with CRLF line endings even though
+// the committed blob is LF-only. The markers below embed a literal `\n` between a rule's
+// selector lines, so an un-normalized CRLF checkout makes `indexOf` fail to find a rule that
+// genuinely exists - a false failure that has nothing to do with the stylesheet's content.
+const contentCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "content.css"), "utf8").replace(
+    /\r\n/g,
+    "\n"
+);
 
 /**
  * The body of the first CSS rule whose selector (or selector list) starts with `marker`,
