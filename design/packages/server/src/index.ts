@@ -5,3 +5,5 @@ export { RemoteProxyHandler, type RemoteProfile } from "./remote/RemoteProxy.js"
 export { SseConnectionManager } from "./live/SseConnectionManager.js";
 export { LiveDataBroadcaster } from "./live/LiveDataBroadcaster.js";
 export { noLivePlayers, noLiveMarkers } from "./live/liveDataStubs.js";
+export { RenderDriver, type RenderStatus, type UpdateRequestResult } from "./render/RenderDriver.js";
+export { RenderUpdateHandler } from "./http/RenderUpdateHandler.js";
