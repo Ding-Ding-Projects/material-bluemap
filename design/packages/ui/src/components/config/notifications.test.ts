@@ -10,12 +10,14 @@ import {
     markReviewed,
     notify,
     restore,
+    setNoticeDurationLevel,
     timeoutFor,
     unreadCount,
 } from "./notifications.js";
+import { DEFAULT_NOTICE_DURATION_LEVEL, NOTICE_DURATION_LEVELS } from "./noticeDurationLevels.js";
 
 describe("how long a notice stays", () => {
-    it("dismisses information and success by itself", () => {
+    it("dismisses information and success by itself, at the shipped default level", () => {
         expect(timeoutFor("info")).toBe(INFO_TIMEOUT_MS);
         expect(timeoutFor("success")).toBe(SUCCESS_TIMEOUT_MS);
     });
@@ -23,6 +25,56 @@ describe("how long a notice stays", () => {
     it("leaves a warning or an error on screen until it is dismissed, because a failure that vanishes is a failure nobody read", () => {
         expect(timeoutFor("warning")).toBeNull();
         expect(timeoutFor("error")).toBeNull();
+    });
+
+    it("leaves a warning or an error on screen at every duration level, not only the default", () => {
+        for (const { level } of NOTICE_DURATION_LEVELS) {
+            expect(timeoutFor("warning", level)).toBeNull();
+            expect(timeoutFor("error", level)).toBeNull();
+        }
+    });
+
+    it("follows the dial for info and success, level by level", () => {
+        for (const entry of NOTICE_DURATION_LEVELS) {
+            expect(timeoutFor("info", entry.level)).toBe(entry.infoTimeoutMs);
+            expect(timeoutFor("success", entry.level)).toBe(entry.successTimeoutMs);
+        }
+    });
+
+    it("never auto-dismisses info or success at the top level, the same as a warning", () => {
+        expect(timeoutFor("info", 5)).toBeNull();
+        expect(timeoutFor("success", 5)).toBeNull();
+    });
+});
+
+describe("the state's own duration level", () => {
+    it("defaults to the shipped level, so a fresh session behaves exactly as it always has", () => {
+        const state = createNoticeState();
+        expect(state.durationLevel).toBe(DEFAULT_NOTICE_DURATION_LEVEL);
+
+        const notice = notify(state, "info", "Read 9 config files.");
+        expect(notice.timeout).toBe(INFO_TIMEOUT_MS);
+    });
+
+    it("changes what every notice raised after it gets, not what is already on screen", () => {
+        const state = createNoticeState();
+        const before = notify(state, "info", "before the change");
+
+        setNoticeDurationLevel(state, 5);
+        const after = notify(state, "info", "after the change");
+
+        // The already-raised notice keeps the timeout it was given; a live setting change
+        // must not retroactively alter a toast that is already counting down.
+        expect(before.timeout).toBe(INFO_TIMEOUT_MS);
+        expect(after.timeout).toBeNull();
+    });
+
+    it("still leaves errors and warnings alone at every level, including the quickest", () => {
+        const state = createNoticeState();
+        setNoticeDurationLevel(state, 1);
+
+        expect(notify(state, "error", "boom").timeout).toBeNull();
+        expect(notify(state, "warning", "careful").timeout).toBeNull();
     });
 });
 

@@ -70,6 +70,12 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["automatic", "4096"],
     },
     {
+        anchor: "notification-duration",
+        title: "Notification duration",
+        description: "How long an informational or success toast stays on screen before it dismisses itself.",
+        values: ["3 · Balanced"],
+    },
+    {
         anchor: "updates",
         title: "Updates",
         description: "Whether this build is up to date, when it last checked, and where updates come from.",
@@ -148,6 +154,7 @@ describe("every section the surface renders", () => {
             "language-and-tone",
             "surface-placement",
             "render-memory",
+            "notification-duration",
             "updates",
             "history",
             "diagnostics",

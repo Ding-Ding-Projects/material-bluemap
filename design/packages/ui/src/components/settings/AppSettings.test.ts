@@ -53,6 +53,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "language-and-tone": "Language and tone",
     "surface-placement": "Where the panels sit",
     "render-memory": "Render memory",
+    "notification-duration": "Notification duration",
     "updates": "Updates",
     "history": "Version history",
     "diagnostics": "Diagnostics",

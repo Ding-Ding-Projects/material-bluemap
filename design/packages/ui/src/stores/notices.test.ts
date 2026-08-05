@@ -13,7 +13,10 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { watchEffect } from "vue";
 import { dismissAll, notify } from "../components/config/notifications.js";
-import { notices, raiseNotice } from "./notices.js";
+import { DEFAULT_NOTICE_DURATION_LEVEL } from "../components/config/noticeDurationLevels.js";
+import { readNoticeDurationLevel } from "../components/config/noticeDurationPrefs.js";
+import { memoryStorage, setSetupStorage } from "../components/setup/setupPrefs.js";
+import { changeNoticeDuration, notices, raiseNotice } from "./notices.js";
 
 beforeEach(() => {
     dismissAll(notices);
@@ -61,5 +64,27 @@ describe("the shared corner", () => {
         raiseNotice("warning", "These maps have to be rendered again: overworld.");
 
         expect(notices.live).toHaveLength(1);
+    });
+});
+
+describe("changing how long a toast stays", () => {
+    it("changes what the shared queue itself gives a freshly raised notice", () => {
+        try {
+            changeNoticeDuration(5);
+            const notice = raiseNotice("info", "should stay until dismissed");
+            expect(notice.timeout).toBeNull();
+        } finally {
+            changeNoticeDuration(DEFAULT_NOTICE_DURATION_LEVEL);
+        }
+    });
+
+    it("is the only place the preference is written, so it always persists what it just set", () => {
+        setSetupStorage(memoryStorage());
+        try {
+            changeNoticeDuration(1);
+            expect(readNoticeDurationLevel()).toBe(1);
+        } finally {
+            changeNoticeDuration(DEFAULT_NOTICE_DURATION_LEVEL);
+        }
     });
 });

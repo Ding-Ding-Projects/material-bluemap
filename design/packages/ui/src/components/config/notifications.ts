@@ -14,9 +14,23 @@
  * The history is the data behind the notification centre in
  * `components/notifications/`, which filters and searches it. The rules stay
  * here; the panel only reads them.
+ *
+ * ## How long a toast stays is itself a setting
+ *
+ * `state.durationLevel` is the novice dial `noticeDurationLevels.ts` defines - level 3 by
+ * default, matching `INFO_TIMEOUT_MS` / `SUCCESS_TIMEOUT_MS` below exactly, so a profile
+ * that has never touched the setting behaves exactly as this queue always has.
+ * `NotificationDurationRow.vue` is the control; this module only reads the level `notify`
+ * is called against, the same "the state carries the setting, the row only changes it"
+ * split `mode`/`megabytes` follow in `renderMemorySetting.ts`.
  */
 
 import { reactive, readonly } from "vue";
+import {
+    DEFAULT_NOTICE_DURATION_LEVEL,
+    noticeDurationLevelByNumber,
+    type NoticeDurationLevel,
+} from "./noticeDurationLevels.js";
 
 export type NoticeLevel = "info" | "success" | "warning" | "error";
 
@@ -69,20 +83,37 @@ export interface Notice {
     readonly timeout: number | null;
 }
 
-/** How long an informational toast stays before dismissing itself. */
+/**
+ * The shipped default for an informational toast, at {@link DEFAULT_NOTICE_DURATION_LEVEL}.
+ *
+ * Kept as a named constant, rather than inlined, because `noticeDurationLevels.test.ts`
+ * pins level 3 of the dial to this exact value - the check that keeps a profile which has
+ * never touched the setting behaving exactly as it always did.
+ */
 export const INFO_TIMEOUT_MS = 5000;
-/** How long a success toast stays. Slightly shorter: it confirms, it does not inform. */
+/** The shipped default for a success toast, at {@link DEFAULT_NOTICE_DURATION_LEVEL}. */
 export const SUCCESS_TIMEOUT_MS = 4000;
 /** How many notices the history keeps before dropping the oldest. */
 export const HISTORY_LIMIT = 50;
 
-/** Errors and warnings never dismiss themselves. */
-export function timeoutFor(level: NoticeLevel): number | null {
+/**
+ * How long a toast of this level stays, at the given duration level.
+ *
+ * Errors and warnings never dismiss themselves, at any level - a failure that auto-hides
+ * is a failure nobody read, and the dial exists to let somebody give themselves *more*
+ * time to read a message, never less time to be warned. `durationLevel` defaults to
+ * {@link DEFAULT_NOTICE_DURATION_LEVEL} so every existing caller that named only the
+ * notice's own level keeps the exact behaviour it always had.
+ */
+export function timeoutFor(
+    level: NoticeLevel,
+    durationLevel: NoticeDurationLevel["level"] = DEFAULT_NOTICE_DURATION_LEVEL,
+): number | null {
     switch (level) {
         case "info":
-            return INFO_TIMEOUT_MS;
+            return noticeDurationLevelByNumber(durationLevel).infoTimeoutMs;
         case "success":
-            return SUCCESS_TIMEOUT_MS;
+            return noticeDurationLevelByNumber(durationLevel).successTimeoutMs;
         case "warning":
         case "error":
             return null;
@@ -103,10 +134,27 @@ export interface NoticeState {
      * the badge starts lying in the direction that matters least to notice.
      */
     reviewedId: number;
+    /**
+     * The novice duration dial, 1 (quickest) to 5 (stays until dismissed). Defaults to
+     * {@link DEFAULT_NOTICE_DURATION_LEVEL}, which is pinned to this queue's own shipped
+     * timeouts so a profile that never opens the setting keeps its exact prior behaviour.
+     */
+    durationLevel: NoticeDurationLevel["level"];
 }
 
 export function createNoticeState(): NoticeState {
-    return reactive<NoticeState>({ live: [], history: [], nextId: 1, reviewedId: 0 });
+    return reactive<NoticeState>({
+        live: [],
+        history: [],
+        nextId: 1,
+        reviewedId: 0,
+        durationLevel: DEFAULT_NOTICE_DURATION_LEVEL,
+    });
+}
+
+/** Changes how long an informational or success toast stays, for every notice raised after this. */
+export function setNoticeDurationLevel(state: NoticeState, level: NoticeDurationLevel["level"]): void {
+    state.durationLevel = level;
 }
 
 /** A local ISO-8601 timestamp with its offset, e.g. `2026-08-03T12:41:07-04:00`. */
@@ -144,7 +192,7 @@ export function notify(
         level,
         message,
         at: localTimestamp(),
-        timeout: timeoutFor(level),
+        timeout: timeoutFor(level, state.durationLevel),
         ...(title === undefined ? {} : { title }),
         ...(detail === undefined ? {} : { detail }),
         ...(actions === undefined || actions.length === 0 ? {} : { actions }),

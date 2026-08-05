@@ -1,10 +1,16 @@
 import {
     createNoticeState,
     notify,
+    setNoticeDurationLevel,
     type Notice,
     type NoticeLevel,
     type NoticeOptions,
 } from "../components/config/notifications.js";
+import type { NoticeDurationLevel } from "../components/config/noticeDurationLevels.js";
+import {
+    readNoticeDurationLevel,
+    writeNoticeDurationLevel,
+} from "../components/config/noticeDurationPrefs.js";
 
 /**
  * The application's one notification corner.
@@ -27,6 +33,13 @@ import {
  */
 export const notices = createNoticeState();
 
+// The notice-duration dial is read once, here, at the moment this singleton is created -
+// the same "load the persisted preference into the one shared state" step every other
+// app-wide singleton in this package takes. A profile that has never touched the setting
+// reads back `DEFAULT_NOTICE_DURATION_LEVEL`, which `createNoticeState()` already defaults
+// to, so this is a no-op read on a fresh install rather than a second source of the default.
+setNoticeDurationLevel(notices, readNoticeDurationLevel());
+
 /**
  * Raises a notice on the shared corner.
  *
@@ -43,4 +56,17 @@ export function raiseNotice(
     options?: string | NoticeOptions,
 ): Notice {
     return notify(notices, level, message, options);
+}
+
+/**
+ * Changes how long an informational or success toast stays, for every notice raised from
+ * now on, and remembers the choice across restarts.
+ *
+ * The only place this setting is ever written from: `NotificationDurationRow.vue` calls
+ * this rather than touching `notices.durationLevel` or the persisted store directly, so
+ * the in-memory state and the remembered preference can never drift apart.
+ */
+export function changeNoticeDuration(level: NoticeDurationLevel["level"]): void {
+    setNoticeDurationLevel(notices, level);
+    writeNoticeDurationLevel(level);
 }

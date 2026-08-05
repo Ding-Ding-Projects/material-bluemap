@@ -70,6 +70,13 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * shape today that could honestly point here. It sits beside surface placement because
  * both are "the app already picked something sensible; here is where you'd change it".
  *
+ * Notification duration is next: how long an informational or success toast stays on
+ * screen before it dismisses itself, per `components/config/notifications.ts`. Also not an
+ * anchor, and for a plainer reason than render memory's - no render outcome has anything
+ * to do with a toast's own timing at all, so no failure of any shape could honestly point
+ * here. A shell-wide preference, not a per-render one, so it sits with the other two
+ * "the app already behaves reasonably; here is where you would change that" rows above it.
+ *
  * Updates is next for the same reason GitHub sign-in and language-and-tone are not
  * anchors: no render stops for the want of an update, so nothing in the bridge's
  * `SettingsTarget` could honestly point at it. It is the one place the installed version,
@@ -96,6 +103,7 @@ export const SETTINGS_SECTIONS = [
     "language-and-tone",
     "surface-placement",
     "render-memory",
+    "notification-duration",
     "updates",
     "history",
     "diagnostics",

@@ -7,6 +7,9 @@ import type {
     SettingsBridge,
 } from "./settingsBridge.js";
 
+/** The bridge's own readout is `readonly` for every real caller; this fake is the one place allowed to mutate it. */
+type MutableReadout = { -readonly [Key in keyof RenderMemoryReadout]: RenderMemoryReadout[Key] };
+
 /**
  * A fake `files:renderMemory` / `files:setRenderMemory` pair that actually keeps state,
  * the way the real `RenderMemoryStore` does — so a test that saves and then reads again
@@ -15,7 +18,7 @@ import type {
 function fakeBridge(
     initial: Partial<RenderMemoryReadout> = {},
 ): SettingsBridge & { readonly written: RenderMemoryWriteRequest[] } {
-    const state: RenderMemoryReadout = {
+    const state: MutableReadout = {
         mode: "automatic",
         megabytes: 4096,
         recommendedMegabytes: 4096,

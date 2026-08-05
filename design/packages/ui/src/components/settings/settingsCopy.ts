@@ -15,6 +15,7 @@
  * without mounting anything.
  */
 
+import type { NoticeDurationLevel } from "../config/noticeDurationLevels.js";
 import type { DockPlacement } from "./dockPlacement.js";
 import type { SettingsSectionAnchor } from "./settingsSections.js";
 
@@ -94,6 +95,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
             description: t(
                 "settings.renderMemory.description",
                 "How much memory the render process may use, as a JVM heap ceiling. Automatic works out a sensible number from this machine's own memory; Manual lets you set your own.",
+            ),
+        },
+        "notification-duration": {
+            title: t("settings.noticeDuration.title", "Notification duration"),
+            description: t(
+                "settings.noticeDuration.description",
+                "How long an informational or success toast stays on screen before it dismisses itself. Warnings and errors are never affected: they always stay until you dismiss them.",
             ),
         },
         "updates": {
@@ -202,6 +210,29 @@ export function dockPlacementLabel(t: Translate, placement: DockPlacement): stri
             return t("dock.placement.top", "Docked to the top");
         case "bottom":
             return t("dock.placement.bottom", "Docked to the bottom");
+    }
+}
+
+/**
+ * The name of a notification-duration level, in one place.
+ *
+ * Shared between `NotificationDurationRow.vue`, which renders it on the five toggle
+ * buttons, and this surface's own search, for exactly the reason {@link dockPlacementLabel}
+ * is: one copy of the five strings, so a search for "Relaxed" or "Stay until dismissed"
+ * finds the row showing that word rather than reporting no matches.
+ */
+export function noticeDurationLevelLabel(t: Translate, level: NoticeDurationLevel["level"]): string {
+    switch (level) {
+        case 1:
+            return t("settings.noticeDuration.level.1", "1 · Quick");
+        case 2:
+            return t("settings.noticeDuration.level.2", "2 · Brisk");
+        case 3:
+            return t("settings.noticeDuration.level.3", "3 · Balanced");
+        case 4:
+            return t("settings.noticeDuration.level.4", "4 · Relaxed");
+        case 5:
+            return t("settings.noticeDuration.level.5", "5 · Stay until dismissed");
     }
 }
 

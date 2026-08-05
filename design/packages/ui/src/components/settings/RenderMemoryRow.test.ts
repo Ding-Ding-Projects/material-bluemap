@@ -54,8 +54,11 @@ const i18n = createI18n({
     messages: { en: {} },
 });
 
+/** The bridge's own readout is `readonly` for every real caller; this fake is the one place allowed to mutate it. */
+type MutableReadout = { -readonly [Key in keyof RenderMemoryReadout]: RenderMemoryReadout[Key] };
+
 function fakeBridge(): SettingsBridge & { readonly written: RenderMemoryWriteRequest[] } {
-    const state: RenderMemoryReadout = {
+    const state: MutableReadout = {
         mode: "automatic",
         megabytes: 4096,
         recommendedMegabytes: 4096,
