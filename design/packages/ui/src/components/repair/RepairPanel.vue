@@ -236,6 +236,25 @@ function subjectLabel(failure: FailureSummary): string {
     margin-block-end: 12px;
 }
 
+/* The agent chip carries a full sentence (`repair.agent.*` in `agent.ts`), not a short
+   label, and Vuetify's chip content is single-line and non-wrapping by default. At the
+   settings panel's default docked-right width that sentence is wider than the chip has
+   room for, so without this it clips mid-word with no ellipsis, no scroll and no way to
+   read the rest - the panel's own space is real, the text past the edge just is not drawn.
+   `min-width: 0` lets the chip shrink inside the flex row instead of forcing an overflow;
+   `overflow-wrap: anywhere` on its content lets the sentence wrap once it does. */
+.mb-repair__agent .v-chip {
+    min-width: 0;
+    max-width: 100%;
+    height: auto;
+}
+
+.mb-repair__agent .v-chip .v-chip__content {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding-block: 2px;
+}
+
 .mb-repair__list {
     margin: 0;
     padding: 0;
