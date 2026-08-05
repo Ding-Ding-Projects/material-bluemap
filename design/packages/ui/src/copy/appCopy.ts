@@ -630,18 +630,18 @@ export const APP_VOICED = {
     },
     "settings.java.provisionExplain": {
         en: [
-            "Downloads and installs Eclipse Temurin (roughly 180 MB) from Adoptium's own servers, into this app's own data folder. Nothing is installed system-wide, PATH is not touched, and no administrator rights are needed.",
-            "Downloads and installs Eclipse Temurin (roughly 180 MB) from Adoptium's own servers, into this app's own data folder. Nothing is installed system-wide, PATH is not touched, and no administrator rights are needed.",
-            "Downloads and installs Eclipse Temurin (roughly 180 MB) from Adoptium's own servers, into this app's own data folder. Nothing is installed system-wide, PATH stays untouched, and no administrator rights are needed.",
-            "Fetches Eclipse Temurin (roughly 180 MB) straight from Adoptium's own servers and installs it into this app's own data folder, nowhere else. Nothing system-wide, PATH untouched, no administrator rights asked for.",
-            "Fetches Eclipse Temurin (roughly 180 MB) straight from Adoptium's own servers and tucks it away in this app's own data folder, nowhere else on the machine. Nothing system-wide, PATH untouched, and not one administrator right requested.",
+            "Downloads and installs Eclipse Temurin (roughly 140 MB) from Adoptium's own servers, into this app's own data folder. Nothing is installed system-wide, PATH is not touched, and no administrator rights are needed.",
+            "Downloads and installs Eclipse Temurin (roughly 140 MB) from Adoptium's own servers, into this app's own data folder. Nothing is installed system-wide, PATH is not touched, and no administrator rights are needed.",
+            "Downloads and installs Eclipse Temurin (roughly 140 MB) from Adoptium's own servers, into this app's own data folder. Nothing is installed system-wide, PATH stays untouched, and no administrator rights are needed.",
+            "Fetches Eclipse Temurin (roughly 140 MB) straight from Adoptium's own servers and installs it into this app's own data folder, nowhere else. Nothing system-wide, PATH untouched, no administrator rights asked for.",
+            "Fetches Eclipse Temurin (roughly 140 MB) straight from Adoptium's own servers and tucks it away in this app's own data folder, nowhere else on the machine. Nothing system-wide, PATH untouched, and not one administrator right requested.",
         ],
         yue: [
-            "會由 Adoptium 自己嘅伺服器下載並安裝 Eclipse Temurin（大約 180 MB），裝入呢個程式自己嘅資料夾。唔會裝到成部機都係，PATH 都唔會郁，亦都唔使管理員權限。",
-            "會由 Adoptium 自己嘅伺服器下載並安裝 Eclipse Temurin（大約 180 MB），裝入呢個程式自己嘅資料夾。唔會裝到成部機都係，PATH 都唔會郁，亦都唔使管理員權限。",
-            "會由 Adoptium 自己嘅伺服器下載並安裝 Eclipse Temurin（大約 180 MB），淨係裝入呢個程式自己嘅資料夾。唔會裝到成部機都係，PATH 唔會俾佢郁，亦都唔使管理員權限。",
-            "由 Adoptium 自己嘅伺服器攞返 Eclipse Temurin（大約 180 MB），裝落呢個程式自己嗰個資料夾，第度乜都冇。唔會裝到成部機都係，PATH 冇郁過，管理員權限一個都唔使。",
-            "由 Adoptium 自己嘅伺服器攞返 Eclipse Temurin（大約 180 MB），靜靜雞收埋喺呢個程式自己嗰個資料夾，成部機第度乜痕跡都冇。唔會裝到成部機都係，PATH 一條毛都冇郁過，管理員權限更加一個都冇問過你要。",
+            "會由 Adoptium 自己嘅伺服器下載並安裝 Eclipse Temurin（大約 140 MB），裝入呢個程式自己嘅資料夾。唔會裝到成部機都係，PATH 都唔會郁，亦都唔使管理員權限。",
+            "會由 Adoptium 自己嘅伺服器下載並安裝 Eclipse Temurin（大約 140 MB），裝入呢個程式自己嘅資料夾。唔會裝到成部機都係，PATH 都唔會郁，亦都唔使管理員權限。",
+            "會由 Adoptium 自己嘅伺服器下載並安裝 Eclipse Temurin（大約 140 MB），淨係裝入呢個程式自己嘅資料夾。唔會裝到成部機都係，PATH 唔會俾佢郁，亦都唔使管理員權限。",
+            "由 Adoptium 自己嘅伺服器攞返 Eclipse Temurin（大約 140 MB），裝落呢個程式自己嗰個資料夾，第度乜都冇。唔會裝到成部機都係，PATH 冇郁過，管理員權限一個都唔使。",
+            "由 Adoptium 自己嘅伺服器攞返 Eclipse Temurin（大約 140 MB），靜靜雞收埋喺呢個程式自己嗰個資料夾，成部機第度乜痕跡都冇。唔會裝到成部機都係，PATH 一條毛都冇郁過，管理員權限更加一個都冇問過你要。",
         ],
     },
     "settings.storage.description": {
@@ -1000,7 +1000,7 @@ export const APP_FIXED = {
     ...SURFACE_FIXED,
     "settings.consent.title": { en: "Mojang download consent", yue: "Mojang 下載同意" },
     "settings.java.title": { en: "Java runtime", yue: "Java 執行環境" },
-    "settings.java.download": { en: "Download Java (~180 MB)", yue: "落載 Java（大約 180 MB）" },
+    "settings.java.download": { en: "Download Java (~140 MB)", yue: "落載 Java（大約 140 MB）" },
     "settings.java.provisioning": { en: "Downloading Java…", yue: "落載緊 Java……" },
     "settings.storage.title": { en: "Where rendered maps go", yue: "算好嘅地圖去邊度" },
     "settings.github.title": { en: "GitHub account", yue: "GitHub 帳戶" },
@@ -1177,8 +1177,8 @@ export const FACTS = {
     // rights) are the facts principle 1 requires be stated before the download starts.
     // A playful rewrite that dropped any of them would turn a disclosure into a surprise.
     "settings.java.provisionExplain": {
-        en: ["180 MB", "Adoptium", "system-wide", "administrator"],
-        yue: ["180 MB", "Adoptium", "成部機", "管理員"],
+        en: ["140 MB", "Adoptium", "system-wide", "administrator"],
+        yue: ["140 MB", "Adoptium", "成部機", "管理員"],
     },
     "settings.storage.description": {
         en: ["full path", "gigabytes"],

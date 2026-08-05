@@ -141,7 +141,7 @@ describe("the missing state, with provisioning available", () => {
         await wrapper.vm.$nextTick();
 
         expect(wrapper.text()).toContain("Eclipse Temurin");
-        expect(wrapper.text()).toContain("roughly 180 MB");
+        expect(wrapper.text()).toContain("roughly 140 MB");
         const button = wrapper.findAll("button").find((btn) => btn.text() === "Download Java");
         expect(button?.exists()).toBe(true);
 

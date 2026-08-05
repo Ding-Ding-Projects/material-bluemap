@@ -191,6 +191,28 @@ Nothing unverified ever appears at the final path: the download lands in a `.par
 is renamed into place only after the hash matches, reusing the same verified-download code
 that fetches the JDK.
 
+### Fetching it from the wizard
+
+`bedrock:fetchChunker` — the handler above — existed for a while with nothing in the
+interface ever calling it: a missing Chunker jar dead-ended on **Convert** failing with the
+main process's own "Chunker is not installed" message and no route out of it. The wizard's
+Bedrock note now asks `bedrock:chunker` for the status the moment it detects a Bedrock
+world, and while Chunker is missing it shows a **Download Chunker (~30 MB)** button in place
+of **Convert** — never both, because a Convert button that is certain to fail is worse than
+one that is not offered.
+
+The button states the size before anything moves, and a progress bar (fed by the same
+`bedrock:event` channel a conversion's own progress uses, tagged with the fixed conversion
+id `"chunker"`) tracks the download while it runs. A failed fetch — a bad digest, a network
+error — shows the reason as an alert and leaves the button in place to retry; nothing here
+ever leaves a half-written jar at the final path, per the verification section above.
+Success re-asks `bedrock:chunker` and reveals **Convert** in the same spot the download
+button occupied, so the world can be converted without a second manual refresh.
+
+See [Automatic dependency provisioning](./dependency-provisioning.md) for how this fits
+alongside the Java runtime's own download button and every other tool the app can or
+cannot fetch for itself.
+
 ---
 
 ## Fidelity: what conversion loses

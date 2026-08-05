@@ -69,16 +69,18 @@ const provisionStageMessage = computed(
 );
 
 /**
- * "Roughly 180 MB" rather than an exact figure quoted from an Adoptium response this row
+ * "Roughly 140 MB" rather than an exact figure quoted from an Adoptium response this row
  * never fetched: the real size is only known once the download itself has resolved a
  * release, and asking Adoptium a second time purely to word this sentence would be a
  * network call this button does not otherwise need. The figure is an honest estimate,
  * stated as one, and the real total - once known - drives the progress bar above instead.
+ * Rounded from a real measured Windows x64 Temurin 25 download
+ * (`ensureJava.realNetwork.test.ts`: 141,164,204 bytes for jdk-25.0.4+7), not guessed.
  */
 const provisionExplain = computed(() =>
     t(
         "settings.java.provisionExplain",
-        "Downloads and installs Eclipse Temurin (roughly 180 MB) from Adoptium's own servers, into " +
+        "Downloads and installs Eclipse Temurin (roughly 140 MB) from Adoptium's own servers, into " +
             "this app's own data folder. Nothing is installed system-wide, PATH is not touched, and no " +
             "administrator rights are needed.",
     ),
