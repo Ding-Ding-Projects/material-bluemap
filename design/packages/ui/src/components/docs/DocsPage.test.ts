@@ -106,6 +106,27 @@ describe("the index", () => {
         expect(wrapper.text()).toContain("Elsewhere in the documentation");
         expect(wrapper.text()).toContain("Feature parity with BlueMapGUI");
     });
+
+    /**
+     * Regression: `<v-list-item :title="article.title">` binds Vuetify's own `title` *prop*
+     * (the text it renders), never an HTML `title` attribute -- Vuetify's `VListItem.js`
+     * only ever calls `toDisplayString(props.title)`. `.v-list-item-title` also defaults to
+     * `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` (Vuetify's own
+     * `VListItem.sass`), so the longest real article title in this repository --
+     * `docs/appearance-editors.md`'s own 85-character heading -- used to truncate in this
+     * narrow index list with no hover tooltip a sighted user could recover it from. The fix
+     * moved the title into the `#title` slot with a plain `<span :title="...">`, where the
+     * same binding is a genuine DOM attribute rather than a component prop.
+     */
+    it("carries the longest real article title as a native, hoverable title attribute", () => {
+        wrapper = render();
+        const longest = DOCS_ARTICLES.reduce((a, b) => (b.title.length > a.title.length ? b : a));
+        expect(longest.title.length).toBeGreaterThan(60);
+        const rows = wrapper.findAll(".v-list-item").filter((row) => row.text() === longest.title);
+        expect(rows.length).toBeGreaterThan(0);
+        const titled = rows[0]?.find(`[title="${longest.title}"]`);
+        expect(titled?.exists()).toBe(true);
+    });
 });
 
 describe("opening an article, and the shared renderer", () => {

@@ -277,10 +277,23 @@ watch([selectedArticle, renderedArticle], async () => {
                     v-for="article in searchResults"
                     :key="article.id"
                     :prepend-icon="mdiFileDocumentOutline"
-                    :title="article.title"
                     :aria-label="t('docsViewer.openArticle', { title: article.title }, 'Open {title}')"
                     @click="openArticle(article.id)"
-                />
+                >
+                    <!--
+                        `:title` bound directly on `<v-list-item>` binds Vuetify's own `title`
+                        *prop* (the text it renders), never an HTML `title` attribute -- so once
+                        `.v-list-item-title`'s default `overflow: hidden; text-overflow:
+                        ellipsis; white-space: nowrap` truncates a long article title, a sighted
+                        mouse user has no hover tooltip to recover it (a screen reader still gets
+                        the full title, from the `aria-label` above). The `#title` slot still
+                        renders inside Vuetify's own `.v-list-item-title` wrapper, so the same
+                        span carries a genuine native `title` here instead.
+                    -->
+                    <template #title>
+                        <span :title="article.title">{{ article.title }}</span>
+                    </template>
+                </VListItem>
             </VList>
         </template>
 
@@ -296,10 +309,14 @@ watch([selectedArticle, renderedArticle], async () => {
                                 v-for="article in group.articles"
                                 :key="article.id"
                                 :prepend-icon="mdiFileDocumentOutline"
-                                :title="article.title"
                                 :aria-label="t('docsViewer.openArticle', { title: article.title }, 'Open {title}')"
                                 @click="openArticle(article.id)"
-                            />
+                            >
+                                <!-- See the search-results list above for why this is a slot, not the `title` prop. -->
+                                <template #title>
+                                    <span :title="article.title">{{ article.title }}</span>
+                                </template>
+                            </VListItem>
                         </VList>
                     </VCardText>
                 </VCard>
