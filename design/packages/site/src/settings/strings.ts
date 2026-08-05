@@ -10,6 +10,18 @@
 import type { StringTable } from "./i18n.js";
 
 export const SETTINGS_STRINGS: StringTable = {
+    "settings.kicker": {
+        en: {
+            1: "Your browser, your rules",
+            3: "Your browser, your rules",
+            5: "Your browser. Your rules. Our nagging stays switched off.",
+        },
+        yue: {
+            1: "你部機你話事",
+            3: "你部機你話事",
+            5: "你部機你話事，我哋唔會嘈你。",
+        },
+    },
     "settings.title": {
         en: {
             1: "Settings",
@@ -83,7 +95,10 @@ export const SETTINGS_STRINGS: StringTable = {
     "settings.tabsLabel": { en: "Settings sections", yue: "設定分類" },
     "settings.reset": { en: "Reset", yue: "還原" },
     "settings.resetOne": { en: "Reset {name} to its default", yue: "將「{name}」還原做預設" },
-    "settings.resetOneDone": { en: "{name} is back to its default.", yue: "「{name}」已經還原做預設。" },
+    "settings.resetOneDone": {
+        en: "{name} is back to its default.",
+        yue: "「{name}」已經還原做預設。",
+    },
     "settings.atDefault": { en: "Already at its default", yue: "已經係預設值" },
     "settings.changed": { en: "Changed", yue: "已改" },
     "settings.changedCount": {
@@ -336,7 +351,10 @@ export const SETTINGS_STRINGS: StringTable = {
     "confirm.super.secondLabel": { en: "Key two: ALL", yue: "第二條匙：ALL" },
     "confirm.super.sliderLabel": { en: "Authorization slider", yue: "授權滑桿" },
     "confirm.super.locked": { en: "Two keys are still required.", yue: "仲差兩條匙。" },
-    "confirm.super.unlocked": { en: "Both keys accepted. Slide all the way.", yue: "兩條匙啱晒，推到盡頭啦。" },
+    "confirm.super.unlocked": {
+        en: "Both keys accepted. Slide all the way.",
+        yue: "兩條匙啱晒，推到盡頭啦。",
+    },
     "confirm.super.complete": { en: "Authorization complete.", yue: "授權完成。" },
     "confirm.super.emergency": { en: "Emergency exit", yue: "緊急退出" },
 };

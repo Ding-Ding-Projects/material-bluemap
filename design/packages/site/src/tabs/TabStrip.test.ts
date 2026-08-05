@@ -142,7 +142,7 @@ describe("tabs.css compact media query", () => {
         expect(tabsCss).toContain(`@media (width <= ${COMPACT_TAB_STRIP_MAX_WIDTH}px)`);
     });
 
-    it("hides the overflow (\"N more\") button, since nothing is ever hidden into it here", () => {
+    it('hides the overflow ("N more") button, since nothing is ever hidden into it here', () => {
         expect(compactBlock()).toMatch(/\.tab-bar__overflow\s*\{[^}]*display:\s*none\s*!important/);
     });
 
@@ -174,6 +174,32 @@ describe("tabs.css compact media query", () => {
         // The rule this file's fix replaced. Its return would silently reintroduce a
         // version of the bug for any future page that registers with an icon.
         expect(tabsCss).not.toMatch(/tab--pinned[^{]*\{[^}]*display:\s*none/);
+    });
+});
+
+describe("tabs.css visual refresh", () => {
+    it("renders the tab list and bulk-close search fields as full pills, matching every other search bar", () => {
+        expect(tabsCss).toMatch(
+            /\.tab-list__filter-row \.md-field__input\s*\{[^}]*border-radius:\s*var\(--md-sys-shape-corner-full\);/,
+        );
+        expect(tabsCss).toMatch(
+            /\.bulk-close__query \.md-field__input\s*\{[^}]*border-radius:\s*var\(--md-sys-shape-corner-full\);/,
+        );
+    });
+
+    it("keeps the active-tab indicator a token-driven colour rather than a literal one", () => {
+        const rule = /\.tab\.is-active::after\s*\{[^}]*\}/.exec(tabsCss)?.[0] ?? "";
+        expect(rule).toContain("background: var(--md-sys-color-primary);");
+        expect(rule).toMatch(/height:\s*4px;/);
+    });
+
+    it("does not touch the compact-strip breakpoint or its overflow/pinned/keyboard rules", () => {
+        // The visual pass this describe block covers is scoped to colour, shape and
+        // shadow. If it ever starts editing `.tab-strip__pinned`'s `flex` or the compact
+        // media query's own marker, that is a sign the refresh crossed into behaviour
+        // this file's other describe block already guards.
+        expect(COMPACT_TAB_STRIP_MAX_WIDTH).toBe(720);
+        expect(tabsCss).toContain(`@media (width <= ${COMPACT_TAB_STRIP_MAX_WIDTH}px)`);
     });
 });
 
@@ -298,7 +324,11 @@ describe("TabStrip contracts that must survive the compact redesign", () => {
         );
         expect(group.results.map((result) => result.tabId)).toEqual(["changelog"]);
 
-        const groups = model.searchGroupNames({ query: "tracking", mode: "plain", caseSensitive: false });
+        const groups = model.searchGroupNames({
+            query: "tracking",
+            mode: "plain",
+            caseSensitive: false,
+        });
         expect(groups.results.some((result) => result.groupId === groupId)).toBe(true);
 
         const all = model.searchTabs(model.allIds(), spec);
@@ -310,7 +340,12 @@ describe("TabStrip contracts that must survive the compact redesign", () => {
         const home = strip.bar.querySelector<HTMLElement>('[data-tab-id="home"]');
         expect(home).not.toBeNull();
         home!.dispatchEvent(
-            new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 10, clientY: 10 }),
+            new MouseEvent("contextmenu", {
+                bubbles: true,
+                cancelable: true,
+                clientX: 10,
+                clientY: 10,
+            }),
         );
         const menu = document.querySelector(".md-menu");
         expect(menu, "the per-tab context menu never opened").not.toBeNull();

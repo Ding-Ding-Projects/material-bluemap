@@ -164,7 +164,11 @@
     min-height: 42px;
     place-items: center;
     border-radius: var(--md-sys-shape-corner-medium, 12px);
-    background: linear-gradient(90deg, var(--md-sys-color-error-container) var(--mb-confirm-progress, 0%), var(--md-sys-color-surface-container) var(--mb-confirm-progress, 0%));
+    background: linear-gradient(
+        90deg,
+        var(--md-sys-color-error-container) var(--mb-confirm-progress, 0%),
+        var(--md-sys-color-surface-container) var(--mb-confirm-progress, 0%)
+    );
     color: var(--md-sys-color-on-surface);
     transition: background var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-linear);
 }
@@ -225,7 +229,8 @@
  * only the movement.
  */
 .mb-flash {
-    outline: var(--mb-focus-width, 3px) solid var(--md-sys-color-tertiary, var(--md-sys-color-primary));
+    outline: var(--mb-focus-width, 3px) solid
+        var(--md-sys-color-tertiary, var(--md-sys-color-primary));
     outline-offset: 4px;
     animation: mb-flash-pulse calc(900ms * var(--mb-motion-scale, 1)) ease-out 2;
 }
@@ -264,12 +269,28 @@
     gap: var(--md-sys-spacing-2);
 }
 
+/*
+ * The eyebrow line above the page title. This is a reusable pattern (the hero uses its own
+ * `.mb-hero-eyebrow` copy of the same idea) rather than a settings-only flourish, so a visitor
+ * learns the same "small loud label, then a big title" rhythm on every page kind.
+ */
+.mb-kicker {
+    margin: 0;
+    color: var(--md-sys-color-primary);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
 .mb-settings-title {
     margin: 0;
     font-family: var(--md-sys-typescale-headline-medium-font);
-    font-size: clamp(var(--md-sys-typescale-headline-medium-size), 3.5vw, var(--md-sys-typescale-display-small-size));
-    font-weight: var(--md-sys-typescale-headline-medium-weight);
-    line-height: 1.15;
+    font-size: clamp(var(--md-sys-typescale-display-small-size), 4vw, 2.75rem);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
 }
 
 .mb-settings-subtitle {
@@ -313,6 +334,13 @@
 .mb-search-field .mb-search-input {
     flex: 1 1 auto;
     min-width: 0;
+    /*
+     * Every search affordance on the site reads as full-pill, so a visitor learns one
+     * shape for "this is where you search" wherever it appears. Regular text fields
+     * elsewhere keep the standard field shape; this override is scoped to the two
+     * settings search fields only.
+     */
+    border-radius: var(--md-sys-shape-corner-full);
 }
 
 /*
@@ -419,11 +447,26 @@
     display: none;
 }
 
+/*
+ * A responsive card-wall rather than a single stacked column: two section cards sit
+ * side by side once there is room for them, and fall back to one column under the
+ * same ~56.25rem breakpoint the home hero already uses, so the site has one shared
+ * "this is where wide layouts fold" convention rather than a different one per page.
+ * Every card here is still the same `<section class="mb-settings-group">` the schema
+ * loop in page.ts already emits — this is a layout change only, nothing new to query.
+ */
 .mb-settings-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--md-sys-spacing-5);
     padding-top: 16px;
+    align-items: start;
+}
+
+@media (width >= 56.25rem) {
+    .mb-settings-panel {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 .mb-settings-group {
@@ -432,8 +475,32 @@
     gap: 12px;
     padding: clamp(12px, 2vw, 20px);
     border: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: var(--md-sys-shape-corner-large, 16px);
+    /*
+     * An asymmetric corner treatment: tight on the left edge, generously rounded on
+     * the right. It reads as a filing-tab silhouette rather than the one uniform
+     * rounded rectangle every card on the site used to share, without adding a new
+     * element or changing the card's markup.
+     */
+    border-radius: var(--md-sys-shape-corner-extra-small, 4px) 20px 20px
+        var(--md-sys-shape-corner-extra-small, 4px);
     background: var(--md-sys-color-surface-container-low);
+    box-shadow: var(--md-sys-elevation-level1);
+    transition:
+        box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.mb-settings-group:hover,
+.mb-settings-group:focus-within {
+    box-shadow: var(--md-sys-elevation-level2);
+    transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-settings-group:hover,
+    .mb-settings-group:focus-within {
+        transform: none;
+    }
 }
 
 .mb-setting[hidden] {
@@ -941,11 +1008,8 @@
 .mb-track-alpha {
     background:
         linear-gradient(to right, transparent, var(--mb-alpha-color, #000)),
-        repeating-conic-gradient(
-            var(--md-sys-color-outline-variant) 0% 25%,
-            transparent 0% 50%
-        )
-        0 0 / 8px 8px;
+        repeating-conic-gradient(var(--md-sys-color-outline-variant) 0% 25%, transparent 0% 50%) 0
+            0 / 8px 8px;
 }
 
 .mb-color-section {

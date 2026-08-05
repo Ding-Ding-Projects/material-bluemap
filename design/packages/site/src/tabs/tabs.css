@@ -92,7 +92,8 @@
     gap: var(--md-sys-spacing-2);
     min-height: max(var(--md-sys-min-touch-target), calc(48px * var(--md-sys-density-scale)));
     max-width: 18rem;
-    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-1) var(--md-sys-spacing-1) var(--md-sys-spacing-3);
+    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-1) var(--md-sys-spacing-1)
+        var(--md-sys-spacing-3);
     border-radius: var(--md-sys-shape-corner-medium) var(--md-sys-shape-corner-medium) 0 0;
     color: var(--md-sys-color-on-surface-variant);
     font-family: var(--md-sys-typescale-title-small-font);
@@ -101,16 +102,25 @@
     line-height: var(--md-sys-typescale-title-small-line-height);
     letter-spacing: var(--md-sys-typescale-title-small-tracking);
     cursor: pointer;
-    transition: background-color var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard);
+    transition: background-color var(--md-sys-motion-duration-short3)
+        var(--md-sys-motion-easing-standard);
 }
 
 .tab:hover {
-    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity), transparent);
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity),
+        transparent
+    );
 }
 
 .tab.is-active {
     background: var(--md-sys-color-surface);
     color: var(--md-sys-color-primary);
+}
+
+.tab.is-active:hover {
+    background: color-mix(in srgb, var(--md-sys-color-primary) 8%, var(--md-sys-color-surface));
 }
 
 /* The active page gets a visible indicator that is not only colour. */
@@ -120,7 +130,7 @@
     right: var(--md-sys-spacing-2);
     bottom: 0;
     left: var(--md-sys-spacing-2);
-    height: 3px;
+    height: 4px;
     border-radius: var(--md-sys-shape-corner-full) var(--md-sys-shape-corner-full) 0 0;
     background: var(--md-sys-color-primary);
 }
@@ -287,7 +297,11 @@
 }
 
 .tab-group__header:hover {
-    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity), transparent);
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity),
+        transparent
+    );
 }
 
 .tab-group__dot {
@@ -351,7 +365,8 @@
  * single frame, exactly as every other transition on the site already does.
  */
 .tab-panel:not([hidden]) {
-    animation: mb-tab-panel-in var(--md-sys-motion-duration-medium2) var(--md-sys-motion-easing-emphasized-decelerate);
+    animation: mb-tab-panel-in var(--md-sys-motion-duration-medium2)
+        var(--md-sys-motion-easing-emphasized-decelerate);
 }
 
 @keyframes mb-tab-panel-in {
@@ -387,6 +402,12 @@
     align-items: center;
 }
 
+/* Every search affordance on the site — this tab/group discovery search included — reads
+   as full-pill, so "this is where you search" is one shape learned once. */
+.tab-list__filter-row .md-field__input {
+    border-radius: var(--md-sys-shape-corner-full);
+}
+
 .tab-list__meta {
     margin-left: var(--md-sys-spacing-2);
     color: var(--md-sys-color-on-surface-variant);
@@ -414,6 +435,7 @@
 
 .bulk-close__query .md-field__input {
     flex: 1 1 auto;
+    border-radius: var(--md-sys-shape-corner-full);
 }
 
 .bulk-close__builder {

@@ -28,7 +28,47 @@
     top: 0;
     align-items: stretch;
     background: var(--md-sys-color-surface-container);
+    /*
+     * Flat at rest, elevated once the page has actually scrolled under it. The shadow
+     * then reads as "this bar is floating over content" instead of decorating every
+     * load identically. `main.ts`'s `watchTopbarScrollShadow` toggles the attribute;
+     * this file only owns what the two states look like.
+     */
+    box-shadow: none;
+    transition: box-shadow var(--md-sys-motion-duration-short3)
+        var(--md-sys-motion-easing-standard-decelerate);
+}
+
+.mb-shell-topbar[data-scrolled="true"] {
     box-shadow: var(--md-sys-elevation-level1);
+}
+
+/*
+ * The one recurring visual signature tying the top and bottom of every page back to the
+ * same identity: a thin three-hue gradient rule, drawn from the site's own primary,
+ * secondary and tertiary roles rather than a literal colour, so it re-derives automatically
+ * under [data-theme="dark"] and under the live appearance editor's accent seed. It only
+ * shows once the visitor has scrolled, in step with the shadow above.
+ */
+.mb-shell-topbar::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: linear-gradient(
+        90deg,
+        var(--md-sys-color-primary),
+        var(--md-sys-color-secondary),
+        var(--md-sys-color-tertiary)
+    );
+    opacity: 0;
+    transition: opacity var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard);
+}
+
+.mb-shell-topbar[data-scrolled="true"]::after {
+    opacity: 1;
 }
 
 .mb-shell-topbar .tab-bar {
@@ -58,15 +98,24 @@
     background: transparent;
     color: var(--md-sys-color-on-surface);
     cursor: pointer;
-    transition: background-color var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard);
+    transition: background-color var(--md-sys-motion-duration-short3)
+        var(--md-sys-motion-easing-standard);
 }
 
 .mb-brand:hover {
-    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity), transparent);
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity),
+        transparent
+    );
 }
 
 .mb-brand:active {
-    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-pressed-opacity), transparent);
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-pressed-opacity),
+        transparent
+    );
 }
 
 .mb-brand-mark {
@@ -76,9 +125,16 @@
     justify-content: center;
     width: 32px;
     height: 32px;
-    border-radius: var(--md-sys-shape-corner-medium);
+    /*
+     * Asymmetric on purpose: two corners rounded large, two barely rounded at all. The
+     * one deliberately un-uniform shape in the chrome, so the mark reads as a drawn
+     * badge rather than the same rounded square every other tile on the site uses.
+     */
+    border-radius: var(--md-sys-shape-corner-large) var(--md-sys-shape-corner-extra-small)
+        var(--md-sys-shape-corner-large) var(--md-sys-shape-corner-extra-small);
     background: var(--md-sys-color-primary);
     color: var(--md-sys-color-on-primary);
+    box-shadow: var(--md-sys-elevation-level1);
     font-family: var(--md-sys-typescale-title-medium-font);
     font-size: var(--md-sys-typescale-title-medium-size);
     font-weight: 700;
@@ -105,9 +161,27 @@
 
 .mb-shell-footer {
     display: flex;
+    position: relative;
     justify-content: center;
     padding: var(--md-sys-spacing-8) var(--md-sys-spacing-4) var(--md-sys-spacing-12);
+    background: var(--md-sys-color-surface-container-low);
     border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+/* The topbar's gradient signature, reversed, bookending the page. */
+.mb-shell-footer::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    right: 0;
+    left: 0;
+    height: 3px;
+    background: linear-gradient(
+        90deg,
+        var(--md-sys-color-tertiary),
+        var(--md-sys-color-secondary),
+        var(--md-sys-color-primary)
+    );
 }
 
 .mb-shell-footer-note {

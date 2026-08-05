@@ -109,7 +109,10 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
      * what lets `searchableSettings()` and `revealSetting()` treat an appearance target as a
      * first-class searchable destination without inventing a second reveal mechanism.
      */
-    const elementRows = new Map<string, { container: HTMLElement; editButton: HTMLButtonElement }>();
+    const elementRows = new Map<
+        string,
+        { container: HTMLElement; editButton: HTMLButtonElement }
+    >();
     const tabButtons = new Map<string, HTMLButtonElement>();
     const tabBadges = new Map<string, HTMLElement>();
     const panels = new Map<string, HTMLElement>();
@@ -143,6 +146,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
      * Header
      * ---------------------------------------------------------- */
 
+    const kicker = el("p", { class: "mb-kicker" });
     const heading = el("h1", { class: "mb-settings-title" });
     const subtitle = el("p", { class: "mb-settings-subtitle" });
     const storageNotice = el("p", {
@@ -155,6 +159,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         el(
             "header",
             { class: "mb-settings-header" },
+            kicker,
             heading,
             subtitle,
             storageNotice,
@@ -730,7 +735,9 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             ...(group === undefined ? {} : { sectionLabel: t(group.labelKey) }),
             keywords: [
                 searchableText(target.labelKey),
-                ...(target.descriptionKey === undefined ? [] : [searchableText(target.descriptionKey)]),
+                ...(target.descriptionKey === undefined
+                    ? []
+                    : [searchableText(target.descriptionKey)]),
                 t("elements.edit", { name: t(target.labelKey) }),
             ],
         }));
@@ -1134,6 +1141,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
     }
 
     function refresh(): void {
+        fillPhrase(kicker, "settings.kicker");
         fillPhrase(heading, "settings.title");
         fillPhrase(subtitle, "settings.subtitle");
         fillPhrase(searchLabel, "settings.searchLabel");

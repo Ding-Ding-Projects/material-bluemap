@@ -42,6 +42,7 @@ import {
     screenshotsCopy,
 } from "./content/index.js";
 import type {
+    Article,
     ArticleCategory,
     EngineRow,
     FeatureStatus,
@@ -249,11 +250,26 @@ function heroStatTile(stat: HomeStat, tone: number): HTMLElement {
     return tile;
 }
 
-function renderHero(host: HTMLElement, i18n: I18n): void {
+/**
+ * The uppercase label above the hero title.
+ *
+ * New for this pass: a distinct type style (all-caps, wide tracking, primary colour) that
+ * exists nowhere else on the page, so the hero reads as a different register of type before
+ * a visitor reads a single word of it. It sits above the existing release-status pill rather
+ * than replacing it: the pill is a fact ("a verified release exists"), this is a label.
+ */
+function heroKicker(i18n: I18n): HTMLElement {
+    const kicker = el("p", "mb-hero-kicker");
+    i18n.bindText(kicker, "home.heroKicker");
+    return kicker;
+}
+
+function renderHero(host: HTMLElement, navigation: PageNavigation, i18n: I18n): void {
     const hero = el("header", "mb-hero");
     const grid = el("div", "mb-hero-grid");
 
     const main = el("div", "mb-hero-main");
+    main.appendChild(heroKicker(i18n));
     main.appendChild(heroEyebrow(i18n));
     main.appendChild(el("h1", "mb-hero-title", home.title));
     main.appendChild(el("p", "mb-hero-tagline", home.tagline));
@@ -265,23 +281,44 @@ function renderHero(host: HTMLElement, i18n: I18n): void {
         const release = releaseAvailability.release;
         main.appendChild(el("p", "mb-download-lead", downloadCopy.availableLead));
 
+        // Two real actions side by side: get the installer, or see what changed before
+        // committing to a download. Neither is decoration -- both are a real activation.
+        const actions = el("div", "mb-hero-actions");
+
         const download = el("a", "mb-download");
         download.href = release.installer.url;
         download.textContent = downloadButtonLabel(release);
         download.setAttribute("aria-label", downloadAccessibleName(release));
         download.rel = "noopener noreferrer";
-        main.appendChild(download);
+        actions.appendChild(download);
 
+        const changelogButton = el("button", "mb-hero-secondary");
+        changelogButton.type = "button";
+        i18n.bindText(changelogButton, "home.changelogButtonLabel");
+        changelogButton.addEventListener("click", () => navigation.openPage("changelog"));
+        actions.appendChild(changelogButton);
+
+        main.appendChild(actions);
         main.appendChild(el("p", "mb-download-detail", downloadDetailLine(release)));
     } else {
         main.appendChild(el("h2", "mb-download-heading", downloadCopy.unavailableHeading));
         main.appendChild(el("p", "mb-download-detail", downloadCopy.unavailableLead));
         main.appendChild(el("p", "mb-download-detail", releaseAvailability.reason));
 
+        const actions = el("div", "mb-hero-actions");
+
         const link = el("a", "mb-download-link", downloadCopy.unavailableLinkLabel);
         link.href = downloadCopy.unavailableLinkHref;
         link.rel = "noopener noreferrer";
-        main.appendChild(link);
+        actions.appendChild(link);
+
+        const changelogButton = el("button", "mb-hero-secondary");
+        changelogButton.type = "button";
+        i18n.bindText(changelogButton, "home.changelogButtonLabel");
+        changelogButton.addEventListener("click", () => navigation.openPage("changelog"));
+        actions.appendChild(changelogButton);
+
+        main.appendChild(actions);
     }
     main.appendChild(el("p", "mb-download-caveat", downloadCopy.caveat));
     grid.appendChild(main);
@@ -515,7 +552,12 @@ function renderGettingStarted(host: HTMLElement, navigation: PageNavigation, i18
 function renderHome(host: HTMLElement, navigation: PageNavigation, i18n: I18n): void {
     const root = page(host);
 
-    renderHero(root, i18n);
+    renderHero(root, navigation, i18n);
+    // The screenshot gallery used to sit about four viewport-heights down, after a long
+    // stack of prose. It is the single most visually convincing thing on this page -- a
+    // real, running application, not a mockup -- so it renders immediately after the hero
+    // instead of waiting for a reader to scroll past three sections of numbers first.
+    renderShowcase(root, navigation);
     renderGettingStarted(root, navigation, i18n);
 
     const intro = el("div", "mb-prose");
@@ -524,7 +566,6 @@ function renderHome(host: HTMLElement, navigation: PageNavigation, i18n: I18n): 
 
     renderStats(root);
     renderEngines(root, navigation);
-    renderShowcase(root, navigation);
     renderFeatures(root, navigation, i18n);
     renderNotYet(root);
     renderPhases(root, i18n);
@@ -545,8 +586,106 @@ function articleElementId(articleId: string): string {
     return `article-${articleId}`;
 }
 
+/**
+ * Articles that anchor a category get the larger "feature card" treatment on the index,
+ * with a visible one-line excerpt even while collapsed, instead of the dense compact row
+ * every other shipped article renders as.
+ *
+ * The glossary earns it because it is where a reader with no BlueMap vocabulary has to
+ * start; every product contract earns it because a "specified, not built" page needs to
+ * read as load-bearing, not as one more row a scanner skips past. This is the concrete
+ * "not every entry is the same size or shape" rule applied to the index.
+ */
+function isFeatureArticle(article: Article): boolean {
+    return article.id === "glossary" || article.category === "contracts";
+}
+
+/**
+ * The "On this page" outline in an opened article's rail.
+ *
+ * Every article carries the same five required sections (`REQUIRED_SECTION_IDS`), so this
+ * is always the same five links -- but it is generated from the article's own data rather
+ * than hard-coded, so a future section never silently goes unlisted.
+ */
+function renderArticleToc(article: Article, i18n: I18n): HTMLElement {
+    const nav = el("nav", "mb-article-toc");
+    const heading = el("h4", "mb-article-toc-heading");
+    heading.id = `article-toc-${article.id}`;
+    i18n.bindText(heading, "site.onThisPageHeading");
+    nav.setAttribute("aria-labelledby", heading.id);
+    nav.appendChild(heading);
+
+    const list = el("ul", "mb-article-toc-list");
+    for (const articleSection of article.sections) {
+        const li = el("li");
+        const link = el("button", "mb-article-toc-link", articleSection.title);
+        link.type = "button";
+        const targetId = `article-${article.id}-${articleSection.id}`;
+        link.addEventListener("click", () => {
+            const target = document.getElementById(targetId);
+            if (target === null) return;
+            const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+            target.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
+            target.classList.add("mb-flash");
+            window.setTimeout(() => target.classList.remove("mb-flash"), 2000);
+        });
+        li.appendChild(link);
+        list.appendChild(li);
+    }
+    nav.appendChild(list);
+    return nav;
+}
+
+/**
+ * The right rail of an opened article: a compact status panel, the auto-generated "On this
+ * page" outline, the related-articles list, and the sourced evidence -- moved here from the
+ * reading column so the two-column skeleton actually uses the width it claims, rather than
+ * leaving the whole right half of the viewport blank the way the single-column accordion did.
+ */
+function renderArticleRail(article: Article, i18n: I18n): HTMLElement {
+    const rail = el("aside", "mb-article-rail");
+
+    const status = el("div", "mb-article-status-panel");
+    status.appendChild(statusBadge(article.status, i18n));
+    status.appendChild(el("p", "mb-status-note", article.statusNote));
+    rail.appendChild(status);
+
+    rail.appendChild(renderArticleToc(article, i18n));
+
+    if (article.suggested.length > 0) {
+        const suggestedHeading = el("h4", "mb-article-toc-heading");
+        i18n.bindText(suggestedHeading, "content.suggestedArticlesHeading");
+        // Its own tonal panel rather than one more plain list under a label, so the one
+        // place every article points somewhere else is visually distinct.
+        const suggestedBox = el("div", "mb-suggested");
+        suggestedBox.appendChild(suggestedHeading);
+        const list = el("ul", "mb-prose-list");
+        for (const suggestion of article.suggested) {
+            const target = findArticle(suggestion.articleId);
+            const li = el("li");
+            li.appendChild(el("strong", undefined, target?.title ?? suggestion.articleId));
+            li.appendChild(document.createTextNode(`: ${suggestion.reason}`));
+            list.appendChild(li);
+        }
+        suggestedBox.appendChild(list);
+        rail.appendChild(suggestedBox);
+    }
+
+    // Sources were modelled and never rendered, which made every article's evidence
+    // unreachable from the article that leaned on it.
+    const sourcesHeading = el("h4", "mb-article-toc-heading");
+    i18n.bindText(sourcesHeading, "content.sourcesHeading");
+    rail.appendChild(sourcesHeading);
+    rail.appendChild(linkList(article.sources));
+
+    return rail;
+}
+
 function renderDocs(host: HTMLElement, i18n: I18n): void {
     const root = page(host);
+    const kicker = el("p", "mb-page-kicker");
+    i18n.bindText(kicker, "site.docsKicker");
+    root.appendChild(kicker);
     const title = el("h1", "mb-page-title");
     // Reuses the tab's own already-voiced label rather than a second, hardcoded copy of
     // "Documentation" that could drift from it -- the same fix `site.descriptionDocs` below
@@ -561,66 +700,58 @@ function renderDocs(host: HTMLElement, i18n: I18n): void {
         const inCategory = articlesInCategory(category);
         if (inCategory.length === 0) continue;
 
-        const categoryHeading = el("h2", "mb-section-title");
+        // A full-width tonal banner per category, cycling the same container roles the rest
+        // of the page declares, replaces the plain h2-on-page-background heading every
+        // category used to share -- the uniform 3-across grid this pass replaces read as one
+        // catalogue with different words; a coloured shelf per category reads as four.
+        const shelf = el("section", "mb-docs-shelf");
+        shelf.dataset.category = category;
+        const header = el("div", "mb-docs-shelf-header");
+        const categoryHeading = el("h2", "mb-docs-shelf-title");
         i18n.bindText(categoryHeading, CATEGORY_LABEL_KEYS[category]);
-        const wrapper = el("section", "mb-section");
-        wrapper.appendChild(categoryHeading);
-        root.appendChild(wrapper);
+        header.appendChild(categoryHeading);
+        shelf.appendChild(header);
+        root.appendChild(shelf);
+
         // A responsive grid of tiles reads as a catalogue; the uniform vertical stack it
         // replaces read as one more settings list. `[open]` articles span the full row
         // (see .mb-article-grid > .mb-article[open] in content.css) so expanded prose,
         // tables and code never get squeezed into a narrow tile.
         const grid = el("div", "mb-article-grid");
-        wrapper.appendChild(grid);
+        shelf.appendChild(grid);
         for (const article of inCategory) {
             const details = el("details", "mb-article");
             details.id = articleElementId(article.id);
+            const feature = isFeatureArticle(article);
+            if (feature) details.dataset.feature = "true";
 
             const summary = el("summary", "mb-article-summary");
             summary.appendChild(el("span", "mb-article-title", article.title));
             // The status badge is not decoration. A documentation site that reads the
             // same for shipped and unbuilt features misleads by default.
             summary.appendChild(statusBadge(article.status, i18n));
+            if (feature) {
+                // Visible while collapsed too (a <summary> always renders), so a flagship
+                // article reads as one before a visitor ever opens it.
+                summary.appendChild(el("p", "mb-article-excerpt", article.summary));
+            }
             details.appendChild(summary);
 
             const body = el("div", "mb-article-body");
-            body.appendChild(el("p", "mb-article-lede", article.summary));
-            body.appendChild(el("p", "mb-status-note", article.statusNote));
+            const reading = el("div", "mb-article-reading");
+            reading.appendChild(el("p", "mb-article-lede", article.summary));
+            reading.appendChild(el("p", "mb-status-note", article.statusNote));
 
             for (const articleSection of article.sections) {
                 const heading = el("h3", "mb-article-section", articleSection.title);
                 heading.id = `article-${article.id}-${articleSection.id}`;
-                body.appendChild(heading);
+                reading.appendChild(heading);
                 const prose = el("div", "mb-prose");
                 renderBlocks(prose, articleSection.blocks, i18n);
-                body.appendChild(prose);
+                reading.appendChild(prose);
             }
-
-            if (article.suggested.length > 0) {
-                const suggestedHeading = el("h3", "mb-article-section");
-                i18n.bindText(suggestedHeading, "content.suggestedArticlesHeading");
-                body.appendChild(suggestedHeading);
-                // Its own tonal panel rather than one more plain list under a label, so the
-                // one place every article points somewhere else is visually distinct.
-                const suggestedBox = el("div", "mb-suggested");
-                const list = el("ul", "mb-prose-list");
-                for (const suggestion of article.suggested) {
-                    const target = findArticle(suggestion.articleId);
-                    const li = el("li");
-                    li.appendChild(el("strong", undefined, target?.title ?? suggestion.articleId));
-                    li.appendChild(document.createTextNode(`: ${suggestion.reason}`));
-                    list.appendChild(li);
-                }
-                suggestedBox.appendChild(list);
-                body.appendChild(suggestedBox);
-            }
-
-            // Sources were modelled and never rendered, which made every article's
-            // evidence unreachable from the article that leaned on it.
-            const sourcesHeading = el("h3", "mb-article-section");
-            i18n.bindText(sourcesHeading, "content.sourcesHeading");
-            body.appendChild(sourcesHeading);
-            body.appendChild(linkList(article.sources));
+            body.appendChild(reading);
+            body.appendChild(renderArticleRail(article, i18n));
 
             details.appendChild(body);
             grid.appendChild(details);
@@ -1198,6 +1329,7 @@ function boot(): void {
     topbar.appendChild(createBrand(i18n, appearance, () => tabs.reveal("home")));
     topbar.appendChild(tabs.strip.bar);
     root.appendChild(topbar);
+    watchTopbarScrollShadow(topbar);
 
     const main = el("main", "mb-main");
     main.id = MAIN_CONTENT_ID;
@@ -1222,6 +1354,36 @@ function boot(): void {
     // 10% per load, non-blocking, never focus-stealing, and there is deliberately no
     // setting to switch it off.
     maybeShowDimSum({ i18n, host: document.body });
+}
+
+/**
+ * Toggles `data-scrolled` on the sticky topbar once the page has actually scrolled, so
+ * shell.css can fade the bar's elevation shadow and gradient rule in rather than showing
+ * both on every load regardless of scroll position.
+ *
+ * Passive and rAF-throttled so it never competes with the scroll it is observing, and it
+ * degrades to a no-op wherever `window` is unavailable (this module is imported by tests
+ * that never mount a DOM). The visible effect is a plain CSS transition driven by
+ * tokens.css's own duration tokens, so `prefers-reduced-motion` still collapses it for
+ * free with no branch here.
+ */
+function watchTopbarScrollShadow(topbar: HTMLElement): void {
+    if (typeof window === "undefined") return;
+    let queued = false;
+    const apply = (): void => {
+        queued = false;
+        topbar.dataset["scrolled"] = window.scrollY > 0 ? "true" : "false";
+    };
+    window.addEventListener(
+        "scroll",
+        () => {
+            if (queued) return;
+            queued = true;
+            window.requestAnimationFrame(apply);
+        },
+        { passive: true },
+    );
+    apply();
 }
 
 /**
