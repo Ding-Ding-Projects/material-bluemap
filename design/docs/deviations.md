@@ -1268,3 +1268,40 @@ bake every rotated model with — was wrong by ~25 float-ulps at every angle.
   dereferences an unresolvable part model and `EntityModelRenderer.render` dereferences an
   entity-state with no `parts` member; both throw a `NullPointerException` upstream and a
   `TypeError` here, at the same statement.
+
+## Server package (`packages/server`)
+
+### Deliberate additions (no upstream equivalent)
+
+- **`POST /maps/{id}/update` and `GET /maps/{id}/update`
+  (`src/http/RenderUpdateHandler.ts`, driven by `src/render/RenderDriver.ts`).** Upstream's
+  web server is read-only: every route `MapRequestHandler` and its siblings serve is a GET
+  over `MapStorage`, and a real BlueMap instance starts an update from a plugin command
+  (`/bluemap update`) or a file-system watch, never from an HTTP request — there is no
+  upstream file this route ports. Material BlueMap's desktop app *is* the server, though,
+  so "ask the server to render now" needs an entry point, and this is it. What happens once
+  asked is not invented: `RenderDriver.triggerUpdate` calls the same
+  `MapUpdatePreparationTask.updateMap(BmMap, RenderManager)` a plugin command calls, so
+  region discovery, task construction and scheduling all stay in `packages/engine`. The
+  route itself — the URL shape, the `POST` triggers / `GET` reads status / other methods
+  405, `?force=force_all|force_edge|force_none` mapping to `TileUpdateStrategy`, 404 for an
+  unregistered map id — is this port's own design, documented in
+  `src/render/RenderDriver.ts`'s module doc-comment. Covered by
+  `packages/server/test/render-driver.test.ts`'s `RenderUpdateHandler` describe block.
+
+### Bug fixes / API-visible changes
+
+- **`SseConnectionManager.open()` calls `res.flushHeaders()` before registering the
+  connection** (`src/live/SseConnectionManager.ts:122-140`). Upstream's Java `HttpServer`
+  sends the SSE response headers the moment `MapRequestHandler` hands back an
+  `HttpResponse`, independent of whether the attached body stream has produced a byte yet —
+  so a client's `EventSource` reliably sees `open` as soon as it connects, whether it is the
+  first listener or the fifth. Node's `http.ServerResponse` buffers headers until the first
+  `write()`/`end()` by default, so without an explicit flush a second, third, ... connection
+  that joins after the manager's empty→non-empty transition (the point where
+  `LiveDataBroadcaster` would normally start pushing) sees nothing at all until the next
+  broadcast happens to write bytes — for a quiet map, that can be indefinitely. The port
+  calls `res.flushHeaders()` immediately after `writeHead()`, restoring upstream's
+  "headers land on connect" guarantee for a runtime that does not give it for free. No
+  upstream file or line corresponds to this fix; it exists only because Node's transport
+  behaves differently from upstream's.

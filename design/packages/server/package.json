@@ -16,6 +16,8 @@
         "@material-bluemap/shared": "workspace:*"
     },
     "devDependencies": {
-        "@material-bluemap/worldgen": "workspace:*"
+        "@material-bluemap/worldgen": "workspace:*",
+        "@types/pngjs": "^6.0.5",
+        "pngjs": "^7.0.0"
     }
 }

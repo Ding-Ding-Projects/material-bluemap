@@ -137,6 +137,12 @@ importers:
       '@material-bluemap/worldgen':
         specifier: workspace:*
         version: link:../worldgen
+      '@types/pngjs':
+        specifier: ^6.0.5
+        version: 6.0.5
+      pngjs:
+        specifier: ^7.0.0
+        version: 7.0.0
 
   packages/shared: {}
 

@@ -103,11 +103,11 @@ Ported on 2026-08-05 (issue #41), in `packages/server/`:
   rather than assumed, since `MapRequestHandler.java` is the only upstream web file
   mentioning `text/event-stream`. `live/players.json` and `live/markers.json` answer with
   upstream's own empty shape (`{"players":[]}`, `{}`) rather than 404ing, honest stubs since
-  local live-player tracking is still Phase I. Not yet done: `design/docs/deviations.md`
-  has no formal entry yet for this phase's two intentional additions (the
-  `/maps/{id}/update` trigger below, and the `res.flushHeaders()` fix the new SSE tests
-  caught — Node buffers response headers until the first write, and nothing forced a flush
-  on connect).
+  local live-player tracking is still Phase I. `design/docs/deviations.md` now carries the
+  formal entry for this phase's two intentional additions under "Server package
+  (`packages/server`)": the `/maps/{id}/update` trigger below, and the
+  `res.flushHeaders()` fix the SSE tests caught — Node buffers response headers until the
+  first write, and nothing forced a flush on connect.
 
 Not proven, made less true on 2026-08-05 (issue #29, landed with #41 above):
 
@@ -116,13 +116,15 @@ Not proven, made less true on 2026-08-05 (issue #29, landed with #41 above):
   `MapUpdateTask` (via upstream's own `MapUpdatePreparationTask.updateMap`) and schedules it
   on a real `RenderManager`, exercised by a test that is not mocked at any layer
   `packages/engine`'s own `rendertasks.test.ts` leaves mocked — it drives a real
-  `HiresModelManager` and reads real tiles back from a real `FileMapStorage`. What that test
-  does **not** do: render a `packages/worldgen`-generated world through a real resource
-  pack, which is what issue #29's own "done" checklist asks for — it uses a structural fake
-  `World` and a bare `ResourcePack`, honest about proving the wiring rather than proving
-  real terrain renders real geometry. Local rendering still goes through upstream's Java
-  engine per D17; the desktop app was not switched over to this driver, on purpose — that
-  is a separate, explicit piece of work.
+  `HiresModelManager` and reads real tiles back from a real `FileMapStorage`. A second test
+  added on 2026-08-05 (issue #29, `packages/cli` work) closes the specific gap that one left
+  open: it loads a real `packages/worldgen`-generated world through the real `MCAWorld.load`
+  anvil reader, meshes it against a real (self-authored) `ResourcePack` loaded off a real
+  directory, and asserts real hires tiles appeared in a real `FileMapStorage` — exactly what
+  issue #29's own "done" checklist asks for, at the scale ("a tiny world is fine") it asks
+  for. What is still true, and deliberately: local rendering still goes through upstream's
+  Java engine per D17; the desktop app was not switched over to this driver, on purpose —
+  that remains a separate, explicit piece of work issue #29 itself calls out of scope.
 - **One known difference from upstream remains in `WorldRegionUpdateTask`**: `run()` calls
   `complete()` even for a region with nothing to do, writing chunk hashes upstream would not.
   That is observable only on an incremental re-render, which is why a first-render oracle

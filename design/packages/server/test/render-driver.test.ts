@@ -1,14 +1,19 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { PNG } from "pngjs";
 import {
     BmMap,
     Chunk,
     Compression,
+    DataPack,
     DimensionType,
+    DirFileSystem,
     FileMapStorage,
+    Mask,
     MapSettings,
+    MCAWorld,
     PackVersion,
     Region,
     RenderManager,
@@ -16,10 +21,10 @@ import {
     Tristate,
     type Chunk as ChunkType,
     type ChunkConsumer,
-    type Mask,
     type World,
 } from "@material-bluemap/engine";
-import { Grid, Vector2i } from "@material-bluemap/shared";
+import { Grid, Key, Vector2i } from "@material-bluemap/shared";
+import { generateWorld } from "@material-bluemap/worldgen";
 import { HttpServer } from "../src/http/HttpServer.js";
 import { RenderDriver } from "../src/render/RenderDriver.js";
 import { RenderUpdateHandler } from "../src/http/RenderUpdateHandler.js";
@@ -77,6 +82,133 @@ function settings(): MapSettings {
         getEdgeLightStrength: () => 8,
         isIgnoreMissingLightData: () => true,
         getRenderMask: () => ALWAYS,
+        isSaveHiresLayer: () => MapSettings.isSaveHiresLayer(base),
+        isRenderTopOnly: () => MapSettings.isRenderTopOnly(base),
+    };
+    return base;
+}
+
+/*
+ * -- issue #29's checklist: "an automated test runs [the ported RenderManager] against a
+ * small generated world" ---------------------------------------------------------------
+ *
+ * Everything above this point renders a *structural* fake World/Region/Chunk against a
+ * *bare* ResourcePack. That proves the plumbing (RenderManager, MapUpdatePreparationTask,
+ * FileMapStorage) works together, but the World was never real: FakeRegion invents chunks
+ * out of nothing, and nothing here has ever loaded an actual `.mca` file.
+ *
+ * The test below closes that gap: a real `packages/worldgen`-generated world, loaded
+ * through the real `MCAWorld.load` anvil reader, meshed against a real (if small)
+ * `ResourcePack` this file authors itself, and written to a real `FileMapStorage` — the
+ * same assembly `tools/oracle/render-ts.mjs` performs for the Phase D gate, minus the
+ * network-fetched Minecraft client jar that gate needs and this bounded unit test does not.
+ *
+ * The resource pack below models exactly one block: `minecraft:bedrock`. That id is not
+ * arbitrary — `TerrainGenerator.buildBottomSections()` fills the world floor (y = MIN_Y)
+ * with it unconditionally, for every seed and every biome, so a generated world is
+ * *guaranteed* to contain it without this test having to predict which of worldgen's many
+ * surface/ore/decoration blocks a given seed happens to place. Every other block-state the
+ * world contains (stone, dirt, grass_block, water, ...) resolves through the real
+ * `MissingModelRenderer`, exactly as an incomplete real resource pack does for a player —
+ * nothing is stubbed to make that succeed, it is upstream's own documented fallback path.
+ *
+ * Every byte the pack loads is authored below, at test time, the same way
+ * packages/engine's own `test/fixtures/vanillaShapedPack.ts` builds its fixture: nothing
+ * here came from Mojang or from a real BlueMap resourceExtensions.zip (see the licensing
+ * note in packages/engine/README.md).
+ */
+
+/** one full-cube model-and-blockstate pair, real vanilla resource-pack shape throughout. */
+async function writeFixtureResourcePack(dir: string): Promise<void> {
+    const write = async (relativePath: string, data: string | Buffer): Promise<void> => {
+        const full = join(dir, ...relativePath.split("/"));
+        await mkdir(dirname(full), { recursive: true });
+        await writeFile(full, data);
+    };
+
+    await write(
+        "pack.mcmeta",
+        JSON.stringify({ pack: { pack_format: 34, description: "render-driver e2e fixture" } }),
+    );
+    await write(
+        "assets/minecraft/atlases/blocks.json",
+        JSON.stringify({ sources: [{ type: "minecraft:directory", source: "block", prefix: "block/" }] }),
+    );
+    await write(
+        "assets/minecraft/blockstates/bedrock.json",
+        JSON.stringify({ variants: { "": { model: "minecraft:block/bedrock" } } }),
+    );
+    // the root of the model-chain, exactly as vanilla's own block.json is: no elements,
+    // just the ambient-occlusion default every other model parents through
+    await write("assets/minecraft/models/block/block.json", JSON.stringify({ ambientocclusion: false }));
+    await write(
+        "assets/minecraft/models/block/cube_all.json",
+        JSON.stringify({
+            parent: "minecraft:block/block",
+            textures: { particle: "#all" },
+            elements: [
+                {
+                    from: [0, 0, 0],
+                    to: [16, 16, 16],
+                    faces: {
+                        down: { texture: "#all", cullface: "down" },
+                        up: { texture: "#all", cullface: "up" },
+                        north: { texture: "#all", cullface: "north" },
+                        south: { texture: "#all", cullface: "south" },
+                        west: { texture: "#all", cullface: "west" },
+                        east: { texture: "#all", cullface: "east" },
+                    },
+                },
+            ],
+        }),
+    );
+    await write(
+        "assets/minecraft/models/block/bedrock.json",
+        JSON.stringify({ parent: "minecraft:block/cube_all", textures: { all: "minecraft:block/bedrock" } }),
+    );
+    await write("assets/minecraft/textures/block/bedrock.png", solidPng(16, 16, [60, 60, 60, 255]));
+}
+
+/** a solid-colour PNG, the same way packages/engine's vanillaShapedPack fixture builds one. */
+function solidPng(width: number, height: number, [r, g, b, a]: [number, number, number, number]): Buffer {
+    const png = new PNG({ width, height });
+    for (let i = 0; i < width * height; i++) {
+        png.data[i * 4] = r;
+        png.data[i * 4 + 1] = g;
+        png.data[i * 4 + 2] = b;
+        png.data[i * 4 + 3] = a;
+    }
+    return PNG.sync.write(png);
+}
+
+/** mirrors `settings()` above but hands out the real `Mask.ALL` instead of the hand-rolled
+ * `ALWAYS` stand-in, since this describe block has no reason to avoid the genuine class. */
+function realWorldSettings(): MapSettings {
+    const base: MapSettings = {
+        getSorting: () => 0,
+        getStartPos: () => new Vector2i(0, 0),
+        getSkyColor: () => "#7dabff",
+        getVoidColor: () => "#000000",
+        getMinInhabitedTime: () => 0,
+        getMinInhabitedTimeRadius: () => 0,
+        getHiresTileSize: () => 32,
+        getLowresTileSize: () => 500,
+        getLodCount: () => 3,
+        getLodFactor: () => 5,
+        getAmbientLight: () => 0,
+        getSkyLight: () => 1,
+        isEnablePerspectiveView: () => true,
+        isEnableFlatView: () => true,
+        isEnableFreeFlightView: () => true,
+        isEnableHires: () => true,
+        isCheckForRemovedRegions: () => false,
+        getRemoveCavesBelowY: () => 55,
+        getCaveDetectionOceanFloor: () => -5,
+        isCaveDetectionUsesBlockLight: () => false,
+        isRenderEdges: () => true,
+        getEdgeLightStrength: () => 8,
+        isIgnoreMissingLightData: () => true,
+        getRenderMask: () => Mask.ALL,
         isSaveHiresLayer: () => MapSettings.isSaveHiresLayer(base),
         isRenderTopOnly: () => MapSettings.isRenderTopOnly(base),
     };
@@ -307,5 +439,63 @@ describe("RenderUpdateHandler: the HTTP surface over RenderDriver", () => {
             (await fetch(`${base}/maps/overworld/update?force=not-a-strategy`, { method: "POST" })).status,
         ).toBe(400);
         expect((await fetch(`${base}/maps/overworld/update`, { method: "DELETE" })).status).toBe(405);
+    });
+});
+
+describe("RenderDriver: drives the real RenderManager over a real worldgen-generated world (issue #29 checklist)", () => {
+    it("loads a real anvil world through MCAWorld, meshes it with a real ResourcePack, and writes real tiles", async () => {
+        // -- a tiny real world: one chunk (16x16 blocks), no Minecraft, no network --
+        const generated = await generateWorld({
+            seed: 20260805,
+            size: 16,
+            outDir: join(root, "world-src"),
+        });
+        expect(generated.chunkCount).toBe(1);
+
+        // -- a real, self-authored ResourcePack, loaded off a real directory --
+        const packDir = join(root, "pack");
+        await writeFixtureResourcePack(packDir);
+        const resourcePack = new ResourcePack(new PackVersion(34, 0));
+        await resourcePack.loadResources([new DirFileSystem(packDir).getRoot()]);
+
+        // a real DataPack, genuinely loaded (with no roots — biome/dimension-type lookups
+        // fall back to Biome.DEFAULT / the inline level.dat dimension-type worldgen writes,
+        // both real upstream fallback paths, not something invented for this test)
+        const dataPack = new DataPack(new PackVersion(48, 0));
+        await dataPack.loadResources([]);
+
+        // -- the real anvil reader, over the real generated world folder --
+        const world = await MCAWorld.load(generated.worldFolder, Key.minecraft("overworld"), null, dataPack);
+        expect(world).toBeInstanceOf(MCAWorld);
+
+        const storage = new FileMapStorage(join(root, "real-world-map"), Compression.GZIP, false);
+        const map = await BmMap.create("overworld", "Overworld", world, storage, resourcePack, realWorldSettings());
+
+        const manager = new RenderManager({ progressUpdateIntervalMs: 1_000_000 });
+        const driver = new RenderDriver(manager);
+
+        manager.start(2);
+        try {
+            const result = driver.triggerUpdate(map);
+            expect(result.scheduled).toBe(true);
+            await manager.awaitIdle();
+        } finally {
+            manager.stop();
+            await manager.awaitShutdown();
+        }
+
+        // The one generated chunk covers blocks 0..15; at hiresTileSize 32 that sits inside
+        // tile (0, 0), and isRenderEdges can spill geometry into an adjoining tile the same
+        // way the fake-World test above sees a 3x3 spread around a 2x2 tile core. Scanning a
+        // slightly wider net keeps this honest about "tiles appeared" (issue #29's own
+        // wording) rather than asserting an exact count this real, seed-dependent terrain
+        // makes fragile to predict.
+        let written = 0;
+        for (let x = -2; x <= 2; x++) {
+            for (let z = -2; z <= 2; z++) {
+                if ((await map.getStorage().hiresTiles().read(x, z)) !== null) written++;
+            }
+        }
+        expect(written).toBeGreaterThan(0);
     });
 });
