@@ -125,7 +125,18 @@ importers:
         specifier: workspace:*
         version: link:../worldgen
 
-  packages/server: {}
+  packages/server:
+    dependencies:
+      '@material-bluemap/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@material-bluemap/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@material-bluemap/worldgen':
+        specifier: workspace:*
+        version: link:../worldgen
 
   packages/shared: {}
 

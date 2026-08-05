@@ -10,5 +10,12 @@
         "build": "tsc -p tsconfig.json",
         "test": "vitest run",
         "typecheck": "tsc -p tsconfig.json --noEmit"
+    },
+    "dependencies": {
+        "@material-bluemap/engine": "workspace:*",
+        "@material-bluemap/shared": "workspace:*"
+    },
+    "devDependencies": {
+        "@material-bluemap/worldgen": "workspace:*"
     }
 }
