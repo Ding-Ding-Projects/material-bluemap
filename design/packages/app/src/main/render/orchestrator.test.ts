@@ -288,6 +288,117 @@ describe("a completed render", () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* The persisted memory ceiling                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `RenderOrchestratorOptions.jvmArgs` is what `main/index.ts` wires to
+ * `RenderMemoryStore.jvmArgs()` so the ceiling somebody set in Settings actually reaches
+ * the JVM, rather than being written correctly to `render-memory.json` and then read by
+ * nobody - which is exactly what shipped before this option existed.
+ */
+describe("the persisted memory ceiling", () => {
+    it("adds the configured -Xmx to a request that names none", async () => {
+        const script = await fakeCli({ lines: COMPLETE_RENDER });
+        const seen: string[][] = [];
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: spawnScript(script, seen),
+            jvmArgs: () => ["-Xmx2048m"],
+        });
+
+        const result = await orchestrator.render(request({ renderId: "ceiling-applied" }));
+
+        expect(result.ok).toBe(true);
+        const command = seen[0] ?? [];
+        expect(command).toContain("-Xmx2048m");
+        // `runner.ts` places jvmArgs before `-jar`, which is where the JVM actually reads
+        // them - after it, an argument belongs to BlueMap instead and the JVM never sees it.
+        expect(command.indexOf("-Xmx2048m")).toBeLessThan(command.indexOf("-jar"));
+    }, 20_000);
+
+    it("reads the ceiling fresh on every render rather than freezing it at construction", async () => {
+        const script = await fakeCli({ lines: COMPLETE_RENDER });
+        const first: string[][] = [];
+        const second: string[][] = [];
+        let ceiling = "-Xmx1024m";
+
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: (command, args, options) => {
+                const seen = ceiling === "-Xmx1024m" ? first : second;
+                seen.push([command, ...args]);
+                return spawnScript(script, seen)(command, args, options);
+            },
+            jvmArgs: () => [ceiling],
+        });
+
+        await orchestrator.render(request({ renderId: "ceiling-before" }));
+        expect(first[0]).toContain("-Xmx1024m");
+
+        // Settings changed between two renders - the same app session, no restart.
+        ceiling = "-Xmx4096m";
+        await orchestrator.render(request({ renderId: "ceiling-after" }));
+        expect(second[0]).toContain("-Xmx4096m");
+        expect(second[0]).not.toContain("-Xmx1024m");
+    }, 20_000);
+
+    it("never overrides jvmArgs a request already names", async () => {
+        const script = await fakeCli({ lines: COMPLETE_RENDER });
+        const seen: string[][] = [];
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: spawnScript(script, seen),
+            // The settings-wide default. An explicit request value must win over it.
+            jvmArgs: () => ["-Xmx2048m"],
+        });
+
+        await orchestrator.render(request({ renderId: "explicit-wins", jvmArgs: ["-Xmx8192m"] }));
+
+        const command = seen[0] ?? [];
+        expect(command).toContain("-Xmx8192m");
+        expect(command).not.toContain("-Xmx2048m");
+    }, 20_000);
+
+    it("accepts a plain array as well as a function", async () => {
+        const script = await fakeCli({ lines: COMPLETE_RENDER });
+        const seen: string[][] = [];
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: spawnScript(script, seen),
+            jvmArgs: ["-Xmx3072m"],
+        });
+
+        await orchestrator.render(request({ renderId: "plain-array" }));
+
+        expect(seen[0]).toContain("-Xmx3072m");
+    }, 20_000);
+
+    it("spawns nothing extra when no ceiling is configured, exactly as before this existed", async () => {
+        const script = await fakeCli({ lines: COMPLETE_RENDER });
+        const seen: string[][] = [];
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: spawnScript(script, seen),
+        });
+
+        await orchestrator.render(request({ renderId: "no-ceiling" }));
+
+        expect((seen[0] ?? []).some((arg) => arg.startsWith("-Xmx"))).toBe(false);
+    }, 20_000);
+});
+
+/* -------------------------------------------------------------------------- */
 /* Failures                                                                   */
 /* -------------------------------------------------------------------------- */
 
