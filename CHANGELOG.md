@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Find the real bug behind a test left honestly red: TabGroupPicker's own trap was fine - [`711e534b7a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/711e534b7a583c93dac99e71411263c25b6adbef)
 - Give the progress panel real tile-count honesty, real upload bytes, wave truth, and its route (#38) - [`d4f83fa540`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d4f83fa540d4782762974ccbc18f762340e58489)
 - Bridge and mount automatic repair diagnostics - [`6981bf9ca4`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6981bf9ca4f19896aef88872d32ccfb23ad4f66b)
 - Register the last unwired copy surfaces and fix a genuine tab-group-picker search leak - [`f8e828318b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f8e828318befff17f9fdae4d340feb23fef874cd)
