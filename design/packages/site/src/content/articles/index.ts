@@ -32,6 +32,8 @@ import { backups } from "./backups.js";
 import { githubSignIn } from "./github-sign-in.js";
 import { releaseDownloads } from "./release-downloads.js";
 import { worldReading } from "./world-reading.js";
+import { worldDiscovery } from "./world-discovery.js";
+import { bedrockWorlds } from "./bedrock-worlds.js";
 import { javaRenderPath } from "./java-render-path.js";
 import { resourcePacks } from "./resource-packs.js";
 import { releasePipeline } from "./release-pipeline.js";
@@ -77,7 +79,9 @@ export const articles: readonly Article[] = [
     regexBuilderSurfaces,
     languageAndTone,
     worldReading,
+    worldDiscovery,
     legacyWorldSupport,
+    bedrockWorlds,
     javaRenderPath,
     resourcePacks,
     install,

@@ -255,6 +255,10 @@ export const worldReading: Article = {
 
     suggested: [
         {
+            articleId: "world-discovery",
+            reason: "Where a world folder comes from before any of this reads it: the wizard step that finds it.",
+        },
+        {
             articleId: "resource-packs",
             reason: "A block state is only half a block. The resource pack turns it into a model and a texture.",
         },

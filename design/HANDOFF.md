@@ -1486,9 +1486,10 @@ Hosted CI run
 [`30960216270`](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30960216270)
 and Pages run
 [`30960216143`](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30960216143)
-are **pending** for the exact SHA `54559eb4c772b8778bfdda719cd0b8aae0a1558a`; no release or
-live-site claim is made until those runs complete. The older successful Pages deployment recorded
-above remains historical evidence only.
+have both **completed** for the exact SHA `54559eb4c772b8778bfdda719cd0b8aae0a1558a`: Pages
+`30960216143` **succeeded**, but CI `30960216270` was **cancelled** rather than passed, so this
+SHA is not CI-verified by that run and no release or live-site claim is made from it. The older
+successful Pages deployment recorded above remains historical evidence only.
 
 ## Update, 2026-08-04 — render console, remote/world-source wiring, and hosted Pages proof
 

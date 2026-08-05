@@ -67,6 +67,8 @@ export const CONFIG_HISTORY_DOC_URL = repoFile("docs/config-history.md");
 export const BACKUP_DOC_URL = repoFile("docs/backup.md");
 export const RENDER_CONSOLE_DOC_URL = repoFile("docs/render-console.md");
 export const PUBLISHING_TO_PAGES_DOC_URL = repoFile("docs/pages-hosting.md");
+export const FINDING_WORLDS_DOC_URL = repoFile("docs/finding-worlds.md");
+export const BEDROCK_WORLDS_DOC_URL = repoFile("docs/bedrock-worlds.md");
 
 /** Upstream BlueMap, the project this is a port of. */
 export const UPSTREAM_URL = "https://github.com/BlueMap-Minecraft/BlueMap";
