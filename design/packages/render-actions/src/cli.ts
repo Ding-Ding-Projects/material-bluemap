@@ -934,7 +934,7 @@ Decides whether a scheduled world changed, from two already-gathered snapshots -
 never by downloading anything itself. See docs/scheduled-render.md for what each kind
 compares and what it honestly cannot tell.
 
-  --kind <kind>            repository | release-asset | url
+  --kind <kind>            repository | release-asset | url | git
   --previous <path|->      the last recorded snapshot's json; "-" or omitted means none
   --current <path|->       this check's snapshot's json; "-" or omitted means not found
   --github-output <path>   also write result/reason/changed for Actions
@@ -1065,7 +1065,7 @@ export async function commandScheduleDue(args: Args): Promise<number> {
     return 0;
 }
 
-const SCHEDULE_SOURCE_KINDS: readonly CiScheduleSourceKind[] = ["repository", "release-asset", "url"];
+const SCHEDULE_SOURCE_KINDS: readonly CiScheduleSourceKind[] = ["repository", "release-asset", "url", "git"];
 
 function isScheduleSourceKind(value: string): value is CiScheduleSourceKind {
     return (SCHEDULE_SOURCE_KINDS as readonly string[]).includes(value);

@@ -3,7 +3,7 @@ import { evaluateScheduleChange } from "./changeCheck.js";
 
 describe("the world cannot be found", () => {
     it("is an error, never a change, whatever the source kind", () => {
-        for (const kind of ["repository", "release-asset", "url"] as const) {
+        for (const kind of ["repository", "release-asset", "url", "git"] as const) {
             const result = evaluateScheduleChange(kind, { digest: "v1:aa" }, null);
             expect(result.result).toBe("error");
         }
@@ -85,5 +85,22 @@ describe("url source", () => {
         const result = evaluateScheduleChange("url", {}, {});
         expect(result.result).toBe("unknown");
         expect(result.reason.toLowerCase()).toContain("download");
+    });
+});
+
+describe("git source", () => {
+    it("is unchanged when the branch tip's SHA matches", () => {
+        const result = evaluateScheduleChange("git", { sha: "a".repeat(40) }, { sha: "a".repeat(40) });
+        expect(result.result).toBe("unchanged");
+    });
+
+    it("is changed when the branch tip's SHA differs - the only signal a git source has", () => {
+        const result = evaluateScheduleChange("git", { sha: "a".repeat(40) }, { sha: "b".repeat(40) });
+        expect(result.result).toBe("changed");
+    });
+
+    it("is an error when a SHA is missing from either side, rather than guessing", () => {
+        expect(evaluateScheduleChange("git", {}, { sha: "a".repeat(40) }).result).toBe("error");
+        expect(evaluateScheduleChange("git", { sha: "a".repeat(40) }, {}).result).toBe("error");
     });
 });
