@@ -59,6 +59,7 @@ const { PackVersion } = await import("../../../resources/pack/PackVersion.js");
 const { MapPurgeTask } = await import("../MapPurgeTask.js");
 const { MapSaveTask } = await import("../MapSaveTask.js");
 const { MapUpdateTask } = await import("../MapUpdateTask.js");
+const { RenderManager } = await import("../RenderManager.js");
 const { StorageDeleteTask } = await import("../StorageDeleteTask.js");
 const { TileUpdateStrategy } = await import("../TileUpdateStrategy.js");
 const { WorldRegionUpdateTask } = await import("../WorldRegionUpdateTask.js");
@@ -616,5 +617,71 @@ describe("resume after a simulated crash", () => {
         // the whole update completed, save included
         expect(restored.hasMoreWork()).toBe(false);
         expect(restored.estimateProgress()).toBe(1);
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* RenderManager.saveRenderTaskQueue / .loadRenderTaskQueue                    */
+/* -------------------------------------------------------------------------- */
+
+describe("RenderManager's own saveRenderTaskQueue / loadRenderTaskQueue", () => {
+    it("saves a real manager's whole queue and restores it into a fresh one", async () => {
+        const map = await createMap("overworld");
+        const maps = new Map([[map.getId(), map]]);
+
+        const manager = new RenderManager();
+        manager.scheduleRenderTask(new MapPurgeTask(map));
+        manager.scheduleRenderTask(
+            new WorldRegionUpdateTask(map, new Vector2i(2, 2), TileUpdateStrategy.FORCE_EDGE),
+        );
+
+        const file = join(root, "queue.dat");
+        await manager.saveRenderTaskQueue(file, maps);
+
+        const map2 = await createMap("overworld");
+        const maps2 = new Map([[map2.getId(), map2]]);
+        const restoredManager = new RenderManager();
+        const accepted = await restoredManager.loadRenderTaskQueue(file, maps2);
+
+        expect(accepted).toBe(2);
+        const scheduled = restoredManager.getScheduledRenderTasks();
+        expect(scheduled).toHaveLength(2);
+        expect(scheduled[0]).toBeInstanceOf(MapPurgeTask);
+        expect((scheduled[0] as InstanceType<typeof MapPurgeTask>).getMap()).toBe(map2);
+        expect(scheduled[1]).toBeInstanceOf(WorldRegionUpdateTask);
+        const region = scheduled[1] as WorldRegionUpdateTaskType;
+        expect(region.getRegionPos().equals(new Vector2i(2, 2))).toBe(true);
+        expect(region.getForce()).toBe(TileUpdateStrategy.FORCE_EDGE);
+    });
+
+    it("refuses to double-schedule a restored task that duplicates one already queued behind the head", async () => {
+        const map = await createMap("overworld");
+        const maps = new Map([[map.getId(), map]]);
+
+        const manager = new RenderManager();
+        // upstream's own `containsRenderTask` — and so `scheduleRenderTask` — deliberately
+        // does not check index 0: the head is already being worked on, so "already
+        // scheduled" would be a lie about it (see the comment on
+        // `RenderManager.containsRenderTask`). A head-filler task is scheduled first here
+        // purely so the task actually under test sits behind it, where dedup applies.
+        manager.scheduleRenderTask(new MapSaveTask(map));
+        manager.scheduleRenderTask(new WorldRegionUpdateTask(map, new Vector2i(9, 9)));
+
+        const file = join(root, "queue.dat");
+        await manager.saveRenderTaskQueue(file, maps);
+
+        // Loading the same file into the very manager that still holds both tasks: the
+        // restored region-task is equal (by map, region and force) to the one already
+        // sitting at index 1, so it must be refused. The restored save-task collides with
+        // the *head*, which the exemption above deliberately lets through again.
+        const accepted = await manager.loadRenderTaskQueue(file, maps);
+
+        expect(accepted).toBe(1);
+        expect(manager.getScheduledRenderTaskCount()).toBe(3);
+        const scheduled = manager.getScheduledRenderTasks();
+        expect(scheduled.filter((t) => t instanceof MapSaveTask)).toHaveLength(2);
+        // the real point: the region-task was never duplicated, because it was correctly
+        // recognised as already queued
+        expect(scheduled.filter((t) => t instanceof WorldRegionUpdateTask)).toHaveLength(1);
     });
 });

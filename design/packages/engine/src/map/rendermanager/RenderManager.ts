@@ -63,8 +63,13 @@
  * `doWork()` call, so at most one call per worker outlives `stop()`.
  */
 
+import type { BmMap } from "../BmMap.js";
 import { ProgressTracker } from "./ProgressTracker.js";
 import { RenderTask } from "./RenderTask.js";
+import {
+    loadRenderTaskQueue as loadRenderTaskQueueFile,
+    saveRenderTaskQueue as saveRenderTaskQueueFile,
+} from "./serialization/RenderTaskQueueStorage.js";
 
 /*
  * upstream: Logger.global — the logger-package is not part of this port (yet), see the
@@ -509,6 +514,47 @@ export class RenderManager {
         }
 
         this.#renderTasks.unshift(first);
+    }
+
+    // ---------------------------------------------------------------- persistence
+
+    /**
+     * Writes the whole queue — every scheduled task, the running one included — to `file`,
+     * so a later {@link RenderManager.loadRenderTaskQueue} call can resume it.
+     *
+     * upstream has no equivalent method: `Plugin#save()` reaches directly for
+     * `getScheduledRenderTasks()` and hands the result to its own `BlueNBT` wiring. This is
+     * that same shape, exposed here instead purely for discoverability — "can the render
+     * manager write its own queue out" should not require knowing a separate module exists
+     * — while the actual (de)serialization contract lives in
+     * `rendermanager/serialization/`, where {@link RenderTaskAdapter}, {@link BmMapAdapter}
+     * and each task's `Serialized` form are defined.
+     *
+     * `maps` is the live map set a saved task may refer to by id; see {@link BmMapAdapter}.
+     */
+    async saveRenderTaskQueue(file: string, maps: ReadonlyMap<string, BmMap>): Promise<void> {
+        await saveRenderTaskQueueFile(file, this.getScheduledRenderTasks(), maps);
+    }
+
+    /**
+     * Reads a queue previously written by {@link RenderManager.saveRenderTaskQueue} and
+     * schedules every task it restores, exactly as upstream's `Plugin#load()` calls
+     * `renderManager.scheduleRenderTasks(tasksData.getRenderTasks().toArray(...))`.
+     *
+     * Uses {@link RenderManager.scheduleRenderTasks} rather than appending directly, so the
+     * normal containment rules still apply: a restored task that duplicates one already
+     * queued (unusual immediately after a restart, but not impossible if this is called
+     * more than once) is refused rather than queued twice. Returns how many were actually
+     * accepted, for the same reason {@link RenderManager.scheduleRenderTasks} does.
+     *
+     * A missing file, a corrupt one, a version mismatch, or one bad entry inside an
+     * otherwise-good file are none of them fatal here — see `loadRenderTaskQueue` in
+     * `rendermanager/serialization/RenderTaskQueueStorage.ts` for exactly what each of those
+     * does instead.
+     */
+    async loadRenderTaskQueue(file: string, maps: ReadonlyMap<string, BmMap>): Promise<number> {
+        const tasks = await loadRenderTaskQueueFile(file, maps, this.#onError);
+        return this.scheduleRenderTasks(...tasks);
     }
 
     // ---------------------------------------------------------------- inspection

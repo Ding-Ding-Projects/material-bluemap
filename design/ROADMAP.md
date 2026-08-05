@@ -201,7 +201,16 @@ Ported on 2026-08-05 (issue #30), in `packages/engine/src/map/rendermanager/seri
   Java. Individual bad entries elsewhere in the queue (an unloaded map, an unknown type) are
   still dropped one at a time and reported, exactly as upstream's own `LenientListAdapter`
   usage does.
-- **Round trip is the test, 17 of them** (`RenderTaskSerialization.test.ts`): every adapter
+- **`RenderManager.saveRenderTaskQueue`/`.loadRenderTaskQueue`** — thin methods added to
+  `RenderManager.ts` itself (upstream has no equivalent; `Plugin#save`/`Plugin#load` reach
+  directly for `getScheduledRenderTasks()`/`scheduleRenderTasks()`) purely so "can the
+  render manager write its own queue out and read it back" — the issue's own wording — does
+  not require knowing a separate module exists. Loading goes through
+  `scheduleRenderTasks`, so the manager's own containment rule still applies to a restored
+  task exactly as it would to a freshly-built one — including the documented exemption for
+  whatever sits at the head, which a dedicated test exercises deliberately rather than
+  fighting.
+- **Round trip is the test, 19 of them** (`RenderTaskSerialization.test.ts`): every adapter
   and every task type serialize-then-deserialize back to a functionally identical task,
   including `TileUpdateStrategy` identity — a deserialized `fixed(true)` is asserted `.toBe`
   the shared `FORCE_ALL` singleton, not merely `.equal`, which is exactly the bug this
@@ -210,16 +219,19 @@ Ported on 2026-08-05 (issue #30), in `packages/engine/src/map/rendermanager/seri
   into its second region, serializes it, restores it against a *freshly constructed* `BmMap`
   over the same on-disk storage (not the same in-memory object — a genuine simulated
   restart), and proves by tile coordinate that the finished region is never touched again
-  while the interrupted one is fully re-rendered from scratch. The existing
-  `rendertasks.test.ts`/`RenderManager.test.ts`/`ProgressTracker.test.ts` suites are
-  untouched at 110 tests; `rendermanager/`'s own total is now 127.
+  while the interrupted one is fully re-rendered from scratch. A further pair drives a real
+  `RenderManager` end to end: schedule real tasks, save through the manager, restore into a
+  fresh one, and confirm a task already queued behind the head is correctly refused rather
+  than duplicated. The existing `rendertasks.test.ts`/`RenderManager.test.ts`/
+  `ProgressTracker.test.ts` suites are untouched at 110 tests; `rendermanager/`'s own total
+  is now 129.
 - **Not this**: the app's own resumable-render machinery for GitHub Actions renders
   (`docs/resumable-renders.md`) is unrelated and untouched — that survives a crash by
-  remembering which shards finished, not by serializing an engine `RenderTask` queue. Not
-  wired into `RenderManager` itself, `packages/server` or `packages/cli`: nothing yet calls
-  `saveRenderTaskQueue`/`loadRenderTaskQueue` from a running process. Loading the queue at
-  startup and saving it periodically (upstream's `Plugin#load`/`Plugin#save`, on a timer and
-  at shutdown) remains open, tracked separately from this issue's own scope.
+  remembering which shards finished, not by serializing an engine `RenderTask` queue.
+  `RenderManager` can now save and load its own queue, but nothing yet *calls* either method
+  from a running process — no periodic-save timer, no load-on-startup wiring into
+  `packages/server` or `packages/cli`. Wiring that in (upstream's `Plugin#load`/`Plugin#save`,
+  on a timer and at shutdown) remains open, tracked separately from this issue's own scope.
 
 ## Delivery, which the plan never described
 
