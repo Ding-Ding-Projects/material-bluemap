@@ -14,6 +14,7 @@ other docked panel.
 ## Contents
 
 - [The licence at first run](#the-licence-at-first-run)
+- [A real render, from the wizard's consent gate to a finished map](#a-real-render-from-the-wizards-consent-gate-to-a-finished-map)
 - [Fetching and caching the document](#fetching-and-caching-the-document)
 - [The tabbed viewer](#the-tabbed-viewer)
 - [Categorisation is navigation, never editing](#categorisation-is-navigation-never-editing)
@@ -50,6 +51,30 @@ The existing settings row still works and is still where a failed render points.
 collapsed **Read the licence in the app** disclosure that expands the same viewer in place, so
 somebody about to press `Accept` months later can read what they are accepting without leaving the
 settings surface.
+
+## A real render, from the wizard's consent gate to a finished map
+
+The paragraph above is not a description of intended behaviour; it is what the following six
+images show happening, in one real run of the packaged Electron app driven headless on an
+off-screen desktop through Playwright's Electron driver — the same mechanism the rest of this
+project's screenshot sweep uses — against commit `56b12939f844f713f52dbde397324fc10c3c073a`. A
+world was typed into the make-a-map wizard and validated; the wizard's review step showed the
+exact download-has-not-been-accepted warning described above; consent was given through the
+Settings row this document describes, not through any shortcut; and BlueMap's own Java engine
+then downloaded the Minecraft client file from Mojang and rendered the world into tiles that
+opened in the viewer. Nothing here is staged, mocked or hand-edited.
+
+![The make-a-map wizard's World step, with a real Minecraft world folder typed in, validated, and reporting one dimension and one region file](screenshots/render-1-wizard-world.png)
+
+![The wizard's Review step before consent: the same download-has-not-been-accepted warning and "Open the setting" link described above](screenshots/render-2-review.png)
+
+![The Mojang download consent settings row, reached from that warning, with consent just accepted](screenshots/render-3-consent.png)
+
+![The render starting: BlueMap's own Java engine (5.22-27, on this run's Java 25.0.3) beginning against the world from the step above](screenshots/render-4-start.png)
+
+![The render in progress](screenshots/render-5-running.png)
+
+![The finished map, opened in the viewer directly from the render panel's "Open the map" button](screenshots/render-6-map.png)
 
 ## Fetching and caching the document
 

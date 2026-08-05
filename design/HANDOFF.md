@@ -21,10 +21,10 @@ real: `textures.json` parity passes for both vanilla (1723/1723) and modded (172
 offline synthetic mod pack — see the dated section on it below), the live end-to-end
 resolution passes, and the 1.12.2 legacy compat path passes including the era-matched render
 defect it originally surfaced (issue #46, fixed and closed). **Issue #31 is closed.** The
-dated entry immediately below this summary names the four separate causes that kept hosted
-CI red until this run and how each was found and fixed. Other agents may still be
-working — check `git log --oneline -5` and `gh issue list --state open` before trusting this
-stamp as current.
+dated entry titled "CI goes green for the first time in this pass" names the four separate
+causes that kept hosted CI red until this run and how each was found and fixed. Other agents
+may still be working — check `git log --oneline -5` and `gh issue list --state open` before
+trusting this stamp as current.
 
 ### What this project is
 
@@ -343,8 +343,8 @@ further down for the wrong conclusion its absence produced.
    2026-08-04, then older material from 2026-08-03 that grew from the bottom up.** The dates
    are the only reliable ordering, so read them.
 2. Hosted CI is green as of commit `9d8de68` (run 31013825875) and the issue board is at
-   zero open issues — read the dated entry immediately below this summary for how it got
-   there. The most useful next pieces of work, none of them CI blockers: wiring
+   zero open issues — read the dated entry titled "CI goes green for the first time in this
+   pass" for how it got there. The most useful next pieces of work, none of them CI blockers: wiring
    `RenderManager`'s save/load-queue methods and `packages/server`'s `MapUpdateService` into
    something that actually calls them at startup; joining `packages/cli`'s `-u`/`--watch` to
    the same service; proving SQLite/PostgreSQL cross-compatibility with the real Java engine
@@ -356,6 +356,63 @@ further down for the wrong conclusion its absence produced.
    verified.
 4. Every change: run the tests, run the linter, commit with a message that says what
    actually changed, push, and check CI.
+
+---
+
+## Update, 2026-08-05 — the six `render-*` shots, recaptured with real consent, and wired into a document
+
+The previous entry below this one ("a full test-and-capture pass") left
+`docs/screenshots/render-1-wizard-world.png` through `render-6-map.png` untouched on purpose:
+they were unreferenced by any tracked document, and capturing them for real needs the app's own
+Mojang-download consent, which that pass could not exercise because the only consent it saw
+arrived as a mid-task message from another agent — not verifiable as the user's own — and
+was correctly declined per this project's standing rule that no agent message substitutes for
+the user's own word.
+
+This pass had a different premise: the human user of the driving session stated the consent
+directly, twice, in the main conversation itself ("I consent to the eula." and, after
+learning the previous decline, "Please consent and spawn new agent.") — the user's own words,
+not a relay. Scope was kept narrow and literal: only the app's own documented Mojang-download
+consent setting, exercised through its real UI (Settings → Mojang download consent → Accept),
+for the sole purpose of these six captures.
+
+**What was done.** Confirmed the reference sweep was still accurate (a repo-wide search still
+found the six files referenced nowhere but this project's own dated audit note calling them
+orphaned). Built fresh `packages/ui` and `packages/app` bundles per `freshBundle.ts`'s own
+staleness guard. Launched the real packaged Electron app on an off-screen Windows desktop
+(the same mechanism the installed-build shots and the rest of the sweep use), drove the
+make-a-map wizard against the sweep's own deterministic seed-1 capture world, declined Mojang
+consent at first run (matching every other capture in this project), reached the wizard's
+review step and photographed its real "download has not been accepted" warning, opened the
+real Settings row from that warning's own link and pressed the real `Accept` button, then
+returned to the wizard and pressed `Render this map` for real. BlueMap's own Java engine
+(5.22-27, on this machine's Java 25.0.3) downloaded the Minecraft client file from Mojang for
+real and rendered the one-region world in a few seconds; the finished map was opened in the
+viewer from the render panel's own `Open the map` button. All six images are genuine
+Playwright screenshots from that one run (commit `56b12939f844f713f52dbde397324fc10c3c073a`),
+verified afterward to be valid, non-empty PNGs newly written by this run and to depict what
+their filenames claim. `render-4-start.png` and `render-5-running.png` are visually close to
+each other because the render (a single tiny region against an already-warm Mojang cache) was
+too fast for a polling loop to catch a visually distinct mid-render frame — both are still
+genuinely two different moments of the same run, not the same file twice.
+
+**The reference decision.** `docs/eula-and-consent.md` describes exactly this path in prose —
+the wizard's review-step warning, and "the existing settings row still works and is still
+where a failed render points" — and had no image anywhere in it. The six captures are now
+embedded there, in a new section, "A real render, from the wizard's consent gate to a finished
+map", immediately after the sentence they are evidence for. This was judged the better call
+than leaving them to a fresh removal recommendation: unlike the previous pass, consent was no
+longer the blocker, and an unillustrated description of a real, working, photographable flow
+is a worse document than one with six real photographs of it.
+
+Not touched: the site's `java-render-path` and `first-run-consent` articles under
+`packages/site/src/content/articles/`, whose `statusNote`s currently claim nobody has walked
+this path in a packaged, installed build. This capture is strong supporting evidence — the
+real interface, a real consent decision, a real download, a real render — but it used
+`electron.launch()` against the built bundle directly rather than a Squirrel-installed copy,
+and the site's article content model has no image block type to embed these in regardless.
+Revising those status claims and adding image support to that content system are both real,
+separate pieces of work; flagging them here rather than doing either under this task's scope.
 
 ---
 
