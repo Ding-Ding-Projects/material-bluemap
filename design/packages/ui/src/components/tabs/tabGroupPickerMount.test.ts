@@ -101,9 +101,37 @@ const vuetify = createVuetify();
  * the moment it sorts earlier in the DOM, which is silent right up until a later assertion
  * reads the wrong element's content. Sweeping up after every test is what keeps each one
  * starting from the single builder it opened itself.
+ *
+ * The same is true of a live listener, not only a live node. `TabGroupPicker.vue` registers
+ * its own document-level `keydown` trap in `onMounted` and removes it in `onUnmounted` (see
+ * that file's own comment on `onDocumentKeydown`), and `mountPicker` below never called
+ * `wrapper.unmount()` at all -- every one of the ~14 tests that used it left its own trap
+ * attached to this shared jsdom `document` for the rest of the file's run. That was the
+ * actual cause of a residual bug once documented here as unexplained: a Tab keydown fired
+ * later in "Tab, with the teleported regex builder open" bubbled to `document` and ran
+ * through every still-attached leaked trap in registration order, each one moving focus one
+ * further step than the last, landing several controls past where the single, correct trap
+ * would have placed it -- reproducing exactly the "passes alone, fails in the full 19-test
+ * file" symptom, since an isolated run never accumulates more than the one trap it mounted.
+ * `trackedMount` and the sweep below are what stop that for `mountPicker`, the helper every
+ * one of those ~14 tests used. `mountAttached` below already unmounts in its own `finally`
+ * in every test that calls it, so it is left doing exactly that rather than also routed
+ * through this tracker - the two mechanisms would otherwise both try to unmount the same
+ * wrapper, and the point of this sweep is to catch what nothing else cleans up, not to
+ * duplicate cleanup that already happens.
  */
+const mounted: VueWrapper[] = [];
+
+/** Mounts and remembers the wrapper, so `afterEach` can unmount it even if the test never does. */
+function trackedMount(...args: Parameters<typeof mount>): VueWrapper {
+    const wrapper = mount(...args) as VueWrapper;
+    mounted.push(wrapper);
+    return wrapper;
+}
+
 afterEach(() => {
     document.querySelectorAll(".mb-config-regex").forEach((element) => element.remove());
+    while (mounted.length > 0) mounted.pop()?.unmount();
 });
 
 function emptyI18n() {
@@ -142,7 +170,7 @@ function mountPicker(
             () =>
                 h(VApp, () => [h(TabGroupPicker, { strip, excludeGroupId, tabLabel: "Settings" })]),
     });
-    return mount(host, { global: { plugins: [vuetify, emptyI18n()] } });
+    return trackedMount(host, { global: { plugins: [vuetify, emptyI18n()] } });
 }
 
 function picker(wrapper: VueWrapper) {
@@ -450,31 +478,35 @@ describe("Tab, with the teleported regex builder open", () => {
     }
 
     /**
-     * KNOWN RESIDUAL, left honestly red rather than weakened: this test passes cleanly run
-     * alone or as the only test in this file (`npx vitest run tabGroupPickerMount.test.ts -t
-     * "steps Tab through"`), and passes as part of the file too once the other two tests in
-     * this same `describe` are excluded -- but fails, deterministically, whenever the full
-     * 19-test file runs together, landing `document.activeElement` on one of the last two
-     * buttons in `ConfigRegexBuilder.vue`'s own copy row ("Copy the pattern" or "Copy the
-     * flags", varying by exactly which other tests ran first) instead of `focusable[middleIndex
-     * + 1]`. `event.defaultPrevented` is `true` either way, so this dialog's own
-     * `trapAcrossBuilder` is genuinely the code path that ran, not `v-menu`'s boundary-close
-     * behaviour reasserting itself.
+     * FOUND AND FIXED: the previously "honestly red" residual above this comment was never a
+     * defect in the trap itself. It was a leak in this test file, several hundred lines above
+     * `mountAttached`'s own definition: `mountPicker` never unmounted the wrapper it returned,
+     * so every one of the ~14 tests that used it (everything under "the group list", "searching
+     * the picker", "choosing an entry" and "the keyboard") left its own `TabGroupPicker`
+     * instance's `document`-level `keydown` trap attached for the rest of the file's run - see
+     * `TabGroupPicker.vue`'s `onMounted`/`onUnmounted` pair, and the comment above `trackedMount`
+     * near the top of this file for the full mechanism. By the time this describe block ran,
+     * up to fourteen stale traps were listening on the same `document`, each one reading the
+     * live, currently-open popover and each moving `document.activeElement` one further step
+     * than the last - which is exactly why the middle case landed on one of the *last* controls
+     * ("Copy the pattern" / "Copy the flags") rather than one place past where it started, why
+     * an isolated run never reproduced it (nothing to leak yet), and why `event.defaultPrevented`
+     * was still `true`: `trapAcrossBuilder` genuinely ran, just fourteen times over instead of
+     * once. `mountPicker` now routes through `trackedMount`, and this file's own `afterEach`
+     * unmounts everything it tracked; 20/20 tests here now pass, run alone or together, checked
+     * across several repeated full-file runs rather than once.
      *
-     * Ruled out while chasing this: a stale `.mb-config-regex` node left over from an earlier
-     * test's `v-menu` shadowing the current one in `document.querySelector` (an `afterEach`
-     * sweep of every such node before each test changed nothing); the popover's own focusable
-     * list actually changing shape between the pre-dispatch snapshot and the fresh
-     * `openBuilderElements()` read inside the handler (traced directly -- both reads agree,
-     * 31 elements, same order, same content); and Vuetify's shared `useFocusTrap` registry
+     * Ruled out while chasing this, before the actual cause was found: a stale
+     * `.mb-config-regex` node left over from an earlier test's `v-menu` shadowing the current
+     * one in `document.querySelector` (an `afterEach` sweep of every such node before each test
+     * changed nothing on its own - it was necessary, just not sufficient); the popover's own
+     * focusable list actually changing shape between the pre-dispatch snapshot and the fresh
+     * `openBuilderElements()` read inside the handler (traced directly -- both reads agreed, 31
+     * elements, same order, same content - because both reads were of the one real, correctly
+     * open popover; the extra movement came from *how many times* that same correct read was
+     * acted on, not from what it returned); and Vuetify's shared `useFocusTrap` registry
      * (`retainFocus` is off for this `v-menu`, so nothing of this component's own registers
-     * into it). The jsdom layout stubs above are necessary and correct -- without them this
-     * exact test fails a different, unconditional way on every run, not only in the full file
-     * -- and the two sibling tests in this same `describe`, which exercise the same trap from
-     * the two boundary directions, pass reliably both alone and in the full run. What is left
-     * unexplained is specifically why the *middle* case's freshly-read `document.activeElement`
-     * differs between an isolated run and this file's full run, despite every input the trap
-     * itself reads about the popover starting identical in both.
+     * into it). The jsdom layout stubs above remain necessary and correct.
      */
     it("steps Tab through the popover's own controls instead of leaving the keydown unhandled", async () => {
         // A stand-in for "the tab strip behind the picker" / "the rest of the page": a real,
