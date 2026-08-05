@@ -62,6 +62,35 @@ import type { TypographyPropertyId, TypographySpec } from "./typographySpec.js";
  * The counterpart to that is that reset has to be real and reachable, so there are three of
  * them - one property, one element, everything - and the destructive one is the only thing in
  * this panel that asks before it acts.
+ *
+ * ## Its three sections stay `v-tabs`, deliberately, not `TabbedNavigation`
+ *
+ * The tabbed-navigation rule asks every settings-style surface to use the project's own
+ * `TabbedNavigation` rather than a bespoke tab strip, and `AppSettings.vue`, `ConfigScreen.vue`
+ * and `ProjectEditor.vue` all now do. This editor is the documented exception the rule itself
+ * anticipates, for reasons specific to what this surface *is* rather than a shortcut:
+ *
+ * - It is capped at `min(420px, 92vw)` and anchored beside the element it edits - the contract's
+ *   own words for it are "not a page". `TabbedNavigation` brings a tab strip built for a whole
+ *   screen: an overflow menu, a new-tab control, per-tab context menus, four searchable-tab
+ *   surfaces and bulk-close actions. None of that has a referent here - there is no "closing"
+ *   the Text tab, no reordering it away from Surface, nothing to pin - so the apparatus would
+ *   be pure chrome around three fixed, uncloseable sections in a 420px popover.
+ * - Its three tabs are permanent and exactly three; nothing ever opens a second "Surface" tab
+ *   or a tab for a page this editor does not have. `TabbedNavigation`'s whole model - tabs as
+ *   user-managed windows onto a smaller set of pages - has no work to do when the tab list and
+ *   the page list are the same fixed three things every time.
+ * - Persisting "which of three fixed tabs was last open" under its own storage key is not the
+ *   kind of layout state the persistence clause is protecting; `tab` already resets to
+ *   `"typography"` per instance, which is the same thing a settings surface with real optional
+ *   tabs cannot do.
+ *
+ * What is not exempted: Surface and Presets each carry their own `ConfigSearchField` with the
+ * full regex builder, exactly as the regex-builder rule requires of every settings surface
+ * regardless of size - "it is small" is not an exemption there, and nothing about the tab strip
+ * choice above touches that. If this editor ever grows a fourth, optional, or user-managed
+ * section, that is the moment it stops being three fixed tabs and belongs on `TabbedNavigation`
+ * like the rest.
  */
 const props = defineProps<{
     /** The element being edited. */
