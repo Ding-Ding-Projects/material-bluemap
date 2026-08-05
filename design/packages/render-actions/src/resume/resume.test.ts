@@ -233,42 +233,54 @@ describe("shard completion markers", () => {
     // `resume-check` and (via `countHiresTiles`) `shard-complete`, so this is the wrapper
     // round-trip for both: a shard that really finished, under the id BlueMap really wrote,
     // must be found and correctly counted when only the raw hyphenated id is given.
-    it("finds and counts a hyphenated map id's real, sanitized output directory", async () => {
-        const storageRoot = join(root, "bluemap-out", "maps");
-        const rawMapId = "test-issue44-staging";
+    // This writes 6400 real files sequentially (the same shape `shardOutput` always uses),
+    // which took 4.3s alone but exceeded the workspace's shared 30s budget once during a
+    // full-suite run under concurrent disk contention from ~480 other test files' workers -
+    // an isolation flake, not a defect in the code under test (reproduced: fails only
+    // alongside the full suite, passes clean and fast run alone). Per this file's own
+    // documented convention, a test that genuinely needs longer keeps its own explicit
+    // timeout rather than the shared budget being raised for everyone.
+    it(
+        "finds and counts a hyphenated map id's real, sanitized output directory",
+        async () => {
+            const storageRoot = join(root, "bluemap-out", "maps");
+            const rawMapId = "test-issue44-staging";
 
-        // BlueMap's own behaviour: it wrote tiles under the underscored directory, not the
-        // literal hyphenated id a naive `join(storageRoot, rawMapId)` would look for.
-        expect(sanitizeMapId(rawMapId)).toBe("test_issue44_staging");
-        await shardOutput(storageRoot, sanitizeMapId(rawMapId), 6400);
-        await writeShardMarker(
-            shardMarkerPath(storageRoot, 0),
-            newShardMarker({
-                shardId: 0,
+            // BlueMap's own behaviour: it wrote tiles under the underscored directory, not
+            // the literal hyphenated id a naive `join(storageRoot, rawMapId)` would look for.
+            expect(sanitizeMapId(rawMapId)).toBe("test_issue44_staging");
+            await shardOutput(storageRoot, sanitizeMapId(rawMapId), 6400);
+            await writeShardMarker(
+                shardMarkerPath(storageRoot, 0),
+                newShardMarker({
+                    shardId: 0,
+                    mapId: rawMapId,
+                    dimension: "minecraft:overworld",
+                    planFingerprint: "abc123",
+                    hiresTileCount: 6400,
+                }),
+            );
+
+            // resume-check, given the raw hyphenated id exactly as a workflow would pass it.
+            const report = await inspectShard({
+                storageRoot,
                 mapId: rawMapId,
-                dimension: "minecraft:overworld",
+                shardId: 0,
                 planFingerprint: "abc123",
-                hiresTileCount: 6400,
-            }),
-        );
+            });
 
-        // resume-check, given the raw hyphenated id exactly as a workflow would pass it.
-        const report = await inspectShard({
-            storageRoot,
-            mapId: rawMapId,
-            shardId: 0,
-            planFingerprint: "abc123",
-        });
+            expect(report.trusted).toBe(true);
+            expect(report.hiresTileCount).toBe(6400);
+            expect(report.reason).toContain("6400 hires tiles, all present");
+            expect(report.reason).not.toContain("No completion marker");
 
-        expect(report.trusted).toBe(true);
-        expect(report.hiresTileCount).toBe(6400);
-        expect(report.reason).toContain("6400 hires tiles, all present");
-        expect(report.reason).not.toContain("No completion marker");
-
-        // shard-complete's own count (cli.ts's commandShardComplete calls countHiresTiles on
-        // the same sanitized join) agrees, rather than reading 0 for a render that worked.
-        expect(await countHiresTiles(join(storageRoot, sanitizeMapId(rawMapId)))).toBe(6400);
-    });
+            // shard-complete's own count (cli.ts's commandShardComplete calls countHiresTiles
+            // on the same sanitized join) agrees, rather than reading 0 for a render that
+            // worked.
+            expect(await countHiresTiles(join(storageRoot, sanitizeMapId(rawMapId)))).toBe(6400);
+        },
+        60_000,
+    );
 
     it("reports an empty shard with no marker as unfinished rather than as done", async () => {
         // The dangerous case: a job killed before it wrote its first tile. Nothing on disk
