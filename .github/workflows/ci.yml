@@ -83,10 +83,26 @@ jobs:
     defaults:
       run:
         working-directory: design
+    env:
+      # packages/config's vendor cross-checks (schema.test.ts, controlPolicy.test.ts)
+      # read the vendored BlueMap Java to prove defaults, controls and doc text against
+      # upstream itself rather than a hand-transcribed copy - see test/vendorGate.ts.
+      # Unset, a submodule that failed to fetch is a named skip indistinguishable in a
+      # green run from "optional and intentionally absent". Set here, that same absence
+      # is a real, visible failure instead.
+      MBM_VENDOR_REQUIRED: "1"
     steps:
-      # The vendored BlueMap submodule is a large Java reference tree that
-      # nothing in the build reads, so it is deliberately not checked out.
+      # The vendored BlueMap submodule used to be skipped here as a large Java reference
+      # tree nothing in the build read - but packages/config's cross-checks above now
+      # read it, and MBM_VENDOR_REQUIRED turns its absence into a hard failure rather
+      # than a silent skip, so it has to be fetched. `fetch-depth: 1` (also the default)
+      # is passed explicitly because actions/checkout applies that same depth to the
+      # submodule fetch: this pulls the one commit's tree rather than the submodule's
+      # full history, which matters because that tree is 500+ MB.
       - uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 1
 
       - uses: pnpm/action-setup@v4
         with:
