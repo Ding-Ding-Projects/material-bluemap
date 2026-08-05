@@ -651,12 +651,13 @@ export const home: HomeContent = {
             phase: "H",
             scope: "SQL storages, command palette, marker editor, JavaScript addon system, static export, three.js upgrade",
             status: "pending",
-            note: "The command palette landed early, out of order, alongside the contract work that gave it settings to list. The rest of the phase is untouched.",
+            note: "SQL storages landed early, out of order: ported and proven against real MySQL, MariaDB and PostgreSQL servers, and now proven cross-compatible with the Java engine over a shared database, both directions (issue #32, closed). The command palette landed early too, out of order, alongside the contract work that gave it settings to list. Marker editor, the JavaScript addon system, static export and the three.js upgrade remain untouched.",
         },
         {
             phase: "I",
             scope: "Local live players, measurement and waypoints, screenshot gallery, scheduled renders, multi-server dashboard, update checker, packaging",
             status: "pending",
+            note: "The update checker landed early, out of order: it checks a signed feed on startup and on a bounded schedule, stages a verified download without interrupting active work, and shows the persistent restart banner. Local live players, measurement and waypoints, the screenshot gallery, scheduled renders, the multi-server dashboard and packaging remain untouched.",
         },
         {
             phase: "Contracts",

@@ -9,7 +9,7 @@ export const viewerRemoteMode: Article = {
     category: "application",
     status: "shipped",
     statusNote:
-        "The viewer port and the remote proxy are on the default branch with tests, and remote mode was checked against a public BlueMap server. Rendering a local world is a different feature and does not exist yet.",
+        "The viewer port and the remote proxy are on the default branch with tests, and remote mode was checked against a public BlueMap server. Rendering a local world is a separate feature that already exists, driven by upstream's own Java engine (decision D17, see the java-render-path article): it is built and unit tested, but it has not run in CI or been proven end to end through the app the way remote mode has.",
 
     sections: [
         {
@@ -236,7 +236,7 @@ export const viewerRemoteMode: Article = {
         },
         {
             articleId: "world-reading",
-            reason: "The other half of the story: reading a local world, which is what remote mode substitutes for today.",
+            reason: "The other half of the story: reading a local world, which the local Java render path turns into tiles the viewer opens the same way it opens a remote server.",
         },
         {
             articleId: "contract-localization",

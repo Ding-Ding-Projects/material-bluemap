@@ -226,6 +226,10 @@ export const configHistory: Article = {
             articleId: "regex-builder-surfaces",
             reason: "The search field and anchored builder on the panel.",
         },
+        {
+            articleId: "automatic-repair",
+            reason: "The other feature that snapshots into this same history: an automatic edit to a config file.",
+        },
     ],
 
     sources: [

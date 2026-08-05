@@ -90,6 +90,7 @@ export const renderConsole: Article = {
         { articleId: "render-in-actions", reason: "The same progress model when a render runs in GitHub Actions." },
         { articleId: "viewer-remote-mode", reason: "How the finished map is served once rendering completes." },
         { articleId: "regex-builder-surfaces", reason: "The full builder behind the console's search field." },
+        { articleId: "automatic-repair", reason: "What happens next when the run this console is watching fails to start." },
     ],
     sources: [
         { label: "RenderConsole.vue", href: repoFile("design/packages/ui/src/components/console/RenderConsole.vue") },

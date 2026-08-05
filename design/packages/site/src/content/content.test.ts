@@ -229,6 +229,27 @@ describe("articles", () => {
             ).toBeGreaterThan(100);
         }
     });
+
+    it("never claims local world rendering does not exist, contradicting the java-render-path article", () => {
+        // Regression for a stale pair of lines: viewer-remote-mode used to say local
+        // rendering "does not exist yet" and that remote mode is "what remote mode
+        // substitutes for today", while the site's own java-render-path article documents
+        // that local rendering is real, shipped code driven by upstream's Java engine
+        // (decision D17). The two articles must not contradict each other about whether
+        // the feature exists.
+        const remoteMode = findArticle("viewer-remote-mode");
+        const javaRenderPath = findArticle("java-render-path");
+        expect(remoteMode).toBeDefined();
+        expect(javaRenderPath, "java-render-path is gone; viewer-remote-mode has nothing to agree with").toBeDefined();
+        expect(javaRenderPath?.status).not.toBe("specified");
+
+        const claims = [
+            remoteMode?.statusNote ?? "",
+            ...(remoteMode?.suggested.map((s) => s.reason) ?? []),
+        ].join(" \n ");
+        expect(claims).not.toMatch(/does not exist yet/i);
+        expect(claims).not.toMatch(/what remote mode substitutes for/i);
+    });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -560,5 +581,42 @@ describe("generated content", () => {
         expect(releaseUrl.startsWith("https://")).toBe(true);
         expect(installer.sizeBytes).toBeGreaterThan(0);
         expect(installer.assetName.length).toBeGreaterThan(0);
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Roadmap mirror                                                             */
+/* -------------------------------------------------------------------------- */
+
+describe("roadmap mirror", () => {
+    // design/ROADMAP.md is the source of truth (see this file's own doc comment and
+    // home.ts's phaseNote); the landing page's phase table is required to say the same
+    // thing rather than drift into its own, older story.
+    const roadmapPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../ROADMAP.md");
+    const roadmapText = readFileSync(roadmapPath, "utf8");
+    const phaseH = home.phases.find((phase) => phase.phase === "H");
+    const phaseI = home.phases.find((phase) => phase.phase === "I");
+
+    it("has a Phase H row in the roadmap that records SQL storages as done", () => {
+        // Regression: ROADMAP.md's Phase H row records SQL storages ported and proven
+        // against real MySQL/MariaDB/PostgreSQL servers (issue #32, closed). The site's
+        // own mirror used to say only that the command palette landed early and omit
+        // SQL storages entirely, which is the gap this asserts against on both sides.
+        expect(roadmapText).toMatch(/\|\s*H\s*\|[^\n]*\|[^\n]*SQL storage/i);
+        expect(phaseH, "home.ts has no Phase H row").toBeDefined();
+        expect(phaseH?.note ?? "").toMatch(/SQL storage/i);
+    });
+
+    it("never leaves Phase I saying only Pending once the update checker has shipped", () => {
+        // Regression: ROADMAP.md used to state Phase I as a bare "Pending" despite the
+        // update checker being built, wired into the main process and documented in
+        // docs/automatic-updates.md. home.ts mirrored the same stale line verbatim.
+        const phaseIRow = roadmapText.split("\n").find((line) => /^\|\s*I\s*\|/.test(line));
+        expect(phaseIRow, "ROADMAP.md has no Phase I row").toBeDefined();
+        expect(phaseIRow ?? "").not.toBe("| I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending |");
+        expect(phaseIRow ?? "").toMatch(/update checker/i);
+
+        expect(phaseI, "home.ts has no Phase I row").toBeDefined();
+        expect(phaseI?.note ?? "").toMatch(/update checker/i);
     });
 });

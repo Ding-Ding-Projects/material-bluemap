@@ -56,6 +56,7 @@ import { contractLocalization } from "./contract-localization.js";
 import { contractSuperConfirmation } from "./contract-super-confirmation.js";
 import { renderConsole } from "./render-console.js";
 import { publishingToPages } from "./publishing-to-pages.js";
+import { automaticRepair } from "./automatic-repair.js";
 
 export const articles: readonly Article[] = [
     viewerRemoteMode,
@@ -66,6 +67,7 @@ export const articles: readonly Article[] = [
     optionsGui,
     configRichControls,
     configHistory,
+    automaticRepair,
     releaseDownloads,
     githubSignIn,
     backups,
