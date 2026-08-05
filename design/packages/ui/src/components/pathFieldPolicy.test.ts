@@ -314,6 +314,19 @@ const PATH_FIELD_EXEMPTIONS: Record<string, Exemption> = {
             "PathField - the split is deliberate: this machine's file dialog cannot open a " +
             "path on a computer it is not running on.",
     },
+    "components/remote/RemoteFileBrowser.vue::remote.browse.pathLabel": {
+        reason: "remote-machine",
+        note:
+            "The Explorer-style remote browser's own address bar - the exact dialog " +
+            "RemoteTargetEditor.vue's workDir field above opens as its 'Browse...' " +
+            "affordance. A local PathField.vue dialog cannot list a path on the remote " +
+            "machine this component is browsing, for the same reason workDir is exempt. " +
+            "This field is not a bare text box either: it is synchronised in both " +
+            "directions with the breadcrumb and directory grid it sits beside - typing a " +
+            "path and pressing Enter navigates the grid, and clicking a breadcrumb or " +
+            "entering a folder writes the resolved path back here - so it already carries " +
+            "the remote equivalent of a browse affordance rather than needing one bolted on.",
+    },
 };
 
 describe("every path-shaped text field either carries the affordance or names why not", () => {
