@@ -25,10 +25,23 @@ describe("spawnProcessRunner", () => {
         expect(result.aborted).toBe(false);
         expect(result.stdout.split("\n")).toEqual(["one", "three"]);
         expect(result.stderr.split("\n")).toEqual(["two"]);
-        expect(lines).toEqual([
+
+        // stdout and stderr are two independent pipes, read by two independent
+        // `readline` interfaces in process.ts, with no coordination between them.
+        // Their relative interleaving depends on OS pipe buffering and scheduling,
+        // not on anything this code controls, so it is genuinely non-deterministic
+        // across platforms — this exact assertion passed on the machine it was
+        // written on and failed on Linux CI. Do not assert cross-stream order here.
+        // What the runner DOES guarantee, and what actually matters to a caller, is
+        // asserted instead: every line arrives exactly once, correctly tagged with
+        // its stream, and in the order it was written WITHIN that stream.
+        expect(lines).toHaveLength(3);
+        expect(lines.filter((entry) => entry.stream === "stdout")).toEqual([
             { line: "one", stream: "stdout" },
-            { line: "two", stream: "stderr" },
             { line: "three", stream: "stdout" },
+        ]);
+        expect(lines.filter((entry) => entry.stream === "stderr")).toEqual([
+            { line: "two", stream: "stderr" },
         ]);
     });
 
