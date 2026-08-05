@@ -197,3 +197,37 @@ export {
     type TrustAnswer,
     type ValidateAnswer,
 } from "./ipc.js";
+
+export {
+    REMOTE_HOSTING_CONTAINER_PORT,
+    publishBindAddress,
+    remoteHostingContainerName,
+    remoteHostingStatusArguments,
+    remoteHostingTeardownArguments,
+    remoteServeDockerRunArguments,
+    type RemoteHostingBindMode,
+    type RemoteHostingPublish,
+    type RemoteServeDockerRunOptions,
+} from "./hostplan.js";
+
+export {
+    RemoteHostingOrchestrator,
+    type RemoteHostEvent,
+    type RemoteHostFailureResult,
+    type RemoteHostPhase,
+    type RemoteHostRequest,
+    type RemoteHostResult,
+    type RemoteHostStopReport,
+    type RemoteHostStopResult,
+    type RemoteHostSuccess,
+    type RemoteHostingOrchestratorOptions,
+    type RemoteHostingRecord,
+    type RemoteHostingStatus,
+} from "./hosting.js";
+
+export {
+    REMOTE_HOSTING_CHANNELS,
+    registerRemoteHostingHandlers,
+    type RemoteHostingIpc,
+    type RemoteHostingIpcOptions,
+} from "./hostingIpc.js";
