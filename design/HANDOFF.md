@@ -7,11 +7,12 @@ uses. Read it first. Everything after it is a dated log written by people who we
 this section is for anyone who was not, including a small language model with no other
 context.
 
-It was last checked against the code on **2026-08-05**, at commit `b32f423` on the `main`
-branch, at the end of a large multi-agent pass that pushed roughly thirty commits directly
-to `main` (no branches). Several of those agents were still working when this summary was
-written — SQL storage (issue #32) and the Phase C exit checks (issue #31) in particular —
-so a newer commit may already exist. Check `git log --oneline -5` before trusting this
+It was last checked against the code on **2026-08-05**, at commit `965af52` on the `main`
+branch, after Phase C's three exit checks (issue #31) actually ran: `textures.json` parity
+and the live end-to-end resolution both pass; the 1.12.2 legacy compat path itself loads
+and resolves real pre-flattening names correctly, but rendering with an era-matched pack
+uncovered a real, separate defect, filed as issue #46 (see the dated section on it below).
+Other agents may still be working — check `git log --oneline -5` before trusting this
 stamp as current.
 
 ### What this project is
@@ -2330,9 +2331,10 @@ stale. Either way the run fails and says which.
   Everything above is an internal consistency proof plus a same-terrain control. It says the
   reader agrees with the writer and that the legacy render agrees with the modern one except
   where documented. It does not say either matches what BlueMap v0.10.3 would have drawn.
-- **Rendering with an era-matched 1.12.2 resource pack is untested.** The four gaps above
-  are expected to disappear under one, since that is what `LegacyResourcePackExtension`
-  exists for, but expected is not measured.
+- ~~Rendering with an era-matched 1.12.2 resource pack is untested.~~ **Tested on 2026-08-05
+  (issue #31), and the four gaps above do NOT simply disappear under one — see the new
+  section immediately below.** `LegacyResourcePackExtension` itself works correctly; the
+  render pipeline built on top of it does not, for a related but distinct reason.
 - **Only one of the twelve registered legacy block-state extensions is reachable from this
   terrain.** `BlockStateExtensions.ts` registers twelve, and the generator's blocks trigger
   exactly one of them — `SnowyExtension`, which is asserted. It places no stairs, fire,
@@ -2354,3 +2356,60 @@ packages/engine` — **88 files, 1182 passed, 1 skipped**; `node tools/oracle/re
 issues, but it reports them for untouched files too — `chunkNbt.ts`, `packing.test.ts`,
 `package.json`, `README.md` — so that is a pre-existing repository state, not something this
 work introduced.)
+
+### 2026-08-05 — the era-matched pack, tested (issue #31), and a new bug (issue #46)
+
+Phase C's three exit checks (`ROADMAP.md`'s Phase C section, issue #31) ran for real this
+session, including the one this file marked "untested" above. Two findings, in order.
+
+**Getting a real 1.12.2 jar into `LegacyResourcePackExtension` at all needed two workarounds,
+neither a bug:**
+
+1. `MinecraftVersion.load("1.12.2", ...)` does not download a 1.12.2 jar. It clamps any
+   request older than `EARLIEST_RESOURCEPACK_VERSION` ("1.13") up to that version — faithful
+   to upstream's modern `MinecraftVersion.java`, which never resolves a resource-pack older
+   than 1.13 that way. Worked around by downloading directly through
+   `VersionManifest`/`Version`/`Download` (same classes, same SHA-1 verification) instead.
+2. **A real Minecraft client jar carries no `pack.mcmeta` at all**, checked directly against
+   three real jars spanning old and new (1.12.2, 1.21, 26.2 — none has one, all three have
+   `pack.png`). Without it, `isLegacyPackRoot` never detects a pre-flattening pack, by design
+   (a missing/malformed `pack.mcmeta` must not accidentally switch on the compat layer). A
+   real deployment needs a companion `pack.mcmeta`-only root alongside the bare jar —
+   BlueMap's own `packs/` folder mechanism is exactly for this. Supplied that way (see
+   `resourcepack-e2e.test.ts`'s "Proof 4"), `isLegacy()` is `true` and five real
+   pre-flattening blockstates (`stone`, `dirt`, `oak_planks`, `grass`, `snow_layer`) resolve
+   to real, non-missing vanilla texture pixels. **The compat path itself works.**
+
+**The render pipeline built on top of it does not, for an era-matched pack.**
+`BlockStateModelRenderer.ts`'s `flattenLegacyBlockState` call is gated on `block.isLegacy()`
+— the WORLD chunk's era — not on which resource pack is loaded. Against the modern pack
+that is exactly right (it is the fix this file's `render-1-12.mjs` section above records).
+Against an era-matched pack it runs backwards: `minecraft:grass` already resolves correctly
+on its own (just proven), but the unconditional rename rewrites it to
+`minecraft:grass_block` — a name that did not exist before the 1.13 flattening — and that
+lookup fails. `resourcepack-e2e.test.ts`'s Proof 4 proves this surgically:
+`pack.getBlockStates().get()` of the renamed key returns `null` in the exact same
+era-matched pack that resolved the un-renamed key correctly two lines earlier.
+
+`tools/oracle/render-1-12-era-matched.mjs` (new) corroborates it at the render level, same
+seed `render-1-12.mjs` uses (22, 128×128): **zero grass-family texture vertices anywhere in
+the gallery**, and `minecraft:blocks/dirt` at **43.6%** of the render vs **4.3%** in a
+modern-pack control on the identical world — the same "ground no longer occluded from
+above" signature this file's 2026-08-04 section recorded for the *original* modern-pack
+grass bug, now reproduced the other direction. `BlockStateModelRenderer.ts`'s
+`if (stateResource == null) return;` means the block is not drawn wrong, it is **skipped in
+total silence** — arguably worse than the gap this rename table exists to fix, since the
+modern-pack bug at least drew *something*. `podzol` is the clean counter-example: its rule
+only injects a `snowy` property (`withDefault`) rather than renaming the key, so
+`minecraft:podzol` still means `minecraft:podzol` after the rename, and it renders correctly
+under both packs — confirmed against the real `podzol.json`, which also keys on `snowy` in
+the genuine 1.12.2 assets (12,090 vertices rendered).
+
+Filed as [issue #46](https://github.com/Ding-Ding-Projects/material-bluemap/issues/46): gate
+the rename on the resource pack's era too, not just the world's.
+
+Verification for this section:
+`BLUEMAP_E2E_DOWNLOAD=1 BLUEMAP_ACCEPT_DOWNLOAD=1 npx vitest run
+packages/engine/test/resourcepack-e2e.test.ts` — **13 passed**; `node
+tools/oracle/render-1-12-era-matched.mjs --accept-download` — 2/2 structural checks pass
+(real geometry, no crash), the FlatteningRename finding above is real and stands unfixed.

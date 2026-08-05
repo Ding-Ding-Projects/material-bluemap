@@ -43,7 +43,7 @@ exclusions **S2 and S4 are withdrawn**; S1 and S3 still stand.
 | 0 | plan.md, submodules (+`v0.10.3-mc1.12` legacy tag), monorepo scaffold, CI | **Done** |
 | A | Viewer port (65 files → TS), MD3 shell, Electron shell, embedded server + remote proxy, live-demo verification | **Done** |
 | B | shared utils, NBT, compression, MCA parsing 1.12.2→26.x incl. legacy Chunk_1_12, e2e synthetic-world proofs | **Done** |
-| C | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, textures.json) | Ported, exit criteria not yet proven |
+| C | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, textures.json) | Ported. Exit criteria run 2026-08-05 (issue #31): textures.json parity **passes** (vanilla; modded unproven), live end-to-end resolution **passes**, legacy-jar loading **passes** but the era-matched render on top of it has a real, filed defect (#46). Not Done |
 | J | **Java render path** (D17): toolchain discovery/provisioning, jar resolution, config writer, CLI runner, progress parser, provenance record, local map serving | Built. CI builds all seven jars and renders a test world with them on every green run; the app's own end-to-end flow is still proven by hand on one Windows machine. See below |
 | D | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks | **Done, and the gate is closed.** `tools/oracle/compare.mjs` rendered a generated 1000x1000 world with both engines on 2026-08-04 and reported **identical**: 995 files matched, 961 of 961 hires tiles byte for byte after decompression, 24 of 24 lowres tiles pixel for pixel, all render-state decisions equal, neither side holding a file the other lacked. A 200x200 fixture on a different seed reports the same. Passing the gate does not itself switch the product over; D17 keeps upstream's engine rendering until that switch is made and verified on its own |
 | E | RenderManager worker pool, watch re-render, full HTTP routes + SSE, config schema (every option), standalone server CLI + Dockerfile | **Part done.** See below for the split |
@@ -336,16 +336,55 @@ blockstate/model/texture/entitystate data classes including the coordinate-seede
 PRNG, the `ResourcePack` orchestrator with its five phases and texture filter, the seven-file
 atlas layer, and `TextureGallery` with `textures.json`.
 
-What is **not** yet proven, and so keeps this phase open:
+**2026-08-05: all three exit checks have now actually run (issue #31), and the honest
+result is mixed — 2 pass, 1 reveals a real defect.** "Ported" is still the more accurate
+word than "Done"; see below for exactly which is which, and issue #31 stays open.
 
-- `textures.json` semantically equal to Java's for vanilla 1.21 and a modded pack
-- a 1.12.2 jar loading through the legacy compat path (pre-atlas discovery, pre-flattening
-  names)
-- the end-to-end live check: download the 1.21 client jar with the consent flag set in dev
-  and resolve `minecraft:grass_block` blockstate to variant to model to parent chain to
-  texture
+- **Check 1, `textures.json` semantic parity — PASS for vanilla, unproven for modded.**
+  `tools/oracle/textures-parity.mjs` (new, `--accept-download`) pins Minecraft 1.21, renders
+  a minimal world with both engines against the same downloaded-and-verified jar, and diffs
+  their `textures.json` with the existing semantic comparator (`tools/oracle/lib/textures.mjs`
+  — every field but the image and the entry order compared exactly, the embedded PNG on
+  decoded pixels per decision D3): **1723 of 1723 gallery entries agree**, the only
+  differences pixel-identical PNG re-encodes. No legitimate modded pack is reachable under
+  this task's Mojang-only network policy, and none is committed to this repository, so that
+  half is recorded as still unproven rather than faked. Two small oracle-harness bugs
+  (`render-ts.mjs`'s `version.json` key handling; `renderReference`'s missing version-pin
+  parameter) were found and fixed along the way — not port bugs.
+- **Check 2, a 1.12.2 jar through the legacy compat path — the path itself works, the
+  render on top of it does not.** `resourcepack-e2e.test.ts`'s new "Proof 4" downloads a
+  real 1.12.2 client jar directly from the version manifest (`MinecraftVersion.load` clamps
+  any pre-1.13 request up to 1.13 by design, so it cannot be the download vehicle here),
+  discovers that **a real client jar carries no `pack.mcmeta` at all** (checked against
+  three real jars), supplies the one missing file as a companion root the way a real
+  deployment's `packs/` folder would, and proves `LegacyResourcePackExtension` then resolves
+  five real pre-flattening blockstates (`stone`, `dirt`, `oak_planks`, `grass`,
+  `snow_layer`) to real vanilla texture pixels. That part is a clean pass. But
+  `tools/oracle/render-1-12-era-matched.mjs` (new) renders the same 1.12.2 world against
+  that real era-matched pack and finds `BlockStateModelRenderer.ts`'s
+  `flattenLegacyBlockState` still fires unconditionally on the world's era regardless of the
+  pack's — rewriting an already-correct `minecraft:grass` into `minecraft:grass_block` (a
+  name that did not exist pre-flattening), which the era pack cannot resolve, so the block
+  is silently skipped rather than drawn: zero grass-family texture vertices, and
+  `minecraft:blocks/dirt` at 43.6% of the render vs 4.3% in the modern-pack control on the
+  identical world — the same "ground no longer occluded" signature this table was written to
+  fix, now reproduced the other direction. `podzol`'s rule only injects a property rather
+  than renaming the key and is unaffected. This closes the "era-matched resource pack
+  untested" gap in this file's earlier legacy-render section with a real answer, and that
+  answer is a bug — filed separately as
+  [#46](https://github.com/Ding-Ding-Projects/material-bluemap/issues/46).
+- **Check 3, the live end-to-end resolution — PASS.** This check already had a working,
+  committed implementation ("Proof 2" in `resourcepack-e2e.test.ts`) — the issue's finding
+  was that it had genuinely never been *run* with the consent flags set. It has now been
+  run for real: a freshly downloaded, SHA-1-verified 1.21 client jar resolves
+  `minecraft:grass_block[snowy=false]` blockstate → variant → model → parent chain → every
+  face's texture → real, non-missing decoded pixels. 12/12 tests passed.
 
-Until those run, "ported" is the honest word and "done" is not.
+Verification for this section: `BLUEMAP_E2E_DOWNLOAD=1 BLUEMAP_ACCEPT_DOWNLOAD=1 npx vitest
+run packages/engine/test/resourcepack-e2e.test.ts` — **13 passed**; `node
+tools/oracle/textures-parity.mjs --accept-download` — **PASS, 1723/1723**; `node
+tools/oracle/render-1-12-era-matched.mjs --accept-download` — runs clean (2/2 structural
+checks pass, real geometry, no crash) but the FINDING above is real and unresolved.
 
 ## Phase H, SQL storages: what is ported and what is not
 
@@ -519,8 +558,14 @@ closed now. See the 2026-08-05 HANDOFF.md entry for the evidence behind each.
   exist; nothing calls the second from the first yet.
 - **Prove MySQL and PostgreSQL storage against a real server**, and prove
   cross-compatibility with upstream's Java engine, both named as open in issue #32.
-- **Run Phase C's three exit checks to completion** and record the results (issue #31, in
-  progress as of this pass).
+- **Fix `FlatteningRename` firing unconditionally on the world's era instead of also
+  checking the resource pack's** (issue #46, found running Phase C's exit checks): it
+  breaks an era-matched 1.12.2 render for every key-renaming rule (grass, snow, snow_layer,
+  and ~90 more), silently skipping blocks a real 1.12.2 pack already resolves correctly.
+  `tools/oracle/render-1-12-era-matched.mjs` is the regression gate to re-run afterward.
+- **Obtain a legitimate modded resource pack and complete check 1's modded half** (issue
+  #31) — `tools/oracle/textures-parity.mjs --modded <path>` is wired for it but nothing has
+  fetched one, since this task's network use was limited to Mojang's own manifest/jar CDN.
 - **Dispatch a genuinely large world through the render-world workflow** with `df -h`
   evidence at each stage, recorded in `docs/large-worlds.md` (issue #39's own remaining
   checklist item).
