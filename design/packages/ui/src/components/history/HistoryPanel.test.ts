@@ -55,6 +55,30 @@ beforeAll(() => {
         removeEventListener: () => {},
         dispatchEvent: () => false,
     })) as unknown as typeof globalThis.matchMedia;
+
+    Element.prototype.scrollIntoView = function scrollIntoView(): void {};
+
+    // Vuetify's reposition scroll strategy asks the document what is under a point, which
+    // jsdom does not implement at all. Without this the overlay throws asynchronously, after
+    // the assertion that opened it has already passed, and the failure surfaces as an
+    // unhandled rejection attributed to whichever test happened to be running next.
+    document.elementsFromPoint = (): Element[] => [];
+
+    // The panel is now wrapped in `AppearanceTarget`, which mounts a `v-menu` of its own
+    // (closed, but present) for the context menu and the editor. Vuetify's overlay location
+    // strategy reads `visualViewport` unconditionally on mount, which jsdom does not define.
+    Object.defineProperty(globalThis, "visualViewport", {
+        configurable: true,
+        value: {
+            width: 1024,
+            height: 768,
+            offsetLeft: 0,
+            offsetTop: 0,
+            scale: 1,
+            addEventListener: () => {},
+            removeEventListener: () => {},
+        } as unknown as VisualViewport,
+    });
 });
 
 const FOLDER = "/srv/bluemap/config";

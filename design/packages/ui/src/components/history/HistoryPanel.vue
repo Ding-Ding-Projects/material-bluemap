@@ -25,6 +25,7 @@ import {
     VProgressLinear,
 } from "vuetify/components";
 
+import AppearanceTarget from "../appearance/AppearanceTarget.vue";
 import ChangelogDateFilter from "../changelog/ChangelogDateFilter.vue";
 import { formatDay, type DayKey } from "../changelog/changelogDates.js";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
@@ -95,6 +96,12 @@ import {
  * Trimming a history removes revisions for good. It is the single call on the host that
  * takes anything away, and the single control in this panel behind the two-key
  * super-confirmation gate. Everything else, restore included, only ever adds.
+ *
+ * ### Appearance
+ *
+ * The whole panel is one `AppearanceTarget`, under `history.panel`, so it carries the same
+ * right-click **Edit appearance...**, the same keyboard path, and the same non-modal,
+ * anchored editor as everything else in this application.
  */
 const props = withDefaults(
     defineProps<{
@@ -820,6 +827,7 @@ const canWrite = computed(() => host.value !== null && unavailable.value === nul
 </script>
 
 <template>
+    <AppearanceTarget id="history.panel" :label="t('history.title', 'Version history')" as="div">
     <v-card class="mb-history" :aria-label="t('history.title', 'Version history')">
         <v-card-text>
             <header class="mb-history__head">
@@ -1170,6 +1178,7 @@ const canWrite = computed(() => host.value !== null && unavailable.value === nul
             </template>
         </v-card-text>
     </v-card>
+    </AppearanceTarget>
 </template>
 
 <style>

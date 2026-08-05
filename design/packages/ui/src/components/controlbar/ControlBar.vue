@@ -8,6 +8,7 @@ import {
     mdiMapOutline,
 } from "@mdi/js";
 import type { BlueMapApp, MarkerSetData } from "@material-bluemap/viewer";
+import AppearanceTarget from "../appearance/AppearanceTarget.vue";
 import CompassButton from "./CompassButton.vue";
 import ControlsSwitch from "./ControlsSwitch.vue";
 import DayNightSwitch from "./DayNightSwitch.vue";
@@ -28,6 +29,14 @@ import { useControlBarApp } from "./useControlBarApp.js";
  * The bar renders as two MD3 surfaces rather than one, so the gap between them stays
  * click-through and the map is still draggable under the middle of the screen. That is the
  * same effect upstream got from a `pointer-events: none` root with each button opting back in.
+ *
+ * ### Appearance
+ *
+ * The whole bar is one `AppearanceTarget`, under `controlbar.bar`. A right-click anywhere the
+ * bar actually paints - a cluster, a button, the coordinate fields - reaches its **Edit
+ * appearance...** command; the transparent gap between the clusters stays click-through to
+ * the map exactly as it always has, because `pointer-events: none` there means there is
+ * nothing to right-click in the first place.
  */
 const props = withDefaults(defineProps<{ app?: BlueMapApp | null }>(), { app: null });
 
@@ -113,54 +122,61 @@ function resetCamera(): void {
 </script>
 
 <template>
-    <div v-if="app" class="mb-cb">
-        <div class="mb-cb__cluster mb-cb__cluster--start">
-            <MenuButton
-                :label="t('menu.tooltip', 'Menu')"
-                :close="menuOpen"
-                :expanded="menuOpen"
-                @action="openMenu"
-            />
-            <IconButton
-                v-if="showMapsButton"
-                class="mb-cb__thin-hide"
-                :icon="mdiMapOutline"
-                :label="t('maps.tooltip', 'Map-List')"
-                @action="openMaps"
-            />
-            <IconButton
-                v-if="showMapMenu && showMarkerMenu"
-                class="mb-cb__thin-hide"
-                :icon="mdiMapMarkerOutline"
-                :label="t('markers.tooltip', 'Marker-List')"
-                @action="openMarkers"
-            />
-            <IconButton
-                v-if="showMapMenu && playerMarkerSet"
-                class="mb-cb__thin-hide"
-                :icon="mdiAccountGroupOutline"
-                :label="t('players.tooltip', 'Player-List')"
-                @action="openPlayers"
-            />
-        </div>
+    <AppearanceTarget
+        v-if="app"
+        id="controlbar.bar"
+        :label="t('appearance.target.controlbar.bar', 'The map control bar')"
+        as="div"
+    >
+        <div class="mb-cb">
+            <div class="mb-cb__cluster mb-cb__cluster--start">
+                <MenuButton
+                    :label="t('menu.tooltip', 'Menu')"
+                    :close="menuOpen"
+                    :expanded="menuOpen"
+                    @action="openMenu"
+                />
+                <IconButton
+                    v-if="showMapsButton"
+                    class="mb-cb__thin-hide"
+                    :icon="mdiMapOutline"
+                    :label="t('maps.tooltip', 'Map-List')"
+                    @action="openMaps"
+                />
+                <IconButton
+                    v-if="showMapMenu && showMarkerMenu"
+                    class="mb-cb__thin-hide"
+                    :icon="mdiMapMarkerOutline"
+                    :label="t('markers.tooltip', 'Marker-List')"
+                    @action="openMarkers"
+                />
+                <IconButton
+                    v-if="showMapMenu && playerMarkerSet"
+                    class="mb-cb__thin-hide"
+                    :icon="mdiAccountGroupOutline"
+                    :label="t('players.tooltip', 'Player-List')"
+                    @action="openPlayers"
+                />
+            </div>
 
-        <div v-if="showMapMenu" class="mb-cb__cluster mb-cb__cluster--end">
-            <DayNightSwitch
-                class="mb-cb__thin-hide"
-                :app="app"
-                :label="t('lighting.dayNightSwitch.tooltip', 'Day/Night')"
-            />
-            <ControlsSwitch v-if="showViewControls" class="mb-cb__thin-hide" :app="app" />
-            <IconButton
-                class="mb-cb__thin-hide"
-                :icon="mdiImageFilterCenterFocus"
-                :label="t('resetCamera.tooltip', 'Reset Camera & Position')"
-                @action="resetCamera"
-            />
-            <PositionInput class="mb-cb__position" :app="app" />
-            <CompassButton :app="app" :label="t('compass.tooltip', 'Compass / Face North')" />
+            <div v-if="showMapMenu" class="mb-cb__cluster mb-cb__cluster--end">
+                <DayNightSwitch
+                    class="mb-cb__thin-hide"
+                    :app="app"
+                    :label="t('lighting.dayNightSwitch.tooltip', 'Day/Night')"
+                />
+                <ControlsSwitch v-if="showViewControls" class="mb-cb__thin-hide" :app="app" />
+                <IconButton
+                    class="mb-cb__thin-hide"
+                    :icon="mdiImageFilterCenterFocus"
+                    :label="t('resetCamera.tooltip', 'Reset Camera & Position')"
+                    @action="resetCamera"
+                />
+                <PositionInput class="mb-cb__position" :app="app" />
+                <CompassButton :app="app" :label="t('compass.tooltip', 'Compass / Face North')" />
+            </div>
         </div>
-    </div>
+    </AppearanceTarget>
 </template>
 
 <style>
