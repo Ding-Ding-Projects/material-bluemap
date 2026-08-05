@@ -40,10 +40,10 @@ function i18n() {
     });
 }
 
-function render() {
+function render(modelValue = "") {
     return mount(MarkerSearchField, {
         props: {
-            modelValue: "",
+            modelValue,
             mode: "text",
             flags: "i",
             error: null,
@@ -59,8 +59,8 @@ function render() {
 }
 
 describe("the marker search field's keydown handling", () => {
-    it("lets Escape bubble out to an enclosing listener", async () => {
-        const wrapper = render();
+    it("lets Escape bubble out to an enclosing listener when the query is already empty", async () => {
+        const wrapper = render("");
         let escapeSeenByAncestor = false;
         wrapper.element.parentElement?.addEventListener("keydown", (event: KeyboardEvent) => {
             if (event.key === "Escape") escapeSeenByAncestor = true;
@@ -70,6 +70,28 @@ describe("the marker search field's keydown handling", () => {
         await input.trigger("keydown", { key: "Escape" });
 
         expect(escapeSeenByAncestor).toBe(true);
+
+        wrapper.unmount();
+    });
+
+    /**
+     * The two-step convention `MenuSearchList.vue` established: a non-empty query eats the
+     * first Escape and clears itself rather than letting the keystroke close the whole
+     * side sheet out from under someone who only meant to see the rest of the marker list
+     * again.
+     */
+    it("clears a non-empty query on the first Escape instead of letting it bubble", async () => {
+        const wrapper = render("village");
+        let escapeSeenByAncestor = false;
+        wrapper.element.parentElement?.addEventListener("keydown", (event: KeyboardEvent) => {
+            if (event.key === "Escape") escapeSeenByAncestor = true;
+        });
+
+        const input = wrapper.find("input");
+        await input.trigger("keydown", { key: "Escape" });
+
+        expect(escapeSeenByAncestor).toBe(false);
+        expect(wrapper.emitted("update:modelValue")).toEqual([[""]]);
 
         wrapper.unmount();
     });

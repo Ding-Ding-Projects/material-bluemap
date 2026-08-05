@@ -41,6 +41,21 @@ const patternWrap = ref<HTMLElement | null>(null);
 const sampleText = ref(props.sample);
 const copyState = ref("");
 
+/**
+ * Keeps ordinary typing in the pattern and sample fields from leaking out to whatever
+ * hosts this popover, without also swallowing Escape.
+ *
+ * A bare `@keydown.stop` did both: `ConfigSearchField.vue` opens this builder in a
+ * `v-menu`, and `VMenu` closes on Escape through a window-level listener it attaches for
+ * itself rather than one this component owns, so stopping every key here meant Escape
+ * never reached it and the popover looked unresponsive to the one key every other overlay
+ * in this app answers to. Matches the fix already applied to `markers/RegexBuilder.vue`,
+ * the marker search field's own builder.
+ */
+function stopUnlessEscape(event: KeyboardEvent): void {
+    if (event.key !== "Escape") event.stopPropagation();
+}
+
 watch(
     () => props.sample,
     (value) => {
@@ -212,7 +227,7 @@ async function copy(value: string, what: string): Promise<void> {
                     autocapitalize="off"
                     autocomplete="off"
                     hide-details="auto"
-                    @keydown.stop
+                    @keydown="stopUnlessEscape"
                 />
             </div>
 
@@ -261,7 +276,7 @@ async function copy(value: string, what: string): Promise<void> {
                 variant="outlined"
                 spellcheck="false"
                 hide-details="auto"
-                @keydown.stop
+                @keydown="stopUnlessEscape"
             />
 
             <v-alert v-if="evaluation.error" type="error" density="compact" variant="tonal" class="mt-2" role="alert">

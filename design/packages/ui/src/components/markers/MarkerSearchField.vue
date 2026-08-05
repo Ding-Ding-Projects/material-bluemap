@@ -68,9 +68,21 @@ function closeBuilder(): void {
  * `@keydown.esc="emit('back')"`. That made Escape a dead key while this field was focused:
  * it neither cleared the query nor closed the side sheet. Escape is not a camera key, so it
  * is explicitly let through.
+ *
+ * Escape now follows the same two-step convention `MenuSearchList.vue` established for
+ * every other filterable menu in this application: with a query still typed, the first
+ * Escape clears it and stops there, so the full marker list comes back rather than the
+ * whole side sheet vanishing out from under someone who only meant to see the rest of it
+ * again. With nothing left to clear, Escape is left alone to bubble to `MenuSideSheet`.
  */
 function onFieldKeydown(event: KeyboardEvent): void {
-    if (event.key === "Escape") return;
+    if (event.key === "Escape") {
+        if (props.modelValue === "") return;
+        event.preventDefault();
+        event.stopPropagation();
+        emit("update:modelValue", "");
+        return;
+    }
     event.stopPropagation();
 }
 </script>
