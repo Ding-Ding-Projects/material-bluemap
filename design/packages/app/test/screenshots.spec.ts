@@ -51,7 +51,7 @@
  * A section added in `packages/ui` therefore arrives in this set on its own, instead of
  * being silently missing until somebody notices.
  *
- * ## Two things to know before adding a capture
+ * ## Three things to know before adding a capture
  *
  * **Do not select a button by its accessible name.** Vuetify upper-cases button labels in
  * CSS, and an accessible name is computed after `text-transform`, so `getByRole("button",
@@ -64,6 +64,37 @@
  * captures this file has accumulated - so the run ends by publishing a manifest that
  * describes only whatever happened after the failure. Every surface is therefore opened
  * inside `attempt`, which records a gap instead of throwing.
+ *
+ * **`.mb-eula` is not a unique selector, and a bare wait on it hangs forever.**
+ * `EulaViewer.vue` is mounted in two places at once once first-run reaches its licence
+ * step: the standalone `EulaSurface` panel, always in the DOM behind `v-show` even while
+ * closed (see that component's own doc comment on why it is `v-show` and not `v-if`), and
+ * the compact copy inside the wizard's `SetupEulaStep`. `page.waitForSelector(".mb-eula",
+ * { state: "visible" })` resolves `document.querySelector(".mb-eula")` - the first match
+ * in DOM order, which is the always-hidden standalone panel mounted earlier in `App.vue`'s
+ * template - and polls *that* element's visibility, never the wizard's. It cannot become
+ * visible while closed, so the wait times out no matter how long the budget is; run
+ * 31003307669's trace shows exactly that (a clean 15000.0ms timeout, three times, once per
+ * worker launch that run spawned) and a diagnostic screenshot moments later shows the real
+ * step fully rendered - it was never slow, the wait was watching the wrong element the
+ * whole time. Scope the wait to the dialog (`card.locator(".mb-eula")`) and it resolves in
+ * about two seconds. Confirmed directly: `page.locator(".mb-eula").count()` is 2 once the
+ * step mounts, and `.first().isVisible()` is `false`.
+ *
+ * **First-run setup is not "one surface" like the others.** It is the one dialog in the
+ * whole application that is `persistent` - no Escape, no backdrop dismiss - which is
+ * correct product behaviour for the one decision that genuinely must be made before
+ * continuing, and exactly why a broken capture of it is not survivable the way a broken
+ * capture of, say, the changelog viewer is. If `captureFirstRun` gives up mid-flow (from
+ * the bug above, or anything else), the dialog stays open and its scrim blocks every click
+ * anywhere else in the shell - not just for the rest of `beforeAll`, but for the first
+ * click after every later `page.reload()`, because a reload remounts the app and asks
+ * `needsFirstRun()` again, and the answer is still "yes" until the flow's own Finish
+ * button has actually been reached. `captureFirstRun` therefore keeps photography and
+ * flow-progress on separate failure paths - a failed screenshot must never stop the flow
+ * from being driven to completion - and `beforeAll` checks afterwards, in
+ * `ensureFirstRunClosed`, that the dialog is really gone before handing control to the
+ * rest of the suite.
  */
 
 import {
@@ -578,6 +609,25 @@ function captureWorldFolder(): string | null {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Takes one first-run step's screenshot(s) without letting a failed capture stop the flow
+ * from being driven to completion.
+ *
+ * Every other surface in this file costs only itself when its capture fails, because
+ * `attempt` isolates it. First-run setup cannot be isolated the same way: the dialog it
+ * lives inside is `persistent`, so the only thing that ever gets it off screen is actually
+ * reaching Finish, and a photography failure - a bad crop, a write error, a stray
+ * assertion - must never be allowed to leave the click sequence stalled partway through.
+ */
+async function captureFirstRunStep(surface: string, run: () => Promise<void>): Promise<void> {
+    try {
+        await run();
+    } catch (error) {
+        const reason = error instanceof Error ? error.message.split("\n")[0] : String(error);
+        skip(surface, `the harness could not capture it in this run: ${reason}`);
+    }
+}
+
+/**
  * Photographs the first-run flow, then completes it.
  *
  * It has to run before anything else, because it is a blocking dialog over every other
@@ -605,54 +655,113 @@ async function captureFirstRun(): Promise<void> {
     const card = page.locator(".mb-setup-card");
     const actions = page.locator(".mb-setup-card__actions .v-btn");
 
-    await shoot(
-        "firstrun-1-welcome",
-        "First-run setup, the welcome step, with the three language modes and a separate funny level for each language",
-        { crop: card, cropped: "the first-run dialog" },
-    );
-    await shoot(
-        "firstrun-1-welcome-window",
-        "First-run setup as it appears over the whole application window on a fresh profile",
-    );
+    await captureFirstRunStep("First-run setup: welcome", async () => {
+        await shoot(
+            "firstrun-1-welcome",
+            "First-run setup, the welcome step, with the three language modes and a separate funny level for each language",
+            { crop: card, cropped: "the first-run dialog" },
+        );
+        await shoot(
+            "firstrun-1-welcome-window",
+            "First-run setup as it appears over the whole application window on a fresh profile",
+        );
+    });
 
     await actions.last().click({ timeout: ELEMENT_TIMEOUT });
     // The licence became its own step. Keep the capture honest: wait for that real
     // viewer, then press its Next control before looking for the consent question. The
     // old harness clicked once and waited for `.mb-setup-outcomes`, which left the EULA
     // dialog open and made every later tab click hit Vuetify's overlay scrim.
-    await page.waitForSelector(".mb-eula", { state: "visible", timeout: ELEMENT_TIMEOUT });
+    //
+    // Scoped to `card`, not `page`: `EulaViewer.vue` is also mounted, always, inside the
+    // standalone `EulaSurface` panel (`v-show`-hidden while closed, never removed from the
+    // DOM), so an unscoped `.mb-eula` matches that permanently-hidden copy first and a wait
+    // on it never resolves - see the module doc comment for how this was confirmed.
+    await card.locator(".mb-eula").waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
     await page.waitForTimeout(400);
-    await shoot(
-        "firstrun-2-eula",
-        "First-run setup, the Minecraft licence step, with the document provenance and its anchored search",
-        { crop: card, cropped: "the first-run dialog" },
-    );
+    await captureFirstRunStep("First-run setup: licence", async () => {
+        await shoot(
+            "firstrun-2-eula",
+            "First-run setup, the Minecraft licence step, with the document provenance and its anchored search",
+            { crop: card, cropped: "the first-run dialog" },
+        );
+    });
     await actions.last().click({ timeout: ELEMENT_TIMEOUT });
     await page.waitForSelector(".mb-setup-outcomes", {
         state: "visible",
         timeout: ELEMENT_TIMEOUT,
     });
     await page.waitForTimeout(400);
-    await shoot(
-        "firstrun-2-consent",
-        "First-run setup, the Minecraft files step, which asks once whether the application may download from Mojang and says what each answer means",
-        { crop: card, cropped: "the first-run dialog" },
-    );
+    await captureFirstRunStep("First-run setup: consent", async () => {
+        await shoot(
+            "firstrun-2-consent",
+            "First-run setup, the Minecraft files step, which asks once whether the application may download from Mojang and says what each answer means",
+            { crop: card, cropped: "the first-run dialog" },
+        );
+    });
 
     // Decline, not accept. It is a real answer, it is remembered, and it leaves the
     // machine this ran on in the state it was already in rather than recording an
     // agreement to somebody else's licence on their behalf.
     await page.locator(".mb-setup-card__answer").nth(1).click({ timeout: ELEMENT_TIMEOUT });
-    await page.waitForSelector(".mb-setup-storage", { state: "visible", timeout: ELEMENT_TIMEOUT });
+    await page.waitForSelector(".mb-setup-storage", {
+        state: "visible",
+        timeout: ELEMENT_TIMEOUT,
+    });
     await page.waitForTimeout(400);
-    await shoot(
-        "firstrun-3-storage",
-        "First-run setup, the map storage step, which asks where rendered maps should be written",
-        { crop: card, cropped: "the first-run dialog" },
-    );
+    await captureFirstRunStep("First-run setup: storage", async () => {
+        await shoot(
+            "firstrun-3-storage",
+            "First-run setup, the map storage step, which asks where rendered maps should be written",
+            { crop: card, cropped: "the first-run dialog" },
+        );
+    });
 
     await actions.last().click({ timeout: ELEMENT_TIMEOUT });
     await page.waitForSelector(".mb-setup-card", { state: "detached", timeout: 20_000 });
+}
+
+/**
+ * Last-resort recovery when `captureFirstRun` could not drive the dialog to completion.
+ *
+ * `attempt` keeps a thrown step from failing the whole run, but for this one surface that
+ * is not the same as making it safe to continue: the dialog is still open, still
+ * `persistent`, and about to survive the `page.reload()` that follows - because
+ * `needsFirstRun()` is asked fresh on every mount and the answer is still "yes" until
+ * `completeFirstRun()` has actually been called. Left alone, that reload does not clear
+ * the dialog, it recreates it, open, at the welcome step, for whichever test runs next.
+ *
+ * So this checks for exactly that: the card still attached after `captureFirstRun`
+ * returned. If it is, the run is told so - this is a real gap, not a silent recovery -
+ * and the harness calls the app's own `completeFirstRun()` bridge method directly, the
+ * same call the flow's own Finish button makes. That is not a fake dismissal: nothing
+ * here touches the scrim, the dialog's `visible` state, or any CSS. It is the one honest
+ * way left to make "first run is over" true without repeating the same click sequence
+ * that just failed for a reason this function does not know - and Mojang's licence stays
+ * declined either way, because nothing here calls `acceptDownload`.
+ */
+async function ensureFirstRunClosed(): Promise<void> {
+    const stillOpen = await page.locator(".mb-setup-card").count();
+    if (stillOpen === 0) return;
+
+    skip(
+        "First-run setup: completion",
+        "the flow did not reach Finish in this run; completing it directly through the " +
+            "bridge so the dialog does not reopen, still declined, after the reload that " +
+            "follows",
+    );
+    await page
+        .evaluate(async () => {
+            const bridge = (
+                window as unknown as { materialBluemap?: { completeFirstRun?: () => Promise<unknown> } }
+            ).materialBluemap;
+            await bridge?.completeFirstRun?.();
+        })
+        .catch(() => {
+            // Nothing left to try from here; `pointAppAtCaptureTarget` still reloads next,
+            // and if the dialog reopens the affected tests will report it honestly rather
+            // than hang silently, exactly as they did before this recovery existed.
+        });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -723,8 +832,11 @@ test.beforeAll(async () => {
     }
 
     // First, because it is a blocking dialog over everything else. Guarded, because a
-    // failure here must cost this one surface rather than the whole set.
+    // failure here must cost this one surface rather than the whole set - which
+    // `ensureFirstRunClosed` right after is what actually makes true, since `attempt` on
+    // its own only stops the exception, not the dialog it left open.
     await attempt("First-run setup", captureFirstRun);
+    await ensureFirstRunClosed();
 
     await pointAppAtCaptureTarget();
 
