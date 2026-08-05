@@ -99,10 +99,10 @@ describe("the doc disclosure, on a real marker set field", () => {
 });
 
 describe("the provenance line, on a real marker set field", () => {
-    it("says a freshly added set's un-set fields are inherited, naming the real Java default", async () => {
-        // `addSet` writes label/toggleable/default-hidden/sorting explicitly, so a
-        // record that omits them entirely is the "never touched" state a very old
-        // hand-edited file could still hold.
+    it("says a genuinely bare set's un-set fields are inherited, naming the real Java default", async () => {
+        // `{ markers: {} }` is exactly what `addSet` itself now writes for a brand new
+        // set - see the "adding a set" describe block below, which drives the real Add
+        // button rather than synthesising this record by hand.
         const wrapper = await mountMarkers({ spawn: { markers: {} } });
         expect(wrapper.text()).toContain("Not set here, so BlueMap uses 0.");
         expect(wrapper.text()).toContain("Not set here, so BlueMap uses on.");
@@ -137,5 +137,63 @@ describe("a spot check against MarkerSet's own real behaviour", () => {
     it("explains that default-hidden only matters while the set is toggleable", async () => {
         const wrapper = await mountMarkers(SPAWN_DEFAULT);
         expect(wrapper.text()).toContain("Only meaningful while the set is toggleable");
+    });
+});
+
+/**
+ * The Add button itself, which is what actually decides whether the "not set" branch
+ * above is reachable in the shipped app or only in a hand-edited file nobody uses this
+ * editor to produce.
+ *
+ * It used to write `label`, `toggleable`, `default-hidden` and `sorting` explicitly the
+ * moment a set was created - BlueMap's own real values, but never anything the person
+ * asked for, since all they typed was an id. That made every set anybody actually created
+ * through this screen read as "Set here" for four things nobody set, and the "Not set
+ * here" branch reachable only by hand-editing a file outside the app entirely.
+ */
+describe("adding a set", () => {
+    function mountForAdd() {
+        const emitted: (Record<string, PlainValue> | null)[] = [];
+        const host = defineComponent({
+            setup: () =>
+                () =>
+                    h(VApp, () => [
+                        h(ConfigMarkerSetsField, {
+                            modelValue: {},
+                            label: "Marker sets",
+                            "onUpdate:modelValue": (value: Record<string, PlainValue>) => emitted.push(value),
+                        }),
+                    ]),
+        });
+        const wrapper = mount(host, { global: { plugins: [vuetify, emptyI18n()] } });
+        return { wrapper, emitted };
+    }
+
+    it("writes only the id and an empty markers object, none of the four container properties", async () => {
+        const { wrapper, emitted } = mountForAdd();
+
+        await wrapper.find("input").setValue("spawn");
+        await wrapper.findAllComponents(VBtn).find((btn) => btn.text() === "Add")!.trigger("click");
+
+        expect(emitted).toHaveLength(1);
+        expect(emitted[0]).toEqual({ spawn: { markers: {} } });
+    });
+
+    it("makes a freshly created set's own provenance line say every property is inherited", async () => {
+        const { wrapper, emitted } = mountForAdd();
+
+        await wrapper.find("input").setValue("spawn");
+        await wrapper.findAllComponents(VBtn).find((btn) => btn.text() === "Add")!.trigger("click");
+        const written = emitted[0];
+        expect(written).toBeDefined();
+
+        // What a parent normally does with this emission - feeds it straight back in as
+        // the next `modelValue` - reusing the same helper the rest of this file mounts
+        // an already-written record with, so this is a real record read the same way.
+        const reopened = await mountMarkers(written ?? null);
+        expect(reopened.text()).toContain("Not set here, so BlueMap uses on.");
+        expect(reopened.text()).toContain("Not set here, so BlueMap uses off.");
+        expect(reopened.text()).toContain("Not set here, so BlueMap uses 0.");
+        expect(reopened.text()).toContain("Not set here, so BlueMap uses nothing.");
     });
 });

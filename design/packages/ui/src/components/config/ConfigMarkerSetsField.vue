@@ -135,9 +135,18 @@ function addSet(): void {
     }
     notice.value = null;
     newId.value = "";
+    // None of the four container properties are written here, on purpose: the person
+    // typed an id, not a label, a sorting value, a toggle state or a starting visibility,
+    // and writing BlueMap's own defaults into the record as if they had would make the
+    // provenance line below claim "Set here" for four things nobody set. `markers` is
+    // the one genuine structural requirement - every set needs a markers object, even an
+    // empty one - and carries no default of its own to fabricate. Verified against
+    // `MarkerSet`'s deserialization constructor in `vendor/BlueMap`: a set with none of
+    // the four keys present loads exactly as one that named them all with these values,
+    // so nothing here changes what a freshly created set looks like once BlueMap reads it.
     commit({
         ...(props.modelValue ?? {}),
-        [id]: { label: id, toggleable: true, "default-hidden": false, sorting: 0, markers: {} },
+        [id]: { markers: {} },
     });
 }
 

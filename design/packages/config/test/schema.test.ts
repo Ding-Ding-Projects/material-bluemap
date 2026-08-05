@@ -94,6 +94,16 @@ describe("mask shapes", () => {
             expect(shape.fields.map((field) => field.path)).toContain("subtract");
         }
     });
+
+    it("states the box shape's real constraint - min equal to max is legal, only min above max is refused", () => {
+        // `BoxMaskConfig.createMask` in the vendored Java (see the cross-check below for
+        // where) refuses with `minX > maxX || ...`, a strict greater-than. A doc that says
+        // "min below max" reads as `min < max` required, which would wrongly tell somebody
+        // that a zero-thickness box - a legal, if degenerate, mask - is refused.
+        const box = MASK_SHAPES.find((shape) => shape.key === "box");
+        expect(box?.doc).not.toContain("below max");
+        expect(box?.doc).toContain("must not be greater than");
+    });
 });
 
 // ---------------------------------------------------------------------------

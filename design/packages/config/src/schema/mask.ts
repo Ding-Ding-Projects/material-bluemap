@@ -179,7 +179,7 @@ export const MASK_SHAPES: readonly MaskShapeMeta[] = [
         key: "box",
         formattedKey: "bluemap:box",
         label: "Box",
-        doc: "An axis-aligned cuboid. Every axis is optional; an axis left out is unbounded. All six values must have min below max or BlueMap refuses the config.",
+        doc: "An axis-aligned cuboid. Every axis is optional; an axis left out is unbounded. On every axis, min must not be greater than max - min equal to max is a legal, degenerate box, and only min above max makes BlueMap refuse the config.",
         fields: [
             SUBTRACT_FIELD,
             maskField("min-x", "minX", "Minimum X", UNBOUNDED_MIN, integerControl({ step: 1, unit: "blocks" }), JAVA_INT_MIN),

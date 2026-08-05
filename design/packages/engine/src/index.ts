@@ -412,6 +412,49 @@ export { FileMapStorage } from "./storage/file/FileMapStorage.js";
 export { FileGridStorage } from "./storage/file/FileGridStorage.js";
 export { FileItemStorage, fileExists } from "./storage/file/FileItemStorage.js";
 
+// storage/sql
+export { SQLStorage } from "./storage/sql/SQLStorage.js";
+export { SQLMapStorage } from "./storage/sql/SQLMapStorage.js";
+export { SQLGridStorage } from "./storage/sql/SQLGridStorage.js";
+export { SQLItemStorage } from "./storage/sql/SQLItemStorage.js";
+export {
+    Database,
+    MissingSqlDriverError,
+    SqlRecoverableError,
+    SqlUniqueViolationError,
+    type SqlConnectionHandle,
+    type SqlDriverAdapter,
+    type SqlExecuteResult,
+    type SqlParam,
+    type SqlRow,
+    type SqlValue,
+} from "./storage/sql/Database.js";
+export {
+    DIALECT_REGISTRY,
+    MARIADB,
+    MYSQL,
+    POSTGRESQL,
+    resolveDialect,
+    SQLITE,
+    UnknownDialectError,
+    type Dialect,
+    type SqlConnectionOptions,
+} from "./storage/sql/Dialect.js";
+export { collectPages } from "./storage/sql/PageSpliterator.js";
+export type { CommandSet, TilePosition } from "./storage/sql/commandset/CommandSet.js";
+export { AbstractCommandSet } from "./storage/sql/commandset/AbstractCommandSet.js";
+export { MySQLCommandSet } from "./storage/sql/commandset/MySQLCommandSet.js";
+export { PostgreSQLCommandSet } from "./storage/sql/commandset/PostgreSQLCommandSet.js";
+export { SqliteCommandSet } from "./storage/sql/commandset/SqliteCommandSet.js";
+
+// storage (factory)
+export {
+    fileStorageFromConfig,
+    InvalidStorageConfigError,
+    sqlStorageFromConfig,
+    storageFromConfig,
+} from "./storage/StorageFactory.js";
+
 // storage/compression
 export { Compression } from "./storage/compression/Compression.js";
 export {
