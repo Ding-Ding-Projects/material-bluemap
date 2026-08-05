@@ -401,6 +401,7 @@ const rowName = (row: TabGroupPickerRow): string =>
                         :color="entry.row.color"
                         variant="tonal"
                         class="mb-tab-group-picker__swatch"
+                        :title="entry.row.name"
                         aria-hidden="true"
                     >
                         {{ entry.row.name }}

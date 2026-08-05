@@ -206,6 +206,28 @@ describe("the group list", () => {
         expect(options).toHaveLength(1);
         expect(options[0]?.text()).toContain("New group...");
     });
+
+    /**
+     * Regression: `.mb-tab-group-picker__swatch` sets `max-width: 220px` with
+     * `overflow: hidden; text-overflow: ellipsis` (`TabGroupPicker.vue`'s own `<style>`),
+     * so a group name longer than that fits truncates visually. The row's own
+     * `aria-label` (`rowName`) still carries the full name for a screen reader, but a
+     * sighted user had no way at all to recover the part the ellipsis ate -- no native
+     * tooltip, nothing. Group names are free text with no length limit anywhere in
+     * `TabGroupMenu.vue`'s create/rename dialog, so this is not a hypothetical: a user
+     * naming a group in bilingual mode (English plus Cantonese together, exactly how this
+     * project's own bilingual mode renders) blows straight past 220px in a single word.
+     */
+    it("carries the full group name as a native title, even once the chip truncates it", () => {
+        const longName = "Survival server backups · 生存伍器備份檔案归檔";
+        const wrapper = mountPicker({
+            ...STRIP,
+            groups: [{ id: "g1", name: longName, color: "primary", collapsed: false, tabIds: ["a"], appearance: null }],
+        });
+        const chip = wrapper.find(".mb-tab-group-picker__swatch");
+        expect(chip.exists()).toBe(true);
+        expect(chip.attributes("title")).toBe(longName);
+    });
 });
 
 describe("searching the picker", () => {

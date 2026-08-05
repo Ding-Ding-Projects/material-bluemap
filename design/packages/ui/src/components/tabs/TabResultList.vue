@@ -67,6 +67,7 @@ function act(action: string, hit: TabHit): void {
                 variant="text"
                 size="small"
                 block
+                :title="hit.label"
                 @click="emit('activate', hit)"
             >
                 <span class="mb-tabs-results__label">{{ hit.label }}</span>
