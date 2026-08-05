@@ -159,6 +159,23 @@ const PHASE_LABEL_KEYS: Readonly<Record<PhaseRow["status"], FixedKey>> = {
 };
 
 /**
+ * The small uppercase label above each capability group's own heading.
+ *
+ * `HomeFeatureGroup.id` is a plain string, not a closed union (`home.ts` owns the actual
+ * set), so this is a `Map` rather than a `Record`: a lookup for an id nobody has written a
+ * kicker for yet returns `undefined` and `renderFeatures` below simply renders no kicker
+ * for that group, instead of a `Record` claiming a `FixedKey` is always there when it is
+ * not. The five entries here are every group `home.ts` declares today.
+ */
+const FEATURE_GROUP_KICKER_KEYS: ReadonlyMap<string, FixedKey> = new Map([
+    ["render", "home.groupKickerRender"],
+    ["app", "home.groupKickerApp"],
+    ["working", "home.groupKickerWorking"],
+    ["engine", "home.groupKickerEngine"],
+    ["delivery", "home.groupKickerDelivery"],
+]);
+
+/**
  * A status badge.
  *
  * The badge is a word before it is a colour, and the note the caller renders beside it says
@@ -457,6 +474,12 @@ function renderFeatures(host: HTMLElement, navigation: PageNavigation, i18n: I18
 
     for (const group of home.featureGroups) {
         const groupEl = el("div", "mb-feature-group");
+        const kickerKey = FEATURE_GROUP_KICKER_KEYS.get(group.id);
+        if (kickerKey !== undefined) {
+            const kicker = el("p", "mb-feature-group-kicker");
+            i18n.bindText(kicker, kickerKey);
+            groupEl.appendChild(kicker);
+        }
         groupEl.appendChild(el("h3", "mb-feature-group-title", group.title));
         groupEl.appendChild(el("p", "mb-section-lede", group.lede));
 

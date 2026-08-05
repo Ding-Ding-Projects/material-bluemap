@@ -1190,6 +1190,29 @@ export const FIXED = {
         yue: "開源項目 · BlueMap 嘅 TypeScript 移植版",
     },
     "home.changelogButtonLabel": { en: "See what changed", yue: "睇吓改咗啲乜" },
+
+    /* The small kicker line above each capability group's own heading in "What it can
+       do" -- see FEATURE_GROUP_KICKER_KEYS in main.ts. */
+    "home.groupKickerRender": {
+        en: "Ways to render a world",
+        yue: "起世界地圖嘅幾種方法",
+    },
+    "home.groupKickerApp": {
+        en: "Inside the desktop app",
+        yue: "喺桌面應用程式入面",
+    },
+    "home.groupKickerWorking": {
+        en: "Day to day in the shell",
+        yue: "喺介面入面嘅日常操作",
+    },
+    "home.groupKickerEngine": {
+        en: "How blocks become geometry",
+        yue: "方塊點樣變成模型",
+    },
+    "home.groupKickerDelivery": {
+        en: "From push to release",
+        yue: "由推送到發佈",
+    },
 } as const satisfies Record<string, FixedString>;
 
 export type VoicedKey = keyof typeof VOICED;

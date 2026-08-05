@@ -83,14 +83,37 @@ describe("settings kicker", () => {
 });
 
 describe("settings card-wall layout", () => {
-    it("lays out section cards as a responsive 2-column grid above the shared breakpoint", () => {
+    it("keeps the search toolbar out of the card-wall's own layout container", () => {
+        // The bug this pass fixed: the toolbar (search row, hint, summary) used to be a
+        // bare sibling of the section cards inside the very grid that laid the cards
+        // out in two columns, so a near-empty summary claimed a card-sized cell next to
+        // a tall settings group. `.mb-settings-panel` is a plain single-column flow now
+        // -- the toolbar and the card-wall container stack in it, nothing shares a row.
         const panelRule = /\.mb-settings-panel\s*{[^}]*}/.exec(settingsCss)?.[0] ?? "";
-        expect(panelRule).toContain("display: grid");
+        expect(panelRule).toContain("display: flex");
+        expect(panelRule).toContain("flex-direction: column");
+        expect(panelRule).not.toMatch(/display:\s*grid/);
+    });
+
+    it("lays out the card-wall as two independent columns above the shared breakpoint", () => {
+        // Independent flex columns, not a shared CSS Grid: a grid's rows couple both
+        // columns to the same row height, so a much taller card in one column opens a
+        // dead gap under a shorter card in the other. Two independent columns have no
+        // shared row to couple through, at any width.
+        const cardsRule = /\.mb-settings-cards\s*{[^}]*}/.exec(settingsCss)?.[0] ?? "";
+        expect(cardsRule).toContain("display: flex");
+        expect(cardsRule).toContain("flex-direction: column");
         const wideRule =
-            /@media \(width >= 56\.25rem\)\s*{\s*\.mb-settings-panel\s*{[^}]*grid-template-columns:\s*repeat\(2,\s*1fr\);/.exec(
+            /@media \(width >= 56\.25rem\)\s*{\s*\.mb-settings-cards\s*{[^}]*flex-direction:\s*row;/.exec(
                 settingsCss,
             );
         expect(wideRule).not.toBeNull();
+        const columnWideRule =
+            /\.mb-settings-column\s*{[^}]*flex:\s*1 1 0;/.exec(settingsCss) ??
+            /flex-direction:\s*row;\s*align-items:\s*flex-start;\s*}\s*\.mb-settings-column\s*{[^}]*flex:\s*1 1 0;/.exec(
+                settingsCss,
+            );
+        expect(columnWideRule).not.toBeNull();
     });
 
     // The bare `.mb-settings-group {` rule, not the `:root[data-mb-elevation="off"] …,

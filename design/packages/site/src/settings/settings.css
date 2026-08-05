@@ -448,24 +448,57 @@
 }
 
 /*
- * A responsive card-wall rather than a single stacked column: two section cards sit
- * side by side once there is room for them, and fall back to one column under the
- * same ~56.25rem breakpoint the home hero already uses, so the site has one shared
- * "this is where wide layouts fold" convention rather than a different one per page.
- * Every card here is still the same `<section class="mb-settings-group">` the schema
- * loop in page.ts already emits — this is a layout change only, nothing new to query.
+ * The panel itself is a plain single-column flow: the tab's own search toolbar (a row,
+ * a hint, a result summary), an optional description, and then the card-wall below.
+ * This used to be the 2-column grid itself, with the toolbar elements as bare siblings
+ * of the section cards inside it -- which meant a nearly-empty `.mb-search-summary`
+ * (blank until a search is active) claimed a cell in the same row-major flow as the
+ * cards. On a 2-group tab (General, Accessibility) that produced exactly the reported
+ * defect: the first card pushed into column two, the second dropped a full row down,
+ * and a card-sized dead rectangle sat where the empty summary's row had been stretched
+ * to match its tall neighbour. `.mb-settings-cards` below is the real card-wall now,
+ * scoped to hold nothing else.
  */
 .mb-settings-panel {
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: column;
     gap: var(--md-sys-spacing-5);
     padding-top: 16px;
-    align-items: start;
+}
+
+/*
+ * Two independent flex columns, not a shared CSS Grid: a grid's rows are shared across
+ * both columns, so two cards placed in the "same row" are forced to a shared row
+ * height, and a much taller card in one column leaves a dead gap under its shorter
+ * neighbour in the other -- the same underlying coupling that made the toolbar bug
+ * above so visible once it landed a near-empty item next to a tall settings group.
+ * Independent columns have no shared row to couple through, so a tall card in one
+ * column never opens a hole in the other, at any width. `page.ts` splits the tab's
+ * groups first-half/second-half (not interleaved), so stacking the two columns under
+ * the breakpoint reads in the same natural group order as before this pass.
+ */
+.mb-settings-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-5);
+    align-items: stretch;
+}
+
+.mb-settings-column {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-5);
+    min-width: 0;
 }
 
 @media (width >= 56.25rem) {
-    .mb-settings-panel {
-        grid-template-columns: repeat(2, 1fr);
+    .mb-settings-cards {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+
+    .mb-settings-column {
+        flex: 1 1 0;
     }
 }
 

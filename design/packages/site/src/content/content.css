@@ -128,9 +128,13 @@
  * `.mb-page-kicker` shares this exact rule rather than duplicating it: the same eyebrow
  * register belongs above the Documentation and Changelog page titles (rendered by
  * `renderDocs` and `createChangelogView`), just outside the hero this rule was named for.
+ * `.mb-feature-group-kicker` reuses it a third time, above each capability group's own
+ * `<h3>` in `renderFeatures` -- the same "distinct register before a visitor reads a
+ * single word" idea, now reaching the part of the page that used to have none of it.
  */
 .mb-hero-kicker,
-.mb-page-kicker {
+.mb-page-kicker,
+.mb-feature-group-kicker {
     margin: 0;
     color: var(--md-sys-color-primary);
     font-family: var(--md-sys-typescale-label-large-font);
@@ -598,10 +602,20 @@
  * is marked with a border rather than only with words. The words still say it: the flag
  * below is text, not a colour. Fill and border-colour are the only things this pass
  * changes here; the `data-runs` flag and what it names stay exactly as they were.
+ *
+ * Shape carries the same distinction: the card that runs today keeps the plain "large"
+ * radius every other surface on the site reaches for, and the one that does not gets an
+ * asymmetric cut -- a small, quieter corner treatment that reads as "not the finished
+ * shape yet" without a word of copy saying so twice.
  */
 .mb-engine[data-runs="true"] {
     border-color: var(--md-sys-color-primary);
     background: var(--md-sys-color-surface-container);
+}
+
+.mb-engine[data-runs="false"] {
+    border-radius: var(--md-sys-shape-corner-small) var(--md-sys-shape-corner-large)
+        var(--md-sys-shape-corner-small) var(--md-sys-shape-corner-large);
 }
 
 .mb-engine-flag {
@@ -678,6 +692,54 @@
 .mb-card:focus-within {
     box-shadow: var(--md-sys-elevation-level2);
     transform: translateY(-2px);
+}
+
+/*
+ * The same four-role cycle `.mb-stat` already uses, reaching the section that actually
+ * carries most of this page's own scroll length: "What it can do" alone runs to roughly
+ * forty cards across five groups. `nth-of-type` restarts for every `.mb-card-grid` (a new
+ * grid per group), so each group opens on the primary tone rather than continuing a count
+ * from the group before it. A neutral fourth role keeps every fourth card muted, so the
+ * capability section reads as coloured without turning into an unbroken wall of chroma.
+ * Shape varies with the same cycle: two asymmetric-corner cards, one small, one medium,
+ * rather than the single 16px radius every card on this page shared before this pass.
+ */
+.mb-card:nth-of-type(4n + 1) {
+    border-radius: var(--md-sys-shape-corner-large) var(--md-sys-shape-corner-extra-small)
+        var(--md-sys-shape-corner-large) var(--md-sys-shape-corner-extra-small);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+
+.mb-card:nth-of-type(4n + 2) {
+    border-radius: var(--md-sys-shape-corner-small);
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.mb-card:nth-of-type(4n + 3) {
+    border-radius: var(--md-sys-shape-corner-extra-small) var(--md-sys-shape-corner-large)
+        var(--md-sys-shape-corner-extra-small) var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-tertiary-container);
+    color: var(--md-sys-color-on-tertiary-container);
+}
+
+.mb-card:nth-of-type(4n + 4) {
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+}
+
+/*
+ * Inherited rather than the fixed on-surface-variant it carries everywhere else (the
+ * documentation index's article summaries, for instance, which sit on a plain neutral
+ * surface and still need that fixed value): inside a card the M3 "on-<role>-container"
+ * tone the card itself just painted is what stays contrast-safe, exactly the reasoning
+ * `.mb-stat-detail` above already documents for the same problem in the stats grid.
+ */
+.mb-card .mb-status-note {
+    color: inherit;
+    opacity: 0.82;
 }
 
 .mb-card-head {

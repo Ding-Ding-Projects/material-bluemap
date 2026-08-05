@@ -387,7 +387,34 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             panel.append(description);
         }
 
-        for (const group of tab.groups) {
+        /*
+         * The card-wall lives in its own container, holding nothing but the group
+         * sections below. It used to be `panel` itself that carried the 2-column grid,
+         * with the search toolbar above (a row, a hint, a result summary) as bare
+         * siblings of the section cards in that same grid -- so a nearly-empty
+         * `.mb-search-summary` (blank until a search is active) claimed its own cell in
+         * the same row-major flow as the cards. On a 2-group tab (General,
+         * Accessibility) that pushed the first card into column two, dropped the second
+         * a full row down, and left a card-sized dead rectangle where the empty
+         * summary's row had been stretched to match its tall neighbour. See
+         * `.mb-settings-cards` in settings.css for the fix: two independent columns
+         * that never share a grid row, so one tall card can never open a hole under a
+         * shorter one in the other column.
+         */
+        const cards = el("div", { class: "mb-settings-cards" });
+        const columnCount = tab.groups.length > 1 ? 2 : 1;
+        const columns: HTMLElement[] = [];
+        for (let i = 0; i < columnCount; i += 1) {
+            const column = el("div", { class: "mb-settings-column" });
+            columns.push(column);
+            cards.append(column);
+        }
+        // First-half/second-half, not interleaved: at a narrow width the two columns
+        // stack (column one above column two), and this split is exactly what keeps
+        // that stacked order identical to the tab's own natural group order.
+        const perColumn = Math.ceil(tab.groups.length / columnCount);
+
+        tab.groups.forEach((group, index) => {
             const section = el("section", {
                 class: "mb-settings-group",
                 data: { mbKind: "card" },
@@ -424,8 +451,11 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                 section.append(buildGlobalReset());
             }
 
-            panel.append(section);
-        }
+            const columnIndex = columnCount === 1 ? 0 : Math.floor(index / perColumn);
+            (columns[columnIndex] ?? columns[columns.length - 1])?.append(section);
+        });
+
+        panel.append(cards);
     }
 
     /**
