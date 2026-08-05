@@ -303,9 +303,9 @@ export const home: HomeContent = {
                 {
                     title: "Render a world on your own machine",
                     body: "Point the application at a world folder and it renders it: the JVM found or installed for you, the configuration written, the renderer's progress read line by line, and the finished map opened in the viewer without leaving the app.",
-                    status: "ported-unverified",
+                    status: "shipped",
                     statusNote:
-                        "Built and unit tested, and one 961-tile render was produced by hand on one Windows machine. It has not run in CI, on macOS or on Linux, and that render was driven by invoking the renderer directly rather than through the app.",
+                        "Built and unit tested (331 tests for render and Java together), a real Java-engine render has run in CI on every push since 2026-08-03, and the app's own orchestrator - ensureJava, the config writer, the runner and provenance.ts, together - has now been driven by a real JVM too, not just invoked as java -jar from a shell script. See the java-render-path article's Verification section for both real-JVM proofs and their exact commands.",
                     articleId: "java-render-path",
                     reading: [{ label: "design/docs/decisions.md", href: DECISIONS_URL }],
                 },
@@ -643,9 +643,9 @@ export const home: HomeContent = {
                 {
                     title: "Seven upstream builds, compiled from source",
                     body: "The command line renderer and the six Minecraft server plugins are built unmodified from the vendored upstream source in CI, so the engine the application drives is one this repository produced rather than a binary downloaded from somewhere.",
-                    status: "ported-unverified",
+                    status: "shipped",
                     statusNote:
-                        "The reusable workflow is on the default branch and only the command line renderer has been built by hand on a developer machine. No server plugin has been loaded by a real Minecraft server, and this page does not claim a green run of that workflow.",
+                        "The reusable workflow is on the default branch and runs as CI's jars job on every push, confirmed green alongside the real render test-world does (run 31042450590). The command line renderer has been built and driven by hand, and now also through the app's own orchestrator - see the java-render-path article. What remains unverified is a different, larger claim this card does not make: no server plugin (fabric, forge, neoforge, paper, spigot, sponge) has been loaded by a real Minecraft server.",
                     articleId: "java-render-path",
                     reading: [{ label: ".github/workflows/build-jars.yml", href: BUILD_JARS_WORKFLOW_URL }],
                 },
