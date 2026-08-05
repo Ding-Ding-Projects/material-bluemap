@@ -40,6 +40,8 @@
 
 import { inject, provide, type InjectionKey } from "vue";
 import type { ProjectFile, ProjectReadFailure } from "@material-bluemap/config";
+import type { HistoryRestoreResult } from "../history/historyHost.js";
+import type { SimpleHistoryHost, SimpleHistoryListing } from "../history/simpleHistoryHost.js";
 
 /* -------------------------------------------------------------------------- */
 /* What a listing row knows                                                    */
@@ -218,6 +220,60 @@ export function useProjectHost(): ProjectHost | null {
 /** The bridge on `window`, probed. Exported for the surfaces that resolve their own. */
 export function resolveProjectHost(): ProjectHost | null {
     return projectHostFromBridge(typeof globalThis === "undefined" ? null : (globalThis as { materialBluemap?: unknown }).materialBluemap);
+}
+
+/* -------------------------------------------------------------------------- */
+/* A project file's own version history                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The shape `bridge.project.history`/`bridge.project.restore` are expected to satisfy.
+ *
+ * Declared here rather than relied on from `bridge.d.ts`, for the same reason
+ * {@link BridgeProjectApi} is: this surface compiles against a shell that has not grown the
+ * two methods yet and degrades to "no host" at runtime instead of failing to build.
+ * `history`'s answer is read structurally as a {@link SimpleHistoryListing} - it carries one
+ * field this does not need (`worldFolder`, which the caller already knows) and nothing this
+ * needs is missing, so no field-by-field remapping is required to satisfy that shape.
+ */
+interface BridgeProjectHistoryApi {
+    history(worldFolder: string, limit?: number): Promise<SimpleHistoryListing>;
+    restore(worldFolder: string, id: string): Promise<HistoryRestoreResult>;
+}
+
+/**
+ * Browse-and-restore for one project file, bound to the world it lives in.
+ *
+ * `main/project/ipc.ts` registers `project:history` and `project:restore` and
+ * `project:save`'s own doc comment already promises "records exactly one revision of it" -
+ * every save was writing a revision with nothing in this package ever reading one back. This
+ * is `SimpleHistoryList.vue`'s narrow host (list and restore, nothing else - see
+ * `../history/simpleHistoryHost.ts` for why a project's history does not need the config-folder
+ * panel's other six methods), curried on the one world folder a mounted editor is ever open on,
+ * since (unlike the profile list or the application settings) a project's history is scoped to
+ * a particular world rather than to one global store.
+ */
+export function projectHistoryHostFor(bridge: unknown, worldFolder: string): SimpleHistoryHost | null {
+    if (typeof bridge !== "object" || bridge === null) return null;
+    const api = (bridge as { project?: unknown }).project;
+    if (typeof api !== "object" || api === null) return null;
+
+    const candidate = api as Partial<BridgeProjectHistoryApi>;
+    if (!isFunction(candidate.history) || !isFunction(candidate.restore)) return null;
+    const ready = api as BridgeProjectHistoryApi;
+
+    return {
+        list: (limit) => ready.history(worldFolder, limit),
+        restore: (id) => ready.restore(worldFolder, id),
+    };
+}
+
+/** The bridge on `window`, probed and bound to `worldFolder`. */
+export function resolveProjectHistoryHost(worldFolder: string): SimpleHistoryHost | null {
+    return projectHistoryHostFor(
+        typeof globalThis === "undefined" ? null : (globalThis as { materialBluemap?: unknown }).materialBluemap,
+        worldFolder,
+    );
 }
 
 /** One sentence explaining what cannot be done and why, for a surface with no host. */

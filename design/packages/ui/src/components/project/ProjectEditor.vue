@@ -26,8 +26,10 @@ import { clearFieldValue, replaceText, setFieldValue } from "../config/configMod
 import { valueToText } from "../config/fieldValue.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { TabbedNavigation, type TabPage } from "../tabs/index.js";
+import { SimpleHistoryList } from "../history/index.js";
 import ProjectMapsPanel from "./ProjectMapsPanel.vue";
 import ProjectStoragesPanel from "./ProjectStoragesPanel.vue";
+import { resolveProjectHistoryHost } from "./projectHost.js";
 import {
     EMPTY_RENDER,
     SINGLETONS,
@@ -121,10 +123,23 @@ const defaultRootValue = computed(() => props.defaultRoot ?? "");
 const TAB_MAPS = "maps";
 const TAB_STORAGES = "storages";
 const TAB_RENDER = "render";
+const TAB_HISTORY = "history";
 
 const tabsNav = ref<InstanceType<typeof TabbedNavigation> | null>(null);
 const selectedMap = ref<string | null>(null);
 const selectedStorage = ref<string | null>(null);
+
+/**
+ * This project file's own version history, bound to the world it lives in.
+ *
+ * `project:save` has recorded one revision per save since the project layer landed; this is
+ * what lets somebody actually browse and restore that record rather than it existing only on
+ * disk. Recomputed from `world` rather than resolved once, because a person can close one
+ * project and open another without the editor unmounting.
+ */
+const projectHistoryHost = computed(() =>
+    resolveProjectHistoryHost(props.world),
+);
 
 const maps = computed(() => orderedMaps(props.project));
 
@@ -188,6 +203,7 @@ const pages = computed<TabPage[]>(() => [
         icon: null,
     },
     { id: TAB_RENDER, label: t("project.editor.tab.render", "How it renders"), icon: null },
+    { id: TAB_HISTORY, label: t("project.editor.tab.history", "History"), icon: null },
     ...singletonTabs.value.map((tab) => ({ id: tab.id, label: tab.label, icon: null })),
 ]);
 
@@ -621,6 +637,13 @@ function setOutputFolder(value: string): void {
                         {{ t("project.render.noMatches", "Nothing on this tab matches. The other tabs may still have results.") }}
                     </p>
                 </section>
+            </template>
+
+            <template #history>
+                <SimpleHistoryList
+                    :title="t('project.editor.tab.history', 'History')"
+                    :host="projectHistoryHost"
+                />
             </template>
 
             <template v-for="tab in singletonTabs" :key="tab.id" #[tab.id]>
