@@ -30,11 +30,21 @@
  */
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
-import type { DiscoverJavaOptions, JavaDiscovery, JavaSource } from "./discovery.js";
+import type { DiscoverJavaOptions, JavaDiscovery, JavaInstallation, JavaSource } from "./discovery.js";
 import { discoverJava } from "./discovery.js";
+import { acceptJavaDownloadConsent, readJavaDownloadConsent } from "./consent.js";
+import type { ProvisionEvent } from "./provision.js";
 
 /** Every channel this module registers, so `dispose` cannot drift from `register`. */
-export const JAVA_CHANNELS = ["java:runtime"] as const;
+export const JAVA_CHANNELS = [
+    "java:runtime",
+    "java:downloadConsent",
+    "java:acceptDownloadConsent",
+    "java:provision",
+] as const;
+
+/** The channel every `java:provision` progress event arrives on. */
+export const JAVA_PROVISION_EVENT_CHANNEL = "java:provisionEvent";
 
 /** Mirrors `JavaVersionInfo`, rebuilt rather than forwarded. */
 export interface JavaVersionSummary {
@@ -165,11 +175,54 @@ export function summariseDiscovery(discovery: JavaDiscovery): JavaRuntimeSummary
     };
 }
 
+/** What `java:downloadConsent` and `java:acceptDownloadConsent` answer with. */
+export interface JavaDownloadConsentSummary {
+    readonly accepted: boolean;
+    readonly acceptedAt: string | null;
+}
+
+/**
+ * What {@link JavaIpcOptions.ensure} is called with.
+ *
+ * A small interface local to this file rather than `EnsureJavaOptions` imported from
+ * `./index.js`, so this module never depends on the one that already depends on it -
+ * `index.ts` imports `registerJavaHandlers` from here, and a reverse import would be
+ * circular. The app wires the real `ensureJava` in at startup; tests inject a fake.
+ */
+export interface JavaEnsureCallOptions {
+    readonly dataDir: string;
+    readonly allowProvisioning: true;
+    readonly onEvent: (event: ProvisionEvent) => void;
+}
+
+export interface JavaEnsureCallResult {
+    readonly installation: JavaInstallation;
+    readonly provisioned: boolean;
+}
+
+/** What `java:provision` answers with. Never rejects - see the module doc on `bedrock:convert`. */
+export type JavaProvisionOutcome =
+    | {
+          readonly ok: true;
+          readonly installation: JavaInstallationSummary;
+          readonly provisioned: boolean;
+      }
+    | { readonly ok: false; readonly message: string };
+
 export interface JavaIpcOptions {
     /** Electron's `userData`. Only needed to find a JDK the app provisioned for itself. */
     readonly dataDir: string;
     /** Injected in tests, so no JVM is ever launched to prove this file works. */
     readonly discover?: (options: DiscoverJavaOptions) => Promise<JavaDiscovery>;
+    /**
+     * Produces a usable JVM, downloading one when `allowProvisioning` is set and discovery
+     * found nothing suitable. Optional: a build that never wires this in answers
+     * `java:provision` with an honest refusal rather than a thrown error, the same way an
+     * unsupported bridge method degrades everywhere else in this app.
+     */
+    readonly ensure?: (options: JavaEnsureCallOptions) => Promise<JavaEnsureCallResult>;
+    /** Where `java:provision` progress goes. Supplied by the caller; defaults to nowhere. */
+    readonly broadcast?: (event: ProvisionEvent) => void;
 }
 
 export interface JavaIpc {
@@ -191,7 +244,10 @@ export interface JavaIpc {
  */
 export function registerJavaHandlers(ipcMain: IpcMain, options: JavaIpcOptions): JavaIpc {
     const discover = options.discover ?? discoverJava;
+    const broadcast = options.broadcast ?? ((): void => undefined);
     let inFlight: Promise<JavaRuntimeSummary> | null = null;
+    /** Folds concurrent provision requests into one, same reason as `inFlight` above. */
+    let provisioning: Promise<JavaProvisionOutcome> | null = null;
 
     async function run(): Promise<JavaRuntimeSummary> {
         try {
@@ -205,6 +261,50 @@ export function registerJavaHandlers(ipcMain: IpcMain, options: JavaIpcOptions):
         }
     }
 
+    async function provision(): Promise<JavaProvisionOutcome> {
+        const consent = readJavaDownloadConsent(options.dataDir);
+        if (!consent.accepted) {
+            return {
+                ok: false,
+                message:
+                    "Downloading a Java runtime has to be agreed to first. Accept the download in " +
+                    "this section, then try again.",
+            };
+        }
+        if (options.ensure === undefined) {
+            return {
+                ok: false,
+                message: "This build cannot download a Java runtime from here.",
+            };
+        }
+        try {
+            const result = await options.ensure({
+                dataDir: options.dataDir,
+                allowProvisioning: true,
+                onEvent: broadcast,
+            });
+            return {
+                ok: true,
+                provisioned: result.provisioned,
+                installation: {
+                    source: result.installation.source,
+                    executable: result.installation.executable,
+                    home: result.installation.home,
+                    version: {
+                        feature: result.installation.version.feature,
+                        version: result.installation.version.version,
+                        runtime: result.installation.version.runtime,
+                    },
+                },
+            };
+        } catch (error) {
+            return {
+                ok: false,
+                message: summariseReason(error instanceof Error ? error.message : String(error)),
+            };
+        }
+    }
+
     ipcMain.handle(
         "java:runtime",
         async (_event: IpcMainInvokeEvent): Promise<JavaRuntimeSummary> => {
@@ -212,6 +312,37 @@ export function registerJavaHandlers(ipcMain: IpcMain, options: JavaIpcOptions):
                 inFlight = null;
             });
             return await inFlight;
+        },
+    );
+
+    ipcMain.handle(
+        "java:downloadConsent",
+        async (_event: IpcMainInvokeEvent): Promise<JavaDownloadConsentSummary> => {
+            const consent = readJavaDownloadConsent(options.dataDir);
+            return { accepted: consent.accepted, acceptedAt: consent.acceptedAt };
+        },
+    );
+
+    ipcMain.handle(
+        "java:acceptDownloadConsent",
+        async (_event: IpcMainInvokeEvent): Promise<JavaDownloadConsentSummary> => {
+            const consent = acceptJavaDownloadConsent(options.dataDir);
+            return { accepted: consent.accepted, acceptedAt: consent.acceptedAt };
+        },
+    );
+
+    /**
+     * Downloads a Temurin JDK, verifies it and installs it - only when consent was already
+     * given and only one at a time. Nothing here runs as a side effect of anything else:
+     * this channel exists so a button click, and only a button click, starts it.
+     */
+    ipcMain.handle(
+        "java:provision",
+        async (_event: IpcMainInvokeEvent): Promise<JavaProvisionOutcome> => {
+            provisioning ??= provision().finally(() => {
+                provisioning = null;
+            });
+            return await provisioning;
         },
     );
 

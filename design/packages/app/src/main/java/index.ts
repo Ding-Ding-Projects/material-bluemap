@@ -48,18 +48,31 @@ export {
 
 export {
     JAVA_CHANNELS,
+    JAVA_PROVISION_EVENT_CHANNEL,
     MAX_REASON_LENGTH,
     PATH_PLACEHOLDER,
     registerJavaHandlers,
     summariseDiscovery,
     summariseReason,
+    type JavaDownloadConsentSummary,
+    type JavaEnsureCallOptions,
+    type JavaEnsureCallResult,
     type JavaInstallationSummary,
     type JavaIpc,
     type JavaIpcOptions,
+    type JavaProvisionOutcome,
     type JavaRejectionSummary,
     type JavaRuntimeSummary,
     type JavaVersionSummary,
 } from "./ipc.js";
+
+export {
+    acceptJavaDownloadConsent,
+    javaConsentFile,
+    readJavaDownloadConsent,
+    revokeJavaDownloadConsent,
+    type JavaDownloadConsentRecord,
+} from "./consent.js";
 
 export {
     downloadVerified,

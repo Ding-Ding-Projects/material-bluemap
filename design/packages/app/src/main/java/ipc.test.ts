@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
-import type { DiscoverJavaOptions, JavaDiscovery } from "./discovery.js";
+import type { DiscoverJavaOptions, JavaDiscovery, JavaInstallation } from "./discovery.js";
+import { acceptJavaDownloadConsent } from "./consent.js";
 import {
     JAVA_CHANNELS,
     MAX_REASON_LENGTH,
@@ -8,6 +12,8 @@ import {
     registerJavaHandlers,
     summariseDiscovery,
     summariseReason,
+    type JavaDownloadConsentSummary,
+    type JavaProvisionOutcome,
     type JavaRuntimeSummary,
 } from "./ipc.js";
 
@@ -237,6 +243,132 @@ describe("registerJavaHandlers", () => {
         // But nothing is cached: "Look again" after somebody installed a JDK has to be
         // able to see it.
         await call();
+        expect(runs).toBe(2);
+    });
+});
+
+describe("java:downloadConsent, java:acceptDownloadConsent, java:provision", () => {
+    let dataDir: string;
+
+    beforeEach(async () => {
+        dataDir = await mkdtemp(join(tmpdir(), "mb-java-ipc-"));
+    });
+
+    afterEach(async () => {
+        await rm(dataDir, { recursive: true, force: true });
+    });
+
+    const PROVISIONED: JavaInstallation = {
+        source: "provisioned",
+        executable: "/userData/java/temurin-25/bin/java",
+        home: "/userData/java/temurin-25",
+        version: { feature: 25, version: "25.0.4+7", runtime: "OpenJDK Runtime Environment Temurin-25.0.4+7" },
+    };
+
+    it("reports not accepted, and then accepted, through the two consent channels", async () => {
+        const ipcMain = fakeIpcMain();
+        registerJavaHandlers(ipcMain, { dataDir });
+
+        const before = (await ipcMain.handlers.get("java:downloadConsent")?.(noEvent)) as JavaDownloadConsentSummary;
+        expect(before.accepted).toBe(false);
+
+        const accepted = (await ipcMain.handlers.get("java:acceptDownloadConsent")?.(
+            noEvent,
+        )) as JavaDownloadConsentSummary;
+        expect(accepted.accepted).toBe(true);
+        expect(accepted.acceptedAt).not.toBeNull();
+
+        const after = (await ipcMain.handlers.get("java:downloadConsent")?.(noEvent)) as JavaDownloadConsentSummary;
+        expect(after.accepted).toBe(true);
+    });
+
+    it("refuses java:provision when consent has not been given, without touching ensure", async () => {
+        let called = false;
+        const ipcMain = fakeIpcMain();
+        registerJavaHandlers(ipcMain, {
+            dataDir,
+            ensure: () => {
+                called = true;
+                return Promise.resolve({ installation: PROVISIONED, provisioned: true });
+            },
+        });
+
+        const outcome = (await ipcMain.handlers.get("java:provision")?.(noEvent)) as JavaProvisionOutcome;
+        expect(outcome.ok).toBe(false);
+        expect(called).toBe(false);
+        if (outcome.ok) throw new Error("should have refused");
+        expect(outcome.message).toContain("agreed to");
+    });
+
+    it("refuses java:provision honestly when no ensure was wired in, even with consent", async () => {
+        acceptJavaDownloadConsent(dataDir);
+        const ipcMain = fakeIpcMain();
+        registerJavaHandlers(ipcMain, { dataDir });
+
+        const outcome = (await ipcMain.handlers.get("java:provision")?.(noEvent)) as JavaProvisionOutcome;
+        expect(outcome.ok).toBe(false);
+        if (outcome.ok) throw new Error("should have refused");
+        expect(outcome.message).toContain("cannot download");
+    });
+
+    it("provisions once consent is given, and streams progress through broadcast", async () => {
+        acceptJavaDownloadConsent(dataDir);
+        const events: unknown[] = [];
+        const ipcMain = fakeIpcMain();
+        registerJavaHandlers(ipcMain, {
+            dataDir,
+            broadcast: (event) => events.push(event),
+            ensure: (options) => {
+                options.onEvent({ stage: "downloading", message: "Downloading", received: 1, total: 2 });
+                options.onEvent({ stage: "done", message: "Java 25.0.4+7 is ready", received: null, total: null });
+                return Promise.resolve({ installation: PROVISIONED, provisioned: true });
+            },
+        });
+
+        const outcome = (await ipcMain.handlers.get("java:provision")?.(noEvent)) as JavaProvisionOutcome;
+        expect(outcome.ok).toBe(true);
+        if (!outcome.ok) throw new Error("should have provisioned");
+        expect(outcome.provisioned).toBe(true);
+        expect(outcome.installation.source).toBe("provisioned");
+        expect(outcome.installation.version.version).toBe("25.0.4+7");
+        expect(events).toHaveLength(2);
+    });
+
+    it("reports a provisioning failure as a message rather than a thrown rejection", async () => {
+        acceptJavaDownloadConsent(dataDir);
+        const ipcMain = fakeIpcMain();
+        registerJavaHandlers(ipcMain, {
+            dataDir,
+            ensure: () => Promise.reject(new Error("digest mismatch for /some/secret/path/archive.zip")),
+        });
+
+        const outcome = (await ipcMain.handlers.get("java:provision")?.(noEvent)) as JavaProvisionOutcome;
+        expect(outcome.ok).toBe(false);
+        if (outcome.ok) throw new Error("should have failed");
+        expect(outcome.message).toContain("digest mismatch");
+        // Same path-cleaning as every other failure surface in this module.
+        expect(outcome.message).not.toContain("/some/secret/path");
+    });
+
+    it("folds concurrent provision calls into one ensure() run", async () => {
+        acceptJavaDownloadConsent(dataDir);
+        let runs = 0;
+        const ipcMain = fakeIpcMain();
+        registerJavaHandlers(ipcMain, {
+            dataDir,
+            ensure: () => {
+                runs += 1;
+                return Promise.resolve({ installation: PROVISIONED, provisioned: true });
+            },
+        });
+
+        await Promise.all([
+            ipcMain.handlers.get("java:provision")?.(noEvent),
+            ipcMain.handlers.get("java:provision")?.(noEvent),
+        ]);
+        expect(runs).toBe(1);
+
+        await ipcMain.handlers.get("java:provision")?.(noEvent);
         expect(runs).toBe(2);
     });
 });

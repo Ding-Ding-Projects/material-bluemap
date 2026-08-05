@@ -74,7 +74,7 @@ import type { BackupIpc } from "./backup/ipc.js";
 import { installGitHubIpc } from "./github/ipc.js";
 import type { GitHubIpc } from "./github/ipc.js";
 import { openExternalHttps } from "./github/external.js";
-import { registerJavaHandlers } from "./java/ipc.js";
+import { registerJavaHandlers, JAVA_PROVISION_EVENT_CHANNEL } from "./java/ipc.js";
 import type { JavaIpc } from "./java/ipc.js";
 import { registerConfigHandlers } from "./config/index.js";
 import type { ConfigIpc } from "./config/index.js";
@@ -405,14 +405,31 @@ function startWorldInspection(): WorldIpc {
  * Registered once, for the same reason everything above it is. Discovery is the same
  * pass a render makes - `JAVA_HOME`, then `java` on `PATH`, then the copy the app
  * provisioned - and it *runs* each candidate rather than believing a path, so the
- * settings row can state a version somebody measured instead of one it inferred. It
- * never provisions: asking what is installed must not download two hundred megabytes.
+ * settings row can state a version somebody measured instead of one it inferred.
+ * `java:runtime` never provisions on its own: asking what is installed must not
+ * download two hundred megabytes as a side effect.
+ *
+ * `java:provision` is the separate, explicit action that does download one - gated on
+ * consent already given (`java:acceptDownloadConsent`) and, like `bedrock:convert`,
+ * reachable only from a button somebody pressed. `ensure: ensureJava` is passed in
+ * directly: its return type carries more than `java/ipc.ts`'s own `JavaEnsureCallResult`
+ * needs, which is fine, and its parameter type accepts everything that module ever
+ * calls it with - see the doc comment on `JavaEnsureCallOptions` for why the two files
+ * do not import each other's types to get there.
  */
 let javaIpc: JavaIpc | null = null;
 
 function startJavaDiscovery(): JavaIpc {
     if (javaIpc !== null) return javaIpc;
-    javaIpc = registerJavaHandlers(ipcMain, { dataDir: app.getPath("userData") });
+    javaIpc = registerJavaHandlers(ipcMain, {
+        dataDir: app.getPath("userData"),
+        ensure: ensureJava,
+        broadcast: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(JAVA_PROVISION_EVENT_CHANNEL, event);
+            }
+        },
+    });
     return javaIpc;
 }
 
