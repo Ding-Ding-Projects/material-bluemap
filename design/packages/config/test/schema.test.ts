@@ -1,15 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { existsSync } from "node:fs";
-import { dirname, join, resolve as resolvePath } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { ALL_DESCRIPTORS, checkDescriptorConsistency, descriptorFor, MASK_SHAPES, readPath } from "../src/schema/index.js";
 import type { ConfigFileId } from "../src/meta.js";
 import { nestedClassBody, outerClassBody, parseJavaFields, toDashedKey } from "./javaDefaults.js";
+import { configJavaDir, requireVendorInCi, vendorAvailable, vendorSuffix } from "./vendorGate.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolvePath(here, "..", "..", "..", "..");
-const configJavaDir = join(repoRoot, "vendor", "BlueMap", "common", "src", "main", "java", "de", "bluecolored", "bluemap", "common", "config");
-const vendorAvailable = existsSync(configJavaDir);
+requireVendorInCi();
 
 describe("descriptors", () => {
     it("covers every configuration file BlueMap reads", () => {
@@ -107,7 +103,8 @@ describe("mask shapes", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Cross-checks against the vendored Java source. Skipped when it is not present.
+// Cross-checks against the vendored Java source. Skipped, loudly and by name, when the
+// submodule is not present - see ./vendorGate.ts for the whole mechanism.
 // ---------------------------------------------------------------------------
 
 /** Which Java class each descriptor's fields come from. */
@@ -163,7 +160,7 @@ function readJavaDefaults(source: (typeof JAVA_SOURCES)[number]): JavaDefaults {
     return { values, skipped };
 }
 
-describe.skipIf(!vendorAvailable)("defaults match the vendored Java classes", () => {
+describe.skipIf(!vendorAvailable)(`defaults match the vendored Java classes${vendorSuffix}`, () => {
     it.each(JAVA_SOURCES)("$id", (source) => {
         const descriptor = descriptorFor(source.id);
         const { values, skipped } = readJavaDefaults(source);
@@ -222,7 +219,7 @@ describe.skipIf(!vendorAvailable)("defaults match the vendored Java classes", ()
     });
 });
 
-describe.skipIf(!vendorAvailable)("Configurate's naming scheme", () => {
+describe.skipIf(!vendorAvailable)(`Configurate's naming scheme${vendorSuffix}`, () => {
     it("turns a camelCase Java field into the key the config file uses", () => {
         expect(toDashedKey("acceptDownload")).toBe("accept-download");
         expect(toDashedKey("sseEnabled")).toBe("sse-enabled");

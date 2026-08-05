@@ -37,9 +37,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { existsSync } from "node:fs";
-import { dirname, join, resolve as resolvePath } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import type { z } from "zod";
 import type { Control, FieldMeta } from "../src/meta.js";
 import {
@@ -52,11 +50,9 @@ import {
     maskConfigSchema,
 } from "../src/schema/index.js";
 import { outerClassBody, nestedClassBody, parseJavaFields } from "./javaDefaults.js";
+import { configJavaDir, requireVendorInCi, vendorAvailable, vendorSuffix } from "./vendorGate.js";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const repoRoot = resolvePath(here, "..", "..", "..", "..");
-const configJavaDir = join(repoRoot, "vendor", "BlueMap", "common", "src", "main", "java", "de", "bluecolored", "bluemap", "common", "config");
-const vendorAvailable = existsSync(configJavaDir);
+requireVendorInCi();
 
 // ---------------------------------------------------------------------------
 // Reading a zod schema back
@@ -595,7 +591,7 @@ const MASK_FILES: { key: string; file: string; className: string }[] = [
  */
 const NOT_A_VALUE = new Set(["LogConfig"]);
 
-describe.skipIf(!vendorAvailable)("controls match the Java types upstream declared", () => {
+describe.skipIf(!vendorAvailable)(`controls match the Java types upstream declared${vendorSuffix}`, () => {
     it("checks every field against its own Java declaration, and reports anything it could not", () => {
         const wrong: string[] = [];
         const unclassified: string[] = [];

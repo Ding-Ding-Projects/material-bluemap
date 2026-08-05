@@ -31,9 +31,17 @@
 
 import { describe, expect, it } from "vitest";
 import { MARKER_SET_FIELDS, MASK_SHAPES, generateConfigSet, renderPluginTemplate, type FieldMeta } from "@material-bluemap/config";
+import { assertConfigPackageFresh } from "./configPackageFreshness.js";
 import { buildSettingIndex } from "./configSearch.js";
 import { loadWorkspace, type ConfigWorkspace } from "./configWorkspace.js";
 import { isDocLong } from "./explainField.js";
+
+// Before anything above is trusted: `@material-bluemap/config` resolved through its
+// built dist/, which this file's own imports already forced Node to load by the time
+// this line runs - but every assertion below still deserves to know whether what it
+// just loaded is current. See configPackageFreshness.ts for what this is guarding
+// against and why a passing suite is not proof by itself.
+assertConfigPackageFresh();
 
 const OPTIONS = { webroot: "/srv/web", dataFolder: "/srv/data", world: "/srv/world", version: "5.22" };
 
