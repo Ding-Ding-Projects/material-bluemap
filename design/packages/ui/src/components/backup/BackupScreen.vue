@@ -57,10 +57,15 @@ import {
  * refuses an unacknowledged public repository as well, because a guard that lives only in
  * the renderer is not a guard.
  *
- * **Restoring is not built here.** A backup restored is a release downloaded, and this
- * application already has a surface that fetches parts, checks each one against its
- * SHA-256, rejoins them and unpacks the result. `restore` is emitted with the release's
- * coordinates so the shell can hand it to that surface with the release already chosen.
+ * **Restoring is not built here** - this component's own job stops at emitting `restore`
+ * with the release's coordinates. It *is* built now, in `main/backup/restore.ts`: a real
+ * `BackupRunner` upload restores byte-for-byte through it, proven against real `github.com`
+ * in `backup.realGithub.test.ts`. What is **not yet done** is wiring that engine to a
+ * channel, a bridge method and this event: the shell that receives `restore` today still
+ * only opens Downloads and asks the person to fetch the release by hand, because the
+ * downloads surface this comment used to say would do the job cannot read a Cheap LFS
+ * release at all - see `restore.ts`'s own doc comment for why. That handoff is the one
+ * piece of this feature that remains.
  *
  * **Deleting a backup is not offered at all.** Backups are append-only: every one is its
  * own release under its own tag, and nothing in this application edits or removes one. A

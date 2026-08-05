@@ -211,15 +211,31 @@ when the thing that broke was the network.
 
 ### Restoring
 
-**Restoring is the downloads surface**, not a second implementation. A backup restored is a release
-downloaded, and this application already fetches parts, checks each one against its published
-SHA-256, rejoins them, checks the whole file, and unpacks the result. Choosing **Restore this** in
-the backup list hands that surface the release's owner, repository, tag and archive name with the
-release already chosen; everything after that is the path documented in
-[Large worlds and rendered maps](./large-worlds.md).
+**Restoring has its own engine, `main/backup/restore.ts`**, not the downloads surface. This section
+used to say the opposite — that a backup restored is a release downloaded through the same path
+[Large worlds and rendered maps](./large-worlds.md) documents — and that was never true. That path
+understands exactly one split format: a `<name>.parts.json` manifest beside `<name>.001`,
+`<name>.002`, … A backup's parts are named `<archive>.<index>-<sha16>` and no `.parts.json` is ever
+published beside them — the Cheap LFS pointer *is* the manifest, in a shape that has to stay
+byte-for-byte what `desktop-material`'s own parser accepts — so the downloads surface's own
+discovery never recognised a Cheap LFS release as a split download at all, and nothing before
+`restore.ts` existed had exercised the claim against a real release to find out.
 
-Every restored payload is hashed on arrival and must equal the pointer's digest and byte size before
-it may replace anything. Downloaded bytes are untrusted input.
+`restore.ts` reads a release's sidecar and pointer, refuses one whose upload never finished (no
+pointer, no whole-file digest to trust), fetches every part with a resumable ranged request,
+translates the pointer into a `@material-bluemap/parts` manifest in memory so the existing rejoin —
+per-part digest, resumable prefix verification, whole-file digest — is reused rather than
+reimplemented, and then unpacks the verified archive. Every restored payload is hashed on arrival
+and must equal the pointer's digest and byte size before it may replace anything; downloaded bytes
+are untrusted input.
+
+Proven against real `github.com`: `backup.realGithub.test.ts` (skipped without
+`MBM_TEST_BACKUP_LIVE=1`) packs, publishes, cancels mid-upload, resumes under the same tag, and
+restores — twice, once as a fresh backup and once as a resumed one — with the restored folder
+checked byte-for-byte against the original. **Not yet done:** the application's own **Restore
+this** button still only opens Downloads and asks the person to fetch the release by hand — the new
+engine is not wired to a channel, a bridge method, or the button, so nobody can reach it from the
+interface yet. That wiring is the one piece of this feature that remains.
 
 A backup whose upload never finished has no pointer, so there is nothing to verify a restore
 against. It is **listed** — hiding it would leave somebody hunting for a backup they thought they
@@ -332,22 +348,27 @@ The tests for this feature, and what each one is for:
 | `main/backup/archive.test.ts` | The same folder packs to the same digest twice; what is written opens in this project's own `ZipReader` and unpacks through `extractZip` into an identical tree; a cancelled pack leaves nothing behind |
 | `main/backup/source.test.ts` | A world without a `level.dat` is refused; the folder above a world is refused by name; an empty folder is refused; tags and archive names are safe for a tag, a file name and a URL at once |
 | `main/backup/sidecar.test.ts` | Every field proved before a listing trusts it; a bad version, kind, digest or count makes the record null |
-| `main/backup/github.test.ts` | Only repositories with push access are offered; a 422 on a taken tag says nothing was changed; an upload streams rather than buffering; no method other than `GET` or `POST` is ever sent |
+| `main/backup/github.test.ts` | Only repositories with push access are offered; a genuine taken-tag 422 (matched by GitHub's own `errors[].code`) says nothing was changed; an *empty-repository* 422 — the same status, a different body — is told apart and named correctly rather than reported as a taken tag; an upload streams rather than buffering; no method other than `GET` or `POST` is ever sent |
 | `main/backup/runner.test.ts` | A whole backup against real folders and a fake GitHub: the pointer's parts hash to what landed and rejoin to the promised archive; the pointer goes up last; a public repository is refused unacknowledged and uploads nothing; a resume skips digest-matched parts and re-uploads a truncated one; a cancel mid-part keeps what was already up and never leaves a pointer |
+| `main/backup/restore.ts` (`restore.test.ts`) | A real `BackupRunner` upload round-tripped through the real restorer, byte for byte, including the single-asset (unsplit) form; a stopped upload with parts but no pointer is refused as incomplete rather than restored; a corrupted part is caught before anything unpacks; cancellation is reported as cancellation, not failure |
+| `main/backup/backup.realGithub.test.ts` | Skipped unless `MBM_TEST_BACKUP_LIVE=1`. Packs, publishes, cancels mid-upload, resumes under the same tag, and restores — against real `api.github.com` and `uploads.github.com`, not a fake — with the restored folder checked byte-for-byte against the original both times |
 | `main/backup/ipc.test.ts` | Exactly the named channels are registered and removed; the token appears in no answer; being signed out is an answer rather than a crash |
 | `components/backup/backups.test.ts` | Events land in the right row; a refusal with no id is reported beside the form, not as a phantom row; reading a repository clears the previous answer first |
 | `components/backup/BackupScreen.test.ts` | A build with no bridge says what is needed; the public warning and its acknowledgement render; restoring emits the release's coordinates and fetches nothing itself; an unfinished backup offers no restore |
 
 What has **not** been verified, stated plainly:
 
-- No backup has been made against real GitHub from this branch. Every GitHub interaction here is
-  exercised against a fake that records the whole conversation.
+- The application's **Restore this** button is not wired to `restore.ts`. Pressing it today still
+  only opens Downloads and asks the person to fetch the release by hand; see
+  [Restoring](#restoring) above.
 - The interoperability claim is checked at the level of the pointer grammar only. See
   [what has actually been verified](#what-has-actually-been-verified-about-the-interoperability).
-- The largest archive packed in a test is a few megabytes. The Zip64 records are written for every
-  entry rather than only for large ones precisely so the 4 GB boundary is not a code path that only
-  runs on the archives nobody can afford to test with, but that boundary has not been crossed with
-  real data here.
+  Nobody has restored a backup made here through Desktop Material's own restore path, or the other
+  way round.
+- The largest archive packed in a test — including the live one — is a few megabytes. The Zip64
+  records are written for every entry rather than only for large ones precisely so the 4 GB
+  boundary is not a code path that only runs on the archives nobody can afford to test with, but
+  that boundary has not been crossed with real data here.
 
 ## Related reading
 
