@@ -948,38 +948,241 @@
         transition: none;
     }
 }
-/* Discovery, changelog, and command-palette surfaces share the same M3 card anatomy. */
-.mb-discovery { display: grid; gap: 24px; }
-.mb-discovery-section { display: grid; gap: 14px; padding: 20px; background: var(--md-sys-color-surface-container-low); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-corner-large, 16px); }
-.mb-discovery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; }
-.mb-discovery-card { min-width: 0; padding: 14px; background: var(--md-sys-color-surface-container); border-radius: var(--md-sys-shape-corner-medium, 12px); }
-.mb-discovery-card .mbm-surface { min-width: 0; }
-.mb-changelog { display: grid; gap: 18px; }
-.mb-changelog-filters, .mb-changelog-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
-.mb-changelog-date { display: grid; gap: 4px; color: var(--md-sys-color-on-surface-variant); font-size: .85rem; }
-.mb-changelog-entry { display: grid; gap: 8px; padding: 16px; border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-corner-medium, 12px); background: var(--md-sys-color-surface-container-lowest); }
-.mb-changelog-entry__title { margin: 0; font-size: 1rem; }
-.mb-changelog-entry__commit { justify-self: start; font-family: var(--md-ref-typeface-mono, ui-monospace); font-size: .8rem; }
-.mb-changelog-entry__commit--missing { color: var(--md-sys-color-on-surface-variant); }
-.mb-command-palette { position: fixed; inset: 0; z-index: 100; display: grid; place-items: start center; padding: clamp(16px, 8vh, 72px) 16px; background: color-mix(in srgb, var(--md-sys-color-scrim) 42%, transparent); }
-.mb-command-palette[hidden] { display: none; }
-.mb-command-palette__card { width: min(760px, 100%); max-height: min(760px, calc(100vh - 32px)); overflow: auto; padding: 18px; background: var(--md-sys-color-surface-container-high); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-corner-extra-large, 28px); box-shadow: var(--md-sys-elevation-level3); }
-.mb-command-palette[data-size="window"] { padding: 0; place-items: stretch; }
-.mb-command-palette[data-size="window"] .mb-command-palette__card { width: auto; max-height: none; border-radius: 0; }
-.mb-command-palette__heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-block-end: 12px; }
-.mb-command-palette__heading h2 { margin: 0; }
-.mb-command-palette__result { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; text-align: start; }
-.mb-command-palette__result .mbm-result__excerpt { grid-column: 1 / -1; }
-.mb-date-range__panel { display: grid; gap: 14px; min-width: min(32rem, calc(100vw - 32px)); padding: 18px; background: var(--md-sys-color-surface-container-high); color: var(--md-sys-color-on-surface); border: 1px solid var(--md-sys-color-outline-variant); border-radius: var(--md-sys-shape-corner-large, 16px); }
-.mb-date-range__title { margin: 0; font-size: var(--md-sys-typescale-title-large-size); }
-.mb-date-range__inputs, .mb-date-range__month, .mb-date-range__actions, .mb-date-range__presets { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
-.mb-date-range__month { align-items: center; justify-content: center; }
-.mb-date-range__month input { flex: 1 1 9rem; }
-.mb-date-range__calendar { display: grid; grid-template-columns: repeat(7, minmax(2rem, 1fr)); gap: 4px; }
-.mb-date-range__day { min-height: var(--md-sys-min-touch-target); border: 1px solid transparent; border-radius: var(--md-sys-shape-corner-small); background: transparent; color: var(--md-sys-color-on-surface); cursor: pointer; }
-.mb-date-range__day:hover, .mb-date-range__day:focus-visible { border-color: var(--md-sys-color-primary); background: var(--md-sys-color-primary-container); }
-.mb-date-range__day.is-outside { color: var(--md-sys-color-on-surface-variant); opacity: .7; }
-.mb-date-range__day.is-selected { background: var(--md-sys-color-primary); color: var(--md-sys-color-on-primary); }
-.mb-date-range__day.is-in-range { background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
-.mb-date-range__error { color: var(--md-sys-color-error); }
-@media (max-width: 600px) { .mb-discovery-section { padding: 14px; } .mb-command-palette__heading { align-items: start; flex-direction: column; } }
+/* ---- Discovery, changelog and command palette ----------------------------------------- */
+
+/*
+ * These three surfaces share the same M3 card anatomy as the rest of the page: a
+ * surface-container section, surface-container cards inside it, and the same spacing and
+ * type-scale tokens everything above already uses. They were appended as dense one-line
+ * rules with hand-picked pixel values instead of the declared spacing/type scale; this
+ * block re-derives every value from tokens.css so the surfaces stop drifting off it.
+ */
+
+.mb-discovery {
+    display: grid;
+    gap: var(--md-sys-spacing-6);
+}
+
+.mb-discovery-section {
+    display: grid;
+    gap: var(--md-sys-spacing-3);
+    padding: var(--md-sys-spacing-5);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-surface-container-low);
+}
+
+.mb-discovery-grid {
+    display: grid;
+    gap: var(--md-sys-spacing-4);
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+}
+
+.mb-discovery-card {
+    min-width: 0;
+    padding: var(--md-sys-spacing-3);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-surface-container);
+}
+
+.mb-discovery-card .mbm-surface {
+    min-width: 0;
+}
+
+.mb-changelog {
+    display: grid;
+    gap: var(--md-sys-spacing-4);
+}
+
+.mb-changelog-filters,
+.mb-changelog-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--md-sys-spacing-2);
+}
+
+.mb-changelog-date {
+    display: grid;
+    gap: var(--md-sys-spacing-1);
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+}
+
+.mb-changelog-entry {
+    display: grid;
+    gap: var(--md-sys-spacing-2);
+    padding: var(--md-sys-spacing-4);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-surface-container-lowest);
+}
+
+.mb-changelog-entry__title {
+    margin: 0;
+    font-family: var(--md-sys-typescale-title-medium-font);
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    line-height: var(--md-sys-typescale-title-medium-line-height);
+}
+
+.mb-changelog-entry__commit {
+    justify-self: start;
+    font-family: var(--md-ref-typeface-mono);
+    font-size: var(--md-sys-typescale-body-small-size);
+}
+
+.mb-changelog-entry__commit--missing {
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.mb-command-palette {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: grid;
+    place-items: start center;
+    padding: clamp(var(--md-sys-spacing-4), 8vh, var(--md-sys-spacing-16)) var(--md-sys-spacing-4);
+    background: color-mix(in srgb, var(--md-sys-color-scrim) 42%, transparent);
+}
+
+.mb-command-palette[hidden] {
+    display: none;
+}
+
+.mb-command-palette__card {
+    width: min(760px, 100%);
+    max-height: min(760px, calc(100vh - 32px));
+    overflow: auto;
+    padding: var(--md-sys-spacing-5);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    background: var(--md-sys-color-surface-container-high);
+    box-shadow: var(--md-sys-elevation-level3);
+}
+
+.mb-command-palette[data-size="window"] {
+    padding: 0;
+    place-items: stretch;
+}
+
+.mb-command-palette[data-size="window"] .mb-command-palette__card {
+    width: auto;
+    max-height: none;
+    border-radius: var(--md-sys-shape-corner-none);
+}
+
+.mb-command-palette__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--md-sys-spacing-4);
+    margin-block-end: var(--md-sys-spacing-3);
+}
+
+.mb-command-palette__heading h2 {
+    margin: 0;
+    font-family: var(--md-sys-typescale-headline-small-font);
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: var(--md-sys-typescale-headline-small-weight);
+}
+
+.mb-command-palette__result {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--md-sys-spacing-1) var(--md-sys-spacing-3);
+    text-align: start;
+}
+
+.mb-command-palette__result .mbm-result__excerpt {
+    grid-column: 1 / -1;
+}
+
+.mb-date-range__panel {
+    display: grid;
+    gap: var(--md-sys-spacing-3);
+    min-width: min(32rem, calc(100vw - 32px));
+    padding: var(--md-sys-spacing-5);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-large);
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+}
+
+.mb-date-range__title {
+    margin: 0;
+    font-family: var(--md-sys-typescale-title-large-font);
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: var(--md-sys-typescale-title-large-weight);
+}
+
+.mb-date-range__inputs,
+.mb-date-range__month,
+.mb-date-range__actions,
+.mb-date-range__presets {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--md-sys-spacing-2);
+}
+
+.mb-date-range__month {
+    align-items: center;
+    justify-content: center;
+}
+
+.mb-date-range__month input {
+    flex: 1 1 9rem;
+}
+
+.mb-date-range__calendar {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(2rem, 1fr));
+    gap: var(--md-sys-spacing-1);
+}
+
+.mb-date-range__day {
+    min-height: var(--md-sys-min-touch-target);
+    border: 1px solid transparent;
+    border-radius: var(--md-sys-shape-corner-small);
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    cursor: pointer;
+}
+
+.mb-date-range__day:hover,
+.mb-date-range__day:focus-visible {
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+}
+
+.mb-date-range__day.is-outside {
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 0.7;
+}
+
+.mb-date-range__day.is-selected {
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+}
+
+.mb-date-range__day.is-in-range {
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.mb-date-range__error {
+    color: var(--md-sys-color-error);
+}
+
+@media (max-width: 600px) {
+    .mb-discovery-section {
+        padding: var(--md-sys-spacing-3);
+    }
+
+    .mb-command-palette__heading {
+        flex-direction: column;
+        align-items: start;
+    }
+}

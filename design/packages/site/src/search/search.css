@@ -10,108 +10,45 @@
  * platform stack.
  */
 
+/*
+ * These are thin aliases onto the site's own Material Design 3 tokens (theme/tokens.css),
+ * not a second colour system living beside it. tokens.css already redeclares every
+ * --md-sys-color-* role under [data-theme="dark"], and index.html's pre-hydration script
+ * always stamps a data-theme attribute on <html> before first paint (main.ts:31), so this
+ * module never actually falls through to prefers-color-scheme or to a hard-coded hex --
+ * aliasing straight onto the system token is enough for both schemes, and it is the only
+ * copy of the palette left to maintain.
+ */
 :root {
-    --mbm-surface: var(--md-sys-color-surface, #fdfbff);
-    --mbm-surface-container: var(--md-sys-color-surface-container, #f0eef4);
-    --mbm-surface-container-high: var(--md-sys-color-surface-container-high, #eae7ee);
-    --mbm-on-surface: var(--md-sys-color-on-surface, #1a1c1e);
-    --mbm-on-surface-variant: var(--md-sys-color-on-surface-variant, #43474e);
-    --mbm-outline: var(--md-sys-color-outline, #73777f);
-    --mbm-outline-variant: var(--md-sys-color-outline-variant, #c3c7cf);
-    --mbm-primary: var(--md-sys-color-primary, #26638a);
-    --mbm-on-primary: var(--md-sys-color-on-primary, #ffffff);
-    --mbm-primary-container: var(--md-sys-color-primary-container, #cae6ff);
-    --mbm-on-primary-container: var(--md-sys-color-on-primary-container, #001e2f);
-    --mbm-error: var(--md-sys-color-error, #ba1a1a);
-    --mbm-on-error: var(--md-sys-color-on-error, #ffffff);
-    --mbm-error-container: var(--md-sys-color-error-container, #ffdad6);
-    --mbm-on-error-container: var(--md-sys-color-on-error-container, #410002);
-    --mbm-tertiary: var(--md-sys-color-tertiary, #6b5778);
-    --mbm-shadow: var(--md-sys-color-shadow, #000000);
+    --mbm-surface: var(--md-sys-color-surface);
+    --mbm-surface-container: var(--md-sys-color-surface-container);
+    --mbm-surface-container-high: var(--md-sys-color-surface-container-high);
+    --mbm-on-surface: var(--md-sys-color-on-surface);
+    --mbm-on-surface-variant: var(--md-sys-color-on-surface-variant);
+    --mbm-outline: var(--md-sys-color-outline);
+    --mbm-outline-variant: var(--md-sys-color-outline-variant);
+    --mbm-primary: var(--md-sys-color-primary);
+    --mbm-on-primary: var(--md-sys-color-on-primary);
+    --mbm-primary-container: var(--md-sys-color-primary-container);
+    --mbm-on-primary-container: var(--md-sys-color-on-primary-container);
+    --mbm-error: var(--md-sys-color-error);
+    --mbm-on-error: var(--md-sys-color-on-error);
+    --mbm-error-container: var(--md-sys-color-error-container);
+    --mbm-on-error-container: var(--md-sys-color-on-error-container);
+    --mbm-tertiary: var(--md-sys-color-tertiary);
+    --mbm-shadow: var(--md-sys-color-shadow);
 
-    --mbm-radius-xs: var(--md-sys-shape-corner-extra-small, 4px);
-    --mbm-radius-sm: var(--md-sys-shape-corner-small, 8px);
-    --mbm-radius-md: var(--md-sys-shape-corner-medium, 12px);
-    --mbm-radius-lg: var(--md-sys-shape-corner-large, 16px);
-    --mbm-radius-full: var(--md-sys-shape-corner-full, 999px);
+    --mbm-radius-xs: var(--md-sys-shape-corner-extra-small);
+    --mbm-radius-sm: var(--md-sys-shape-corner-small);
+    --mbm-radius-md: var(--md-sys-shape-corner-medium);
+    --mbm-radius-lg: var(--md-sys-shape-corner-large);
+    --mbm-radius-full: var(--md-sys-shape-corner-full);
 
-    --mbm-motion-short: var(--md-sys-motion-duration-short4, 200ms);
-    --mbm-motion-easing: var(--md-sys-motion-easing-standard, cubic-bezier(0.2, 0, 0, 1));
+    --mbm-motion-short: var(--md-sys-motion-duration-short4);
+    --mbm-motion-easing: var(--md-sys-motion-easing-standard);
 
-    --mbm-font: var(
-        --md-sys-typescale-body-medium-font,
-        system-ui,
-        -apple-system,
-        "Segoe UI",
-        Roboto,
-        "Noto Sans",
-        "Noto Sans HK",
-        "Microsoft JhengHei",
-        sans-serif
-    );
-    --mbm-font-mono: var(
-        --md-sys-typescale-code-font,
-        ui-monospace,
-        SFMono-Regular,
-        "Cascadia Mono",
-        Consolas,
-        "Noto Sans Mono",
-        monospace
-    );
-}
-
-@media (prefers-color-scheme: dark) {
-    :root {
-        --mbm-surface: var(--md-sys-color-surface, #111416);
-        --mbm-surface-container: var(--md-sys-color-surface-container, #1d2022);
-        --mbm-surface-container-high: var(--md-sys-color-surface-container-high, #282b2d);
-        --mbm-on-surface: var(--md-sys-color-on-surface, #e2e2e5);
-        --mbm-on-surface-variant: var(--md-sys-color-on-surface-variant, #c3c7cf);
-        --mbm-outline: var(--md-sys-color-outline, #8d9199);
-        --mbm-outline-variant: var(--md-sys-color-outline-variant, #43474e);
-        --mbm-primary: var(--md-sys-color-primary, #94ccf8);
-        --mbm-on-primary: var(--md-sys-color-on-primary, #00344f);
-        --mbm-primary-container: var(--md-sys-color-primary-container, #004b70);
-        --mbm-on-primary-container: var(--md-sys-color-on-primary-container, #cae6ff);
-        --mbm-error: var(--md-sys-color-error, #ffb4ab);
-        --mbm-on-error: var(--md-sys-color-on-error, #690005);
-        --mbm-error-container: var(--md-sys-color-error-container, #93000a);
-        --mbm-on-error-container: var(--md-sys-color-on-error-container, #ffdad6);
-    }
-}
-
-:root[data-theme="light"] {
-    --mbm-surface: var(--md-sys-color-surface, #fdfbff);
-    --mbm-surface-container: var(--md-sys-color-surface-container, #f0eef4);
-    --mbm-surface-container-high: var(--md-sys-color-surface-container-high, #eae7ee);
-    --mbm-on-surface: var(--md-sys-color-on-surface, #1a1c1e);
-    --mbm-on-surface-variant: var(--md-sys-color-on-surface-variant, #43474e);
-    --mbm-outline: var(--md-sys-color-outline, #73777f);
-    --mbm-outline-variant: var(--md-sys-color-outline-variant, #c3c7cf);
-    --mbm-primary: var(--md-sys-color-primary, #26638a);
-    --mbm-on-primary: var(--md-sys-color-on-primary, #ffffff);
-    --mbm-primary-container: var(--md-sys-color-primary-container, #cae6ff);
-    --mbm-on-primary-container: var(--md-sys-color-on-primary-container, #001e2f);
-    --mbm-error: var(--md-sys-color-error, #ba1a1a);
-    --mbm-error-container: var(--md-sys-color-error-container, #ffdad6);
-    --mbm-on-error-container: var(--md-sys-color-on-error-container, #410002);
-}
-
-:root[data-theme="dark"] {
-    --mbm-surface: var(--md-sys-color-surface, #111416);
-    --mbm-surface-container: var(--md-sys-color-surface-container, #1d2022);
-    --mbm-surface-container-high: var(--md-sys-color-surface-container-high, #282b2d);
-    --mbm-on-surface: var(--md-sys-color-on-surface, #e2e2e5);
-    --mbm-on-surface-variant: var(--md-sys-color-on-surface-variant, #c3c7cf);
-    --mbm-outline: var(--md-sys-color-outline, #8d9199);
-    --mbm-outline-variant: var(--md-sys-color-outline-variant, #43474e);
-    --mbm-primary: var(--md-sys-color-primary, #94ccf8);
-    --mbm-on-primary: var(--md-sys-color-on-primary, #00344f);
-    --mbm-primary-container: var(--md-sys-color-primary-container, #004b70);
-    --mbm-on-primary-container: var(--md-sys-color-on-primary-container, #cae6ff);
-    --mbm-error: var(--md-sys-color-error, #ffb4ab);
-    --mbm-error-container: var(--md-sys-color-error-container, #93000a);
-    --mbm-on-error-container: var(--md-sys-color-on-error-container, #ffdad6);
+    --mbm-font: var(--md-ref-typeface-plain);
+    --mbm-font-mono: var(--md-ref-typeface-mono);
 }
 
 /* ---- shared primitives ---------------------------------------------------- */
