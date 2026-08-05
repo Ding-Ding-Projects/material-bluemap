@@ -6,7 +6,17 @@
         "module": "ESNext",
         "moduleResolution": "bundler",
         "lib": ["ES2023", "DOM", "DOM.Iterable"],
-        "types": ["vite/client"]
+        "types": ["vite/client"],
+        // Built by `vite build`, never by `tsc`, and nothing in the workspace holds a
+        // project reference to this package's declaration output (unlike a real composite
+        // dependency) - `packages/site/tsconfig.json` already turns these off for the same
+        // reason. Left inherited from `tsconfig.base.json`, `composite`'s stricter file-list
+        // enforcement produces a TS6307 "not listed within the file list of project" false
+        // positive on `.ts` modules reached only through a `.vue` file's `.js`-extension
+        // import, such as `tabGroupPicker.ts` from `TabGroupPicker.vue`.
+        "composite": false,
+        "declaration": false,
+        "declarationMap": false
     },
     "include": ["src"]
 }

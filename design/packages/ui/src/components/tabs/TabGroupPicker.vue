@@ -12,6 +12,7 @@ import {
     pickerSample,
     stepEntryIndex,
     type TabGroupPickerEntry,
+    type TabGroupPickerRow,
 } from "./tabGroupPicker.js";
 import type { TabStripState } from "./tabModel.js";
 
@@ -294,13 +295,23 @@ function onKeydown(event: KeyboardEvent): void {
     }
 }
 
-const rowCount = (entry: TabGroupPickerEntry & { kind: "group" }): string =>
-    t("tabGroupPicker.rowCount", { count: entry.row.memberCount }, "{count} tabs");
+// Both helpers take the already-narrowed `row` rather than the whole `TabGroupPickerEntry`
+// union, and every call site below passes `entry.row` from inside a branch where
+// `entry.kind === "group"` already holds (the same narrowing the template already relies on
+// for `entry.row.id`, `entry.row.color` and `entry.row.name` a few lines down). Passing the
+// still-union `entry` itself through an inline `entry as TabGroupPickerEntry & { kind:
+// "group" }` cast used to be the shape here, but `vue-tsc`'s stricter template-expression
+// parser cannot parse that object-type-literal intersection cast inside a template attribute
+// binding (TS1005/TS1128) even though Vite/esbuild's looser transform tolerates it fine --
+// see `TabGroupPicker.typecheck.test.ts` for the regression guard. Accepting the plain `row`
+// sidesteps the whole parser limitation instead of working around it.
+const rowCount = (row: TabGroupPickerRow): string =>
+    t("tabGroupPicker.rowCount", { count: row.memberCount }, "{count} tabs");
 
-const rowName = (entry: TabGroupPickerEntry & { kind: "group" }): string =>
+const rowName = (row: TabGroupPickerRow): string =>
     t(
         "tabGroupPicker.rowName",
-        { group: entry.row.name, count: entry.row.memberCount },
+        { group: row.name, count: row.memberCount },
         "Move the tab into {group}, which holds {count} tabs",
     );
 </script>
@@ -345,7 +356,7 @@ const rowName = (entry: TabGroupPickerEntry & { kind: "group" }): string =>
                 :aria-selected="index === activeIndex ? 'true' : 'false'"
                 :aria-label="
                     entry.kind === 'group'
-                        ? rowName(entry as TabGroupPickerEntry & { kind: 'group' })
+                        ? rowName(entry.row)
                         : t('tabGroupPicker.newGroupAction', 'New group...')
                 "
                 class="mb-tab-group-picker__row"
@@ -365,7 +376,7 @@ const rowName = (entry: TabGroupPickerEntry & { kind: "group" }): string =>
                         {{ entry.row.name }}
                     </v-chip>
                     <span class="mb-tab-group-picker__count" aria-hidden="true">
-                        {{ rowCount(entry as TabGroupPickerEntry & { kind: 'group' }) }}
+                        {{ rowCount(entry.row) }}
                     </span>
                 </template>
                 <template v-else>
