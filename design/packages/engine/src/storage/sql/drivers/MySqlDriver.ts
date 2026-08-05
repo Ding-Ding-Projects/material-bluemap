@@ -18,10 +18,11 @@ type Mysql2PoolConnection = Awaited<ReturnType<Mysql2Pool["getConnection"]>>;
 const RECOVERABLE_CODES = new Set(["PROTOCOL_CONNECTION_LOST", "ECONNRESET", "ETIMEDOUT"]);
 
 /**
- * Exported for its own test: no real MySQL/MariaDB server is available on this machine
- * to trigger these errors for real, so the classification is checked directly against
+ * Exported for its own test (`MySqlDriver.test.ts`): a reachable server is not always
+ * available where this runs, so the classification is checked directly there against
  * synthetic errors carrying the exact codes mysql2 documents for a duplicate-key error
- * and a dropped connection.
+ * and a dropped connection. `SqlStorage.realServer.test.ts` is the opt-in file that
+ * exercises this port against a real MySQL/MariaDB server when one is configured.
  */
 export function mapMySqlError(ex: unknown): Error {
     if (ex instanceof Error) {
@@ -81,6 +82,26 @@ export function parseMySqlConnectionOptions(
     return config;
 }
 
+/**
+ * Uses `connection.query()` (mysql2's client-side value escaping, sent as plain SQL
+ * text) rather than `connection.execute()` (mysql2's server-side prepared statement,
+ * MySQL's binary protocol) for *every* statement, including plain `INSERT`/`SELECT ...
+ * WHERE`.
+ *
+ * Found against a real server, not assumed: a real MySQL 8.4.6 container rejects any
+ * `execute()`-bound statement whose `LIMIT`/`OFFSET` clause is itself a `?` parameter —
+ * `AbstractCommandSet`'s paginated `listMapGrids`/`listMapIds`/`purgeMapGrids`
+ * statements all have exactly this shape — with `ER_WRONG_ARGUMENTS` / "Incorrect
+ * arguments to mysqld_stmt_execute", regardless of the bound value's JS type. A real
+ * MariaDB 11.4.7 container, same driver, same SQL text, does not hit this; it is a real
+ * behavioral difference between the two servers' prepared-statement handling, not a
+ * port bug or a MariaDB-only workaround. `query()` still escapes every bound value
+ * (numbers, strings, booleans, `Buffer`/BLOB) exactly as `execute()` would — proven
+ * byte-identical against a real server in `SqlStorage.realServer.test.ts` — so this
+ * loses none of the SQL-injection safety `execute()` provided; it only stops relying on
+ * MySQL's server-side prepare, which is the thing that turned out not to accept these
+ * statements.
+ */
 class MySqlDriverAdapter implements SqlDriverAdapter {
     private readonly pool: Mysql2Pool;
 
@@ -100,7 +121,7 @@ class MySqlDriverAdapter implements SqlDriverAdapter {
         return {
             query: async (sql, params) => {
                 try {
-                    const [rows] = await connection.execute(sql, params.map(toBindValue));
+                    const [rows] = await connection.query(sql, params.map(toBindValue));
                     return rows as unknown as SqlRow[];
                 } catch (ex) {
                     throw mapMySqlError(ex);
@@ -108,7 +129,7 @@ class MySqlDriverAdapter implements SqlDriverAdapter {
             },
             execute: async (sql, params): Promise<SqlExecuteResult> => {
                 try {
-                    const [result] = await connection.execute(sql, params.map(toBindValue));
+                    const [result] = await connection.query(sql, params.map(toBindValue));
                     return { affectedRows: (result as { affectedRows: number }).affectedRows };
                 } catch (ex) {
                     throw mapMySqlError(ex);

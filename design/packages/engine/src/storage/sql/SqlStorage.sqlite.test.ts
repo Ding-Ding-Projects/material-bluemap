@@ -11,9 +11,11 @@ import { SQLStorage } from "./SQLStorage.js";
 
 /**
  * Functional coverage for the ported SQL storage, run against a real `sql.js` SQLite
- * engine — real SQL executed against a real (WASM) SQLite, not a hand-rolled fake. See
- * the handoff notes for exactly what this does and does not prove about MySQL and
- * PostgreSQL, which have no equivalent locally-runnable engine.
+ * engine — real SQL executed against a real (WASM) SQLite, not a hand-rolled fake.
+ * SQLite is the only dialect with a locally-runnable engine that needs no server at
+ * all, which is why its coverage lives here unconditionally; the equivalent coverage
+ * against real MySQL/MariaDB/PostgreSQL servers is opt-in (a real server has to exist
+ * somewhere) and lives in `SqlStorage.realServer.test.ts`.
  */
 
 let root: string;

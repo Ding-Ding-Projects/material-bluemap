@@ -4,14 +4,17 @@ import type { SqlConnectionOptions } from "../Dialect.js";
 import { createMySqlDriverAdapter, mapMySqlError, parseMySqlConnectionOptions } from "./MySqlDriver.js";
 
 /**
- * No real MySQL/MariaDB server is available on this machine, so this file proves the
- * driver adapter's own logic — URL parsing and error classification — directly, and
- * proves the adapter can be *constructed* (which loads the real `mysql2` package and
- * builds a real connection pool, without opening a socket — `mysql2.createPool` is
- * lazy) without a server. What it does not and cannot prove: that a real MySQL server
- * accepts the statements this port sends it, or that `mapMySqlError`'s codes are what a
- * real server-triggered error actually carries. Both are stated here rather than
- * implied by a green test run.
+ * This file proves the driver adapter's own logic — URL parsing and error
+ * classification — directly, without needing a reachable server, and proves the adapter
+ * can be *constructed* (which loads the real `mysql2` package and builds a real
+ * connection pool, without opening a socket — `mysql2.createPool` is lazy). What it does
+ * not and cannot prove without a real server: that a real MySQL server accepts the
+ * statements this port sends it, or that `mapMySqlError`'s codes are what a real
+ * server-triggered error actually carries. Both are stated here rather than implied by a
+ * green test run — and both are exactly what `SqlStorage.realServer.test.ts` proves,
+ * opt-in, against a real (Docker) MySQL/MariaDB server. That file is also where a real
+ * MySQL 8.4.6 server's rejection of a bound `LIMIT`/`OFFSET` parameter on the
+ * `execute()` path was found; see `MySqlDriverAdapter`'s own doc comment for the fix.
  */
 
 function options(overrides: Partial<SqlConnectionOptions> = {}): SqlConnectionOptions {

@@ -1058,10 +1058,28 @@ instead of a second pipeline. Nothing in `ResourcePack`, `Pack` or the atlas-lay
   way to load an arbitrary JDBC jar from a classpath at runtime in javascript, and this
   port always uses its own built-in driver for the resolved dialect regardless, so
   letting the setting through unused would be a silent lie about what it does.
-- **Not proven: MySQL/PostgreSQL against a real server, or cross-compatibility with
-  upstream's Java engine reading/writing the same SQLite file.** No server or JVM was
-  available in this environment. See `ROADMAP.md`'s Phase H section for exactly what is
-  and is not covered.
+- **MySQL 8.4.6, over a real server, rejects a bound `LIMIT`/`OFFSET` `?` parameter on
+  mysql2's server-side prepared-statement path — MariaDB 11.4.7 does not.** Found running
+  `SqlStorage.realServer.test.ts` (issue #32) against three throwaway Docker containers,
+  not assumed: every paginated statement (`listMapGrids`, `listMapIds`, `purgeMapGrids`)
+  binds its page size and offset as `?` parameters, exactly the shape `AbstractCommandSet`
+  transcribes from upstream's Java. `connection.execute()` (mysql2's binary protocol,
+  MySQL server-side prepare) fails this specific shape on real MySQL 8.4.6 with
+  `ER_WRONG_ARGUMENTS` / "Incorrect arguments to mysqld_stmt_execute", regardless of the
+  bound value's JS type; the identical driver, SQL text and params succeed unchanged
+  against real MariaDB 11.4.7. `MySqlDriver.ts`'s `MySqlDriverAdapter` now sends every
+  statement through `connection.query()` (mysql2's client-side value escaping — still not
+  string concatenation, still safe against injection) instead of `execute()`, which fixed
+  it on both dialects without changing a single SQL statement's text, preserving the
+  byte-for-byte fidelity the `*CommandSet.test.ts` contract tests check. The blob
+  byte-fidelity this switch might have put at risk was itself re-proven against the real
+  server before trusting the fix.
+- **Not proven: cross-compatibility with upstream's Java engine reading/writing the same
+  database.** MySQL/MariaDB/PostgreSQL are now proven against real Docker servers (see
+  above and `SqlStorage.realServer.test.ts`); cross-compatibility with a real JVM running
+  upstream's engine over the same database is the one item this still leaves open, and
+  needs a JVM run this environment does not have. See `ROADMAP.md`'s Phase H section for
+  exactly what is and is not covered.
 
 ## map/hires — the tile-model and the PRBM writer (Phase D wave 1)
 

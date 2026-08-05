@@ -9,9 +9,11 @@ import {
 } from "./PostgresDriver.js";
 
 /**
- * No real PostgreSQL server is available on this machine — see `MySqlDriver.test.ts`
- * for the same caveat applied to MySQL/MariaDB, and the port's handoff notes for what
- * that does and does not mean for confidence in this dialect.
+ * This file proves the adapter's own logic without needing a reachable server — see
+ * `MySqlDriver.test.ts` for the same shape applied to MySQL/MariaDB.
+ * `SqlStorage.realServer.test.ts` is the opt-in file that exercises this port against a
+ * real (Docker) PostgreSQL server when one is configured; PostgreSQL showed no
+ * divergence from the SQLite-proven behavior when actually run against one.
  */
 
 function options(overrides: Partial<SqlConnectionOptions> = {}): SqlConnectionOptions {

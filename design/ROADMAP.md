@@ -49,7 +49,7 @@ exclusions **S2 and S4 are withdrawn**; S1 and S3 still stand.
 | E | RenderManager worker pool, watch re-render, full HTTP routes + SSE, config schema (every option), standalone server CLI + Dockerfile | **Part done.** See below for the split |
 | F | Full options GUI (all settings, map wizard, storage editors, config import) | **Reachable, and it now opens on settings.** `App.vue` mounts the Material title bar, the world wizard, first-run setup and the settings surface. Three gaps closed: the preload never exposed the window controls (a frameless window with no minimise or close); only 6 of a map's 92 settings could reach a render; and (`5c810d0`) the editor opened on "Nothing is open yet" with no tabs once it resolved a real bridge, so it now opens on the config folder BlueMap already uses, or on BlueMap's defaults labelled as unsaved. Its controls were swept in `6b8ef7b`: registry-key selects no longer render blank against values BlueMap writes, and both colour fields use the continuous picker with alpha, kept true by `packages/config/test/controlPolicy.test.ts` |
 | G | Docker hosting GUI (dockerode instance manager) | Pending |
-| H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | **Part done.** SQL storages ported (issue #32, see below); command palette, marker editor, JS addon system, static export and the three.js upgrade remain Pending |
+| H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | **Part done.** SQL storages ported and proven against real MySQL/MariaDB/PostgreSQL servers (issue #32, see below; cross-compatibility with upstream's Java engine remains the one open item); command palette, marker editor, JS addon system, static export and the three.js upgrade remain Pending |
 | I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending |
 | Contracts | Regex builder everywhere · full tab system · per-element appearance editors · EN/HK-Cantonese/bilingual + funny-level · super confirmation · local version history (see `docs/contracts/`) | Pages mounts the discovery searches, live-localized command palette, anchored changelog range picker, notification centre, and two-key gate. **Local version history landed for config folders** (`1b77779`, `docs/config-history.md`): an isolated git repository beside the app data directory, append-only including restore, a History tab, and trim behind the two-key gate. **Projects joined it on 2026-08-04** (`f4d3abd`, `packages/app/src/main/project/history.ts`), under their own repository root so one repository never mirrors two folders. **Server profiles and application settings joined it on 2026-08-05** (issue #35, `profiles/history.ts` and `settings/history.ts`), each under their own repository root; the maps-and-servers list is covered by the same profiles history, per the issue's own text that it is one store viewed two ways. Remaining desktop-app contract work is tracked in the open issues |
 | Pages | Material 3 GitHub Pages shell, tabbed discovery, repository-backed changelog, command palette, notification centre and responsive documentation surface | **Built and locally verified; the newest hosted proof is still a Pages deployment, not a CI verdict.** The site adds every-rendered-element appearance coverage, dynamic per-group discovery searches, searchable tab/group/overflow menus with adjacent builders, cross-platform config line-ending preservation, and a site-owned super-confirmation gate for notification clearing, tab closes, group removal and bulk-close actions (`2ba959d`). The desktop app now also has a `Publish to Pages` tab (`22b475a`, `e7bd403`) with preflight size/limit facts, guarded branch ownership, live-only status, durable resume checkpoints, recorded-site status refresh and a two-key stop-hosting gate. The screenshot harness captures it and refuses stale UI/main/preload bundles (`54559eb`). Local continuation verification is **381 files, 6,174 passed, 3 skipped** before this follow-up; the Pages host now adds 37 main-process tests for resume and refresh. Site typecheck/build and repository lint remain required. Pages run `30949965713` succeeded for `ecc5168` and run `30943812059` succeeded for `80369ec`, whose live site returned 200 with the menu-search, regex-builder, appearance-coverage and dynamic-group-search markers. The exact latest CI `30960216270` and Pages `30960216143` runs for `54559eb` remain pending. The `site` package contributes 132 of the workspace's tests. A runtime/headless capture of the live site remains a separate boundary |
@@ -415,18 +415,39 @@ exactly as it already is against `FileMapStorage`, and byte-for-byte identical h
 `.prbm.gz` tiles between file storage and SQL storage using the engine's own real PRBM
 oracle fixtures (the same tiles `PRBMWriter.test.ts` checks against the real Java writer).
 
+**Proven against real servers, 2026-08-05** (`SqlStorage.realServer.test.ts`, opt-in via
+`MBM_TEST_MYSQL_URL`/`MBM_TEST_MARIADB_URL`/`MBM_TEST_POSTGRES_URL`, loudly skipped by
+name when unset): three throwaway, official, exact-tag-pinned Docker containers —
+`mysql:8.4.6`, `mariadb:11.4.7`, `postgres:17.6` — each on its own high local port with a
+freshly generated throwaway password, torn down after the run. Against each: schema
+creation on a bare database, an item and grid tile round trip, every oracle-built hires
+tile byte-identical to `FileMapStorage`'s own compressed and decompressed bytes (the
+same PRBM oracle fixtures the SQLite/byte-fidelity suites use), the three render-state
+grids independent of the map's tile compression, purging past a single 1000-row page
+with monotonic progress reaching 1, `StorageDeleteTask` wiring, the find-or-create
+deleted-map-row-recreation behaviour, and paginating grid tiles past a single page —
+**21 tests, all passing, on all three dialects.**
+
+**One real finding, from running against a real server rather than a synthetic one, and
+fixed in the port (not the test):** a real MySQL 8.4.6 server rejects any statement sent
+through mysql2's server-side prepared-statement path (`connection.execute()`) whose
+`LIMIT`/`OFFSET` clause is itself a bound `?` parameter — exactly the shape
+`AbstractCommandSet`'s paginated `listMapGrids`/`listMapIds`/`purgeMapGrids` statements
+have — with `ER_WRONG_ARGUMENTS` / "Incorrect arguments to mysqld_stmt_execute",
+regardless of the bound value's JS type. A real MariaDB 11.4.7 server, same driver, same
+SQL text, does not hit this. `MySqlDriver.ts` now uses `connection.query()` (client-side
+value escaping, still safe against injection, proven byte-identical for BLOB payloads
+against the real server) for every statement instead of `execute()`, which resolved it
+on both MySQL and MariaDB without touching any SQL text — see the doc comment on
+`MySqlDriverAdapter` for the full account.
+
 **Not proven — stated rather than glossed over:**
 
-- **MySQL and PostgreSQL against a real server.** No server was available on this
-  machine. What *is* checked: the exact SQL text (contract tests against upstream's Java
-  source), connection-URL parsing, the `?` → `$1, $2, ...` placeholder translation
-  node-postgres needs, and driver-error classification against synthetic errors carrying
-  the documented codes (`ER_DUP_ENTRY`, SQLSTATE `23505`, etc.) — not against errors a
-  real server actually produced.
 - **Cross-compatibility with upstream's Java engine** — a map upstream's CLI wrote into
-  SQLite read correctly by this port, and the reverse — which needs a JVM run this
-  environment does not have. The schema and every statement are transcribed exactly from
-  the Java source so that this *should* hold; "should" is deliberate, not "does".
+  SQLite (or MySQL/PostgreSQL) read correctly by this port, and the reverse — which needs
+  a JVM run this environment does not have. The schema and every statement are
+  transcribed exactly from the Java source so that this *should* hold; "should" is
+  deliberate, not "does". This is issue #32's one remaining open acceptance item.
 - **`driver-jar`/`driver-class`** (a custom JDBC driver jar): there is no javascript
   equivalent of loading an arbitrary classpath jar at runtime, so `StorageFactory` refuses
   a config that sets either, by name, rather than silently ignoring the setting.
@@ -556,8 +577,11 @@ closed now. See the 2026-08-05 HANDOFF.md entry for the evidence behind each.
   or `packages/cli` (issue #30's own follow-on, not closed by it).
 - **Join `packages/cli`'s `-u`/`--watch` to `packages/server`'s `MapUpdateService`** — both
   exist; nothing calls the second from the first yet.
-- **Prove MySQL and PostgreSQL storage against a real server**, and prove
-  cross-compatibility with upstream's Java engine, both named as open in issue #32.
+- **Prove cross-compatibility with upstream's Java engine** (a map written by the Java
+  CLI read by this port, and vice versa) — the one item issue #32's acceptance checklist
+  still has open, now that MySQL/MariaDB/PostgreSQL are proven against real Docker
+  servers (2026-08-05, see the Phase H section below). Needs a JVM run this task was not
+  scoped to bring in.
 - **Fix `FlatteningRename` firing unconditionally on the world's era instead of also
   checking the resource pack's** (issue #46, found running Phase C's exit checks): it
   breaks an era-matched 1.12.2 render for every key-renaming rule (grass, snow, snow_layer,

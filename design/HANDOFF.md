@@ -173,8 +173,16 @@ document says so.
   process** — see below.
 - **SQL storage is ported**, for `sql.js` (SQLite, WASM), `mysql2` and `pg` — all pure
   JavaScript, no native addons. Proven with a real WASM SQLite engine: round trips,
-  compression, paging, purge, byte-fidelity against file storage. MySQL and PostgreSQL are
-  proven against SQL-text contract tests only; no real server was available to test against.
+  compression, paging, purge, byte-fidelity against file storage. **MySQL, MariaDB and
+  PostgreSQL are now also proven against real Docker servers** (`mysql:8.4.6`,
+  `mariadb:11.4.7`, `postgres:17.6`; `SqlStorage.realServer.test.ts`, opt-in and loudly
+  skipped without a configured server): schema creation, byte-fidelity, render-state
+  grids, purge, find-or-create key semantics, and paging — 21 tests, all passing on all
+  three. One real finding along the way: a real MySQL 8.4.6 server rejects a bound
+  `LIMIT`/`OFFSET` parameter on mysql2's prepared-statement path (MariaDB does not);
+  fixed in `MySqlDriver.ts` by switching to client-side query escaping for every
+  statement, with no SQL text changed. Cross-compatibility with upstream's real Java
+  engine reading/writing the same database still needs a JVM run nobody has done.
 - **A Minecraft 1.12.2 world now draws correctly**, not just reads correctly.
   `packages/engine/src/world/mca/legacy/FlatteningRename.ts` translates a pre-flattening
   block name to its modern equivalent before a resource pack is consulted, fixing grass
@@ -196,9 +204,10 @@ document says so.
   exists and is tested in `packages/server`, but the CLI was mid-restructure when that
   landed, so the CLI still runs one real render under `-u` and then exits non-zero naming
   the gap, rather than joining the two.
-- **MySQL and PostgreSQL storage are unverified against a real server**, and
-  cross-compatibility with upstream's Java engine (a map the Java CLI wrote, read by this
-  port, and the reverse) needs a JVM run nobody has done.
+- **Cross-compatibility with upstream's Java engine** (a map the Java CLI wrote, read by
+  this port, and the reverse) needs a JVM run nobody has done. This is the one item left
+  open in issue #32's acceptance checklist — MySQL/MariaDB/PostgreSQL are now proven
+  against real Docker servers (see above).
 - **Phase C's exit criteria are still unproven** — `textures.json` parity, a real 1.12.2
   jar, live blockstate resolution. A plan was posted for this on 2026-08-05; as of this
   summary, no results have been reported yet.
@@ -315,6 +324,57 @@ further down for the wrong conclusion its absence produced.
    verified.
 4. Every change: run the tests, run the linter, commit with a message that says what
    actually changed, push, and check CI.
+
+---
+
+## Update, 2026-08-05 — issue #32's real-server gap closed, with one real MySQL finding
+
+Issue #32's own thread had one stated gap left after its two earlier pushes (`0bc90c2`,
+`b32f423`): "MySQL/PostgreSQL unproven against a real server." This pass closed it, and
+left the issue open on exactly the one item its acceptance checklist still names.
+
+**Three throwaway Docker containers, official images, exact tags pinned:** `mysql:8.4.6`,
+`mariadb:11.4.7`, `postgres:17.6`. Each on its own high local port
+(`127.0.0.1:33061`/`33062`/`54329`), each with a freshly generated password passed only
+through an environment variable — never committed, never a value that looks like a real
+credential — and each removed (`docker rm -f`) once the run finished; `docker ps -a`
+confirmed nothing was left behind.
+
+**New file: `packages/engine/src/storage/sql/SqlStorage.realServer.test.ts`.** Opt-in per
+dialect via `MBM_TEST_MYSQL_URL`/`MBM_TEST_MARIADB_URL`/`MBM_TEST_POSTGRES_URL`; a dialect
+whose variable is unset gets a single passing test naming exactly why it was skipped, the
+same loud-skip pattern `javaRoundTrip.test.ts` and `vendorGate.ts` already use. Against
+each real server: schema creation on a bare database, an item and grid round trip, every
+oracle-built hires tile byte-identical to `FileMapStorage`'s own bytes (the same PRBM
+oracle fixtures the SQLite/byte-fidelity suites use), the three render-state grids,
+purging past a single 1000-row page with monotonic progress, `StorageDeleteTask` wiring,
+the find-or-create deleted-map-row-recreation behavior, and paginating past a page
+boundary. **21 tests, all passing, on all three dialects.**
+
+**One real finding, the kind only a real server produces:** MySQL 8.4.6 rejects any
+statement sent through mysql2's server-side prepared-statement path
+(`connection.execute()`) whose `LIMIT`/`OFFSET` clause is itself a bound `?` parameter —
+exactly the shape every paginated statement in `AbstractCommandSet` has — with
+`ER_WRONG_ARGUMENTS` / "Incorrect arguments to mysqld_stmt_execute", regardless of the
+bound value's JS type. MariaDB 11.4.7, same driver, same SQL text, does not hit this.
+Confirmed the mechanism with a standalone probe before touching the port (`execute()`
+fails, `query()` succeeds, blob round-trip stays byte-identical either way), then fixed
+`MySqlDriverAdapter` in `MySqlDriver.ts` to send every statement through `query()`
+(mysql2's client-side value escaping — still not string concatenation, still safe against
+injection) instead of `execute()`. This resolved it on both MySQL and MariaDB without
+changing a single SQL statement's text, so the `*CommandSet.test.ts` byte-for-byte
+contract tests against upstream's Java source still hold. All 155 pre-existing SQL-storage
+tests and the full `packages/engine` suite (1476 passed, 2 pre-existing unrelated skips)
+were re-run clean after the fix.
+
+**What is still not proven, unchanged:** cross-compatibility with upstream's real Java
+engine reading and writing the same database needs a JVM run this task was not scoped to
+bring in. That is the one item issue #32's own acceptance checklist still has unchecked,
+so the issue stays open on that one gap rather than being closed.
+
+See `ROADMAP.md`'s Phase H section and `docs/deviations.md`'s `storage/sql` section for
+the full detail, and the doc comment on `MySqlDriverAdapter` in `MySqlDriver.ts` for the
+finding written where the fix actually lives.
 
 ---
 
@@ -563,11 +623,16 @@ keep it external to the bundle and document why.**
   tens-of-thousands-of-tile map.
 - **Issue #32** (SQL storage) landed its core port (`0bc90c2`) and a second push
   (`b32f423`) covering dialect resolution, driver-adapter parsing and error classification,
-  and a byte-fidelity proof against file storage using real PRBM oracle fixtures. **MySQL
-  and PostgreSQL are proven against SQL-text contract tests only — no real server was
-  available on this machine**, and cross-compatibility with upstream's Java engine (a map
-  the Java CLI wrote, read by this port, and the reverse) needs a JVM run nobody has done.
-  Stays open on those two named gaps.
+  and a byte-fidelity proof against file storage using real PRBM oracle fixtures, then a
+  third pass proving MySQL, MariaDB and PostgreSQL against real Docker containers
+  (`mysql:8.4.6`, `mariadb:11.4.7`, `postgres:17.6`) — 21 tests, all passing, in
+  `SqlStorage.realServer.test.ts` — with one real finding fixed along the way: a real
+  MySQL 8.4.6 server rejects a bound `LIMIT`/`OFFSET` parameter on mysql2's
+  prepared-statement path, which `MySqlDriver.ts` now avoids by using client-side query
+  escaping for every statement instead, with no SQL text changed. **Cross-compatibility
+  with upstream's Java engine** (a map the Java CLI wrote, read by this port, and the
+  reverse) still needs a JVM run nobody has done, and is the one item left in the issue's
+  own acceptance checklist — issue stays open on that one named gap.
 - **Issue #31** (Phase C exit criteria — `textures.json` parity, a real 1.12.2 jar, live
   blockstate resolution) had a plan posted and was picked up in this pass; as of this
   writing no results comment has landed yet. Do not write that Phase C's gate closed until

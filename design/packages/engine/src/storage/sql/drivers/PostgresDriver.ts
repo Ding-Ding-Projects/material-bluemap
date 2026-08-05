@@ -32,10 +32,12 @@ const RECOVERABLE_NODE_CODES = new Set(["ECONNRESET", "ETIMEDOUT"]);
 const UNIQUE_VIOLATION_SQLSTATE = "23505";
 
 /**
- * Exported for its own test: no real PostgreSQL server is available on this machine, so
- * the classification is checked directly against synthetic errors carrying the exact
- * SQLSTATE codes Postgres documents for a unique-constraint violation and a few
- * transient shutdown states.
+ * Exported for its own test (`PostgresDriver.test.ts`): a reachable server is not
+ * always available where this runs, so the classification is checked directly there
+ * against synthetic errors carrying the exact SQLSTATE codes Postgres documents for a
+ * unique-constraint violation and a few transient shutdown states.
+ * `SqlStorage.realServer.test.ts` is the opt-in file that exercises this port against a
+ * real PostgreSQL server when one is configured.
  */
 export function mapPostgresError(ex: unknown): Error {
     if (ex instanceof Error) {
