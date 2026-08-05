@@ -12,6 +12,8 @@ import { clear, el, uniqueId } from "../../platform/dom.js";
 import { announce } from "../../settings/dom.js";
 import { fillPhrase, t } from "../../settings/i18n.js";
 import { AnchoredPanel } from "../../search/anchoredPanel.js";
+import { attachRegexBuilder } from "../../search/attachBuilder.js";
+import { compileMatcher } from "../../tabs/matcher.js";
 import type { Preferences } from "../../platform/Preferences.js";
 import { createColorPicker } from "../color/picker.js";
 import { parseColor } from "../color/representations.js";
@@ -421,10 +423,15 @@ export function fontRow(
     const control = el("div", { class: "mb-control" }, trigger);
     const { row, refreshReset } = buildRow(options, control, id);
 
+    let closeFontList = (): void => {
+        // Replaced below once a font list has actually been built; a close before then has
+        // nothing to tear down.
+    };
     const panel = new AnchoredPanel({
         anchor: trigger,
         returnFocusTo: trigger,
         title: t("type.family"),
+        onClose: () => closeFontList(),
     });
 
     trigger.addEventListener("click", () => {
@@ -432,10 +439,12 @@ export function fontRow(
             panel.close();
             return;
         }
-        panel.show(buildFontList());
+        const list = buildFontList();
+        closeFontList = list.destroy;
+        panel.show(list.element);
     });
 
-    function buildFontList(): HTMLElement {
+    function buildFontList(): { element: HTMLElement; destroy: () => void } {
         const container = el("div", { class: "mb-font-list" });
         const searchId = uniqueId("mb-font-search");
         const search = el("input", {
@@ -448,6 +457,14 @@ export function fontRow(
                 placeholder: t("type.familySearch"),
             },
         });
+        // Same row-plus-anchored-builder shape as every other search field in this
+        // application: plain substring by default, the guided pattern builder beside it.
+        // Reuses the menu search row's own layout rule -- flex, gapped, input growing to
+        // fill -- since the shape is identical and a second copy of the same three lines
+        // of CSS would only be one more place for the two to drift apart.
+        const searchRow = el("div", { class: "md-menu__search-row" }, search);
+        let filterMode: "plain" | "regex" = "plain";
+        let filterCaseSensitive = false;
         const note = el("p", { class: "md-field__help mb-help", text: t(options.installedNoteKey()) });
         const listbox = el("div", {
             class: "mb-font-options",
@@ -468,14 +485,18 @@ export function fontRow(
 
         function renderOptions(query: string): void {
             clear(listbox);
-            const needle = query.trim().toLowerCase();
             const current = options.read();
+            const matcher =
+                query.trim().length === 0
+                    ? null
+                    : compileMatcher({ query, mode: filterMode, caseSensitive: filterCaseSensitive });
+            const keep = (name: string): boolean => matcher === null || (matcher.ok && matcher.test(name));
 
-            if (options.allowInherit === true) {
+            if (options.allowInherit === true && keep(t("type.inherit"))) {
                 listbox.append(fontOption("", t("type.inherit"), "inherit", current === ""));
             }
             for (const family of options.families()) {
-                if (needle !== "" && !family.name.toLowerCase().includes(needle)) continue;
+                if (!keep(family.name)) continue;
                 listbox.append(
                     fontOption(family.id, family.name, family.stack, current === family.id)
                 );
@@ -515,12 +536,21 @@ export function fontRow(
             return option;
         }
 
-        search.addEventListener("input", () => {
-            renderOptions(search.value);
+        const builder = attachRegexBuilder(search, {
+            fieldId: searchId,
+            fieldLabel: t("type.familySearch"),
+            container: searchRow,
+            persist: false,
+            sampleProvider: () => options.families().map((family) => family.name).join("\n"),
+            onChange: (spec) => {
+                filterMode = spec.mode;
+                filterCaseSensitive = spec.caseSensitive;
+                renderOptions(spec.query);
+            },
         });
         renderOptions("");
-        container.append(search, note, request, listbox);
-        return container;
+        container.append(searchRow, note, request, listbox);
+        return { element: container, destroy: () => builder.destroy() };
     }
 
     const refresh = (): void => {

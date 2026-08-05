@@ -14,6 +14,8 @@
 import { clear, el, formatShortcut, uniqueId } from "../../platform/dom.js";
 import { t } from "../../settings/i18n.js";
 import { AnchoredPanel } from "../../search/anchoredPanel.js";
+import { attachRegexBuilder } from "../../search/attachBuilder.js";
+import { compileMatcher } from "../../tabs/matcher.js";
 import type { AppearanceController } from "../controller.js";
 import { findTarget, styleId } from "../model.js";
 import { openAppearanceEditor } from "./appearanceEditor.js";
@@ -126,11 +128,16 @@ export function openElementMenu(
     document.body.append(anchor);
     pointerAnchor = anchor;
 
+    let closeMenu = (): void => {
+        // Replaced below once the menu itself exists; a close before then has nothing to
+        // tear down.
+    };
     const panel = new AnchoredPanel({
         anchor,
         returnFocusTo: element,
         title: t("menu.title"),
         onClose: () => {
+            closeMenu();
             anchor.remove();
             if (pointerAnchor === anchor) pointerAnchor = null;
             if (openMenu === panel) openMenu = null;
@@ -184,10 +191,18 @@ export function openElementMenu(
         },
     ];
 
-    panel.show(buildMenu(items, target?.labelKey));
+    const menu = buildMenu(items, target?.labelKey);
+    closeMenu = menu.destroy;
+    panel.show(menu.element);
 }
 
-function buildMenu(items: readonly MenuItem[], targetLabelKey: string | undefined): HTMLElement {
+interface BuiltMenu {
+    readonly element: HTMLElement;
+    /** Tears down the search field's regex builder: its DOM, and its locale subscription. */
+    readonly destroy: () => void;
+}
+
+function buildMenu(items: readonly MenuItem[], targetLabelKey: string | undefined): BuiltMenu {
     const container = el("div", { class: "md-menu mb-menu", data: { mbKind: "context-menu" } });
     const searchId = uniqueId("mb-menu-search");
     const search = el("input", {
@@ -200,6 +215,10 @@ function buildMenu(items: readonly MenuItem[], targetLabelKey: string | undefine
             "aria-label": t("menu.search"),
         },
     });
+    // The row the search field and its anchored regex builder button share, matching every
+    // other search surface in this application: plain text by default, the guided pattern
+    // builder one click away, never a bare field with nowhere for the builder to live.
+    const searchRow = el("div", { class: "md-menu__search-row" }, search);
     const list = el("div", {
         class: "mb-menu-list",
         attrs: {
@@ -208,11 +227,17 @@ function buildMenu(items: readonly MenuItem[], targetLabelKey: string | undefine
         },
     });
 
+    let filterMode: "plain" | "regex" = "plain";
+    let filterCaseSensitive = false;
+
     function render(query: string): void {
         clear(list);
-        const needle = query.trim().toLowerCase();
+        const matcher =
+            query.trim().length === 0
+                ? null
+                : compileMatcher({ query, mode: filterMode, caseSensitive: filterCaseSensitive });
         const visible = items.filter(
-            (item) => needle === "" || item.label.toLowerCase().includes(needle)
+            (item) => matcher === null || (matcher.ok && matcher.test(item.label))
         );
         if (visible.length === 0) {
             list.append(el("p", { class: "md-field__help mb-help", text: t("menu.noItems") }));
@@ -247,8 +272,19 @@ function buildMenu(items: readonly MenuItem[], targetLabelKey: string | undefine
         }
     }
 
-    search.addEventListener("input", () => {
-        render(search.value);
+    const builder = attachRegexBuilder(search, {
+        fieldId: searchId,
+        fieldLabel: t("menu.search"),
+        container: searchRow,
+        persist: false,
+        sampleProvider: () => items.map((item) => item.label).join("\n"),
+        onChange: (spec) => {
+            filterMode = spec.mode;
+            filterCaseSensitive = spec.caseSensitive;
+            // An invalid pattern is not silently treated as "show everything": compileMatcher
+            // reports it unmatched below, exactly as the tab list's own regex filter does.
+            render(spec.query);
+        },
     });
     list.addEventListener("keydown", (event) => {
         if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
@@ -264,6 +300,6 @@ function buildMenu(items: readonly MenuItem[], targetLabelKey: string | undefine
     });
 
     render("");
-    container.append(search, list);
-    return container;
+    container.append(searchRow, list);
+    return { element: container, destroy: () => builder.destroy() };
 }
