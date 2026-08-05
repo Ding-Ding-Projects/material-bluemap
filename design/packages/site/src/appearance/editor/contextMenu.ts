@@ -47,6 +47,27 @@ export function closeElementMenu(): void {
     openMenu?.close();
 }
 
+const NATIVELY_FOCUSABLE = ["A", "BUTTON", "INPUT", "SELECT", "TEXTAREA", "IFRAME", "SUMMARY"];
+
+/**
+ * Give an element a script-reachable focus target without changing the Tab order.
+ *
+ * The context menu's own keyboard path (`ContextMenu`, Shift+F10) and the appearance
+ * editor's "return focus to whatever opened it" both need `element.focus()` to actually
+ * move focus. A link, button, form control, or anything the page already gave a
+ * `tabindex` can already take focus; a heading, paragraph, card, or footer -- which
+ * `decoratePage`'s traversal registers just as readily -- cannot, and `.focus()` on it
+ * silently does nothing, dropping the visitor at the top of the document instead of back
+ * where they started. `tabindex="-1"` is the standard fix: focusable by script, absent
+ * from the natural Tab order, so nothing about ordinary keyboard navigation changes.
+ */
+function ensureFocusable(element: HTMLElement): void {
+    if (element.hasAttribute("tabindex")) return;
+    if (NATIVELY_FOCUSABLE.includes(element.tagName)) return;
+    if (element.isContentEditable) return;
+    element.tabIndex = -1;
+}
+
 /**
  * Mark an element as an appearance target and give it a menu.
  *
@@ -63,6 +84,7 @@ export function registerAppearanceTarget(
     if (binding.instance !== undefined) {
         element.dataset["mbStyle"] = styleId(binding.kind, binding.instance);
     }
+    ensureFocusable(element);
 
     const onContextMenu = (event: MouseEvent): void => {
         event.preventDefault();

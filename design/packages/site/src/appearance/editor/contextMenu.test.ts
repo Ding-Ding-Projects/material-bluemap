@@ -16,7 +16,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AppearanceController } from "../controller.js";
 import { AppearanceStore } from "../store.js";
 import { Preferences } from "../../platform/Preferences.js";
-import { openElementMenu } from "./contextMenu.js";
+import { openElementMenu, registerAppearanceTarget } from "./contextMenu.js";
 
 const cells = new Map<string, string>();
 
@@ -115,5 +115,60 @@ describe("the appearance editor's context menu search", () => {
         regexToggle!.checked = false;
         regexToggle!.dispatchEvent(new Event("change", { bubbles: true }));
         expect(labelsOf().length).toBe(0);
+    });
+});
+
+/**
+ * Regression guard for keyboard reachability and focus return on non-interactive appearance
+ * targets (headings, paragraphs, cards, the site footer) -- everything `decoratePage`'s
+ * traversal registers that is not already a link, button, or form control. Before this file's
+ * own commit those elements had no `tabindex`, so `element.focus()` silently did nothing:
+ * the `ContextMenu`/Shift+F10 keyboard path could never reach them, and closing their menu or
+ * appearance editor dropped focus at the top of the document instead of returning it.
+ */
+describe("registerAppearanceTarget keeps every registered element focusable", () => {
+    beforeEach(() => {
+        cells.clear();
+        document.body.replaceChildren();
+    });
+
+    function controller(): AppearanceController {
+        return new AppearanceController(new Preferences(null), new AppearanceStore());
+    }
+
+    it("adds tabindex=-1 to a plain, non-interactive element so it can take focus programmatically", () => {
+        const heading = document.createElement("h2");
+        heading.textContent = "A registered heading";
+        document.body.append(heading);
+        expect(heading.hasAttribute("tabindex")).toBe(false);
+
+        registerAppearanceTarget(heading, { kind: "card" }, controller());
+
+        expect(heading.getAttribute("tabindex")).toBe("-1");
+        heading.focus();
+        expect(document.activeElement).toBe(heading);
+    });
+
+    it("leaves a natively focusable element's tab order untouched", () => {
+        const button = document.createElement("button");
+        button.type = "button";
+        document.body.append(button);
+
+        registerAppearanceTarget(button, { kind: "tab" }, controller());
+
+        // Real buttons are focusable via their tag alone; forcing tabindex="-1" onto one
+        // would silently remove it from the ordinary Tab order, which is a worse defect
+        // than the missing-focus-target bug this function exists to fix.
+        expect(button.hasAttribute("tabindex")).toBe(false);
+    });
+
+    it("leaves an element's own explicit tabindex alone", () => {
+        const div = document.createElement("div");
+        div.setAttribute("tabindex", "0");
+        document.body.append(div);
+
+        registerAppearanceTarget(div, { kind: "card" }, controller());
+
+        expect(div.getAttribute("tabindex")).toBe("0");
     });
 });

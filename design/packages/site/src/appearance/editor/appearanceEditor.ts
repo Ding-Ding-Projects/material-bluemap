@@ -67,6 +67,13 @@ export function openAppearanceEditor(options: OpenEditorOptions): void {
 
     const panel = new AnchoredPanel({
         anchor: options.anchor,
+        // `anchor` here is the live element being edited -- a tab, a card, a whole page's
+        // wrapping surface -- used only to position the editor beside it. It is not a toggle
+        // button, so it must not also be exempt from the outside-click check: without this,
+        // almost any click on a large wrapped element (a page root, a footer, the whole
+        // command palette) would land "inside" the anchor and the editor would refuse to
+        // close, which is the exact class of bug this file exists to avoid reintroducing.
+        dismissBoundary: null,
         returnFocusTo: options.anchor,
         title: t("editor.titleFor", { name: t(target.labelKey) }),
         onClose: () => {

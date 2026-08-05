@@ -33,12 +33,26 @@ export interface AnchoredPanelOptions {
     /** Accessible name for the panel. */
     readonly title: string;
     readonly onClose?: (() => void) | undefined;
+    /**
+     * The element whose own clicks should NOT count as "outside" the panel. Defaults to
+     * `anchor`, which is correct for a small toggle button: pointerdown fires before click,
+     * so without this exemption a second click on the same button would close the panel on
+     * pointerdown and then reopen it on click, instead of toggling it shut.
+     *
+     * Pass `null` when `anchor` is only a position reference rather than a toggle control --
+     * for example, the (possibly large) element an appearance editor opens beside. Treating
+     * that whole element as "inside" the panel is exactly the bug where a menu or popover
+     * refuses to close because almost every click on the page lands somewhere within the
+     * surface it was anchored to.
+     */
+    readonly dismissBoundary?: HTMLElement | null;
 }
 
 export class AnchoredPanel {
     readonly element: HTMLElement;
 
     private readonly options: AnchoredPanelOptions;
+    private readonly dismissBoundary: HTMLElement | null;
     private readonly narrow: MediaQueryList | null;
     private open = false;
     private frame = 0;
@@ -49,6 +63,8 @@ export class AnchoredPanel {
 
     constructor(options: AnchoredPanelOptions) {
         this.options = options;
+        this.dismissBoundary =
+            options.dismissBoundary === undefined ? options.anchor : options.dismissBoundary;
         this.narrow =
             typeof matchMedia === "function" ? matchMedia(NARROW_QUERY) : null;
 
@@ -187,7 +203,10 @@ export class AnchoredPanel {
         if (!(target instanceof Node)) {
             return;
         }
-        if (this.element.contains(target) || this.options.anchor.contains(target)) {
+        if (this.element.contains(target)) {
+            return;
+        }
+        if (this.dismissBoundary !== null && this.dismissBoundary.contains(target)) {
             return;
         }
         this.close();
