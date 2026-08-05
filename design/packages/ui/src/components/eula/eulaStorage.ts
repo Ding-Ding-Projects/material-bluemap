@@ -145,6 +145,10 @@ export function readEulaStrip(storage: EulaTabStorage | null = defaultStorage())
 
 /** Writes the strip, silently doing nothing where storage refuses. */
 export function writeEulaStrip(strip: TabStripState, storage: EulaTabStorage | null = defaultStorage()): void {
+    // Fire-and-forget mirror into the main process's own settings history, whether or not
+    // there is a local `storage` to write to - see `appSettingsHistorySync.ts`'s own doc
+    // comment.
+    recordAppSetting("eulaTabs", strip);
     if (storage === null) return;
     try {
         storage.setItem(
@@ -179,9 +183,6 @@ export function writeEulaStrip(strip: TabStripState, storage: EulaTabStorage | n
         // Private mode or a full quota. A remembered arrangement of licence tabs is
         // nowhere near worth a notification.
     }
-    // Fire-and-forget mirror into the main process's own settings history, on top of the
-    // localStorage write above - see `appSettingsHistorySync.ts`'s own doc comment.
-    recordAppSetting("eulaTabs", strip);
 }
 
 /** A fresh strip: one tab per section, in document order, with the first one active. */
