@@ -155,6 +155,26 @@ export type { CollectFailure, CollectOptions, CollectResult, CollectSuccess } fr
 export { FingerprintError, WORLD_FINGERPRINT_VERSION, fingerprintWorld, isUnchanged } from "./fingerprint.js";
 export type { WorldFingerprint } from "./fingerprint.js";
 
+// Scheduled re-rendering's app-side configuration: the four-cadence set, reading and
+// writing the repository variables .github/workflows/scheduled-render.yml itself reads
+// and writes. See docs/scheduled-render.md.
+export {
+    CI_SCHEDULE_CADENCES,
+    CI_SCHEDULE_VARIABLES,
+    isCiScheduleCadence,
+    parseCiSchedule,
+    readCiSchedule,
+    writeCiSchedule,
+} from "./schedule.js";
+export type {
+    CiScheduleCadence,
+    CiScheduleCheckResultName,
+    CiScheduleSettings,
+    CiScheduleStatus,
+    CiScheduleWriteFailure,
+    CiScheduleWriteResult,
+} from "./schedule.js";
+
 export {
     DEFAULT_BUDGET_MINUTES,
     DEFAULT_MAX_JOBS,

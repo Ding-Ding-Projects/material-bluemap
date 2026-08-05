@@ -6,6 +6,8 @@ import type {
     CiOwnerChoicesAnswer,
     CiPreflight,
     CiRepositoryNameAvailability,
+    CiScheduleStatus,
+    CiScheduleWriteResult,
     CiSyncEvent,
     CiSyncRequest,
     CiSyncResult,
@@ -1840,6 +1842,28 @@ interface MaterialBlueMapBridge {
     /** Whether `owner/repo` is free. `"unknown"` rather than a guess when it could not be told. */
     checkCiRepoName(request: { owner: string; repo: string }): Promise<CiRepositoryNameAvailability>;
 
+    /**
+     * Scheduled re-rendering's current status for one repository: on or off, its cadence,
+     * and what `.github/workflows/scheduled-render.yml` last found. See
+     * docs/scheduled-render.md.
+     */
+    ciRenderScheduleRead(
+        owner: string,
+        repo: string,
+        accountId?: string,
+    ): Promise<{ ok: true; value: CiScheduleStatus } | { ok: false; message: string }>;
+    /**
+     * Turns scheduled re-rendering on (with a cadence) or off, for one recorded sync.
+     * Refused, with the reason, for a world that has never been uploaded - see
+     * `CiScheduleWriteResult`.
+     */
+    ciRenderScheduleWrite(
+        syncId: string,
+        enabled: boolean,
+        cadence: string,
+        accountId?: string,
+    ): Promise<{ ok: true; value: CiScheduleWriteResult } | { ok: false; message: string }>;
+
     /* ---- Hosting a rendered map on GitHub Pages -------------------------- */
 
     /** Renders on this computer with a web root worth publishing. */
@@ -2127,6 +2151,10 @@ const bridge: MaterialBlueMapBridge = {
         ipcRenderer.invoke("cirender:owners", accountId === undefined ? undefined : { accountId }),
     suggestCiRepoName: (sourceName) => ipcRenderer.invoke("cirender:suggestRepoName", sourceName),
     checkCiRepoName: (request) => ipcRenderer.invoke("cirender:checkRepoName", request),
+    ciRenderScheduleRead: (owner, repo, accountId) =>
+        ipcRenderer.invoke("cirender:scheduleRead", { owner, repo, accountId }),
+    ciRenderScheduleWrite: (syncId, enabled, cadence, accountId) =>
+        ipcRenderer.invoke("cirender:scheduleWrite", { syncId, enabled, cadence, accountId }),
 
     pagesRenders: () => ipcRenderer.invoke("pages:renders"),
     pagesOwners: () => ipcRenderer.invoke("pages:owners"),

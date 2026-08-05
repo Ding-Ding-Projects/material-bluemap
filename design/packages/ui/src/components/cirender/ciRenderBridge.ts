@@ -386,6 +386,37 @@ export type Answer<T> =
     | { readonly ok: false; readonly message: string };
 
 /* -------------------------------------------------------------------------- */
+/* Scheduled re-rendering: the honest cadence set, and what the workflow found */
+/* -------------------------------------------------------------------------- */
+
+/** The only four choices this screen offers. Never a cron expression. */
+export type CiScheduleCadence = "hourly" | "sixHourly" | "daily" | "weekly";
+
+export type CiScheduleCheckResultName = "changed" | "unchanged" | "unknown" | "error";
+
+export interface CiScheduleStatus {
+    readonly enabled: boolean;
+    /** Null when scheduling has never been configured - genuinely different from "off". */
+    readonly cadence: CiScheduleCadence | null;
+    readonly lastCheckAt: string | null;
+    readonly lastCheckResult: CiScheduleCheckResultName | null;
+    readonly lastCheckReason: string | null;
+    readonly lastRenderAt: string | null;
+    readonly nextCheckAt: string | null;
+    readonly checksPerMonth: number | null;
+    readonly costDescription: string | null;
+}
+
+export interface CiScheduleWriteFailure {
+    readonly code: "not-uploaded-yet";
+    readonly message: string;
+}
+
+export type CiScheduleWriteResult =
+    | { readonly ok: true }
+    | { readonly ok: false; readonly failure: CiScheduleWriteFailure };
+
+/* -------------------------------------------------------------------------- */
 /* The bridge                                                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -434,6 +465,15 @@ export interface CiRenderBridge {
     }): Promise<CiRepositoryNameAvailability>;
     /** The signed-in account's own repositories, to pick an existing one instead of typing it. */
     listExistingRepositories?(): Promise<Answer<readonly CiRepositoryChoice[]>>;
+    /** Scheduled re-rendering's current status for one repository. See docs/scheduled-render.md. */
+    ciRenderScheduleRead?(owner: string, repo: string, accountId?: string): Promise<Answer<CiScheduleStatus>>;
+    /** Turns scheduling on (with a cadence) or off, for one recorded sync. */
+    ciRenderScheduleWrite?(
+        syncId: string,
+        enabled: boolean,
+        cadence: CiScheduleCadence,
+        accountId?: string,
+    ): Promise<Answer<CiScheduleWriteResult>>;
 }
 
 /** The shape a preload is probed against, one method at a time. */
@@ -455,6 +495,13 @@ type Host = Partial<{
         repo: string;
     }) => Promise<CiRepositoryNameAvailability>;
     listBackupRepositories: () => Promise<Answer<readonly CiRepositoryChoice[]>>;
+    ciRenderScheduleRead: (owner: string, repo: string, accountId?: string) => Promise<Answer<CiScheduleStatus>>;
+    ciRenderScheduleWrite: (
+        syncId: string,
+        enabled: boolean,
+        cadence: CiScheduleCadence,
+        accountId?: string,
+    ) => Promise<Answer<CiScheduleWriteResult>>;
 }>;
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -547,6 +594,22 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
             : {}),
         ...(isFunction(host.listBackupRepositories)
             ? { listExistingRepositories: () => host.listBackupRepositories!() }
+            : {}),
+        ...(isFunction(host.ciRenderScheduleRead)
+            ? {
+                  ciRenderScheduleRead: (owner: string, repo: string, accountId?: string) =>
+                      host.ciRenderScheduleRead!(owner, repo, accountId),
+              }
+            : {}),
+        ...(isFunction(host.ciRenderScheduleWrite)
+            ? {
+                  ciRenderScheduleWrite: (
+                      syncId: string,
+                      enabled: boolean,
+                      cadence: CiScheduleCadence,
+                      accountId?: string,
+                  ) => host.ciRenderScheduleWrite!(syncId, enabled, cadence, accountId),
+              }
             : {}),
     };
 }
