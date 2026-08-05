@@ -544,16 +544,22 @@ port:**
 
 ## Test counts
 
-**Current, from the hosted CI job log itself, not a local re-run: `pnpm test:ci` on run
-[31013825875](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31013825875)
-(commit `9d8de68`, the first fully green run of this pass): 478 test files, 7,384 passed, 7
-skipped, 0 failed (7,391 total), in about 248 seconds.** The `0bc90c2` figure directly below
-this paragraph — 469 files, 7,288 tests, 7 failed — is the superseded, pre-fix count kept for
-the record of what the four-cause CI repair pass (see HANDOFF.md) actually fixed; it is not
-the current state. The per-package breakdown further below is an older, 2026-08-04-evening
-figure and is now stale in its totals — the suite grew by more than a hundred files during
-the 2026-08-05 pass (`packages/server` and `packages/cli` in particular went from a handful
-of tests to real suites; see their own
+**Current, from the hosted CI job log itself, not a local re-run: `pnpm test:ci` on
+[run 31023005393](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31023005393)
+(commit `c533c8c`, `v0.1.0-build.378`) — the last hosted CI run to actually finish as of this
+writing: 478 test files, 7,385 passed, 7 skipped, 0 failed (7,392 total).** Roughly twenty
+commits pushed after `c533c8c` — a UI-defect wave (FAB gutters, a whole-GUI cursor leak, four
+ellipsis/tooltip fixes, a docked-panel scroll fix, the Java-render-default decision; see
+HANDOFF.md's dated entry near the top of that file) — are queued or in progress on GitHub's
+own runners as of this writing, not yet CI-verified; that is a throughput backlog from a high
+push rate in a shared checkout, not a known failure. Check `gh run list --branch main --limit
+10` for the current truth before trusting either "still red" or "green by now." The
+`0bc90c2` figure directly below this paragraph — 469 files, 7,288 tests, 7 failed — is the
+superseded, pre-fix count kept for the record of what the four-cause CI repair pass (see
+HANDOFF.md) actually fixed; it is not the current state. The per-package breakdown further
+below is an older, 2026-08-04-evening figure and is now stale in its totals — the suite grew
+by more than a hundred files during the 2026-08-05 pass (`packages/server` and
+`packages/cli` in particular went from a handful of tests to real suites; see their own
 sections above) — but is kept for package-shape context until a fresh per-package count is
 taken. The `CommandPalette.test.ts`/`tabGroupPickerMount.test.ts` failures the `0bc90c2`
 figure carries are fixed; see "Hosted CI, the 2026-08-05 pass" above for the four-cause
@@ -616,8 +622,16 @@ in the pass below red, and it is real, not a re-run of this one.
 **Green, as of [run 31013825875](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31013825875)
 on commit `9d8de68` — all seven jobs passed, and it published
 [`v0.1.0-build.370`](https://github.com/Ding-Ding-Projects/material-bluemap/releases/tag/v0.1.0-build.370).**
-The paragraph below this one is kept for the record of how red it was and why; it describes
-an earlier tip and is no longer the current state.
+That was the pass's *first* green run, not its latest: several commits landed cleanly on
+top of it, and **the last hosted CI run to actually finish is
+[run 31023005393](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31023005393)
+on commit `c533c8c`, also green, publishing
+[`v0.1.0-build.378`](https://github.com/Ding-Ding-Projects/material-bluemap/releases/tag/v0.1.0-build.378).**
+Roughly twenty commits pushed since `c533c8c` are queued or in progress as of this writing,
+a throughput backlog rather than a known failure — check `gh run list --branch main --limit
+10` before assuming either state for the current tip. The paragraph below this one is kept
+for the record of how red CI was before the pass's first green run and why; it describes an
+earlier tip and is no longer the current state.
 
 **Superseded record.** No commit across most of this multi-agent pass produced a green
 hosted CI run. The last CI run on `main` that had succeeded before this pass was
@@ -695,9 +709,9 @@ closed now. See the 2026-08-05 HANDOFF.md entry for the evidence behind each.
 
 ## Open going into the next pass
 
-The GitHub issue board is at **zero open issues** as of this writing (eighteen closed this
-pass, `#28` through `#47`). Nothing below is tracked by an open issue; each item is named
-here so it is not lost between passes.
+The GitHub issue board is at **zero open issues** as of this writing (37 closed in total,
+`#3` through `#47`, with gaps where a number was never opened as an issue). Nothing below is
+tracked by an open issue; each item is named here so it is not lost between passes.
 
 - **Wire `RenderManager.saveRenderTaskQueue`/`.loadRenderTaskQueue` into something that
   actually calls them** — a periodic-save timer and load-on-startup, in `packages/server`
@@ -717,12 +731,16 @@ here so it is not lost between passes.
   waves (the world was reused for issue #44's staging test instead), and a world anywhere
   near the disk ceiling issue #39 was opened over (that run needed ~6 GiB against ~84 GiB
   free). Record both, with `df -h` evidence, in `docs/large-worlds.md`.
-- **Test the private-repository Pages 403 mapping, and staging time on a real large map.**
-  Issue #44 itself is closed — a real desktop-app-driven publish against a real GitHub
-  account is proven, in 35.5 seconds, with a screenshot — but these two sub-items from its
-  own thread remain untested: converting either throwaway proof repository to private would
-  destroy standing evidence for an unrelated feature, and the 70-file/5.8 MB staging-time
-  evidence says nothing about a real multi-gigabyte, tens-of-thousands-of-tile map.
+- ~~Test the private-repository Pages 403 mapping, and staging time on a real large map.~~
+  **Both done, 2026-08-05 (issue #44, closed for real this time).** The private-repo
+  403/422 → "needs a paid plan" mapping was driven both raw (`gh api`) and through the app's
+  own `PagesHost` code against a real repository flipped to private, then reverted with the
+  original evidence re-verified live. Staging time was measured against a genuinely
+  CI-rendered, locally-merged 20,449-hires-tile map (839.4 MB, 20,632 files): `publish()`'s
+  real wall time was 423.8 s, itemized (add/commit/push/Pages-build-wait) in the issue —
+  295x the files and ~144x the bytes of the original probe at ~12x the wall time. A
+  hyphenated-`--map-id` merge bug this run surfaced is tracked and fixed separately as issue
+  #47 (closed; see `sanitizeMapId` in Delivery above).
 
 ## Deferred verification
 

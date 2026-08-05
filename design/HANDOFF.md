@@ -7,24 +7,27 @@ uses. Read it first. Everything after it is a dated log written by people who we
 this section is for anyone who was not, including a small language model with no other
 context.
 
-It was last checked against the code on **2026-08-05**, at commit `9d8de68` on the `main`
-branch — the commit [CI run
-31013825875](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31013825875)
-built and tested. **That run is the first fully green hosted CI run of this entire
-multi-agent pass: all seven jobs passed** (workflow lint; lint, build, test; the seven
-BlueMap jars; the Windows installer; the test-world render; Screenshots; Publish release),
-and it published
-[`v0.1.0-build.370`](https://github.com/Ding-Ding-Projects/material-bluemap/releases/tag/v0.1.0-build.370).
-**The issue board is at zero open issues** — twenty closed across this pass, `#28` through
-`#47`, each against real evidence. Phase C's three exit checks (issue #31) finished for
-real: `textures.json` parity passes for both vanilla (1723/1723) and modded (1725/1725, an
-offline synthetic mod pack — see the dated section on it below), the live end-to-end
+It was last checked against the code on **2026-08-05**, at commit `56b1293` on the `main`
+branch. **The last hosted CI run to actually finish (not just queue) is [run
+31023005393](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31023005393),
+green, on commit `c533c8c`** (478 test files, 7,385 passed, 7 skipped, 0 failed; it published
+[`v0.1.0-build.378`](https://github.com/Ding-Ding-Projects/material-bluemap/releases/tag/v0.1.0-build.378)).
+Every commit from `8970224` through `56b1293` — the whole UI-defect wave described in the
+dated entry directly below this summary — has been pushed and, as of this stamp, is still
+queued or in progress on GitHub's own runners rather than CI-verified. That is a real
+backlog, not a red run: do not read "no green run yet for a commit" as "that commit is
+broken," and do not read it as "proven" either — check `gh run list --branch main --limit 10`
+for the current truth before trusting this paragraph.
+**The issue board is at zero open issues.** Phase C's three exit checks (issue #31) finished
+for real: `textures.json` parity passes for both vanilla (1723/1723) and modded (1725/1725,
+an offline synthetic mod pack — see the dated section on it below), the live end-to-end
 resolution passes, and the 1.12.2 legacy compat path passes including the era-matched render
 defect it originally surfaced (issue #46, fixed and closed). **Issue #31 is closed.** The
 dated entry titled "CI goes green for the first time in this pass" names the four separate
-causes that kept hosted CI red until this run and how each was found and fixed. Other agents
-may still be working — check `git log --oneline -5` and `gh issue list --state open` before
-trusting this stamp as current.
+causes that kept hosted CI red before this pass's first green run; the entry directly above
+it (newest first) names the UI-defect wave found by a screenshot-by-screenshot visual audit
+and fixed afterward. Other agents may still be working — check `git log --oneline -5` and
+`gh issue list --state open` before trusting this stamp as current.
 
 ### What this project is
 
@@ -144,14 +147,20 @@ document says so.
   super-confirmation gate used elsewhere. The main process writes a guarded marker, enables
   Pages, waits for the Pages build, and only reports `Live` after the public address answers
   HTTP 200. See `docs/pages-hosting.md` and `docs/render-in-actions.md`.
-  **Caveat, updated 2026-08-05 (issue #44, closed):** the publish sequence in the app itself
-  **has now been run against a real GitHub account** — a real desktop-app-driven publish
-  completed in 35.5 seconds, with a screenshot as evidence. What is still not proven, named
-  rather than implied closed: the private-repository 403 → "needs a paid plan" mapping is
-  untested (both throwaway proof repositories are public, and converting either to private
-  would destroy standing evidence for an unrelated feature), and the 35.5-second/70-file/
-  5.8 MB staging-time evidence says nothing about a real multi-gigabyte, tens-of-thousands-
-  of-tile map. Do not describe either of those two specific things as verified.
+  **Caveat, superseded 2026-08-05 (issue #44, closed for real this time).** The publish
+  sequence has been run against a real GitHub account three separate times now, and **both
+  sub-items this file used to call unproven are now proven with real evidence, not
+  implied closed:** (1) the private-repository 403/422 → "needs a paid plan" mapping was
+  driven both raw (`gh api` direct) and through the app's own `PagesHost` code against a
+  real repository actually flipped to private, producing the exact user-facing sentence the
+  app shows, then reverted with the original site re-verified live afterward; (2) staging
+  time on a real large map was measured against a genuinely CI-rendered, locally-merged
+  20,449-hires-tile map (839.4 MB, 20,632 files): `publish()`'s real wall time was 423.8 s
+  (7 m 4 s) — add, commit, push and the Pages build wait, itemized in the issue — 295x the
+  files and ~144x the bytes of the original 35.5-second/70-file probe, at ~12x the wall
+  time, so staging time does not scale linearly with size. A rendering-pipeline bug this run
+  surfaced along the way (a hyphenated `--map-id` losing its shards at merge time) was fixed
+  separately and is issue #47, closed.
 - **The screenshot harness photographs that tab and refuses stale evidence.** `freshBundle.ts`
   runs before Electron starts and fails closed when the UI, main-process, or preload output is
   older than its source. The Pages capture is a real packaged-app surface, not a mock.
@@ -223,6 +232,14 @@ document says so.
 
 ### What does not work yet
 
+- **A real hosted-CI backlog exists right now, honestly stated.** The last hosted CI run to
+  actually finish is [run 31023005393](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31023005393)
+  (green, commit `c533c8c`, `v0.1.0-build.378`). Roughly twenty commits pushed after that —
+  the whole UI-defect wave and the Java-default decision, see the dated entry near the top of
+  this file — are queued or in progress on GitHub's own runners as of this writing, not yet
+  CI-verified. This is a throughput backlog from a high push rate in a shared checkout, not a
+  known failure; check `gh run list --branch main --limit 10` for the current truth rather
+  than assuming either state.
 - **The Java engine still renders locally, by design (decision D17).** The TypeScript
   engine's render manager is now driven end to end by `packages/server`'s `RenderDriver`
   (see above), but nothing has switched the desktop app's default local-render path over to
@@ -321,7 +338,7 @@ either this paragraph or the older one above it as still current.
 Run these from the repository root.
 
 ```bash
-cd design && npx vitest run          # every unit test (7,288 at 0bc90c2 on 2026-08-05, ~225s; 7 known failures, see above)
+cd design && npx vitest run          # every unit test (7,392 total, 7,385 passed, 7 skipped, 0 failed — hosted CI run 31023005393 at commit c533c8c, the last hosted CI run to actually finish; ~248s on the runner. A local run against a dirty, actively shared working tree can show different failing test files entirely — check which files own the failure before trusting either count over the other)
 cd design && pnpm typecheck          # type-checks all 13 packages (vue-tsc for the ui one)
 cd design && pnpm lint
 cd design && pnpm build
@@ -342,14 +359,19 @@ further down for the wrong conclusion its absence produced.
    at the top of the file. Everything under it is the dated log: newest first down to
    2026-08-04, then older material from 2026-08-03 that grew from the bottom up.** The dates
    are the only reliable ordering, so read them.
-2. Hosted CI is green as of commit `9d8de68` (run 31013825875) and the issue board is at
-   zero open issues — read the dated entry titled "CI goes green for the first time in this
-   pass" for how it got there. The most useful next pieces of work, none of them CI blockers: wiring
-   `RenderManager`'s save/load-queue methods and `packages/server`'s `MapUpdateService` into
-   something that actually calls them at startup; joining `packages/cli`'s `-u`/`--watch` to
-   the same service; proving SQLite/PostgreSQL cross-compatibility with the real Java engine
-   (only MariaDB has had that specific proof); and running a genuinely large world's *merge*
-   step (not just its wave dispatch) through `render-world.yml` with `df -h` evidence.
+2. Hosted CI last actually finished green at commit `c533c8c` (run 31023005393,
+   `v0.1.0-build.378`) and the issue board is at zero open issues. Everything from `8970224`
+   through `56b1293` — a UI-defect wave plus the Java-default decision, see the dated entry
+   directly below this summary — is pushed but still queued or in progress as of this
+   writing; run `gh run list --branch main --limit 10` before assuming either "still red" or
+   "green by now." Read the dated entry titled "CI goes green for the first time in this
+   pass" for the four-cause repair narrative that got the *first* green run in this pass. The
+   most useful next pieces of work, none of them CI blockers: wiring `RenderManager`'s
+   save/load-queue methods and `packages/server`'s `MapUpdateService` into something that
+   actually calls them at startup; joining `packages/cli`'s `-u`/`--watch` to the same
+   service; proving SQLite/PostgreSQL cross-compatibility with the real Java engine (only
+   MariaDB has had that specific proof); and running a genuinely large world's *merge* step
+   (not just its wave dispatch) through `render-world.yml` with `df -h` evidence.
 3. Compare against the Java source in
    `vendor/BlueMap/core/src/main/java/de/bluecolored/bluemap/core/`. Never weaken a
    comparison to make it pass. If something cannot be verified, write that it was not
@@ -413,6 +435,232 @@ real interface, a real consent decision, a real download, a real render — but 
 and the site's article content model has no image block type to embed these in regardless.
 Revising those status claims and adding image support to that content system are both real,
 separate pieces of work; flagging them here rather than doing either under this task's scope.
+
+---
+
+## Update, 2026-08-05 — a UI-defect wave from the visual audit: FAB gutters, a cursor leak through Vuetify's own `aria-controls` rule, four truncated-text fixes and the title-prop-versus-attribute trap, a local render-account picker, two real bugs the capture sweep's contention exposed, and the Java-default decision written down
+
+The screenshot-by-screenshot visual audit (`design/docs/visual-audit-2026-08-05.md`, commit
+`8970224`) turned sixty-six checked captures into a short, concrete defect list, and every
+item on it is fixed below, alongside a handful of unrelated fixes found the same way most of
+this pass's fixes have been found: by re-reading an old promise against the current code.
+
+### The bottom-left FAB stack was painting over page text (`26d74a8`, `cf80e54`)
+
+`.mb-shell-fabs` (Settings, open-file, licence) is `position: fixed` to the bottom-left
+corner, so it always floats over whatever the shared scroll host (`.mb-world-host`, used by
+World, Projects, CI-render, Servers, Backups, Pages, Docs and the options editor) has
+scrolled to. Nothing reserved it any clearance, and the audit caught it doing real damage in
+nine screenshots across six surfaces — "Rendering" cropped to "ndering," "Pick an account"
+cropped to "ck an account" — and at 1.5x-2x display scale sitting directly on top of a radio
+button rather than merely a heading. `26d74a8` gives every `.mb-world-host` page a permanent
+left gutter sized to the stack's own footprint, for the page's whole scrollable height rather
+than only what is visible on first open, with a CSS-source regression test tying the gutter
+width to the stack's own geometry so the two numbers cannot drift apart unnoticed.
+
+The audit had flagged what looked like a *ninth* instance, against the Settings drawer's own
+screenshot. `cf80e54` checked it and found it was the same eighth instance seen through a
+doorway: the capture runs right after the Backups tab test with no tab switch in between, so
+the docked-right Settings drawer (narrower than the page behind it) simply left the
+already-broken Backups page visible to its left. Whether a docked panel's own content could
+ever be trapped under the FAB stack turned out to already be answered structurally:
+`.mb-docked` carries `z-index: 1500` and `.mb-shell-fabs` carries none, so wherever the two
+overlap, the docked surface always wins — confirmed against a real Chromium layout via
+Playwright before writing a single assertion, not inferred from the CSS text alone.
+
+### The Cantonese "funny level" caption sat on top of its own tick label (`8e2c44b`)
+
+中間落墨 ("Balanced"), the current-level line under the Cantonese funny-level slider, rendered
+stacked on top of the slider's own "1" tick label in both places the component mounts — the
+first-run wizard and the Settings drawer's Language-and-tone section — while the English
+"Balanced" sat cleanly clear of its own "1". Vuetify's slider ticks sit at a fixed offset
+below the track rather than contributing to the slider's document-flow height, so the
+caption's clearance depended entirely on its own line box; a CJK font's line-height running
+taller than the Latin fallback's at the same font-size was enough to close the gap for one
+language and leave it open for the other. Fixed with an explicit top margin and line-height
+on the caption instead of the browser's font-dependent default, pinned by a CSS-source
+regression test that confirms the fix reaches both mounted surfaces through the one shared
+component.
+
+### Docked panels did not scroll (`2b04a82`)
+
+Two separate bugs, found against a real layout engine (Chromium, via Playwright) before
+either was touched:
+
+- A **floating** panel's box carried `max-height` with no `height`, so nothing gave its
+  descendants a real number to resolve `block-size: 100%` against. The flex frame stayed
+  unbounded, the `overflow: auto` body never had anything to clip, and content taller than the
+  panel spilled silently past its border with no scrollbar and no way to reach it.
+  `dockStyle()` now sets `height` alongside `max-height`, matching what the docked top/bottom
+  cases already did.
+- **Docked** panels did get a real height, but the flex chain stopped one level short:
+  `.mb-docked__body` was a plain `overflow: auto` block rather than a flex container, so
+  `AppSettings.vue`'s (and `EulaSurface.vue`'s, and `EulaViewer.vue`'s) own `flex: 1 1 auto`
+  content had nothing to flex against. The practical effect was the whole panel body — search
+  field, tab strip and all — scrolling away together, instead of the tab strip staying pinned
+  while only the active tab's content scrolled, the way every other tabbed surface in this app
+  already behaves. All three files now complete the flex-column chain `DockedSurface.vue`
+  starts.
+
+New regression tests read the real CSS text back out of the touched files (jsdom applies no
+cascade at all, so a `getComputedStyle` assertion would pass identically whether the fix
+shipped or not) and mount both a docked and a floating panel to check the scroll container
+directly, following `RenderConsole`'s own scrollHeight/clientHeight-faking pattern since
+jsdom computes no real layout either.
+
+### The whole GUI wore a hand cursor (`01d21eb`)
+
+Every element the appearance system wraps — headings, empty panels, even the title bar's own
+drag region — got a pointer cursor it never earned. Both `<v-menu :activator="root">`
+instances inside `AppearanceTarget.vue` make Vuetify write `aria-controls` onto the wrapper
+itself (correct ARIA for owning a popup), and Vuetify's own normalize stylesheet answers any
+`[aria-controls]` with `cursor: pointer` — a rule written assuming the attribute sits on a
+small dedicated trigger, not on the wrapper the appearance contract puts around every
+rendered element in this app. `cursor` inherits, so the effect reached everywhere. Confirmed
+live against the packaged build via CDP (`.mb-titlebar-drag` itself read `pointer`, two
+ancestors up from the culprit) before fixing it the same way it was found: bare `!important`
+was skipped in favour of `.mb-appearance-target.mb-appearance-target { cursor: auto }`, which
+doubles the class to out-rank `[aria-controls]`'s equal specificity. Two regression tests
+guard it — a source check that the override rule still ships, and a cross-file sweep that
+fails if any shell-level selector answers with `cursor: pointer` again.
+
+### Four places a long label lost text to a silent ellipsis, and the trap behind three of them
+
+`df1037d` (tab search results, the tab-group picker), `7601828` (a marker set's own id, shown
+as an expansion-panel header), `7dbfc17` (the docs browser's category index and its search
+results) and `d7cda3b` (the save gate's written-files and deleted-files rows — the one dialog
+whose entire job is letting someone verify exactly which files are about to be overwritten or
+permanently deleted) each fixed a case where CSS correctly ellipsised long text but nothing
+let a sighted, mouse-driven reader recover what was cut.
+
+Three of the four (`7601828` is a different bug — a flex child with no `min-width: 0`) share
+one root cause worth remembering for the next surface that hits it: **`<v-list-item
+:title="...">` binds Vuetify's own `title` *prop*** — the text it renders — **never an HTML
+`title` attribute**. `VListItem.js` only ever calls `toDisplayString(props.title)`; there is
+no native, hoverable tooltip behind that binding at all, so once `.v-list-item-title`'s
+default `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` actually truncated
+something, a mouse user had no way to recover it (only a screen reader, via `aria-label`, ever
+reached the full text). The fix is the same in all three places: move the text into Vuetify's
+own `#title` slot with a plain `<span :title="...">`, a genuine DOM attribute rather than a
+component prop. Each fix carries a regression test that finds the real longest string this
+repository ships in that surface and asserts it survives as a hoverable, native attribute —
+not merely present somewhere in the DOM.
+
+### A per-render account picker, deliberately local rather than global (`44e8453`)
+
+The "Render on GitHub" setup card resolved the owner list, the preflight check and the actual
+dispatch through whichever GitHub account happened to be active, with no way to render as a
+different signed-in account short of switching in Settings and back — fine for one login, a
+trap for two: pick the wrong tab, upload somebody else's world under the wrong name. "Render
+as" is now a choice local to the card itself. Main-process plumbing threads an optional
+account id additively through `cirender:owners`, `cirender:preflight` and `cirender:start`
+(`CiSyncRequest.accountId`), resolved via a new `GitHubAccountsController.accessTokenFor(id)`
+— the token itself still never crosses the bridge, only the id does. The picker reuses the
+existing multi-account store but deliberately never calls `setActive`: choosing a different
+stored account here re-reads the owner list for it and carries its id through the check and
+the dispatch, without touching which account downloads, backups or Settings itself already
+resolve to. Omitting the id keeps every existing caller's behaviour unchanged.
+
+### Two real bugs the capture sweep found by refusing to blame "it passed alone" on a flake
+
+A dedicated test-and-capture pass (full account in the entry directly below this one) found
+two real bugs by chasing failures that only reproduced inside the full suite, never in
+isolation:
+
+- **`c533c8c`** — `BackupRunner#run` rebuilt the archive name (and therefore every part's
+  asset name, which is prefixed with it) from *that call's own* clock even when resuming,
+  instead of reusing the name the original attempt minted. Any resume that began in a
+  different UTC second than the first attempt (the stamp has one-second resolution; anything
+  that takes real time crosses that boundary routinely) silently matched no already-uploaded
+  part by name and re-uploaded the entire backup, defeating resumability for the one case it
+  exists for. Fixed by recovering the archive name straight from `resumeTag`
+  (`archiveNameFromTag`), with no clock involved; a test with two injected clocks 90 seconds
+  apart is proven to fail without the fix (5 spurious re-uploads, reproducing the original
+  flake on demand) and pass with it.
+- **`1074ea3`** — re-running the screenshot harness surfaced a real, previously invisible
+  regression it exists to catch: `AppSettings.vue` became fully tabbed (each section its own
+  lazily-mounted tab) since the capture loop was written, but the loop still queried every
+  `[data-anchor]` element in bulk on the assumption every section is mounted at once. Six
+  documented settings-section screenshots had quietly shrunk to one, with the run staying
+  green throughout — the exact "recorded a gap, not a failure" shape this project's own
+  `CONFIG_STATE_NOTE` already warns about elsewhere. Fixed by driving the surface the way a
+  person actually reaches a section now — search for its anchor, click the matching result,
+  capture — and all six sections are captured again.
+
+### The Java engine is now a standing default, not a placeholder for the gate (`be296c2`)
+
+The Phase D parity gate closed 2026-08-04 (byte-identical oracle output at both fixture
+sizes), but nothing was wired to notice, and D17's own text still read "until the TypeScript
+mesher passes the gate" — a promise that the gate closing would switch the product over. It
+does not, and was never going to on its own: nothing anywhere in the wiring (local, Docker,
+remote SSH, CI-render) prefers the TypeScript engine, confirmed by grep across
+`packages/app/src/main`. D17 gets a dated amendment (never a rewrite) making the Java engine a
+standing default rather than an interval placeholder; `ROADMAP.md`, the `java-render-path`
+site article and this file's own glossary entry all carried the same stale "until it passes"
+framing and are corrected to match it. No engine-choice UI exists anywhere in the app to
+update — the two read-only surfaces that display which engine ran already default to, and
+say, Java.
+
+### The visual audit itself, as a method worth naming
+
+`8970224` is worth calling out separately from what it found: it is what actually caught the
+FAB and Cantonese-caption bugs above, and it caught them by looking at pixels rather than
+reading assertions. Sixty-six current captures were checked one at a time against what they
+claim to show — the tab strip, the EULA viewer, docked panels and their scrollbars, the
+notification centre, the accounts list, and the destructive-action gates all held up. The two
+defects that did not hold up are both the kind a passing test suite cannot see on its own: a
+fixed-position element with no reserved clearance, and a caption whose collision depends on
+which font a given language happens to fall back to. Neither had an assertion anywhere in the
+suite that would have caught it before this; both are pinned by new regression tests written
+*after* the audit found them — that order is the point.
+
+### Smaller fixes in the same window
+
+- **`c02e867`** — `EulaViewer.vue`'s three section-scoped Export rows (as Markdown/as plain
+  text/copy this section) dimmed with no stated reason whenever no section was open, even
+  though `MenuSearchList.vue`'s own doc comment already promised a disabled row could carry
+  one ("an optional reason the row is temporarily unavailable"). Added `reason?: string` to
+  `MenuSearchItem`, rendered as the row's own subtitle, and wired the three EULA rows to it.
+- **`c13916c`** — four independent stale-documentation/missing-article fixes, one of them with
+  real teeth: `electron-builder.config.cjs` never copied a BlueMap CLI jar into the packaged
+  app's resources, so every Squirrel installer this pipeline has ever produced failed every
+  local render on first use with "The BlueMap engine is not installed." CI's package job now
+  depends on the jars job, downloads the built CLI jar, and stages it exactly where the
+  packaging config bundles it into `resources/jars` — precisely where the app looks for it at
+  runtime.
+- **`aacfb70`, `2c2ae68`** — site-article and stale-fact audit batches: an automatic-repair
+  article, world-discovery and Bedrock-conversion articles, a self-contradicting "local
+  rendering does not exist yet" line corrected against the site's own `java-render-path`
+  article, an update-checker "Pending" row corrected after it had already shipped, and two run
+  numbers `ROADMAP.md`/`HANDOFF.md` still called "pending" when `gh run view` showed both had
+  finished a day earlier (Pages succeeded, CI was cancelled rather than passed).
+- **`56b1293`** — the Diagnostics repair panel's agent-status chip carries a full explanatory
+  sentence, but Vuetify's chip content is single-line and non-wrapping by default; at the
+  settings panel's default docked-right width the sentence ran past the panel's own edge with
+  no ellipsis, no scroll and no way to ever read the rest — confirmed live by installing the
+  real `v0.1.0-build.378` Squirrel installer on a headless desktop. Fixed with `min-width: 0`
+  on the chip and `white-space: normal; overflow-wrap: anywhere` on its content.
+- **`0ce6ed0`** — a full audit of every request made across this session against the current
+  tree, tests, issue board and hosted CI. 24 of 26 items verdict done; 2 partial (the six
+  `render-*` screenshots, addressed in the entry directly above this one; and a stale
+  "untested" claim about the private-repo Pages 403 mapping that issue #44's own evidence had
+  already resolved, corrected in this same refresh — see "What does not work yet" below).
+  Written up in full in `design/docs/session-completeness-audit.md`.
+
+### Hosted CI: a real backlog, stated honestly rather than glossed over
+
+Every commit above pushed its own CI and Pages run, and GitHub queues them per-commit rather
+than coalescing consecutive pushes into one run — so as of this writing there is a genuine
+backlog of pushes still queued or in progress. **The last hosted CI run to actually finish is
+[run 31023005393](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31023005393),
+green, on commit `c533c8c`** (478 test files, 7,385 passed, 7 skipped, 0 failed in the hosted
+job log; it published
+[`v0.1.0-build.378`](https://github.com/Ding-Ding-Projects/material-bluemap/releases/tag/v0.1.0-build.378)).
+Every commit from `8970224` through `56b1293` — everything in this entry — has been pushed and
+is, as of this stamp, still queued or in progress rather than CI-verified. This is expected at
+this pass's push rate, not a sign of trouble on its own: check `gh run list --branch main
+--limit 10` for the current truth rather than assuming either "still red" or "surely green by
+now."
 
 ---
 
