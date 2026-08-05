@@ -193,7 +193,11 @@ function fakeGitHub(options: { private?: boolean; canWrite?: boolean } = {}) {
     };
 }
 
-function makeRunner(github: ReturnType<typeof fakeGitHub>, events: BackupEvent[] = []) {
+function makeRunner(
+    github: ReturnType<typeof fakeGitHub>,
+    events: BackupEvent[] = [],
+    now?: () => number,
+) {
     return new BackupRunner({
         storageDir: () => join(workDir, "storage"),
         token: () => "t0k3n",
@@ -202,6 +206,7 @@ function makeRunner(github: ReturnType<typeof fakeGitHub>, events: BackupEvent[]
         appVersion: "0.1.0",
         apiBase: "https://api.test",
         uploadsBase: "https://uploads.test",
+        ...(now === undefined ? {} : { now }),
     });
 }
 
@@ -550,6 +555,62 @@ describe("resuming", () => {
             .slice(before)
             .filter((request) => request.method === "POST" && request.url.includes("assets?name="));
         expect(uploadsInFirstRun).toBeGreaterThan(2);
+        expect(newUploads).toHaveLength(0);
+
+        const skipped = events.filter(
+            (event) => event.type === "log" && event.message.includes("already on the release"),
+        );
+        expect(skipped.length).toBeGreaterThan(0);
+    });
+
+    // A resume that starts in a different UTC second than the first attempt used to
+    // re-upload every part regardless of content, because the archive name (and so every
+    // part's asset name, which is prefixed with it) was rebuilt from *this* call's own
+    // clock instead of the original backup's. The test above only catches this when both
+    // calls happen to land in the same second, which is why it passed reliably alone and
+    // failed intermittently in the full suite under load - a real, timing-dependent
+    // reproduction of a real bug, not a flaky assertion. This test forces the boundary
+    // deterministically with an injected clock, so the fix (`archiveNameFromTag` in
+    // `source.ts`) is pinned regardless of how fast the machine happens to be.
+    it("skips the already-uploaded parts even when the resume starts a different UTC second later", async () => {
+        const github = fakeGitHub();
+        const runner = makeRunner(github, [], () => Date.UTC(2026, 0, 1, 12, 0, 0));
+        const folder = await makeWorld();
+
+        const first = await runner.backup({
+            kind: "world",
+            folder,
+            owner: "o",
+            repo: "r",
+            partSize: 2048,
+        });
+        expect(first.ok).toBe(true);
+        if (!first.ok) return;
+
+        const uploadsInFirstRun = github.requests.filter(
+            (request) => request.method === "POST" && request.url.includes("assets?name="),
+        ).length;
+        expect(uploadsInFirstRun).toBeGreaterThan(2);
+
+        // Ninety seconds later, well past the one-second stamp resolution `archiveNameFor`
+        // and `releaseTagFor` both use - the exact gap a slow, loaded machine (or a real
+        // interrupted multi-gigabyte pack) would produce.
+        const before = github.requests.length;
+        const events: BackupEvent[] = [];
+        const again = makeRunner(github, events, () => Date.UTC(2026, 0, 1, 12, 1, 30));
+        const second = await again.backup({
+            kind: "world",
+            folder,
+            owner: "o",
+            repo: "r",
+            partSize: 2048,
+            resumeTag: first.summary.tag,
+        });
+
+        expect(second.ok).toBe(true);
+        const newUploads = github.requests
+            .slice(before)
+            .filter((request) => request.method === "POST" && request.url.includes("assets?name="));
         expect(newUploads).toHaveLength(0);
 
         const skipped = events.filter(

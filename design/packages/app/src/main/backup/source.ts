@@ -156,6 +156,9 @@ export function archiveNameFor(kind: BackupSourceKind, label: string, at: Date):
     return `${kind}-${slug(label)}-${stamp(at)}.zip`;
 }
 
+/** Every release tag this module writes starts with this; nothing else may. */
+const RELEASE_TAG_PREFIX = "mbm-backup-";
+
 /**
  * The release tag for a backup. Unique per backup, and never reused.
  *
@@ -166,7 +169,28 @@ export function archiveNameFor(kind: BackupSourceKind, label: string, at: Date):
  * behaviour that matters.
  */
 export function releaseTagFor(kind: BackupSourceKind, label: string, at: Date): string {
-    return `mbm-backup-${kind}-${slug(label)}-${stamp(at)}`;
+    return `${RELEASE_TAG_PREFIX}${kind}-${slug(label)}-${stamp(at)}`;
+}
+
+/**
+ * Recovers the archive name a *resumed* backup must reuse, from the tag it is resuming.
+ *
+ * `releaseTagFor` and `archiveNameFor` are built from the exact same `kind-label-stamp`
+ * triple - the tag just carries `RELEASE_TAG_PREFIX` in front and no `.zip` suffix - so
+ * the archive name is recoverable from the tag without re-deriving it from the current
+ * clock. That recovery is what a resume actually needs: `#run` in `runner.ts` used to
+ * call `archiveNameFor(kind, label, at)` with `at` set to *this* call's start time even
+ * when resuming, so a part's asset name (which is prefixed with the archive name) came
+ * out different from the original upload's the moment a resume started in a different
+ * UTC second than the first attempt - the ordinary case for anything that takes more
+ * than an instant. `findExistingAssets`'s skip check matches by exact name, so every part
+ * silently missed its own already-uploaded twin and was re-uploaded in full, defeating
+ * resumability for the one case it exists for. Returns null for a tag this module did
+ * not mint (no known prefix), so a caller can fall back rather than trust a guess.
+ */
+export function archiveNameFromTag(tag: string): string | null {
+    if (!tag.startsWith(RELEASE_TAG_PREFIX)) return null;
+    return `${tag.slice(RELEASE_TAG_PREFIX.length)}.zip`;
 }
 
 /** UTC, to the second, in a form that sorts lexicographically. */

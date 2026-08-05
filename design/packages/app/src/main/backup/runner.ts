@@ -61,7 +61,7 @@ import {
 import type { CheapLfsPointerPart } from "./pointer.js";
 import { SIDECAR_ASSET_NAME, serializeSidecar } from "./sidecar.js";
 import type { BackupSidecar } from "./sidecar.js";
-import { archiveNameFor, inspectBackupSource, releaseTagFor } from "./source.js";
+import { archiveNameFor, archiveNameFromTag, inspectBackupSource, releaseTagFor } from "./source.js";
 import type { BackupSource, BackupSourceKind } from "./source.js";
 import {
     backupIdFor,
@@ -371,7 +371,19 @@ export class BackupRunner {
         const tag = request.resumeTag ?? releaseTagFor(request.kind, source.label, at);
         const backupId = backupIdFor(owner, repo, tag);
         const workspace = backupWorkspace(this.#options.storageDir(), backupId);
-        const archiveName = archiveNameFor(request.kind, source.label, at);
+        /*
+         * A resume must reuse the *original* archive name, not mint one from this call's
+         * own start time. Every part's asset name is prefixed with the archive name, and
+         * the skip check below matches an upload against what is already on the release
+         * by exact name - so a fresh name here means a fresh set of names, which never
+         * match the parts a first attempt already uploaded no matter how identical their
+         * bytes are. `archiveNameFromTag` recovers the original name straight from
+         * `resumeTag` (see its doc comment); `null` only for a tag this module never
+         * minted, which falls back to the ordinary derivation rather than guessing.
+         */
+        const archiveName =
+            (request.resumeTag === undefined ? null : archiveNameFromTag(request.resumeTag)) ??
+            archiveNameFor(request.kind, source.label, at);
 
         const controller = new AbortController();
         this.#running.set(backupId, controller);
