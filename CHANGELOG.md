@@ -20,6 +20,28 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+_No changes have been committed since `v0.1.0-build.370`._
+
+## 0.1.0-build.370 - 2026-08-05
+
+Tagged at [`9d8de68592`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/9d8de685922f116d9d9215c5df15ebfbbac6c4c9).
+
+### Interface
+
+- Fix the second blocker CI queued behind the first: a collapsed tab strip and a wrong-tab menu button - [`9d8de68592`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/9d8de685922f116d9d9215c5df15ebfbbac6c4c9)
+
+## 0.1.0-build.368 - 2026-08-05
+
+Tagged at [`3dc7ef57f4`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/3dc7ef57f4f454e966987c981ac82c76d12e73d6).
+
+### Desktop shell
+
+- Fix Screenshots: the EULA panel has a hidden evil twin, and the wait was watching it - [`3dc7ef57f4`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/3dc7ef57f4f454e966987c981ac82c76d12e73d6)
+
+## 0.1.0-build.366 - 2026-08-05
+
+Tagged at [`86277c5f37`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/86277c5f377cd9697f8398ee7a66942f08fc5e25).
+
 ### Rendering and world data
 
 - Fix #47: mirror BlueMap's own map-id sanitiser instead of guessing at the hyphen - [`1dfe8a1f60`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1dfe8a1f607ac443ee15c24e8659d0a4303dd2a4)
