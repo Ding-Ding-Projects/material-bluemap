@@ -506,4 +506,26 @@ export class ResourcePack extends Pack {
     getExtension<T extends ResourcePackExtension>(extensionType: Extension<T>): T | null {
         return (this.extensions.get(extensionType) as T | undefined) ?? null;
     }
+
+    /**
+     * Port-only, no upstream analog: whether this pack is itself pre-flattening
+     * (era-matched, e.g. a real 1.12.2 pack loaded through `LegacyResourcePackExtension`).
+     *
+     * Answered generically — every registered extension is asked via
+     * {@link ResourcePackExtension.isLegacy} rather than this looking up
+     * `LEGACY_RESOURCES_EXTENSION` by name — specifically so this file never needs a
+     * runtime import of `legacy/LegacyResourcePackExtension.ts`, which itself imports this
+     * class. `FlatteningRename.ts` needs this exact question answered (issue #46: the
+     * pre-flattening rename table must not fire against a pack that already understands
+     * pre-flattening names on its own) and is reachable from this file's own
+     * `BlockColorsConfig` -> ... -> `ExtendedBlock.ts` import chain, so a named lookup here
+     * would close a require-cycle back onto this not-yet-finished module. See
+     * `ResourcePackExtension.ts`'s `isLegacy` member doc for the full account.
+     */
+    isLegacy(): boolean {
+        for (const extension of this.extensions.values()) {
+            if (ResourcePackExtension.isLegacy(extension)) return true;
+        }
+        return false;
+    }
 }

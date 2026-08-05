@@ -1,4 +1,5 @@
 import { Key } from "@material-bluemap/shared";
+import type { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";
 import { BlockState } from "../../BlockState.js";
 
 /**
@@ -39,6 +40,19 @@ import { BlockState } from "../../BlockState.js";
  * connections), this module does not attempt it — that machinery already exists
  * (`extensions/`) and is unaffected by renaming, since a rename only ever changes the *name*
  * and passes every existing property through untouched unless a rule says otherwise.
+ *
+ * <p><b>This table bridges a LEGACY world to a MODERN pack — nothing else.</b> Both call
+ * sites ({@code BlockStateModelRenderer#renderModel}, {@code ExtendedBlock#getProperties})
+ * gate on {@link isLegacyResourcePack} in addition to the world chunk's own era, because a
+ * pre-flattening ("era-matched", e.g. real 1.12.2) resource pack, loaded through
+ * {@code LegacyResourcePackExtension}, already resolves every one of these pre-flattening
+ * names correctly on its own — that is the whole point of that extension. Renaming
+ * `minecraft:grass` to `minecraft:grass_block` before consulting a pack that has never heard
+ * of `grass_block` (it did not exist before the 1.13 flattening) does not degrade gracefully:
+ * `ResourcePack#getBlockState` returns `null`, and both call sites silently skip the block
+ * rather than draw it — worse than the gap this table exists to close. See
+ * `resourcepack-e2e.test.ts`'s Proof 4 for the surgical proof of that failure mode and
+ * `tools/oracle/render-1-12-era-matched.mjs` for the render-level corroboration (issue #46).
  */
 
 /** the result of a rename: the modern id plus the modern property map */
@@ -313,6 +327,33 @@ RULES.set("minecraft:purpur_double_slab", doubleSlab("minecraft:purpur_slab"));
 RULES.set("minecraft:wood_old_slab", singleSlab("minecraft:oak_slab"));
 
 /**
+ * Whether `pack` is itself a pre-flattening (era-matched, e.g. real 1.12.2)
+ * resource-pack — i.e. whether {@link flattenLegacyBlockState}'s renames must NOT be applied
+ * before consulting it, because it already understands the pre-flattening names on its own.
+ *
+ * Delegates to {@link ResourcePack#isLegacy}, which is in turn backed by
+ * {@link LegacyResourcePackExtension#isLegacy} — the exact same era-detection
+ * `resourcepack-e2e.test.ts`'s Proof 4 exercises (`pack.mcmeta`'s `pack_format`, read by
+ * `LegacyPackFormat.isLegacyPackRoot` for every root the pack loaded — see that extension's
+ * doc comment for why a missing/malformed `pack.mcmeta` reads as modern by design).
+ *
+ * This is a thin wrapper rather than a direct `pack.getExtension(LEGACY_RESOURCES_EXTENSION)`
+ * lookup deliberately: `LegacyResourcePackExtension.ts` imports `ResourcePack` (a value, for
+ * its self-registration on `ResourcePack.Extension.REGISTRY`), and this module is reachable
+ * from `ResourcePack.ts`'s own `BlockColorsConfig` -> ... -> `ExtendedBlock.ts` import chain
+ * — importing `LEGACY_RESOURCES_EXTENSION` here would close that into a require-cycle where
+ * `LegacyResourcePackExtension.ts`'s self-registration runs before `ResourcePack.ts` has
+ * finished defining the class it registers against (`TypeError: Cannot read properties of
+ * undefined (reading 'Extension')` — hit and reverted locally while fixing issue #46,
+ * before this file ever reached a commit). `ResourcePack#isLegacy` answers the same
+ * question generically, through the already-imported `ResourcePackExtension` invoker
+ * object, with no such edge.
+ */
+export function isLegacyResourcePack(pack: ResourcePack): boolean {
+    return pack.isLegacy();
+}
+
+/**
  * Translates a pre-flattening {@link BlockState} into its modern (post-1.13) equivalent for
  * resource-pack resolution, or returns it unchanged if no rule applies.
  *
@@ -322,7 +363,9 @@ RULES.set("minecraft:wood_old_slab", singleSlab("minecraft:oak_slab"));
  * legitimately use some of these exact names for a different, already-correct block (a
  * `minecraft:grass` block-state from a real 1.13-1.20.2 chunk means the grass tuft, which the
  * modern resource pack already resolves correctly; renaming it here would draw it as
- * `grass_block` instead).
+ * `grass_block` instead) — AND only when {@link isLegacyResourcePack} of the resolving pack
+ * is `false` (see this module's doc comment: renaming a name an era-matched pack already
+ * resolves correctly turns a working lookup into a `null` one).
  */
 export function flattenLegacyBlockState(state: BlockState): BlockState {
     const rule = RULES.get(state.getId().getFormatted());

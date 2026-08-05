@@ -7,7 +7,7 @@ import type { BlockProperties } from "../BlockProperties.js";
 import { BlockState } from "../BlockState.js";
 import type { DimensionType } from "../DimensionType.js";
 import type { LightData } from "../LightData.js";
-import { flattenLegacyBlockState } from "../mca/legacy/FlatteningRename.js";
+import { flattenLegacyBlockState, isLegacyResourcePack } from "../mca/legacy/FlatteningRename.js";
 import type { BlockAccess } from "./BlockAccess.js";
 
 export class ExtendedBlock implements BlockAccess {
@@ -168,9 +168,19 @@ export class ExtendedBlock implements BlockAccess {
              * fixed) but still deriving its occlusion from the un-renamed "minecraft:grass"
              * — the modern tuft, which does not occlude — so neighbors kept drawing their
              * hidden faces through it.
+             *
+             * ALSO gated on `!isLegacyResourcePack(this.resourcePack)` (issue #46), the
+             * exact same both-eras rule BlockStateModelRenderer applies: against an
+             * era-matched pack the rename turns an already-correct name into one that pack
+             * has never heard of, so `getBlockProperties` would derive occlusion from
+             * nothing instead of from the real model — breaking culling/occlusion the same
+             * silent way the renderer's own lookup broke before this fix.
              */
             const blockState = this.getBlockState();
-            const lookupState = this.isLegacy() ? flattenLegacyBlockState(blockState) : blockState;
+            const lookupState =
+                this.isLegacy() && !isLegacyResourcePack(this.resourcePack)
+                    ? flattenLegacyBlockState(blockState)
+                    : blockState;
             properties = this.resourcePack.getBlockProperties(lookupState);
             this.properties = properties;
         }

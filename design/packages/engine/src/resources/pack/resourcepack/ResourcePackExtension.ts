@@ -19,6 +19,19 @@ export interface ResourcePackExtension extends PackExtension {
     getBlockStateKey?(key: Key): Key;
 
     getBlockProperties?(blockState: BlockState, propertiesBuilder: BlockPropertiesBuilder): void;
+
+    /**
+     * Port-only, no upstream analog: whether this extension considers the pack it is
+     * attached to pre-flattening (era-matched, e.g. a real 1.12.2 pack). `LegacyResourcePackExtension`
+     * is the only implementor today (see that file's `isLegacy`), surfaced generically here —
+     * rather than as a named lookup of that one concrete class — so {@link ResourcePack#isLegacy}
+     * can answer the question without a runtime import of `LegacyResourcePackExtension.ts`,
+     * which itself imports `ResourcePack.ts`. `FlatteningRename.ts` (reachable from
+     * `ResourcePack.ts`'s own extension-config import chain via `ExtendedBlock.ts`) needing
+     * that answer through a direct named-extension lookup closed exactly that cycle — see
+     * issue #46's fix commit for the failure this generic hook avoids.
+     */
+    isLegacy?(): boolean;
 }
 
 /**
@@ -48,5 +61,10 @@ export const ResourcePackExtension = {
         propertiesBuilder: BlockPropertiesBuilder,
     ): void {
         extension.getBlockProperties?.(blockState, propertiesBuilder);
+    },
+
+    /** port-only, no upstream analog (default: {@code false}) — see the interface member's doc */
+    isLegacy(extension: ResourcePackExtension): boolean {
+        return extension.isLegacy?.() ?? false;
     },
 };

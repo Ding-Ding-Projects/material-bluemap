@@ -489,6 +489,118 @@ describe("BlockStateModelRenderer", () => {
             // the stone-shaped variant from "minecraft:grass", not the empty grass_block one
             expect(faceCount(h.tileModel)).toBe(12);
         });
+
+        // issue #46: the two cases above only ever varied the WORLD's era. These add the
+        // resource-pack's era to the matrix — the rename bridges a LEGACY world to a
+        // MODERN pack specifically, and must stay off whenever the pack is ALSO legacy
+        // (era-matched, e.g. a real 1.12.2 pack), regardless of the world.
+
+        it("does NOT rename a legacy grass block when the resource pack is ALSO legacy (era-matched)", () => {
+            // as SnowyExtension would have already left it by the time the renderer sees it
+            const grass = new BlockState(Key.minecraft("grass"), new Map([["snowy", "true"]]));
+            const world = new TestWorldData().set(0, 0, 0, { state: grass });
+            world.legacy = true;
+
+            const h = harness(world, {
+                models: stoneModels(),
+                textures: stoneTextures(),
+                packLegacy: true, // an era-matched (real pre-flattening) pack
+                blockStates: new Map([
+                    // the era-matched pack already resolves the raw pre-flattening name
+                    // correctly on its own — this is what BlockStateModelRenderer must look
+                    // up directly, unrenamed
+                    ["minecraft:grass", singleVariantState(stoneVariant())],
+                    // present in the pack (as other, real blockstates would be), but must
+                    // NOT be what this lookup resolves to: "grass_block" never existed
+                    // pre-flattening, so an era-matched pack would never define it for real
+                    // — this is the trap the OLD unconditional rename fell into (issue #46)
+                    ["minecraft:grass_block", singleVariantState()],
+                ]),
+            });
+            const renderer = new BlockStateModelRenderer(h.resourcePack, h.gallery, h.renderSettings);
+            h.block.set(0, 0, 0);
+
+            renderer.render(h.block, h.view, new Color());
+            // resolved directly via "minecraft:grass" (12 faces) — NOT the empty
+            // "grass_block" trap (which is what the old, world-only gate would have hit)
+            expect(faceCount(h.tileModel)).toBe(12);
+        });
+
+        it("still does not rename a modern chunk's own minecraft:grass against an era-matched pack", () => {
+            // a real 1.13-1.20.2 chunk's own "minecraft:grass" means the tuft regardless of
+            // which pack is loaded — the world's era alone must gate this
+            const grass = new BlockState(Key.minecraft("grass"));
+            const world = new TestWorldData().set(0, 0, 0, { state: grass });
+            // world.legacy stays false — a modern chunk, even though the pack below claims
+            // to be an era-matched (legacy) one, which should never happen in practice but
+            // proves the gate really checks BOTH eras rather than the pack's alone
+
+            const h = harness(world, {
+                models: stoneModels(),
+                textures: stoneTextures(),
+                packLegacy: true,
+                blockStates: new Map([["minecraft:grass", singleVariantState(stoneVariant())]]),
+            });
+            const renderer = new BlockStateModelRenderer(h.resourcePack, h.gallery, h.renderSettings);
+            h.block.set(0, 0, 0);
+
+            renderer.render(h.block, h.view, new Color());
+            expect(faceCount(h.tileModel)).toBe(12);
+        });
+    });
+});
+
+describe("ExtendedBlock#getProperties — the pre-flattening rename gate (issue #46)", () => {
+    // the second call site FlatteningRename.ts documents: culling/occlusion must be derived
+    // from the SAME (correctly gated) lookup BlockStateModelRenderer uses, or a legacy grass
+    // block resolves the right model but the wrong occlusion (see ExtendedBlock.ts's doc
+    // comment on getProperties). Distinguishes which lookup happened by keying two very
+    // different BlockProperties results on the raw vs. renamed block-state id.
+
+    function grassProperties() {
+        return new Map([
+            ["minecraft:grass", cullingProperties()],
+            ["minecraft:grass_block", occludingOnlyProperties()],
+        ]);
+    }
+
+    it("derives occlusion from the RENAMED id for a legacy world against a modern pack", () => {
+        const grass = new BlockState(Key.minecraft("grass"), new Map([["snowy", "true"]]));
+        const world = new TestWorldData().set(0, 0, 0, { state: grass });
+        world.legacy = true;
+
+        const h = harness(world, { properties: grassProperties() }); // packLegacy defaults false
+        h.block.set(0, 0, 0);
+
+        expect(h.block.getProperties()).toEqual(occludingOnlyProperties());
+    });
+
+    it("derives occlusion from the RAW id for a legacy world against an era-matched pack", () => {
+        const grass = new BlockState(Key.minecraft("grass"), new Map([["snowy", "true"]]));
+        const world = new TestWorldData().set(0, 0, 0, { state: grass });
+        world.legacy = true;
+
+        const h = harness(world, { properties: grassProperties(), packLegacy: true });
+        h.block.set(0, 0, 0);
+
+        expect(h.block.getProperties()).toEqual(cullingProperties());
+    });
+
+    it("derives occlusion from the RAW id for a modern world, regardless of the pack's era", () => {
+        const grass = new BlockState(Key.minecraft("grass"));
+        const world = new TestWorldData().set(0, 0, 0, { state: grass });
+        // world.legacy stays false
+
+        const modernPackHarness = harness(world, { properties: grassProperties() });
+        modernPackHarness.block.set(0, 0, 0);
+        expect(modernPackHarness.block.getProperties()).toEqual(cullingProperties());
+
+        const eraMatchedPackHarness = harness(world, {
+            properties: grassProperties(),
+            packLegacy: true,
+        });
+        eraMatchedPackHarness.block.set(0, 0, 0);
+        expect(eraMatchedPackHarness.block.getProperties()).toEqual(cullingProperties());
     });
 });
 

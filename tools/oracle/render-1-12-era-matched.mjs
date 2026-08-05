@@ -74,6 +74,18 @@ const MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest.js
  */
 const HISTORIC_GAP_BLOCKS = ["minecraft:grass", "minecraft:snow", "minecraft:snow_layer", "minecraft:podzol"];
 
+/**
+ * How far the era-matched render's dirt exposure may drift from the modern-pack control
+ * before it counts as the "grass no longer occludes from above" regression this script
+ * exists to catch (issue #46). Deliberately looser than the historic numbers this script
+ * found (43.6% vs 4.3%, a 10.1x gap) — in the same spirit as render-1-12.mjs's
+ * DIVERGENCE_FACTOR — so a modest, legitimate difference between the era-matched pack's own
+ * block/texture resolution and the modern control does not flap this gate. A factor this
+ * loose still fails hard on the actual bug: 10.1x clears 3x-plus-a-floor by a wide margin.
+ */
+const DIRT_FRACTION_TOLERANCE_FACTOR = 3;
+const DIRT_FRACTION_TOLERANCE_FLOOR = 0.05;
+
 const DEFAULTS = {
     seed: 22,
     size: 128,
@@ -340,24 +352,58 @@ async function main() {
      * alone — that surgical proof lives in `resourcepack-e2e.test.ts`'s Proof 4, which calls
      * `flattenLegacyBlockState` directly against this same era-matched pack and shows its
      * output (`minecraft:grass_block`) does not resolve. What follows here is the render-level
-     * CORROBORATION: the real legacy texture names a correct grass render would need
-     * ("blocks/grass_normal", "blocks/grass_snowed") are checked for presence, and the
-     * ground-exposure symptom design/HANDOFF.md already documented for the ORIGINAL
-     * modern-pack bug (grass not occluding, so dirt/stone show through) is checked for
-     * recurrence.
+     * CORROBORATION: the real legacy texture names a correct grass render would need are
+     * checked for presence, and the ground-exposure symptom design/HANDOFF.md already
+     * documented for the ORIGINAL modern-pack bug (grass not occluding, so dirt/stone show
+     * through) is checked for recurrence.
+     *
+     * "grass_normal"/"grass_snowed" are the real 1.12.2 jar's MODEL filenames
+     * (assets/minecraft/models/block/grass_normal.json, grass_snowed.json) — not texture
+     * paths, and this list held those names (with a "blocks/" prefix that made them look
+     * texture-shaped) until issue #46's fix made this check assert instead of only log,
+     * which is what caught it. The models' own `textures` blocks (read directly from the
+     * cached jar while fixing this) declare the real texture keys used below:
+     * "blocks/grass_top" (unsnowed top AND snowed top — both models share it),
+     * "blocks/grass_side" + "blocks/grass_side_overlay" (unsnowed sides, layered), and
+     * "blocks/grass_side_snowed" (the snowed variant's side, no overlay). Both models'
+     * bottom/particle is "blocks/dirt", correctly shared with the dirt block itself.
      */
-    const grassTextures = ["minecraft:blocks/grass_normal", "minecraft:blocks/grass_snowed"];
+    const grassTextures = [
+        "minecraft:blocks/grass_top",
+        "minecraft:blocks/grass_side",
+        "minecraft:blocks/grass_side_overlay",
+        "minecraft:blocks/grass_side_snowed",
+    ];
     const grassTextureVertices = grassTextures.reduce(
         (sum, path) => sum + (eraHistogram.byPath.get(path) ?? 0), 0,
     );
     const dirtVertices = eraHistogram.byPath.get("minecraft:blocks/dirt") ?? 0;
     const dirtFraction = eraHistogram.total > 0 ? dirtVertices / eraHistogram.total : 0;
 
+    /*
+     * THE ACTUAL REGRESSION GATE (issue #46). Everything above this point only computed
+     * numbers and logged findings — before this fix neither of the two facts below was ever
+     * asserted, so this script reported `ok: true` even with zero grass-family vertices and
+     * dirt at 43.6% (see the cached tools/oracle/out/legacy-era-matched/render-1-12-era-matched-report.json
+     * from before this fix: `checks.failed` was empty). These two checks are what makes this
+     * "the failing check that found this" for real, rather than only a FINDING log a human
+     * has to read.
+     */
+    checks.ok(
+        "grass-family textures (blocks/grass_top, grass_side, grass_side_overlay, grass_side_snowed) render under the era-matched pack",
+        grassTextureVertices > 0,
+        `0 grass-family vertices in a ${eraHistogram.total}-vertex render — consistent with ` +
+            "flattenLegacyBlockState firing against an era-matched pack that has never heard " +
+            "of the name it renamed 'minecraft:grass' into ('minecraft:grass_block', which " +
+            "did not exist before the 1.13 flattening); see BlockStateModelRenderer.ts / " +
+            "FlatteningRename.ts's isLegacyResourcePack gate",
+    );
+
     log("");
     log(`  world:          seed ${options.seed}, ${options.size}x${options.size} blocks, ${world.chunkCount} chunks`);
     log(`  era-matched:    ${options.legacyVersion} pack, DataVersion ${world.dataVersion}, ${eraTiles.size} hires tile(s), ${eraVertices} vertices, ${eraHistogram.byPath.size} materials`);
     log(`  bluemap:block/missing:  ${missingVertices} of ${eraHistogram.total} vertices (${(missingFraction * 100).toFixed(1)}%)`);
-    log(`  grass-family textures (blocks/grass_normal, blocks/grass_snowed): ${grassTextureVertices} vertices`);
+    log(`  grass-family textures (blocks/grass_top, grass_side, grass_side_overlay, grass_side_snowed): ${grassTextureVertices} vertices`);
     log(`  minecraft:blocks/dirt: ${dirtVertices} of ${eraHistogram.total} vertices (${(dirtFraction * 100).toFixed(1)}%)`);
     log("");
     log("  full era-matched material histogram:");
@@ -374,6 +420,19 @@ async function main() {
         log("");
         log("  same world against the MODERN pack, for comparison:");
         log(`    minecraft:block/dirt: ${modernDirtVertices} of ${modernHistogram.total} vertices (${(modernDirtFraction * 100).toFixed(1)}%)`);
+
+        const dirtLimit = modernDirtFraction * DIRT_FRACTION_TOLERANCE_FACTOR + DIRT_FRACTION_TOLERANCE_FLOOR;
+        checks.ok(
+            "dirt exposure stays close to the modern-pack control (grass occludes it correctly)",
+            dirtFraction <= dirtLimit,
+            `era-matched: ${(dirtFraction * 100).toFixed(1)}% vs modern-pack control: ` +
+                `${(modernDirtFraction * 100).toFixed(1)}% (limit: ${(dirtLimit * 100).toFixed(1)}%, ` +
+                `${modernDirtFraction.toFixed(4)} * ${DIRT_FRACTION_TOLERANCE_FACTOR} + ` +
+                `${DIRT_FRACTION_TOLERANCE_FLOOR}) — a gap this large is the same 'ground no ` +
+                "longer occluded from above' signature design/HANDOFF.md recorded for the " +
+                "original modern-pack grass bug this rename table fixed, now reproduced under " +
+                "the era-matched pack instead",
+        );
     }
 
     const passed = checks.report();

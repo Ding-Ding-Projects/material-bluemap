@@ -4,7 +4,10 @@ import type { ResourcePack } from "../../../resources/pack/resourcepack/Resource
 import type { Variant } from "../../../resources/pack/resourcepack/blockstate/Variant.js";
 import { BlockState } from "../../../world/BlockState.js";
 import type { BlockNeighborhood } from "../../../world/block/BlockNeighborhood.js";
-import { flattenLegacyBlockState } from "../../../world/mca/legacy/FlatteningRename.js";
+import {
+    flattenLegacyBlockState,
+    isLegacyResourcePack,
+} from "../../../world/mca/legacy/FlatteningRename.js";
 import type { TextureGallery } from "../../TextureGallery.js";
 import type { RenderSettings } from "../RenderSettings.js";
 import type { TileModelView } from "../TileModelView.js";
@@ -125,8 +128,20 @@ export class BlockStateModelRenderer {
          * `block.isLegacy()` so a modern block-state — which can legitimately use some of
          * these exact names for a different, already-correct block (a real 1.13-1.20.2
          * chunk's `minecraft:grass` really does mean the grass tuft) — is never touched.
+         *
+         * ALSO gated on `!isLegacyResourcePack(this.resourcePack)` (issue #46): the rename
+         * bridges a legacy WORLD to a MODERN pack, and firing it against an era-matched
+         * (real pre-flattening) pack does the opposite of what it is for — that pack
+         * already resolves `minecraft:grass` etc. correctly on its own, so renaming it to
+         * `minecraft:grass_block` (a name that never existed pre-flattening) only turns a
+         * working lookup into a `null` one, silently dropping the block at the
+         * `if (stateResource == null) return;` below. See FlatteningRename.ts's doc
+         * comment.
          */
-        const lookupState = block.isLegacy() ? flattenLegacyBlockState(blockState) : blockState;
+        const lookupState =
+            block.isLegacy() && !isLegacyResourcePack(this.resourcePack)
+                ? flattenLegacyBlockState(blockState)
+                : blockState;
 
         const stateResource = this.resourcePack.getBlockState(lookupState);
         if (stateResource == null) return;

@@ -1,11 +1,44 @@
 import { Key } from "@material-bluemap/shared";
 import { describe, expect, it } from "vitest";
+import { PackVersion } from "../../../resources/pack/PackVersion.js";
+import { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";
+// only a TEST needs this: production never imports LegacyResourcePackExtension.ts from
+// anywhere reachable through FlatteningRename.ts (see isLegacyResourcePack's doc comment for
+// why) — `packages/engine/src/index.ts` is what registers it for real renders. A test file
+// is a leaf, not part of that require-cycle-sensitive chain, so importing it directly here
+// (to make sure the extension is actually registered before this file's packs are built,
+// whether or not this file runs standalone) is safe.
+import { registerLegacyResourcePackExtension } from "../../../resources/pack/resourcepack/legacy/LegacyResourcePackExtension.js";
+import { ZipFileSystem } from "../../../resources/pack/vfs/ZipFileSystem.js";
+import { buildZip } from "../../../resources/pack/vfs/zipTestUtil.js";
 import { BlockState } from "../../BlockState.js";
-import { flattenLegacyBlockState } from "./FlatteningRename.js";
+import { flattenLegacyBlockState, isLegacyResourcePack } from "./FlatteningRename.js";
+
+registerLegacyResourcePackExtension();
 
 /** builds a legacy BlockState the way BlockIdConfig / the legacy extensions would hand it back */
 function state(id: string, properties: Record<string, string> = {}): BlockState {
     return new BlockState(Key.parse(id), new Map(Object.entries(properties)));
+}
+
+/**
+ * A real {@link ResourcePack}, loaded from a synthetic root that carries only a
+ * `pack.mcmeta` declaring `pack_format`. Mirrors the smallest-possible fixture
+ * `resourcepack-e2e.test.ts`'s Proof 4 builds for the same purpose: contributes no
+ * blockstates/models/textures of its own, only the one signal
+ * `LegacyPackFormat.isLegacyPackRoot` reads.
+ */
+async function packWithFormat(packFormat: number | undefined): Promise<ResourcePack> {
+    // `undefined` -> no pack.mcmeta at all, the way a real Minecraft client jar ships (see
+    // resourcepack-e2e.test.ts's Proof 4) — "reads as modern" per LegacyPackFormat.ts's doc
+    const entries =
+        packFormat === undefined
+            ? [{ name: "pack.png", data: "not a real png, just a stand-in for a jar with no pack.mcmeta" }]
+            : [{ name: "pack.mcmeta", data: JSON.stringify({ pack: { pack_format: packFormat } }) }];
+    const root = await ZipFileSystem.fromBuffer(buildZip(entries), "synthetic-pack-meta.zip");
+    const pack = new ResourcePack(new PackVersion(packFormat ?? 4, 0));
+    await pack.loadResources(root.getRootDirectories());
+    return pack;
 }
 
 describe("flattenLegacyBlockState", () => {
@@ -300,5 +333,27 @@ describe("flattenLegacyBlockState", () => {
             expect(result.getProperties().get("east")).toBe("true");
             expect(result.getProperties().get("west")).toBe("false");
         });
+    });
+});
+
+describe("isLegacyResourcePack (issue #46)", () => {
+    // real ResourcePack instances, era-detected the exact way resourcepack-e2e.test.ts's
+    // Proof 4 exercises: pack.mcmeta's pack_format, read by LegacyPackFormat.isLegacyPackRoot.
+
+    it("reports a pre-flattening pack (pack_format 3, e.g. real 1.12.2) as legacy", async () => {
+        const pack = await packWithFormat(3);
+        expect(isLegacyResourcePack(pack)).toBe(true);
+    });
+
+    it("reports a post-flattening pack (pack_format 4, e.g. real 1.13+) as NOT legacy", async () => {
+        const pack = await packWithFormat(4);
+        expect(isLegacyResourcePack(pack)).toBe(false);
+    });
+
+    it("reports a pack with no pack.mcmeta at all as NOT legacy (reads as modern by design)", async () => {
+        // this is exactly what a bare Minecraft client jar looks like — see
+        // resourcepack-e2e.test.ts's Proof 4, "THE FINDING" comment
+        const pack = await packWithFormat(undefined);
+        expect(isLegacyResourcePack(pack)).toBe(false);
     });
 });

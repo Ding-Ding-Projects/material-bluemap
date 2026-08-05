@@ -177,18 +177,28 @@ export interface TestPackOptions {
     textures?: Map<string, Texture>;
     blockStates?: Map<string, PackBlockState>;
     properties?: Map<string, BlockProperties>;
+    /**
+     * Whether this pack should report itself as pre-flattening (era-matched) through
+     * `ResourcePack#isLegacy()` — the same signal `FlatteningRename.ts`'s
+     * `isLegacyResourcePack` reads to decide whether the rename table may run. Defaults to
+     * `false` (a modern pack), matching every test written before this option existed:
+     * those tests never set a pack era, and the rename must keep firing for them exactly as
+     * it did when only the world's era gated it.
+     */
+    packLegacy?: boolean;
 }
 
 /**
  * A stand-in for {@link ResourcePack}: the renderers only reach for `getModels`,
- * `getTextures`, `getBlockState`, `getBlockProperties` and `createBlockColorCalculator`,
- * and building the real pack would need a Minecraft client jar.
+ * `getTextures`, `getBlockState`, `getBlockProperties`, `isLegacy` and
+ * `createBlockColorCalculator`, and building the real pack would need a Minecraft client jar.
  */
 export function testResourcePack(options: TestPackOptions = {}): ResourcePack {
     const models = options.models ?? new Map<string, Model>();
     const textures = options.textures ?? new Map<string, Texture>();
     const blockStates = options.blockStates ?? new Map<string, PackBlockState>();
     const properties = options.properties ?? new Map<string, BlockProperties>();
+    const packLegacy = options.packLegacy ?? false;
 
     return {
         getModels: () => ({ get: (key: Key) => models.get(key.getFormatted()) ?? null }),
@@ -197,6 +207,7 @@ export function testResourcePack(options: TestPackOptions = {}): ResourcePack {
             blockStates.get(state.getId().getFormatted()) ?? null,
         getBlockProperties: (state: BlockState) =>
             properties.get(state.getId().getFormatted()) ?? BlockProperties.DEFAULT,
+        isLegacy: () => packLegacy,
         createBlockColorCalculator: () => new TestBlockColorCalculator(),
     } as unknown as ResourcePack;
 }
