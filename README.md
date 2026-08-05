@@ -7,7 +7,8 @@ Minecraft 3D map renderer and web viewer. It is built to ship as two things from
   connects to remote BlueMap servers — this is what ships today, and there is an installer
   below; and
 - a **standalone headless server** (`@material-bluemap/cli`) that renders and serves the map
-  webapp to ordinary browsers — this is Phase E and is currently a stub.
+  webapp to ordinary browsers — this is Phase E, and the CLI now really renders, serves and
+  ships a Docker image; its `--watch` flag is the one piece still unwired to `MapUpdateService`.
 
 Target world versions: Minecraft **1.12.2 through 26.x**.
 
@@ -54,10 +55,15 @@ Actions.
 > the product over: local rendering still drives upstream's Java engine, and making the switch
 > is a separate change with its own verification. Nothing in the app is a mock or a demo shell.
 
-Phases 0, A, B and D are complete and verified. Phase C is ported with its exit criteria not
-yet run. Phase E is part done: its worker pool and render-task layer are ported, its
-watch-driven re-render, HTTP routes and standalone server are not. F is reachable and in use.
-G, H and I are pending. See [Phase status](#phase-status).
+Phases 0, A, B, C and D are complete and verified — Phase C's three exit criteria (textures.json
+parity, live blockstate resolution, 1.12.2 legacy-jar loading) all passed on 2026-08-05 (issue
+#31, closed). Phase E is part done: its worker pool, render-task layer, watch-driven re-render
+(`MapUpdateService`), full HTTP routes with SSE, and a standalone server CLI plus Dockerfile are
+all ported; the CLI's own `--watch` flag is the one piece still unwired to `MapUpdateService`. F
+is reachable and in use. G is pending; H is part done (SQL storages proven against real
+MySQL/MariaDB/PostgreSQL, cross-verified against upstream's own Java engine, and the command
+palette shipped early); I is part done (the update checker and packaging shipped early). See
+[Phase status](#phase-status).
 
 <details id="features">
 <summary><b>Everything the application does</b> - the full feature list, with its article for each</summary>
@@ -548,7 +554,7 @@ The app tells you which engine rendered a map. It does not silently switch.
 </details>
 
 <details id="phase-status">
-<summary><b>Phase status</b> (0/A/B/D done, C and E part done, G/H/I pending)</summary>
+<summary><b>Phase status</b> (0/A/B/C/D done, E/H/I part done, G pending)</summary>
 
 Mirrored from [`design/ROADMAP.md`](design/ROADMAP.md), which is the source of truth and
 carries the reasoning behind every "part done" below.
@@ -558,14 +564,14 @@ carries the reasoning behind every "part done" below.
 | 0 | `plan.md`, submodules (plus the `v0.10.3-mc1.12` legacy tag), monorepo scaffold, CI | **Done** |
 | A | Viewer port (65 files to TS), MD3 shell, Electron shell, embedded server plus remote proxy, live-demo verification | **Done** |
 | B | shared utils, NBT, compression, MCA parsing 1.12.2 to 26.x including legacy `Chunk_1_12`, e2e synthetic-world proofs | **Done** |
-| C | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, `textures.json`) | Ported; three exit criteria not yet run |
+| C | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, `textures.json`) | **Done.** Exit criteria run 2026-08-05 (issue #31, closed): textures.json parity, live blockstate resolution and 1.12.2 legacy-jar loading all pass |
 | J | Java render path (toolchain discovery and provisioning, jar resolution, config writer, CLI runner, progress parser, provenance record, local map serving) | Built; driven by hand on one Windows machine |
 | D | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks | **Done, and the gate is closed** — both engines produced identical output on a 1000x1000 world |
-| E | RenderManager worker pool, watch re-render, full HTTP routes plus SSE, config schema, standalone server CLI and Dockerfile | **Part done.** The worker pool, the render-task hierarchy and the config schema are ported. Watch re-render, the HTTP routes with SSE, and the standalone CLI and Dockerfile are not, and nothing outside the engine drives the render manager yet |
+| E | RenderManager worker pool, watch re-render, full HTTP routes plus SSE, config schema, standalone server CLI and Dockerfile | **Part done.** The worker pool, render-task hierarchy and config schema (all issued earlier), watch-driven re-render (`MapUpdateService`, issue #40), full HTTP routes with SSE (issue #41), and the standalone CLI plus Dockerfile (issue #42) are ported, and `RenderDriver` now drives a real `RenderManager` end to end. The CLI's own `--watch` flag is not yet wired to `MapUpdateService` |
 | F | Full options GUI (all settings, map wizard, storage editors, config import) | Reachable and in use; eight tabs over BlueMap's own configuration |
 | G | Docker hosting GUI (dockerode instance manager) | Pending. Rendering *in* a container landed separately — see [`docs/docker-and-local.md`](docs/docker-and-local.md) |
-| H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | Pending. The command palette shipped early |
-| I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending. Packaging and the update checker shipped early |
+| H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | **Part done.** SQL storages proven against real MySQL/MariaDB/PostgreSQL and, over a shared MariaDB database, cross-compatible with upstream's own Java engine in both directions (issue #32, closed); the command palette shipped early. Marker editor, JS addon system, static export and the three.js upgrade remain pending |
+| I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | **Part done, landed early, out of order.** The update checker is built and wired into the main process, and packaging shipped early too. Local live players and measurement/waypoints/gallery/scheduler/dashboard remain pending |
 | Contracts | The five product contracts in [`design/docs/contracts/`](design/docs/contracts/README.md) | **Shipped.** Issues #6 to #13 are closed, each with its evidence on the issue |
 | Delivery | Sign-in, private worlds, split archives, resumable renders, Actions rendering, remote and container rendering, world sources, updates, projects, packaging pipeline | **Landed.** Not a plan phase; see `design/ROADMAP.md` |
 
@@ -585,8 +591,8 @@ the harness. That is recorded in
 | `design/packages/shared` | Wire formats (settings/textures/markers/players), config schema, math, path codecs |
 | `design/packages/nbt` | Binary NBT reader/writer with schema mapping (a BlueNBT-subset port) |
 | `design/packages/engine` | Render engine: MCA world parsing, resource packs, hires/lowres tile rendering, storage, render manager and its task hierarchy |
-| `design/packages/server` | Service facade, HTTP server and the remote proxy. Still small; its full routes and SSE are Phase E |
-| `design/packages/cli` | Standalone server CLI and Docker image. A stub — Phase E |
+| `design/packages/server` | Service facade, full HTTP routes with server-sent events, watch-driven re-render (`MapUpdateService`) and the remote proxy |
+| `design/packages/cli` | Standalone server CLI and Docker image: real rendering, serving and container packaging. `--watch` is the one flag not yet wired to `MapUpdateService` |
 | `design/packages/viewer` | three.js viewer library, a port of the BlueMap webapp core |
 | `design/packages/ui` | Material Design 3 Vue UI |
 | `design/packages/app` | Electron desktop app: main process, render orchestration, projects, backups, remote and container rendering, updates |

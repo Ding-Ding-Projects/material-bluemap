@@ -57,6 +57,9 @@ importers:
         specifier: ^10.1.0
         version: 10.1.0
     devDependencies:
+      '@bokuweb/zstd-wasm':
+        specifier: ^0.0.27
+        version: 0.0.27
       '@playwright/test':
         specifier: ^1.50.0
         version: 1.62.1

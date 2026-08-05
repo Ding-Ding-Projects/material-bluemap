@@ -63,15 +63,9 @@ import { APP_VOICED, appCopyKeys } from "./appCopy.js";
  * is not a way to fix a failure: it is a statement that the screen went back to speaking
  * English at people who did not choose English.
  *
- * Two surfaces are deliberately absent because their copy is genuinely unfinished, and
- * naming them here is the honest alternative to a guard that quietly asserts less than it
- * appears to:
+ * One surface is deliberately absent because its copy is genuinely unfinished, and naming
+ * it here is the honest alternative to a guard that quietly asserts less than it appears to:
  *
- *   components/config    partly written. `surfaces/configEditor.ts` covers the editing
- *                        machinery -- the regex builder, the search bars, secret masking,
- *                        the form controls and field rows. The file-management half (the
- *                        maps and storages it writes, the config-folder shell, the render
- *                        controls, the apply gates) is still on English fallbacks.
  *   components/project   `surfaces/project.ts` now covers every literal call site in all
  *                        five `.vue` files (`ProjectEditor.vue`, `ProjectList.vue`,
  *                        `ProjectMapsPanel.vue`, `ProjectStoragesPanel.vue`,
@@ -79,9 +73,12 @@ import { APP_VOICED, appCopyKeys } from "./appCopy.js";
  *                        `project.row.*` keys -- not a component, still unvoiced -- so this
  *                        stays off the list until those land too.
  *
- * `components/world` (the whole "Make a map" wizard, all ten `.vue` files plus the four
- * helper modules that own `world.*` call sites of their own) and `components/palette` (the
- * command palette, all 81 of its own keys) are both fully covered now and appear below.
+ * `components/config` (`surfaces/configFiles.ts`'s config.storages, config.apply and
+ * config.run keys covering the maps and storages it writes, the config-folder shell, the
+ * render controls and the apply gates, alongside `surfaces/configEditor.ts`'s editing
+ * machinery), `components/world` (the whole "Make a map" wizard, all ten `.vue` files plus
+ * the four helper modules that own `world.*` call sites of their own) and `components/palette`
+ * (the command palette, all 81 of its own keys) are all fully covered now and appear below.
  *
  * The bottom `describe` block prints the exact remaining count per surface on every run, so
  * the size of that gap is a number somebody reads rather than a claim in a comment.
@@ -253,6 +250,38 @@ describe("the catalogue covers the surfaces it claims to cover", () => {
             (surface) => !(COVERED_SURFACES as readonly string[]).includes(surface),
         );
         expect(orphaned).toEqual([]);
+    });
+
+    it("never describes a surface as deliberately unvoiced once COVERED_SURFACES covers it", () => {
+        // The doc comment above COVERED_SURFACES names, one per line shaped like
+        // "   components/xyz   <prose>", every surface it deliberately leaves off the list.
+        // `components/config` once stayed described there as "still on English fallbacks"
+        // after it had already joined COVERED_SURFACES and gone fully voiced, and nothing
+        // read the comment against the list to notice. This does, by extracting the same
+        // names from this file's own source rather than pinning them by hand, so the check
+        // still works after the comment's wording changes.
+        const ownSource = readFileSync(fileURLToPath(import.meta.url), "utf8");
+        const anchor = ownSource.indexOf("deliberately absent");
+        expect(anchor, "the doc comment's anchor phrase moved or was reworded").toBeGreaterThan(-1);
+        const doc = ownSource.slice(anchor);
+        const blockEnd = doc.indexOf("*/");
+        const relevant = blockEnd === -1 ? doc : doc.slice(0, blockEnd);
+
+        const namedAsAbsent = [...relevant.matchAll(/^ \*   (components\/\S+)\s{2,}\S/gm)].map(
+            (match) => match[1] as string,
+        );
+        expect(namedAsAbsent.length, "the extraction found no named surfaces at all").toBeGreaterThan(
+            0,
+        );
+
+        const staleClaims = namedAsAbsent.filter((surface) =>
+            (COVERED_SURFACES as readonly string[]).includes(surface),
+        );
+        expect(
+            staleClaims,
+            "these surfaces are named in the doc comment as deliberately unvoiced, but " +
+                "COVERED_SURFACES already covers them -- update the comment to match reality.",
+        ).toEqual([]);
     });
 
     it("the covered list is real: every named surface exists and renders prose", () => {

@@ -206,7 +206,6 @@ export const ACCOUNTS_FIXED = {
     "settings.github.accounts.signOut": { en: "Sign out", yue: "登出" },
     "settings.github.accounts.confirmSignOutTitle": { en: "Confirm signing out", yue: "確認登出" },
     "settings.github.accounts.confirmSignOut": { en: "Sign out and revoke", yue: "登出並撤銷" },
-    "settings.github.accounts.keepSignedIn": { en: "Keep this account", yue: "繼續保留呢個帳戶" },
     "settings.github.accounts.refresh": { en: "Refresh", yue: "重新整理" },
     "settings.github.accounts.refreshing": { en: "Refreshing…", yue: "重新整理緊…" },
 } as const satisfies Record<string, FixedString>;

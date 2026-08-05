@@ -612,11 +612,15 @@ export const GITHUB_FIXED = {
     /* An empty grant, as distinct from a token that reports no list. See the voiced key. */
     "settings.github.noScopes": { en: "None granted", yue: "冇授權任何權限" },
 
-    /* Signing out, and the confirmation it opens. */
+    /*
+     * Signing out, and the confirmation it opens. There is no "stay signed in" key here any
+     * more: the confirmation used to be a bespoke inline yes/no, and now it is
+     * ConfigSuperConfirm, the shared super-confirmation gate, whose Emergency exit and
+     * Escape path are its own component's copy rather than this surface's.
+     */
     "settings.github.signOut": { en: "Sign out", yue: "登出" },
     "settings.github.confirmTitle": { en: "Confirm signing out", yue: "確認登出" },
     "settings.github.confirmSignOut": { en: "Sign out and revoke", yue: "登出並撤銷" },
-    "settings.github.keepSignedIn": { en: "Stay signed in", yue: "繼續留喺度" },
 
     /* The token form. The field is a password field; these two label its reveal toggle. */
     "settings.github.tokenField": { en: "Personal access token", yue: "personal access token" },

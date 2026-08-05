@@ -11,6 +11,11 @@ screenshots/
 playwright-report/
 test-results/
 
+# Scratch esbuild output from packages/app/test/zstdMainBundle.test.ts. Written inside the
+# workspace (rather than the OS temp dir) so Vite's dev-server file allow-list - which stops
+# at `workspaceRoot` per vitest.config.ts - permits the test's dynamic `import()` of it.
+packages/app/test/.zstd-bundle-scratch/
+
 # The opt-in live resource-pack proof (packages/engine/test/resourcepack-e2e.test.ts)
 # caches the Minecraft client-jar it downloads here. Never commit a Mojang jar, or
 # anything extracted from one. The second line is a belt-and-braces guard: it is the

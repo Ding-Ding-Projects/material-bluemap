@@ -10,6 +10,7 @@ import {
 } from "@mdi/js";
 import { VAlert, VBtn, VChip, VIcon, VProgressLinear } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { formatTimestamp } from "./githubAccount.js";
 import { accountSearchText, type GitHubAccountsListState } from "./githubAccountsStore.js";
@@ -195,21 +196,17 @@ const actionFailureText = computed(() => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Per-row sign-out, confirmed inline before it runs                          */
+/* Per-row sign-out, behind the shared two-key super-confirmation gate        */
 /* -------------------------------------------------------------------------- */
 
-const confirmingId = ref<string | null>(null);
-
-function askToSignOut(id: string): void {
-    confirmingId.value = id;
-}
-
-function keepSignedIn(): void {
-    confirmingId.value = null;
-}
-
+/**
+ * Issue #10: signing an account out deletes its stored token and asks GitHub to revoke it,
+ * a real credential revocation against a real account, so it sits behind the same
+ * `ConfigSuperConfirm` gate every other destructive control in this application uses. Each
+ * row renders its own gate instance with `account.id` closed over its `@confirm`, so there
+ * is no shared "which row is confirming" state to keep in step with the list any more.
+ */
 async function confirmSignOut(id: string): Promise<void> {
-    confirmingId.value = null;
     await state.removeAccount(id);
 }
 
@@ -453,53 +450,32 @@ function timestamp(value: string | null): string | null {
                                         : t("settings.github.accounts.refresh", "Refresh")
                                 }}
                             </v-btn>
-                            <v-btn
-                                v-if="confirmingId !== account.id"
-                                class="mb-accounts__signout"
-                                :prepend-icon="mdiLogoutVariant"
-                                variant="text"
-                                size="small"
-                                :disabled="!state.canRemove || (state.busyId.value !== null && state.busyId.value !== account.id)"
-                                @click.stop="askToSignOut(account.id)"
-                            >
-                                {{ t("settings.github.accounts.signOut", "Sign out") }}
-                            </v-btn>
-                        </div>
-
-                        <div
-                            v-if="confirmingId === account.id"
-                            class="mb-accounts__confirm"
-                            role="group"
-                            :aria-label="t('settings.github.accounts.confirmSignOutTitle', 'Confirm signing out')"
-                        >
-                            <p class="mb-accounts__confirmText">
-                                {{
+                            <ConfigSuperConfirm
+                                :title="t('settings.github.accounts.confirmSignOutTitle', 'Confirm signing out')"
+                                :action="
                                     t(
-                                        "settings.github.accounts.confirmSignOutBody",
-                                        "Signing this account out deletes its stored token from this computer and asks GitHub to revoke it, so it stops working everywhere rather than merely being forgotten here. Nothing you have rendered or downloaded is touched, and signing this account in again issues a new token.",
+                                        'settings.github.accounts.confirmSignOutBody',
+                                        'Signing this account out deletes its stored token from this computer and asks GitHub to revoke it, so it stops working everywhere rather than merely being forgotten here. Nothing you have rendered or downloaded is touched, and signing this account in again issues a new token.',
                                     )
-                                }}
-                            </p>
-                            <div class="mb-accounts__confirmActions">
-                                <v-btn
-                                    class="mb-accounts__confirmSignout"
-                                    variant="tonal"
-                                    color="error"
-                                    size="small"
-                                    :loading="state.busyId.value === account.id"
-                                    @click.stop="confirmSignOut(account.id)"
-                                >
-                                    {{ t("settings.github.accounts.confirmSignOut", "Sign out and revoke") }}
-                                </v-btn>
-                                <v-btn
-                                    class="mb-accounts__keep"
-                                    variant="text"
-                                    size="small"
-                                    @click.stop="keepSignedIn"
-                                >
-                                    {{ t("settings.github.accounts.keepSignedIn", "Keep this account") }}
-                                </v-btn>
-                            </div>
+                                "
+                                :confirm-label="t('settings.github.accounts.confirmSignOut', 'Sign out and revoke')"
+                                :disabled="!state.canRemove || (state.busyId.value !== null && state.busyId.value !== account.id)"
+                                @confirm="confirmSignOut(account.id)"
+                            >
+                                <template #activator="{ props: activatorProps }">
+                                    <v-btn
+                                        class="mb-accounts__signout"
+                                        :prepend-icon="mdiLogoutVariant"
+                                        variant="text"
+                                        size="small"
+                                        :disabled="activatorProps.disabled"
+                                        :loading="state.busyId.value === account.id"
+                                        @click.stop="activatorProps.onClick"
+                                    >
+                                        {{ t("settings.github.accounts.signOut", "Sign out") }}
+                                    </v-btn>
+                                </template>
+                            </ConfigSuperConfirm>
                         </div>
                     </div>
                 </div>
@@ -635,28 +611,5 @@ function timestamp(value: string | null): string | null {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-}
-
-.mb-accounts__confirm {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(var(--v-theme-error), 0.4);
-    background: rgba(var(--v-theme-error), 0.06);
-}
-
-.mb-accounts__confirmText {
-    margin: 0;
-    font-size: 0.75rem;
-    line-height: 1.5;
-    text-wrap: pretty;
-}
-
-.mb-accounts__confirmActions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
 }
 </style>

@@ -345,7 +345,7 @@ describe("switching the active account", () => {
 });
 
 describe("signing one account out", () => {
-    it("asks before it runs, and reports the fallback account by name", async () => {
+    it("puts the two-key gate in front of it, one gate per row, and reports the fallback account by name", async () => {
         // Rows sort by login, so these two logins are chosen to keep that order
         // predictable: "alice" (u1, the one this test signs out) before "zed" (u2, the
         // one it should fall back to).
@@ -361,21 +361,25 @@ describe("signing one account out", () => {
         mountList(state);
         await settle();
 
+        // Issue #10: each row's sign-out is a real credential revocation against a real
+        // account, so it sits behind its own `ConfigSuperConfirm` instance, closed over
+        // that row's own account id, rather than one shared "which row is confirming" flag.
         const buttons = [...document.querySelectorAll<HTMLButtonElement>(".mb-accounts__signout")];
         expect(buttons).toHaveLength(2);
-        const aliceRow = buttons.find((button) =>
+        const aliceIndex = buttons.findIndex((button) =>
             (button.closest(".mb-accounts__rowhost")?.textContent ?? "").includes("alice"),
         );
-        expect(aliceRow).toBeDefined();
-        aliceRow?.click();
-        await settle();
+        expect(aliceIndex).toBeGreaterThanOrEqual(0);
 
+        const gates = wrapper?.findAllComponents({ name: "ConfigSuperConfirm" }) ?? [];
+        expect(gates).toHaveLength(2);
+        const aliceGate = gates[aliceIndex];
+        expect(String(aliceGate?.props("action"))).toContain("revoke");
+
+        // Nothing happens until that row's own gate says so.
         expect(script.calls).not.toContain("remove:u1");
-        const confirmText = document.querySelector(".mb-accounts__confirm")?.textContent ?? "";
-        expect(confirmText).toContain("revoke");
 
-        const confirmButton = document.querySelector<HTMLButtonElement>(".mb-accounts__confirmSignout");
-        confirmButton?.click();
+        aliceGate?.vm.$emit("confirm");
         await settle();
 
         expect(script.calls).toContain("remove:u1");
@@ -393,9 +397,7 @@ describe("signing one account out", () => {
         mountList(state);
         await settle();
 
-        await wrapper?.find(".mb-accounts__signout").trigger("click");
-        await settle();
-        await wrapper?.find(".mb-accounts__confirmSignout").trigger("click");
+        wrapper?.findComponent({ name: "ConfigSuperConfirm" }).vm.$emit("confirm");
         await settle();
 
         const reportText = document.querySelector(".mb-accounts__revoked")?.textContent ?? "";
@@ -417,9 +419,7 @@ describe("signing one account out", () => {
         mountList(state);
         await settle();
 
-        await wrapper?.find(".mb-accounts__signout").trigger("click");
-        await settle();
-        await wrapper?.find(".mb-accounts__confirmSignout").trigger("click");
+        wrapper?.findComponent({ name: "ConfigSuperConfirm" }).vm.$emit("confirm");
         await settle();
 
         const reportText = document.querySelector(".mb-accounts__revoked")?.textContent ?? "";
@@ -427,20 +427,17 @@ describe("signing one account out", () => {
         expect(reportText).not.toContain("GitHub confirmed the token was revoked");
     });
 
-    it("can be backed out of without signing anybody out", async () => {
+    it("does not sign anybody out merely by rendering the row or its gate", async () => {
         const script = scriptedAccounts([{ id: "u1", account: account({ login: "octocat" }) }], "u1");
         const state = createGitHubAccountsList({ bridge: script.bridge });
         await state.load();
         mountList(state);
         await settle();
 
-        await wrapper?.find(".mb-accounts__signout").trigger("click");
-        await settle();
-        await wrapper?.find(".mb-accounts__keep").trigger("click");
-        await settle();
-
+        // Opening the gate's card is not authorizing it - only the gate's own `confirm`
+        // is, and that path is exercised by the tests above.
+        expect(wrapper?.findComponent({ name: "ConfigSuperConfirm" }).exists()).toBe(true);
         expect(script.calls).not.toContain("remove:u1");
-        expect(document.querySelector(".mb-accounts__confirm")).toBeNull();
     });
 });
 

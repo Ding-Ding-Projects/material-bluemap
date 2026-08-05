@@ -481,43 +481,37 @@ describe("the signed-in account", () => {
         );
     });
 
-    it("asks before signing out, says the token is revoked, and can be backed out of", async () => {
+    it("puts the two-key super-confirmation gate in front of signing out, naming what it revokes", async () => {
         const script = scripted({ ...SIGNED_OUT, signedIn: true, account: ACCOUNT });
         const state = createGitHubAccount({ bridge: script.bridge });
         mountRow(state);
         await state.load();
         await settle();
 
-        await wrapper?.find("button.mb-github-status__signout").trigger("click");
-        await settle();
+        // Issue #10: sign-out is a real credential revocation against a real account, so it
+        // sits behind the same shared two-key/slider gate every other destructive control in
+        // this application uses, not a bespoke inline yes/no of its own. The gate's own card
+        // opens through a Vuetify overlay that needs a real `visualViewport`, which jsdom does
+        // not provide, so this checks the wiring (the gate exists, guards the real action, and
+        // names what it revokes) without physically opening that overlay - the shared gate's
+        // own tests already cover the keys-then-slider mechanics generically.
+        const gate = wrapper?.findComponent({ name: "ConfigSuperConfirm" });
+        expect(gate?.exists()).toBe(true);
+        expect(String(gate?.props("action"))).toContain("revoke");
+        expect(String(gate?.props("action"))).toContain("deletes the stored token from this computer");
 
+        // Merely mounting never signs out on its own. Only the gate's own `confirm` does.
         expect(script.calls).not.toContain("signOut");
-        const confirmText = document.querySelector(".mb-github-status__confirm")?.textContent ?? "";
-        expect(confirmText).toContain("revoke");
-        expect(confirmText).toContain("deletes the stored token from this computer");
-        // The decision has the focus, or the next keystroke acts on a button that is gone.
-        expect(document.activeElement?.classList.contains("mb-github-status__confirmSignout")).toBe(
-            true,
-        );
-
-        await wrapper?.find("button.mb-github-status__keep").trigger("click");
-        await settle();
-
-        expect(script.calls).not.toContain("signOut");
-        expect(document.querySelector(".mb-github-status__confirm")).toBeNull();
-        expect(document.querySelector("button.mb-github-status__signout")).not.toBeNull();
     });
 
-    it("signs out when the confirmation is taken, and reports what GitHub did not confirm", async () => {
+    it("signs out when the gate confirms, and reports what GitHub did not confirm", async () => {
         const script = scripted({ ...SIGNED_OUT, signedIn: true, account: ACCOUNT });
         const state = createGitHubAccount({ bridge: script.bridge });
         mountRow(state);
         await state.load();
         await settle();
 
-        await wrapper?.find("button.mb-github-status__signout").trigger("click");
-        await settle();
-        await wrapper?.find("button.mb-github-status__confirmSignout").trigger("click");
+        wrapper?.findComponent({ name: "ConfigSuperConfirm" }).vm.$emit("confirm");
         await settle();
 
         expect(script.calls).toContain("signOut");
@@ -572,9 +566,7 @@ describe("the signed-in account", () => {
         await state.load();
         await settle();
 
-        await wrapper?.find("button.mb-github-status__signout").trigger("click");
-        await settle();
-        await wrapper?.find("button.mb-github-status__confirmSignout").trigger("click");
+        wrapper?.findComponent({ name: "ConfigSuperConfirm" }).vm.$emit("confirm");
         await settle();
 
         // Still signed in - as the fallback account - so the "Signed in" card is drawn.

@@ -277,41 +277,43 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
         count: 1,
         destroys:
             "one stored account's GitHub token, and the grant on that account when GitHub honours the revocation",
-        standing: "gap",
+        standing: "gated",
+        gatedIn: "components/github/GitHubAccountsList.vue",
         note:
-            "Issue #10: the multi-account listbox's per-row sign-out, confirmed inline in two " +
-            "steps exactly as components/github/GitHubStatusRow.vue's single-account one is, " +
-            "and not by the two-key gate either - the same standing, for the same reason, on " +
-            "the row this change adds beside it rather than a new decision about it.",
+            "Issue #10, closed: each row renders its own ConfigSuperConfirm instance, closed " +
+            "over that row's own account id, rather than the two-click inline confirm the " +
+            "row used before.",
     },
     "components/github/GitHubStatusRow.vue": {
         count: 1,
         destroys: "the stored GitHub token, and the grant on the account when GitHub honours the revocation",
-        standing: "gap",
+        standing: "gated",
+        gatedIn: "components/github/GitHubStatusRow.vue",
         note:
-            "Issue #10: signing out is confirmed inline in two steps with focus return, but " +
-            "not by the two-key gate. The surface lives in components/github, outside the " +
-            "ownership of the change that added this inventory, so it is recorded rather " +
-            "than silently passed.",
+            "Issue #10, closed: replaced the bespoke inline two-click confirm with " +
+            "ConfigSuperConfirm, the same anchored two-key gate every other destructive " +
+            "control in this application uses.",
     },
     "components/github/githubAccount.ts": {
         count: 2,
         destroys: "the stored GitHub token, and the grant on the account when GitHub honours the revocation",
-        standing: "gap",
+        standing: "gated",
+        gatedIn: "components/github/GitHubStatusRow.vue",
         note:
-            "Issue #10: the sign-out primitive behind the row above. It moves behind the gate " +
-            "when that row does, and is listed separately so the count cannot drift.",
+            "Issue #10, closed: the sign-out primitive behind the row above. It moves behind " +
+            "the gate with that row, and is listed separately so the count cannot drift.",
     },
     "components/github/githubAccountsStore.ts": {
         count: 2,
         destroys:
             "one stored account's GitHub token, and the grant on that account when GitHub honours the revocation",
-        standing: "gap",
+        standing: "gated",
+        gatedIn: "components/github/GitHubAccountsList.vue",
         note:
-            "Issue #10: the per-account removal primitive behind the row above (the interface " +
-            "signature and the implementation both name the same call, hence two). It moves " +
-            "behind the gate when that row does, and is listed separately so the count cannot " +
-            "drift.",
+            "Issue #10, closed: the per-account removal primitive behind the row above (the " +
+            "interface signature and the implementation both name the same call, hence two). " +
+            "It moves behind the gate with that row, and is listed separately so the count " +
+            "cannot drift.",
     },
     "components/history/HistoryPanel.vue": {
         count: 1,
@@ -561,12 +563,7 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
  * object but a change to a short list a reviewer reads in full. A gap that nobody wrote here
  * fails, and a gap that was fixed and left here fails too.
  */
-const KNOWN_GAPS: readonly string[] = [
-    "components/github/GitHubAccountsList.vue",
-    "components/github/GitHubStatusRow.vue",
-    "components/github/githubAccount.ts",
-    "components/github/githubAccountsStore.ts",
-];
+const KNOWN_GAPS: readonly string[] = [];
 
 /* -------------------------------------------------------------------------- */
 

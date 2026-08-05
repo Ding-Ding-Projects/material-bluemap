@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from "vue";
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { VAlert, VBtn, VChip, VIcon } from "vuetify/components";
 import { mdiCheckCircleOutline, mdiLogoutVariant } from "@mdi/js";
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { formatTimestamp, type GitHubAccountState } from "./githubAccount.js";
 
 /**
@@ -16,12 +17,13 @@ import { formatTimestamp, type GitHubAccountState } from "./githubAccount.js";
  * access token — says exactly that, because an empty list rendered as "no permissions"
  * would be a fact this app cannot actually establish.
  *
- * Signing out is confirmed, and the confirmation is inline rather than a dialog. It is a
- * decision worth pausing over: the credential is deleted from this computer and GitHub is
- * asked to revoke the token, which is not undone by signing in again — the next sign-in
- * issues a new one. But it destroys no map, no file and no setting, so the ceremony
- * reserved for irreversible deletion would be teaching people to click through ceremony,
- * and a modal would halt an application that has no reason to stop.
+ * Signing out is destructive and irreversible in the sense the shared super-confirmation
+ * gate exists for: the credential is deleted from this computer and GitHub is asked to
+ * revoke the token, which is not undone by signing in again — the next sign-in issues a new
+ * one. It destroys no map, no file and no setting, but it is a real credential revocation
+ * against a real account, so it sits behind `ConfigSuperConfirm`, the same anchored two-key
+ * gate every other destructive control in this application uses, rather than a bespoke
+ * inline confirmation that looked like enough but was not the contract's gate.
  *
  * What the confirmation promises is exactly what the main process can deliver: the stored
  * credential is deleted, and revocation is *attempted*. A desktop application holds no
@@ -33,10 +35,6 @@ const props = defineProps<{ account: GitHubAccountState }>();
 const { t, locale } = useI18n();
 
 const state = props.account;
-
-const confirming = ref(false);
-const confirmButton = ref<InstanceType<typeof VBtn> | null>(null);
-const signOutButton = ref<InstanceType<typeof VBtn> | null>(null);
 
 const account = computed(() => state.account.value);
 
@@ -58,34 +56,12 @@ const sourceLabel = computed(() => {
 });
 
 /**
- * Focuses a Vuetify button through its root element.
- *
- * `$el` is the rendered `<button>` here, and the optional call is what keeps jsdom — where
- * a component may render before layout exists — from turning a focus move into a thrown
- * exception that costs the rest of the handler.
+ * The gate's `@confirm`, fired only once both keys are on and the slider has travelled its
+ * whole range. `ConfigSuperConfirm` owns opening, closing, Escape/Emergency-exit and
+ * returning focus to the button that opened it; this is only the action itself.
  */
-function focusButton(button: InstanceType<typeof VBtn> | null): void {
-    const element: unknown = button?.$el;
-    if (element instanceof HTMLElement) element.focus();
-}
-
-async function askToSignOut(): Promise<void> {
-    confirming.value = true;
-    // Focus follows the decision, or the next keystroke goes to a button that has just
-    // been replaced by the question it asked.
-    await nextTick();
-    focusButton(confirmButton.value);
-}
-
-async function keepSignedIn(): Promise<void> {
-    confirming.value = false;
-    await nextTick();
-    focusButton(signOutButton.value);
-}
-
 function onSignOut(): void {
     if (state.signingOut.value) return;
-    confirming.value = false;
     void state.signOut();
 }
 </script>
@@ -181,54 +157,30 @@ function onSignOut(): void {
         </ul>
 
         <div v-if="state.canSignOut" class="mb-github-status__actions">
-            <v-btn
-                v-if="!confirming"
-                ref="signOutButton"
-                class="mb-github-status__signout"
-                :prepend-icon="mdiLogoutVariant"
-                variant="tonal"
-                :disabled="state.signingOut.value"
-                :loading="state.signingOut.value"
-                @click="askToSignOut"
-            >
-                {{ t("settings.github.signOut", "Sign out") }}
-            </v-btn>
-        </div>
-
-        <!--
-            Anchored beside the control it belongs to, not a dialog over the app. It states
-            both halves of what will happen, including the half that is only attempted.
-        -->
-        <div
-            v-if="confirming"
-            class="mb-github-status__confirm"
-            role="group"
-            :aria-label="t('settings.github.confirmTitle', 'Confirm signing out')"
-        >
-            <p class="mb-github-status__confirmText">
-                {{
+            <ConfigSuperConfirm
+                :title="t('settings.github.confirmTitle', 'Confirm signing out')"
+                :action="
                     t(
-                        "settings.github.confirmBody",
-                        "Signing out deletes the stored token from this computer and asks GitHub to revoke it, so it stops working everywhere rather than merely being forgotten here. Nothing you have rendered or downloaded is touched, and signing in again issues a new token.",
+                        'settings.github.confirmBody',
+                        'Signing out deletes the stored token from this computer and asks GitHub to revoke it, so it stops working everywhere rather than merely being forgotten here. Nothing you have rendered or downloaded is touched, and signing in again issues a new token.',
                     )
-                }}
-            </p>
-            <div class="mb-github-status__actions">
-                <v-btn
-                    ref="confirmButton"
-                    class="mb-github-status__confirmSignout"
-                    variant="tonal"
-                    color="error"
-                    :disabled="state.signingOut.value"
-                    :loading="state.signingOut.value"
-                    @click="onSignOut"
-                >
-                    {{ t("settings.github.confirmSignOut", "Sign out and revoke") }}
-                </v-btn>
-                <v-btn class="mb-github-status__keep" variant="text" @click="keepSignedIn">
-                    {{ t("settings.github.keepSignedIn", "Stay signed in") }}
-                </v-btn>
-            </div>
+                "
+                :confirm-label="t('settings.github.confirmSignOut', 'Sign out and revoke')"
+                :disabled="state.signingOut.value"
+                @confirm="onSignOut"
+            >
+                <template #activator="{ props: activatorProps }">
+                    <v-btn
+                        v-bind="activatorProps"
+                        class="mb-github-status__signout"
+                        :prepend-icon="mdiLogoutVariant"
+                        variant="tonal"
+                        :loading="state.signingOut.value"
+                    >
+                        {{ t("settings.github.signOut", "Sign out") }}
+                    </v-btn>
+                </template>
+            </ConfigSuperConfirm>
         </div>
     </div>
 </template>
@@ -290,23 +242,6 @@ function onSignOut(): void {
 
 .mb-github-status__actions .v-btn {
     min-height: 40px;
-}
-
-.mb-github-status__confirm {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px;
-    border-radius: 12px;
-    border: 1px solid rgba(var(--v-theme-error), 0.4);
-    background: rgba(var(--v-theme-error), 0.06);
-}
-
-.mb-github-status__confirmText {
-    margin: 0;
-    font-size: 0.8125rem;
-    line-height: 1.5;
-    text-wrap: pretty;
 }
 
 .mb-github-status__alert {
