@@ -338,6 +338,7 @@ function onDrop(event: DragEvent): void {
                 :prepend-icon="mdiCloudDownloadOutline"
                 :append-icon="downloadsOpen ? mdiChevronUp : mdiChevronDown"
                 :aria-expanded="downloadsOpen ? 'true' : 'false'"
+                aria-controls="mb-world-step-downloads"
                 variant="text"
                 size="small"
                 @click="downloadsOpen = !downloadsOpen"
@@ -349,7 +350,12 @@ function onDrop(event: DragEvent): void {
                 }}
             </v-btn>
 
-            <ReleaseDownloads v-if="downloadsOpen" :bridge="downloadBridge" @use="useDownloaded" />
+            <ReleaseDownloads
+                v-if="downloadsOpen"
+                id="mb-world-step-downloads"
+                :bridge="downloadBridge"
+                @use="useDownloaded"
+            />
         </div>
     </section>
 </template>

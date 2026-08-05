@@ -150,6 +150,43 @@ describe("the folder step's way out for somebody with no world", () => {
         wrapper.unmount();
     });
 
+    /**
+     * `aria-expanded` on its own only tells a screen reader that *something* changed;
+     * without `aria-controls` naming the revealed region's id there is no programmatic way
+     * to jump there - the same gap this project already closed for its other disclosures
+     * (RenderRunPanel's detail and log panels, DownloadRowCard's, BackupRunCard's, and the
+     * rest of the `aria-expanded`-without-`aria-controls` batch).
+     */
+    it("points the downloads disclosure's aria-controls at the id of the region it reveals", async () => {
+        const fake = fakePreload();
+        const wrapper = mount(WorldFolderStep, {
+            props: {
+                modelValue: "",
+                inspection: uncheckedWorld(""),
+                inspecting: false,
+                canInspect: true,
+                downloadBridge: fake.bridge,
+            },
+            global: { plugins: [vuetify, i18n()] },
+        });
+
+        const toggle = button(wrapper, "Download one from a release");
+        const controls = toggle.attributes("aria-controls");
+        expect(controls).toBeTruthy();
+        // Collapsed, so there is nothing yet for aria-controls to point at - fine as long
+        // as the id appears the moment the region does.
+        expect(wrapper.find(`#${controls}`).exists()).toBe(false);
+
+        await toggle.trigger("click");
+        await flushPromises();
+
+        const region = wrapper.find(`#${controls}`);
+        expect(region.exists()).toBe(true);
+        expect(region.text()).toContain("A release can carry a whole Minecraft world");
+
+        wrapper.unmount();
+    });
+
     it("takes a downloaded folder as the world, and has it checked like any other", async () => {
         const fake = fakePreload();
         const wrapper = mount(WorldFolderStep, {
