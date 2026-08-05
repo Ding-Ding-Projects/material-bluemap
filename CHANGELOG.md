@@ -22,6 +22,18 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Complete tabbed material surfaces and resumable Pages publishing - [`1e9ae1b379`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1e9ae1b37973f169e010c759455fc8dbefe8f716)
+- Wire the map control bar and the history panel into the appearance editor - [`796ac32b17`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/796ac32b178af46b10961f1d7aabb465c40200f0)
+- Give every tab and group Edit appearance, not just the strip they sit in - [`cd09b84541`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cd09b845419eafeb1c4e87156038308516cb54ec)
+- Voice the tab strip, appearance editor, downloads, console and menus - [`f1188a684f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f1188a684f947395832f64081aa20b3191b71b78)
+- Voice history, backups, GitHub runners, profiles and Pages - [`978c207072`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/978c207072d58b842e442bcc9190af36b6a2a87b)
+- Test every door the palette now opens, and stop the docs describing the old one - [`cca197db50`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cca197db50a3a0f71f8e5a075254cfae41ddd8e8)
+- Stop hardcoding "Enter", "Space" and "-marker" past the copy layer - [`3afccfcadb`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/3afccfcadb10797dff37396c03b219fc6973175f)
+- Voice the changelog viewer, all 73 keys of it - [`af5ffeb7a3`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/af5ffeb7a3cc15d5f0aff8c7fe38fa54dc6835f6)
+- Assert catalogue coverage per surface, so a mute screen cannot ship quietly - [`24fa34e84d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/24fa34e84d4326ce928e943d70c3d1cf582d42c7)
+- Give the Surface and Presets tabs a search, and teach the guard to miss one - [`1af2d86c59`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1af2d86c59f6bb955d6166ea226efdf4a00488ec)
+- Split the copy catalogue into per-surface modules and voice the app chrome - [`99ffa877c1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/99ffa877c1eae4bd5bcd6b8a5a3eb76ddea3170e)
+- Tell somebody why the backup button will not go, instead of just greying it - [`33371b2959`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/33371b2959f46618e9ead37d4179c3c4f1dcf55d)
 - Add Pages capture and stale-build guard - [`54559eb4c7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/54559eb4c772b8778bfdda719cd0b8aae0a1558a)
 - Localize Pages publishing copy - [`e7bd4038f0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e7bd4038f00bee5ab0f79e5f9c08fb3eb0b4bd16)
 - Add the Pages publishing tab - [`22b475a8a2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/22b475a8a2b066299100ce4fc3909b279c9202cb)
@@ -61,11 +73,14 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- Stop a new CI run cancelling the one before it - [`451304984a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/451304984aae74e84dc4b21b1e0f3faeab8029c1)
 - Publish rendered maps to plain file hosts - [`bd63de8080`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/bd63de80804b3913ff3b9c00c111cb6449158b9a)
 - Add measured timing to release notes - [`aac39451c1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/aac39451c1172691b029863852869e9e3f07420d)
 
 ### Documentation
 
+- Record the map the application itself published to Pages - [`d8e1ee15b0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d8e1ee15b08b82f3cb294150eead80f6e8274d0a)
+- Show the map hosted on Pages, with the evidence and the trap - [`a8276c8a42`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a8276c8a42a5188df2610b110ea53030f6eaecc7)
 - Add a real hosted map capture - [`e571a49a46`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e571a49a46def0d43c19391e00d16c73b3a21c5e)
 - Document static Pages map hosting - [`c85a3bf686`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c85a3bf68674f10bf5a3a144f43be737a5fc3df8)
 - Capture the render location before it can lie - [`e680b40540`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e680b405403153d9621ff9a4e75b8953e28155fa)
