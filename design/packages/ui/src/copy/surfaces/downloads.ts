@@ -656,6 +656,24 @@ export const DOWNLOADS_FIXED = {
         yue: "顯示緊 {total} 之中嘅 {shown}",
     },
     "downloads.title": { en: "Download a world from a release", yue: "由 release 下載一個世界" },
+    /*
+     * The optional "paste a link" field above owner/repo/tag. Convenience over those three
+     * fields, never a replacement for them, so the label says exactly that rather than
+     * implying this is the only way in. A build whose bridge cannot parse a link never
+     * shows this field at all -- see `ReleaseDownloads.vue`'s own doc comment -- so there
+     * is nothing here promising a capability that build does not have.
+     */
+    "downloads.link": {
+        en: "Paste a link, or type owner, repository and tag below",
+        yue: "貼一個連結，或者喺下面打擁有者、儲存庫同 tag",
+    },
+    /* An example URL, not prose. It stays identical in both languages, the same way a path
+     * or a filename does elsewhere in this file: translating it would send the reader
+     * looking for a domain that does not exist. */
+    "downloads.linkHint": {
+        en: "https://github.com/owner/repo/releases/tag/...",
+        yue: "https://github.com/owner/repo/releases/tag/...",
+    },
     "downloads.owner": { en: "Owner", yue: "擁有者" },
     "downloads.repo": { en: "Repository", yue: "儲存庫" },
     /* GitHub's own noun for the field, and the word the API answers to. It stays "Tag". */

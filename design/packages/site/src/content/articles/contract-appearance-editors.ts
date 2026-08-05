@@ -9,7 +9,7 @@ export const contractAppearanceEditors: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "The machinery is shipped and documented separately: the anchored non-modal editor, the continuous colour picker with its eleven-notation translator, the word-processor-depth typography editor, layered records, per-property reset, presets and theme export and import. The Pages decorator registers every rendered HTMLElement, proven by packages/site/src/appearance/editor/coverage.test.ts's recursive traversal, so it genuinely meets the every-element clause. Desktop wraps AppearanceTarget around ten component families -- App.vue's title bar and tab-bar wrapper, ProfileManager's rows, the appearance editor's own chrome, ControlBar, EulaSectionPanel, EulaViewer, HistoryPanel, ProjectList's rows, DockedSurface, and TabStrip's own dynamic per-tab and per-group registration (42 tests in TabbedNavigation.test.ts) -- out of the 146 .vue component files the application renders. That is real, tested coverage of the surfaces most likely to be right-clicked, but it is component-family targeting rather than the literal every-rendered-element traversal the site now has, and the contract asks for the latter on both surfaces. Partial credit does not apply to the cross-surface contract, so this stays specified. Tracked as issue 8.",
+        "The machinery is shipped and documented separately: the anchored non-modal editor, the continuous colour picker with its eleven-notation translator, the word-processor-depth typography editor, layered records, per-property reset, presets and theme export and import. The Pages decorator registers every rendered HTMLElement, proven by packages/site/src/appearance/editor/coverage.test.ts's recursive traversal, so it genuinely meets the every-element clause. Desktop wraps AppearanceTarget around ten component families -- App.vue's title bar and tab-bar wrapper, ProfileManager's rows, the appearance editor's own chrome, ControlBar, EulaSectionPanel, EulaViewer, HistoryPanel, ProjectList's rows, DockedSurface, and TabStrip's own dynamic per-tab and per-group registration (42 tests in TabbedNavigation.test.ts) -- out of the 152 .vue component files the application renders. That is real, tested coverage of the surfaces most likely to be right-clicked, but it is component-family targeting rather than the literal every-rendered-element traversal the site now has, and the contract asks for the latter on both surfaces. Partial credit does not apply to the cross-surface contract, so this stays specified. Tracked as issue 8.",
 
     sections: [
         {
@@ -36,7 +36,7 @@ export const contractAppearanceEditors: Article = {
                         { code: "AppearanceTarget" },
                         " (the title bar, the tab bar, profile rows, the editor's own chrome, the control bar, ",
                         "EULA sections and viewer, history, project rows, docked surfaces, and tabs and groups) ",
-                        "out of 146 rendered ",
+                        "out of 152 rendered ",
                         { code: ".vue" },
                         " files, which is real coverage of the surfaces a user is most likely to right-click ",
                         "rather than the literal every-element reach the contract asks for. Progress is tracked as ",
