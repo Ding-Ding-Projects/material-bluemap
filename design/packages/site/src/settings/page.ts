@@ -84,12 +84,32 @@ export interface SettingsPageView {
     destroy(): void;
 }
 
+/**
+ * Marks a `SearchableSetting.id` as an appearance target rather than a stored setting.
+ *
+ * No `SettingDefinition` ever starts with a dot, so this cannot collide with a real setting
+ * id, and `revealSetting` below uses the same prefix to route to the Elements list instead
+ * of the schema-driven rows.
+ */
+const ELEMENT_ID_PREFIX = "element.";
+
 export function createSettingsPage(options: SettingsPageOptions): SettingsPageView {
     const store = new SettingsStore(options.prefs);
     store.register(SETTINGS);
     installBridges(store, options);
 
     const rows = new Map<string, { row: ControlRow; container: HTMLElement; tabId: string }>();
+    /**
+     * The Elements list's own rows, keyed by appearance target id (`tab`, `card`, and so on).
+     *
+     * These never had a `SettingDefinition`, so they were invisible to `rows` above, to the
+     * settings-wide search, and to every surface built on `listSettings()`: the command
+     * palette and the site's own "Search" tab both index every stored setting today and
+     * neither one could find "Edit context menu appearance" by name. Declaring this map is
+     * what lets `searchableSettings()` and `revealSetting()` treat an appearance target as a
+     * first-class searchable destination without inventing a second reveal mechanism.
+     */
+    const elementRows = new Map<string, { container: HTMLElement; editButton: HTMLButtonElement }>();
     const tabButtons = new Map<string, HTMLButtonElement>();
     const tabBadges = new Map<string, HTMLElement>();
     const panels = new Map<string, HTMLElement>();
@@ -648,7 +668,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
 
         const list = el("ul", { class: "mb-element-list" });
         for (const target of APPEARANCE_TARGETS) {
-            const item = el("li", { class: "mb-element-item" });
+            const item = el("li", { class: "mb-element-item", data: { targetId: target.id } });
             const name = el("span", { class: "mb-element-name", text: t(target.labelKey) });
             const status = el("span", { class: "mb-element-status" });
             const edit = el("button", {
@@ -675,9 +695,41 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             disposers.push(options.appearance.store.subscribe(refreshStatus));
             item.append(el("span", { class: "mb-element-meta" }, name, status), edit);
             list.append(item);
+            elementRows.set(target.id, { container: item, editButton: edit });
         }
         wrapper.append(list);
         return wrapper;
+    }
+
+    /**
+     * The Elements list's rows, as `searchableSettings()` presents every stored setting.
+     *
+     * There is no inline control here on purpose: opening a target's appearance is an
+     * anchored panel with typography, box, and per-state controls, which is exactly the
+     * "needs more than one row to edit honestly" case `SearchableSetting.control`'s own
+     * comment already carves out for colour and font settings. A result still has to go
+     * somewhere real rather than dead-ending, so its `run`/`revealSetting` path (wired below)
+     * opens the Elements list, scrolls the exact row into view, and focuses its Edit button.
+     */
+    function appearanceElementSettings(): readonly SearchableSetting[] {
+        const tab = SETTINGS_TABS.find((candidate) => candidate.id === "appearance");
+        const group = tab?.groups.find((candidate) => candidate.id === "elements");
+        return APPEARANCE_TARGETS.map((target) => ({
+            id: ELEMENT_ID_PREFIX + target.id,
+            label: t(target.labelKey),
+            description: target.descriptionKey === undefined ? "" : t(target.descriptionKey),
+            valueText: options.appearance.store.has(target.id)
+                ? t("elements.customised")
+                : t("elements.default"),
+            tabId: "appearance",
+            tabLabel: tab === undefined ? "appearance" : t(tab.labelKey),
+            ...(group === undefined ? {} : { sectionLabel: t(group.labelKey) }),
+            keywords: [
+                searchableText(target.labelKey),
+                ...(target.descriptionKey === undefined ? [] : [searchableText(target.descriptionKey)]),
+                t("elements.edit", { name: t(target.labelKey) }),
+            ],
+        }));
     }
 
     /* ---------------------------------------------------------- *
@@ -783,6 +835,10 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
      * ---------------------------------------------------------- */
 
     function searchableSettings(): readonly SearchableSetting[] {
+        return [...storedSettingSearchables(), ...appearanceElementSettings()];
+    }
+
+    function storedSettingSearchables(): readonly SearchableSetting[] {
         return SETTINGS.filter(isStoredSetting).map((definition) => {
             const tab = SETTINGS_TABS.find((candidate) => candidate.id === definition.tab);
             const group = tab?.groups.find((candidate) => candidate.id === definition.group);
@@ -1042,6 +1098,10 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
     }
 
     function revealSetting(id: string): void {
+        if (id.startsWith(ELEMENT_ID_PREFIX)) {
+            revealElement(id.slice(ELEMENT_ID_PREFIX.length));
+            return;
+        }
         const entry = rows.get(id);
         if (entry === undefined) return;
         activateTab(entry.tabId);
@@ -1052,6 +1112,21 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             "input, select, button:not(.mb-reset), textarea",
         );
         focusable?.focus();
+    }
+
+    /**
+     * The Elements-list half of `revealSetting`, kept as its own function because there is no
+     * schema row to hide or unhide: the Elements list is always on screen once its tab is
+     * open, so revealing one target is "switch to it, scroll to its row, focus its Edit
+     * button" and nothing more.
+     */
+    function revealElement(kind: string): void {
+        const entry = elementRows.get(kind);
+        if (entry === undefined) return;
+        activateTab("appearance");
+        entry.container.scrollIntoView({ block: "center", behavior: "auto" });
+        flashAttention(entry.container);
+        entry.editButton.focus();
     }
 
     function refresh(): void {
