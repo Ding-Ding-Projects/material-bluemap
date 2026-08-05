@@ -144,6 +144,75 @@ async function refuse(response: Response, url: string, what: string): Promise<Gi
     );
 }
 
+/**
+ * Turns a 422 from release creation into the *right* sentence, which needs GitHub's
+ * structured error rather than the status code alone - see {@link createBackupRelease}'s
+ * own doc comment for why a live run needed this: a brand-new, never-pushed-to repository
+ * answers the same 422 that a genuine tag collision does, with a body that says
+ * `"Repository is empty."` rather than naming the tag at all.
+ */
+async function refuseReleaseCreation(
+    response: Response,
+    url: string,
+    owner: string,
+    repo: string,
+    tag: string,
+): Promise<GitHubCallError> {
+    let errors: readonly {
+        readonly resource?: unknown;
+        readonly code?: unknown;
+        readonly field?: unknown;
+        readonly message?: unknown;
+    }[] = [];
+    let topMessage = "";
+    try {
+        const body = (await response.json()) as {
+            message?: unknown;
+            errors?: readonly { resource?: unknown; code?: unknown; field?: unknown; message?: unknown }[];
+        };
+        if (typeof body.message === "string") topMessage = body.message;
+        if (Array.isArray(body.errors)) errors = body.errors;
+    } catch {
+        // A body that is not JSON falls through to the generic sentence below.
+    }
+
+    const tagCollision = errors.some(
+        (entry) => entry.code === "already_exists" || entry.field === "tag_name",
+    );
+    if (tagCollision) {
+        return new GitHubCallError(
+            `${owner}/${repo} already has a release tagged ${tag}. Nothing was changed: a backup ` +
+                "never edits or replaces an existing release, so this one was left exactly as it " +
+                "was. Start the backup again to get a fresh tag.",
+            response.status,
+            url,
+        );
+    }
+
+    const detailText = errors
+        .map((entry) => (typeof entry.message === "string" ? entry.message : null))
+        .filter((entry): entry is string => entry !== null)
+        .join(" ");
+    const empty = /repository is empty/i.test(detailText) || /repository is empty/i.test(topMessage);
+    if (empty) {
+        return new GitHubCallError(
+            `${owner}/${repo} has no commits yet, so GitHub cannot create a release on it. Push ` +
+                "anything to it - even one commit - and start the backup again; nothing was" +
+                " uploaded.",
+            response.status,
+            url,
+        );
+    }
+
+    const said = detailText.length > 0 ? detailText : topMessage;
+    return new GitHubCallError(
+        `Creating a release on ${owner}/${repo} failed: GitHub answered 422.` +
+            (said.length > 0 ? ` GitHub said: ${said}` : ""),
+        response.status,
+        url,
+    );
+}
+
 function bases(options: GitHubCallOptions): { api: string; uploads: string } {
     return {
         api: options.apiBase ?? GITHUB_API_BASE,
@@ -253,11 +322,23 @@ function readRepositoryRecord(value: unknown): RepositoryChoice | null {
 /**
  * Creates a **new** release for one backup, and refuses a tag that already exists.
  *
- * GitHub answers 422 for a tag that is already taken. That is turned into a sentence
+ * GitHub answers 422 for a tag that is already taken, and this is turned into a sentence
  * saying so rather than being retried against the existing release, because adopting it
  * is precisely the behaviour that would let a second backup's assets land beside - or
  * over - a first one's. Every backup gets its own release; a tag collision means
  * something is wrong with the naming, not that the release should be reused.
+ *
+ * ## 422 is not only a tag collision
+ *
+ * A live run against an empty repository - one created but never pushed to - found this
+ * the hard way: GitHub answers the *same* status, 422, for "this tag already exists" and
+ * for "this repository has no commits yet, so there is nothing to tag." Assuming the first
+ * for every 422 (as this function used to) tells somebody backing up to a brand-new
+ * repository for the first time that a release "already exists" and to "start the backup
+ * again to get a fresh tag" - advice that fails identically forever, because the real
+ * problem is that the repository is empty, not that a tag collided. The two are told apart
+ * by GitHub's own structured `errors[].code`: `already_exists` for a real collision,
+ * anything else read for what it actually says.
  *
  * The release is created as a **prerelease** and marked in its body. A repository's
  * "latest release" is what an installer link and a release feed point at, and a backup
@@ -289,13 +370,7 @@ export async function createBackupRelease(
     });
 
     if (response.status === 422) {
-        throw new GitHubCallError(
-            `${owner}/${repo} already has a release tagged ${tag}. Nothing was changed: a backup ` +
-                "never edits or replaces an existing release, so this one was left exactly as it " +
-                "was. Start the backup again to get a fresh tag.",
-            response.status,
-            url,
-        );
+        throw await refuseReleaseCreation(response, url, owner, repo, tag);
     }
     if (!response.ok) throw await refuse(response, url, `Creating a release on ${owner}/${repo}`);
 

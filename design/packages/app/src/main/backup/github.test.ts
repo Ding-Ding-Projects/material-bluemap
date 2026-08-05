@@ -215,9 +215,16 @@ describe("creating the release for one backup", () => {
     });
 
     it("refuses a tag that already exists rather than adopting the release", async () => {
+        // The real shape a live run against github.com actually returns for a genuine
+        // tag collision - `errors[].code` is what tells this apart from the *other* 422
+        // a create can answer with, exercised in the next test.
         const fetch = fakeFetch(() => ({
             status: 422,
-            body: { message: "Validation Failed" },
+            body: {
+                message: "Validation Failed",
+                errors: [{ resource: "Release", code: "already_exists", field: "tag_name" }],
+                documentation_url: "https://docs.github.com/rest/releases/releases#create-a-release",
+            },
         }));
 
         const failure = await createBackupRelease("o", "r", "taken", "Backup", "body", {
@@ -228,6 +235,51 @@ describe("creating the release for one backup", () => {
         expect(failure).toBeInstanceOf(GitHubCallError);
         expect((failure as Error).message).toContain("Nothing was changed");
         expect((failure as Error).message).toContain("never edits or replaces");
+    });
+
+    it("refuses an empty repository by naming the real problem, not a guessed tag collision", async () => {
+        // A live run against a brand-new, never-pushed-to repository found this: GitHub
+        // answers the *same* 422 status for "this repository has no commits yet" as it
+        // does for a tag collision, with a completely different body. Assuming every 422
+        // meant a taken tag told somebody in exactly this situation to "start the backup
+        // again to get a fresh tag" - advice that fails identically forever.
+        const fetch = fakeFetch(() => ({
+            status: 422,
+            body: {
+                message: "Validation Failed",
+                errors: [{ resource: "Release", code: "custom", message: "Repository is empty." }],
+                documentation_url: "https://docs.github.com/rest/releases/releases#create-a-release",
+            },
+        }));
+
+        const failure = await createBackupRelease("o", "r", "first-ever", "Backup", "body", {
+            fetch,
+            ...base,
+        }).catch((error: unknown) => error);
+
+        expect(failure).toBeInstanceOf(GitHubCallError);
+        const message = (failure as Error).message;
+        expect(message).toContain("no commits yet");
+        expect(message).not.toContain("already has a release");
+        expect(message).not.toContain("fresh tag");
+    });
+
+    it("still names an unrecognised 422 honestly rather than guessing at a cause", async () => {
+        const fetch = fakeFetch(() => ({
+            status: 422,
+            body: { message: "Validation Failed", errors: [{ resource: "Release", code: "custom", message: "Something else entirely." }] },
+        }));
+
+        const failure = await createBackupRelease("o", "r", "tag-x", "Backup", "body", {
+            fetch,
+            ...base,
+        }).catch((error: unknown) => error);
+
+        expect(failure).toBeInstanceOf(GitHubCallError);
+        const message = (failure as Error).message;
+        expect(message).toContain("Something else entirely.");
+        expect(message).not.toContain("already has a release");
+        expect(message).not.toContain("no commits yet");
     });
 
     it("never sends a method that could change something that already exists", async () => {
