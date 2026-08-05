@@ -598,6 +598,23 @@ async function onFileChosen(event: Event): Promise<void> {
     font-weight: 500;
 }
 
+/*
+ * `.mb-appearance-editor` is a column flexbox, and Vuetify's `v-tabs` (built on
+ * `v-slide-group`) carries its own `overflow: hidden`. Per the flexbox spec, a flex
+ * item's automatic minimum size resolves to 0 - not its content size - whenever the
+ * item's own `overflow` is anything but `visible`. Left at the default `flex-shrink: 1`,
+ * that let the tab strip collapse to a zero-height box in the flow while its `v-tab`
+ * buttons kept painting at their real 36px, floating over whatever came next: the
+ * Text tab's own search field, which starts exactly one `gap` below where the strip's
+ * collapsed box ends, not below where the tabs actually are. Vuetify's `v-window`
+ * transition and this project's own tab strips never hit it because neither wraps its
+ * outer element in `overflow: hidden`. `flex-shrink: 0` is the standard fix: never let
+ * this one item shrink below the content size the buttons are actually painted at.
+ */
+.mb-appearance-editor > .v-tabs {
+    flex-shrink: 0;
+}
+
 .mb-appearance-editor__body {
     overflow: visible;
 }

@@ -483,12 +483,33 @@ async function drawerOpen(selector: string): Promise<boolean> {
 }
 
 /**
+ * Selects the Map tab if some other tab is active.
+ *
+ * `.mb-cb-menu` - the control bar's own Menu button - is part of the map page's content,
+ * not the shell chrome, so it does not exist in the DOM at all on any other tab. A test
+ * running late enough in the file to follow one that switched tabs (the appearance editor
+ * capture right-clicks "Maps and servers"; the tab strip capture visits several tabs by
+ * name) would otherwise see `openMenuRoot` wait out its full budget for a button that was
+ * never going to appear, which reads exactly like a slow click and is not one: confirmed
+ * directly that `.mb-cb-menu` is a zero-match, `count() === 0` locator on every tab but
+ * Map, not merely a hidden one.
+ */
+async function ensureMapTabActive(): Promise<void> {
+    const mapTab = page.locator('.mb-shell-tabs [role="tab"]', { hasText: /^Map$/i }).first();
+    if ((await mapTab.count()) === 0) return;
+    if ((await mapTab.getAttribute("aria-selected")) === "true") return;
+    await mapTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+    await page.waitForTimeout(300);
+}
+
+/**
  * Opens the side sheet and walks back to its root page.
  *
  * The menu button re-opens whatever page was last on the stack, not the root, so a second
  * surface captured after the first would otherwise photograph the first one again.
  */
 async function openMenuRoot(): Promise<void> {
+    await ensureMapTabActive();
     if (!(await drawerOpen(".mb-side-sheet"))) {
         await page.locator(".mb-cb-menu").first().click({ timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".mb-side-sheet.v-navigation-drawer--active", {
@@ -1870,7 +1891,16 @@ test("captures the appearance editor, its context menu, typography and the infin
             );
             return;
         }
-        await page.locator(".mb-color-field__swatch").first().click({ timeout: ELEMENT_TIMEOUT });
+        // Not scoped to the Surface tab's `v-window-item`, this matches every colour
+        // field this editor has - Text's own text/highlight/outline colours included -
+        // and `v-window` keeps every tab's content mounted for its slide transition, so
+        // `.first()` in DOM order lands on one of the Text tab's swatches, which is
+        // `display: none` while Surface is active. Confirmed directly: with the editor on
+        // its Surface tab, `.mb-color-field__swatch` matches eight elements and the first
+        // six report `isVisible() === false` with a `null` bounding box; only the two
+        // Surface-tab swatches, last in DOM order, are actually reachable. `:visible`
+        // scopes the selector to the ones a click can actually land on.
+        await page.locator(".mb-color-field__swatch:visible").first().click({ timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".mb-color-picker", { state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(500);
         await shoot(
