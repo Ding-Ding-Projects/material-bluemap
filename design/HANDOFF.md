@@ -7,13 +7,24 @@ uses. Read it first. Everything after it is a dated log written by people who we
 this section is for anyone who was not, including a small language model with no other
 context.
 
-It was last checked against the code on **2026-08-05**, at commit `3791655` on the `main`
-branch, after Phase C's three exit checks (issue #31) finished for real: `textures.json`
-parity passes for both vanilla (1723/1723) and modded (1725/1725, an offline synthetic mod
-pack — see the dated section on it below), the live end-to-end resolution passes, and the
-1.12.2 legacy compat path passes including the era-matched render defect it originally
-surfaced (issue #46, fixed and closed). **Issue #31 is closed.** Other agents may still be
-working — check `git log --oneline -5` before trusting this stamp as current.
+It was last checked against the code on **2026-08-05**, at commit `9d8de68` on the `main`
+branch — the commit [CI run
+31013825875](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31013825875)
+built and tested. **That run is the first fully green hosted CI run of this entire
+multi-agent pass: all seven jobs passed** (workflow lint; lint, build, test; the seven
+BlueMap jars; the Windows installer; the test-world render; Screenshots; Publish release),
+and it published
+[`v0.1.0-build.370`](https://github.com/Ding-Ding-Projects/material-bluemap/releases/tag/v0.1.0-build.370).
+**The issue board is at zero open issues** — eighteen closed across this pass, `#28` through
+`#47`, each against real evidence. Phase C's three exit checks (issue #31) finished for
+real: `textures.json` parity passes for both vanilla (1723/1723) and modded (1725/1725, an
+offline synthetic mod pack — see the dated section on it below), the live end-to-end
+resolution passes, and the 1.12.2 legacy compat path passes including the era-matched render
+defect it originally surfaced (issue #46, fixed and closed). **Issue #31 is closed.** The
+dated entry immediately below this summary names the four separate causes that kept hosted
+CI red until this run and how each was found and fixed. Other agents may still be
+working — check `git log --oneline -5` and `gh issue list --state open` before trusting this
+stamp as current.
 
 ### What this project is
 
@@ -49,6 +60,12 @@ document says so.
 
 ### What works right now
 
+- **Hosted CI is fully green, for the first time in this pass.** [Run
+  31013825875](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31013825875)
+  passed all seven jobs and published
+  [`v0.1.0-build.370`](https://github.com/Ding-Ding-Projects/material-bluemap/releases/tag/v0.1.0-build.370).
+  The GitHub issue board is at **zero open issues**. See the dated entry directly below this
+  summary for the four-cause repair narrative that got CI there.
 - The app installs from a real Windows installer and opens with a working interface.
 - It can browse an existing BlueMap server and show its maps in 3D.
 - It can render a world locally by driving the original Java engine (per decision D17).
@@ -91,6 +108,14 @@ document says so.
   The part size is a choice of 500 MB, 1 GB or 1.7 GB rather than a constant.
 - **A failed render is diagnosed rather than guessed at**, by a repeatable repair pass. See
   `docs/automatic-repair.md`.
+- **A hyphenated (or otherwise non-word-character) `--map-id` now merges correctly in
+  GitHub Actions renders.** Fixed 2026-08-05 (issue #47): BlueMap's own runtime silently
+  turns every non-word character in a map id into an underscore before naming its storage
+  directory, and every wrapper script here was looking for the literal, unsanitized string a
+  human typed. `sanitizeMapId` in `packages/render-actions/src/bluemap.ts` mirrors upstream's
+  exact rule and is now the one shared implementation every resume-check, shard-complete,
+  merge, verify and merge-lowres step reads, rather than four re-derived copies of the same
+  regex.
 - **Every config folder has a local version history**, so a save can be undone. The history
   is a real git repository kept beside the app's own data folder — never a `.git` inside the
   user's folder. It only ever adds: restoring old files is itself recorded as a new
@@ -119,11 +144,14 @@ document says so.
   super-confirmation gate used elsewhere. The main process writes a guarded marker, enables
   Pages, waits for the Pages build, and only reports `Live` after the public address answers
   HTTP 200. See `docs/pages-hosting.md` and `docs/render-in-actions.md`.
-  **Caveat, stated plainly:** the piece underneath this (preparing a map so a dumb static
-  host can serve it) is proved against a real published site. The publish sequence in the
-  app itself has never been run against a real GitHub account. It is tested step by step
-  against a fake process runner, which is how the interesting failures are reachable at
-  all, but nobody has yet watched it publish a real map. Do not describe it as verified.
+  **Caveat, updated 2026-08-05 (issue #44, closed):** the publish sequence in the app itself
+  **has now been run against a real GitHub account** — a real desktop-app-driven publish
+  completed in 35.5 seconds, with a screenshot as evidence. What is still not proven, named
+  rather than implied closed: the private-repository 403 → "needs a paid plan" mapping is
+  untested (both throwaway proof repositories are public, and converting either to private
+  would destroy standing evidence for an unrelated feature), and the 35.5-second/70-file/
+  5.8 MB staging-time evidence says nothing about a real multi-gigabyte, tens-of-thousands-
+  of-tile map. Do not describe either of those two specific things as verified.
 - **The screenshot harness photographs that tab and refuses stale evidence.** `freshBundle.ts`
   runs before Electron starts and fails closed when the UI, main-process, or preload output is
   older than its source. The Pages capture is a real packaged-app surface, not a mock.
@@ -206,9 +234,10 @@ document says so.
   exists and is tested in `packages/server`, but the CLI was mid-restructure when that
   landed, so the CLI still runs one real render under `-u` and then exits non-zero naming
   the gap, rather than joining the two.
-- **Phase C's exit criteria are still unproven** — `textures.json` parity, a real 1.12.2
-  jar, live blockstate resolution. A plan was posted for this on 2026-08-05; as of this
-  summary, no results have been reported yet.
+- ~~Phase C's exit criteria are still unproven.~~ **Fixed 2026-08-05 (issue #31, closed).**
+  `textures.json` parity, the live blockstate resolution, and 1.12.2 legacy-jar loading all
+  pass now; see the top of this summary and the dated section further below for the
+  evidence.
 - **Two known differences from upstream are still in `WorldRegionUpdateTask`.** One is
   fixed as of 2026-08-05: `run()` now returns before `#complete()` on a no-op region,
   matching upstream, proven with both oracle sizes run to completion (63/63 and 995/995
@@ -240,48 +269,52 @@ document says so.
 - One latent bug worth fixing next: `stores/profiles.ts` writes `localStorage` unguarded
   while `load()` wraps `getItem` in try/catch, so where storage is full or unavailable the
   first profile mutation throws inside a Vue watcher.
+- **Issue #39's wave dispatch is proven; its merge and its disk ceiling are not, and the
+  reasons are specific.** A genuinely large, non-forced 361-region world was dispatched
+  through the real hosted `render-world.yml` workflow on 2026-08-05 and needed exactly the
+  two waves the plan predicted: Wave 1 fanned out to and finished all 256 shards, Wave 2
+  then took the remaining 105. That is real, watched evidence, not arithmetic. Two things it
+  does **not** cover: (1) the disk check measured about 6 GiB required against about 84 GiB
+  actually free on that runner — nowhere near the disk ceiling issue #39 was opened over, so
+  a world that actually exhausts a hosted runner's disk has still never been run; and (2)
+  that same run's merge step was never reached — the world was reused for issue #44's
+  staging-time test instead, which is how the hyphenated-map-id bug (issue #47, now fixed)
+  was found. A two-wave merge specifically has still not been watched succeed end to end.
+- **Five screenshot categories were closed by giving them a real capture step (issue #34);
+  one honest gap is left in that same harness on purpose.** The render console has no
+  required capture, because it needs a render genuinely in flight to show anything —
+  `packages/app/test/screenshots.spec.ts` records it as a named runtime-dependent gap rather
+  than faking a screen with nothing on it. History, Projects, the CI-render screen and the
+  EULA viewer are the four that now have real capture steps and are in `REQUIRED_SURFACES`.
 
 ### The state of the automated checks, stated exactly
 
-**Locally, on this machine, freshly run for this entry, at commit `0bc90c2` (2026-08-05).**
-`npx vitest run` from `design/` reported **469 test files, 7,288 tests, 7,278 passed, 3
-skipped, 7 failed**, plus 2 unhandled worker-timeout errors, in about 225 seconds. That is
-up from 355 files / 5,745 tests on 2026-08-04 evening — the suite grew by more than a
-hundred files during this pass. This is **not** the old kind of "one flaky test a concurrent
-session hadn't finished committing yet". The 7 failures are real and reproduce both locally
-and on GitHub's own runners: two Vuetify-rendering assertion failures recur across every
-hosted run checked in this pass —
+**Superseded by the entry directly below this summary — read that first.** This subsection
+is kept because it is the accurate record of *why* hosted CI was red for most of this pass,
+which the fix narrative below assumes as background. It describes the state as of commit
+`0bc90c2`; it does **not** describe the current tip.
+
+**Locally, on this machine, at commit `0bc90c2` (2026-08-05).** `npx vitest run` from
+`design/` reported **469 test files, 7,288 tests, 7,278 passed, 3 skipped, 7 failed**, plus 2
+unhandled worker-timeout errors, in about 225 seconds. The 7 failures were real and
+reproduced both locally and on GitHub's own runners: two Vuetify-rendering assertion
+failures recurred across every hosted run checked up to that point —
 `packages/ui/src/components/palette/CommandPalette.test.ts` ("the Debug row should render a
 switch, not a label") and
 `packages/ui/src/components/tabs/tabGroupPickerMount.test.ts` (a button rendering the wrong
 label/icon — `"( ): capturing group"` expected, `"Copy the flags"` received) — alongside a
-`[vitest-worker]: Timeout calling "onTaskUpdate"` error. This reads like test-order-dependent
-pollution between files that share module-level state, but nobody has root-caused it yet as
-of this writing. It has not been fixed by this pass. Fixing it is the single most valuable
-next thing to do, because it is the reason every hosted CI run in this entire pass has failed.
+`[vitest-worker]: Timeout calling "onTaskUpdate"` error.
 
-**On GitHub's machines, `main` has not gone green once during this whole pass.** This is a
-plain fact and not a way of avoiding a bad one:
-
-- The last CI run on `main` that **succeeded** is still
-  [30935770990](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30935770990)
-  on commit `0008dd4`, which published release `v0.1.0-build.196` — unchanged since
-  2026-08-04. Checking the 100 most recent CI runs on `main` (`gh run list --branch main
-  --limit 100 --json ... -q '... select(.conclusion=="success")'`) finds no later success.
-- Run [30986840852](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30986840852),
-  on commit `e976ee9` (the native-module fix that was expected to finally get a clean run),
-  came back **failure** — for the CommandPalette/tabGroupPickerMount reason above, not the
-  `@node-rs/crc32` reason it was fixed to address.
-- Every CI run checked after it — `d948635`, `6981bf9`, `50e4b1a`, `2b86de9`, `a5e5cf7`,
-  `d4f83fa`, `8f61600`, `53e6474`, `cbc135c`, `0bc90c2` — also came back **failure**, all for
-  the same recurring test-file pair. `b32f423` was still running when this was written.
-- The dedicated **"Lint the workflow files"** job (a separate `actionlint` step) is green on
-  every run checked; it is specifically the `Lint, build, test` job that fails.
-
-Do not write "CI is green" for any commit named in this file. The true sentence, right now,
-is: most of the feature work in this pass is proven by its own local, freshly-run tests
-(named per issue above), and the repository-wide `Lint, build, test` CI job has been red
-throughout, for a specific, reproducible, as-yet-unfixed cause.
+**All of the above is now fixed.** The dedicated entry below this summary,
+"CI goes green for the first time in this pass," names each of the four causes (an i18n
+warning flood tripping vitest's own RPC heartbeat; a real esbuild dynamic-require crash the
+heartbeat fix exposed; two settings-history state-isolation bugs across `eulaStorage`/
+`MarkerMenu` and four sibling stores; and a Screenshots-job EULA-panel scrim resolution) and
+the commit that fixed each one. **As of commit `9d8de68`, hosted CI run
+[31013825875](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31013825875)
+is fully green — all seven jobs passed.** Do not write "CI is red" for commit `9d8de68` or
+anything built on top of it; check `gh run list --branch main --limit 5` before trusting
+either this paragraph or the older one above it as still current.
 
 ### How to verify things yourself
 
@@ -309,19 +342,181 @@ further down for the wrong conclusion its absence produced.
    at the top of the file. Everything under it is the dated log: newest first down to
    2026-08-04, then older material from 2026-08-03 that grew from the bottom up.** The dates
    are the only reliable ordering, so read them.
-2. The most useful next piece of work is fixing the two recurring test failures
-   (`CommandPalette.test.ts`, `tabGroupPickerMount.test.ts`) that have kept hosted CI red
-   through every commit in the 2026-08-05 pass — see "Hosted CI, honestly, as it stands
-   right now" in the entry immediately below. After that: wiring `RenderManager`'s
-   save/load-queue methods and `packages/server`'s `MapUpdateService` into something that
-   actually calls them at startup, and `packages/cli`'s `-u`/`--watch` join to the same
-   service.
+2. Hosted CI is green as of commit `9d8de68` (run 31013825875) and the issue board is at
+   zero open issues — read the dated entry immediately below this summary for how it got
+   there. The most useful next pieces of work, none of them CI blockers: wiring
+   `RenderManager`'s save/load-queue methods and `packages/server`'s `MapUpdateService` into
+   something that actually calls them at startup; joining `packages/cli`'s `-u`/`--watch` to
+   the same service; proving SQLite/PostgreSQL cross-compatibility with the real Java engine
+   (only MariaDB has had that specific proof); and running a genuinely large world's *merge*
+   step (not just its wave dispatch) through `render-world.yml` with `df -h` evidence.
 3. Compare against the Java source in
    `vendor/BlueMap/core/src/main/java/de/bluecolored/bluemap/core/`. Never weaken a
    comparison to make it pass. If something cannot be verified, write that it was not
    verified.
 4. Every change: run the tests, run the linter, commit with a message that says what
    actually changed, push, and check CI.
+
+---
+
+## Update, 2026-08-05 — CI goes green for the first time in this pass, release v0.1.0-build.370, and the issue board hits zero
+
+**Read this one first. It is the newest, and it is the finale of the whole 2026-08-05
+multi-agent pass documented in the entries below this one.**
+
+### The short version
+
+[CI run 31013825875](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31013825875),
+on commit `9d8de68`, is the first hosted run of this entire pass where every job passed:
+workflow lint, `Lint, build, test`, the seven BlueMap jars, the Windows installer, the
+test-world render, Screenshots, and Publish release. It published
+[`v0.1.0-build.370`](https://github.com/Ding-Ding-Projects/material-bluemap/releases/tag/v0.1.0-build.370)
+— code name Silver Thread Roll · 銀絲卷. The GitHub issue board is at **zero open issues**:
+eighteen closed across this pass, `#28` through `#47`, every one against real evidence
+rather than a claim alone. Getting from "every run red" (the state the entry directly below
+this one left things in) to this took four separate, unrelated causes, found and fixed one
+at a time against real failing runs rather than guessed at, plus one more real bug found
+along the way (issue #47) and two remaining pieces of Phase C (issues #31 and #46). None of
+this reopens or restates the earlier entries below — they are still the record of the work
+that got done while CI was red; this entry is the record of what finally turned it green.
+
+### Cause 1 — an i18n warning flood was tripping vitest's own RPC heartbeat, not any test
+
+`e77f11a`. Every failing CI run for several pushes running died the same way: every one of
+471-474 test files reported passed, and the only failure was an unhandled
+`[vitest-worker]: Timeout calling "onTaskUpdate"` — vitest 3.2.7's worker-to-main RPC
+heartbeat, hardcoded to a 60-second deadline with no config knob, not a test assertion.
+Roughly 70 component test files mount Vue with `vue-i18n` deliberately configured
+`messages: {}`, to exercise the English-fallback rendering path — every `t()` call in every
+one of those mounts is a guaranteed miss, and about half of those files never silenced the
+resulting warning. One CI run's log was 50,150 lines long; 46,584 of them — 93% — were
+`[intlify] Not found '...' key in 'none' locale messages`, every one crossing the same
+worker/main IPC channel the heartbeat rides on. Adding `missingWarn: false, fallbackWarn:
+false` to the 38 `createI18n()` call sites that hadn't already opted in removed the flood
+without touching what any test asserts. Verified locally across all 37 touched files: 479
+tests, 0 failures, i18n console spam gone.
+
+### Cause 2 — the heartbeat flake still recurred, and fixing it exposed a real, separate esbuild crash
+
+`3791655`. Silencing the flood cut one run's log from ~50,000 lines to ~1,700, but the exact
+same RPC-timeout error still fired on the very next push, with all 474 files still reported
+passed — this is real CI-runner contention under load, reproducible locally too alongside
+ordinary real-I/O test timeouts, not a defect in any test. `scripts/run-tests-ci.mjs` now
+runs the real `vitest run` and retries a clean attempt only when the summary shows zero
+failed files, zero failed tests, and exactly that one RPC-timeout error — never when a real
+test or file is reported failed, verified against both shapes locally.
+
+While chasing an unrelated lead about `packages/app`'s esbuild bundle, this same commit
+reproduced a second, currently-invisible bug: esbuild's `format: "esm"` output leaves a
+bundled CommonJS dependency's `require("util")` as a call through esbuild's own `__require`
+shim, which throws `Dynamic require of "util" is not supported` because a plain Node ESM
+module has no global `require`. `pngjs` — reached on essentially every texture the render
+pipeline touches — requires `util` unconditionally at the top of its own entry module. This
+had never shown up in CI because the job that packages the app is gated behind `check`
+succeeding, and `check` had been failing at the test step for Cause 1's reason on every push
+for a long stretch. Fixed with a `createRequire(import.meta.url)` banner so the bundle has
+its own real `require`, verified against a real pngjs encode. Externalizing pngjs instead
+would have been the wrong shape of fix: `electron-builder.config.cjs` ships a
+self-contained bundle with no `node_modules` on disk at packaged-app runtime to resolve an
+external import against.
+
+### Cause 3 — two settings-history state-isolation bugs, found one test at a time
+
+Four commits, each a real failure the retry wrapper from Cause 2 correctly declined to
+retry (a genuine test failure alongside the unrelated RPC-timeout noise, not a flake):
+
+- `e569e47` — `eulaStorage.test.ts`'s "still mirrors when there is no local storage to write
+  to at all" expected `recordAppSetting` once and saw it zero times. `writeEulaStrip` sited
+  its history-mirror call *after* the `if (storage === null) return;` guard, so the one case
+  the test exists to cover returned before the mirror was ever reached. Moved the call ahead
+  of the guard, matching every sibling module this session wired into the same mirror.
+- `cfab9a1` — the identical bug, present in four more files wired into the mirror this
+  session (`appearanceStore.ts`, `palettePrefs.ts`, `dockPlacement.ts`, `tabStorage.ts`).
+  `tabStorage.test.ts`'s own committed test had encoded the bug as the spec — asserting
+  `recordAppSetting` should **not** be called with no storage — and was corrected alongside
+  the fix. 127 tests, 4 files, all green.
+- `a1f8172` — `MarkerMenu.test.ts`'s "mirrors under the `markerFiltersOpen` key when the
+  filters panel is collapsed" read backwards, and would not reproduce alone, five-plus times
+  in a row, nor with every other localStorage-installing sibling file run alongside it three
+  times over. The actual cause: this file installed no `localStorage` stand-in of its own,
+  unlike its siblings, so it always happened to pass in isolation — until it landed in a
+  vitest worker that already held a *working* stand-in some other file had installed via
+  `Object.defineProperty`, silently inheriting whatever key that file had left behind. Vitest
+  does not guarantee that mutation is undone between files sharing a worker, and which files
+  share a worker is not something a test author controls or a `git log` entry can see, which
+  is exactly why two different CI runs hit it while repeated local attempts — including three
+  deliberately run alongside every file capable of causing it — did not. Fixed by giving the
+  file its own stand-in, installed in `beforeAll` and cleared in `beforeEach`.
+- `2a06e19` — the mirror call itself had landed in an earlier commit this session with no
+  test proving it actually fires; added one.
+
+### Cause 4 — the Screenshots job's own EULA panel has a hidden, permanently-invisible twin
+
+`3dc7ef5`, then `9d8de68`. The last red job was two Playwright scenarios blocked by a
+`.v-overlay__scrim` after a fresh launch or reload. Reading the failing run's trace and
+accessibility snapshot directly: the scrim belonged to the first-run setup dialog, still
+open, because `captureFirstRun` never reached Finish. Tracing further with a throwaway
+Electron probe: `.mb-eula` matches **two** elements once the wizard reaches that step —
+`EulaViewer.vue` is also mounted, always, inside the standalone `EulaSurface` panel
+(`v-show`-hidden, never removed from the DOM) — and a bare
+`page.waitForSelector(".mb-eula", { state: "visible" })` resolves to the first DOM-order
+match, the permanently-hidden twin, which could never become visible no matter the timeout.
+Fixed by scoping the wait to the open dialog (`card.locator(".mb-eula")`), which resolves in
+about two seconds, and by making `captureFirstRun` keep the promise its own comment already
+made but hadn't: photography now runs per step so one failed screenshot can't stall the
+flow, and a new `ensureFirstRunClosed` completes first-run for real afterward if the dialog
+is somehow still open.
+
+Fixing that let the run's `skipped` array survive intact to its final assertion for the
+first time — which immediately surfaced **two more real, pre-existing bugs nothing had ever
+reported**, because they had always been skipped inside a worker some earlier failure
+discarded first: the Appearance editor's own tab strip collapsed to zero height under
+Vuetify's `overflow: hidden` inside a flex column (`flex-shrink: 0` fixes it) while its
+buttons kept painting at their real height, and a stray unscoped `.mb-color-field__swatch`
+locator matched hidden elements from an inactive tab; separately, the changelog viewer's
+capture assumed the Map tab was active and a `.mb-cb-menu` control that only exists there,
+when an earlier capture step had left a different tab selected (`ensureMapTabActive` fixes
+it). All three verified against the real Electron app, full 24-scenario suite green twice
+over, including once with a fake local-mode fixture matching CI's real capture mode.
+
+### Also landed this same window: Phase C's last piece, a real render-actions bug, and a large-world dispatch
+
+- **Issue #31 (Phase C exit criteria) is closed**, and issue #46 — the real bug its own
+  render-level check found — is fixed. See "Phase C, what is done and what is not" in
+  `ROADMAP.md` for the full account; in short: `textures.json` parity now passes for a
+  modded pack too, via a fully synthetic in-code fixture (`syntheticModPack.mjs`) rather than
+  a real third-party download this task's network policy cannot reach, with every one of the
+  pack's texture keys pixel-verified on both engines including an override case; and the
+  legacy-render defect that check surfaced — the flattening rename firing on the world's era
+  alone, with no opinion on the resource pack's era, silently deleting an already-correct
+  `minecraft:grass` against a real era-matched 1.12.2 pack — is fixed by gating the rename on
+  both eras via a new `ResourcePack#isLegacy()`.
+- **Issue #47 is fixed**, found while proving issue #39's real dispatch (below): a hyphenated
+  `--map-id` rendered thousands of real tiles and was then reported as "0 hires tiles",
+  because BlueMap turns every non-word character in a map id into an underscore before
+  naming its storage directory, and this project's own wrapper scripts were all looking for
+  the literal, unsanitized string a human typed. One shared `sanitizeMapId` function now
+  backs every place that predicts or looks for that directory.
+- **Issue #39's wave dispatch is genuinely proven** — a real 361-region world through the
+  hosted `render-world.yml` workflow needed and used exactly the two waves the plan
+  predicted, watched rather than assumed. It does **not** prove the merge step (never
+  reached in that run) or the disk ceiling (that world needed ~6 GiB against ~84 GiB free,
+  nowhere near the ceiling issue #39 was opened over) — see "What does not work yet" above
+  for why the issue's own remaining gaps stay named rather than implied closed.
+- **Issue #32 (SQL storage cross-compatibility) closed** the same window — see the entry
+  directly below this one for the full account; it is unchanged by anything in this entry.
+
+### What this entry does not claim
+
+This entry documents how CI turned green and what landed alongside that. It does not claim
+anything new about: the render task queue's save/load methods being called from a running
+process (still nothing calls them); `packages/cli`'s `-u`/`--watch` joining
+`MapUpdateService` (still not joined); SQLite/PostgreSQL cross-compatibility with the real
+Java engine (only MariaDB has that specific proof); the Pages private-repository 403 mapping
+or a real multi-gigabyte map's staging time (issue #44's own two remaining sub-items); or
+the render console's screenshot coverage (still a named runtime-dependent gap, not a hard
+requirement). All of these are carried forward, unchanged, in "What does not work yet"
+above.
 
 ---
 

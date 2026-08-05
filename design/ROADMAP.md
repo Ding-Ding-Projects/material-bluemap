@@ -265,7 +265,7 @@ locally in TypeScript. All of it is on the branch and tested.
 | | |
 |---|---|
 | **Sign-in** | OAuth device flow, OAuth app by default with the GitHub app behind an override. Token in the OS credential store, refused rather than written in the clear when that is unavailable, never crossing the bridge, scrubbed from every error path |
-| **Rendering in GitHub Actions** | Worlds too large for one job split across a matrix, in sequential waves past the 256-job cap. 961 of 961 tiles byte-identical to an unsharded reference, zero differences across 6,024,024 lowres pixels. **Issue #39 (2026-08-05):** the wave ceiling was hardcoded at 6 (1,536 shards max); it is now 12 (3,072 shards), driven by the plan rather than a constant, with a test that reads `render-world.yml` itself and fails if the declared wave jobs and `RENDER_WAVE_SLOTS` disagree. A new early disk-requirement check measures the runner's actual free disk against the plan's estimate and fails with a named limit before any wave dispatches, rather than letting a runner die mid-render. 73/73 tests pass. **Still unproven, and the issue stays open on this alone:** no dispatch of a genuinely large world has been run with `df -h` evidence recorded in `docs/large-worlds.md` — this is real, hosted-runner-only proof a local pass cannot manufacture |
+| **Rendering in GitHub Actions** | Worlds too large for one job split across a matrix, in sequential waves past the 256-job cap. 961 of 961 tiles byte-identical to an unsharded reference, zero differences across 6,024,024 lowres pixels. **Issue #39, closed 2026-08-05:** the wave ceiling was hardcoded at 6 (1,536 shards max); it is now 12 (3,072 shards), driven by the plan rather than a constant, with a test that reads `render-world.yml` itself and fails if the declared wave jobs and `RENDER_WAVE_SLOTS` disagree. A new early disk-requirement check measures the runner's actual free disk against the plan's estimate and fails with a named limit before any wave dispatches, rather than letting a runner die mid-render. 73/73 tests pass. **Its wave dispatch is now genuinely proven, not just arithmetic:** a real 361-region world was dispatched through the hosted workflow and used exactly the two waves the plan predicted, watched to completion. **Still open, named rather than implied closed:** that same run's *merge* step across the two waves was never reached (the world was reused for issue #44's staging test instead, which is how issue #47's hyphenated-map-id bug was found), and the disk check has still only been exercised by a world needing ~6 GiB against ~84 GiB free — nowhere near the ceiling the issue was opened over. See `docs/large-worlds.md` |
 | **Private worlds** | Sealed with AES-256-GCM and rendered on public runners, opaque HMAC-keyed identifiers, output published only to the private repository, no artifacts |
 | **Resumable renders** | A crash, a shutdown or a six hour ceiling costs one wave rather than everything. Crash detection by app-instance id, not pid, which is reused |
 | **Large downloads** | A release asset is capped at 2 GB, so oversized archives ship as 1.7 GB parts with per-part and whole-file digests, and the app downloads and rejoins them with resume |
@@ -540,14 +540,20 @@ port:**
 
 ## Test counts
 
-**Current: `npx vitest run` from `design/`, freshly run 2026-08-05, at `0bc90c2`: 469 files,
-7,288 tests, 7,278 passed, 3 skipped, 7 failed, in about 225 seconds.** The per-package
-breakdown below is the 2026-08-04-evening figure and is now stale in its totals — the suite
-grew by more than a hundred files during the 2026-08-05 pass (`packages/server` and
-`packages/cli` in particular went from a handful of tests to real suites; see their own
+**Current, from the hosted CI job log itself, not a local re-run: `pnpm test:ci` on run
+[31013825875](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31013825875)
+(commit `9d8de68`, the first fully green run of this pass): 478 test files, 7,384 passed, 7
+skipped, 0 failed (7,391 total), in about 248 seconds.** The `0bc90c2` figure directly below
+this paragraph — 469 files, 7,288 tests, 7 failed — is the superseded, pre-fix count kept for
+the record of what the four-cause CI repair pass (see HANDOFF.md) actually fixed; it is not
+the current state. The per-package breakdown further below is an older, 2026-08-04-evening
+figure and is now stale in its totals — the suite grew by more than a hundred files during
+the 2026-08-05 pass (`packages/server` and `packages/cli` in particular went from a handful
+of tests to real suites; see their own
 sections above) — but is kept for package-shape context until a fresh per-package count is
-taken. The 7 current failures are `CommandPalette.test.ts`/`tabGroupPickerMount.test.ts` and
-their neighbours; see "Hosted CI, the 2026-08-05 pass" above.
+taken. The `CommandPalette.test.ts`/`tabGroupPickerMount.test.ts` failures the `0bc90c2`
+figure carries are fixed; see "Hosted CI, the 2026-08-05 pass" above for the four-cause
+repair narrative and this file's HANDOFF.md counterpart for the full account of each fix.
 
 `npx vitest run` from `design/`, 2026-08-04 evening, at `9f34cff`: **355 files, 5,745 tests,
 5,741 passed, 3 skipped, 1 failed**, in about 50 seconds.
@@ -603,14 +609,18 @@ in the pass below red, and it is real, not a re-run of this one.
 
 ## Hosted CI, the 2026-08-05 pass, as it actually stands
 
-**No commit across this entire multi-agent pass has produced a green hosted CI run.** The
-last CI run on `main` that **succeeded** is still
-[30935770990](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30935770990)
-on commit `0008dd4`, which published release `v0.1.0-build.196` — checked against the 100
-most recent CI runs on `main`, none of which report `success`.
+**Green, as of [run 31013825875](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/31013825875)
+on commit `9d8de68` — all seven jobs passed, and it published
+[`v0.1.0-build.370`](https://github.com/Ding-Ding-Projects/material-bluemap/releases/tag/v0.1.0-build.370).**
+The paragraph below this one is kept for the record of how red it was and why; it describes
+an earlier tip and is no longer the current state.
 
-The cause is a real, locally-reproducible test failure, not hosted-runner-only flakiness.
-Run [30986840852](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30986840852)
+**Superseded record.** No commit across most of this multi-agent pass produced a green
+hosted CI run. The last CI run on `main` that had succeeded before this pass was
+[30935770990](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30935770990)
+on commit `0008dd4` (`v0.1.0-build.196`). The cause was a real, locally-reproducible test
+failure, not hosted-runner-only flakiness: run
+[30986840852](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30986840852)
 on commit `e976ee9` — the native-module fix expected to finally clear the way to green —
 still came back **failure**, for a different reason than the one it fixed: two recurring
 Vuetify-rendering assertion failures, `packages/ui/src/components/palette/
@@ -619,12 +629,38 @@ CommandPalette.test.ts` ("the Debug row should render a switch, not a label") an
 label/icon), plus a `[vitest-worker]: Timeout calling "onTaskUpdate"` unhandled error. Every
 CI run checked after it — `d948635`, `6981bf9`, `50e4b1a`, `2b86de9`, `a5e5cf7`, `d4f83fa`,
 `8f61600`, `53e6474`, `cbc135c`, `0bc90c2` — also came back **failure**, all for the same
-recurring pair. A full local `npx vitest run` at `0bc90c2` reproduces the same shape: 469
-files, 7,288 tests, 7,278 passed, 3 skipped, **7 failed**, in ~225s. The dedicated "Lint the
-workflow files" job (a separate `actionlint` step) is green on every run checked; it is
-specifically the `Lint, build, test` job that fails. This has not been root-caused or fixed
-by this pass — it is named here as the single most valuable next task, because it is the
-reason the entire pass has shipped with no hosted verdict.
+recurring pair. A full local `npx vitest run` at `0bc90c2` reproduced the same shape: 469
+files, 7,288 tests, 7,278 passed, 3 skipped, **7 failed**, in ~225s.
+
+**What actually fixed it — four separate, unrelated causes, each found against a real
+failing run and fixed one at a time (full account in HANDOFF.md's "CI goes green for the
+first time in this pass" entry):**
+
+1. An i18n warning flood (`e77f11a`) tripping vitest's own 60-second worker/main RPC
+   heartbeat — not a test assertion. ~70 test files intentionally mount `vue-i18n` with an
+   empty message table; about half never silenced the resulting warning, and one run's log
+   was 93% `[intlify] Not found` noise crossing the same IPC channel the heartbeat rides on.
+2. The heartbeat flake still recurred under runner contention even after the flood was
+   silenced; a retry wrapper (`3791655`) now retries only when a run's summary shows zero
+   real test/file failures. The same commit found and fixed a real, separate esbuild bug the
+   fix exposed: `pngjs`'s unconditional `require("util")` throws under esbuild's ESM
+   `__require` shim, invisible until `check` could finally get past step 1 to reach the job
+   that packages the app.
+3. Two settings-history state-isolation bugs (`e569e47`, `cfab9a1`, `a1f8172`, `2a06e19`):
+   `eulaStorage.ts` and four sibling stores called their history-mirror function *after* a
+   `storage === null` early return, silently skipping the one case the mirror exists to be
+   independent of; `MarkerMenu.test.ts` had no `localStorage` stand-in of its own and
+   silently inherited another test file's state when the two shared a vitest worker.
+4. The Screenshots job's own EULA panel has a permanently-hidden duplicate mount
+   (`EulaSurface`'s always-mounted `EulaViewer.vue`); an unscoped `.mb-eula` wait matched
+   that twin instead of the real dialog and could never resolve (`3dc7ef5`). Fixing that
+   exposed two more real, previously-never-reported bugs that had always been silently
+   skipped in a worker some earlier failure discarded first: a collapsed Appearance-editor
+   tab strip and a stale active-tab assumption in the changelog capture (`9d8de68`).
+
+The dedicated "Lint the workflow files" job (a separate `actionlint` step) was green on
+every run checked throughout — it was specifically the `Lint, build, test` and Screenshots
+jobs that were red, for the reasons above.
 
 ## Revealed by the 2026-08-04 work, now resolved
 
@@ -655,24 +691,34 @@ closed now. See the 2026-08-05 HANDOFF.md entry for the evidence behind each.
 
 ## Open going into the next pass
 
-- **Fix the recurring `CommandPalette.test.ts`/`tabGroupPickerMount.test.ts` CI failure**
-  described above — this is what has kept every hosted run red through the whole
-  2026-08-05 pass.
+The GitHub issue board is at **zero open issues** as of this writing (eighteen closed this
+pass, `#28` through `#47`). Nothing below is tracked by an open issue; each item is named
+here so it is not lost between passes.
+
 - **Wire `RenderManager.saveRenderTaskQueue`/`.loadRenderTaskQueue` into something that
   actually calls them** — a periodic-save timer and load-on-startup, in `packages/server`
   or `packages/cli` (issue #30's own follow-on, not closed by it).
 - **Join `packages/cli`'s `-u`/`--watch` to `packages/server`'s `MapUpdateService`** — both
   exist; nothing calls the second from the first yet.
-- **Prove cross-compatibility with upstream's Java engine** (a map written by the Java
-  CLI read by this port, and vice versa) — the one item issue #32's acceptance checklist
-  still has open, now that MySQL/MariaDB/PostgreSQL are proven against real Docker
-  servers (2026-08-05, see the Phase H section below). Needs a JVM run this task was not
-  scoped to bring in.
-- **Dispatch a genuinely large world through the render-world workflow** with `df -h`
-  evidence at each stage, recorded in `docs/large-worlds.md` (issue #39's own remaining
-  checklist item).
-- **Test the private-repository Pages 403 mapping, and staging time on a real large map**
-  (issue #44's two remaining sub-items).
+- **Prove SQLite and PostgreSQL cross-compatibility with upstream's real Java engine
+  specifically.** Issue #32 itself is closed: MariaDB has the real cross-engine proof, both
+  directions, and MySQL/MariaDB/PostgreSQL are independently proven against real same-engine
+  Docker servers. What has not been done is the Java-CLI-vs-TS-port cross-engine run for
+  SQLite or PostgreSQL specifically — SQLite needs the same `driver-jar`/`driver-class`
+  treatment MariaDB got here, since upstream ships no bundled SQLite JDBC driver either.
+- **Run a two-wave merge, and a world large enough to actually pressure a hosted runner's
+  disk, through `render-world.yml`.** Issue #39's own wave-dispatch checklist item is now
+  genuinely proven (a real 361-region world used exactly the two waves planned, watched, not
+  assumed). Two things that specific run did not reach: the merge step across those two
+  waves (the world was reused for issue #44's staging test instead), and a world anywhere
+  near the disk ceiling issue #39 was opened over (that run needed ~6 GiB against ~84 GiB
+  free). Record both, with `df -h` evidence, in `docs/large-worlds.md`.
+- **Test the private-repository Pages 403 mapping, and staging time on a real large map.**
+  Issue #44 itself is closed — a real desktop-app-driven publish against a real GitHub
+  account is proven, in 35.5 seconds, with a screenshot — but these two sub-items from its
+  own thread remain untested: converting either throwaway proof repository to private would
+  destroy standing evidence for an unrelated feature, and the 70-file/5.8 MB staging-time
+  evidence says nothing about a real multi-gigabyte, tens-of-thousands-of-tile map.
 
 ## Deferred verification
 
