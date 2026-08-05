@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Voice the config surfaces and harden capture cleanup - [`688bccec17`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/688bccec17ecda7727711cd926a46c5955c95c09)
 - Document the fixed appearance editor tabs - [`17d0dc6b67`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/17d0dc6b67ca21f8d3f7733f9e7500ff0f53afa8)
 - Complete tabbed material surfaces and resumable Pages publishing - [`1e9ae1b379`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1e9ae1b37973f169e010c759455fc8dbefe8f716)
 - Wire the map control bar and the history panel into the appearance editor - [`796ac32b17`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/796ac32b178af46b10961f1d7aabb465c40200f0)
@@ -54,6 +55,8 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- Scope the tab finder capture to its visible instance - [`ba29f1a495`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ba29f1a495b747ee48d67d7d5fc01fce106e7f07)
+- Give the anchored editor room to breathe - [`5f8e24d93f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5f8e24d93f382bff924d8e90a58865fa31051dce)
 - Refuse to photograph a build that is older than the code - [`93a229834f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/93a229834f8e5168c3a5cb98528a9cca45225d0a)
 - Test the Pages host safety gates - [`c68e1e3df0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c68e1e3df03c1ca42a3c144122dcab0e1bdf371a)
 - Expose Pages hosting to the renderer - [`9f075acdb2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/9f075acdb25bf405e2e7f954a198335ce90a7989)
@@ -71,6 +74,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Write down which surfaces actually mounted the tab strip, and why one did not - [`51f7ccad79`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/51f7ccad79422ef1f836a77d9ef50566c76fbdcc)
 - Record the map the application itself published to Pages - [`d8e1ee15b0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d8e1ee15b08b82f3cb294150eead80f6e8274d0a)
 - Show the map hosted on Pages, with the evidence and the trap - [`a8276c8a42`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a8276c8a42a5188df2610b110ea53030f6eaecc7)
 - Add a real hosted map capture - [`e571a49a46`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e571a49a46def0d43c19391e00d16c73b3a21c5e)
