@@ -234,22 +234,42 @@ save, and a git that fails mid-commit leaves the file on disk exactly as it was 
 1. **Done.** Both bridges are exposed on the preload
    (`design/packages/app/src/preload/index.ts`), the same way `history:*` and `project:*` are —
    `profilesHistory` and `appSettingsHistory`, each with `read`/`save`/`list`/`restore`.
-2. **Partly done.** `design/packages/ui/src/stores/profiles.ts`'s persistence watcher now calls
+2. **Done.** `design/packages/ui/src/stores/profiles.ts`'s persistence watcher calls
    `profilesHistory.save` with the current `ProfilesState` after every mutation — fire-and-forget,
    in addition to writing `localStorage`, which stays the real source of truth (see step 3). The
    maps-and-servers list is this same store read from the interface, so wiring it wires both at
-   once. For settings, the equivalent call needed a merge rather than a plain forward: `settings.json`
-   holds one flat `values` bag shared by every wired surface, and a surface that saved only its own
-   key would silently erase every other surface's already-recorded value the next time it ran. The
-   new `design/packages/ui/src/stores/appSettingsHistorySync.ts` module handles that — it reads the
-   bag that is there now, merges in the calling surface's own key, and saves the merge — and exactly
-   one surface calls it so far, `design/packages/ui/src/components/menu/menuPrefs.ts`'s disclosure
-   state, under the key `menuSearch`. The rest of the dozen-odd `localStorage`-backed surfaces this
-   file names above — `appearanceStore.ts`, `dockPlacement.ts`, `palettePrefs.ts`, `setupPrefs.ts`,
-   `tabStorage.ts`, `eulaStorage.ts`, `remoteTargets.ts` and more — are **not yet wired**; each is a
-   call to `recordAppSetting(key, value)` from wherever that surface currently calls
-   `localStorage.setItem`, once its own value's shape is confirmed JSON-serialisable the way
-   `menuSearch`'s already is.
+   once. Every other `localStorage`-backed settings surface goes through
+   `design/packages/ui/src/stores/appSettingsHistorySync.ts`'s `recordAppSetting(key, value)`
+   instead, because `settings.json` holds one flat `values` bag shared by every wired surface and a
+   surface that saved only its own key would silently erase every other surface's already-recorded
+   value the next time it ran — `recordAppSetting` reads the bag that is there now, merges in the
+   calling surface's own key, and saves the merge. Every `localStorage`-backed store this package
+   has is now either wired this way or named as a deliberate exclusion, and the pair of lists in
+   `appSettingsHistorySync.ts` — `APP_SETTINGS_HISTORY_KEYS` and `EXCLUDED_APP_SETTINGS` — is the
+   audit trail, each entry checked against the real source by
+   `appSettingsHistoryManifest.test.ts` rather than trusted on its word:
+
+   | Key | Store | What it holds |
+   |---|---|---|
+   | `menuSearch` | `components/menu/menuPrefs.ts` | whether a menu search bar is open, per surface |
+   | `appearance` | `components/appearance/appearanceStore.ts` | the whole appearance/theme record |
+   | `dockPlacement` | `components/settings/dockPlacement.ts` | which edge (or floating) each docked surface uses |
+   | `palette` | `components/palette/palettePrefs.ts` | the command palette's card/full-window size |
+   | `remoteTargets` | `components/remote/remoteTargets.ts` | the saved remote render targets (no secret field — see that file's own doc comment) |
+   | `eulaTabs` | `components/eula/eulaStorage.ts` | the EULA viewer's own tab arrangement |
+   | `markerFiltersOpen` | `components/markers/MarkerMenu.vue` | whether the marker filters panel is open |
+   | `mapStorageDir` | `components/setup/mapStorage.ts` | the chosen folder for rendered maps |
+   | `languageMode` | `components/setup/setupI18n.ts` | English / Cantonese / bilingual |
+   | `funnyLevelEn`, `funnyLevelYue` | `components/setup/setupI18n.ts` | the two independent funny-level sliders |
+   | `updateDismissed` | `components/update/updateModel.ts` | the last update version whose banner was put away |
+   | `tabs.<storage key>` | `components/tabs/tabStorage.ts` | one entry per tab strip this module backs (the main shell, Settings, the config editor, a project editor), namespaced by the strip's own `localStorage` key so the four cannot collide |
+
+   Two keys are named instead as deliberate exclusions, both inside `dockPlacement.ts`:
+   `dockSize` and `dockFloating` are written on **every pointermove frame** while a panel is
+   resized or dragged (`DockedSurface.vue`'s splitter and header handlers call `setDockThickness`
+   / `setDockFloatingRect` continuously, never only at drag-end), so mirroring either would turn
+   one drag gesture into dozens of history revisions of pure noise. The *discrete* choice this
+   geometry serves — which edge a panel docks to — is the `dockPlacement` key above.
 3. **Not yet done.** Reading `profilesHistory:read` / `appSettingsHistory:read` at startup as the
    source of truth, with the existing `localStorage` value kept as a fallback and a one-time,
    idempotent copy into the new store — safe to run twice, because writing the same state twice
