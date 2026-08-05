@@ -1,0 +1,380 @@
+name: Scheduled render
+
+# Checks whether the world configured for scheduled re-rendering has changed since the
+# last render, cheaply, and only starts render-world.yml when it has. See
+# docs/scheduled-render.md for the full explanation, the repository variables this reads
+# and writes, and exactly what "cheap" means for each world-source - it is never "download
+# the world to see if it changed."
+#
+# ## Configured by repository variables, not by editing this file
+#
+# The desktop app's CI-render screen writes these (see docs/scheduled-render.md for the
+# by-hand equivalent with `gh variable set`), and this workflow only reads them:
+#
+#   CIRENDER_SCHEDULE_ENABLED          "true" to turn scheduled checking on at all
+#   CIRENDER_SCHEDULE_CADENCE          hourly | sixHourly | daily | weekly
+#   CIRENDER_SCHEDULE_WORLD_SOURCE     repository | release-asset | url | git
+#   CIRENDER_SCHEDULE_WORLD            same meaning as render-world.yml's `world` input.
+#                                       For release-asset this must be an exact asset name
+#                                       (optionally "tag/name") - never a glob - because a
+#                                       cheap check has to name one asset to watch. For git
+#                                       this is a branch, optionally "branch:subpath".
+#   CIRENDER_SCHEDULE_WORLD_REPOSITORY release-asset and git; blank means this repository
+#                                       (release-asset only - git always needs one named)
+#   CIRENDER_SCHEDULE_DIMENSION, _MAP_ID, _MAP_NAME, _OUTPUT, _BUDGET_MINUTES, _MAX_JOBS
+#                                       carried straight through to render-world.yml when a
+#                                       render is actually dispatched
+#
+# And this workflow writes these back, so the app (and a person, via `gh variable get`)
+# can see what happened without opening the Actions tab:
+#
+#   CIRENDER_SCHEDULE_LAST_CHECK_AT       ISO-8601, set only when a check actually ran
+#   CIRENDER_SCHEDULE_LAST_CHECK_RESULT   changed | unchanged | unknown | error
+#   CIRENDER_SCHEDULE_LAST_CHECK_REASON   one sentence, from schedule-check
+#   CIRENDER_SCHEDULE_LAST_BASELINE       the snapshot compared, kept only when comparable
+#   CIRENDER_SCHEDULE_LAST_RENDER_AT      ISO-8601, set only when a render was dispatched
+#
+# ## Why this wakes up every hour no matter what cadence is configured
+#
+# GitHub's `schedule:` trigger is a fixed cron in this file; it cannot read a repository
+# variable to decide when to fire. So this always wakes up on the finest cadence this
+# feature offers - hourly - and the "Say whether a check is due yet" step below is what
+# lets an hourly wake-up honour a daily or weekly configuration, by doing nothing at all,
+# in a few seconds, on most of the hours it runs. See
+# design/packages/render-actions/src/schedule/cadence.ts.
+
+on:
+  schedule:
+    # :17 rather than :00, to land away from the top-of-the-hour rush every scheduled
+    # workflow on GitHub piles onto.
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      force-check:
+        description: Run the change check now, ignoring the configured cadence
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: scheduled-render
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Check whether the scheduled world changed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the planner
+        working-directory: design
+        run: pnpm --filter "@material-bluemap/render-actions..." run build
+
+      - name: Read the schedule configuration
+        id: config
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "enabled=${{ vars.CIRENDER_SCHEDULE_ENABLED }}"
+            echo "cadence=${{ vars.CIRENDER_SCHEDULE_CADENCE }}"
+            echo "world-source=${{ vars.CIRENDER_SCHEDULE_WORLD_SOURCE }}"
+            echo "world=${{ vars.CIRENDER_SCHEDULE_WORLD }}"
+            echo "world-repository=${{ vars.CIRENDER_SCHEDULE_WORLD_REPOSITORY }}"
+          } >> "$GITHUB_OUTPUT"
+          if [ "${{ vars.CIRENDER_SCHEDULE_ENABLED }}" != "true" ]; then
+            echo "Scheduled re-rendering is turned off - the repository variable" \
+                 "CIRENDER_SCHEDULE_ENABLED is not 'true'. Nothing was checked." \
+                 >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Say whether a check is due yet
+        id: due
+        if: steps.config.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ inputs.force-check }}" = "true" ]; then
+            echo "due=true" >> "$GITHUB_OUTPUT"
+            echo "Forced check requested via workflow_dispatch, ignoring the cadence." \
+                 >> "$GITHUB_STEP_SUMMARY"
+          else
+            node design/packages/render-actions/dist/cli.js schedule-due \
+              --cadence "${{ steps.config.outputs.cadence }}" \
+              --last-check-at "${{ vars.CIRENDER_SCHEDULE_LAST_CHECK_AT }}" \
+              --github-output "$GITHUB_OUTPUT"
+          fi
+
+      # ---------------------------------------------------------------------------------
+      # Gather this check's snapshot, cheaply, per world-source. Never a download of the
+      # world itself - a repository source is already checked out above, and the other two
+      # read metadata only.
+      # ---------------------------------------------------------------------------------
+
+      - name: Gather the current snapshot (repository source)
+        id: snapshot-repository
+        if: steps.config.outputs.enabled == 'true' && steps.due.outputs.due == 'true' && steps.config.outputs.world-source == 'repository'
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORLD="${{ steps.config.outputs.world }}"
+          if [ -z "$WORLD" ]; then WORLD="worlds/world"; fi
+          if [ ! -d "$WORLD" ]; then
+            echo "::warning::CIRENDER_SCHEDULE_WORLD ('$WORLD') is not a directory in this repository."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            node design/packages/render-actions/dist/cli.js fingerprint \
+              --world "$WORLD" --out current-snapshot.json
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Gather the current snapshot (release-asset source)
+        id: snapshot-release-asset
+        if: steps.config.outputs.enabled == 'true' && steps.due.outputs.due == 'true' && steps.config.outputs.world-source == 'release-asset'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          WORLD="${{ steps.config.outputs.world }}"
+          REPO="${{ steps.config.outputs.world-repository }}"
+          if [ -z "$REPO" ]; then REPO="${{ github.repository }}"; fi
+          case "$WORLD" in
+            */*) TAG="${WORLD%/*}"; ASSET="${WORLD##*/}" ;;
+            *)   TAG="latest";      ASSET="$WORLD" ;;
+          esac
+          if [ -z "$ASSET" ]; then
+            echo "::error::CIRENDER_SCHEDULE_WORLD is empty; it must name one release asset exactly (no glob)."
+            exit 1
+          fi
+
+          tag_path="releases/latest"
+          if [ "$TAG" != "latest" ]; then tag_path="releases/tags/$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "$TAG")"; fi
+
+          if ! release_json=$(gh api "repos/$REPO/$tag_path" 2>gh-error.log); then
+            echo "::warning::Could not read the release for the scheduled world: $(cat gh-error.log)"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            asset_json=$(printf '%s' "$release_json" | node -e '
+              let d = ""; process.stdin.on("data", c => d += c).on("end", () => {
+                const release = JSON.parse(d);
+                const name = process.argv[1];
+                const asset = (release.assets || []).find(a => a.name === name);
+                process.stdout.write(asset ? JSON.stringify(asset) : "");
+              });
+            ' "$ASSET")
+            if [ -z "$asset_json" ]; then
+              echo "::warning::Release '$TAG' on $REPO has no asset named '$ASSET'."
+              echo "found=false" >> "$GITHUB_OUTPUT"
+            else
+              printf '%s' "$asset_json" | node -e '
+                let d = ""; process.stdin.on("data", c => d += c).on("end", () => {
+                  const asset = JSON.parse(d);
+                  process.stdout.write(JSON.stringify({
+                    tag: process.argv[1], asset: asset.name, size: asset.size,
+                    digest: asset.digest ?? null, updatedAt: asset.updated_at,
+                  }));
+                });
+              ' "$TAG" > current-snapshot.json
+              echo "found=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Gather the current snapshot (url source)
+        id: snapshot-url
+        if: steps.config.outputs.enabled == 'true' && steps.due.outputs.due == 'true' && steps.config.outputs.world-source == 'url'
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORLD="${{ steps.config.outputs.world }}"
+          if [ -z "$WORLD" ]; then
+            echo "::error::CIRENDER_SCHEDULE_WORLD is empty; it must be the world's download URL."
+            exit 1
+          fi
+          if ! headers=$(curl -fsSI --retry 3 --retry-delay 5 "$WORLD"); then
+            echo "::warning::Could not reach the scheduled world's URL with a HEAD request."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            etag=$(printf '%s' "$headers" | node -e '
+              let d = ""; process.stdin.on("data", c => d += c).on("end", () => {
+                const m = /^etag:\s*(.+)\r?$/im.exec(d); process.stdout.write(m ? m[1].trim() : "");
+              });')
+            length=$(printf '%s' "$headers" | node -e '
+              let d = ""; process.stdin.on("data", c => d += c).on("end", () => {
+                const m = /^content-length:\s*(\d+)\r?$/im.exec(d); process.stdout.write(m ? m[1].trim() : "");
+              });')
+            modified=$(printf '%s' "$headers" | node -e '
+              let d = ""; process.stdin.on("data", c => d += c).on("end", () => {
+                const m = /^last-modified:\s*(.+)\r?$/im.exec(d); process.stdout.write(m ? m[1].trim() : "");
+              });')
+            node -e '
+              const [etag, length, modified] = process.argv.slice(1);
+              const out = {};
+              if (etag) out.etag = etag;
+              if (length) out.contentLength = Number(length);
+              if (modified) out.lastModified = modified;
+              process.stdout.write(JSON.stringify(out));
+            ' "$etag" "$length" "$modified" > current-snapshot.json
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A world kept in a git repository (design/packages/app/src/main/worldrepo/repo.ts)
+      # has the cheapest signal of the four: the target branch's current commit. One
+      # `gh api` call, nothing cloned, nothing downloaded - the same cost as `remoteTip()`
+      # on the desktop side, and deliberately the same shape so the two never drift apart.
+      - name: Gather the current snapshot (git source)
+        id: snapshot-git
+        if: steps.config.outputs.enabled == 'true' && steps.due.outputs.due == 'true' && steps.config.outputs.world-source == 'git'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          WORLD="${{ steps.config.outputs.world }}"
+          REPO="${{ steps.config.outputs.world-repository }}"
+          case "$WORLD" in
+            *:*) BRANCH="${WORLD%%:*}" ;;
+            *)   BRANCH="$WORLD" ;;
+          esac
+          if [ -z "$REPO" ] || [ -z "$BRANCH" ]; then
+            echo "::warning::CIRENDER_SCHEDULE_WORLD_REPOSITORY and CIRENDER_SCHEDULE_WORLD (a branch) are both required for a git source."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          elif ! branch_json=$(gh api "repos/$REPO/branches/$BRANCH" 2>gh-error.log); then
+            echo "::warning::Could not read branch '$BRANCH' of $REPO: $(cat gh-error.log)"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            printf '%s' "$branch_json" | node -e '
+              let d = ""; process.stdin.on("data", c => d += c).on("end", () => {
+                const branch = JSON.parse(d);
+                process.stdout.write(JSON.stringify({ sha: branch.commit && branch.commit.sha }));
+              });
+            ' > current-snapshot.json
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ---------------------------------------------------------------------------------
+      # Decide, using the exact same comparator as every unit test in schedule/, and
+      # record what happened - always, even on "unchanged", so the app can show an honest
+      # "checked N minutes ago, nothing changed" rather than nothing at all.
+      # ---------------------------------------------------------------------------------
+
+      - name: Decide whether the world changed
+        id: decide
+        if: steps.config.outputs.enabled == 'true' && steps.due.outputs.due == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          FOUND="${{ steps.snapshot-repository.outputs.found || steps.snapshot-release-asset.outputs.found || steps.snapshot-url.outputs.found || steps.snapshot-git.outputs.found }}"
+          CURRENT_ARG="-"
+          if [ "$FOUND" = "true" ]; then CURRENT_ARG="current-snapshot.json"; fi
+
+          PREVIOUS_ARG="-"
+          if [ -n "${{ vars.CIRENDER_SCHEDULE_LAST_BASELINE }}" ]; then
+            printf '%s' '${{ vars.CIRENDER_SCHEDULE_LAST_BASELINE }}' > previous-snapshot.json
+            PREVIOUS_ARG="previous-snapshot.json"
+          fi
+
+          node design/packages/render-actions/dist/cli.js schedule-check \
+            --kind "${{ steps.config.outputs.world-source }}" \
+            --previous "$PREVIOUS_ARG" \
+            --current "$CURRENT_ARG" \
+            --github-output "$GITHUB_OUTPUT" || true
+
+      - name: Record what this check found
+        if: steps.config.outputs.enabled == 'true' && steps.due.outputs.due == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          set_var() {
+            local name="$1" value="$2"
+            local patch_body
+            patch_body=$(jq -n --arg value "$value" '{value: $value}')
+            if ! printf '%s' "$patch_body" \
+                | gh api -X PATCH "repos/${{ github.repository }}/actions/variables/$name" --input - >/dev/null 2>&1
+            then
+              local post_body
+              post_body=$(jq -n --arg name "$name" --arg value "$value" '{name: $name, value: $value}')
+              printf '%s' "$post_body" \
+                | gh api -X POST "repos/${{ github.repository }}/actions/variables" --input - >/dev/null
+            fi
+          }
+
+          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          set_var CIRENDER_SCHEDULE_LAST_CHECK_AT "$NOW"
+          set_var CIRENDER_SCHEDULE_LAST_CHECK_RESULT "${{ steps.decide.outputs.result }}"
+          set_var CIRENDER_SCHEDULE_LAST_CHECK_REASON "${{ steps.decide.outputs.reason }}"
+
+          # Only a comparable snapshot becomes the new baseline. "error" (the world could
+          # not be found this time) and "unknown" (nothing comparable was sent) both leave
+          # the previous good baseline in place, so a transient network hiccup cannot erase
+          # a working comparison point.
+          if [ -f current-snapshot.json ] && [ "${{ steps.decide.outputs.result }}" != "error" ]; then
+            set_var CIRENDER_SCHEDULE_LAST_BASELINE "$(cat current-snapshot.json)"
+          fi
+
+          {
+            echo "## Scheduled render check"
+            echo ""
+            echo "| | |"
+            echo "| --- | --- |"
+            echo "| Checked at | $NOW |"
+            echo "| Result | ${{ steps.decide.outputs.result }} |"
+            echo "| Reason | ${{ steps.decide.outputs.reason }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Start render-world.yml, because the world changed
+        if: steps.config.outputs.enabled == 'true' && steps.due.outputs.due == 'true' && steps.decide.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          args=(
+            --repo "${{ github.repository }}"
+            -f "world-source=${{ steps.config.outputs.world-source }}"
+            -f "world=${{ steps.config.outputs.world }}"
+            -f "dimension=${{ vars.CIRENDER_SCHEDULE_DIMENSION || 'minecraft:overworld' }}"
+            -f "map-id=${{ vars.CIRENDER_SCHEDULE_MAP_ID || 'world' }}"
+            -f "map-name=${{ vars.CIRENDER_SCHEDULE_MAP_NAME || 'World' }}"
+            -f "output=${{ vars.CIRENDER_SCHEDULE_OUTPUT || 'artifact' }}"
+            -f "budget-minutes=${{ vars.CIRENDER_SCHEDULE_BUDGET_MINUTES || '240' }}"
+            -f "max-jobs=${{ vars.CIRENDER_SCHEDULE_MAX_JOBS || '64' }}"
+          )
+          if [ -n "${{ steps.config.outputs.world-repository }}" ]; then
+            args+=(-f "world-repository=${{ steps.config.outputs.world-repository }}")
+          fi
+          gh workflow run render-world.yml "${args[@]}"
+
+          NOW="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          patch_body=$(jq -n --arg value "$NOW" '{value: $value}')
+          if ! printf '%s' "$patch_body" \
+              | gh api -X PATCH "repos/${{ github.repository }}/actions/variables/CIRENDER_SCHEDULE_LAST_RENDER_AT" --input - >/dev/null 2>&1
+          then
+            post_body=$(jq -n --arg value "$NOW" '{name: "CIRENDER_SCHEDULE_LAST_RENDER_AT", value: $value}')
+            printf '%s' "$post_body" \
+              | gh api -X POST "repos/${{ github.repository }}/actions/variables" --input - >/dev/null
+          fi
+
+          echo "Started render-world.yml because the scheduled check found a change. See the" \
+               "repository's Actions tab for the new run - GitHub does not hand back a run id" \
+               "from a dispatch, so this workflow cannot link it directly." \
+               >> "$GITHUB_STEP_SUMMARY"

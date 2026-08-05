@@ -12,7 +12,9 @@ world and then waits.
 No Java, no BlueMap and no local rendering: start the **Render world** workflow, wait, and
 download the map as an artifact. The desktop app can drive the whole loop for you — see
 [Doing it from the app](#doing-it-from-the-app) — and the map it brings back opens exactly
-like one rendered locally.
+like one rendered locally. For a world that changes on its own and needs nobody to press
+the button, see [Scheduled re-rendering](./scheduled-render.md): a separate workflow checks
+cheaply for a change on a chosen cadence and only starts this one when it finds one.
 
 ### The price of that, stated up front
 
