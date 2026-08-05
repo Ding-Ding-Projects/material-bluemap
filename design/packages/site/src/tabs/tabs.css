@@ -178,13 +178,57 @@
 }
 
 /*
- * Pinned tabs compress to their icon on a narrow viewport. The accessible name stays the full
- * page name, so nothing is lost; only the visible text is dropped, and only when there is an
- * icon left to identify the page by.
+ * Compact width (phones and small tablets, <= 720px): the overflow-into-a-menu strategy
+ * above gives way to the other Material 3 pattern for a strip that cannot fit its
+ * tabs - scrollable tabs. Every destination stays a real, fully labelled tab; the row
+ * scrolls horizontally instead of clipping or hiding anything, and no "N more" button ever
+ * renders, because there is nothing left for it to hold.
+ *
+ * This replaces an earlier rule that hid a pinned tab's label at this same width whenever it
+ * had a page icon. That rule existed to survive the pinned region getting crushed by
+ * flexbox - .tab-strip__pinned can shrink below its content because its own overflow-x:auto
+ * gives it an automatic min-width of zero, so a wide sibling (the old unbounded-width
+ * overflow button) could squeeze it down to a sliver. The fix here is the actual cause:
+ * .tab-strip__pinned stops shrinking below its content at this width, so a pinned tab never
+ * needs to give up its label to survive - it just keeps its full name, same as every other
+ * tab on the compact strip.
+ *
+ * TabStrip.ts's own COMPACT_TAB_STRIP_MAX_WIDTH constant mirrors this exact threshold, so the
+ * JS never measures a fit-into-budget decision or hides a tab the CSS is about to make
+ * reachable by scrolling instead. TabStrip.test.ts reads this file's source to check the two
+ * cannot silently drift apart.
  */
 @media (width <= 720px) {
-    .tab--pinned:has(.tab__icon) .tab__label {
-        display: none;
+    .tab-strip__pinned {
+        /* Never crushed below its own content: the row scrolls instead of shrinking a
+           pinned tab away. If pinned tabs themselves exceed the max-width below, this
+           region's own overflow-x: auto (set above, unconditionally) scrolls them, exactly
+           as it already did before this rule - only the *crushing* is new to fix. */
+        flex: none;
+    }
+
+    .tab-strip__main {
+        /* The scrollable row itself. min-width: 0 (set above) is what lets it shrink to
+           whatever space is actually left rather than forcing the whole bar to overflow. */
+        overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-x: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Labels stay on one line at this width: a compact strip scans left-to-right, and a
+       label that wraps to two lines would make every tab a different height. Nothing is
+       truncated - the tab simply takes the width its one-line label needs, up to the
+       max-width above, and the row scrolls past whatever does not fit on screen. */
+    .tab__label,
+    .tab-group__name {
+        white-space: nowrap;
+    }
+
+    /* Nothing is ever hidden into a menu at this width, so the control that would open
+       that menu never renders either. */
+    .tab-bar__overflow {
+        display: none !important;
     }
 }
 

@@ -16,14 +16,24 @@
  * announced as buttons and are fully keyboard operable; the alternative, moving them out of
  * the strip, would separate every group's control from the group.
  *
- * Overflow is real, not a scrollbar hiding a problem. Widths are measured with every segment
- * shown, so the decision is made from intrinsic sizes and cannot oscillate, and whatever does
- * not fit moves into a menu that lists it by name. The active page is always kept visible: if
- * it would have been pushed out, it is given room first and drawn at the end of the visible
- * run rather than disappearing.
+ * At ordinary widths, overflow is real, not a scrollbar hiding a problem. Widths are measured
+ * with every segment shown, so the decision is made from intrinsic sizes and cannot oscillate,
+ * and whatever does not fit moves into a menu that lists it by name. The active page is always
+ * kept visible: if it would have been pushed out, it is given room first and drawn at the end
+ * of the visible run rather than disappearing.
  *
- * Pinned pages are never hidden by overflow, are excluded from bulk closes unless the visitor
- * explicitly includes them, and keep their full accessible name however narrow they get.
+ * Below `COMPACT_TAB_STRIP_MAX_WIDTH` that strategy is dropped for the other Material 3
+ * pattern: scrollable tabs. A phone-width strip cannot fit even a handful of full labels next
+ * to a translated "N more" button of unpredictable width, so trying to budget for one produces
+ * exactly the bug this replaces - the button eats the bar, the pinned region gets crushed to a
+ * sliver by flexbox, and the one visible tab shows a single letter behind a pin glyph. Below
+ * the breakpoint nothing is measured or hidden: every destination stays a real, fully labelled
+ * tab, and `.tab-strip__main` scrolls horizontally instead. See `layout()` and tabs.css's own
+ * compact media query, which is what actually makes the row scroll.
+ *
+ * Pinned pages are never hidden by overflow (or crushed by the compact-width scroll region),
+ * are excluded from bulk closes unless the visitor explicitly includes them, and keep their
+ * full accessible name and full visible label at every width.
  */
 
 import { GROUP_COLOURS, type GroupColour, type Segment, type TabModel } from "./TabModel.js";
@@ -68,6 +78,29 @@ const COLOUR_LABEL: Record<GroupColour, StringKey> = {
     red: "tabs.colour.red",
     grey: "tabs.colour.grey",
 };
+
+/**
+ * Below this viewport width the strip stops trying to fit tabs into a budget and hide the
+ * rest behind a menu. That strategy is what produced the phone-width bug this constant fixes:
+ * an unbounded-width "N more" button ate almost the entire bar, the pinned region's automatic
+ * flex min-size then resolved to zero (its `overflow-x: auto` makes that safe *for the
+ * container*, but not for what is left visible inside it), and the one remaining pinned tab
+ * rendered as a sliver: a pin glyph and the first letter of its label, with the rest painted
+ * over.
+ *
+ * Below the breakpoint the strip switches to the other Material 3 pattern for a tab strip
+ * that cannot fit: scrollable tabs. Every destination stays a real, fully labelled tab; the
+ * row scrolls horizontally instead of clipping or hiding anything, and the overflow button
+ * never renders because there is nothing left for it to hold. tabs.css's own compact media
+ * query is what actually makes the row scroll and hides the button; this constant only has to
+ * agree with that query's threshold, which TabStrip.test.ts checks by reading the CSS source.
+ *
+ * 720px is this file's own pre-existing breakpoint (see the pinned-tab compression rule in
+ * tabs.css), reused here rather than introducing a second narrow-width threshold. It also
+ * comfortably covers tablet-portrait widths, where the same crush could otherwise still
+ * happen with a longer localized "more pages" string.
+ */
+export const COMPACT_TAB_STRIP_MAX_WIDTH = 720;
 
 export class TabStrip {
     readonly bar: HTMLElement;
@@ -426,6 +459,15 @@ export class TabStrip {
         this.overflowed = [];
         if (children.length === 0) return;
 
+        if (this.isCompact()) {
+            // Scrollable tabs: everything above stays true (nothing hidden, no order
+            // override, the overflow button off), and the strip's own compact CSS is what
+            // makes the row scroll. Only bring the active tab into view if it happens to be
+            // scrolled out of sight, e.g. after a language change re-measures every label.
+            this.scrollActiveIntoView();
+            return;
+        }
+
         const gap = Number.parseFloat(getComputedStyle(this.mainRegion).columnGap) || 0;
         const widths = children.map((child) => child.getBoundingClientRect().width);
         const total = widths.reduce((sum, width) => sum + width, 0) + gap * (children.length - 1);
@@ -485,6 +527,23 @@ export class TabStrip {
             return;
         }
         this.syncOverflowLabel(this.overflowed.length);
+    }
+
+    /** Below `COMPACT_TAB_STRIP_MAX_WIDTH`, scrollable tabs replace the overflow menu. */
+    private isCompact(): boolean {
+        const width = typeof window !== "undefined" ? window.innerWidth : Number.POSITIVE_INFINITY;
+        return width <= COMPACT_TAB_STRIP_MAX_WIDTH;
+    }
+
+    /**
+     * In compact mode nothing is clipped, but the active tab can still be scrolled out of
+     * the visible strip (a long label before it, a language change, a resize). Bring it back
+     * into view without dragging the page itself anywhere.
+     */
+    private scrollActiveIntoView(): void {
+        const active = this.strip.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+        if (active === null || typeof active.scrollIntoView !== "function") return;
+        active.scrollIntoView({ inline: "nearest", block: "nearest" });
     }
 
     private syncOverflowLabel(count: number): void {
