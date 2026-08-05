@@ -316,6 +316,83 @@ export async function dispatchWorkflow(
     if (!response.ok) throw await refuse(response, url, `Starting ${workflowFile} on ${owner}/${repo}`);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Repository variables: how the scheduled render workflow is configured      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Reads one repository variable, or null when it is not set.
+ *
+ * This is how the desktop app's CI-render screen reads back what
+ * `.github/workflows/scheduled-render.yml` last found - `CIRENDER_SCHEDULE_LAST_CHECK_AT`
+ * and friends - and how it reads the config it wrote itself. Never a secret: a repository
+ * variable is plain text anyone who can see the repository's settings can already read, so
+ * nothing here is treated as sensitive the way a token is.
+ */
+export async function readRepositoryVariable(
+    owner: string,
+    repo: string,
+    name: string,
+    options: ActionsCallOptions,
+): Promise<string | null> {
+    const url =
+        `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
+        `/actions/variables/${encodeURIComponent(name)}`;
+    const response = await options.fetch(url, init(options));
+    if (response.status === 404) return null;
+    if (!response.ok) throw await refuse(response, url, `Reading the repository variable ${name}`);
+    const body: unknown = await response.json();
+    const value = isRecord(body) ? body["value"] : null;
+    return typeof value === "string" ? value : null;
+}
+
+/**
+ * Creates or updates one repository variable.
+ *
+ * GitHub has no single "set this, whether or not it exists yet" endpoint: updating one
+ * that is not there answers 404, and creating one that already exists answers 422. So this
+ * tries the update first - the common case, once scheduling has been turned on once - and
+ * only falls back to creating it on a 404, rather than reading first and racing a second
+ * writer between the read and the write.
+ */
+export async function writeRepositoryVariable(
+    owner: string,
+    repo: string,
+    name: string,
+    value: string,
+    options: ActionsCallOptions,
+): Promise<void> {
+    const updateUrl =
+        `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
+        `/actions/variables/${encodeURIComponent(name)}`;
+    const updateResponse = await options.fetch(
+        updateUrl,
+        init(options, {
+            method: "PATCH",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ value }),
+        }),
+    );
+    if (updateResponse.ok) return;
+    if (updateResponse.status !== 404) {
+        throw await refuse(updateResponse, updateUrl, `Setting the repository variable ${name}`);
+    }
+
+    const createUrl =
+        `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/actions/variables`;
+    const createResponse = await options.fetch(
+        createUrl,
+        init(options, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ name, value }),
+        }),
+    );
+    if (!createResponse.ok) {
+        throw await refuse(createResponse, createUrl, `Creating the repository variable ${name}`);
+    }
+}
+
 /**
  * The run a dispatch produced, or null while GitHub has not created it yet.
  *

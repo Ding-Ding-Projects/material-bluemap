@@ -65,14 +65,16 @@ import {
     pickDispatchedRun,
     readDefaultBranch,
     readJobLogTail,
+    readRepositoryVariable,
     readRun,
     readRunJobs,
     readWorkflow,
+    writeRepositoryVariable,
     LOG_TAIL_LINES,
     ActionsCallError,
 } from "./actions.js";
 import type { WorkflowArtifact, WorkflowJob, WorkflowRun, WorkflowSummary } from "./actions.js";
-import { GH_COMMAND, GH_LOGIN_COMMAND, detectGh, ghApiJson, ghApiPost, ghApiToFile } from "./gh.js";
+import { GH_COMMAND, GH_LOGIN_COMMAND, detectGh, ghApiJson, ghApiPost, ghApiSend, ghApiToFile } from "./gh.js";
 import type { GhStatus, ProcessRunner } from "./gh.js";
 
 export type CiRoute = "session" | "gh";
@@ -205,6 +207,21 @@ export interface CiTransport {
     listReleaseAssets(owner: string, repo: string, tag: string): Promise<ReadonlyMap<string, CiReleaseAsset>>;
     /** Puts one staged file on the release under `assetName`. */
     uploadReleaseAsset(upload: CiAssetUpload): Promise<void>;
+
+    /* -- scheduled re-rendering: the repository variables that configure it -- */
+
+    /**
+     * One repository variable, or null when it is not set.
+     *
+     * This is how the CI-render screen's scheduling section both writes its own
+     * configuration (`CIRENDER_SCHEDULE_ENABLED`, `CIRENDER_SCHEDULE_CADENCE`, ...) and
+     * reads back what `.github/workflows/scheduled-render.yml` last found
+     * (`CIRENDER_SCHEDULE_LAST_CHECK_AT` and friends) - see `schedule.ts`. Never a secret:
+     * a repository variable is plain text visible in the repository's own settings.
+     */
+    readVariable(owner: string, repo: string, name: string): Promise<string | null>;
+    /** Creates or updates one repository variable. */
+    writeVariable(owner: string, repo: string, name: string, value: string): Promise<void>;
 }
 
 export interface SessionTransportOptions {
@@ -343,6 +360,9 @@ export function sessionTransport(options: SessionTransportOptions): CiTransport 
                       }),
             });
         },
+
+        readVariable: (owner, repo, name) => readRepositoryVariable(owner, repo, name, call),
+        writeVariable: (owner, repo, name, value) => writeRepositoryVariable(owner, repo, name, value, call),
     };
 }
 
@@ -690,6 +710,34 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
              * description beside it names which asset is in flight.
              */
             upload.onProgress?.({ bytesSent: upload.bytes, bytesTotal: upload.bytes });
+        },
+
+        async readVariable(owner, repo, name): Promise<string | null> {
+            try {
+                const body = await ghApiJson(`${path(owner, repo)}/actions/variables/${encodeURIComponent(name)}`, api);
+                const value = typeof body === "object" && body !== null ? (body as Record<string, unknown>)["value"] : null;
+                return typeof value === "string" ? value : null;
+            } catch (error) {
+                // Same rule as `readRelease` above: 404 is "not set", an answer rather than
+                // a refusal, and everything else is a real failure that must not be read as one.
+                if (error instanceof ActionsCallError && error.status === 404) return null;
+                throw error;
+            }
+        },
+
+        async writeVariable(owner, repo, name, value): Promise<void> {
+            try {
+                await ghApiSend(
+                    `${path(owner, repo)}/actions/variables/${encodeURIComponent(name)}`,
+                    "PATCH",
+                    { value },
+                    api,
+                );
+                return;
+            } catch (error) {
+                if (!(error instanceof ActionsCallError) || error.status !== 404) throw error;
+            }
+            await ghApiSend(`${path(owner, repo)}/actions/variables`, "POST", { name, value }, api);
         },
     };
 }

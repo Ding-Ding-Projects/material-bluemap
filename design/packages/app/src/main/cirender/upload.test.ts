@@ -96,6 +96,9 @@ function fakeTransport(release: CiRelease = { id: 5, tag: "", htmlUrl: "https://
             upload.onProgress?.({ bytesSent: upload.bytes, bytesTotal: upload.bytes });
             return Promise.resolve();
         },
+
+        readVariable: unused,
+        writeVariable: unused,
     };
 }
 

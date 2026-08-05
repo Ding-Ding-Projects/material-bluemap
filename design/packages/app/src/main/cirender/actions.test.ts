@@ -18,8 +18,10 @@ import {
     listRunArtifacts,
     readDefaultBranch,
     readJobLogTail,
+    readRepositoryVariable,
     readRun,
     readRunJobs,
+    writeRepositoryVariable,
 } from "./actions.js";
 import { RecordingGitHub, artifactJson, jobJson, repositoryJson, runJson } from "./recordingGitHub.js";
 
@@ -208,5 +210,69 @@ describe("artifacts and the ref", () => {
             json: { full_name: "o/r", name: "r", owner: { login: "o" } },
         });
         await expect(readDefaultBranch("o", "r", options(github))).rejects.toThrowError(/which branch is default/);
+    });
+});
+
+describe("repository variables, for scheduled re-rendering", () => {
+    it("reads a set variable's value", async () => {
+        const github = new RecordingGitHub().on("GET", "/actions/variables/CIRENDER_SCHEDULE_ENABLED", {
+            status: 200,
+            json: { name: "CIRENDER_SCHEDULE_ENABLED", value: "true" },
+        });
+        expect(await readRepositoryVariable("o", "r", "CIRENDER_SCHEDULE_ENABLED", options(github))).toBe("true");
+    });
+
+    it("reads null, never a refusal, for a variable that has not been set", async () => {
+        const github = new RecordingGitHub().on("GET", "/actions/variables/CIRENDER_SCHEDULE_ENABLED", {
+            status: 404,
+            json: { message: "Not Found" },
+        });
+        expect(await readRepositoryVariable("o", "r", "CIRENDER_SCHEDULE_ENABLED", options(github))).toBeNull();
+    });
+
+    it("refuses a real failure rather than reading it as merely unset", async () => {
+        const github = new RecordingGitHub().on("GET", "/actions/variables/CIRENDER_SCHEDULE_ENABLED", {
+            status: 403,
+            json: { message: "Resource not accessible by integration" },
+        });
+        await expect(readRepositoryVariable("o", "r", "CIRENDER_SCHEDULE_ENABLED", options(github))).rejects.toBeInstanceOf(
+            ActionsCallError,
+        );
+    });
+
+    it("updates an existing variable with one PATCH and never falls through to create", async () => {
+        const github = new RecordingGitHub().on("PATCH", "/actions/variables/CIRENDER_SCHEDULE_CADENCE", {
+            status: 204,
+        });
+        await writeRepositoryVariable("o", "r", "CIRENDER_SCHEDULE_CADENCE", "daily", options(github));
+        expect(github.countOf("/actions/variables/CIRENDER_SCHEDULE_CADENCE", "PATCH")).toBe(1);
+        expect(github.countOf("/actions/variables", "POST")).toBe(0);
+        expect(JSON.parse(github.calls[0]?.body ?? "{}")).toEqual({ value: "daily" });
+    });
+
+    it("creates the variable when the update 404s, because it does not exist yet", async () => {
+        const github = new RecordingGitHub()
+            .on("PATCH", "/actions/variables/CIRENDER_SCHEDULE_CADENCE", {
+                status: 404,
+                json: { message: "Not Found" },
+            })
+            .on("POST", "/actions/variables", { status: 201 });
+        await writeRepositoryVariable("o", "r", "CIRENDER_SCHEDULE_CADENCE", "daily", options(github));
+        expect(github.countOf("/actions/variables/CIRENDER_SCHEDULE_CADENCE", "PATCH")).toBe(1);
+        expect(github.countOf("/actions/variables", "POST")).toBe(1);
+        const created = github.calls.find((call) => call.method === "POST");
+        expect(JSON.parse(created?.body ?? "{}")).toEqual({ name: "CIRENDER_SCHEDULE_CADENCE", value: "daily" });
+    });
+
+    it("refuses rather than silently doing nothing when creating fails too", async () => {
+        const github = new RecordingGitHub()
+            .on("PATCH", "/actions/variables/CIRENDER_SCHEDULE_CADENCE", {
+                status: 404,
+                json: { message: "Not Found" },
+            })
+            .on("POST", "/actions/variables", { status: 403, json: { message: "Resource not accessible" } });
+        await expect(
+            writeRepositoryVariable("o", "r", "CIRENDER_SCHEDULE_CADENCE", "daily", options(github)),
+        ).rejects.toBeInstanceOf(ActionsCallError);
     });
 });

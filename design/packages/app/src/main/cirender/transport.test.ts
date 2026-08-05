@@ -395,3 +395,79 @@ describe("the transfer is route-aware, and both routes obey the same release rul
         expect((await gh.readRepository(OWNER, REPO)).private).toBe(false);
     });
 });
+
+describe("scheduled render: repository variables, on both routes", () => {
+    it("reads a set variable's value", async () => {
+        const github = new RecordingGitHub().on("GET", "/actions/variables/CIRENDER_SCHEDULE_CADENCE", {
+            status: 200,
+            json: { name: "CIRENDER_SCHEDULE_CADENCE", value: "daily" },
+        });
+        const session = sessionTransport({ fetch: github.fetch, token: TOKEN, apiBase: API });
+        const gh = ghTransport({
+            runner: readyGh({
+                "actions/variables/CIRENDER_SCHEDULE_CADENCE": { stdout: JSON.stringify({ value: "daily" }) },
+            }),
+        });
+
+        expect(await session.readVariable(OWNER, REPO, "CIRENDER_SCHEDULE_CADENCE")).toBe("daily");
+        expect(await gh.readVariable(OWNER, REPO, "CIRENDER_SCHEDULE_CADENCE")).toBe("daily");
+    });
+
+    it("reads null, not a refusal, for a variable that was never set", async () => {
+        const github = new RecordingGitHub().on("GET", "/actions/variables/CIRENDER_SCHEDULE_CADENCE", {
+            status: 404,
+            json: { message: "Not Found" },
+        });
+        const session = sessionTransport({ fetch: github.fetch, token: TOKEN, apiBase: API });
+        const gh = ghTransport({
+            runner: readyGh({
+                "actions/variables/CIRENDER_SCHEDULE_CADENCE": {
+                    code: 1,
+                    stderr: "gh: Not Found (HTTP 404)",
+                },
+            }),
+        });
+
+        expect(await session.readVariable(OWNER, REPO, "CIRENDER_SCHEDULE_CADENCE")).toBeNull();
+        expect(await gh.readVariable(OWNER, REPO, "CIRENDER_SCHEDULE_CADENCE")).toBeNull();
+    });
+
+    it("updates an existing variable with PATCH, on both routes", async () => {
+        const github = new RecordingGitHub().on("PATCH", "/actions/variables/CIRENDER_SCHEDULE_ENABLED", {
+            status: 204,
+        });
+        const session = sessionTransport({ fetch: github.fetch, token: TOKEN, apiBase: API });
+        await session.writeVariable(OWNER, REPO, "CIRENDER_SCHEDULE_ENABLED", "true");
+        expect(github.countOf("/actions/variables/CIRENDER_SCHEDULE_ENABLED", "PATCH")).toBe(1);
+        expect(github.countOf("/actions/variables", "POST")).toBe(0);
+
+        const runner = readyGh({
+            "actions/variables/CIRENDER_SCHEDULE_ENABLED": { code: 0, stdout: "" },
+        });
+        const gh = ghTransport({ runner });
+        await gh.writeVariable(OWNER, REPO, "CIRENDER_SCHEDULE_ENABLED", "true");
+        const patchCall = runner.calls.find((call) => call.args.includes("-X") && call.args.includes("PATCH"));
+        expect(patchCall).toBeDefined();
+    });
+
+    it("falls back to creating the variable when the update 404s, on both routes", async () => {
+        const github = new RecordingGitHub()
+            .on("PATCH", "/actions/variables/CIRENDER_SCHEDULE_ENABLED", {
+                status: 404,
+                json: { message: "Not Found" },
+            })
+            .on("POST", "/actions/variables", { status: 201 });
+        const session = sessionTransport({ fetch: github.fetch, token: TOKEN, apiBase: API });
+        await session.writeVariable(OWNER, REPO, "CIRENDER_SCHEDULE_ENABLED", "true");
+        expect(github.countOf("/actions/variables/CIRENDER_SCHEDULE_ENABLED", "PATCH")).toBe(1);
+        expect(github.countOf("/actions/variables", "POST")).toBe(1);
+
+        const runner = readyGh({
+            "actions/variables/CIRENDER_SCHEDULE_ENABLED": { code: 1, stderr: "gh: Not Found (HTTP 404)" },
+            "actions/variables": { code: 0, stdout: "" },
+        });
+        const gh = ghTransport({ runner });
+        await gh.writeVariable(OWNER, REPO, "CIRENDER_SCHEDULE_ENABLED", "true");
+        expect(runner.calls.some((call) => call.args.includes("POST"))).toBe(true);
+    });
+});
