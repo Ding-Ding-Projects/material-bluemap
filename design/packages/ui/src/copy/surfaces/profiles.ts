@@ -186,6 +186,24 @@ export const PROFILES_FIXED = {
         yue: "呢張地圖或者伺服器做到啲咩",
     },
     "servers.menuOpen": { en: "Open this map", yue: "開呢張地圖" },
+    // The handler's Enter / Space pair is assembled from code constants, so the catalogue
+    // translates the surrounding placeholder without inventing a different shortcut.
+    "servers.key.open": { en: "{keys}", yue: "{keys}" },
+    /*
+     * The keys shown beside that command, and the one entry in this file that deliberately
+     * says nothing.
+     *
+     * The keys themselves are `ROW_OPEN_KEY` and `ROW_OPEN_ALT_KEY` in `ProfileManager.vue`,
+     * beside the handler that answers to them, and they arrive here as `{keys}`. Writing
+     * "Enter / Space" out on this side would look like the obvious thing and would be the
+     * bug the hint exists to prevent: this catalogue wins over the call site's fallback, so
+     * the day somebody changes the handler the menu would keep confidently printing the old
+     * key, in both languages, with nothing to say it had stopped being true.
+     *
+     * A key name would be byte-identical in the two languages anyway. Translating "Enter"
+     * gives a reader a key that is not on the keyboard in front of them.
+     */
+    "servers.key.open": { en: "{keys}", yue: "{keys}" },
 
     /* Adding a remote server, at the bottom of the card. */
     "servers.nameLabel": { en: "Name", yue: "名稱" },
