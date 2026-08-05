@@ -1074,12 +1074,38 @@ instead of a second pipeline. Nothing in `ResourcePack`, `Pack` or the atlas-lay
   byte-for-byte fidelity the `*CommandSet.test.ts` contract tests check. The blob
   byte-fidelity this switch might have put at risk was itself re-proven against the real
   server before trusting the fix.
-- **Not proven: cross-compatibility with upstream's Java engine reading/writing the same
-  database.** MySQL/MariaDB/PostgreSQL are now proven against real Docker servers (see
-  above and `SqlStorage.realServer.test.ts`); cross-compatibility with a real JVM running
-  upstream's engine over the same database is the one item this still leaves open, and
-  needs a JVM run this environment does not have. See `ROADMAP.md`'s Phase H section for
-  exactly what is and is not covered.
+- **Cross-compatibility with upstream's Java engine reading/writing the same database —
+  proven, 2026-08-05 (`tools/oracle/sql-crosscompat.mjs`), issue #32's last open item.**
+  Against a real `mariadb:11.4.7` server: upstream's own CLI rendered the standard
+  1000×1000 oracle fixture straight into SQL storage and this port's `SQLStorage` read
+  every tile and render-state grid back byte-identical (961/961 hires, 24/24 lowres, both
+  metadata documents, and every deterministic render-state field — the wall-clock
+  render/update timestamps aside, which two separate render runs cannot share and
+  `diffRenderState` correctly excludes). This port's own engine then rendered the same
+  fixture into a second SQL database, and upstream's real CLI, running genuinely
+  webserver-only with no map ever loaded, served every one of those same tiles and
+  documents back byte-identical over real HTTP through its production
+  `MapStorageRequestHandler` raw-storage route. See `ROADMAP.md`'s Phase H section for the
+  full numbers.
+- **MariaDB Connector/J does not parse `jdbc:mariadb://user:password@host:port/db`
+  embedded userinfo credentials** — it misreads the `password@host` segment as the port
+  and fails with `SQLException: Incorrect port value`, confirmed against the real driver
+  and a real server. `mysql2` (this port's own driver for the `mariadb`/`mysql` dialects)
+  parses the identical URL shape correctly, so this is a genuine MariaDB Connector/J
+  behavior the cross-compatibility harness had to route around — upstream's own
+  `connection-properties` config field is exactly the documented escape hatch for it, so
+  the harness's generated upstream config carries a bare connection URL plus
+  `connection-properties` for credentials. No SQL storage code changed; this is a fact
+  about the Java driver upstream leaves users to supply, not about the port.
+- **SQLite and PostgreSQL are not cross-compatibility-proven the way MariaDB is.** They
+  share every code path the MariaDB proof exercises
+  (`SQLGridStorage`/`SQLItemStorage`/`AbstractCommandSet`), and both are independently
+  proven against real same-engine servers already (`SqlStorage.realServer.test.ts` for
+  PostgreSQL; the SQLite functional suite for SQLite) — but a genuine Java-CLI-vs-TS-port
+  run has not been done for either. Upstream ships no bundled JDBC driver for SQLite any
+  more than it does for MariaDB (`core/build.gradle.kts` depends on `commons-dbcp2` only),
+  so proving SQLite this way would need the same `driver-jar`/`driver-class` treatment
+  (e.g. `org.xerial:sqlite-jdbc`) MariaDB got here, not a shortcut.
 
 ## map/hires — the tile-model and the PRBM writer (Phase D wave 1)
 

@@ -5,6 +5,11 @@ tools/oracle/.gradle/
 tools/oracle/jdk/
 tools/oracle/out/
 
+# Resolved JDBC driver jars (tools/oracle/driver-fetch) - reproducible from
+# build.gradle.kts against Maven Central, never worth committing a binary jar for.
+tools/oracle/driver-fetch/build/
+tools/oracle/driver-fetch/.gradle/
+
 # Built artefacts of the vendored upstream source.
 vendor/BlueMap/**/build/
 vendor/BlueMap/.gradle/

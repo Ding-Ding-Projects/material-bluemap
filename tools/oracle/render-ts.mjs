@@ -68,8 +68,15 @@ function parseArgs(argv) {
         if (value === undefined) throw new Error(`missing value for --${name}`);
         options[name] = value;
     }
-    for (const required of ["engine", "world", "storage-root", "map-id"]) {
+    for (const required of ["engine", "world", "map-id"]) {
         if (options[required] === undefined) throw new Error(`--${required} is required`);
+    }
+    const storageDriver = options["storage-driver"] ?? "file";
+    if (storageDriver === "file" && options["storage-root"] === undefined) {
+        throw new Error("--storage-root is required when --storage-driver is 'file' (its default)");
+    }
+    if (storageDriver === "sql" && options["sql-connection-url"] === undefined) {
+        throw new Error("--sql-connection-url is required when --storage-driver is 'sql'");
     }
     return options;
 }
@@ -182,6 +189,57 @@ async function main() {
 }
 
 /**
+ * Builds the `Storage` the render below writes into — `FileStorage` by default (what
+ * `compare.mjs`/`tsEngine.mjs` have always used), or a real `SQLStorage` against a live
+ * server when `--storage-driver sql` is passed. This is issue #32's cross-compatibility
+ * proof's "TS writes" half: `tools/oracle/sql-crosscompat.mjs` drives this same script
+ * with `--storage-driver sql` so upstream's own Java CLI can then read the result back.
+ *
+ * @returns {Promise<{storage: object, mapDirectory: string|null}>}
+ */
+async function buildStorage(engine, options) {
+    const { Compression } = engine;
+    const driver = options["storage-driver"] ?? "file";
+
+    if (driver === "file") {
+        const { FileStorage } = engine;
+        const storageRoot = resolve(options["storage-root"]);
+        const storage = new FileStorage(storageRoot, Compression.GZIP, false);
+        await storage.initialize();
+        return { storage, mapDirectory: join(storageRoot, options["map-id"]) };
+    }
+
+    if (driver === "sql") {
+        const { SQLStorage, Database, resolveDialect } = engine;
+        const dialect = resolveDialect(options["sql-dialect"] ?? null, options["sql-connection-url"]);
+        const connectionProperties =
+            options["sql-connection-properties"] !== undefined
+                ? JSON.parse(options["sql-connection-properties"])
+                : {};
+        const maxConnections =
+            options["sql-max-connections"] !== undefined ? Number(options["sql-max-connections"]) : -1;
+        const driverAdapter = await dialect.createDriverAdapter({
+            connectionUrl: options["sql-connection-url"],
+            connectionProperties,
+            maxConnections,
+        });
+        const database = new Database(driverAdapter);
+        const commandSet = dialect.createCommandSet(database);
+        const compressionKey = (options["sql-compression"] ?? "gzip").toUpperCase();
+        const compression = Compression[compressionKey];
+        if (compression === undefined)
+            throw new Error(`unknown --sql-compression '${options["sql-compression"]}'`);
+        const storage = new SQLStorage(commandSet, compression);
+        await storage.initialize();
+        // no filesystem path exists for a real database - the caller reads the map back
+        // through its own connection instead of walking a directory
+        return { storage, mapDirectory: null };
+    }
+
+    throw new Error(`unknown --storage-driver '${driver}' (expected 'file' or 'sql')`);
+}
+
+/**
  * The render itself.
  *
  * Deliberately written against upstream's own names and call-shapes — `ResourcePack`,
@@ -197,8 +255,6 @@ async function render(engine, options) {
         ZipFileSystem,
         DirFileSystem,
         MCAWorld,
-        FileStorage,
-        Compression,
         BmMap,
         WorldRegionUpdateTask,
     } = engine;
@@ -215,7 +271,6 @@ async function render(engine, options) {
     const { Key, Vector2i } = shared;
 
     const worldDirectory = resolve(options.world);
-    const storageRoot = resolve(options["storage-root"]);
     const mapId = options["map-id"];
     const mapName = options["map-name"] ?? mapId;
     const dimension = Key.parse(options.dimension ?? "minecraft:overworld");
@@ -300,8 +355,7 @@ async function render(engine, options) {
     const world = await MCAWorld.load(worldDirectory, dimension, null, dataPack);
 
     // --- storage ---------------------------------------------------------------------
-    const storage = new FileStorage(storageRoot, Compression.GZIP, false);
-    await storage.initialize();
+    const { storage, mapDirectory } = await buildStorage(engine, options);
 
     // --- map -------------------------------------------------------------------------
     const settings = mapSettings(engine, shared, options);
@@ -342,11 +396,16 @@ async function render(engine, options) {
 
     await map.save();
 
+    // release the storage's connections (a no-op for FileStorage, a real pool shutdown
+    // for SQLStorage) before this process exits, rather than leaving a database
+    // connection pool to be reaped by process teardown
+    if (typeof storage.close === "function") await storage.close();
+
     // "chosen for rendering", not "rendered": a tile whose action is RENDER can still fail
     // its preconditions inside the task and be unrendered instead. Saying "rendered" here
     // would overstate by exactly the tiles the gate cares most about.
     process.stderr.write(`[ts] ${rendered} tile(s) chosen for rendering, ${deleted} deleted\n`);
-    return { mapDirectory: join(storageRoot, mapId), tiles: rendered };
+    return { mapDirectory, tiles: rendered };
 }
 
 /**

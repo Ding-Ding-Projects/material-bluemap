@@ -181,8 +181,10 @@ document says so.
   three. One real finding along the way: a real MySQL 8.4.6 server rejects a bound
   `LIMIT`/`OFFSET` parameter on mysql2's prepared-statement path (MariaDB does not);
   fixed in `MySqlDriver.ts` by switching to client-side query escaping for every
-  statement, with no SQL text changed. Cross-compatibility with upstream's real Java
-  engine reading/writing the same database still needs a JVM run nobody has done.
+  statement, with no SQL text changed. **Cross-compatibility with upstream's real Java
+  engine is now proven too, both directions, over a real `mariadb:11.4.7` server** — issue
+  #32's last open acceptance item, closed 2026-08-05. See the dated section below for the
+  real numbers.
 - **A Minecraft 1.12.2 world now draws correctly**, not just reads correctly.
   `packages/engine/src/world/mca/legacy/FlatteningRename.ts` translates a pre-flattening
   block name to its modern equivalent before a resource pack is consulted, fixing grass
@@ -204,10 +206,6 @@ document says so.
   exists and is tested in `packages/server`, but the CLI was mid-restructure when that
   landed, so the CLI still runs one real render under `-u` and then exits non-zero naming
   the gap, rather than joining the two.
-- **Cross-compatibility with upstream's Java engine** (a map the Java CLI wrote, read by
-  this port, and the reverse) needs a JVM run nobody has done. This is the one item left
-  open in issue #32's acceptance checklist — MySQL/MariaDB/PostgreSQL are now proven
-  against real Docker servers (see above).
 - **Phase C's exit criteria are still unproven** — `textures.json` parity, a real 1.12.2
   jar, live blockstate resolution. A plan was posted for this on 2026-08-05; as of this
   summary, no results have been reported yet.
@@ -324,6 +322,85 @@ further down for the wrong conclusion its absence produced.
    verified.
 4. Every change: run the tests, run the linter, commit with a message that says what
    actually changed, push, and check CI.
+
+---
+
+## Update, 2026-08-05 — issue #32's last open half: cross-compatibility with the real Java engine, proven, and closed
+
+Issue #32's own acceptance checklist had exactly one item left unchecked after the
+real-server pass below: **"Cross-compatibility is proven: a map written by upstream's
+Java engine ... is read correctly by this code, and a map written by this code is read
+correctly by upstream's."** This pass closes it. Issue #32 is now closed.
+
+**A real, shared `mariadb:11.4.7` Docker container**, the same tag `SqlStorage.realServer.test.ts`
+already validated, torn down (`docker rm -f`) the moment the proof was in hand — confirmed
+gone with `docker ps -a`. SQLite was deliberately not used for this proof even though it
+needs no server: upstream ships no bundled JDBC driver for SQLite any more than it does
+for MariaDB (`core/build.gradle.kts` depends only on `commons-dbcp2`), so it would have
+needed the exact same `driver-jar` treatment MariaDB got here, with none of the
+"MariaDB has no known driver-URL quirk after the MySQL prepared-statement finding" upside.
+
+**New file, committed and re-runnable: `tools/oracle/sql-crosscompat.mjs`.** Reuses the
+oracle harness's existing machinery (`lib/javaOracle.mjs` for building/finding the CLI jar
+and generating the fixture world, `lib/renderstate.mjs`'s `diffRenderState` for
+render-state comparison, `lib/diff.mjs` for byte/json diffing) rather than reinventing it.
+`tools/oracle/render-ts.mjs` (the TS-engine render driver `compare.mjs` already used) grew
+a `--storage-driver sql` mode alongside its existing file-storage default, so the same
+script now drives both storage backends. A small standalone Gradle project,
+`tools/oracle/driver-fetch/` (not part of the vendored `vendor/BlueMap` tree), resolves
+the MariaDB Connector/J 3.5.3 driver jar from Maven Central through the oracle's own
+`GRADLE_USER_HOME` — canonical upstream tooling, the same way the CLI jar itself is built.
+
+**Direction 1, Java writes into SQL storage, this port reads it back** — the standard
+oracle fixture world at the gate's own default size (seed 1, 1000×1000, the same world
+`compare.mjs` renders for Phase D): upstream's real CLI rendered it straight into SQL
+storage; this port's real `SQLStorage`, over a real `mysql2` connection, read every tile
+and render-state grid back and compared it against a Java-rendered file-storage control
+of the identical world. **961/961 hires tiles, 24/24 lowres tiles (16+4+4 across the three
+LODs), both metadata documents (`settings.json`, `textures.json`), and `chunkState` (a
+content hash) all byte-identical after decompression.** `tileState`/`regionState` agreed
+on every deterministic field; the only difference was the wall-clock render/update
+timestamps two separately-run renders cannot share — correctly excluded via the same
+`diffRenderState` classification the Phase D gate already trusts, confirmed clean (0
+divergences) by re-running the comparison against the same already-written data after
+fixing a false positive in an earlier draft of the harness (see finding 2 below).
+
+**Direction 2, this port writes into SQL storage, Java reads it back** — the same fixture,
+rendered by the TS engine into a second SQL database on the same server. Upstream's own
+CLI, started genuinely webserver-only (`-w`, no `-r`, no map ever loaded — a map config
+with no `world:` key at all, since `MapConfig.world` is `@Nullable`), served straight out
+of that SQL storage through its real production code path,
+`MapStorageRequestHandler`'s raw-storage route. Every tile and metadata document fetched
+back over real HTTP: **961/961 hires tiles, 24/24 lowres tiles, both metadata documents,
+byte-identical to what the TS engine itself wrote.**
+
+**Two real findings, neither one a change to `packages/engine`'s SQL storage port:**
+
+1. MariaDB Connector/J does not accept `jdbc:mariadb://user:password@host:port/db`
+   embedded userinfo credentials (`mysql2` parses the identical shape fine) — it misreads
+   `password@host` as the port and fails `SQLException: Incorrect port value`. A genuine
+   MariaDB Connector/J behavior, confirmed against the real driver and server; upstream's
+   own `connection-properties` config field is the documented escape hatch, so the
+   harness's generated upstream config uses a bare connection URL plus
+   `connection-properties` for credentials instead. No port code touched.
+2. The harness's own first draft raw-byte-diffed `tileState`/`regionState` against the
+   separately-run file-storage control and reported false positives on every touched
+   region, because those grids carry real wall-clock timestamps that cannot match between
+   two independent render runs. Fixed by reusing `diffRenderState` from
+   `tools/oracle/lib/renderstate.mjs` — already relied on by `compare.mjs`'s own Phase D
+   gate and covered by `selftest.mjs` — instead of inventing a second, less-tested
+   comparison. Re-verified against the already-written data with 0 divergences after the
+   fix, without re-running the ~19-minute render.
+
+No `packages/engine` code changed. The SQL storage port worked correctly on its first
+genuine cross-engine test, in both directions — real evidence for the byte-fidelity claims
+`SqlStorage.realServer.test.ts` already made against a same-engine round trip.
+
+`ROADMAP.md`'s Phase H section and `docs/deviations.md`'s `storage/sql` section both carry
+the full account. `docs/deviations.md` also notes what remains unproven for completeness:
+a genuine Java-CLI-vs-TS-port cross-engine run specifically for SQLite or PostgreSQL
+(both independently proven against real same-engine servers already; neither has had this
+specific cross-engine treatment).
 
 ---
 

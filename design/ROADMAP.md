@@ -49,7 +49,7 @@ exclusions **S2 and S4 are withdrawn**; S1 and S3 still stand.
 | E | RenderManager worker pool, watch re-render, full HTTP routes + SSE, config schema (every option), standalone server CLI + Dockerfile | **Part done.** See below for the split |
 | F | Full options GUI (all settings, map wizard, storage editors, config import) | **Reachable, and it now opens on settings.** `App.vue` mounts the Material title bar, the world wizard, first-run setup and the settings surface. Three gaps closed: the preload never exposed the window controls (a frameless window with no minimise or close); only 6 of a map's 92 settings could reach a render; and (`5c810d0`) the editor opened on "Nothing is open yet" with no tabs once it resolved a real bridge, so it now opens on the config folder BlueMap already uses, or on BlueMap's defaults labelled as unsaved. Its controls were swept in `6b8ef7b`: registry-key selects no longer render blank against values BlueMap writes, and both colour fields use the continuous picker with alpha, kept true by `packages/config/test/controlPolicy.test.ts` |
 | G | Docker hosting GUI (dockerode instance manager) | Pending |
-| H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | **Part done.** SQL storages ported and proven against real MySQL/MariaDB/PostgreSQL servers (issue #32, see below; cross-compatibility with upstream's Java engine remains the one open item); command palette, marker editor, JS addon system, static export and the three.js upgrade remain Pending |
+| H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | **Part done.** SQL storages ported and proven against real MySQL/MariaDB/PostgreSQL servers, and now proven cross-compatible with upstream's real Java engine over a shared MariaDB database, both directions (issue #32, closed — see below); command palette, marker editor, JS addon system, static export and the three.js upgrade remain Pending |
 | I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending |
 | Contracts | Regex builder everywhere · full tab system · per-element appearance editors · EN/HK-Cantonese/bilingual + funny-level · super confirmation · local version history (see `docs/contracts/`) | Pages mounts the discovery searches, live-localized command palette, anchored changelog range picker, notification centre, and two-key gate. **Local version history landed for config folders** (`1b77779`, `docs/config-history.md`): an isolated git repository beside the app data directory, append-only including restore, a History tab, and trim behind the two-key gate. **Projects joined it on 2026-08-04** (`f4d3abd`, `packages/app/src/main/project/history.ts`), under their own repository root so one repository never mirrors two folders. **Server profiles and application settings joined it on 2026-08-05** (issue #35, `profiles/history.ts` and `settings/history.ts`), each under their own repository root; the maps-and-servers list is covered by the same profiles history, per the issue's own text that it is one store viewed two ways. Remaining desktop-app contract work is tracked in the open issues |
 | Pages | Material 3 GitHub Pages shell, tabbed discovery, repository-backed changelog, command palette, notification centre and responsive documentation surface | **Built and locally verified; the newest hosted proof is still a Pages deployment, not a CI verdict.** The site adds every-rendered-element appearance coverage, dynamic per-group discovery searches, searchable tab/group/overflow menus with adjacent builders, cross-platform config line-ending preservation, and a site-owned super-confirmation gate for notification clearing, tab closes, group removal and bulk-close actions (`2ba959d`). The desktop app now also has a `Publish to Pages` tab (`22b475a`, `e7bd403`) with preflight size/limit facts, guarded branch ownership, live-only status, durable resume checkpoints, recorded-site status refresh and a two-key stop-hosting gate. The screenshot harness captures it and refuses stale UI/main/preload bundles (`54559eb`). Local continuation verification is **381 files, 6,174 passed, 3 skipped** before this follow-up; the Pages host now adds 37 main-process tests for resume and refresh. Site typecheck/build and repository lint remain required. Pages run `30949965713` succeeded for `ecc5168` and run `30943812059` succeeded for `80369ec`, whose live site returned 200 with the menu-search, regex-builder, appearance-coverage and dynamic-group-search markers. The exact latest CI `30960216270` and Pages `30960216143` runs for `54559eb` remain pending. The `site` package contributes 132 of the workspace's tests. A runtime/headless capture of the live site remains a separate boundary |
@@ -472,13 +472,68 @@ against the real server) for every statement instead of `execute()`, which resol
 on both MySQL and MariaDB without touching any SQL text — see the doc comment on
 `MySqlDriverAdapter` for the full account.
 
+**Cross-compatibility with upstream's Java engine — proven, 2026-08-05, issue #32's last
+open acceptance item, closed.** `tools/oracle/sql-crosscompat.mjs`, both directions,
+against a real `mariadb:11.4.7` Docker container (the same tag `SqlStorage.realServer.test.ts`
+already validated), the standard oracle fixture world at the gate's own default size
+(seed 1, 1000×1000 — the same world `compare.mjs` renders for the Phase D gate):
+
+- **Java writes, TS reads.** Upstream's own CLI (`vendor/BlueMap/implementations/cli`
+  built unmodified) rendered the fixture straight into SQL storage
+  (`storage-type: sql`, `dialect: mariadb`, a real MariaDB Connector/J 3.5.3 driver jar
+  resolved from Maven Central via `tools/oracle/driver-fetch`). This port's `SQLStorage`
+  then read every tile and render-state grid back out over a real `mysql2` connection and
+  compared it against a Java-rendered **file storage** control of the identical world:
+  **961/961 hires tiles**, **24/24 lowres tiles** (16 + 4 + 4 across the three LODs), and
+  both metadata documents (`settings.json`, `textures.json`) byte-identical after
+  decompression. `chunkState` (a content hash, not a clock reading) byte-identical too.
+  `tileState` and `regionState` agreed on every deterministic field and differed only in
+  their wall-clock render/update timestamps — expected and correctly excluded, using the
+  same `diffRenderState` classification `compare.mjs`'s own Phase D gate already uses (see
+  `tools/oracle/lib/renderstate.mjs`), not a relaxed or invented comparison.
+- **TS writes, Java reads.** This port's engine rendered the same fixture into a second
+  SQL database on the same server. Upstream's own CLI, started in genuine
+  **webserver-only** mode (`-w`, no `-r`, no map ever loaded) and configured to serve
+  straight out of that SQL storage, served every tile and metadata document back over real
+  HTTP through its actual production code path (`MapStorageRequestHandler`'s raw-storage
+  route — the same one a real deployment uses to serve a map nobody currently has loaded).
+  **961/961 hires tiles**, **24/24 lowres tiles**, both metadata documents: byte-identical
+  to what the TS engine itself wrote, fetched back through upstream's real Java.
+
+**Two real findings, both resolved without touching `packages/engine`'s SQL storage
+port:**
+
+1. **MariaDB Connector/J does not accept `jdbc:mariadb://user:password@host:port/db`
+   embedded userinfo credentials** — the exact URL shape this port's own `mysql2` adapter
+   (and MySQL Connector/J) parse correctly — misreading the whole `password@host` segment
+   as the port and failing with `SQLException: Incorrect port value`. Confirmed against
+   the real driver and a real server, not assumed. This is a genuine MariaDB
+   Connector/J behavior, not a port bug: upstream's own `SQLConfig` documents exactly the
+   escape hatch for it (`connection-properties`, a `Map<String,String>` merged into the
+   JDBC `Properties` object), so the harness's generated upstream config uses a bare
+   connection URL plus `connection-properties` for credentials. No SQL storage code
+   changed.
+2. **A raw byte-diff of `tileState`/`regionState` against a separately-run control render
+   is the wrong comparison**, and produces false positives — caught on the harness's own
+   first live run, not shipped unnoticed. Both grids embed real wall-clock render/update
+   timestamps (upstream: `WorldRegionUpdateTask.java`,
+   `(int) (System.currentTimeMillis() / 1000)`), which two independently-run renders
+   cannot share. Fixed in the harness (`tools/oracle/sql-crosscompat.mjs`), not the port:
+   it now reuses `diffRenderState` from `tools/oracle/lib/renderstate.mjs` — the same
+   module the Phase D gate already uses and `selftest.mjs` already covers — instead of a
+   new, less-tested comparison.
+
 **Not proven — stated rather than glossed over:**
 
-- **Cross-compatibility with upstream's Java engine** — a map upstream's CLI wrote into
-  SQLite (or MySQL/PostgreSQL) read correctly by this port, and the reverse — which needs
-  a JVM run this environment does not have. The schema and every statement are
-  transcribed exactly from the Java source so that this *should* hold; "should" is
-  deliberate, not "does". This is issue #32's one remaining open acceptance item.
+- **Cross-compatibility for the SQLite and PostgreSQL dialects specifically.** The MariaDB
+  proof above exercises the same `SQLGridStorage`/`SQLItemStorage`/`AbstractCommandSet`
+  code paths every dialect shares, and MySQL/MariaDB/PostgreSQL are already proven
+  against real servers independently (above) — but a Java-CLI-vs-TS-port cross-engine run
+  specifically for SQLite or PostgreSQL has not been done. SQLite is not "free" for this
+  the way it is for the same-engine tests: upstream ships no bundled SQLite JDBC driver
+  either (`core/build.gradle.kts` depends on `commons-dbcp2` only), so proving it would
+  need the same `driver-jar`/`driver-class` treatment MariaDB got here (e.g.
+  `org.xerial:sqlite-jdbc`), not a "just works, no server needed" shortcut.
 - **`driver-jar`/`driver-class`** (a custom JDBC driver jar): there is no javascript
   equivalent of loading an arbitrary classpath jar at runtime, so `StorageFactory` refuses
   a config that sets either, by name, rather than silently ignoring the setting.
