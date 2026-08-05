@@ -949,6 +949,17 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  * on screen - and where there is one, showing it faintly through a form is worse than not
  * showing it at all - so a translucent panel would read as a rendering fault rather than as
  * a surface. Also the options editor's host, where it covers the whole shell.
+ *
+ * `padding-inline-start` reserves a permanent gutter the width of `.mb-shell-fabs` (12px
+ * inset + 48px button = 60px, plus 16px of breathing room) below. `.mb-shell-fabs` is
+ * `position: fixed`, so it always paints over whatever this host has scrolled to; without
+ * this, any heading or paragraph that starts flush at the left edge could land in the same
+ * fixed viewport band as an opaque button and lose its leading characters underneath it -
+ * confirmed across nine screenshots, the worst of them a radio button sitting under the
+ * gear icon at higher display scales. The gutter runs the container's whole scrollable
+ * height rather than only its top, because scrolling can carry any part of the content
+ * into that fixed band, not only whatever is on screen when it first opens. `.mb-shell-fab`
+ * below is the 48px this number must never drift under.
  */
 .mb-world-host {
     position: absolute;
@@ -956,6 +967,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     overflow-y: auto;
     overscroll-behavior: contain;
     background: rgb(var(--v-theme-background));
+    padding-inline-start: calc(76px + env(safe-area-inset-left, 0px));
 }
 
 /* The maps-and-servers card has its own width, so its page centres it rather than stretching it. */
