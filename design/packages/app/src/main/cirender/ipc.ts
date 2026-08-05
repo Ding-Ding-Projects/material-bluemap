@@ -33,6 +33,10 @@
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import type { FetchLike, RepositoryReport } from "../backup/index.js";
 import type { LocalMapHandler } from "../render/LocalMapHandler.js";
+import { RENDER_WORKFLOW_FILE } from "./actions.js";
+import { nodeProcessRunner } from "./gh.js";
+import { isCiScheduleCadence, readCiSchedule, writeCiSchedule } from "./schedule.js";
+import type { CiScheduleStatus, CiScheduleWriteResult } from "./schedule.js";
 import { CiRenderSync } from "./sync.js";
 import type {
     BackupSurface,
@@ -44,7 +48,8 @@ import type {
 } from "./sync.js";
 import type { CiSyncState } from "./state.js";
 import type { ProcessRunner } from "./gh.js";
-import type { CiRoute } from "./transport.js";
+import { resolveTransport } from "./transport.js";
+import type { CiRoute, CiTransport, RouteReport } from "./transport.js";
 import { checkCiRepositoryNameAvailability, listCiOwnerChoices, suggestCiRepositoryName } from "./setup.js";
 import type { CiOwnerChoicesAnswer, CiRepositoryNameAvailability } from "./setup.js";
 
@@ -65,6 +70,10 @@ export const CIRENDER_CHANNELS = [
     "cirender:owners",
     "cirender:suggestRepoName",
     "cirender:checkRepoName",
+    // Scheduled re-rendering's own configuration screen: reading
+    // .github/workflows/scheduled-render.yml's last report, and turning it on or off.
+    "cirender:scheduleRead",
+    "cirender:scheduleWrite",
 ] as const;
 
 export interface CiRenderIpcOptions {
@@ -291,6 +300,76 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                     ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
                 },
             );
+        },
+    );
+
+    // Resolves a credential the same way `sync.ts`'s `#resolveRoute` does, for the two
+    // schedule channels below - a separate small resolution rather than reaching into
+    // `CiRenderSync`'s private method, since neither channel drives a sync loop.
+    const resolveScheduleTransport = async (
+        owner: string,
+        repo: string,
+        accountId: string | null,
+    ): Promise<{ transport: CiTransport | null; report: RouteReport }> =>
+        await resolveTransport({
+            owner,
+            repo,
+            workflowFile: RENDER_WORKFLOW_FILE,
+            token: await options.token(accountId ?? undefined),
+            account: (await options.account?.(accountId ?? undefined)) ?? null,
+            fetch: options.fetch ?? ((url, init) => fetch(url, init)),
+            runner: options.runner ?? nodeProcessRunner(),
+            ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
+            ...(options.uploadsBase === undefined ? {} : { uploadsBase: options.uploadsBase }),
+        });
+
+    options.ipcMain.handle(
+        "cirender:scheduleRead",
+        async (
+            _event: IpcMainInvokeEvent,
+            request: { owner?: unknown; repo?: unknown; accountId?: unknown } | undefined,
+        ): Promise<Answer<CiScheduleStatus>> => {
+            const owner = readText(request?.owner);
+            const repo = readText(request?.repo);
+            if (owner === null || repo === null) {
+                return { ok: false, message: "A repository owner and name are required." };
+            }
+            try {
+                const routed = await resolveScheduleTransport(owner, repo, readText(request?.accountId));
+                if (routed.transport === null) return { ok: false, message: routed.report.describe };
+                return { ok: true, value: await readCiSchedule(routed.transport, owner, repo) };
+            } catch (error) {
+                return { ok: false, message: sentence(error) };
+            }
+        },
+    );
+
+    options.ipcMain.handle(
+        "cirender:scheduleWrite",
+        async (_event: IpcMainInvokeEvent, request: unknown): Promise<Answer<CiScheduleWriteResult>> => {
+            const record = typeof request === "object" && request !== null ? (request as Record<string, unknown>) : {};
+            const syncId = readText(record["syncId"]);
+            const cadence = readText(record["cadence"]);
+            const enabled = record["enabled"] === true;
+            if (syncId === null || cadence === null || !isCiScheduleCadence(cadence)) {
+                return {
+                    ok: false,
+                    message:
+                        "A sync id and a cadence - hourly, sixHourly, daily or weekly - are required.",
+                };
+            }
+            const state = await sync.readState(syncId);
+            if (state === null) {
+                return { ok: false, message: `There is no CI render recorded under ${syncId}.` };
+            }
+            try {
+                const routed = await resolveScheduleTransport(state.owner, state.repo, readText(record["accountId"]));
+                if (routed.transport === null) return { ok: false, message: routed.report.describe };
+                const result = await writeCiSchedule(routed.transport, state, { enabled, cadence });
+                return { ok: true, value: result };
+            } catch (error) {
+                return { ok: false, message: sentence(error) };
+            }
         },
     );
 

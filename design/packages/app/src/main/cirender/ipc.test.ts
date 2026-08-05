@@ -518,3 +518,136 @@ describe("the setup card's own three channels", () => {
         expect(github.calls).toHaveLength(0);
     });
 });
+
+describe("cirender:scheduleRead and cirender:scheduleWrite", () => {
+    it("scheduleRead answers a disabled, never-configured status when nothing is set", async () => {
+        const github = new RecordingGitHub()
+            .on("GET", /\/actions\/workflows\/render-world\.yml$/, {
+                status: 200,
+                json: { id: 1, name: "Render world", state: "active", path: "x" },
+            })
+            .on("GET", /\/actions\/variables\//, { status: 404, json: { message: "Not Found" } });
+        const { ipcMain } = install({ github, isPrivate: true });
+
+        const answer = (await (ipcMain.handlers.get("cirender:scheduleRead") as Handler)(noEvent, {
+            owner: OWNER,
+            repo: REPO,
+        })) as { ok: true; value: { enabled: boolean; cadence: string | null } };
+
+        expect(answer.ok).toBe(true);
+        expect(answer.value.enabled).toBe(false);
+        expect(answer.value.cadence).toBeNull();
+    });
+
+    it("scheduleRead refuses with a repository owner and name required, when neither is given", async () => {
+        const { ipcMain } = install();
+        const answer = (await (ipcMain.handlers.get("cirender:scheduleRead") as Handler)(noEvent, {})) as {
+            ok: boolean;
+            message: string;
+        };
+        expect(answer.ok).toBe(false);
+        expect(answer.message).toContain("repository owner and name");
+    });
+
+    it("scheduleWrite refuses an unrecognised cadence rather than writing a cron string through", async () => {
+        const { ipcMain } = install();
+        const answer = (await (ipcMain.handlers.get("cirender:scheduleWrite") as Handler)(noEvent, {
+            syncId: "whatever",
+            enabled: true,
+            cadence: "0 * * * *",
+        })) as { ok: boolean; message: string };
+        expect(answer.ok).toBe(false);
+        expect(answer.message).toContain("cadence");
+    });
+
+    it("scheduleWrite refuses for a sync id with no recorded state", async () => {
+        const { ipcMain } = install();
+        const answer = (await (ipcMain.handlers.get("cirender:scheduleWrite") as Handler)(noEvent, {
+            syncId: "no-such-sync",
+            enabled: true,
+            cadence: "daily",
+        })) as { ok: boolean; message: string };
+        expect(answer.ok).toBe(false);
+        expect(answer.message).toContain("no-such-sync");
+    });
+
+    it("scheduleWrite turns scheduling on and writes the derived release-asset world, for a synced world", async () => {
+        const github = new RecordingGitHub()
+            .on("GET", /\/actions\/workflows\/render-world\.yml$/, {
+                status: 200,
+                json: { id: 1, name: "Render world", state: "active", path: "x" },
+            })
+            .on("PATCH", /\/actions\/variables\//, { status: 404, json: { message: "Not Found" } })
+            .on("POST", /\/actions\/variables$/, { status: 201 });
+        const { ipcMain } = install({ github, isPrivate: true });
+
+        const syncId = syncIdFor(OWNER, REPO, world, "world");
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
+        const state = {
+            ...newCiSyncState({
+                syncId,
+                owner: OWNER,
+                repo: REPO,
+                worldFolder: world,
+                mapId: "world",
+                mapName: "World",
+                dimension: "minecraft:overworld",
+                at: "2026-08-01T00:00:00Z",
+            }),
+            releaseTag: "mbm-ci-world-2026-08-01T00-00-00Z",
+            assetName: "world.zip",
+        };
+        await writeCiSyncState(workspace.stateFile, state);
+
+        const answer = (await (ipcMain.handlers.get("cirender:scheduleWrite") as Handler)(noEvent, {
+            syncId,
+            enabled: true,
+            cadence: "daily",
+        })) as { ok: true; value: { ok: boolean } };
+
+        expect(answer.ok).toBe(true);
+        expect(answer.value.ok).toBe(true);
+
+        const worldWrite = github.calls.find(
+            (call) => call.method === "POST" && call.url.includes("/actions/variables") && call.body?.includes("CIRENDER_SCHEDULE_WORLD\""),
+        );
+        expect(worldWrite).toBeDefined();
+        expect(JSON.parse(worldWrite?.body ?? "{}")).toEqual({
+            name: "CIRENDER_SCHEDULE_WORLD",
+            value: "mbm-ci-world-2026-08-01T00-00-00Z/world.zip",
+        });
+    });
+
+    it("scheduleWrite refuses to enable scheduling for a world that has never been uploaded", async () => {
+        const github = new RecordingGitHub().on("GET", /\/actions\/workflows\/render-world\.yml$/, {
+            status: 200,
+            json: { id: 1, name: "Render world", state: "active", path: "x" },
+        });
+        const { ipcMain } = install({ github, isPrivate: true });
+
+        const syncId = syncIdFor(OWNER, REPO, world, "world");
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
+        const state = newCiSyncState({
+            syncId,
+            owner: OWNER,
+            repo: REPO,
+            worldFolder: world,
+            mapId: "world",
+            mapName: "World",
+            dimension: "minecraft:overworld",
+            at: "2026-08-01T00:00:00Z",
+        });
+        await writeCiSyncState(workspace.stateFile, state);
+
+        const answer = (await (ipcMain.handlers.get("cirender:scheduleWrite") as Handler)(noEvent, {
+            syncId,
+            enabled: true,
+            cadence: "daily",
+        })) as { ok: true; value: { ok: boolean; failure?: { code: string } } };
+
+        expect(answer.ok).toBe(true);
+        expect(answer.value.ok).toBe(false);
+        expect(answer.value.failure?.code).toBe("not-uploaded-yet");
+        expect(github.never("/actions/variables")).toBe(true);
+    });
+});

@@ -31,7 +31,7 @@ import type { CiScheduleCadence } from "@material-bluemap/render-actions";
 import type { CiTransport } from "./transport.js";
 import type { CiSyncState } from "./state.js";
 
-export { CI_SCHEDULE_CADENCES };
+export { CI_SCHEDULE_CADENCES, isCiScheduleCadence };
 export type { CiScheduleCadence };
 
 /** Every repository variable this feature reads or writes, named once. */
