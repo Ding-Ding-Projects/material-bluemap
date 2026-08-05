@@ -1,11 +1,13 @@
-import { mkdir } from "node:fs/promises";
-import { basename } from "node:path";
+import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { basename, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Key } from "@material-bluemap/shared";
 import type { PNG } from "pngjs";
 import { TextureGallery } from "../src/map/TextureGallery.js";
 import { MinecraftVersion } from "../src/resources/MinecraftVersion.js";
+import { VersionManifest } from "../src/resources/VersionManifest.js";
 import { parse } from "../src/resources/adapter/JsonMapper.js";
 import { PackVersion } from "../src/resources/pack/PackVersion.js";
 import { ResourcePack } from "../src/resources/pack/resourcepack/ResourcePack.js";
@@ -15,6 +17,9 @@ import { hashToFloat } from "../src/resources/pack/resourcepack/blockstate/Varia
 import { Model } from "../src/resources/pack/resourcepack/model/Model.js";
 import { DirFileSystem } from "../src/resources/pack/vfs/DirFileSystem.js";
 import { ZipFileSystem } from "../src/resources/pack/vfs/ZipFileSystem.js";
+import { buildZip } from "../src/resources/pack/vfs/zipTestUtil.js";
+import { LEGACY_RESOURCES_EXTENSION } from "../src/resources/pack/resourcepack/legacy/LegacyResourcePackExtension.js";
+import { flattenLegacyBlockState } from "../src/world/mca/legacy/FlatteningRename.js";
 import { Direction } from "../src/util/Direction.js";
 import { BlockState as WorldBlockState } from "../src/world/BlockState.js";
 import {
@@ -517,6 +522,286 @@ describe("Proof 2 — a real Minecraft client-jar resolves minecraft:grass_block
                 resolvedFaces++;
             }
             expect(resolvedFaces).toBe(faces.size);
+        },
+        LIVE_TIMEOUT_MS,
+    );
+});
+
+// #endregion
+// #region proof 4 — a real 1.12.2 client-jar through the legacy compat path (opt-in)
+
+/**
+ * Issue #31, check 2. Shares Proof 2's consent gate (`RUN_ENV`/`CONSENT_ENV`) rather than a
+ * separate pair — it is the same category of thing ("downloads a real client-jar from
+ * Mojang"), and asking a runner to set two different env-var pairs for the same kind of
+ * consent would be a second thing to get wrong for no safety benefit.
+ */
+const LEGACY_VERSION = "1.12.2";
+/** gitignored — see design/.gitignore. A Mojang jar is never committed. */
+const LEGACY_CLIENT_JAR_CACHE = fileURLToPath(
+    new URL("./.minecraft-client-cache-legacy/", import.meta.url),
+);
+
+if (!runRequested || !consentGiven) {
+    console.info(
+        `[resourcepack-e2e] Proof 4 (live Minecraft ${LEGACY_VERSION} client-jar, legacy ` +
+            `compat path) DID NOT RUN. It is opt-in: set ${RUN_ENV}=1 and ${CONSENT_ENV}=1 ` +
+            `to enable it.`,
+    );
+}
+
+describe("Proof 4 — a real 1.12.2 client-jar loads through LegacyResourcePackExtension", () => {
+    if (!runRequested || !consentGiven) {
+        it.skip(
+            `SKIPPED, NEVER RAN — this proof downloads the real Minecraft ${LEGACY_VERSION} ` +
+                `client-jar from Mojang. To run it set BOTH ${RUN_ENV}=1 and ${CONSENT_ENV}=1 ` +
+                `(${CONSENT_ENV}=1 means you accept Mojang's EULA and own a Minecraft Java ` +
+                `Edition licence). Currently ${RUN_ENV}=${process.env[RUN_ENV] ?? "<unset>"}, ` +
+                `${CONSENT_ENV}=${process.env[CONSENT_ENV] ?? "<unset>"}. ` +
+                `See packages/engine/README.md.`,
+            () => {
+                // intentionally empty — this body never runs
+            },
+        );
+        return;
+    }
+
+    it(
+        `downloads the ${LEGACY_VERSION} client-jar and resolves pre-flattening names`,
+        async () => {
+            await mkdir(LEGACY_CLIENT_JAR_CACHE, { recursive: true });
+
+            /*
+             * NOT `MinecraftVersion.load(LEGACY_VERSION, ...)` — that was tried first and it
+             * does not download a 1.12.2 jar at all. `MinecraftVersion.load` (faithfully
+             * porting the MODERN `MinecraftVersion.java`) clamps any requested id older than
+             * `EARLIEST_RESOURCEPACK_VERSION` ("1.13") up to that earliest version — so asking
+             * it for "1.12.2" silently hands back a **1.13** jar (pack_format 4, already
+             * flattened) instead. That is correct, faithful behaviour for upstream's *modern*
+             * pipeline (v5.22 never resolves a resource-pack older than 1.13 that way — real
+             * pre-flattening support was a separate branch, v0.10.3-mc1.12, that this port's
+             * `LegacyResourcePackExtension` reads models the way *that* branch did), but it
+             * means the modern accept-download flow this app actually ships is not the vehicle
+             * for obtaining a genuine 1.12.2 jar, which is exactly what this proof needs.
+             *
+             * So this downloads directly from the version manifest instead — same consent
+             * gate, same SHA-1 verification against the manifest's declared digest, same
+             * `VersionManifest`/`Version`/`Download` classes `MinecraftVersion.load` itself
+             * uses internally, just without the "clamp to 1.13" business rule that only makes
+             * sense for the modern render path.
+             */
+            const manifest = await VersionManifest.getOrFetch();
+            const version = manifest.getVersion(LEGACY_VERSION);
+            const detail = await version.fetchDetail();
+            const download = detail.getDownloads().getClient();
+
+            const jarPath = join(LEGACY_CLIENT_JAR_CACHE, `minecraft-client-${LEGACY_VERSION}.jar`);
+            const digest = createHash("sha1");
+            const chunks: Buffer[] = [];
+            for await (const chunk of await download.createInputStream()) {
+                digest.update(chunk);
+                chunks.push(Buffer.from(chunk));
+            }
+            const actualSha1 = digest.digest("hex");
+            // verified BEFORE the file is trusted or used for anything, same order
+            // `MinecraftVersion.ts`'s own `download()` enforces
+            expect(actualSha1).toBe(download.getSha1());
+            await writeFile(jarPath, Buffer.concat(chunks));
+
+            const cacheFs = new DirFileSystem(LEGACY_CLIENT_JAR_CACHE);
+            const jar = cacheFs.getRoot().resolve(basename(jarPath));
+            expect(await jar.isRegularFile()).toBe(true);
+
+            /*
+             * pack_format 3 (1.11–1.12.2), per LegacyPackFormat.ts's table — NOT read from
+             * the jar, because **a real Minecraft client jar carries no `pack.mcmeta` at
+             * all**. Checked directly: neither this 1.12.2 jar, nor the 1.21 jar Proof 2
+             * downloads, nor 26.2 (`tools/oracle/out/gate/bluemap-data/`) has one — `jar tf`
+             * on all three lists `pack.png` (the pack icon) but never `pack.mcmeta`. That
+             * file is how a *user-authored or user-downloaded resource pack* declares its
+             * format; the game's own bundled assets apparently never needed to declare a
+             * format to themselves, at any era this project has a jar for.
+             */
+            const jarZip = await ZipFileSystem.openFile(jarPath);
+            let jarHasPackMcmeta: boolean;
+            try {
+                jarHasPackMcmeta = await jarZip.getRootDirectories()[0]!.resolve("pack.mcmeta").exists();
+            } finally {
+                await jarZip.close();
+            }
+            expect(
+                jarHasPackMcmeta,
+                "a real Minecraft client jar does not carry pack.mcmeta — see this block's comment",
+            ).toBe(false);
+
+            const bareJarPack = new ResourcePack(new PackVersion(3, 0));
+            await bareJarPack.loadResources([jar]);
+
+            /*
+             * THE FINDING: `LegacyResourcePackExtension.isLegacy()` is gated entirely on
+             * `isLegacyPackRoot`, which reads `pack.mcmeta`'s `pack_format`
+             * (`LegacyPackFormat.ts`). Since the real client jar has no `pack.mcmeta` (just
+             * proven above), `isLegacyPackMeta` never sees a pre-flattening format — its own
+             * doc comment says a pack that declares no format "reads as modern" by design,
+             * specifically so a malformed-or-missing `pack.mcmeta` does not accidentally
+             * switch on the compat layer. So loading a BARE 1.12.2 client jar alone does
+             * NOT detect as legacy — this is asserted as `false`, not `true`, because that
+             * is what actually happens, and asserting the hoped-for answer here would hide
+             * exactly the gap issue #31 asked this proof to find.
+             *
+             * `LegacyResourcePackExtension.test.ts`'s own fixtures only ever exercised the
+             * `true` branch because they hand-write a `pack.mcmeta` into their synthetic
+             * pack — which a real client jar never has. The extension's unit coverage is
+             * real and correct for what it tests; what it never tested is what a real
+             * client jar actually looks like.
+             */
+            const bareJarExtension = bareJarPack.getExtension(LEGACY_RESOURCES_EXTENSION);
+            expect(bareJarExtension).not.toBeNull();
+            expect(bareJarExtension!.isLegacy()).toBe(false);
+
+            /*
+             * So: is the legacy compat path reachable with a real jar at all? Yes — the
+             * missing piece is exactly one file, `pack.mcmeta`, which BlueMap's own `packs/`
+             * folder mechanism exists to supply alongside a plain client jar (the same
+             * mechanism `resourceExtensions.zip` uses to layer bluemap's own assets on top
+             * of vanilla). This builds the smallest possible stand-in: a synthetic root
+             * containing *only* `pack.mcmeta` declaring `pack_format: 3`, mounted ahead of
+             * the real jar. It contributes no textures or models of its own — every asset
+             * below still comes from the genuine 1.12.2 jar — it only supplies the one
+             * signal `isLegacyPackRoot` needs.
+             */
+            const legacyManifestOnly = await ZipFileSystem.fromBuffer(
+                buildZip([
+                    { name: "pack.mcmeta", data: JSON.stringify({ pack: { pack_format: 3 } }) },
+                ]),
+                "legacy-manifest-only.zip",
+            );
+
+            const pack = new ResourcePack(new PackVersion(3, 0));
+            await pack.loadResources([...legacyManifestOnly.getRootDirectories(), jar]);
+
+            const legacyExtension = pack.getExtension(LEGACY_RESOURCES_EXTENSION);
+            expect(legacyExtension).not.toBeNull();
+            expect(
+                legacyExtension!.isLegacy(),
+                "with the synthetic pack.mcmeta supplied, the real jar's blockstates/models " +
+                    "should now go through the legacy compat path",
+            ).toBe(true);
+
+            /**
+             * Five pre-flattening blockstates, chosen to exercise everything
+             * LegacyResourcePackExtension does:
+             *
+             *  - "stone" / "dirt" / "oak_planks": each 1.12 blockstate names its model bare
+             *    ("stone", not "minecraft:block/stone") — proves `remapBlockModelReferences`.
+             *    ("oak_planks" replaces an originally-planned single "planks" blockstate
+             *    keyed on a `variant` property — checked directly against the real jar: 1.12.2
+             *    already splits wood species into separate per-species blockstate files
+             *    (`oak_planks.json`, `birch_planks.json`, ...), same as the modern pack. The
+             *    world-save format is what stayed unified as one numeric id with a species
+             *    metadata nibble until the 1.13 flattening; the resource-pack side had
+             *    already split it. `BlockIdMapper`/`blockIds.json` is what bridges the two.)
+             *  - "stone" additionally exercises `Variants.Adapter`'s pre-flattening "normal"
+             *    condition spelling resolving to an unconditional multi-option variant list
+             *    (four rotations of the same two models) — not just a single bare variant.
+             *  - "grass": era-correct here. Against a MODERN pack this exact name means the
+             *    grass tuft (the documented gap in design/HANDOFF.md and
+             *    tools/oracle/render-1-12.mjs's KNOWN_LEGACY_RENDER_GAPS) — against the real
+             *    1.12.2 pack it is the grass BLOCK, which is what this asserts.
+             *  - "snow_layer": the flattening removed this name entirely, so a modern pack
+             *    has no blockstate for it at all — the era-matched pack does.
+             *
+             * Each is asserted through to a real, non-missing, non-empty texture image —
+             * not just "a model was found" — because `remapBlockModelReferences` caching a
+             * resource onto the wrong path would still let `getResource()` return non-null.
+             */
+            const legacyBlocks: { id: string; properties?: Record<string, string> }[] = [
+                { id: "stone" },
+                { id: "dirt" },
+                { id: "oak_planks" },
+                // "grass" already keys on `snowy` in the REAL 1.12.2 pack — checked directly
+                // against the jar (assets/minecraft/blockstates/grass.json:
+                // "snowy=false"/"snowy=true"). `snowy` is supplied here the same way
+                // `SnowyExtension` (packages/engine/src/world/mca/legacy/extensions/) derives
+                // it when reading a real legacy chunk, since this test builds the
+                // world-BlockState directly rather than through a chunk reader.
+                { id: "grass", properties: { snowy: "false" } },
+                // "snow_layer" keys on `layers` (1-8) — checked directly against the jar too.
+                { id: "snow_layer", properties: { layers: "1" } },
+            ];
+
+            for (const { id, properties } of legacyBlocks) {
+                const resource = pack.getBlockStates().get(Key.minecraft(id));
+                expect(resource, `blockstate '${id}' should be defined by the 1.12.2 pack`).not.toBeNull();
+
+                const selected = selectAt(resource!, worldBlock(id, properties), 0, 0, 0);
+                expect(selected.length, `'${id}' should select exactly one variant`).toBe(1);
+
+                const model = selected[0]!.getModel().getResource((key) => pack.getModels().get(key));
+                expect(model, `'${id}' should resolve to a real model, not fall through to null`)
+                    .not.toBeNull();
+                expect(model!.getElements(), `'${id}' should have geometry`).not.toBeNull();
+
+                const faces = model!.getElements()![0]!.getFaces();
+                expect(faces.size, `'${id}' should have at least one face`).toBeGreaterThan(0);
+
+                for (const face of faces.values()) {
+                    const texturePath = face
+                        .getTexture()
+                        .getTexturePath((name) => model!.getTextures().get(name) ?? null);
+                    expect(texturePath, `'${id}' should resolve every face's texture variable`)
+                        .not.toBeNull();
+
+                    const texture = texturePath!.getResource((key) => pack.getTextures().get(key));
+                    expect(texture, `'${id}' should resolve to a real texture resource`).not.toBeNull();
+                    // a real vanilla texture, not bluemap's own missing-texture placeholder
+                    expect(texture!.getKey().getNamespace()).toBe(Key.MINECRAFT_NAMESPACE);
+
+                    const image = texture!.getTextureImage();
+                    expect(image.width).toBeGreaterThan(0);
+                    expect(image.height).toBeGreaterThan(0);
+                }
+            }
+
+            /*
+             * The other half of issue #31's check 2: "note how the era-matched path
+             * interacts with [the flattening rename table]". `grass` just resolved
+             * perfectly above, looked up DIRECTLY. But nothing in the render path looks it
+             * up directly — `BlockStateModelRenderer.ts` runs every block through
+             * `flattenLegacyBlockState` first whenever `block.isLegacy()` is true (gated on
+             * the WORLD chunk's era, not on which pack is loaded), unconditionally, so this
+             * reproduces exactly that call against the SAME era-matched `pack` used above.
+             */
+            const renamed = flattenLegacyBlockState(worldBlock("grass", { snowy: "false" }));
+            // the table renames it to "minecraft:grass_block" — a name that did not exist
+            // before the 1.13 flattening, so the era-matched (pre-flattening) pack has never
+            // heard of it
+            expect(renamed.getId().getFormatted()).toBe("minecraft:grass_block");
+
+            const renamedResource = pack.getBlockStates().get(renamed.getId());
+            /*
+             * THE FINDING: this is null. `flattenLegacyBlockState` is correct and necessary
+             * against the MODERN pack (it is the fix `render-1-12.mjs`'s now-empty
+             * `KNOWN_LEGACY_RENDER_GAPS` records), but firing it unconditionally — gated on
+             * the world's era rather than the resource pack's — means an era-matched render
+             * takes a name the pack already resolves correctly (proven above: bare "grass"
+             * has a real model and real texture in this exact pack) and rewrites it into one
+             * the pack has never heard of, right before the only lookup that matters.
+             * `BlockStateModelRenderer.ts` then does `if (stateResource == null) return;` —
+             * the block is not drawn with a missing-texture placeholder, it is skipped
+             * entirely, silently. `tools/oracle/render-1-12-era-matched.mjs`'s real render of
+             * this exact seed shows the matching symptom: no grass-family texture anywhere
+             * in the gallery, and `minecraft:blocks/dirt` at 72,258 vertices — the same "the
+             * ground is no longer occluded from above" signature design/HANDOFF.md recorded
+             * for the ORIGINAL modern-pack bug this table was written to fix.
+             */
+            expect(
+                renamedResource,
+                "flattenLegacyBlockState's output should NOT resolve in the era-matched " +
+                    "pack (it renamed an already-correct name into one that never existed " +
+                    "pre-flattening) — if this is no longer null, the interaction bug " +
+                    "described in this test has been fixed and this assertion should flip",
+            ).toBeNull();
         },
         LIVE_TIMEOUT_MS,
     );
