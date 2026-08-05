@@ -180,12 +180,22 @@ export interface DownloadBridge {
     activeDownloads(): Promise<readonly string[]>;
     listDownloads(): Promise<readonly DownloadSummary[]>;
     onDownloadEvent(listener: (event: DownloadEvent) => void): () => void;
+    /**
+     * Reads `owner/repo`, a URL or a release link into the same three fields a person
+     * would type. `null` when the text names no repository, which is what a field
+     * mid-keystroke says far more often than it names one - never a rejection, since this
+     * is called on every keystroke and an exception there is a crash, not a field that has
+     * not been filled in yet.
+     */
+    parseLink(text: string): Promise<ReleaseCoordinates | null>;
     /** True when a download in flight can actually be stopped from here. */
     readonly canCancel: boolean;
     /** True when downloads already on disk can be listed. */
     readonly canList: boolean;
     /** True when the ids in flight right now can be asked for. */
     readonly canSeeActive: boolean;
+    /** True when a pasted link can be resolved to an owner, a repository and a tag. */
+    readonly canParseLink: boolean;
 }
 
 /** The shape a preload is probed against, one method at a time. */
@@ -196,6 +206,7 @@ type Host = Partial<{
     activeDownloads: () => Promise<readonly string[]>;
     listDownloads: () => Promise<readonly DownloadSummary[]>;
     onDownloadEvent: (listener: (event: DownloadEvent) => void) => () => void;
+    parseWorldSource: (text: string) => Promise<ReleaseCoordinates | null>;
 }>;
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -223,6 +234,7 @@ export function resolveDownloadBridge(): DownloadBridge | null {
     const canCancel = isFunction(host.cancelDownload);
     const canList = isFunction(host.listDownloads);
     const canSeeActive = isFunction(host.activeDownloads);
+    const canParseLink = isFunction(host.parseWorldSource);
 
     return {
         discoverRelease: (request) => discoverRelease(request),
@@ -238,8 +250,13 @@ export function resolveDownloadBridge(): DownloadBridge | null {
         activeDownloads: () => (isFunction(host.activeDownloads) ? host.activeDownloads() : Promise.resolve([])),
         listDownloads: () => (isFunction(host.listDownloads) ? host.listDownloads() : Promise.resolve([])),
         onDownloadEvent: (listener) => onDownloadEvent(listener),
+        // `null` rather than a rejection, for the same reason: a build that cannot parse a
+        // link is one where the field simply never fills the other three in, which is
+        // exactly what typing something that names no repository already looks like.
+        parseLink: (text) => (isFunction(host.parseWorldSource) ? host.parseWorldSource(text) : Promise.resolve(null)),
         canCancel,
         canList,
         canSeeActive,
+        canParseLink,
     };
 }

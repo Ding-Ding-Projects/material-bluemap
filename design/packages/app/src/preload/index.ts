@@ -63,6 +63,13 @@ import type {
     AppSettingsState,
 } from "../main/settings/index.js";
 import type { RestoreResult } from "../main/history/index.js";
+import {
+    toBridgeCoordinates,
+    toBridgeDiscoveryResult,
+    type BridgeReleaseCoordinates,
+    type WorldSourceDiscoverAnswer,
+    type WorldSourceReferenceAnswer,
+} from "./worldSourceBridge.js";
 
 /** Mirrors `ConsentRecord` in the main process. */
 export interface ConsentRecord {
@@ -1467,10 +1474,17 @@ interface MaterialBlueMapBridge {
     /**
      * What a release offers, without downloading any of it.
      *
-     * A file too large for a release asset is published in pieces - `world.zip.001`,
-     * `world.zip.002`, ... beside a `world.zip.parts.json` - and this reports it as the
-     * one download it really is. `split` and `parts` are there so the interface can say
-     * so; nothing else about the split reaches the renderer.
+     * Answered from `worldsource:discover` rather than `download:discover`: the former is
+     * this one's superset - a manifest-shaped or unsplit release is handed straight to the
+     * same `ReleaseDownloader`, and a checksum-list release, from any public repository, is
+     * additionally understood - so routing every discovery through it is what makes both
+     * split layouts and a repository that is not this project's own reachable from this
+     * one method rather than needing the panel to ask two different ones.
+     *
+     * A file too large for a release asset is published in pieces, and this reports it as
+     * the one download it really is. `split` and `parts` are there so the interface can
+     * say so; nothing else about the split reaches the renderer. See
+     * `preload/worldSourceBridge.ts` for exactly how a `kind` becomes a `split`.
      */
     discoverRelease(request: {
         owner: string;
@@ -1484,6 +1498,12 @@ interface MaterialBlueMapBridge {
     /**
      * Downloads one asset, rejoins it if it was split, and unpacks it.
      *
+     * Answered from `worldsource:fetch` for the same reason `discoverRelease` is: a
+     * manifest-shaped or unsplit request is handed straight to the release downloader this
+     * panel already lists, and a checksum-list request is additionally understood, from
+     * any public repository. `worldsource:fetch` resolves with exactly the shape
+     * `download:start` always did, so nothing here changes for a manifest-shaped download.
+     *
      * Resolves when the download has ended, whichever way it ended, and never rejects.
      * A failure comes back `ok: false` with a typed `failure.code`. Watch
      * `onDownloadEvent` for progress in the meantime.
@@ -1495,12 +1515,24 @@ interface MaterialBlueMapBridge {
     /**
      * Stops a running download. False when nothing is running under that id.
      *
+     * Answered from `worldsource:cancel`, which asks both the checksum-list fetcher's own
+     * in-flight map and the shared release downloader - a manifest-shaped download is
+     * tracked by the second and a checksum-list one by the first, and the caller does not
+     * know which took the request. Asking only `download:cancel` would silently fail to
+     * stop the second kind.
+     *
      * What is on disk is kept, because every part is checksummed individually and the
      * next attempt continues from the byte this one stopped at.
      */
     cancelDownload(downloadId: string): Promise<boolean>;
 
-    /** Download ids in flight right now. */
+    /**
+     * Download ids in flight right now.
+     *
+     * Answered from `worldsource:active` for the same reason `cancelDownload` is: it is
+     * the union of what the checksum-list fetcher and the shared downloader each have
+     * running, and `download:active` alone would miss the first.
+     */
     activeDownloads(): Promise<string[]>;
 
     /** Every download on disk, with what it was and where it came from. */
@@ -1693,12 +1725,35 @@ interface MaterialBlueMapBridge {
 
     /* ---- Worlds published as somebody else's release --------------------- */
 
-    /** Reads `owner/repo`, a URL or a release link into the pieces an API path needs. */
-    parseWorldSource(text: string): Promise<unknown>;
-    /** What that release actually holds: one archive, or parts and their checksums. */
-    discoverWorldSource(request: unknown): Promise<unknown>;
+    /**
+     * Reads `owner/repo`, a URL or a release link into the pieces an API path needs.
+     *
+     * Already in the shape the owner/repository/tag fields take, so the "paste a link"
+     * field can write the answer straight into them: `null` when the text named no
+     * repository, which a field mid-keystroke does far more often than it names one.
+     */
+    parseWorldSource(text: string): Promise<BridgeReleaseCoordinates | null>;
+    /**
+     * What that release actually holds: one archive, or parts and their checksums.
+     *
+     * The raw answer, carrying each source's `kind` and how it is verified.
+     * `discoverRelease` above is what the downloads panel actually calls; this is the
+     * channel underneath it, kept typed and callable on its own for whatever wants the
+     * distinction `discoverRelease` deliberately flattens away.
+     */
+    discoverWorldSource(request: {
+        owner: string;
+        repo: string;
+        tag?: string;
+    }): Promise<WorldSourceDiscoverAnswer>;
     /** Fetches it. Progress arrives on the ordinary download events, not a second stream. */
-    fetchWorldSource(request: unknown): Promise<unknown>;
+    fetchWorldSource(request: {
+        owner: string;
+        repo: string;
+        tag?: string;
+        asset?: string;
+        extract?: boolean;
+    }): Promise<DownloadResult>;
     cancelWorldSource(id: string): Promise<boolean>;
     activeWorldSources(): Promise<readonly string[]>;
 
@@ -1915,10 +1970,20 @@ const bridge: MaterialBlueMapBridge = {
         };
     },
 
-    discoverRelease: (request) => ipcRenderer.invoke("download:discover", request),
-    startDownload: (request) => ipcRenderer.invoke("download:start", request),
-    cancelDownload: (downloadId) => ipcRenderer.invoke("download:cancel", downloadId),
-    activeDownloads: () => ipcRenderer.invoke("download:active"),
+    // Routed through `worldsource:*` rather than `download:*`: the former is this one's
+    // superset, so a manifest-shaped download keeps working exactly as it did and a
+    // checksum-list download from any public repository becomes reachable from the same
+    // four methods rather than needing the panel to call a second set of channels.
+    // `listDownloads` stays on `download:list`, because both paths write the same
+    // `DownloadRecord` shape into the same on-disk workspace layout, so it already reads
+    // back a checksum-list download with no change of its own.
+    discoverRelease: async (request) => {
+        const answer = (await ipcRenderer.invoke("worldsource:discover", request)) as WorldSourceDiscoverAnswer;
+        return toBridgeDiscoveryResult(answer);
+    },
+    startDownload: (request) => ipcRenderer.invoke("worldsource:fetch", request),
+    cancelDownload: (downloadId) => ipcRenderer.invoke("worldsource:cancel", downloadId),
+    activeDownloads: () => ipcRenderer.invoke("worldsource:active"),
     listDownloads: () => ipcRenderer.invoke("download:list"),
 
     onDownloadEvent: (listener) => {
@@ -1981,7 +2046,10 @@ const bridge: MaterialBlueMapBridge = {
     cancelContainer: (renderId) => ipcRenderer.invoke("runtime:cancelContainer", renderId),
     dismissContainer: (renderId) => ipcRenderer.invoke("runtime:dismissContainer", renderId),
 
-    parseWorldSource: (text) => ipcRenderer.invoke("worldsource:parse", text),
+    parseWorldSource: async (text) => {
+        const reference = (await ipcRenderer.invoke("worldsource:parse", text)) as WorldSourceReferenceAnswer | null;
+        return toBridgeCoordinates(reference);
+    },
     discoverWorldSource: (request) => ipcRenderer.invoke("worldsource:discover", request),
     fetchWorldSource: (request) => ipcRenderer.invoke("worldsource:fetch", request),
     cancelWorldSource: (id) => ipcRenderer.invoke("worldsource:cancel", id),
