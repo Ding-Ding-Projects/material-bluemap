@@ -282,4 +282,6 @@ Still not verified: the merge into a complete map, and where the disk ceiling ac
 - [Rendering a world in GitHub Actions](./render-in-actions.md) — what happens to the world once it
   has arrived.
 - [Rendering on a remote host](./remote-render.md) — the other way a world leaves this machine.
+- [Worlds hosted on your own SSH server](./ssh-world-sources.md) — a world read from a machine
+  you own, rather than published as a release.
 - [Finding worlds](./finding-worlds.md) — the worlds already on this computer.

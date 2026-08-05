@@ -481,6 +481,9 @@ than implying one does.
 
 - [Worlds from somebody else's release](./world-sources.md) — the other way a world moves between
   machines.
+- [Worlds hosted on your own SSH server](./ssh-world-sources.md) — the read direction over this
+  same connection, host-key and transfer machinery: a world fetched from a server you own
+  rather than sent to one.
 - [Rendering a world in GitHub Actions](./render-in-actions.md) — the other machine that can render
   for you, and the one that needs no server of your own.
 - [Renders that survive being interrupted](./resumable-renders.md) — the same promise for a render
