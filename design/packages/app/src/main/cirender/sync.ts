@@ -840,26 +840,6 @@ export class CiRenderSync {
         }
     }
 
-    /** Forgets a sync's record. The map it produced, if any, is left exactly where it is. */
-    async forget(syncId: string): Promise<boolean> {
-        const workspace = ciSyncWorkspace(this.#options.storageDir(), syncId);
-        const state = await readCiSyncState(workspace.stateFile);
-        if (state === null) return false;
-        await writeCiSyncState(workspace.stateFile, {
-            ...newCiSyncState({
-                syncId,
-                owner: state.owner,
-                repo: state.repo,
-                worldFolder: state.worldFolder,
-                mapId: state.mapId,
-                mapName: state.mapName,
-                dimension: state.dimension,
-                at: this.#timestamp(),
-            }),
-        });
-        return true;
-    }
-
     /* ---------------------------------------------------------------------- */
 
     async #run(context: {

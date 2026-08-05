@@ -118,7 +118,11 @@ function preflight(overrides: Partial<CiPreflight> = {}): CiPreflight {
     };
 }
 
-function fakeBridge(report: CiPreflight, started: CiSyncResult[] = []): CiRenderBridge {
+function fakeBridge(
+    report: CiPreflight,
+    started: CiSyncResult[] = [],
+    overrides: Partial<CiRenderBridge> = {},
+): CiRenderBridge {
     return {
         ciRenderPreflight: () => Promise.resolve({ ok: true, value: report } as Answer<CiPreflight>),
         startCiRender: (request) => {
@@ -144,10 +148,13 @@ function fakeBridge(report: CiPreflight, started: CiSyncResult[] = []): CiRender
             Promise.resolve({ ok: true, syncId: "s", outcome: "running", run: null, state: null as never }),
         listCiRenders: () => Promise.resolve({ ok: true, value: [] }),
         cancelCiRender: () => Promise.resolve(true),
+        activeCiRenders: () => Promise.resolve([]),
         onCiRenderEvent: (_listener: (event: CiSyncEvent) => void) => () => {},
         canCancel: true,
         canList: true,
         canCheck: true,
+        canSeeActive: true,
+        ...overrides,
     };
 }
 
@@ -182,6 +189,7 @@ function eventBridge(report: CiPreflight): { bridge: CiRenderBridge; emit: (even
                 Promise.resolve({ ok: true, syncId: "s", outcome: "running", run: null, state: null as never }),
             listCiRenders: () => Promise.resolve({ ok: true, value: [] }),
             cancelCiRender: () => Promise.resolve(true),
+            activeCiRenders: () => Promise.resolve([]),
             onCiRenderEvent: (candidate) => {
                 listener = candidate;
                 return () => {
@@ -191,6 +199,7 @@ function eventBridge(report: CiPreflight): { bridge: CiRenderBridge; emit: (even
             canCancel: true,
             canList: true,
             canCheck: true,
+            canSeeActive: true,
         },
     };
 }
@@ -1328,5 +1337,17 @@ describe("the Check button names exactly which field is missing or invalid", () 
         await wrapper.find('[data-test="repo-field"] input').setValue("bad name");
         await flushPromises();
         expect(wrapper.find('[data-test="check-blocked"]').text()).toContain("letters, digits");
+    });
+});
+
+describe("what is already running, elsewhere", () => {
+    it("asks what is already in flight before anybody presses anything, and puts it on screen", async () => {
+        const activeCiRenders = vi.fn(() => Promise.resolve(["elsewhere"]));
+        const wrapper = mountScreen(fakeBridge(preflight(), [], { activeCiRenders }));
+        await flushPromises();
+        expect(activeCiRenders).toHaveBeenCalled();
+        const rows = wrapper.findAll('[data-test="row"]');
+        expect(rows).toHaveLength(1);
+        expect(rows[0]?.text()).toContain("elsewhere");
     });
 });

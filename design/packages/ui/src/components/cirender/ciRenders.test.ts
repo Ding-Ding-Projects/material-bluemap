@@ -105,6 +105,7 @@ function bridge(overrides: Partial<CiRenderBridge> = {}): {
                 } as CiSyncResult),
             listCiRenders: () => Promise.resolve({ ok: true, value: [] }),
             cancelCiRender: () => Promise.resolve(true),
+            activeCiRenders: () => Promise.resolve([]),
             onCiRenderEvent: (candidate) => {
                 listener = candidate;
                 return () => {
@@ -114,6 +115,7 @@ function bridge(overrides: Partial<CiRenderBridge> = {}): {
             canCancel: true,
             canList: true,
             canCheck: true,
+            canSeeActive: true,
             ...overrides,
         },
     };
@@ -399,6 +401,43 @@ describe("rows follow the events", () => {
         const renders = createCiRenders(null);
         expect(renders.available).toBe(false);
         expect(renders.canCancel).toBe(false);
+        expect(renders.canSeeActive).toBe(false);
+        expect(renders.rows.value).toHaveLength(0);
+        renders.dispose();
+    });
+});
+
+describe("what is already running, elsewhere", () => {
+    it("adopts an id that is already in flight, so a second copy is never started", async () => {
+        const { bridge: fake } = bridge({ activeCiRenders: () => Promise.resolve(["elsewhere"]) });
+        const renders = createCiRenders(fake);
+        await renders.reconcile();
+        expect(renders.rows.value.map((row) => row.syncId)).toEqual(["elsewhere"]);
+        expect(renders.rows.value[0]?.live).toBe(false);
+        renders.dispose();
+    });
+
+    it("never overwrites a row a live event has already populated", async () => {
+        const { bridge: fake, emit } = bridge({ activeCiRenders: () => Promise.resolve(["s1"]) });
+        const renders = createCiRenders(fake);
+        emit({
+            type: "started",
+            syncId: "s1",
+            repository: "o/r",
+            mapId: "m",
+            worldFolder: "/w",
+            at: "2026-08-05T00:00:00Z",
+        });
+        await renders.reconcile();
+        expect(renders.rows.value).toHaveLength(1);
+        expect(renders.rows.value[0]?.live).toBe(true);
+        expect(renders.rows.value[0]?.repository).toBe("o/r");
+        renders.dispose();
+    });
+
+    it("does nothing when this build has no bridge", async () => {
+        const renders = createCiRenders(null);
+        await expect(renders.reconcile()).resolves.toBeUndefined();
         expect(renders.rows.value).toHaveLength(0);
         renders.dispose();
     });

@@ -339,6 +339,8 @@ export interface CiRenders {
     readonly canCancel: boolean;
     readonly canList: boolean;
     readonly canCheck: boolean;
+    /** True when the syncs in flight right now, anywhere, can be asked for. */
+    readonly canSeeActive: boolean;
 
     readonly rows: ComputedRef<readonly CiRow[]>;
     readonly preflight: Ref<CiPreflight | null>;
@@ -380,6 +382,18 @@ export interface CiRenders {
     poll(syncId: string): Promise<CiSyncResult | null>;
     stop(syncId: string): Promise<boolean>;
     loadKnown(): Promise<void>;
+    /**
+     * Adopts the ids of syncs already running, anywhere, that `loadKnown()` cannot see yet.
+     *
+     * `loadKnown()` reads what has been persisted to disk; a sync writes its first record
+     * only partway through - after the repository is read, the world is fingerprinted and,
+     * when reusable, GitHub is asked whether the previous asset still exists - so a render
+     * started moments ago, in this window or another, can be actively running with nothing
+     * on disk for `loadKnown()` to find. Called on mount alongside it, the same pairing
+     * `components/backup/BackupScreen.vue` uses for `backups.reconcile()`, so a render
+     * already going is on screen before anybody presses a button that would start a second.
+     */
+    reconcile(): Promise<void>;
     /**
      * Reads the owner list. Given an account id, reads it for that specific signed-in
      * account rather than whichever one is active - what the setup card's account picker
@@ -575,6 +589,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
         canCancel: bridge?.canCancel ?? false,
         canList: bridge?.canList ?? false,
         canCheck: bridge?.canCheck ?? false,
+        canSeeActive: bridge?.canSeeActive ?? false,
 
         rows,
         preflight,
@@ -681,6 +696,14 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 }
             } catch (error) {
                 knownFailure.value = describe(error);
+            }
+        },
+
+        async reconcile(): Promise<void> {
+            if (bridge === null) return;
+            const active = await bridge.activeCiRenders();
+            for (const syncId of active) {
+                if (byId.value[syncId] === undefined) put(blankRow(syncId));
             }
         },
 

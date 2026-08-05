@@ -632,6 +632,11 @@ function waves(row: CiRow): readonly { wave: number; done: number; total: number
 
 onMounted(() => {
     void renders.loadKnown();
+    // What is already going must be on screen before anybody presses anything: a render
+    // started in another window, or moments before this screen mounted, would otherwise be
+    // invisible here for as long as `loadKnown()` alone takes to catch up (see
+    // `CiRenders.reconcile()`'s own doc comment), and could look startable a second time.
+    void renders.reconcile();
     if (renders.canListOwners) void renders.loadOwners(effectiveAccountId.value);
     if (renders.canListRepositories) void renders.loadRepositories();
     if (accountsList.canList) {

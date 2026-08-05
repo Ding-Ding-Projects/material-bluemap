@@ -56,10 +56,8 @@ export const CIRENDER_CHANNELS = [
     "cirender:preflight",
     "cirender:start",
     "cirender:check",
-    "cirender:state",
     "cirender:list",
     "cirender:cancel",
-    "cirender:forget",
     "cirender:active",
     // The "What, and where" setup card's own data: who could own the repository, a name
     // worth trying, and whether GitHub already has it. Pure additions beside the sync
@@ -208,19 +206,6 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         },
     );
 
-    options.ipcMain.handle(
-        "cirender:state",
-        async (_event: IpcMainInvokeEvent, syncId: unknown): Promise<Answer<CiSyncState | null>> => {
-            const id = readText(syncId);
-            if (id === null) return { ok: false, message: "A sync id is required." };
-            try {
-                return { ok: true, value: await sync.readState(id) };
-            } catch (error) {
-                return { ok: false, message: sentence(error) };
-            }
-        },
-    );
-
     options.ipcMain.handle("cirender:list", async (): Promise<Answer<readonly CiSyncState[]>> => {
         try {
             const ids = await sync.knownSyncIds();
@@ -243,14 +228,14 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         return id !== null && sync.cancel(id);
     });
 
-    options.ipcMain.handle(
-        "cirender:forget",
-        async (_event: IpcMainInvokeEvent, syncId: unknown): Promise<boolean> => {
-            const id = readText(syncId);
-            return id !== null && (await sync.forget(id));
-        },
-    );
-
+    // What this process is actively driving right now, independent of what has been
+    // persisted to disk. `cirender:list` answers "every sync this computer has a record
+    // of" by reading `storageDir()`, and a sync writes its first record only partway
+    // through `sync()` - after the repository is read, the world is fingerprinted, and
+    // (when reusable) GitHub is asked whether the previous asset is still there. A window
+    // that opens in that gap would see nothing for a render already running elsewhere,
+    // exactly the failure `backup/ipc.ts`'s own `backup:active` exists to close for
+    // backups. The bridge (`ciRenderBridge.ts`) wires this to `CiRenders.reconcile()`.
     options.ipcMain.handle("cirender:active", () => sync.activeSyncIds());
 
     // The setup card's own three answers. Each resolves the token the same way `sync`

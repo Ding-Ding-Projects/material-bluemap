@@ -30,10 +30,12 @@ function bridgeWithDelayedCheck(): CiRenderBridge {
             Promise.resolve({ ok: true, syncId: "s", outcome: "running", run: null, state: null as never } as CiSyncResult),
         listCiRenders: () => Promise.resolve({ ok: true, value: [] }),
         cancelCiRender: () => Promise.resolve(true),
+        activeCiRenders: () => Promise.resolve([]),
         onCiRenderEvent: () => () => {},
         canCancel: false,
         canList: true,
         canCheck: true,
+        canSeeActive: true,
         checkCiRepoName: async ({ owner, repo }): Promise<CiRepositoryNameAvailability> => {
             // The older request ("old-name") resolves slower than the newer one ("new-name"),
             // simulating real network jitter where requests do not resolve in fire order.

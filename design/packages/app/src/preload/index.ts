@@ -1729,6 +1729,14 @@ interface MaterialBlueMapBridge {
     checkCiRender(syncId: string): Promise<CiSyncResult>;
     listCiRenders(): Promise<{ ok: true; value: readonly CiSyncState[] } | { ok: false; message: string }>;
     cancelCiRender(syncId: string): Promise<boolean>;
+    /**
+     * Syncs this process is actively driving right now, whether or not they have written a
+     * record to disk yet. `listCiRenders` alone cannot show a render started moments ago in
+     * another window - `sync()` reads the repository, fingerprints the world and, when
+     * reusable, asks GitHub about the previous asset before its first state file is
+     * written - so a screen that opens in that gap needs this to avoid looking idle.
+     */
+    activeCiRenders(): Promise<readonly string[]>;
     onCiRenderEvent(listener: (event: CiSyncEvent) => void): () => void;
 
     /**
@@ -1992,6 +2000,7 @@ const bridge: MaterialBlueMapBridge = {
     checkCiRender: (syncId) => ipcRenderer.invoke("cirender:check", syncId),
     listCiRenders: () => ipcRenderer.invoke("cirender:list"),
     cancelCiRender: (syncId) => ipcRenderer.invoke("cirender:cancel", syncId),
+    activeCiRenders: () => ipcRenderer.invoke("cirender:active"),
     onCiRenderEvent: (listener) => {
         const forward = (_event: IpcRendererEvent, payload: CiSyncEvent): void => listener(payload);
         ipcRenderer.on("cirender:event", forward);

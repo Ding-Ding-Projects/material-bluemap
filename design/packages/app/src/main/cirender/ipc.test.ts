@@ -176,7 +176,6 @@ describe("what crosses", () => {
             }),
             await (ipcMain.handlers.get("cirender:list") as Handler)(noEvent),
             await (ipcMain.handlers.get("cirender:active") as Handler)(noEvent),
-            await (ipcMain.handlers.get("cirender:state") as Handler)(noEvent, "nope"),
         ];
         for (const answer of answers) {
             expect(JSON.stringify(answer)).not.toContain(TOKEN);

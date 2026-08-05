@@ -395,6 +395,13 @@ export interface CiRenderBridge {
     checkCiRender(syncId: string): Promise<CiSyncResult>;
     listCiRenders(): Promise<Answer<readonly CiSyncState[]>>;
     cancelCiRender(syncId: string): Promise<boolean>;
+    /**
+     * Syncs this computer is actively driving right now, whether or not they have written
+     * a record `listCiRenders` would find yet. What `CiRenders.reconcile()` calls on mount
+     * so a render already going in another window is on screen before anybody presses
+     * anything, the same reason `backupBridge.ts`'s `activeBackups` exists.
+     */
+    activeCiRenders(): Promise<readonly string[]>;
     onCiRenderEvent(listener: (event: CiSyncEvent) => void): () => void;
     /** True when a sync in flight can actually be stopped from here. */
     readonly canCancel: boolean;
@@ -402,6 +409,8 @@ export interface CiRenderBridge {
     readonly canList: boolean;
     /** True when a recorded run can be polled without starting anything. */
     readonly canCheck: boolean;
+    /** True when the ids in flight right now can be asked for. */
+    readonly canSeeActive: boolean;
 
     /*
      * Everything below is optional and additive: the guided "What, and where" card degrades
@@ -434,6 +443,7 @@ type Host = Partial<{
     checkCiRender: (syncId: string) => Promise<CiSyncResult>;
     listCiRenders: () => Promise<Answer<readonly CiSyncState[]>>;
     cancelCiRender: (syncId: string) => Promise<boolean>;
+    activeCiRenders: () => Promise<readonly string[]>;
     onCiRenderEvent: (listener: (event: CiSyncEvent) => void) => () => void;
     // The preload's real names for the four optional additions above. `listBackupRepositories`
     // is the backup surface's own method, named for what it is there rather than for cirender
@@ -472,6 +482,7 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
     const canCancel = isFunction(host.cancelCiRender);
     const canList = isFunction(host.listCiRenders);
     const canCheck = isFunction(host.checkCiRender);
+    const canSeeActive = isFunction(host.activeCiRenders);
 
     return {
         ciRenderPreflight: (request) => ciRenderPreflight(request),
@@ -508,9 +519,15 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
         // two it is from `canCancel` rather than from a thrown error.
         cancelCiRender: (syncId) =>
             isFunction(host.cancelCiRender) ? host.cancelCiRender(syncId) : Promise.resolve(false),
+        // An empty list rather than a rejection, for the same reason `cancelCiRender`
+        // answers that way: not being able to ask what is in flight and nothing being in
+        // flight lead to the same screen. What must never happen is a build inventing one.
+        activeCiRenders: () =>
+            isFunction(host.activeCiRenders) ? host.activeCiRenders() : Promise.resolve([]),
         canCancel,
         canList,
         canCheck,
+        canSeeActive,
 
         // Left off the object entirely rather than filled with an "unsupported" stand-in,
         // because these four are optional on the interface: a caller checks for the method
