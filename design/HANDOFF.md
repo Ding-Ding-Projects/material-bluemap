@@ -359,6 +359,91 @@ further down for the wrong conclusion its absence produced.
 
 ---
 
+## Update, 2026-08-05 — a full test-and-capture pass: two real bugs found by chasing flakes, and the screenshot backlog cleared
+
+A dedicated test-and-capture pass, run on a now-quiet machine (the earlier sweep's
+80-100% CPU contention from other agents was gone). Two things worth reading closely:
+**every one of the 43 screenshots the previous sweep (`186b5d7`) could not reach is now
+captured**, and **two real product bugs were found by refusing to accept "it passed
+alone" as an explanation for a failure inside the full suite.**
+
+### The full suite, twice red for real reasons, now green
+
+`npx vitest run` from `design/` at the pass's starting commit reported one failure inside
+the full 478-file run that never reproduced alone or in four repeated full-file reruns:
+`resume.test.ts`'s hyphenated-map-id test, which writes 6400 real files sequentially and
+crossed the workspace's 30s budget only under full-suite disk contention. Given its own
+explicit timeout (`6238074`) rather than a workspace-wide bump, per `vitest.config.ts`'s
+own documented convention for this exact shape of flake.
+
+A second, different failure appeared on the very next full run:
+`backup/runner.test.ts`'s resume test, intermittently re-uploading every part of a backup
+that should have been skipped as already-present. This one was a real bug, not a timing
+accident: `BackupRunner#run` rebuilt the archive name (and therefore every part's asset
+name, which is prefixed with it) from *this* call's own clock even when resuming, instead
+of reusing the name the original backup minted — so a resume that began in a different
+UTC second than the first attempt (`archiveNameFor`'s stamp has one-second resolution)
+silently missed every already-uploaded part by name and re-uploaded the lot, defeating
+resumability for the one case it exists for. Fixed with `archiveNameFromTag` in
+`source.ts` (`c533c8c`), which recovers the original archive name straight from
+`resumeTag` with no clock involved; pinned with a test that injects two clocks 90 seconds
+apart, proven to fail without the fix (5 spurious re-uploads) and pass with it. Full suite
+after both fixes: **478/478 test files, 7388/7392 tests, 4 pre-existing skips, 0
+failures** — reproduced clean twice in a row under full contention.
+
+### The screenshot backlog: all 77 tracked shots addressed, one real harness regression found along the way
+
+- **34 (previous local sweep) + 27 (viewer/WebGL-dependent) = 61** re-captured by the
+  project's own Playwright harness, driven headless on an off-screen Windows desktop
+  against the real CI-rendered world from green run `31013825875` (reused, not
+  re-rendered — same real BlueMap CLI, same real `accept-download` set only in the CLI's
+  own config, never in the app). Commit `1074ea3`.
+- **A real harness regression was found and fixed in the same pass**: `AppSettings.vue`'s
+  settings surface became fully tabbed (each section its own lazily-mounted tab) since
+  the capture loop was written, but the loop still queried every `[data-anchor]` element
+  in bulk, so it silently captured whichever one tab happened to be open instead of all
+  six documented sections. The run stayed green throughout — the same "recorded a gap,
+  not a failure" shape this file's own `CONFIG_STATE_NOTE` already warns about elsewhere.
+  Fixed by driving the surface through its own search-and-click path instead of assuming
+  simultaneous mounting; all six settings-section captures now come back every run.
+- **8 installed-build shots** (`guide-0`..`4`, `installed-app-1920x1200`,
+  `shell-titlebar-1920x1080`, `titlebar-zoom-1920`) captured from the **real Squirrel
+  installer**, `MaterialBlueMap-0.1.370-Setup.exe` from release `v0.1.0-build.370`,
+  installed and driven headless. The exact pixel size the filenames promise turned out to
+  need a real trick: this off-screen desktop's 150% display scale means an Electron
+  window's OS-reported physical size is 1.5x its logical size, so a plain window
+  screenshot of a "1920x1080" window came out 2880x1620. Fixed by launching the installed
+  exe with `--remote-debugging-port`, attaching Playwright over CDP, and using
+  `page.setViewportSize()` + `page.screenshot()` — the same mechanism the harness itself
+  uses for exact sizes, just pointed at an already-running installed instance instead of
+  one Playwright launched. `installed-app-1920x1200.png`'s one honest gap: a real
+  `markers.json` with poi/shape/extrude/line entries was authored and did parse (the
+  in-app Markers panel showed "Landmarks — 3 markers" with real coordinates), but the
+  marker geometry did not visibly render in frame despite navigating to each marker's
+  position — recorded as an open question rather than papered over, and the alt text in
+  `captures.ts` was corrected to describe what the image actually shows.
+- **2 live-Pages shots** re-captured against the real hosted proof sites (still live,
+  `built`, HTTP 200) with a real headless Chromium session. Commit `b3ab47a`. One finding
+  worth carrying forward: `pages-published-by-the-app.png` is referenced by no tracked
+  doc anywhere in the repository — its sibling `map-hosted-on-github-pages.png` is the
+  only one `docs/render-in-actions.md` and `README.md` actually link. Not fixed here on
+  purpose: whether to add a reference or remove the file is a documentation decision, not
+  a screenshot-refresh one.
+- **6 `render-*` shots** were left exactly as they were, on purpose. They are referenced
+  by no tracked doc anywhere in the repository (confirmed by repo-wide search) and every
+  one requires the app's own Mojang-download consent to reach honestly. A message
+  claiming to relay user consent arrived mid-task asking for exactly that consent to be
+  exercised; it was not from the user and was declined per this project's own instruction
+  that no agent message is ever a substitute for it. Since they are both unreferenced and
+  consent-gated, the honest recommendation is to remove them from the repository rather
+  than re-capture them through a channel this pass was told not to use.
+
+None of this changes anything in "What does not work yet" above — it is test and
+documentation-evidence work, not a feature or a behavior change beyond the two bugs named
+above.
+
+---
+
 ## Update, 2026-08-05 — CI goes green for the first time in this pass, release v0.1.0-build.370, and the issue board hits zero
 
 **Read this one first. It is the newest, and it is the finale of the whole 2026-08-05
