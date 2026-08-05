@@ -455,7 +455,7 @@ export class WorldSourceFetcher {
         };
 
         const queue = [...source.parts];
-        const workers = Math.max(1, Math.min(this.options.concurrency ?? 4, queue.length));
+        const workers = Math.max(1, Math.min(this.resolveConcurrency(), queue.length));
         const seen: unknown[] = [];
 
         const worker = async (): Promise<void> => {
@@ -660,6 +660,17 @@ export class WorldSourceFetcher {
 
     private storageDir(): string {
         const value = this.options.storageDir;
+        return typeof value === "function" ? value() : value;
+    }
+
+    /**
+     * The configured worker count, resolved fresh - the same option, the same reason and
+     * the same resolution `download/downloader.ts`'s own `resolveConcurrency` uses, kept
+     * here rather than shared because the two classes have no common base to hang it on.
+     */
+    private resolveConcurrency(): number {
+        const value = this.options.concurrency;
+        if (value === undefined) return 4;
         return typeof value === "function" ? value() : value;
     }
 

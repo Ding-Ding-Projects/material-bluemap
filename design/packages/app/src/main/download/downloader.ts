@@ -198,6 +198,13 @@ export interface DownloadRequest {
     readonly asset?: string;
     /** Unpack the archive afterwards. Defaults to true for a `.zip`. */
     readonly extract?: boolean;
+    /**
+     * Overrides {@link ReleaseDownloaderOptions.concurrency} for this download alone.
+     *
+     * Absent, the configured default is used. See that option's own doc for why an
+     * explicit value here always wins.
+     */
+    readonly concurrency?: number;
 }
 
 export interface DownloadSuccess {
@@ -247,8 +254,23 @@ export interface ReleaseDownloaderOptions {
      * made to require one.
      */
     readonly token?: () => string | null | Promise<string | null>;
-    /** How many parts are fetched at once. Four by default. */
-    readonly concurrency?: number;
+    /**
+     * How many parts are fetched at once. Four by default.
+     *
+     * A function is accepted for the same reason {@link storageDir} is: this is a
+     * persisted setting somebody can change in Settings between two downloads
+     * (`files/downloadConcurrency.ts`), and a value captured once at construction would
+     * keep using whatever number was chosen at app launch, with nothing on screen to say
+     * the setting had not taken effect. Resolved once per {@link download} call - see
+     * {@link ReleaseDownloader.run} - so a change lands on the next download that starts
+     * rather than reshuffling the workers of one already in flight.
+     *
+     * Never overrides a request that already names {@link DownloadRequest.concurrency} -
+     * today nothing sets one before this runs, but a future caller (an advanced
+     * per-download override) must win over the settings-wide default rather than being
+     * silently replaced by it.
+     */
+    readonly concurrency?: number | (() => number);
     /** How many times one part is re-fetched after a failed digest. Once by default. */
     readonly partRetries?: number;
     readonly apiBase?: string;
@@ -446,7 +468,15 @@ export class ReleaseDownloader {
                     access,
                 );
                 partsTotal = manifest.parts.length;
-                await this.fetchParts(downloadId, workspace, chosen.parts, manifest, controller, access);
+                await this.fetchParts(
+                    downloadId,
+                    workspace,
+                    chosen.parts,
+                    manifest,
+                    controller,
+                    access,
+                    request.concurrency ?? this.resolveConcurrency(),
+                );
                 const joined = await this.rejoin(downloadId, workspace, manifest, controller);
                 bytes = joined.bytes;
                 sha256 = joined.sha256;
@@ -544,6 +574,7 @@ export class ReleaseDownloader {
         manifest: PartsManifest,
         controller: AbortController,
         access: AssetAccess,
+        concurrency: number,
     ): Promise<void> {
         this.emit({ type: "phase", downloadId, phase: "downloading", at: this.timestamp() });
 
@@ -572,7 +603,7 @@ export class ReleaseDownloader {
         };
 
         const queue = [...manifest.parts];
-        const workers = Math.max(1, Math.min(this.options.concurrency ?? 4, queue.length));
+        const workers = Math.max(1, Math.min(concurrency, queue.length));
         const failuresSeen: unknown[] = [];
 
         const worker = async (): Promise<void> => {
@@ -749,6 +780,13 @@ export class ReleaseDownloader {
 
     private storageDir(): string {
         const value = this.options.storageDir;
+        return typeof value === "function" ? value() : value;
+    }
+
+    /** The configured worker count, resolved fresh - see {@link ReleaseDownloaderOptions.concurrency}. */
+    private resolveConcurrency(): number {
+        const value = this.options.concurrency;
+        if (value === undefined) return 4;
         return typeof value === "function" ? value() : value;
     }
 

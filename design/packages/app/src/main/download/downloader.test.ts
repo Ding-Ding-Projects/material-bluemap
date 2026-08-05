@@ -438,6 +438,103 @@ describe("ReleaseDownloader", () => {
     });
 });
 
+/* -------------------------------------------------------------------------- */
+/* The configured concurrency, read fresh                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Wraps a {@link Server} so every asset request (not the release lookup) is counted while
+ * it is in flight and held open briefly, exactly long enough for genuinely parallel
+ * workers to overlap. Without a delay every request would resolve synchronously and no
+ * amount of allowed concurrency could be told apart from one worker at a time.
+ */
+function trackConcurrency(server: Server, delayMs: number): Server & { readonly peak: () => number } {
+    let active = 0;
+    let peak = 0;
+    return {
+        requests: server.requests,
+        corrupt: (name) => {
+            server.corrupt(name);
+        },
+        fetch: async (url, init) => {
+            const isAsset = !url.includes("/releases/");
+            if (!isAsset) return await server.fetch(url, init);
+            active += 1;
+            peak = Math.max(peak, active);
+            try {
+                await new Promise((resolve) => setTimeout(resolve, delayMs));
+                return await server.fetch(url, init);
+            } finally {
+                active -= 1;
+            }
+        },
+        peak: () => peak,
+    };
+}
+
+describe("the configured part-fetch concurrency", () => {
+    it("reaches the actual number of parts fetched in parallel", async () => {
+        // Small parts, so a ~13 KB fixture splits into more pieces than any concurrency
+        // this test configures - otherwise the queue itself, not the setting, would be
+        // the thing capping how many workers run at once.
+        const published = await publish(WORLD, 1_024);
+        const tracked = trackConcurrency(serve(published), 15);
+        const { downloader: subject } = downloader(tracked, { concurrency: 6 });
+
+        const result = await subject.download({ owner: "o", repo: "r" });
+
+        expect(result.ok).toBe(true);
+        expect(tracked.peak()).toBe(6);
+    });
+
+    it("reads the concurrency fresh on every download rather than freezing it at construction", async () => {
+        const published = await publish(WORLD, 1_024);
+        let configured = 1;
+        let tracker = trackConcurrency(serve(published), 15);
+        // One downloader instance for both downloads: the point is that the *same*
+        // instance re-reads the function rather than having captured its result once, at
+        // construction, the way a plain number would have.
+        const subject = new ReleaseDownloader({
+            storageDir: () => storageDir,
+            onEvent: () => undefined,
+            fetch: (url, init) => tracker.fetch(url, init),
+            apiBase: "https://api.example",
+            token: () => null,
+            concurrency: () => configured,
+        });
+
+        await subject.download({ owner: "o1", repo: "r1" });
+        expect(tracker.peak()).toBe(1);
+
+        // Settings changed between two downloads - the same app session, no restart.
+        configured = 5;
+        tracker = trackConcurrency(serve(published), 15);
+        await subject.download({ owner: "o2", repo: "r2" });
+        expect(tracker.peak()).toBe(5);
+    });
+
+    it("lets an explicit per-download value win over the configured default", async () => {
+        const published = await publish(WORLD, 1_024);
+        const tracked = trackConcurrency(serve(published), 15);
+        // The settings-wide default. An explicit request value must win over it.
+        const { downloader: subject } = downloader(tracked, { concurrency: 1 });
+
+        await subject.download({ owner: "o", repo: "r", concurrency: 7 });
+
+        expect(tracked.peak()).toBe(7);
+    });
+
+    it("accepts a plain number as well as a function", async () => {
+        const published = await publish(WORLD, 1_024);
+        const tracked = trackConcurrency(serve(published), 15);
+        const { downloader: subject } = downloader(tracked, { concurrency: 4 });
+
+        await subject.download({ owner: "o", repo: "r" });
+
+        expect(tracked.peak()).toBe(4);
+    });
+});
+
 describe("estimates", () => {
     it("says nothing until there is something to go on", () => {
         expect(estimateEta(0, 1_000, 5_000)).toBeNull();

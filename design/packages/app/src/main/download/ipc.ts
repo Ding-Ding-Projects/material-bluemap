@@ -76,7 +76,13 @@ export interface DownloadIpcOptions {
      * downloads with no token at all, which is the case this exists to serve.
      */
     readonly token?: () => string | null | Promise<string | null>;
-    readonly concurrency?: number;
+    /**
+     * How many parts a download fetches at once. A function so a live Settings change
+     * takes effect on the next download without a restart - see
+     * `downloader.ts`'s own `ReleaseDownloaderOptions.concurrency`, which this passes
+     * straight through.
+     */
+    readonly concurrency?: number | (() => number);
 }
 
 export interface DownloadIpc {
