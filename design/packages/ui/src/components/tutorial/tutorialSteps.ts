@@ -2,12 +2,12 @@
  * The tour's own itinerary: pure data, no copy in it.
  *
  * This is deliberately not where the words live. `tutorialCopy.ts` next door is what calls
- * `t()`, because a catalogue key needs a literal call site somewhere in the package for
- * `appCopy.test.ts` and `catalogueCoverage.test.ts` to find it, and a step built from
- * `t(step.bodyKey, step.bodyFallback)` with both arguments read out of this object would
- * never produce one - the scanner reads source text, not runtime values. `renderRun.ts`'s
- * `phaseLabel`/`adviseOnFailure` already draw this line the same way: a plain switch with a
- * literal `t("key", "fallback")` per case, fed by an id that lives here.
+ * the translator, because a catalogue key needs a literal, quoted-string call site somewhere
+ * in the package for `appCopy.test.ts` and `catalogueCoverage.test.ts` to find it, and a step
+ * built from two variables - a key and a fallback both read out of this object - would never
+ * produce one, since the scanner reads source text rather than runtime values. `renderRun.ts`'s
+ * `phaseLabel`/`adviseOnFailure` already draw this line the same way: a plain switch with one
+ * literal call per case, fed by an id that lives here.
  *
  * ## What an anchor is, and the promise it makes
  *
