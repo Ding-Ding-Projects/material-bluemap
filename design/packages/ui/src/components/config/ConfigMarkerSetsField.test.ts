@@ -197,3 +197,36 @@ describe("adding a set", () => {
         expect(reopened.text()).toContain("Not set here, so BlueMap uses nothing.");
     });
 });
+
+describe("a marker set's own id, as the panel's header", () => {
+    /**
+     * Regression: `.mb-config-markers__title` used to be `font-weight: 500` only, inside
+     * Vuetify's own `.v-expansion-panel-title` (`display: flex; width: 100%`, no
+     * `min-width: 0` of its own). A flex child's min-width defaults to its unwrapped
+     * content size, so an id with no spaces to break at -- a slug, which is the normal
+     * shape of a marker set id -- overflowed the header horizontally instead of wrapping,
+     * pushing `.mb-config-markers__count` (the "N markers" chip) off to the side or past
+     * the panel's own edge. This mirrors the appearance editor's own zero-height tab strip
+     * bug: a flex child with no `min-width: 0` and no `overflow-wrap`.
+     *
+     * `test.css` is not enabled for this suite's `vitest.config.ts`, so a `?raw` import
+     * reads the exact rule the fix landed in, the same way the tab-group-picker and menu
+     * side-sheet suites already do for their own stacking/surface fixes.
+     */
+    it("wraps rather than overflows: `.mb-config-markers__title` sets min-width: 0 and overflow-wrap", async () => {
+        const source = (await import("./ConfigMarkerSetsField.vue?raw")).default as string;
+        const match = /\.mb-config-markers__title\s*\{[^}]*\}/.exec(source);
+        expect(match).not.toBeNull();
+        const rule = match?.[0] ?? "";
+        expect(rule).toContain("min-width: 0");
+        expect(rule).toMatch(/overflow-wrap:\s*anywhere/);
+    });
+
+    it("renders a long, space-free id in full rather than silently dropping any of it", async () => {
+        const longId = "spawn-marker-set-for-the-survival-server-backups-generated-2026";
+        const wrapper = await mountMarkers({
+            [longId]: { label: "Spawn", toggleable: true, "default-hidden": false, sorting: 0, markers: {} },
+        });
+        expect(wrapper.find(".mb-config-markers__title").text()).toBe(longId);
+    });
+});

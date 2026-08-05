@@ -345,12 +345,23 @@ function commitMarkers(id: string, raw: string): void {
 
 .mb-config-markers__title {
     font-weight: 500;
+    /*
+     * `.v-expansion-panel-title` is `display: flex; width: 100%` with no `min-width: 0`
+     * of its own (Vuetify's default), so a flex child's min-width defaults to its
+     * unwrapped content size. A marker set's own id is arbitrary user text with no
+     * length limit and often no spaces to break at (a slug), so without these two
+     * properties a long id overflows the panel header horizontally instead of wrapping
+     * -- the same class of bug the appearance editor's zero-height tab strip came from.
+     */
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .mb-config-markers__count {
     margin-inline-start: auto;
     margin-inline-end: 12px;
     font-size: 0.75rem;
+    flex-shrink: 0;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
