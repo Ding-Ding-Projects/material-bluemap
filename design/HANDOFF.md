@@ -7,8 +7,8 @@ uses. Read it first. Everything after it is a dated log written by people who we
 this section is for anyone who was not, including a small language model with no other
 context.
 
-It was last checked against the code on **2026-08-04, evening**, at commit `54559eb` on the
-`main` branch.
+It was last checked against the code on **2026-08-04, late evening**, at commit `39b869e`
+on the `main` branch.
 
 ### What this project is
 
@@ -268,6 +268,157 @@ further down for the wrong conclusion its absence produced.
    verified.
 4. Every change: run the tests, run the linter, commit with a message that says what
    actually changed, push, and check CI.
+
+---
+
+## Update, 2026-08-04 late evening — hosting a map on the internet is proven, and what is left
+
+**Read this one first. It is the newest.**
+
+### The short version
+
+Four things happened. Two are finished and proven. Two are not finished, and are named
+below so you do not have to guess.
+
+1. **A rendered map can now be put on GitHub Pages, and this was tested for real.** Not
+   "the code looks right" — a real map was published to a real website twice, and the
+   website was opened in a real browser, and it worked.
+2. **The parallel-render planner was making renders far slower than they needed to be.**
+   Fixed, with a limit added so the fix does not break something else.
+3. **The interface (the "frontend") had large gaps.** Most are now closed. Three are not.
+4. **CI (the automatic test system on GitHub) was destroying its own results.** Fixed.
+
+### 1. Putting a map on the internet
+
+**Why this was hard.** A map is made of many small files called tiles. The engine saves
+each tile compressed with gzip, so the file on disk is named `0.prbm.gz`. But the map
+viewer in the browser asks for `0.prbm` — **without** the `.gz`. BlueMap's own web server
+quietly rewrites that request, and so does this app's built-in server. **GitHub Pages does
+not.** It only ever hands out the exact files that exist. So a map copied to GitHub Pages
+would have every single tile fail to load, the page would go black, and nothing would say
+why.
+
+**The fix.** The viewer has a setting called `clientDecompression`. When it is on, the
+viewer asks for `0.prbm.gz` instead, and unzips the file itself in the browser. So before
+publishing, the app turns that setting on. It then **checks that the files the viewer will
+now ask for really exist on disk**, because turning the setting on for a map that was saved
+*without* compression breaks it in the opposite direction.
+
+The code is `design/packages/render-actions/src/pages/staticHost.ts`, function
+`prepareStaticHost`. It also writes a file called `.nojekyll` (without it, GitHub deletes
+any file whose name starts with `_`), measures the site against GitHub's size limits, and
+refuses to publish a site that would not work.
+
+**Proof it works.** A real map from a real CI render was published to
+`DingDingChae/bluemap-pages-proof`. Asking that website for `…/z0.prbm.gz` returns **200**
+(success) with gzip data. Asking for `…/z0.prbm` returns **404** (not found). That 404 is
+the whole point: without the fix, every tile would return 404.
+
+**The app can do this by itself, and that was tested too.** `PagesHost` in
+`design/packages/app/src/main/pages/hosting.ts` was run against a real GitHub account. In
+**35 seconds** it created a repository, prepared the map, pushed it, switched Pages on,
+waited for GitHub to finish building, and checked the address answered. The result was
+`status: live`, `verified: true`. GitHub issue **#44** has the full evidence and a
+screenshot.
+
+**What is still NOT proven** (do not claim these work):
+
+- Publishing to a **private** repository. GitHub Pages needs a paid plan for those. The app
+  is supposed to say so clearly. Nobody has tested that message.
+- Publishing a **big** map. The test map was 70 files and 5.8 MB. A real world is tens of
+  thousands of files and several gigabytes. Nobody has measured that.
+- **Resume after a crash.** The code exists and was run once, and it correctly reused the
+  old commit instead of uploading everything again. But it still *announces* the steps
+  "staging" and "pushing" while doing neither. Either it is telling the user something
+  untrue, or the shortcut is not working. See issue **#45**. The test needed is one that
+  counts how many times `git add` really runs.
+
+### 2. The planner was choosing slow renders
+
+When a world is too big for one computer, the work is split into pieces called **shards**,
+and GitHub runs them at the same time. The planner used to ask *"what is the smallest number
+of shards that still finishes in time?"* For a big world that answer was **6**, each taking
+almost 3 hours — while **64** slots sat empty. It met the deadline and wasted most of a day.
+
+It now asks for as many shards as are useful, and stops when a shard would spend more time
+setting itself up (downloading the world, installing, building) than actually drawing tiles.
+
+**The trap that came with that fix, which matters.** Past **32** shards, the finished map is
+delivered in **parts** that no single computer ever joins together. That means the app
+cannot download it as one map, and it cannot be put on GitHub Pages. So sharding harder for
+speed would have quietly taken the finished map away. The planner now stops at 32 unless the
+time limit genuinely forces it further. Code:
+`design/packages/render-actions/src/plan/plan.ts`.
+
+### 3. The interface
+
+Fixed in this session:
+
+- The **command palette** now opens with `Ctrl+Shift+F` (it was `Ctrl+K`, which the project
+  rules forbid), and it now reaches every page, every options-editor tab, and several panels
+  that were previously unreachable.
+- The **spoken copy** (the language modes and the two humour sliders) reached only about
+  **5%** of the app's text. It now reaches **75%** — 1,435 of 1,914 pieces of text, across 19
+  files in `design/packages/ui/src/copy/surfaces/`.
+- A **notification box was see-through**, so the page's words and the notification's words
+  were printed on top of each other and neither could be read.
+- The **backup button** went grey without saying which of six conditions was unmet.
+- The **appearance editor** had no search box on two of its three tabs.
+
+**Not finished** — these are the next obvious jobs:
+
+| What | Where it stands | Size |
+|---|---|---|
+| Spoken copy for the **world** screens | 15 of 234 pieces done | large |
+| Spoken copy for the **project** screens | 5 of 184 done | large |
+| Spoken copy for the **command palette** | 0 of 81 done | medium |
+
+The guard test `design/packages/ui/src/copy/catalogueCoverage.test.ts` lists exactly which
+screens are finished. Add a screen to that list when you finish it.
+
+### 4. CI was destroying its own results
+
+Every push started a test run, and each new run **cancelled the one before it**. Over an
+afternoon, no run ever finished, so the branch had no pass and no fail — which looks like
+"everything is fine" to anyone glancing at it, and is worse than a failure, because a
+failure is at least visible.
+
+The cause is that runs shared a *concurrency group*. Two separate things cancel a run in a
+shared group, so the group was removed from `.github/workflows/ci.yml` entirely. Only the
+**release** step still shares one, because the dim sum code name for a release is chosen by
+counting how many releases already exist — two releases at once would pick the same name.
+
+**A consequence you will notice:** runs no longer die, but they now **queue**, because
+GitHub only lets so many run at once. Verdicts arrive late instead of never. If you want
+them sooner, the lever is running fewer jobs per push: the Windows installer build, the
+test-world render and the screenshots all run on every single commit and do not need to.
+
+### The state of the tests, checked by hand
+
+Because CI could not give an answer, the three checks were run locally:
+
+- `npx vitest run` — **383 files, 6,236 tests passed**, 3 skipped
+- `npx eslint .` — clean
+- `pnpm -r run typecheck` — clean
+
+Note that the tree moved between the three, because several agents were pushing at the time.
+One duplicate-key error appeared and was gone minutes later; it was another agent's
+half-finished edit, not a landed fault.
+
+### Two traps that cost hours, so you do not repeat them
+
+1. **The screenshot tool photographs a build, and it is not the build you think it is.**
+   Running the build command in `design/packages/app` rebuilds only the background part of
+   the app. Everything you can *see* is built by `design/packages/ui`
+   (`pnpm --filter @material-bluemap/ui run build`). Fixing a component, rebuilding the app,
+   and taking a new screenshot gives you a picture of the **old** interface, with every test
+   still passing. A correct one-line fix was rewritten three times because of this. There is
+   now a guard: `design/packages/app/test/freshBundle.ts` refuses to run the screenshot tool
+   when any build is older than its source. Read its message rather than working around it.
+2. **A rule test catches a thing done wrongly, and never a thing not done at all.** A screen
+   with no search box passes a rule about search boxes. A screen with no spoken copy passes a
+   rule about spoken copy being well formed. Whenever you add a rule test, add the opposite
+   assertion beside it: a written list of the screens that must *have* the thing.
 
 ---
 
