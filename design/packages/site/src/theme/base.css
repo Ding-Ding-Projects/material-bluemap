@@ -297,6 +297,169 @@ textarea {
     --md-typescale-tracking: var(--md-sys-typescale-label-small-tracking);
 }
 
+/* ---- Expressive type utilities ------------------------------------------------------ */
+
+/*
+ * A kicker/eyebrow label: the short uppercase line a page or section puts above its title
+ * ("EVERY FEATURE, INDEXED" above "Documentation", and so on). One reusable class rather
+ * than a fresh rule per page, so every page kind gets the same treatment by name. Component-
+ * level overrides (the hero's own oversized title, for instance) still live with the
+ * component that owns them - this is the shared vocabulary they draw from.
+ */
+.md-kicker {
+    display: block;
+    overflow-wrap: anywhere;
+    margin-block-end: var(--md-sys-spacing-2);
+    color: var(--md-sys-color-primary);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: 700;
+    line-height: var(--md-sys-typescale-label-large-line-height);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+/*
+ * An oversized numeral for a statistic that is meant to be the loudest thing in its card,
+ * not a card title wearing a bold weight. Tabular numerals keep a row of several stats
+ * aligned on their digits even as the values change width.
+ */
+.md-stat-number {
+    display: block;
+    color: var(--md-sys-color-on-surface);
+    font-family: var(--md-ref-typeface-brand);
+    font-size: clamp(2.5rem, 6vw, 3.5rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+/* ---- Shape and elevation utilities --------------------------------------------------- */
+
+/*
+ * Named shape utilities, parallel to the type-scale classes above: a caller picks a rung on
+ * the M3 Expressive scale (tokens.css) by name instead of writing a literal radius, so the
+ * site's varied corners stay this one vocabulary instead of drifting per page.
+ */
+.md-shape-none {
+    border-radius: var(--md-sys-shape-corner-none);
+}
+
+.md-shape-extra-small {
+    border-radius: var(--md-sys-shape-corner-extra-small);
+}
+
+.md-shape-small {
+    border-radius: var(--md-sys-shape-corner-small);
+}
+
+.md-shape-medium {
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+
+.md-shape-large {
+    border-radius: var(--md-sys-shape-corner-large);
+}
+
+.md-shape-large-increased {
+    border-radius: var(--md-sys-shape-corner-large-increased);
+}
+
+.md-shape-extra-large {
+    border-radius: var(--md-sys-shape-corner-extra-large);
+}
+
+.md-shape-extra-large-increased {
+    border-radius: var(--md-sys-shape-corner-extra-large-increased);
+}
+
+.md-shape-full {
+    border-radius: var(--md-sys-shape-corner-full);
+}
+
+/*
+ * Elevation utilities. Each level pairs a shadow with the matching M3 tonal-elevation
+ * blend (a shift toward --md-sys-color-surface-tint, i.e. the primary colour) - together
+ * these are what makes a raised surface read as "lifted" rather than merely "has a shadow".
+ * `--md-comp-elevation-base` lets a caller pick which surface colour the tint blends onto;
+ * it defaults to `surface-container-low`, the same base `.md-card` uses.
+ *
+ * `data-mb-elevation="off"` (Settings > Appearance > Elevation, wired in settings.css for
+ * `.md-card`) flattens every one of these back to a hairline outline; the coverage below
+ * extends that same accessibility toggle to the new elevation-bearing primitives added in
+ * this pass so nothing here can bypass it.
+ */
+.md-elevation-0 {
+    box-shadow: var(--md-sys-elevation-level0);
+}
+
+.md-elevation-1 {
+    box-shadow: var(--md-sys-elevation-level1);
+    background-color: color-mix(
+        in srgb,
+        var(--md-sys-color-surface-tint) var(--md-sys-elevation-tint-opacity-level1),
+        var(--md-comp-elevation-base, var(--md-sys-color-surface-container-low))
+    );
+}
+
+.md-elevation-2 {
+    box-shadow: var(--md-sys-elevation-level2);
+    background-color: color-mix(
+        in srgb,
+        var(--md-sys-color-surface-tint) var(--md-sys-elevation-tint-opacity-level2),
+        var(--md-comp-elevation-base, var(--md-sys-color-surface-container-low))
+    );
+}
+
+.md-elevation-3 {
+    box-shadow: var(--md-sys-elevation-level3);
+    background-color: color-mix(
+        in srgb,
+        var(--md-sys-color-surface-tint) var(--md-sys-elevation-tint-opacity-level3),
+        var(--md-comp-elevation-base, var(--md-sys-color-surface-container-low))
+    );
+}
+
+/*
+ * A surface that lifts on hover/focus: level1 at rest to level2 raised, with a small
+ * translateY so the lift reads as physical rather than a colour swap. Reads through the
+ * motion tokens, so prefers-reduced-motion's global collapse to 1ms neutralises the
+ * transition for free, and the transform itself is removed outright when elevation is off.
+ */
+.md-elevatable {
+    transition:
+        box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.md-elevatable:hover,
+.md-elevatable:focus-visible {
+    box-shadow: var(--md-sys-elevation-level2);
+    background-color: color-mix(
+        in srgb,
+        var(--md-sys-color-surface-tint) var(--md-sys-elevation-tint-opacity-level2),
+        var(--md-comp-elevation-base, var(--md-sys-color-surface-container-low))
+    );
+    transform: translateY(-2px);
+}
+
+:root[data-mb-elevation="off"] .md-elevation-1,
+:root[data-mb-elevation="off"] .md-elevation-2,
+:root[data-mb-elevation="off"] .md-elevation-3,
+:root[data-mb-elevation="off"] .md-elevatable,
+:root[data-mb-elevation="off"] .md-button--elevated {
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background-color: var(--md-comp-elevation-base, var(--md-sys-color-surface-container-low));
+    box-shadow: none;
+}
+
+:root[data-mb-elevation="off"] .md-elevatable:hover,
+:root[data-mb-elevation="off"] .md-elevatable:focus-visible {
+    transform: none;
+}
+
 /*
  * Bilingual secondary copy. The primary label keeps the surrounding type style and the
  * Cantonese sits under it, smaller and in the variant colour, so both fit without the
@@ -423,6 +586,26 @@ textarea {
     --md-comp-button-label: var(--md-sys-color-on-error);
 }
 
+/*
+ * The fifth M3 button type - filled/tonal/outlined/text already existed, elevated did not.
+ * A tinted surface with a real shadow, for a button that needs to read as raised above its
+ * background rather than flush with it (an unfilled surface, a scrim, imagery).
+ */
+.md-button--elevated {
+    --md-comp-button-container: var(--md-sys-color-surface-container-low);
+    --md-comp-button-label: var(--md-sys-color-primary);
+
+    box-shadow: var(--md-sys-elevation-level1);
+}
+
+.md-button--elevated:hover:not(:disabled) {
+    box-shadow: var(--md-sys-elevation-level2);
+}
+
+.md-button--elevated:disabled {
+    box-shadow: none;
+}
+
 .md-button .md-button__icon {
     flex: none;
     width: 18px;
@@ -479,20 +662,98 @@ textarea {
 
 /* ---- Surfaces ---------------------------------------------------------------------- */
 
+/*
+ * `--md-comp-card-shape` is the hook: `.md-card` sets it once and reads it once, and every
+ * modifier below only ever overrides the custom property rather than repeating the
+ * `border-radius` declaration. A page-specific stylesheet outside this file can do the same
+ * - `.mb-card { --md-comp-card-shape: var(--md-sys-shape-corner-small); }` - without
+ * duplicating this rule, which is what keeps a docs list, a changelog row and a settings
+ * card each free to pick a different rung of the shape scale.
+ */
 .md-card {
-    border-radius: var(--md-sys-shape-corner-large);
+    --md-comp-card-shape: var(--md-sys-shape-corner-large);
+
+    border-radius: var(--md-comp-card-shape);
     background: var(--md-sys-color-surface-container-low);
     color: var(--md-sys-color-on-surface);
     padding: var(--md-sys-spacing-5);
 }
 
+/* A softer, slightly larger corner than the filled default, so the two card types read as
+   genuinely different surfaces rather than the same rectangle with a line around it. */
 .md-card--outlined {
+    --md-comp-card-shape: var(--md-sys-shape-corner-large-increased);
+
     border: 1px solid var(--md-sys-color-outline-variant);
     background: var(--md-sys-color-surface);
 }
 
+/* Elevation plus M3's tonal-elevation shift: a raised card is tinted toward the primary
+   colour, not just shadowed - see the elevation utilities above for the same formula. */
 .md-card--elevated {
     box-shadow: var(--md-sys-elevation-level1);
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-surface-tint) var(--md-sys-elevation-tint-opacity-level1),
+        var(--md-sys-color-surface-container-low)
+    );
+}
+
+/*
+ * Tier 0 in the site's depth system: dense, flat rows for a list of many similar things (a
+ * docs index entry, a changelog row). Small corner, hairline border, no shadow and no tint,
+ * so a long list reads calm - and so the hero's much larger corner and real elevation read
+ * as a deliberate choice by contrast, rather than the same shape repeated at every scale.
+ */
+.md-card--compact {
+    --md-comp-card-shape: var(--md-sys-shape-corner-small);
+
+    border: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface);
+    box-shadow: none;
+}
+
+/*
+ * Tier 3: a flagship card for the one or two things on a page that should visibly outrank
+ * everything else near them - a feature article, a highlighted entry. The extra-large
+ * corner and a real elevation are reserved for that handful of items on purpose.
+ */
+.md-card--feature {
+    --md-comp-card-shape: var(--md-sys-shape-corner-extra-large);
+
+    box-shadow: var(--md-sys-elevation-level2);
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-surface-tint) var(--md-sys-elevation-tint-opacity-level2),
+        var(--md-sys-color-surface-container-low)
+    );
+}
+
+/*
+ * Combine with `.md-card--elevated` or `.md-card--feature` on a tile that invites a click,
+ * or is itself a link/button - a stat tile, a gallery card. Tier 1's rest/raised pair.
+ */
+.md-card--interactive {
+    cursor: pointer;
+    transition:
+        box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.md-card--interactive:hover,
+.md-card--interactive:focus-visible {
+    box-shadow: var(--md-sys-elevation-level2);
+    transform: translateY(-2px);
+}
+
+:root[data-mb-elevation="off"] .md-card--elevated,
+:root[data-mb-elevation="off"] .md-card--feature {
+    background: var(--md-sys-color-surface-container-low);
+}
+
+:root[data-mb-elevation="off"] .md-card--interactive:hover,
+:root[data-mb-elevation="off"] .md-card--interactive:focus-visible {
+    transform: none;
 }
 
 .md-divider {
@@ -527,6 +788,30 @@ textarea {
     color: var(--md-sys-color-on-primary-container);
 }
 
+/*
+ * `--accent` painted primary-container; these two ride the other two container roles so a
+ * category system (changelog chips, status tags) can use all three real M3 roles instead of
+ * repeating the one accent everywhere a role-coded colour is needed.
+ */
+.md-chip--secondary {
+    border-color: transparent;
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.md-chip--tertiary {
+    border-color: transparent;
+    background: var(--md-sys-color-tertiary-container);
+    color: var(--md-sys-color-on-tertiary-container);
+}
+
+/* `.md-chip`'s own corner (small, 8px) is the real M3 chip shape. This modifier is for the
+   site's status/filter pills that want the fully-rounded silhouette instead - layer it on
+   top of any colour variant above. */
+.md-chip--pill {
+    border-radius: var(--md-sys-shape-corner-full);
+}
+
 /* ---- Text fields ------------------------------------------------------------------- */
 
 .md-field {
@@ -543,14 +828,23 @@ textarea {
     letter-spacing: var(--md-sys-typescale-label-medium-tracking);
 }
 
+/*
+ * `--md-comp-field-shape` is the same override hook `.md-card` exposes for its own corner:
+ * every text field on the site defaults to the M3 field corner (extra-small), but a search
+ * bar wants the full pill instead. A caller sets `--md-comp-field-shape:
+ * var(--md-sys-shape-corner-full)` on its own search-field class without repeating this
+ * whole rule.
+ */
 .md-field__input,
 .md-field__select {
+    --md-comp-field-shape: var(--md-sys-shape-corner-extra-small);
+
     width: 100%;
     min-width: 0;
     min-height: max(40px, calc(48px * var(--md-sys-density-scale)));
     padding: var(--md-sys-spacing-2) var(--md-sys-spacing-3);
     border: 1px solid var(--md-sys-color-outline);
-    border-radius: var(--md-sys-shape-corner-extra-small);
+    border-radius: var(--md-comp-field-shape);
     background: var(--md-sys-color-surface-container-lowest);
     color: var(--md-sys-color-on-surface);
     font-family: var(--md-sys-typescale-body-medium-font);
@@ -632,7 +926,11 @@ textarea {
     overscroll-behavior: contain;
     border: 1px solid var(--md-sys-color-outline-variant);
     border-radius: var(--md-sys-shape-corner-medium);
-    background: var(--md-sys-color-surface-container-high);
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-surface-tint) var(--md-sys-elevation-tint-opacity-level3),
+        var(--md-sys-color-surface-container-high)
+    );
     box-shadow: var(--md-sys-elevation-level3);
     color: var(--md-sys-color-on-surface);
 }
@@ -754,7 +1052,11 @@ textarea {
     padding: 0;
     border: 1px solid var(--md-sys-color-outline-variant);
     border-radius: var(--md-sys-shape-corner-extra-large);
-    background: var(--md-sys-color-surface-container-high);
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-surface-tint) var(--md-sys-elevation-tint-opacity-level3),
+        var(--md-sys-color-surface-container-high)
+    );
     box-shadow: var(--md-sys-elevation-level3);
     color: var(--md-sys-color-on-surface);
 }

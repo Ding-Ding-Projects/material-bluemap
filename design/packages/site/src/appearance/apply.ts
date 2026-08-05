@@ -278,8 +278,11 @@ export function applyRootAppearance(root: HTMLElement, values: RootAppearance): 
 
     const focus = resolveColor(values.focusColor);
     style.setProperty(
+        // #7e4e00 is the last-resort fallback only: it matches the shipped Beacon Amber seed
+        // (settings/schema.ts) so an unreadable focus colour still degrades to the site's own
+        // brand rather than the retired purple placeholder.
         "--mb-focus-color",
-        focus ?? "var(--md-sys-color-secondary, var(--md-sys-color-primary, #6750a4))"
+        focus ?? "var(--md-sys-color-secondary, var(--md-sys-color-primary, #7e4e00))"
     );
 
     const palette = accentPalette(values.accentSeed, values.resolvedDark);

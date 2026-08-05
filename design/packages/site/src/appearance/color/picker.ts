@@ -32,8 +32,8 @@ const MAX_RECENTS = 12;
 const PALETTE: readonly string[] = [
     "#000000",
     "#ffffff",
-    "#6750a4",
-    "#625b71",
+    "#7e4e00",
+    "#2f5e64",
     "#7d5260",
     "#b3261e",
     "#1e6e3c",

@@ -14,60 +14,75 @@
  * Light and dark are both real: the roles are redeclared under [data-theme="dark"]. The
  * theme controller writes that attribute, defaulting to prefers-color-scheme.
  *
- * The palettes are tonal ramps around the BlueMap brand blue. Tone numbers follow the M3
- * convention (0 black through 100 white), including the extra neutral stops M3 Expressive
- * adds for surface containers.
+ * "Beacon Cartography": a warm-amber primary (a lit beacon) against a cool deep-water teal
+ * secondary and a nether-magenta tertiary - a scheme that reads as a Minecraft mapping tool
+ * rather than a generic admin panel. Tone numbers follow the M3 convention (0 black through
+ * 100 white), including the extra neutral stops M3 Expressive adds for surface containers.
+ * The sys-color roles below only ever reference these ref values by name, so re-seeding the
+ * brand is a change of the hex values here and nowhere else - both the [data-theme="dark"]
+ * block and every component stylesheet in the package pick the new palette up automatically.
  */
 
 :root {
     /* ---- Reference: tonal palettes ------------------------------------------------- */
 
+    /* Primary - "Beacon Amber". Seed #7e4e00, hue ~55deg warm brown-gold. */
     --md-ref-primary-0: #000000;
-    --md-ref-primary-10: #001c38;
-    --md-ref-primary-20: #00315c;
-    --md-ref-primary-30: #004881;
-    --md-ref-primary-40: #0061a4;
-    --md-ref-primary-50: #007ac9;
-    --md-ref-primary-60: #2f95e8;
-    --md-ref-primary-70: #57b0ff;
-    --md-ref-primary-80: #9bcbff;
-    --md-ref-primary-90: #d0e4ff;
-    --md-ref-primary-95: #e8f1ff;
-    --md-ref-primary-99: #fcfcff;
+    --md-ref-primary-10: #2c1600;
+    --md-ref-primary-20: #462700;
+    --md-ref-primary-30: #613a00;
+    --md-ref-primary-40: #7e4e00;
+    --md-ref-primary-50: #9c6300;
+    --md-ref-primary-60: #ba7a17;
+    --md-ref-primary-70: #d89334;
+    --md-ref-primary-80: #ffb951;
+    --md-ref-primary-90: #ffdcb6;
+    --md-ref-primary-95: #ffeedd;
+    --md-ref-primary-99: #fffbff;
     --md-ref-primary-100: #ffffff;
 
+    /* Secondary - "Deep Water Teal". Seed #2f5e64, hue ~195deg, deliberately more muted than
+       primary so it supports rather than competes with the beacon. */
     --md-ref-secondary-0: #000000;
-    --md-ref-secondary-10: #101c2b;
-    --md-ref-secondary-20: #253141;
-    --md-ref-secondary-30: #3b4858;
-    --md-ref-secondary-40: #535f70;
-    --md-ref-secondary-50: #6b7889;
-    --md-ref-secondary-60: #8591a3;
-    --md-ref-secondary-70: #a0acbe;
-    --md-ref-secondary-80: #bbc7db;
-    --md-ref-secondary-90: #d7e3f8;
-    --md-ref-secondary-95: #ebf1ff;
-    --md-ref-secondary-99: #fcfcff;
+    --md-ref-secondary-10: #001f24;
+    --md-ref-secondary-20: #013137;
+    --md-ref-secondary-30: #17474d;
+    --md-ref-secondary-40: #2f5e64;
+    --md-ref-secondary-50: #46767d;
+    --md-ref-secondary-60: #609298;
+    --md-ref-secondary-70: #79acb3;
+    --md-ref-secondary-80: #94c8cf;
+    --md-ref-secondary-90: #cae6ec;
+    --md-ref-secondary-95: #e3f4f7;
+    --md-ref-secondary-99: #f7fdfd;
     --md-ref-secondary-100: #ffffff;
 
+    /* Tertiary - "Nether Magenta". Seed #8a3d78, hue ~320deg, the third container role most
+       sites never paint - used sparingly, but as a genuine pop rather than a pastel. */
     --md-ref-tertiary-0: #000000;
-    --md-ref-tertiary-10: #251431;
-    --md-ref-tertiary-20: #3b2948;
-    --md-ref-tertiary-30: #523f5f;
-    --md-ref-tertiary-40: #6b5778;
-    --md-ref-tertiary-50: #857092;
-    --md-ref-tertiary-60: #a089ad;
-    --md-ref-tertiary-70: #bca3c9;
-    --md-ref-tertiary-80: #d9bfe6;
-    --md-ref-tertiary-90: #f6daff;
-    --md-ref-tertiary-95: #fcecff;
+    --md-ref-tertiary-10: #330022;
+    --md-ref-tertiary-20: #4f0836;
+    --md-ref-tertiary-30: #6b2350;
+    --md-ref-tertiary-40: #8a3d78;
+    --md-ref-tertiary-50: #a85791;
+    --md-ref-tertiary-60: #c771ab;
+    --md-ref-tertiary-70: #e68cc6;
+    --md-ref-tertiary-80: #ffa9e4;
+    --md-ref-tertiary-90: #ffd8f4;
+    --md-ref-tertiary-95: #ffeafa;
     --md-ref-tertiary-99: #fffbff;
     --md-ref-tertiary-100: #ffffff;
 
+    /*
+     * Nudged 2-3% warm off the original cool-grey scaffolding so the neutrals stop fighting
+     * the amber primary - deliberately only the two stops that actually paint the page
+     * background and its default text (tone 98 and tone 10). The rest of the ramp keeps its
+     * original cool-neutral values on purpose: this is a small tint, not a repalette.
+     */
     --md-ref-neutral-0: #000000;
     --md-ref-neutral-4: #0b0e11;
     --md-ref-neutral-6: #101418;
-    --md-ref-neutral-10: #1a1c1e;
+    --md-ref-neutral-10: #1c1a17;
     --md-ref-neutral-12: #1e2022;
     --md-ref-neutral-17: #282a2d;
     --md-ref-neutral-20: #2f3033;
@@ -85,7 +100,7 @@
     --md-ref-neutral-94: #efedf1;
     --md-ref-neutral-95: #f1f0f4;
     --md-ref-neutral-96: #f4f3f6;
-    --md-ref-neutral-98: #faf9fd;
+    --md-ref-neutral-98: #faf8f5;
     --md-ref-neutral-99: #fdfbff;
     --md-ref-neutral-100: #ffffff;
 
@@ -123,17 +138,23 @@
      * "this went well" as the error palette would be worse than adding two ramps. They are
      * named --md-sys-color-* alongside the real roles so components consume them the same
      * way; the extension is recorded here so nobody mistakes them for spec roles.
+     *
+     * Warning moved off amber (hue ~40) to rust/orange-red (hue ~23) now that the primary
+     * role owns the amber hue - otherwise a "Ported, not yet verified" pill would read as
+     * the same colour as a primary button. Tone 40 (#8f4a1f) carries white text at ~6.6:1
+     * and tone 10 carries tone 90 at well over 10:1 in both directions; verified by hand
+     * against the WCAG relative-luminance formula, not just picked by eye.
      */
-    --md-ref-warning-10: #2a1700;
-    --md-ref-warning-20: #452b00;
-    --md-ref-warning-30: #624000;
-    --md-ref-warning-40: #825600;
-    --md-ref-warning-50: #a36c00;
-    --md-ref-warning-60: #c58400;
-    --md-ref-warning-70: #e59d1e;
-    --md-ref-warning-80: #ffb945;
-    --md-ref-warning-90: #ffddb3;
-    --md-ref-warning-95: #ffeedc;
+    --md-ref-warning-10: #2b0e00;
+    --md-ref-warning-20: #471a00;
+    --md-ref-warning-30: #642a00;
+    --md-ref-warning-40: #8f4a1f;
+    --md-ref-warning-50: #a8622f;
+    --md-ref-warning-60: #c47b48;
+    --md-ref-warning-70: #de9663;
+    --md-ref-warning-80: #f4b280;
+    --md-ref-warning-90: #ffdbc4;
+    --md-ref-warning-95: #ffece0;
 
     --md-ref-success-10: #002106;
     --md-ref-success-20: #00390f;
@@ -323,12 +344,24 @@
 
     /* ---- System: shape ------------------------------------------------------------- */
 
+    /*
+     * The M3 Expressive shape scale: the baseline six rungs plus their "increased"
+     * companions, an eleven-step scale (0/4/8/8/10/12/16/16/20/28/32/999) that gives a
+     * component a genuine choice of corner instead of one radius reused everywhere. A
+     * component picks a named rung - never a literal px value - so the whole site's shape
+     * vocabulary stays this one list.
+     */
     --md-sys-shape-corner-none: 0;
     --md-sys-shape-corner-extra-small: 4px;
+    --md-sys-shape-corner-extra-small-increased: 8px;
     --md-sys-shape-corner-small: 8px;
+    --md-sys-shape-corner-small-increased: 10px;
     --md-sys-shape-corner-medium: 12px;
+    --md-sys-shape-corner-medium-increased: 16px;
     --md-sys-shape-corner-large: 16px;
+    --md-sys-shape-corner-large-increased: 20px;
     --md-sys-shape-corner-extra-large: 28px;
+    --md-sys-shape-corner-extra-large-increased: 32px;
     --md-sys-shape-corner-full: 999px;
 
     /* ---- System: elevation --------------------------------------------------------- */
@@ -351,6 +384,23 @@
         0 2px 3px 0 rgb(var(--md-sys-elevation-shadow-channels) / 30%);
     --md-sys-elevation-level5: 0 8px 12px 6px rgb(var(--md-sys-elevation-shadow-channels) / 15%),
         0 4px 4px 0 rgb(var(--md-sys-elevation-shadow-channels) / 30%);
+
+    /*
+     * M3 "tonal elevation": a raised surface is not only a shadow, it is also a shift
+     * toward the surface-tint colour (--md-sys-color-surface-tint, aliased to primary).
+     * These are the standard M3 baseline overlay opacities per level, meant to be composed
+     * with a surface colour via color-mix(), e.g.
+     *   color-mix(in srgb, var(--md-sys-color-surface-tint) var(--md-sys-elevation-tint-opacity-level1), var(--md-sys-color-surface-container-low))
+     * Settings > Appearance > Surface tint sets --md-sys-color-surface-tint to transparent
+     * when the visitor turns tinting off, which folds every one of these back to the plain
+     * surface colour for free - nothing here has to know that toggle exists.
+     */
+    --md-sys-elevation-tint-opacity-level0: 0%;
+    --md-sys-elevation-tint-opacity-level1: 5%;
+    --md-sys-elevation-tint-opacity-level2: 8%;
+    --md-sys-elevation-tint-opacity-level3: 11%;
+    --md-sys-elevation-tint-opacity-level4: 12%;
+    --md-sys-elevation-tint-opacity-level5: 14%;
 
     /* ---- System: motion ------------------------------------------------------------ */
 

@@ -121,7 +121,12 @@ export const SETTINGS: readonly SettingDefinition[] = [
         labelKey: "set.accentSeed",
         descriptionKey: "set.accentSeed.desc",
         keywords: ["primary", "seed", "brand", "主色", "品牌色"],
-        defaultValue: "#6750a4",
+        // Beacon Amber, the shipped brand seed (see theme/tokens.css). This is what "reset
+        // to default" restores to, and what every visitor who has never touched this control
+        // is actually seeing - applyRootAppearance() overrides --md-sys-color-primary from
+        // this value unconditionally on every page load, so a stale seed here would silently
+        // repaint the whole site back to the old brand regardless of what tokens.css says.
+        defaultValue: "#7e4e00",
     },
     {
         id: "theme.surfaceTint",
