@@ -189,7 +189,17 @@ describe("presets.ts: the description matches what applyPreset actually does", (
             if (!application.storageAdded) continue;
 
             const key = `project.presets.${preset.id}.description` as VoicedKey;
-            const required = PRESETS_FACTS[key];
+            // Annotated rather than left inferred: `PRESETS_FACTS` is `as const`, so the
+            // uninferred type of `PRESETS_FACTS[key]` is a union of the *specific* literal
+            // tuples each preset's fact list happens to hold, one per preset. Calling
+            // `.includes()` on a union of differently-typed readonly tuples makes `vue-tsc`
+            // intersect the parameter types of every member's `includes` overload rather than
+            // union them, which collapses to `never` and rejects any string at all -- the
+            // `for...of` loop two tests up never hits this because iteration reads the union's
+            // element type directly instead of resolving a method's parameter type. Naming the
+            // general shape here (the same shape `satisfies` already checked this object
+            // against) sidesteps the inference entirely rather than working around the symptom.
+            const required: { en: readonly string[]; yue: readonly string[] } = PRESETS_FACTS[key];
             for (const language of LANGUAGES) {
                 if (!required[language].includes("file storage")) {
                     missing.push(`${key} ${language}: fact list does not require "file storage"`);

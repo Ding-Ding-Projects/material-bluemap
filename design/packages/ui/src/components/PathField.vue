@@ -145,7 +145,7 @@ async function browseFile(): Promise<void> {
                 :label="displayLabel"
                 :placeholder="placeholder ?? ''"
                 :disabled="isDisabled"
-                :error-messages="error ?? undefined"
+                :error-messages="error ?? null"
                 class="mb-path-field__mono"
                 variant="outlined"
                 :density="density"

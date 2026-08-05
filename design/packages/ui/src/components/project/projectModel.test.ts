@@ -673,7 +673,7 @@ describe("applying the all-dimensions preset", () => {
     it("adds all three maps, named and sorted the way BlueMap's own CLI would generate them", () => {
         const application = applyPreset(EMPTY, findPreset("allDimensions"), { world: WORLD, storageRoot: "C:/renders" });
 
-        expect(application.mapsAdded.sort()).toEqual(["end", "nether", "overworld"]);
+        expect(application.mapsAdded.toSorted()).toEqual(["end", "nether", "overworld"]);
         expect(findMap(application.project, "overworld")?.name).toBe("Overworld");
         expect(findMap(application.project, "nether")?.name).toBe("Nether");
         expect(findMap(application.project, "end")?.name).toBe("End");
@@ -694,7 +694,7 @@ describe("applying the all-dimensions preset", () => {
             storageRoot: "C:/renders",
         });
 
-        expect(application.mapsAdded.sort()).toEqual(["end", "nether"]);
+        expect(application.mapsAdded.toSorted()).toEqual(["end", "nether"]);
         expect(application.mapsSkipped).toEqual(["overworld"]);
         // The hand-edited map is untouched: applying a preset composes, it never overwrites.
         expect(findMap(application.project, "overworld")?.config).toBe('name: "Hand Edited"\nsky-color: "#ff00ff"\n');

@@ -142,7 +142,7 @@ describe("clicking a level", () => {
 
         const events = speed.emitted("set");
         expect(events).toHaveLength(2);
-        const [[countField, countValue], [priorityField, priorityValue]] = events as [unknown, unknown][][];
+        const [[countField, countValue], [priorityField, priorityValue]] = events as [unknown, unknown][];
         expect((countField as { path: string }).path).toBe("render-thread-count");
         expect(countValue).toBe(4);
         expect((priorityField as { path: string }).path).toBe("render-thread-priority");

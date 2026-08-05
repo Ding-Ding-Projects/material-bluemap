@@ -62,7 +62,7 @@ describe("the marker search field's keydown handling", () => {
     it("lets Escape bubble out to an enclosing listener", async () => {
         const wrapper = render();
         let escapeSeenByAncestor = false;
-        wrapper.element.parentElement?.addEventListener("keydown", (event) => {
+        wrapper.element.parentElement?.addEventListener("keydown", (event: KeyboardEvent) => {
             if (event.key === "Escape") escapeSeenByAncestor = true;
         });
 
