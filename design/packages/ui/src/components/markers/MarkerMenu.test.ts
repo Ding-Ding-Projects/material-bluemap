@@ -26,6 +26,9 @@ import MarkerMenu from "./MarkerMenu.vue";
 import { MenuChoice } from "../menu/index.js";
 import type { AnyMarkerData, AnyMarkerSetData } from "./markerTypes.js";
 
+/** Where the stand-in `localStorage` below keeps what `MarkerMenu` writes. */
+const localStorageCells = new Map<string, string>();
+
 beforeAll(() => {
     // jsdom has no layout engine, and Vuetify's overlays observe their own size.
     globalThis.ResizeObserver = class {
@@ -33,6 +36,40 @@ beforeAll(() => {
         unobserve(): void {}
         disconnect(): void {}
     } as unknown as typeof ResizeObserver;
+
+    // This document's origin is opaque, so real `localStorage` throws on every access -
+    // the same reason `AppSettings.test.ts`, `ProfileManager.test.ts`,
+    // `CommandPalette.test.ts` and `tabs/TabbedNavigation.test.ts` each install this same
+    // map-backed stand-in rather than relying on the real thing. `MarkerMenu.vue`'s own
+    // `readFiltersOpen`/the filters-open watcher wrap every access in try/catch exactly
+    // because storage is expected to be unavailable sometimes - which without a stand-in
+    // of its own here means every access in this file always throws, always caught, so
+    // `filtersOpen` always happens to start `true` and the mirroring test always happens
+    // to pass in isolation. It stops being reliable the moment this file runs in a worker
+    // that already defined a *working* `globalThis.localStorage` for an earlier file:
+    // `defineProperty` mutations to `globalThis` are not guaranteed to be undone between
+    // files sharing a worker, so this file would silently inherit whatever key/value
+    // pairs that other file's stand-in was left holding, including a stale
+    // `material-bluemap-marker-filters-open` from an entirely unrelated run. Owning this
+    // file's own stand-in - installed here, cleared in `beforeEach` below - makes the
+    // filters-open state deterministic regardless of what ran before it.
+    Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        value: {
+            getItem: (key: string) => localStorageCells.get(key) ?? null,
+            setItem: (key: string, value: string) => void localStorageCells.set(key, value),
+            removeItem: (key: string) => void localStorageCells.delete(key),
+            clear: () => localStorageCells.clear(),
+            key: (index: number) => [...localStorageCells.keys()][index] ?? null,
+            get length() {
+                return localStorageCells.size;
+            },
+        } as unknown as Storage,
+    });
+});
+
+beforeEach(() => {
+    localStorageCells.clear();
 });
 
 function marker(id: string, label: string, x: number): AnyMarkerData {
