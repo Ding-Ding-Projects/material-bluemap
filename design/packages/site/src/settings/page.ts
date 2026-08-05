@@ -12,7 +12,7 @@
  * attaches to it.
  */
 
-import { clear, el, uniqueId } from "../platform/dom.js";
+import { clear, el, icon, uniqueId } from "../platform/dom.js";
 import { announce, flashAttention } from "./dom.js";
 import { fillPhrase, searchableText, setI18nState, subscribeI18n, t } from "./i18n.js";
 import type { FunnyLevel, LanguageMode } from "./i18n.js";
@@ -187,9 +187,12 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
     const searchSummary = el("div", { class: "mb-search-summary", attrs: { role: "status" } });
     const clearSearch = el("button", {
         class: "md-icon-button",
-        text: t("settings.searchClear"),
         attrs: { type: "button" },
     });
+    // An icon button carries an icon, never a two-word phrase: `.md-icon-button` is a fixed
+    // 48x48 box with no overflow guard, so word text wraps past its own edges instead of
+    // fitting inside it. The accessible name still says "Clear search" via aria-label.
+    clearSearch.append(icon("close"));
     clearSearch.setAttribute("aria-label", t("settings.searchClear"));
     clearSearch.addEventListener("click", () => {
         searchInput.value = "";
@@ -452,7 +455,8 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         fillPhrase(label, "settings.tabSearchLabel");
         fillPhrase(hint, "settings.tabSearchHint");
         input.placeholder = t("settings.tabSearchPlaceholder");
-        clearButton.textContent = t("settings.searchClear");
+        // Same icon-not-text fix as the page-level clear button above.
+        clearButton.append(icon("close"));
         clearButton.setAttribute("aria-label", t("settings.searchClear"));
 
         const state = {
@@ -1135,14 +1139,13 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         fillPhrase(searchLabel, "settings.searchLabel");
         fillPhrase(searchHint, "settings.searchHint");
         searchInput.placeholder = t("settings.searchPlaceholder");
-        clearSearch.textContent = t("settings.searchClear");
+        // The icon itself is locale-invariant; only the accessible name is re-translated.
         clearSearch.setAttribute("aria-label", t("settings.searchClear"));
 
         for (const local of tabSearches.values()) {
             fillPhrase(local.label, "settings.tabSearchLabel");
             fillPhrase(local.hint, "settings.tabSearchHint");
             local.input.placeholder = t("settings.tabSearchPlaceholder");
-            local.clearButton.textContent = t("settings.searchClear");
             local.clearButton.setAttribute("aria-label", t("settings.searchClear"));
         }
 

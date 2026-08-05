@@ -13,6 +13,22 @@
     box-sizing: border-box;
 }
 
+/*
+ * `[hidden]` is only a user-agent stylesheet rule (`[hidden] { display: none }`), and author
+ * rules always outrank the user agent's once a component sets its own `display` - regardless
+ * of selector specificity. Every component here that lays itself out with `display: flex` or
+ * `display: grid` (`.tab`, `.tab-group`, `.md-button`, `.mbm-icon-button`, `.mbm-search__options`,
+ * and any future one) would silently keep rendering the moment its element also picked up the
+ * `hidden` attribute, unless something restates the user agent's rule with real author-origin
+ * weight. This restates it globally, with `!important`, once, for every element on the site,
+ * rather than trusting each component's own stylesheet to remember a guard it does not know it
+ * needs. A component may still show a *different* element while one sibling is hidden; it may
+ * never make the hidden one visible again.
+ */
+[hidden] {
+    display: none !important;
+}
+
 html {
     /*
      * Everything sizes in rem, so the browser's own font-size setting scales the whole page.
