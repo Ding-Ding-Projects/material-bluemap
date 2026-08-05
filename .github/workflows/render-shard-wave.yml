@@ -235,7 +235,16 @@ jobs:
         if: always() && steps.render.outcome == 'failure' && steps.report.outputs.hires == '0'
         shell: bash
         run: |
-          echo "::error::Shard ${{ matrix.shard }} rendered no tiles at all. The engine did not run:"                "check the Render step's output above for the real reason. Its exit was swallowed so that"                "a shard which merely ran out of time could still hand over the tiles it had drawn."
+          set -euo pipefail
+          # One annotation, then the explanation as ordinary log lines. This was written as
+          # three quoted strings on one `echo`, separated by runs of spaces, which `echo`
+          # collapses into single spaces - so the message read as one run-on sentence and
+          # shellcheck flagged it (SC2291). A GitHub annotation is a single line anyway.
+          echo "::error::Shard ${{ matrix.shard }} rendered no tiles at all, so the engine did not run."
+          echo "Check the Render step's output above for the real reason."
+          echo "Its exit was swallowed deliberately, so that a shard which merely ran out of time"
+          echo "could still hand over the tiles it had already drawn - but a shard that drew"
+          echo "nothing has no tiles to hand over, and is a failure rather than a partial success."
           exit 1
 
       # Uploaded whether or not it finished. The marker inside says which it was, and the
