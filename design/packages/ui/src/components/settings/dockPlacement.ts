@@ -136,6 +136,11 @@ export function writeDockPlacements(
     placements: DockPlacementRecord,
     storage: DockStorage | null = defaultStorage(),
 ): void {
+    // Fire-and-forget mirror into the main process's own settings history, whether or not
+    // there is a local `storage` to write to - a wholly separate channel to the main
+    // process. Deliberately not done for `writeDockSizes`/`writeDockFloatingRects` - see this
+    // file's own doc comment.
+    recordAppSetting("dockPlacement", placements);
     if (storage === null) return;
     try {
         storage.setItem(
@@ -145,9 +150,6 @@ export function writeDockPlacements(
     } catch {
         // Private mode or a full quota. A remembered panel position is not worth a toast.
     }
-    // Fire-and-forget mirror into the main process's own settings history. Deliberately not
-    // done for `writeDockSizes`/`writeDockFloatingRects` - see this file's own doc comment.
-    recordAppSetting("dockPlacement", placements);
 }
 
 /** The record with one surface set. Pure, so the state module has one place that writes. */

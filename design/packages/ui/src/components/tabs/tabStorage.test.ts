@@ -252,8 +252,10 @@ describe("mirroring into the application-settings history", () => {
         expect(recordAppSetting).toHaveBeenCalledWith("tabs.material-bluemap-settings-tabs", workspace);
     });
 
-    it("still mirrors when there is no storage to write to at all", () => {
-        writeTabWorkspace(saved(), null);
-        expect(recordAppSetting).not.toHaveBeenCalled();
+    it("still mirrors when there is no local storage to write to at all", () => {
+        const workspace = saved();
+        writeTabWorkspace(workspace, null);
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith(`tabs.${DEFAULT_TAB_STORAGE_KEY}`, workspace);
     });
 });

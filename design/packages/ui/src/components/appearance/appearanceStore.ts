@@ -413,16 +413,17 @@ export function writeAppearanceState(
     state: AppearanceState,
     storage: AppearanceStorage | null = defaultStorage(),
 ): void {
+    // Fire-and-forget mirror into the main process's own settings history. Called even when
+    // there is no local `storage` at all: it is a wholly separate channel to the main
+    // process, not a fallback for a blocked `localStorage` - see `appSettingsHistorySync.ts`'s
+    // own doc comment for the whole rule.
+    recordAppSetting("appearance", state);
     if (storage === null) return;
     try {
         storage.setItem(APPEARANCE_STORAGE_KEY, exportTheme(state));
     } catch {
         // Private mode or a full quota. A remembered theme is not worth a toast.
     }
-    // Fire-and-forget mirror into the main process's own settings history, on top of the
-    // localStorage write above rather than instead of it - see
-    // `appSettingsHistorySync.ts`'s own doc comment for the whole rule.
-    recordAppSetting("appearance", state);
 }
 
 /* -------------------------------------------------------------------------- */

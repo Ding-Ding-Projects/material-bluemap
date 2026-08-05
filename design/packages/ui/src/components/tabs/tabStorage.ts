@@ -240,6 +240,13 @@ export function writeTabWorkspace(
     storage: TabStorage | null = defaultStorage(),
     key: string = DEFAULT_TAB_STORAGE_KEY,
 ): void {
+    // Fire-and-forget mirror into the main process's own settings history, whether or not
+    // there is a local `storage` to write to - see `appSettingsHistorySync.ts`'s own doc
+    // comment. Namespaced under `tabs.<key>` because this one module backs several
+    // independent tab strips (the main shell, Settings, the config editor, a project
+    // editor), each under its own `localStorage` key, and they must not collide in the
+    // shared bag either.
+    recordAppSetting(`tabs.${key}`, workspace);
     if (storage === null) return;
     try {
         storage.setItem(
@@ -249,10 +256,4 @@ export function writeTabWorkspace(
     } catch {
         // Private mode or a full quota. A remembered tab layout is not worth a toast.
     }
-    // Fire-and-forget mirror into the main process's own settings history, on top of the
-    // localStorage write above - see `appSettingsHistorySync.ts`'s own doc comment. Namespaced
-    // under `tabs.<key>` because this one module backs several independent tab strips (the
-    // main shell, Settings, the config editor, a project editor), each under its own
-    // `localStorage` key, and they must not collide in the shared bag either.
-    recordAppSetting(`tabs.${key}`, workspace);
 }

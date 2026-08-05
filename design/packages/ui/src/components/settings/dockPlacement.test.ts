@@ -717,6 +717,13 @@ describe("mirroring into the application-settings history", () => {
         expect(recordAppSetting).toHaveBeenCalledWith("dockPlacement", placements);
     });
 
+    it("still mirrors a placement change when there is no local storage to write to at all", () => {
+        const placements = { "app-settings": "left" as const };
+        writeDockPlacements(placements, null);
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith("dockPlacement", placements);
+    });
+
     it("never mirrors a size change - it fires once per drag frame, not once per decision", () => {
         writeDockSizes({ "app-settings": { right: 640 } }, memoryStorage());
         expect(recordAppSetting).not.toHaveBeenCalled();

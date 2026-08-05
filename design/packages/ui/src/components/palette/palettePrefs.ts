@@ -70,15 +70,16 @@ export function readPaletteSize(storage: PaletteStorage | null = defaultStorage(
 
 /** Writes the size, silently doing nothing where storage refuses. */
 export function writePaletteSize(size: PaletteSize, storage: PaletteStorage | null = defaultStorage()): void {
+    // Fire-and-forget mirror into the main process's own settings history, whether or not
+    // there is a local `storage` to write to - see `appSettingsHistorySync.ts`'s own doc
+    // comment.
+    recordAppSetting("palette", { size });
     if (storage === null) return;
     try {
         storage.setItem(STORAGE_KEY, JSON.stringify({ size }));
     } catch {
         // Private mode or a full quota. A remembered window size is not worth a toast.
     }
-    // Fire-and-forget mirror into the main process's own settings history, on top of the
-    // localStorage write above - see `appSettingsHistorySync.ts`'s own doc comment.
-    recordAppSetting("palette", { size });
 }
 
 /**

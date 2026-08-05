@@ -107,6 +107,12 @@ describe("mirroring into the application-settings history", () => {
         expect(recordAppSetting).toHaveBeenCalledTimes(1);
         expect(recordAppSetting).toHaveBeenCalledWith("palette", { size: "full" });
     });
+
+    it("still mirrors when there is no local storage to write to at all", () => {
+        writePaletteSize("full", null);
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith("palette", { size: "full" });
+    });
 });
 
 describe("the shortcut", () => {

@@ -341,6 +341,12 @@ describe("mirroring into the application-settings history", () => {
         expect(recordAppSetting).toHaveBeenCalledTimes(1);
         expect(recordAppSetting).toHaveBeenCalledWith("appearance", emptyState());
     });
+
+    it("still mirrors when there is no local storage to write to at all", () => {
+        writeAppearanceState(emptyState(), null);
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith("appearance", emptyState());
+    });
 });
 
 describe("recordFor", () => {
