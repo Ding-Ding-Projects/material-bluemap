@@ -14,6 +14,7 @@
         "typecheck": "pnpm -r --fail-if-no-match --filter \"./packages/**\" run typecheck",
         "test": "vitest run",
         "test:watch": "vitest",
+        "test:ci": "node ../scripts/run-tests-ci.mjs",
         "lint": "eslint .",
         "format": "prettier --write .",
         "format:check": "prettier --check ."

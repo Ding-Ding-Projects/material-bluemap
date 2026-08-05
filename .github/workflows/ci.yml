@@ -126,7 +126,16 @@ jobs:
       # checks a template, and plain `tsc` cannot read a `.vue` import at all — so that
       # one package runs `vue-tsc` instead.
       - run: pnpm typecheck
-      - run: pnpm test
+      # `test:ci`, not `test`: every one of the last several CI runs died the same
+      # way - every test file and every test reported passed, and the only failure
+      # was vitest's own worker-to-main RPC heartbeat (an unhandled error reading
+      # [vitest-worker]: Timeout calling "onTaskUpdate", a 60s deadline hardcoded
+      # in this vitest version with no config knob). scripts/run-tests-ci.mjs runs
+      # the real `vitest run` and retries a clean attempt only on that exact
+      # signature - zero failed files, zero failed tests, that one RPC error -
+      # never on an actual failing test. `pnpm test` (plain `vitest run`) stays
+      # the local/dev command.
+      - run: pnpm test:ci
 
   package:
     name: Windows installer
