@@ -436,9 +436,9 @@ export const home: HomeContent = {
                 {
                     title: "Back a world or a rendered map up to GitHub",
                     body: "A folder packed into one deterministic archive, cut into 500 MiB parts, and published as the assets of a new release with a pointer naming every part and its digest. Git LFS was rejected on cost by name, and the pointer format is the sibling app's so either can read the other's backup.",
-                    status: "ported-unverified",
+                    status: "shipped",
                     statusNote:
-                        "Nine test files in CI, one of which drives a whole backup and a resume against real folders. Every GitHub interaction in every one of them is against a recording fake, and the interoperability claim is checked at the level of the pointer grammar only.",
+                        "Twelve test files, and a real backup, a real cancel-and-resume and a real restore have all now run against real github.com, byte-for-byte, finding and fixing a real bug in a 422 refusal on the way. Restoring needed a real engine it never actually had; that now exists too. What remains is the app's own Restore button, still not wired to it.",
                     articleId: "backups",
                     reading: [{ label: "docs/backup.md", href: BACKUP_DOC_URL }],
                 },

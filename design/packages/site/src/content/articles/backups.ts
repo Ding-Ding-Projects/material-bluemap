@@ -7,9 +7,9 @@ export const backups: Article = {
     summary:
         "A world or a render packed into one deterministic archive, cut into parts, and published as the assets of a new GitHub release with a pointer file naming every part and its digest. Git LFS was rejected on cost, by name.",
     category: "application",
-    status: "ported-unverified",
+    status: "shipped",
     statusNote:
-        "The packer, the splitter, the release client, the runner, the bridge and the Backups screen are on the default branch and covered by nine test files in CI, one of which drives a whole backup and a resume against real folders. Every GitHub interaction in every one of them is against a recording fake: no backup has been made against real GitHub from this branch, so what GitHub itself does is proved against a stand-in rather than observed.",
+        "A real backup, a real cancel-and-resume and a real restore have all now run against real github.com: packing a small world, publishing it as a release, resuming it under its original archive name after a genuine mid-upload cancel, and restoring both the fresh and the resumed release back to a byte-for-byte match of the source folder, against a throwaway public repository kept as evidence. That live run found and fixed a real bug on the way. GitHub answers the same 422 status for a genuine taken-tag collision and for \"this repository has no commits yet\", and the code used to assume every 422 meant the first, telling somebody backing up to a brand-new repository to retry forever. Restoring also needed a real engine that did not exist before this pass: the claim that restoring reused the downloads surface was never true, since that surface only understands a different split format and cannot read a Cheap LFS release at all, so main/backup/restore.ts now does the job for real, proven by round-tripping a genuine backup through it byte for byte as well as against real GitHub. Twelve test files cover the feature end to end. What remains is one integration step, not a verification gap: the Restore button in the app still only opens Downloads and asks the person to fetch the release by hand, because the new engine is not yet wired to a channel, a bridge method or that button.",
 
     sections: [
         {
@@ -91,9 +91,9 @@ export const backups: Article = {
                                 "Private is not the same as free: a private repository's releases still count against the account's storage limits. The note says cheap rather than free instead of promising anything.",
                         },
                         {
-                            term: "Restoring is the downloads surface",
+                            term: "Restoring has its own engine now",
                             description:
-                                "Not a second implementation. Choosing Restore hands that surface the release's owner, repository, tag and archive name with the release already chosen, and everything after that is the path that already fetches parts, checks each against its published digest, rejoins them, checks the whole file and unpacks it.",
+                                "It does not reuse the downloads surface, whatever an earlier version of this article said: that surface only understands a different split format and cannot read a Cheap LFS release at all. main/backup/restore.ts reads the pointer, fetches every part, verifies each one and the whole file, and unpacks it, proven byte-for-byte against a real backup on real GitHub. Choosing Restore in the app does not reach it yet - that one wiring step is what remains.",
                         },
                         {
                             term: "Stopping is safe",
@@ -263,11 +263,19 @@ export const backups: Article = {
                         ],
                         [
                             { code: "main/backup/github.test.ts" },
-                            "Only repositories with push access are offered; a taken tag says nothing was changed; an upload streams rather than buffering; no method other than GET or POST is ever sent.",
+                            "Only repositories with push access are offered; a genuine taken-tag 422 (matched by GitHub's own structured error code) says nothing was changed; an empty-repository 422 - the same status, a different body - is told apart and named correctly rather than reported as a taken tag; an upload streams rather than buffering; no method other than GET or POST is ever sent.",
                         ],
                         [
                             { code: "main/backup/runner.test.ts" },
                             "A whole backup against real folders and a fake GitHub: the pointer's parts hash to what landed and rejoin to the promised archive; the pointer goes up last; a public repository is refused unacknowledged and uploads nothing; a resume skips digest-matched parts and re-uploads a truncated one; a cancel mid-part keeps what was already up and never leaves a pointer.",
+                        ],
+                        [
+                            { code: "main/backup/restore.ts / restore.test.ts" },
+                            "The engine that actually restores a backup: reads the pointer, fetches every part, verifies each one and the whole file, unpacks it. A real BackupRunner upload round-tripped through it byte-for-byte, including the single-asset form; a stopped upload with parts but no pointer is refused as incomplete rather than restored; a corrupted part is caught before anything unpacks; cancellation is reported as cancellation, not failure.",
+                        ],
+                        [
+                            { code: "main/backup/backup.realGithub.test.ts" },
+                            "Skipped unless MBM_TEST_BACKUP_LIVE=1 is set. Packs, publishes, cancels mid-upload, resumes under the same tag, and restores - twice, once fresh and once resumed - against real api.github.com and uploads.github.com, with the restored folder checked byte-for-byte against the original both times.",
                         ],
                         [
                             { code: "main/backup/ipc.test.ts" },
@@ -278,6 +286,10 @@ export const backups: Article = {
                             "Events land in the right row; a refusal with no id is reported beside the form rather than as a phantom row; reading a repository clears the previous answer first.",
                         ],
                         [
+                            { code: "components/backup/BackupRunCard.test.ts" },
+                            "The upload progress card renders the phase, the byte counts and the estimate a running backup reports.",
+                        ],
+                        [
                             { code: "components/backup/BackupScreen.test.ts" },
                             "A build with no bridge says what is needed; the public warning and its acknowledgement render; restoring emits the release's coordinates and fetches nothing itself; an unfinished backup offers no restore.",
                         ],
@@ -285,16 +297,38 @@ export const backups: Article = {
                 },
                 {
                     kind: "callout",
-                    tone: "warning",
-                    title: "No backup has been made against real GitHub",
+                    tone: "note",
+                    title: "Proven against real github.com, and a real bug it found",
                     content: [
-                        "Every GitHub interaction in this feature is exercised against a fake that records the ",
-                        "whole conversation. Nothing has been uploaded to github.com from this branch, so the ",
-                        "release API's own behaviour is proved against a stand-in. The largest archive packed ",
-                        "in a test is a few megabytes: the Zip64 records are written for every entry rather ",
-                        "than only for large ones precisely so the four-gigabyte boundary is not a code path ",
-                        "that only runs on archives nobody can afford to test with, but that boundary has not ",
-                        "been crossed with real data here.",
+                        "A small multi-part world was packed, published, cancelled mid-upload, resumed under ",
+                        "its original archive name, and restored - both the fresh release and the resumed one ",
+                        "- against a throwaway public repository kept as evidence, with the restored folder ",
+                        "checked byte-for-byte against the source. That run found a real defect on the way: ",
+                        "GitHub answers the same 422 status for a genuine taken-tag collision and for ",
+                        "\"this repository has no commits yet\", and the code used to assume every 422 meant ",
+                        "the first, telling somebody backing up to a brand-new repository to retry forever. ",
+                        "Fixed by reading GitHub's own structured error code rather than the status alone. ",
+                        "The largest archive packed in any test, including the live one, is still a few ",
+                        "megabytes: the Zip64 records are written for every entry rather than only for large ",
+                        "ones precisely so the four-gigabyte boundary is not a code path that only runs on ",
+                        "archives nobody can afford to test with, but that boundary has not been crossed with ",
+                        "real data here.",
+                    ],
+                },
+                {
+                    kind: "callout",
+                    tone: "warning",
+                    title: "One integration step remains: the Restore button itself",
+                    content: [
+                        "Restoring now has a real engine, ",
+                        { code: "main/backup/restore.ts" },
+                        ", proven against real GitHub. What is not yet true is that pressing ",
+                        { strong: "Restore this" },
+                        " in the app reaches it: the button still only opens Downloads and asks the person ",
+                        "to fetch the release by hand, because the engine is not yet wired to an IPC channel, ",
+                        "a bridge method or the button - and, as it happens, the downloads surface it used to ",
+                        "hand off to cannot read a Cheap LFS release at all, so that handoff was never going ",
+                        "to work either. That wiring is the one piece of this feature that remains.",
                     ],
                 },
                 {
@@ -307,12 +341,14 @@ export const backups: Article = {
                         "inventing a rival so that a backup made by either application is readable by the ",
                         "other. What is verified is that every pointer this writer produces satisfies the ",
                         "canonical regular expressions and head-field rules, copied verbatim out of that ",
-                        "application's own pointer module and applied line by line. What is ",
+                        "application's own pointer module and applied line by line - and, now, that this ",
+                        "project's own writer and this project's own restorer agree with each other and with ",
+                        "real GitHub. What is ",
                         { strong: "not" },
                         " claimed is that a backup made here restores through Desktop Material's own restore ",
-                        "path end to end. That needs that application running against a real release, which ",
-                        "this suite cannot do, and asserting it from a passing regular expression would be a ",
-                        "claim about software this repository does not build.",
+                        "path end to end, or the other way round. That needs that application running against ",
+                        "a real release, which this suite cannot do, and asserting it from a passing regular ",
+                        "expression would be a claim about software this repository does not build.",
                     ],
                 },
                 {
@@ -334,7 +370,7 @@ export const backups: Article = {
     suggested: [
         {
             articleId: "release-downloads",
-            reason: "The surface that restores a backup, and the part-rejoining it already does.",
+            reason: "A different split format on the same idea - why it cannot read a backup's own parts, and what it restores instead.",
         },
         {
             articleId: "github-sign-in",
