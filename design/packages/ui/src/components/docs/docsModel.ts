@@ -66,6 +66,7 @@ export function titleFromMarkdown(markdown: string, fallbackId: string): string 
  * command palette's own catalogue keeps its groups in the order the surface they describe uses.
  */
 export const APPLICATION_ORDER: readonly string[] = [
+    "glossary.md",
     "command-palette.md",
     "notification-centre.md",
     "changelog-viewer.md",

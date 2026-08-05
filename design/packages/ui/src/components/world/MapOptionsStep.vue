@@ -15,6 +15,7 @@ import {
 import type { FieldMeta, PlainValue } from "@material-bluemap/config";
 import ConfigField from "../config/ConfigField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { GlossaryTerm } from "../glossary/index.js";
 import { filterFields, sampleTextFor } from "../config/configSearch.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import type { EditableConfigFile } from "../config/configModel.js";
@@ -133,6 +134,9 @@ function onQuery(value: string): void {
                     "Every one of these already has BlueMap's own default, so you can press straight through to the end. Change what you want to change; the rest stays as upstream ships it.",
                 )
             }}
+        </p>
+        <p class="mb-world-step__blurb">
+            <GlossaryTerm term="tile" />
         </p>
 
         <div class="mb-world-options__tools">

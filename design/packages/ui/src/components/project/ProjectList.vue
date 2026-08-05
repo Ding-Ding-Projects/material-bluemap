@@ -32,6 +32,7 @@ import {
 import AppearanceTarget from "../appearance/AppearanceTarget.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import { GlossaryTerm } from "../glossary/index.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import {
     EXPORT_FORMATS,
@@ -468,6 +469,7 @@ function askToForget(world: string): void {
         <v-card-title class="mb-projects__head">
             <v-icon :icon="mdiFolderMultipleOutline" aria-hidden="true" />
             <span>{{ t("project.list.title", "Projects") }}</span>
+            <GlossaryTerm term="project" />
             <v-spacer />
             <v-btn
                 :prepend-icon="mdiRefresh"

@@ -25,6 +25,7 @@ import {
 import { EMPTY_INVOCATION, type CliInvocation, type FieldMeta, type PlainValue } from "@material-bluemap/config";
 import ConfigApplyDialog from "./ConfigApplyDialog.vue";
 import { HistoryPanel } from "../history/index.js";
+import { GlossaryTerm } from "../glossary/index.js";
 import ConfigFileForm from "./ConfigFileForm.vue";
 import ConfigSearchField from "./ConfigSearchField.vue";
 import MapsScreen from "./MapsScreen.vue";
@@ -683,6 +684,9 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                 class="mb-config-screen__tabs"
             >
                 <template #core>
+                    <p class="mb-config-screen__intro">
+                        <GlossaryTerm term="renderThread" />
+                    </p>
                     <template v-if="coreEntry">
                         <!--
                           The novice "Speed" dial, above the raw settings it drives.
@@ -722,6 +726,9 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                 </template>
 
                 <template #storages>
+                    <p class="mb-config-screen__intro">
+                        <GlossaryTerm term="storage" />
+                    </p>
                     <StoragesScreen
                         :workspace="workspace"
                         :selected-key="selectedStorageKey"
@@ -762,6 +769,9 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                 </template>
 
                 <template #plugin>
+                    <p class="mb-config-screen__intro">
+                        <GlossaryTerm term="serverPlugin" />
+                    </p>
                     <ConfigFileForm
                         v-if="pluginEntry"
                         :file="pluginEntry.file"
@@ -782,6 +792,9 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                 </template>
 
                 <template #run>
+                    <p class="mb-config-screen__intro">
+                        <GlossaryTerm term="engine" />
+                    </p>
                     <RunScreen
                         :invocation="invocation"
                         :jar-path="jarPathValue"
@@ -813,6 +826,7 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                             "Open a folder BlueMap already uses to carry on from it, or generate a new set of config files here.",
                         )
                     }}
+                    <GlossaryTerm term="configFolder" />
                 </p>
             </v-card-text>
         </v-card>
@@ -871,6 +885,13 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
 }
 
 .mb-config-screen__note {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-config-screen__intro {
+    margin-block: 0 12px;
     font-size: 0.8125rem;
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));

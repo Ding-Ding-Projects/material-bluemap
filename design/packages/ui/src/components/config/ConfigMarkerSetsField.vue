@@ -19,6 +19,7 @@ import {
 import { MARKER_SET_FIELDS, type FieldMeta, type PlainValue } from "@material-bluemap/config";
 import ConfigControl from "./ConfigControl.vue";
 import { docShownText, isDocLong, provenanceOf } from "./explainField.js";
+import { GlossaryTerm } from "../glossary/index.js";
 
 /**
  * The `marker-sets` block of a map config.
@@ -205,6 +206,7 @@ function commitMarkers(id: string, raw: string): void {
                     "These are the markers written into the map config itself. Their container settings are edited below; the markers inside each set are passed through exactly as written.",
                 )
             }}
+            <GlossaryTerm term="marker" />
         </p>
 
         <p v-if="sets.length === 0" class="mb-config-markers__empty">

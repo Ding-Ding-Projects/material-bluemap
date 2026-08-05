@@ -29,6 +29,7 @@ import { DIMENSION_OPTIONS, type FieldMeta, type PlainValue, type ProjectFile } 
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import { GlossaryTerm } from "../glossary/index.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { clearFieldValue, replaceText, setFieldValue } from "../config/configModel.js";
 import {
@@ -464,6 +465,10 @@ function confirmRemoval(): void {
 <template>
     <div class="mb-project-maps">
         <aside class="mb-project-maps__list" :aria-label="t('project.maps.listLabel', 'Maps in this project')">
+            <p class="mb-project-maps__glossaryLine">
+                <GlossaryTerm term="map" />
+                <GlossaryTerm term="render" />
+            </p>
             <ConfigSearchField
                 v-model="query"
                 v-model:regex="regexMode"
@@ -840,6 +845,13 @@ function confirmRemoval(): void {
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
+}
+
+.mb-project-maps__glossaryLine {
+    margin-block: 0 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
 }
 
 .mb-project-maps__presetsHeading {

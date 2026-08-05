@@ -17,6 +17,7 @@ import {
 import AppearanceTarget from "./appearance/AppearanceTarget.vue";
 import ConfigSearchField from "./config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "./config/ConfigSuperConfirm.vue";
+import { GlossaryTerm } from "./glossary/index.js";
 import { createSettingMatcher } from "./config/regexEngine.js";
 import {
     addProfile,
@@ -398,11 +399,13 @@ function whatRemovalCosts(profile: ServerProfile): string[] {
 
 <template>
     <!-- Not "servers" any more: the list now also holds maps rendered on this machine. -->
-    <v-card
-        min-width="380"
-        max-width="520"
-        :title="t('servers.cardTitle', 'Maps and servers')"
-    >
+    <v-card min-width="380" max-width="520">
+        <template #title>
+            <span class="mb-profiles__title">
+                {{ t("servers.cardTitle", "Maps and servers") }}
+                <GlossaryTerm term="profile" />
+            </span>
+        </template>
         <v-card-text>
             <!--
                 The search appears once there is enough to search, and stays for as long as a
@@ -624,6 +627,9 @@ function whatRemovalCosts(profile: ServerProfile): string[] {
                 :placeholder="t('profiles.field.urlHint', 'https://example.com/bluemap')"
                 density="compact"
             />
+            <p class="mb-profiles__urlHint">
+                <GlossaryTerm term="blueMapUrl" />
+            </p>
         </v-card-text>
         <v-card-actions>
             <v-btn :prepend-icon="mdiPlus" color="primary" @click="create">
@@ -636,8 +642,18 @@ function whatRemovalCosts(profile: ServerProfile): string[] {
 </template>
 
 <style scoped>
+.mb-profiles__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
 .mb-profiles__search {
     margin-bottom: 0.5rem;
+}
+
+.mb-profiles__urlHint {
+    margin-block: -0.25rem 0 0.5rem;
 }
 
 .mb-profiles__list {

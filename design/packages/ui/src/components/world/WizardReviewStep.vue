@@ -15,6 +15,7 @@ import {
 } from "vuetify/components";
 import type { PlainValue } from "@material-bluemap/config";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { GlossaryTerm } from "../glossary/index.js";
 import { valueToText } from "../config/fieldValue.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import type { FieldChange } from "../config/configModel.js";
@@ -144,16 +145,22 @@ async function copyConfig(): Promise<void> {
             <v-card-text>
                 <dl class="mb-world-review__facts">
                     <dt>{{ t("world.review.worldLabel", "World") }}</dt>
-                    <dd>{{ world }}</dd>
+                    <dd>{{ world }} <GlossaryTerm term="world" /></dd>
 
                     <dt>{{ t("world.review.dimensionLabel", "Dimension") }}</dt>
-                    <dd>{{ dimensionLabel }} <span class="mb-world-review__key">{{ dimensionKey }}</span></dd>
+                    <dd>
+                        {{ dimensionLabel }} <span class="mb-world-review__key">{{ dimensionKey }}</span>
+                        <GlossaryTerm term="dimension" />
+                    </dd>
 
                     <dt>{{ t("world.review.mapLabel", "Map") }}</dt>
-                    <dd>{{ displayName }} <span class="mb-world-review__key">{{ mapId }}</span></dd>
+                    <dd>
+                        {{ displayName }} <span class="mb-world-review__key">{{ mapId }}</span>
+                        <GlossaryTerm term="mapId" />
+                    </dd>
 
                     <dt>{{ t("world.review.storageLabel", "Written to") }}</dt>
-                    <dd>{{ storageDirectory }}</dd>
+                    <dd>{{ storageDirectory }} <GlossaryTerm term="storage" /></dd>
 
                     <dt>{{ t("world.review.engineLabel", "Engine") }}</dt>
                     <dd>
@@ -163,6 +170,7 @@ async function copyConfig(): Promise<void> {
                                 "BlueMap's own engine, run locally. Its exact version is reported once it starts.",
                             )
                         }}
+                        <GlossaryTerm term="engine" />
                     </dd>
 
                     <dt>{{ t("world.review.javaLabel", "Java runtime") }}</dt>
@@ -269,6 +277,9 @@ async function copyConfig(): Promise<void> {
         </div>
 
         <h4 class="mb-world-review__subtitle">{{ t("world.review.changesTitle", "Settings you changed") }}</h4>
+        <p class="mb-world-review__reachesHint">
+            <GlossaryTerm term="reaches" />
+        </p>
 
         <p v-if="reaching.length === 0 && carried.length === 0" class="mb-world-step__blurb">
             {{ t("world.review.noChanges", "None. Everything is at BlueMap's own default for this dimension.") }}
@@ -385,6 +396,10 @@ async function copyConfig(): Promise<void> {
     margin-block-start: 20px;
     font-size: 0.9375rem;
     font-weight: 500;
+}
+
+.mb-world-review__reachesHint {
+    margin-block: 2px 4px;
 }
 
 .mb-world-review__facts {

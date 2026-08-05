@@ -14,6 +14,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 
 | Document | What it covers |
 |---|---|
+| [Glossary](./glossary.md) | Every term this application's own interface uses - map, world, storage, tile, project, config folder and the rest - defined against what the code actually does, and linked from an info button beside each term wherever it appears. |
 | [Command palette](./command-palette.md) | One shortcut over every command, setting and destination, with the live control on the row rather than a link to it. |
 | [Notification centre](./notification-centre.md) | The bell, the reviewable history behind it, and its filters, search and export. |
 | [Changelog and the in-app changelog viewer](./changelog-viewer.md) | The changelog generated from git history, and the viewer that searches and exports it. |
