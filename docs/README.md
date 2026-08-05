@@ -27,6 +27,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 | [The regex builder and the search bars it reaches](./regex-builder.md) | The guided builder, its bounded engine, and the guard that keeps every search bar attached to one. |
 | [Local version history for config folders](./config-history.md) | An append-only git history per config folder, kept beside the app's data — restore is a new revision, and a failed history write never fails a save. |
 | [The Minecraft licence and the consent that refers to it](./eula-and-consent.md) | The licence step at first run, the fetched-and-cached document in its tabbed viewer, the offsets that make categorising navigation rather than editing, and the placement every docked panel remembers. |
+| [Automatic dependency provisioning](./dependency-provisioning.md) | The Java runtime and Chunker, fetched, verified and installed into the app's own data folder on an explicit, size-stated button press; system dependencies offered through winget/Chocolatey with honest elevation disclosure; and what stays a manual install, and why. |
 | [Automatic updates](./automatic-updates.md) | The Squirrel feed the installer always emitted and nothing consumed, the persistent restart banner, and the render in flight that holds it — plus opening a folder the app wrote, keeping tiles out of OneDrive, and a memory ceiling for the render JVM. |
 | [Render console](./render-console.md) | The bounded, searchable render log: level text beside colour, detached-scroll state, advice links, copy/export, and an honest dropped-line count. |
 
@@ -34,6 +35,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 
 | Document | What it covers |
 |---|---|
+| [Automatic dependency provisioning](./dependency-provisioning.md) | The Java and Chunker downloads the app fetches for itself, winget/Chocolatey for `git`/`gh`/Docker/`rsync`, and what stays honestly manual and why. |
 | [Running the engine on this computer, or in a container](./docker-and-local.md) | Local by default and Docker by choice, with the same progress, logs and cancellation either way — and an honest account of what a container does and does not change. |
 | [Automatic repair when a render or the web server fails to start](./automatic-repair.md) | Eight known failures diagnosed by code with no AI at all, a local coding agent for what is left, and the guardrails that keep it to config files it can undo. |
 | [Rendering a world in GitHub Actions](./render-in-actions.md) | Rendering on GitHub's runners for computers that cannot do it themselves — the CI render sync loop, its trade-offs, sharding across a matrix, merging it back, and verifying the result. |

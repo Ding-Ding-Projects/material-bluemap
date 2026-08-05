@@ -281,6 +281,9 @@ worse than losing a render is telling somebody it is on their disk when it is no
 
 ## Suggested articles
 
+- [Automatic dependency provisioning](./dependency-provisioning.md) — the Download Java button that
+  gets a machine with no JVM ready for the local route this article describes, without needing
+  Docker at all.
 - [Automatic repair when a render or the web server fails to start](./automatic-repair.md) — what
   happens next when one of these runs does not start.
 - [Renders that survive being interrupted](./resumable-renders.md) — what a cancelled or crashed
