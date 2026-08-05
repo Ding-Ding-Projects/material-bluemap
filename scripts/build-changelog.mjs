@@ -194,6 +194,26 @@ function stripTrailers(body) {
 }
 
 /**
+ * Commit messages are private project history, but the generated changelog is a public
+ * product surface. Keep the repository's conversational shorthand out of that surface while
+ * preserving the factual sentence around it. This is intentionally a presentation filter,
+ * not a history rewrite: the commit link and the original commit remain untouched.
+ */
+function publicText(text) {
+    return text
+        .replace(/I am dewing hui/gi, "I am following the shared instructions")
+        .replace(/dewing hui/gi, "pushing to the remote")
+        .replace(/dewed hui/gi, "pushed to the remote")
+        .replace(/dew hui/gi, "push to the remote")
+        .replace(/Day Teet Hui/gi, "GitHub Pages")
+        .replace(/Gerk Tong Hui/gi, "linked worktree")
+        .replace(/Lap Sap Tong/gi, "Git stash")
+        .replace(/dum lap sap/gi, "stashing commit")
+        .replace(/poke guy/gi, "error")
+        .replace(/\bhui\b/gi, "remote");
+}
+
+/**
  * Every commit reachable from HEAD, with the files it changed.
  *
  * One `git log` rather than one invocation per commit: on Windows the per-process cost of the
@@ -304,8 +324,8 @@ function toEntry(commit) {
         sha: commit.sha,
         shortSha: commit.sha.slice(0, SHORT_SHA_LENGTH),
         date: commit.date,
-        subject: commit.subject,
-        details: commit.details,
+        subject: publicText(commit.subject),
+        details: publicText(commit.details),
         category,
         areas,
         files: commit.files.length,

@@ -610,6 +610,64 @@ describe("publishing", () => {
         expect(records[0]?.url).toBe("https://octocat.github.io/maps/");
     });
 
+    it("resumes after the durable checkpoint without staging or pushing the map again", async () => {
+        await renderAMap();
+        const runner = machine();
+        readyToRepublish(runner);
+        const publisher = host(runner);
+        const request = {
+            renderId: RENDER,
+            owner: "octocat",
+            repo: "maps",
+            acknowledgePublish: true,
+        } as const;
+        expect((await publisher.publish(request)).ok).toBe(true);
+
+        const path = join(work, RENDER, "publish.json");
+        const saved = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+        saved["stage"] = "waiting";
+        await writeFile(path, `${JSON.stringify(saved)}\n`, "utf8");
+
+        const before = runner.calls.length;
+        const resumed = await publisher.resume(RENDER);
+        expect(resumed.ok).toBe(true);
+        const resumedCalls = runner.calls.slice(before);
+        expect(resumedCalls.some((call) => call.args.includes("add"))).toBe(false);
+        expect(resumedCalls.some((call) => call.args.includes("push"))).toBe(false);
+        expect((await publisher.readRecord(RENDER))?.stage).toBe("finished");
+    });
+
+    it("refreshes the recorded Pages status and probes the saved URL again", async () => {
+        await renderAMap();
+        const runner = machine();
+        readyToRepublish(runner);
+        const publisher = new PagesHost({
+            storageDir: () => storage,
+            workRoot: () => work,
+            runner,
+            probe: () => Promise.resolve(200),
+            sleep: () => Promise.resolve(),
+            pollAttempts: 1,
+            pollIntervalMs: 0,
+        });
+        const published = await publisher.publish({
+            renderId: RENDER,
+            owner: "octocat",
+            repo: "maps",
+            acknowledgePublish: true,
+        });
+        expect(published.ok).toBe(true);
+        runner.api.set("repos/octocat/maps/pages", {
+            html_url: "https://octocat.github.io/maps/",
+            status: "built",
+            source: { branch: "gh-pages", path: "/" },
+        });
+        const refreshed = await publisher.refreshStatus(RENDER);
+        expect(refreshed?.status).toBe("live");
+        expect(refreshed?.verified).toBe(true);
+        expect((await publisher.readRecord(RENDER))?.status).toBe("live");
+    });
+
     it("never puts a credential on a command line", async () => {
         await renderAMap();
         const runner = machine();

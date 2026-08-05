@@ -73,6 +73,21 @@ renderer is not a guard.
    answered `200`.** "GitHub says built" and "a browser can open it" are two different claims,
    and a first build routinely reports built a minute before the address resolves.
 
+### Interruptions and status refresh
+
+The application writes `publish.json` under `<userData>/pages-hosting/<renderId>/` before each
+durable boundary. Its `stage` is one of `preparing`, `checking`, `staging`, `pushing`,
+`enabling`, `waiting`, `verifying` or `finished`. A crash after the orphan commit has been
+created keeps the commit and stage, and **Continue publishing** reuses that local repository:
+it checks whether the recorded commit already landed, skips a second staging/push when it did,
+then resumes Pages enablement, build polling and URL verification. Earlier stages are safely
+replayed because their preparation is idempotent.
+
+Recorded sites also carry a **Refresh status** action. It calls `GET /repos/{owner}/{repo}/pages`
+again and probes the saved URL, writing the new GitHub status and the new `200` verification
+result back to `publish.json`. A snapshot from last week is never presented as current without
+the timestamped refresh that produced it.
+
 ### Why the publishing branch is replaced rather than added to
 
 Every publish is an orphan commit and a force-push. A republished map is a replacement, not a
@@ -145,6 +160,8 @@ A branch name that is not `[A-Za-z0-9][A-Za-z0-9._-]{0,99}`, or that contains `.
 | GitHub's Pages build errors | Reported as `errored`; the repository's Pages settings page carries the reason |
 | The build finishes but the URL does not answer | Reported as `built` and **not** as live, with the HTTP status |
 | The push exits zero but GitHub does not show the commit | `pushVerified: false`, said out loud |
+| The app closes during a publish | `publish.json` keeps the last stage; the recorded-site row offers **Continue publishing** |
+| A recorded site's old status may have changed | **Refresh status** re-reads Pages and probes the URL before replacing the record |
 
 ## Security considerations
 
@@ -173,7 +190,7 @@ What has been proved, and by what:
   `Content-Encoding`, and first bytes `1f8b`. The same tile without `.gz` returned `404`. The
   BlueMap web app loaded from Pages, read `settings.json`, entered the map and rendered geometry
   in a headless browser. The flag is genuinely load-bearing.
-- The main-process feature is covered by 35 tests in
+- The main-process feature is covered by 37 tests in
   `design/packages/app/src/main/pages/hosting.test.ts` and `ipc.test.ts`, against a fake process
   runner. **No test spawns a real `git`, a real `gh`, or a network call**, deliberately: the
   cases worth testing are `gh` missing, `gh` signed out, a branch somebody else wrote, a push

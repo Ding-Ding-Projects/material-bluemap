@@ -52,6 +52,8 @@ export const PAGES_CHANNELS = [
     "pages:cancel",
     "pages:active",
     "pages:published",
+    "pages:resume",
+    "pages:status",
 ] as const;
 
 /** Everything a channel answers with, so a rejection never crosses as a raw stack. */
@@ -167,6 +169,41 @@ export function installPagesIpc(options: PagesIpcOptions): PagesIpc {
             return { ok: false, message: sentence(error) };
         }
     });
+
+    options.ipcMain.handle(
+        "pages:resume",
+        async (_event: IpcMainInvokeEvent, renderId: unknown): Promise<PagesResult> => {
+            const id = readText(renderId);
+            if (id === null) {
+                return {
+                    ok: false,
+                    failure: {
+                        code: "invalid-request",
+                        message: "A render id is required to resume a Pages publish.",
+                        detail: null,
+                        needsGhSignIn: false,
+                    },
+                };
+            }
+            return await host.resume(id);
+        },
+    );
+
+    options.ipcMain.handle(
+        "pages:status",
+        async (_event: IpcMainInvokeEvent, renderId: unknown): Promise<Answer<PagesRecord>> => {
+            const id = readText(renderId);
+            if (id === null) return { ok: false, message: "A render id is required." };
+            try {
+                const value = await host.refreshStatus(id);
+                return value === null
+                    ? { ok: false, message: "This computer has no recorded Pages site for that render." }
+                    : { ok: true, value };
+            } catch (error) {
+                return { ok: false, message: sentence(error) };
+            }
+        },
+    );
 
     return {
         host,

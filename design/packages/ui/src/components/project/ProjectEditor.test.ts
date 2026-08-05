@@ -11,7 +11,7 @@
  * render says why instead of offering a button that would draw nothing.
  */
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
@@ -20,6 +20,7 @@ import * as directives from "vuetify/directives";
 import type { ProjectFile } from "@material-bluemap/config";
 import ProjectEditor from "./ProjectEditor.vue";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
+import ProjectMapsPanel from "./ProjectMapsPanel.vue";
 import { createProject, withMapAdded } from "./projectModel.js";
 
 beforeAll(() => {
@@ -55,6 +56,26 @@ beforeAll(() => {
             removeEventListener: () => {},
         },
     });
+});
+
+/*
+ * `ProjectEditor` now carries its own `TabbedNavigation`, which persists which tab is
+ * active under `material-bluemap-project-editor-tabs`. Node's own experimental
+ * `localStorage` (the thing that warns about `--localstorage-file` above every run in
+ * this workspace) is a real, working store rather than jsdom's usual absent one, and it
+ * is not reset between test cases in this file. Left alone, the "Core" tab a test three
+ * cases ago clicked stays the active tab for every editor mounted after it - a real
+ * behaviour for a real restart, and a false cross-test dependency here. Clearing this
+ * one key before each test is what keeps every test's "the maps tab is open" assumption
+ * true regardless of run order, without reaching for a fake store the way
+ * `TabbedNavigation.test.ts` does.
+ */
+beforeEach(() => {
+    try {
+        globalThis.localStorage?.removeItem("material-bluemap-project-editor-tabs");
+    } catch {
+        // No real store in this run - nothing to clear, and nothing that would have leaked.
+    }
 });
 
 const vuetify = createVuetify({ components, directives });
@@ -259,7 +280,10 @@ describe("adding and removing maps", () => {
     it("puts the two-key gate in front of removing one, naming the tiles it will not delete", async () => {
         const wrapper = await editor();
 
-        const gate = wrapper.findComponent({ name: "ConfigSuperConfirm" });
+        // Scoped to the maps panel on purpose: the tab strip above it carries its own
+        // `ConfigSuperConfirm` for the bulk-close gate, and a bare `findComponent` by
+        // name returns whichever of the two the tree happens to render first.
+        const gate = wrapper.findComponent(ProjectMapsPanel).findComponent({ name: "ConfigSuperConfirm" });
         expect(gate.exists()).toBe(true);
         expect((gate.props("affected") as string[]).join(" ")).toContain("are NOT deleted");
         wrapper.unmount();

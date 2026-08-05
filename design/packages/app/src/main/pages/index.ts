@@ -44,6 +44,7 @@ export type {
     PagesPhase,
     PagesPreflight,
     PagesPublishReport,
+    PagesPublishStage,
     PagesPublishRequest,
     PagesRecord,
     PagesRepositoryReport,

@@ -443,3 +443,82 @@ describe("persistence", () => {
         expect(tabs(view).map((tab) => tab.attributes("title"))).toEqual(["Map", "Make a map", "Servers"]);
     });
 });
+
+/**
+ * A second host, mounting `TabbedNavigation` directly rather than through `Host`, so a
+ * test can reach `revealPage` and `renamePage` off its own component instance the way
+ * `App.vue` and every settings-style surface built on top of this component do.
+ */
+function openDirect(): VueWrapper<InstanceType<typeof TabbedNavigation>> {
+    const direct = mount(TabbedNavigation, {
+        props: { pages: PAGES, windowLabel: "Material BlueMap", stripLabel: "Main", storageKey: "test-direct-tabs" },
+        slots: {
+            map: () => h("p", { class: "page-map" }, "the map"),
+            world: () => h("p", { class: "page-world" }, "the wizard"),
+            servers: () => h("p", { class: "page-servers" }, "the servers"),
+        },
+        global: { plugins: [vuetify, i18n] },
+        attachTo: document.body,
+    });
+    return direct;
+}
+
+describe("the host API: revealPage and renamePage", () => {
+    it("revealPage activates an existing tab rather than opening a duplicate", async () => {
+        const view = openDirect();
+        await nextTick();
+
+        expect(tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>)).toHaveLength(3);
+
+        view.vm.revealPage("servers");
+        await nextTick();
+
+        const rows = tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>);
+        expect(rows).toHaveLength(3);
+        expect(rows.find((tab) => tab.attributes("aria-selected") === "true")?.attributes("title")).toBe("Servers");
+        view.unmount();
+    });
+
+    it("revealPage opens the page when every one of its tabs was closed", async () => {
+        const view = openDirect();
+        await nextTick();
+
+        await tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>)[2]?.trigger("keydown", {
+            key: "Delete",
+        });
+        await nextTick();
+        expect(tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>)).toHaveLength(2);
+
+        view.vm.revealPage("servers");
+        await nextTick();
+
+        const rows = tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>);
+        expect(rows).toHaveLength(3);
+        expect(rows.find((tab) => tab.attributes("aria-selected") === "true")?.attributes("title")).toBe("Servers");
+        view.unmount();
+    });
+
+    it("renamePage relabels every tab already showing that page, not merely the active one", async () => {
+        const view = openDirect();
+        await nextTick();
+
+        view.vm.renamePage("servers", "Servers (3)");
+        await nextTick();
+
+        const rows = tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>);
+        expect(rows.map((tab) => tab.attributes("title"))).toEqual(["Map", "Make a map", "Servers (3)"]);
+        view.unmount();
+    });
+
+    it("renamePage does nothing when no open tab shows that page", async () => {
+        const view = openDirect();
+        await nextTick();
+
+        view.vm.renamePage("no-such-page", "Ignored");
+        await nextTick();
+
+        const rows = tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>);
+        expect(rows.map((tab) => tab.attributes("title"))).toEqual(["Map", "Make a map", "Servers"]);
+        view.unmount();
+    });
+});

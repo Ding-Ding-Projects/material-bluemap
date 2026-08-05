@@ -409,6 +409,32 @@ function emergencyExit(): Locator {
 }
 
 /**
+ * Presses the command palette's own shortcut and waits for it to render.
+ *
+ * `Control+Shift+F`, not `Control+K`: the palette used to answer to Ctrl+K, and that
+ * shortcut is what this drove until the palette's own module changed its mind about which
+ * chord it owns (see `palettePrefs.ts`). Driving the real shortcut here, rather than a
+ * selector for a button that opens it, is what would have caught that change - a capture
+ * that finds another way in would keep passing the day the documented shortcut stopped
+ * working.
+ */
+async function openPalette(): Promise<void> {
+    // Pressed and released one key at a time, rather than as a `"Control+Shift+F"` chord:
+    // Playwright tracks modifier state on the page for as long as this run lives, and a
+    // chord that left Shift or Control reporting as still held would turn the very next
+    // right-click in the suite into a Shift+right-click - which every `AppearanceTarget`
+    // and every tab treats as "skip the menu, open the editor" - so a later assertion
+    // would fail with a confusing timeout on a menu that was never going to appear.
+    await page.keyboard.down("Control");
+    await page.keyboard.down("Shift");
+    await page.keyboard.press("F");
+    await page.keyboard.up("Shift");
+    await page.keyboard.up("Control");
+    await page.waitForSelector(".mb-palette", { state: "visible", timeout: ELEMENT_TIMEOUT });
+    await page.waitForTimeout(400);
+}
+
+/**
  * True when a Vuetify navigation drawer is actually open.
  *
  * A `temporary` drawer stays in the document when it is closed and is slid out of the
@@ -1483,6 +1509,249 @@ test("captures the notification corner and its history", async () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* The command palette                                                       */
+/* -------------------------------------------------------------------------- */
+
+test("captures the command palette", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    await attempt("Command palette", async () => {
+        await openPalette();
+        await shoot(
+            "palette",
+            "The command palette, opened with Ctrl+Shift+F: every command, setting and destination the application has, in one searchable list",
+            { mapArea: "covered" },
+        );
+
+        await page.locator(".mb-palette__search input").first().fill("theme");
+        await page.waitForTimeout(500);
+        await shoot(
+            "palette-search",
+            "The command palette filtered by a search, with a setting row that carries its own live control - changing it here changes the real setting, the same way changing it on its own page would",
+            { crop: page.locator(".mb-palette__card"), cropped: "the command palette", mapArea: "covered" },
+        );
+
+        await dismiss();
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The tab strip: its context menu, the finder and the bulk-close preview     */
+/* -------------------------------------------------------------------------- */
+
+test("captures the tab strip, its context menu, the tab finder and the bulk-close preview", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    // `.mb-shell-tabs` scopes every one of these to the shell's own tab bar. Settings
+    // carries its own `TabbedNavigation` too (the settings surface is tabbed per the
+    // project's own rules - see `AppSettings.vue`), and `DockedSurface` keeps it mounted
+    // with `v-show` rather than `v-if` even while closed, so an unscoped `.mb-tabs-strip-row`
+    // or `[aria-label="Find a tab"]` resolves to more than one match - the settings
+    // surface's copy among them, invisible and therefore never clickable - and `.first()`
+    // is not guaranteed to land on the one this suite actually means.
+    const shellTabs = page.locator(".mb-shell-tabs");
+
+    await attempt("Tab strip", async () => {
+        const strip = shellTabs.locator(".mb-tabs-strip-row").first();
+        await strip.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shoot(
+            "tab-strip",
+            "The browser-style tab strip: the shell's own pages, the new-tab menu, the overflow control that appears only once something stops fitting, and the tab finder's own magnifier",
+            { crop: strip, cropped: "the tab strip" },
+        );
+    });
+
+    await attempt("Tab context menu", async () => {
+        const tab = shellTabs.locator('[role="tab"]', { hasText: /maps and servers/i }).first();
+        await tab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        // The label, not the tab: a tab carries its own close button over part of its
+        // area, and a right-click aimed at the tab's centre is a coin toss between the
+        // label and that button.
+        await tab
+            .locator(".mb-tabs-strip__label")
+            .first()
+            .click({ button: "right", timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-tabs-menu", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "tab-context-menu",
+            "Right-clicking a tab: its own management commands, with the keyboard-reachable filter every context menu in this application carries and the working shortcut printed beside each item that has one",
+            { crop: page.locator(".mb-tabs-menu"), cropped: "the tab's context menu" },
+        );
+        await dismiss();
+    });
+
+    await attempt("Tab finder", async () => {
+        await shellTabs.locator('[aria-label="Find a tab"]').first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-tabs-finder", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "tab-finder",
+            "The tab finder: search this strip, search every open tab in every window, search groups by name, and both text bulk closes, each with its own anchored regex builder",
+            { crop: page.locator(".mb-tabs-finder"), cropped: "the tab finder" },
+        );
+    });
+
+    await attempt("Bulk-close preview", async () => {
+        if (!(await visible(".mb-tabs-finder"))) {
+            skip(
+                "Bulk-close preview",
+                "the tab finder that hosts this panel did not open in this run, so the panel inside it was never on screen",
+            );
+            return;
+        }
+        await page
+            .locator(".mb-tabs-finder__toggle", { hasText: "Close many tabs at once" })
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        const panel = page.locator(".mb-tabs-close__panel").first();
+        await panel.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        // "a" matches several of the shell's own built-in tab labels ("Make a map",
+        // "Maps and servers", "Publish to Pages") without matching all of them, so the
+        // preview shows a real, partial selection rather than either extreme.
+        await panel.locator("input").first().fill("a");
+        await page.waitForTimeout(500);
+        await shoot(
+            "tab-bulk-close-preview",
+            "Close tabs containing text, previewing exactly which tabs the pattern matches and what closing them would do, before anything closes",
+            { crop: panel, cropped: "the bulk-close panel" },
+        );
+    });
+
+    await dismiss();
+});
+
+/* -------------------------------------------------------------------------- */
+/* The appearance editor: its context menu, typography and the colour picker  */
+/* -------------------------------------------------------------------------- */
+
+test("captures the appearance editor, its context menu, typography and the infinite colour picker", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    await attempt("Appearance editor context menu", async () => {
+        // A tab, not a row in some other list: every tab is its own appearance target
+        // (the contract's "for tabs specifically" clause), and a tab is always on screen
+        // no matter whether this run has a map or a server profile to show elsewhere.
+        // Scoped to the shell's own tab bar for the same reason the tab-strip test is:
+        // the settings surface carries a second, normally-invisible `TabbedNavigation`.
+        const tab = page.locator('.mb-shell-tabs [role="tab"]', { hasText: /maps and servers/i }).first();
+        await tab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        // The label, not the tab: a tab carries its own close button over part of its
+        // area, and a right-click aimed at the tab's centre is a coin toss between the
+        // label and that button.
+        await tab
+            .locator(".mb-tabs-strip__label")
+            .first()
+            .click({ button: "right", timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-tabs-menu", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(400);
+        await shoot(
+            "appearance-context-menu",
+            "A tab's own context menu: its management commands, then \"Edit tab appearance...\" with its working Ctrl+Shift+F10 shortcut printed beside it, and the menu's own searchable filter at the top",
+            { crop: page.locator(".mb-tabs-menu"), cropped: "the tab's context menu" },
+        );
+
+        await page
+            .locator(".mb-tabs-menu .v-list-item", { hasText: "Edit tab appearance" })
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-appearance-editor", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
+        await page.waitForTimeout(500);
+    });
+
+    await attempt("Typography editor", async () => {
+        if (!(await visible(".mb-appearance-editor"))) {
+            skip(
+                "Typography editor",
+                "the appearance editor did not open in this run, so its Text tab was never on screen",
+            );
+            return;
+        }
+        // The editor opens on its Text tab by default, which is the typography editor.
+        await shoot(
+            "appearance-typography",
+            "The appearance editor's Text tab: every installed and bundled font with its own live preview, size, weight, style and the rest of the Word-depth typography controls, editing this tab's own label live",
+            { crop: page.locator(".mb-appearance-editor"), cropped: "the appearance editor" },
+        );
+    });
+
+    await attempt("Appearance editor surface tab", async () => {
+        if (!(await visible(".mb-appearance-editor"))) {
+            skip(
+                "Appearance editor surface tab",
+                "the appearance editor did not open in this run, so its Surface tab was never on screen",
+            );
+            return;
+        }
+        await page
+            .locator(".mb-appearance-editor .v-tab", { hasText: "Surface" })
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "appearance-surface",
+            "The appearance editor's Surface tab: background and border colour, border style, radius, spacing, shadow and opacity for this tab, each with a reset of its own",
+            { crop: page.locator(".mb-appearance-editor"), cropped: "the appearance editor" },
+        );
+    });
+
+    await attempt("Infinite colour picker", async () => {
+        if (!(await visible(".mb-appearance-editor"))) {
+            skip(
+                "Infinite colour picker",
+                "the appearance editor did not open in this run, so the colour swatch that opens the picker was never on screen",
+            );
+            return;
+        }
+        await page.locator(".mb-color-field__swatch").first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-color-picker", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "infinite-colour-picker",
+            "The infinite colour picker: a continuous field rather than a swatch grid, translated across named colours, hex, RGB, HSL, HSV, HWB, CIELAB/LCH, OKLab/OKLCH and CMYK, with a contrast readout",
+            { crop: page.locator(".mb-color-picker"), cropped: "the infinite colour picker" },
+        );
+        await dismiss();
+    });
+
+    // Two presses: the first closes the colour picker popover, the second closes the
+    // appearance editor itself and returns focus to the tab that opened it.
+    await dismiss();
+    await dismiss();
+});
+
+/* -------------------------------------------------------------------------- */
+/* The changelog viewer                                                       */
+/* -------------------------------------------------------------------------- */
+
+test("captures the changelog viewer", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    await attempt("Changelog viewer", async () => {
+        await openMenuPage("Info", ".mb-info-page, .mb-info-page__empty");
+        const fold = page.locator(".mb-info-page__changelog");
+        await fold.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+        await fold.locator("summary").first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-changelog", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page.waitForTimeout(500);
+        await shoot(
+            "changelog-viewer",
+            "The changelog viewer, folded inside the Info page: every released version, its date filter, its own search wired to the regex builder, and the commit each entry links to",
+            {
+                crop: page.locator(".mb-info-page__changelog"),
+                cropped: "the changelog fold in the Info page",
+                mapArea: "covered",
+            },
+        );
+    });
+
+    await closeSideSheet();
+});
+
+/* -------------------------------------------------------------------------- */
 /* The wizard, which needs no map                                             */
 /* -------------------------------------------------------------------------- */
 
@@ -1717,6 +1986,21 @@ const REQUIRED_SURFACES = [
     "Profile manager",
     "Notification corner",
     "Backup screen",
+    // Added when an audit found the palette, the appearance editor, the changelog and
+    // most of the tab strip's own surfaces had no capture step at all - so a change that
+    // deleted any of them outright would still have left this run green. Every one of
+    // these opens with nothing but the running application: no account, no network, no
+    // render in flight.
+    "Command palette",
+    "Tab strip",
+    "Tab context menu",
+    "Tab finder",
+    "Bulk-close preview",
+    "Appearance editor context menu",
+    "Typography editor",
+    "Appearance editor surface tab",
+    "Infinite colour picker",
+    "Changelog viewer",
 ] as const;
 
 test("captured every surface that needs nothing but the application", () => {

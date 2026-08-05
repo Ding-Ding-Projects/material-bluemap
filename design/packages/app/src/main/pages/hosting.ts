@@ -148,6 +148,9 @@ export type PagesPhase =
  */
 export type PagesSiteStatus = "live" | "built" | "building" | "queued" | "errored" | "unknown";
 
+/** The last durable boundary reached by a publish. Older records are treated as finished. */
+export type PagesPublishStage = PagesPhase | "finished";
+
 export interface PagesFailure {
     readonly code: string;
     readonly message: string;
@@ -211,6 +214,8 @@ export interface PagesRecord {
     readonly owner: string;
     readonly repo: string;
     readonly branch: string;
+    /** Durable progress marker used to resume an interrupted publish. */
+    readonly stage: PagesPublishStage;
     readonly url: string | null;
     readonly commit: string | null;
     readonly status: PagesSiteStatus;
@@ -566,6 +571,7 @@ export class PagesHost {
                 owner,
                 repo,
                 branch: text(row["branch"]) ?? DEFAULT_PAGES_BRANCH,
+                stage: (text(row["stage"]) ?? "finished") as PagesPublishStage,
                 url: text(row["url"]),
                 commit: text(row["commit"]),
                 status: (text(row["status"]) ?? "unknown") as PagesSiteStatus,
@@ -782,6 +788,61 @@ export class PagesHost {
         return true;
     }
 
+    /** Continue a publish that left a durable record before the application stopped. */
+    async resume(renderId: string): Promise<PagesResult> {
+        const saved = await this.readRecord(renderId);
+        if (saved === null || saved.stage === "finished") {
+            return {
+                ok: false,
+                failure: {
+                    code: "not-resumable",
+                    message: "There is no interrupted Pages publish to resume for this render.",
+                    detail: null,
+                    needsGhSignIn: false,
+                },
+            };
+        }
+        return this.publish({
+            renderId: saved.renderId,
+            owner: saved.owner,
+            repo: saved.repo,
+            branch: saved.branch,
+            acknowledgePublish: true,
+        });
+    }
+
+    /** Re-read GitHub's Pages status and the published URL for one recorded site. */
+    async refreshStatus(renderId: string, signal?: AbortSignal): Promise<PagesRecord | null> {
+        const saved = await this.readRecord(renderId);
+        if (saved === null) return null;
+        const call = { runner: this.runner, ...(signal === undefined ? {} : { signal }) };
+        try {
+            const site = record(await ghJsonOrNull(`repos/${saved.owner}/${saved.repo}/pages`, call));
+            const url = text(site?.["html_url"]) ?? saved.url;
+            let status = siteStatus(text(site?.["status"]));
+            const probe = this.options.probe ?? defaultProbe;
+            const httpStatus = url === null ? null : await probe(url, signal);
+            const verified = httpStatus === 200;
+            if (verified) status = "live";
+            const refreshed: PagesRecord = {
+                ...saved,
+                url,
+                status,
+                verified,
+                stage: "finished",
+                publishedAt: this.stamp(),
+            };
+            await this.writeRecordValue(refreshed);
+            return refreshed;
+        } catch (error) {
+            throw new PagesRefusal(
+                "pages-status-failed",
+                `The current Pages status for ${saved.owner}/${saved.repo} could not be read.`,
+                sentence(error),
+            );
+        }
+    }
+
     async publish(request: PagesPublishRequest): Promise<PagesResult> {
         if (this.running.has(request.renderId)) {
             return this.fail(request.renderId, {
@@ -835,6 +896,13 @@ export class PagesHost {
         const renderId = request.renderId;
         const notes: string[] = [];
 
+        const saved = await this.readRecord(renderId);
+        const resumeAfterCommit =
+            saved !== null &&
+            saved.stage !== "finished" &&
+            ["pushing", "enabling", "waiting", "verifying"].includes(saved.stage) &&
+            saved.commit !== null;
+
         if (owner.length === 0 || repo.length === 0 || renderId.length === 0) {
             throw new PagesRefusal("invalid-request", "A render, an owner and a repository name are required.");
         }
@@ -846,6 +914,18 @@ export class PagesHost {
         }
 
         this.emit({ type: "started", renderId, target: `${owner}/${repo}`, at: this.stamp() });
+
+        await this.writeStageRecord({
+            renderId,
+            owner,
+            repo,
+            branch,
+            stage: resumeAfterCommit ? saved.stage : "preparing",
+            url: saved?.url ?? null,
+            commit: saved?.commit ?? null,
+            status: saved?.status ?? "unknown",
+            verified: saved?.verified ?? false,
+        });
 
         const webRoot = renderWorkspace(this.options.storageDir(), renderId).webRoot;
 
@@ -869,6 +949,18 @@ export class PagesHost {
             );
         }
         this.stop(signal);
+
+        await this.writeStageRecord({
+            renderId,
+            owner,
+            repo,
+            branch,
+            stage: "checking",
+            url: saved?.url ?? null,
+            commit: saved?.commit ?? null,
+            status: saved?.status ?? "unknown",
+            verified: saved?.verified ?? false,
+        });
 
         /* -- check the target ------------------------------------------- */
         this.phase(renderId, "checking");
@@ -926,8 +1018,10 @@ export class PagesHost {
             "utf8",
         );
 
-        const gitDir = await this.prepareGitDir(renderId, branch, signal);
-        const files = await walkFiles(webRoot);
+        const gitDir = resumeAfterCommit
+            ? join(this.options.workRoot(), renderId, ".git")
+            : await this.prepareGitDir(renderId, branch, signal);
+        const files = resumeAfterCommit ? [] : await walkFiles(webRoot);
         let staged = 0;
         for (let index = 0; index < files.length; index += STAGE_BATCH) {
             this.stop(signal);
@@ -953,43 +1047,68 @@ export class PagesHost {
             });
         }
 
-        const committer = this.options.committer ?? DEFAULT_COMMITTER;
-        const commitResult = await this.git(
-            webRoot,
-            gitDir,
-            [
-                "-c",
-                `user.name=${committer.name}`,
-                "-c",
-                `user.email=${committer.email}`,
-                "commit",
-                "--quiet",
-                "-m",
-                `Publish ${renderId} as a static map`,
-            ],
-            { signal },
-        );
-        if (commitResult.code !== 0) {
-            throw new PagesRefusal(
-                "commit-failed",
-                "git could not record the map as a commit.",
-                commitResult.stderr,
+        let commit: string;
+        if (resumeAfterCommit) {
+            commit = saved.commit as string;
+        } else {
+            const committer = this.options.committer ?? DEFAULT_COMMITTER;
+            const commitResult = await this.git(
+                webRoot,
+                gitDir,
+                [
+                    "-c",
+                    `user.name=${committer.name}`,
+                    "-c",
+                    `user.email=${committer.email}`,
+                    "commit",
+                    "--quiet",
+                    "-m",
+                    `Publish ${renderId} as a static map`,
+                ],
+                { signal },
             );
-        }
+            if (commitResult.code !== 0) {
+                throw new PagesRefusal(
+                    "commit-failed",
+                    "git could not record the map as a commit.",
+                    commitResult.stderr,
+                );
+            }
 
-        const headResult = await this.git(webRoot, gitDir, ["rev-parse", "HEAD"], { signal });
-        const commit = headResult.stdout.trim();
-        if (headResult.code !== 0 || commit.length === 0) {
-            throw new PagesRefusal("commit-failed", "git made a commit it could not then name.");
+            const headResult = await this.git(webRoot, gitDir, ["rev-parse", "HEAD"], { signal });
+            commit = headResult.stdout.trim();
+            if (headResult.code !== 0 || commit.length === 0) {
+                throw new PagesRefusal("commit-failed", "git made a commit it could not then name.");
+            }
         }
+        await this.writeStageRecord({
+            renderId,
+            owner,
+            repo,
+            branch,
+            stage: "pushing",
+            url: saved?.url ?? null,
+            commit,
+            status: saved?.status ?? "unknown",
+            verified: saved?.verified ?? false,
+        });
         this.stop(signal);
 
         /* -- push ------------------------------------------------------- */
         this.phase(renderId, "pushing");
-        const pushResult = await this.git(
-            webRoot,
-            gitDir,
-            [
+        const beforePush = record(
+            await ghJsonOrNull(`repos/${owner}/${repo}/branches/${branch}`, {
+                runner: this.runner,
+                signal,
+            }),
+        );
+        const pushAlreadyLanded =
+            resumeAfterCommit && text(record(beforePush?.["commit"])?.["sha"]) === commit;
+        if (!pushAlreadyLanded) {
+            const pushResult = await this.git(
+                webRoot,
+                gitDir,
+                [
                 // Exactly what `gh auth setup-git` writes, passed for this one command rather
                 // than written into the person's global git config. The empty value first
                 // clears any inherited helper, so nothing else on the machine is consulted.
@@ -1001,25 +1120,28 @@ export class PagesHost {
                 "--force",
                 `https://github.com/${owner}/${repo}.git`,
                 `HEAD:refs/heads/${branch}`,
-            ],
-            { signal },
-        );
-        if (pushResult.code !== 0) {
-            throw new PagesRefusal(
-                "push-refused",
-                `GitHub refused the push to ${owner}/${repo}.`,
-                pushResult.stderr.trim(),
+                ],
+                { signal },
             );
+            if (pushResult.code !== 0) {
+                throw new PagesRefusal(
+                    "push-refused",
+                    `GitHub refused the push to ${owner}/${repo}.`,
+                    pushResult.stderr.trim(),
+                );
+            }
         }
 
         // Read back rather than assume. A zero exit from `git push` is good evidence and not
         // proof, and "the map is on GitHub" is exactly the claim nobody can check from here.
-        const landed = record(
-            await ghJsonOrNull(`repos/${owner}/${repo}/branches/${branch}`, {
-                runner: this.runner,
-                signal,
-            }),
-        );
+        const landed = pushAlreadyLanded
+            ? beforePush
+            : record(
+                  await ghJsonOrNull(`repos/${owner}/${repo}/branches/${branch}`, {
+                      runner: this.runner,
+                      signal,
+                  }),
+              );
         const pushVerified = text(record(landed?.["commit"])?.["sha"]) === commit;
         if (!pushVerified) {
             notes.push(
@@ -1027,11 +1149,33 @@ export class PagesHost {
                     "branch, so it is reported as unverified rather than as landed.",
             );
         }
+        await this.writeStageRecord({
+            renderId,
+            owner,
+            repo,
+            branch,
+            stage: "enabling",
+            url: saved?.url ?? null,
+            commit,
+            status: saved?.status ?? "unknown",
+            verified: saved?.verified ?? false,
+        });
         this.stop(signal);
 
         /* -- enable ----------------------------------------------------- */
         this.phase(renderId, "enabling");
         await this.enablePages(owner, repo, branch, signal, notes);
+        await this.writeStageRecord({
+            renderId,
+            owner,
+            repo,
+            branch,
+            stage: "waiting",
+            url: saved?.url ?? null,
+            commit,
+            status: saved?.status ?? "unknown",
+            verified: saved?.verified ?? false,
+        });
         this.stop(signal);
 
         /* -- wait ------------------------------------------------------- */
@@ -1041,6 +1185,17 @@ export class PagesHost {
         const url = built.url;
 
         /* -- verify ----------------------------------------------------- */
+        await this.writeStageRecord({
+            renderId,
+            owner,
+            repo,
+            branch,
+            stage: "verifying",
+            url,
+            commit,
+            status,
+            verified: false,
+        });
         this.phase(renderId, "verifying");
         let httpStatus: number | null = null;
         let verified = false;
@@ -1373,21 +1528,58 @@ export class PagesHost {
     }
 
     private async writeRecord(report: PagesPublishReport): Promise<void> {
-        const workDir = join(this.options.workRoot(), report.renderId);
-        await mkdir(workDir, { recursive: true });
-        const value: PagesRecord = {
+        await this.writeRecordValue({
             version: 1,
             renderId: report.renderId,
             owner: report.owner,
             repo: report.repo,
             branch: report.branch,
+            stage: "finished",
             url: report.url,
             commit: report.commit,
             status: report.status,
             verified: report.verified,
             publishedAt: this.stamp(),
-        };
+        });
+    }
+
+    private async writeRecordValue(value: PagesRecord): Promise<void> {
+        const workDir = join(this.options.workRoot(), value.renderId);
+        await mkdir(workDir, { recursive: true });
         await writeFile(join(workDir, "publish.json"), `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    }
+
+    /** Persist a stage before entering it; a crash after this point is discoverable and resumable. */
+    private async writeStageRecord(input: {
+        readonly renderId: string;
+        readonly owner: string;
+        readonly repo: string;
+        readonly branch: string;
+        readonly stage: PagesPublishStage;
+        readonly url: string | null;
+        readonly commit: string | null;
+        readonly status: PagesSiteStatus;
+        readonly verified: boolean;
+    }): Promise<void> {
+        try {
+            await this.writeRecordValue({
+                version: 1,
+                renderId: input.renderId,
+                owner: input.owner,
+                repo: input.repo,
+                branch: input.branch,
+                stage: input.stage,
+                url: input.url,
+                commit: input.commit,
+                status: input.status,
+                verified: input.verified,
+                publishedAt: this.stamp(),
+            });
+        } catch (error) {
+            // A history write must not make the actual publish fail; the event stream still
+            // reports the operation and the next attempt can write a fresh boundary.
+            this.log(input.renderId, "warning", `Could not save the Pages resume marker: ${sentence(error)}`);
+        }
     }
 
     /* ---------------------------------------------------------------- */

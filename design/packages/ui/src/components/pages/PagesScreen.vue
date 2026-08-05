@@ -235,6 +235,27 @@ async function removeHosting(record: PagesRecord): Promise<void> {
     );
 }
 
+async function resume(site: PagesRecord): Promise<void> {
+    const result = await pages.resumePublished(site);
+    if (result === null) return;
+    raiseNotice(
+        result.ok ? "info" : "error",
+        result.ok
+            ? t("pages.notice.resumed", "The interrupted Pages publish is continuing.")
+            : result.failure.message,
+    );
+}
+
+async function refreshStatus(site: PagesRecord): Promise<void> {
+    const refreshed = await pages.refreshPublishedStatus(site);
+    raiseNotice(
+        refreshed ? "success" : "error",
+        refreshed
+            ? t("pages.notice.refreshed", "The recorded Pages site status is up to date.")
+            : (pages.publishedFailure.value ?? t("pages.notice.refreshFailed", "The Pages status could not be refreshed.")),
+    );
+}
+
 function rowTitle(row: PagesRow): string {
     return row.target.length > 0 ? row.target : row.renderId;
 }
@@ -624,7 +645,30 @@ onBeforeUnmount(() => {
                             <span class="text-medium-emphasis">{{ site.renderId }}</span>
                         </div>
                         <p v-if="site.url !== null" class="mt-1" data-test="hosted-url">{{ site.url }}</p>
+                        <p v-if="site.stage !== undefined && site.stage !== 'finished'" class="mt-1 text-warning" data-test="hosted-interrupted">
+                            {{ t("pages.hosted.interrupted", { stage: site.stage }, "This publish stopped during {stage}; it can continue from its saved checkpoint.") }}
+                        </p>
                         <div class="d-flex align-center ga-2 flex-wrap mt-1">
+                            <VBtn
+                                v-if="site.stage !== undefined && site.stage !== 'finished' && pages.canResume"
+                                :prepend-icon="mdiRefresh"
+                                size="small"
+                                variant="tonal"
+                                data-test="hosted-resume"
+                                @click="resume(site)"
+                            >
+                                {{ t("pages.resume", "Continue publishing") }}
+                            </VBtn>
+                            <VBtn
+                                v-if="pages.canRefreshStatus"
+                                :prepend-icon="mdiRefresh"
+                                size="small"
+                                variant="text"
+                                data-test="hosted-refresh"
+                                @click="refreshStatus(site)"
+                            >
+                                {{ t("pages.refresh", "Refresh status") }}
+                            </VBtn>
                             <VBtn
                                 v-if="site.url !== null"
                                 :prepend-icon="mdiOpenInNew"

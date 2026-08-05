@@ -10,6 +10,7 @@ import LanguageSettingsRow from "../setup/LanguageSettingsRow.vue";
 import { consentSearchLabels } from "../setup/consentSearch.js";
 import { languageSearchLabels } from "../setup/languageSearch.js";
 import { defaultMapStorageDir } from "../setup/mapStorage.js";
+import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import DockedSurface from "./DockedSurface.vue";
 import JavaRuntimeRow from "./JavaRuntimeRow.vue";
 import SettingsSection from "./SettingsSection.vue";
@@ -28,9 +29,9 @@ import {
     worldFolderCopy,
 } from "./settingsCopy.js";
 import {
+    SETTINGS_SECTIONS,
     filterSections,
     sectionSample,
-    type SettingsAnchor,
     type SettingsSectionAnchor,
     type SettingsSectionText,
 } from "./settingsSections.js";
@@ -53,12 +54,22 @@ import {
  * of controls writing them. Two panels writing the same keys would disagree the moment one
  * of them was opened second, and both would look right while doing it.
  *
- * **Opening at an anchor reveals the setting.** It scrolls it into view, focuses it, and
- * outlines it briefly, because a render that stopped and offered a link has promised a
- * remedy; landing somebody on a settings page with four rows on it and leaving them to
- * work out which one was meant is a hint. If a leftover search query is hiding the
- * section being revealed, the query is cleared first — being sent to a setting that is
- * filtered out of view is the same dead end wearing a different hat.
+ * **Every section is its own browser-style tab**, carried by the project's own
+ * `TabbedNavigation` rather than one long scrolling column: an overflow surface when
+ * the strip cannot fit them all, reordering, pinning, grouping, and a tab order that
+ * survives a restart under its own storage key so this surface's layout never fights
+ * the map shell's. Only the active tab's section is mounted at a time — the same rule
+ * `TabbedNavigation` applies everywhere else — so the search above the strip does not
+ * hide sections with `v-show` any more; it lists which sections match and jumps to the
+ * one you pick, exactly the pattern the config editor's own cross-screen search already
+ * uses.
+ *
+ * **Opening at an anchor reveals the setting.** It switches to that setting's tab,
+ * scrolls it into view, focuses it, and outlines it briefly, because a render that
+ * stopped and offered a link has promised a remedy; landing somebody on a settings
+ * surface and leaving them to find the right tab is a hint. A leftover search query is
+ * cleared on the way, because a stale query would show a match list over the tab that
+ * was just switched to.
  *
  * **Not a modal.** It is a side sheet with no scrim: the application behind it stays
  * visible and usable, Escape closes it, and nothing about it halts anything. A blocking
@@ -78,7 +89,7 @@ const props = withDefaults(
         /** Whether the surface is showing. */
         open: boolean;
         /** Reveal and focus this setting when opening. Null just opens the surface. */
-        anchor?: SettingsAnchor | null;
+        anchor?: SettingsSectionAnchor | null;
         /** True when a render said this setting was missing, not merely wrong. */
         anchorMissing?: boolean;
     }>(),
@@ -110,11 +121,15 @@ onBeforeUnmount(() => {
 });
 
 const panel = ref<HTMLElement | null>(null);
+const tabsNav = ref<InstanceType<typeof TabbedNavigation> | null>(null);
 const consentRow = ref<InstanceType<typeof ConsentSettingsRow> | null>(null);
 const consentSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const javaSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const storageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const worldSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const githubSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const languageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const placementSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 
 /* -------------------------------------------------------------------------- */
 /* Search                                                                     */
@@ -228,13 +243,23 @@ const sections = computed<SettingsSectionText[]>(() => {
 
 const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
 
+/** The anchors a query leaves showing. Every anchor, in order, when the query is inactive. */
 const visible = computed(() => filterSections(sections.value, matcher.value));
 
-const sample = computed(() => sectionSample(sections.value));
+/**
+ * The sections a query actually matched, in the surface's own order.
+ *
+ * Only rendered while the query is active: an inactive matcher already means "everything
+ * matches", and a full-length list restating that fact would be a match list nobody asked
+ * to see, sitting above a tab strip that already shows every section's name.
+ */
+const matchedSections = computed<SettingsSectionText[]>(() => {
+    if (!matcher.value.active) return [];
+    const shown = new Set(visible.value);
+    return sections.value.filter((section) => shown.has(section.anchor));
+});
 
-function shows(anchor: SettingsSectionAnchor): boolean {
-    return visible.value.includes(anchor);
-}
+const sample = computed(() => sectionSample(sections.value));
 
 /** An honest "showing X of Y", including the case where the pattern itself is broken. */
 const searchSummary = computed(() => {
@@ -256,10 +281,19 @@ const searchSummary = computed(() => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* The tabs                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** One tab per section, in the surface's own order, labelled from the live copy. */
+const settingsPages = computed<TabPage[]>(() =>
+    SETTINGS_SECTIONS.map((anchor) => ({ id: anchor, label: copy.value[anchor].title, icon: null })),
+);
+
+/* -------------------------------------------------------------------------- */
 /* Revealing the setting a render pointed at                                  */
 /* -------------------------------------------------------------------------- */
 
-function sectionFor(anchor: SettingsAnchor): InstanceType<typeof SettingsSection> | null {
+function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof SettingsSection> | null {
     switch (anchor) {
         case "mojang-download-consent":
             return consentSection.value;
@@ -269,35 +303,63 @@ function sectionFor(anchor: SettingsAnchor): InstanceType<typeof SettingsSection
             return storageSection.value;
         case "world-folder":
             return worldSection.value;
+        case "github-account":
+            return githubSection.value;
+        case "language-and-tone":
+            return languageSection.value;
+        case "surface-placement":
+            return placementSection.value;
     }
 }
 
-async function revealAnchor(anchor: SettingsAnchor | null): Promise<void> {
+/**
+ * Switches to a section's tab, then scrolls, focuses and outlines it.
+ *
+ * The two steps are deliberately separate ticks: `revealPage` changes which page's slot
+ * `TabbedNavigation` renders, and the section inside that slot does not exist as a
+ * component - and therefore has no ref to call `reveal()` on - until Vue has patched the
+ * DOM for that change. Skipping the wait would call `reveal()` on last tab's leftover ref.
+ */
+async function revealSection(anchor: SettingsSectionAnchor): Promise<void> {
+    tabsNav.value?.revealPage(anchor);
+    await nextTick();
+    await nextTick();
+
+    const target = sectionRef(anchor);
+    if (target === null) return;
+
+    if (anchor === "mojang-download-consent") {
+        // The consent row focuses and outlines itself through its own `highlight()`, so
+        // the section scrolls and outlines but does not take the focus off it. Two
+        // elements racing for focus is how the ring ends up on whichever won.
+        target.reveal({ focus: false });
+        consentRow.value?.highlight();
+        return;
+    }
+
+    target.reveal();
+}
+
+/** A match in the search list was picked: close the list and go straight there. */
+function goToSection(anchor: SettingsSectionAnchor): void {
+    query.value = "";
+    void revealSection(anchor);
+}
+
+async function revealAnchor(anchor: SettingsSectionAnchor | null): Promise<void> {
     // No anchor means "just open it". Focus still moves inside the sheet, or the first
-    // keystroke after it opens goes to whatever was focused behind it.
+    // keystroke after it opens goes to whatever was focused behind it. No tab is switched,
+    // so whichever tab this surface last remembered stays exactly where it was left.
     if (anchor === null) {
         await nextTick();
         panel.value?.focus();
         return;
     }
 
-    // A query left over from last time can be hiding the very section being revealed.
-    if (!shows(anchor)) query.value = "";
-    await nextTick();
-
-    const section = sectionFor(anchor);
-    if (section === null) return;
-
-    if (anchor === "mojang-download-consent") {
-        // The consent row focuses and outlines itself through its own `highlight()`, so
-        // the section scrolls and outlines but does not take the focus off it. Two
-        // elements racing for focus is how the ring ends up on whichever won.
-        section.reveal({ focus: false });
-        consentRow.value?.highlight();
-        return;
-    }
-
-    section.reveal();
+    // A leftover query would show a match list over the tab this is about to switch to,
+    // which is the opposite of the remedy a failed render just promised.
+    query.value = "";
+    await revealSection(anchor);
 }
 
 /**
@@ -305,9 +367,9 @@ async function revealAnchor(anchor: SettingsAnchor | null): Promise<void> {
  * the shell sets the anchor and then opens. Collapsing them onto one pending value keeps
  * that from firing two reveals, and therefore from restarting the outline mid-flash.
  */
-let pending: SettingsAnchor | null | undefined;
+let pending: SettingsSectionAnchor | null | undefined;
 
-function scheduleReveal(anchor: SettingsAnchor | null): void {
+function scheduleReveal(anchor: SettingsSectionAnchor | null): void {
     pending = anchor;
     void nextTick(() => {
         if (pending === undefined) return;
@@ -375,6 +437,34 @@ function onDrawer(value: boolean): void {
                     :summary="searchSummary"
                     density="comfortable"
                 />
+
+                <!--
+                    A search here no longer hides tabs with `v-show`: only the active
+                    tab's section is ever mounted, the same rule every `TabbedNavigation`
+                    follows. So a match is a destination to jump to, listed here exactly
+                    the way the config editor already lists cross-screen matches, rather
+                    than content folded away somewhere off-tab.
+                -->
+                <div v-if="matcher.active" class="mb-settings__results">
+                    <p v-if="matcher.error !== null" class="mb-settings__empty" role="status">
+                        {{ t("settings.search.badPattern", "The pattern is not valid, so nothing is listed.") }}
+                    </p>
+                    <p v-else-if="matchedSections.length === 0" class="mb-settings__empty" role="status">
+                        {{ t("settings.search.noMatches", "No setting on this screen matches that.") }}
+                    </p>
+                    <ul v-else class="mb-settings__result-list">
+                        <li v-for="match in matchedSections" :key="match.anchor">
+                            <button
+                                type="button"
+                                class="mb-settings__result"
+                                @click="goToSection(match.anchor)"
+                            >
+                                <span class="mb-settings__result-title">{{ match.title }}</span>
+                                <span class="mb-settings__result-desc">{{ match.description }}</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </template>
 
@@ -390,121 +480,125 @@ function onDrawer(value: boolean): void {
             role="region"
             :aria-label="t('settings.body', 'All settings')"
         >
-            <!--
-                `v-show`, not `v-if`. A section filtered out by the search must stay
-                mounted: its template ref is what `reveal()` acts on, and a render
-                pointing at a setting the query happens to be hiding would otherwise
-                arrive at a null ref and silently do nothing.
-            -->
-            <SettingsSection
-                v-show="shows('mojang-download-consent')"
-                ref="consentSection"
-                anchor="mojang-download-consent"
-                :title="copy['mojang-download-consent'].title"
-                :description="copy['mojang-download-consent'].description"
+            <TabbedNavigation
+                ref="tabsNav"
+                :pages="settingsPages"
+                storage-key="material-bluemap-settings-tabs"
+                :strip-label="t('settings.tabs.strip', 'Settings sections')"
+                :window-label="t('settings.title', 'Settings')"
             >
+                <template #mojang-download-consent>
+                    <SettingsSection
+                        ref="consentSection"
+                        anchor="mojang-download-consent"
+                        :title="copy['mojang-download-consent'].title"
+                        :description="copy['mojang-download-consent'].description"
+                    >
+                        <!--
+                            The real component, not a copy of it. It owns the consent record, both
+                            directions of changing it, and the verbatim quotation that has to be on
+                            screen before anybody accepts.
+                        -->
+                        <ConsentSettingsRow
+                            ref="consentRow"
+                            :missing="props.anchor === 'mojang-download-consent' && props.anchorMissing"
+                        />
+                    </SettingsSection>
+                </template>
+
+                <template #java-runtime>
+                    <SettingsSection
+                        ref="javaSection"
+                        anchor="java-runtime"
+                        :title="copy['java-runtime'].title"
+                        :description="copy['java-runtime'].description"
+                    >
+                        <JavaRuntimeRow
+                            :setting="java"
+                            :missing="props.anchor === 'java-runtime' && props.anchorMissing"
+                        />
+                    </SettingsSection>
+                </template>
+
+                <template #map-storage-directory>
+                    <SettingsSection
+                        ref="storageSection"
+                        anchor="map-storage-directory"
+                        :title="copy['map-storage-directory'].title"
+                        :description="copy['map-storage-directory'].description"
+                    >
+                        <StorageSettingRow
+                            :setting="storage"
+                            :missing="props.anchor === 'map-storage-directory' && props.anchorMissing"
+                        />
+                    </SettingsSection>
+                </template>
+
+                <template #world-folder>
+                    <SettingsSection
+                        ref="worldSection"
+                        anchor="world-folder"
+                        :title="copy['world-folder'].title"
+                        :description="copy['world-folder'].description"
+                    >
+                        <WorldFolderRow
+                            :missing="props.anchor === 'world-folder' && props.anchorMissing"
+                        />
+                    </SettingsSection>
+                </template>
+
                 <!--
-                    The real component, not a copy of it. It owns the consent record, both
-                    directions of changing it, and the verbatim quotation that has to be on
-                    screen before anybody accepts.
+                    No render can send somebody here: nothing in the bridge's `SettingsTarget`
+                    names a GitHub account, because a render that cannot reach a private
+                    repository fails on the repository rather than on the setting. So this
+                    section is reached by opening Settings, and is listed and searched exactly
+                    like the four that a failure can link to.
                 -->
-                <ConsentSettingsRow
-                    ref="consentRow"
-                    :missing="props.anchor === 'mojang-download-consent' && props.anchorMissing"
-                />
-            </SettingsSection>
+                <template #github-account>
+                    <SettingsSection
+                        ref="githubSection"
+                        anchor="github-account"
+                        :title="copy['github-account'].title"
+                        :description="copy['github-account'].description"
+                    >
+                        <GitHubAccountRow :account="github" />
+                    </SettingsSection>
+                </template>
 
-            <SettingsSection
-                v-show="shows('java-runtime')"
-                ref="javaSection"
-                anchor="java-runtime"
-                :title="copy['java-runtime'].title"
-                :description="copy['java-runtime'].description"
-            >
-                <JavaRuntimeRow
-                    :setting="java"
-                    :missing="props.anchor === 'java-runtime' && props.anchorMissing"
-                />
-            </SettingsSection>
+                <!--
+                    The language mode and both funny levels, which until now were reachable
+                    only while first-run setup was still on screen. `LanguageSettingsRow`
+                    mounts the first-run flow's own `SetupLanguagePanel`, so this is the same
+                    three controls rather than a second set writing the same stored keys.
+                -->
+                <template #language-and-tone>
+                    <SettingsSection
+                        ref="languageSection"
+                        anchor="language-and-tone"
+                        :title="copy['language-and-tone'].title"
+                        :description="copy['language-and-tone'].description"
+                    >
+                        <LanguageSettingsRow />
+                    </SettingsSection>
+                </template>
 
-            <SettingsSection
-                v-show="shows('map-storage-directory')"
-                ref="storageSection"
-                anchor="map-storage-directory"
-                :title="copy['map-storage-directory'].title"
-                :description="copy['map-storage-directory'].description"
-            >
-                <StorageSettingRow
-                    :setting="storage"
-                    :missing="props.anchor === 'map-storage-directory' && props.anchorMissing"
-                />
-            </SettingsSection>
-
-            <SettingsSection
-                v-show="shows('world-folder')"
-                ref="worldSection"
-                anchor="world-folder"
-                :title="copy['world-folder'].title"
-                :description="copy['world-folder'].description"
-            >
-                <WorldFolderRow
-                    :missing="props.anchor === 'world-folder' && props.anchorMissing"
-                />
-            </SettingsSection>
-
-            <!--
-                No render can send somebody here: nothing in the bridge's `SettingsTarget`
-                names a GitHub account, because a render that cannot reach a private
-                repository fails on the repository rather than on the setting. So this
-                section is reached by opening Settings, and is listed and searched exactly
-                like the four that a failure can link to.
-            -->
-            <SettingsSection
-                v-show="shows('github-account')"
-                anchor="github-account"
-                :title="copy['github-account'].title"
-                :description="copy['github-account'].description"
-            >
-                <GitHubAccountRow :account="github" />
-            </SettingsSection>
-
-            <!--
-                The language mode and both funny levels, which until now were reachable
-                only while first-run setup was still on screen. `LanguageSettingsRow`
-                mounts the first-run flow's own `SetupLanguagePanel`, so this is the same
-                three controls rather than a second set writing the same stored keys.
-            -->
-            <SettingsSection
-                v-show="shows('language-and-tone')"
-                anchor="language-and-tone"
-                :title="copy['language-and-tone'].title"
-                :description="copy['language-and-tone'].description"
-            >
-                <LanguageSettingsRow />
-            </SettingsSection>
-
-            <!--
-                Where every docked panel sits, and the one reset that reaches the ones
-                that are closed. Each panel's own chooser is in its own title bar, which
-                is where somebody moves the panel they are looking at; this is where they
-                undo a move they have since forgotten making.
-            -->
-            <SettingsSection
-                v-show="shows('surface-placement')"
-                anchor="surface-placement"
-                :title="copy['surface-placement'].title"
-                :description="copy['surface-placement'].description"
-            >
-                <SurfacePlacementRow />
-            </SettingsSection>
-
-            <p v-if="visible.length === 0" class="mb-settings__empty" role="status">
-                {{
-                    matcher.error !== null
-                        ? t("settings.search.badPattern", "The pattern is not valid, so nothing is listed.")
-                        : t("settings.search.noMatches", "No setting on this screen matches that.")
-                }}
-            </p>
+                <!--
+                    Where every docked panel sits, and the one reset that reaches the ones
+                    that are closed. Each panel's own chooser is in its own title bar, which
+                    is where somebody moves the panel they are looking at; this is where they
+                    undo a move they have since forgotten making.
+                -->
+                <template #surface-placement>
+                    <SettingsSection
+                        ref="placementSection"
+                        anchor="surface-placement"
+                        :title="copy['surface-placement'].title"
+                        :description="copy['surface-placement'].description"
+                    >
+                        <SurfacePlacementRow />
+                    </SettingsSection>
+                </template>
+            </TabbedNavigation>
         </div>
     </DockedSurface>
 </template>
@@ -512,18 +606,71 @@ function onDrawer(value: boolean): void {
 <style>
 /*
  * The chrome, the placement, the width cap and the Escape handling all belong to
- * `DockedSurface` now. What is left here is the two things that are this surface's own:
- * the search row above the sections, and the column the sections sit in.
+ * `DockedSurface` now. What is left here is the search row above the tabs, the match
+ * list a search produces, and the column the tabbed body fills.
  */
 .mb-settings__search {
     padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mb-settings__results {
+    border-radius: 8px;
+    background: rgba(var(--v-theme-on-surface), 0.04);
+}
+
+.mb-settings__result-list {
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mb-settings__result {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    inline-size: 100%;
+    text-align: start;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+}
+
+.mb-settings__result:hover {
+    background: rgba(var(--v-theme-on-surface), 0.08);
+}
+
+.mb-settings__result:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: -2px;
+}
+
+.mb-settings__result-title {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-settings__result-desc {
+    font-size: 0.75rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-settings__body {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 12px 16px 24px;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 0 16px 24px;
 }
 
 .mb-settings__body:focus-visible {
@@ -534,6 +681,7 @@ function onDrawer(value: boolean): void {
 
 .mb-settings__empty {
     margin: 0;
+    padding: 8px 10px;
     font-size: 0.8125rem;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

@@ -24,10 +24,14 @@ import { CHROME_FACTS, CHROME_FIXED, CHROME_VOICED } from "./chrome.js";
 import { CIRENDER_FACTS, CIRENDER_FIXED, CIRENDER_VOICED } from "./cirender.js";
 import { CONSOLE_FACTS, CONSOLE_FIXED, CONSOLE_VOICED } from "./console.js";
 import { DOWNLOADS_FACTS, DOWNLOADS_FIXED, DOWNLOADS_VOICED } from "./downloads.js";
+import { GITHUB_FACTS, GITHUB_FIXED, GITHUB_VOICED } from "./github.js";
 import { HISTORY_FACTS, HISTORY_FIXED, HISTORY_VOICED } from "./history.js";
 import { MENU_FACTS, MENU_FIXED, MENU_VOICED } from "./menu.js";
 import { PAGES_FACTS, PAGES_FIXED, PAGES_VOICED } from "./pages.js";
 import { PROFILES_FACTS, PROFILES_FIXED, PROFILES_VOICED } from "./profiles.js";
+import { PROJECT_FACTS, PROJECT_FIXED, PROJECT_VOICED } from "./project.js";
+import { REMOTE_FACTS, REMOTE_FIXED, REMOTE_VOICED } from "./remote.js";
+import { SETTINGS_FACTS, SETTINGS_FIXED, SETTINGS_VOICED } from "./settings.js";
 import { TABS_FACTS, TABS_FIXED, TABS_VOICED } from "./tabs.js";
 
 export const SURFACE_VOICED = {
@@ -38,10 +42,14 @@ export const SURFACE_VOICED = {
     ...CIRENDER_VOICED,
     ...CONSOLE_VOICED,
     ...DOWNLOADS_VOICED,
+    ...GITHUB_VOICED,
     ...HISTORY_VOICED,
     ...MENU_VOICED,
     ...PAGES_VOICED,
     ...PROFILES_VOICED,
+    ...PROJECT_VOICED,
+    ...REMOTE_VOICED,
+    ...SETTINGS_VOICED,
     ...TABS_VOICED,
 } as const;
 
@@ -53,10 +61,14 @@ export const SURFACE_FIXED = {
     ...CIRENDER_FIXED,
     ...CONSOLE_FIXED,
     ...DOWNLOADS_FIXED,
+    ...GITHUB_FIXED,
     ...HISTORY_FIXED,
     ...MENU_FIXED,
     ...PAGES_FIXED,
     ...PROFILES_FIXED,
+    ...PROJECT_FIXED,
+    ...REMOTE_FIXED,
+    ...SETTINGS_FIXED,
     ...TABS_FIXED,
 } as const;
 
@@ -68,9 +80,13 @@ export const SURFACE_FACTS = {
     ...CIRENDER_FACTS,
     ...CONSOLE_FACTS,
     ...DOWNLOADS_FACTS,
+    ...GITHUB_FACTS,
     ...HISTORY_FACTS,
     ...MENU_FACTS,
     ...PAGES_FACTS,
     ...PROFILES_FACTS,
+    ...PROJECT_FACTS,
+    ...REMOTE_FACTS,
+    ...SETTINGS_FACTS,
     ...TABS_FACTS,
 } as const;

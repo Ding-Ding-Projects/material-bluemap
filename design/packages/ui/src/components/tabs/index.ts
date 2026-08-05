@@ -128,5 +128,5 @@ export type {
 export { filterMenuItems } from "./tabMenus.js";
 export type { TabMenuItem } from "./tabMenus.js";
 
-export { TAB_STORAGE_VERSION, readTabWorkspace, writeTabWorkspace } from "./tabStorage.js";
+export { DEFAULT_TAB_STORAGE_KEY, TAB_STORAGE_VERSION, readTabWorkspace, writeTabWorkspace } from "./tabStorage.js";
 export type { TabStorage } from "./tabStorage.js";

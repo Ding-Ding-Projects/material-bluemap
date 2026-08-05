@@ -117,12 +117,23 @@ export interface PagesRecord {
     readonly owner: string;
     readonly repo: string;
     readonly branch: string;
+    readonly stage?: PagesPublishStage;
     readonly url: string | null;
     readonly commit: string | null;
     readonly status: PagesSiteStatus;
     readonly verified: boolean;
     readonly publishedAt: string;
 }
+
+export type PagesPublishStage =
+    | "preparing"
+    | "checking"
+    | "staging"
+    | "pushing"
+    | "enabling"
+    | "waiting"
+    | "verifying"
+    | "finished";
 
 /**
  * What the site is, said in GitHub's own words - with one exception.
@@ -248,6 +259,8 @@ export interface PagesBridge {
 
     listOwners(): Promise<Answer<readonly PagesOwner[]>>;
     listPublished(): Promise<Answer<readonly PagesRecord[]>>;
+    resume?(renderId: string): Promise<PagesResult>;
+    refreshStatus?(renderId: string): Promise<Answer<PagesRecord>>;
     /** Turns Pages off and deletes the publishing branch. Destructive, and gated in the screen. */
     removeHosting(request: PagesTarget): Promise<PagesStopResult>;
     cancel(renderId: string): Promise<boolean>;
@@ -272,6 +285,8 @@ type Host = Partial<{
     cancelPagesPublish: (renderId: string) => Promise<boolean>;
     activePagesPublishes: () => Promise<readonly string[]>;
     publishedPages: () => Promise<Answer<readonly PagesRecord[]>>;
+    resumePages?: (renderId: string) => Promise<PagesResult>;
+    refreshPagesStatus?: (renderId: string) => Promise<Answer<PagesRecord>>;
     onPagesEvent: (listener: (event: PagesEvent) => void) => () => void;
 }>;
 
@@ -328,6 +343,26 @@ export function resolvePagesBridge(): PagesBridge | null {
         listPublished: () => {
             const call = host.publishedPages;
             return isFunction(call) ? call() : Promise.resolve(unavailable("list published maps"));
+        },
+        resume: (renderId) => {
+            const call = host.resumePages;
+            return isFunction(call)
+                ? call(renderId)
+                : Promise.resolve({
+                      ok: false,
+                      failure: {
+                          code: "unsupported",
+                          message: "This build cannot resume a Pages publish.",
+                          detail: null,
+                          needsGhSignIn: false,
+                      },
+                  });
+        },
+        refreshStatus: (renderId) => {
+            const call = host.refreshPagesStatus;
+            return isFunction(call)
+                ? call(renderId)
+                : Promise.resolve(unavailable("refresh a published Pages site"));
         },
         removeHosting: (request) => {
             const call = host.stopPagesHosting;

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiArrowLeft,
@@ -16,17 +16,14 @@ import {
     VProgressLinear,
     VSpacer,
     VSwitch,
-    VTab,
-    VTabs,
     VTextField,
-    VWindow,
-    VWindowItem,
 } from "vuetify/components";
 import type { FieldMeta, PlainValue, ProjectFile } from "@material-bluemap/config";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { clearFieldValue, replaceText, setFieldValue } from "../config/configModel.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
+import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import ProjectMapsPanel from "./ProjectMapsPanel.vue";
 import ProjectStoragesPanel from "./ProjectStoragesPanel.vue";
 import {
@@ -119,7 +116,7 @@ const TAB_MAPS = "maps";
 const TAB_STORAGES = "storages";
 const TAB_RENDER = "render";
 
-const activeTab = ref<string>(TAB_MAPS);
+const tabsNav = ref<InstanceType<typeof TabbedNavigation> | null>(null);
 const selectedMap = ref<string | null>(null);
 const selectedStorage = ref<string | null>(null);
 
@@ -148,6 +145,52 @@ const singletonTabs = computed(() =>
         label: t(`project.editor.tab.${kind}`, singletonLabels[kind]),
         touched: props.project[kind] !== null,
     })),
+);
+
+/* -------------------------------------------------------------------------- */
+/* The tabs                                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One browser-style tab per section, carried by the project's own `TabbedNavigation`
+ * rather than a bespoke `v-tabs`/`v-window` pair: an overflow surface once the strip
+ * cannot fit seven tabs, reordering, pinning, grouping, the four tab-discovery searches
+ * and a layout that survives a restart under this surface's own storage key.
+ *
+ * Maps and storages carry a live count in their label, which a plain `TabPage` cannot
+ * keep current on its own - the label is read once, when a tab first opens, and after
+ * that belongs to the tab rather than the page. The watcher below is what pushes a
+ * changed count into any tab already open, through `renamePage`.
+ *
+ * The small dot that used to sit beside a touched singleton's tab is gone: it lived in
+ * `TabButton`'s own fixed rendering, which every `TabbedNavigation` shares, and a tab
+ * strip that let one caller inject a bespoke dot would let every caller do the same,
+ * which is exactly the drift the shared component exists to prevent. The fact itself is
+ * not lost - the paragraph at the top of each singleton's tab still says outright whether
+ * this project carries its own file or is following BlueMap's defaults - it is simply
+ * read on arrival rather than glanced at from the strip.
+ */
+const pages = computed<TabPage[]>(() => [
+    { id: TAB_MAPS, label: t("project.editor.tab.maps", { maps: maps.value.length }, "Maps ({maps})"), icon: null },
+    {
+        id: TAB_STORAGES,
+        label: t(
+            "project.editor.tab.storages",
+            { storages: props.project.storages.length },
+            "Storages ({storages})",
+        ),
+        icon: null,
+    },
+    { id: TAB_RENDER, label: t("project.editor.tab.render", "How it renders"), icon: null },
+    ...singletonTabs.value.map((tab) => ({ id: tab.id, label: tab.label, icon: null })),
+]);
+
+watch(
+    pages,
+    (list) => {
+        for (const page of list) tabsNav.value?.renamePage(page.id, page.label);
+    },
+    { deep: true },
 );
 
 /* -------------------------------------------------------------------------- */
@@ -365,22 +408,15 @@ function setOutputFolder(value: string): void {
             </v-card-text>
         </v-card>
 
-        <v-tabs v-model="activeTab" density="comfortable" show-arrows class="mb-project-editor__tabs">
-            <v-tab :value="TAB_MAPS">
-                {{ t("project.editor.tab.maps", { maps: maps.length }, "Maps ({maps})") }}
-            </v-tab>
-            <v-tab :value="TAB_STORAGES">
-                {{ t("project.editor.tab.storages", { storages: project.storages.length }, "Storages ({storages})") }}
-            </v-tab>
-            <v-tab :value="TAB_RENDER">{{ t("project.editor.tab.render", "How it renders") }}</v-tab>
-            <v-tab v-for="tab in singletonTabs" :key="tab.id" :value="tab.id">
-                {{ tab.label }}
-                <span v-if="tab.touched" class="mb-project-editor__dot" aria-hidden="true" />
-            </v-tab>
-        </v-tabs>
-
-        <v-window v-model="activeTab" class="mb-project-editor__body">
-            <v-window-item :value="TAB_MAPS">
+        <TabbedNavigation
+            ref="tabsNav"
+            :pages="pages"
+            storage-key="material-bluemap-project-editor-tabs"
+            :window-label="t('project.editor.windowLabel', 'This project')"
+            :strip-label="t('project.editor.tabsLabel', 'Project sections')"
+            class="mb-project-editor__tabs"
+        >
+            <template #maps>
                 <ProjectMapsPanel
                     :project="project"
                     :world="world"
@@ -391,9 +427,9 @@ function setOutputFolder(value: string): void {
                     @consent="emit('consent')"
                     @notify="(message) => emit('notify', message)"
                 />
-            </v-window-item>
+            </template>
 
-            <v-window-item :value="TAB_STORAGES">
+            <template #storages>
                 <ProjectStoragesPanel
                     :project="project"
                     :default-root="defaultRootValue"
@@ -404,9 +440,9 @@ function setOutputFolder(value: string): void {
                     @consent="emit('consent')"
                     @notify="(message) => emit('notify', message)"
                 />
-            </v-window-item>
+            </template>
 
-            <v-window-item :value="TAB_RENDER">
+            <template #render>
                 <section class="mb-project-editor__run" :aria-label="t('project.editor.tab.render', 'How it renders')">
                     <ConfigSearchField
                         v-model="runQuery"
@@ -485,9 +521,9 @@ function setOutputFolder(value: string): void {
                         {{ t("project.render.noMatches", "Nothing on this tab matches. The other tabs may still have results.") }}
                     </p>
                 </section>
-            </v-window-item>
+            </template>
 
-            <v-window-item v-for="tab in singletonTabs" :key="tab.id" :value="tab.id">
+            <template v-for="tab in singletonTabs" :key="tab.id" #[tab.id]>
                 <p class="mb-project-editor__note">
                     {{
                         tab.touched
@@ -510,8 +546,8 @@ function setOutputFolder(value: string): void {
                     @consent="emit('consent')"
                     @update:text="(text) => onSingletonText(tab.id, text)"
                 />
-            </v-window-item>
-        </v-window>
+            </template>
+        </TabbedNavigation>
     </div>
 </template>
 
@@ -557,22 +593,9 @@ function setOutputFolder(value: string): void {
     text-wrap: pretty;
 }
 
-/*
- * A tab whose file the project actually carries gets a dot. It is `aria-hidden` and the
- * tab's own label is unchanged, because the fact is a convenience for the eye rather than
- * something worth announcing twice on every tab in the strip.
- */
-.mb-project-editor__dot {
-    display: inline-block;
-    inline-size: 6px;
-    block-size: 6px;
-    margin-inline-start: 6px;
-    border-radius: 50%;
-    background: rgb(var(--v-theme-primary));
-}
-
-.mb-project-editor__body {
-    padding-block-start: 8px;
+.mb-project-editor__tabs {
+    flex: 1 1 auto;
+    min-height: 0;
 }
 
 .mb-project-editor__run {

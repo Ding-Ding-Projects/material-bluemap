@@ -1500,6 +1500,10 @@ interface MaterialBlueMapBridge {
     activePagesPublishes(): Promise<readonly string[]>;
     /** What this computer remembers publishing, so a site can be found again and taken down. */
     publishedPages(): Promise<PagesAnswer<readonly PagesRecord[]>>;
+    /** Continue a Pages publish whose durable stage marker says it was interrupted. */
+    resumePages(renderId: string): Promise<PagesResult>;
+    /** Re-check GitHub Pages and the published URL for one recorded site. */
+    refreshPagesStatus(renderId: string): Promise<PagesAnswer<PagesRecord>>;
     onPagesEvent(listener: (event: PagesEvent) => void): () => void;
 
     updateState(): Promise<UpdateState>;
@@ -1720,6 +1724,8 @@ const bridge: MaterialBlueMapBridge = {
     cancelPagesPublish: (renderId) => ipcRenderer.invoke("pages:cancel", renderId),
     activePagesPublishes: () => ipcRenderer.invoke("pages:active"),
     publishedPages: () => ipcRenderer.invoke("pages:published"),
+    resumePages: (renderId) => ipcRenderer.invoke("pages:resume", renderId),
+    refreshPagesStatus: (renderId) => ipcRenderer.invoke("pages:status", renderId),
     onPagesEvent: (listener) => {
         const forward = (_event: IpcRendererEvent, payload: PagesEvent): void => listener(payload);
         ipcRenderer.on("pages:event", forward);

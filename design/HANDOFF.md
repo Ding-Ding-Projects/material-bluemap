@@ -336,10 +336,19 @@ super-confirmation inventory. Its prose is in the copy catalogue, so the three l
 and both per-language funny levels reach it: 17 voiced entries at five levels a side and 16
 fixed strings, each with a `FACTS` entry pinning what a playful rewrite may not drop.
 
+**Interrupted publishes are now durable.** `publish.json` is written before each stage with a
+`stage` value. The recorded-sites card offers **Continue publishing** after a crash; once a
+local orphan commit exists, resume checks whether that commit already landed and skips a second
+staging/push before continuing Pages enablement, build polling and URL verification. The same
+card offers **Refresh status**, which re-reads the Pages API and probes the saved URL, then writes
+the new status and timestamp back to the record. The new `pages:resume` and `pages:status` IPC
+channels carry those actions without exposing credentials.
+
 ### Verification
 
-- `npx vitest run` from `design/`: **6191 passed, 3 skipped, 382 files**. 35 of those are the
-  main-process feature and 32 the renderer half.
+- `npx vitest run` from `design/`: the exact final count is regenerated at handoff. The Pages
+  host now has **37** main-process tests (including resume and status refresh), and the renderer
+  suite remains covered by the mounted screen and store tests.
 - `npx eslint .`: clean. `pnpm typecheck`: clean across all 13 packages. `pnpm build`: clean.
 - The screen is a **required** surface in the screenshot harness, so a run that cannot open it
   fails rather than quietly recording a gap.

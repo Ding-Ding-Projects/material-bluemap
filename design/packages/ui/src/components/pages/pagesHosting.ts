@@ -188,6 +188,8 @@ export interface PagesHosting {
     readonly canListPublished: boolean;
     readonly canStop: boolean;
     readonly canCancel: boolean;
+    readonly canResume: boolean;
+    readonly canRefreshStatus: boolean;
 
     readonly rows: ComputedRef<readonly PagesRow[]>;
     readonly candidates: Ref<readonly PagesCandidate[]>;
@@ -213,6 +215,8 @@ export interface PagesHosting {
     loadCandidates(): Promise<void>;
     loadOwners(): Promise<void>;
     loadPublished(): Promise<void>;
+    resumePublished(site: PagesRecord): Promise<PagesResult | null>;
+    refreshPublishedStatus(site: PagesRecord): Promise<boolean>;
     check(request: PagesTarget): Promise<PagesPreflight | null>;
     publish(request: PagesPublishRequest): Promise<PagesResult | null>;
     stopPublishing(renderId: string): Promise<boolean>;
@@ -370,6 +374,8 @@ export function createPagesHosting(bridge: PagesBridge | null): PagesHosting {
         canListPublished: bridge?.canListPublished ?? false,
         canStop: bridge?.canStop ?? false,
         canCancel: bridge?.canCancel ?? false,
+        canResume: typeof bridge?.resume === "function",
+        canRefreshStatus: typeof bridge?.refreshStatus === "function",
 
         rows,
         candidates,
@@ -410,6 +416,50 @@ export function createPagesHosting(bridge: PagesBridge | null): PagesHosting {
         },
 
         loadPublished: loadPublishedRecords,
+
+        async resumePublished(site: PagesRecord): Promise<PagesResult | null> {
+            if (bridge === null) return null;
+            starting.value = true;
+            startFailure.value = null;
+            try {
+                const resume = bridge.resume;
+                if (resume === undefined) return null;
+                const result = await resume(site.renderId);
+                if (result.ok) await loadPublishedRecords();
+                else startFailure.value = result.failure;
+                return result;
+            } catch (error) {
+                startFailure.value = {
+                    code: "bridge",
+                    message: describe(error),
+                    detail: null,
+                    needsGhSignIn: false,
+                };
+                return null;
+            } finally {
+                starting.value = false;
+            }
+        },
+
+        async refreshPublishedStatus(site: PagesRecord): Promise<boolean> {
+            if (bridge === null) return false;
+            try {
+                const refresh = bridge.refreshStatus;
+                if (refresh === undefined) return false;
+                const answer = await refresh(site.renderId);
+                if (!answer.ok) {
+                    publishedFailure.value = answer.message;
+                    return false;
+                }
+                published.value = published.value.map((entry) =>
+                    entry.renderId === answer.value.renderId ? answer.value : entry,
+                );
+                return true;
+            } catch (error) {
+                publishedFailure.value = describe(error);
+                return false;
+            }
+        },
 
         async check(request: PagesTarget): Promise<PagesPreflight | null> {
             if (bridge === null) return null;

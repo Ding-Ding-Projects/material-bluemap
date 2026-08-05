@@ -16,6 +16,7 @@ import {
     pinTab,
     removeGroup,
     renameGroup,
+    renameTab,
     setActiveTab,
     setGroupCollapsed,
     setGroupColor,
@@ -24,7 +25,7 @@ import {
     type TabStripState,
     type TabWorkspaceState,
 } from "./tabModel.js";
-import { readTabWorkspace, writeTabWorkspace } from "./tabStorage.js";
+import { DEFAULT_TAB_STORAGE_KEY, readTabWorkspace, writeTabWorkspace } from "./tabStorage.js";
 
 /**
  * The tabbed shell: one strip, one panel, and the state behind both.
@@ -68,8 +69,18 @@ const props = withDefaults(
         /** Named in every master-search result, so a row is locatable. */
         windowLabel?: string;
         stripLabel?: string;
+        /**
+         * The storage key this instance's layout is written under.
+         *
+         * Defaults to the application shell's own key, so mounting this with no
+         * `storageKey` behaves exactly as it always has. Any second surface that
+         * mounts its own `TabbedNavigation` - settings, the config editor, a
+         * project's editor - passes a key of its own, so its tab order, pins and
+         * groups persist independently rather than overwriting the shell's.
+         */
+        storageKey?: string;
     }>(),
-    { windowLabel: "", stripLabel: "" },
+    { windowLabel: "", stripLabel: "", storageKey: DEFAULT_TAB_STORAGE_KEY },
 );
 
 const { t } = useI18n();
@@ -104,12 +115,14 @@ function seedStrip(): TabStripState {
     return first === undefined ? seeded : setActiveTab(seeded, first.id);
 }
 
-const workspace = ref<TabWorkspaceState>(readTabWorkspace() ?? { strips: [seedStrip()] });
+const workspace = ref<TabWorkspaceState>(
+    readTabWorkspace(undefined, props.storageKey) ?? { strips: [seedStrip()] },
+);
 
 watch(
     workspace,
     (value) => {
-        writeTabWorkspace(value);
+        writeTabWorkspace(value, undefined, props.storageKey);
     },
     { deep: true },
 );
@@ -204,16 +217,35 @@ function revealPage(pageId: string): void {
 }
 
 /**
- * The two things a host cannot work out from the outside.
+ * Renames every open tab that shows one page.
+ *
+ * A page's own label - the string in {@link TabPage.label} - is read only once, when a
+ * tab for it is first seeded or opened; after that the tab carries its own label, which is
+ * what lets a person rename a tab without the host's static page list overwriting it back.
+ * That is fine for a label that never changes, and wrong for one that carries a live count
+ * - "Maps (3)" - because nothing then updates the three open tabs already showing "Maps
+ * (1)". This is the host's way of pushing that update through deliberately, rather than
+ * `TabbedNavigation` guessing which labels are supposed to move on their own.
+ */
+function renamePage(pageId: string, label: string): void {
+    const affected = strip.value.tabs.filter((tab) => tab.pageId === pageId);
+    if (affected.length === 0) return;
+    update(affected.reduce((state, tab) => renameTab(state, tab.id, label), strip.value));
+}
+
+/**
+ * The three things a host cannot work out, or safely change, from the outside.
  *
  * `activePage` is exposed because chrome that belongs to one page - a control bar, a floating
  * cluster that has to lift clear of another control - has to know whether that page is the one
  * on screen, and the answer lives in this component's state. Reading it back is the difference
  * between a shell that hides a control when its page is gone and one that leaves a row of
  * buttons pointing at nothing, which is exactly the decorative control this project refuses to
- * ship. Nothing here is writable: the layout is still changed only through this component.
+ * ship. `revealPage` and `renamePage` are the only two writes a host gets: which tab is in
+ * front, and what an existing tab is called. Everything else about the layout - order, pins,
+ * groups - stays changed only through this component's own strip.
  */
-defineExpose({ activePage, revealPage });
+defineExpose({ activePage, revealPage, renamePage });
 
 function newGroup(tabId: string): void {
     update(createGroup(strip.value, { name: t("tabs.group.newName", "New group") }, [tabId]));

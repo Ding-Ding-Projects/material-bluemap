@@ -46,7 +46,17 @@ import {
     type TabWorkspaceState,
 } from "./tabModel.js";
 
-const STORAGE_KEY = "material-bluemap-tabs";
+/**
+ * The key the application shell's own workspace has always been written under.
+ *
+ * Exported so a second `TabbedNavigation` mounted for a different surface -
+ * settings, the config editor, a project's editor - can be told to use a key of
+ * its own rather than silently sharing this one. Two independent tab strips
+ * writing the same key would each stomp the other's layout on every change,
+ * which is a worse bug than the one this file exists to prevent: a settings
+ * tab order that occasionally reverts to the map shell's.
+ */
+export const DEFAULT_TAB_STORAGE_KEY = "material-bluemap-tabs";
 
 /**
  * The shape written today.
@@ -171,10 +181,13 @@ function readStrip(value: unknown): TabStripState | null {
  * Null rather than an empty workspace, so the caller can tell "nothing saved,
  * seed the defaults" apart from "saved, and it really was empty".
  */
-export function readTabWorkspace(storage: TabStorage | null = defaultStorage()): TabWorkspaceState | null {
+export function readTabWorkspace(
+    storage: TabStorage | null = defaultStorage(),
+    key: string = DEFAULT_TAB_STORAGE_KEY,
+): TabWorkspaceState | null {
     if (storage === null) return null;
     try {
-        const raw = storage.getItem(STORAGE_KEY);
+        const raw = storage.getItem(key);
         if (raw === null) return null;
         const parsed: unknown = JSON.parse(raw);
         if (!isRecord(parsed)) return null;
@@ -224,11 +237,12 @@ function writableStrip(strip: TabStripState): Record<string, unknown> {
 export function writeTabWorkspace(
     workspace: TabWorkspaceState,
     storage: TabStorage | null = defaultStorage(),
+    key: string = DEFAULT_TAB_STORAGE_KEY,
 ): void {
     if (storage === null) return;
     try {
         storage.setItem(
-            STORAGE_KEY,
+            key,
             JSON.stringify({ version: TAB_STORAGE_VERSION, strips: workspace.strips.map(writableStrip) }),
         );
     } catch {

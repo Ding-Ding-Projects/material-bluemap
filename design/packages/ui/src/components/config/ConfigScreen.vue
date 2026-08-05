@@ -14,18 +14,13 @@ import {
     VCard,
     VCardText,
     VChip,
-    VDivider,
     VList,
     VListItem,
     VListSubheader,
     VProgressLinear,
     VSpacer,
-    VTab,
-    VTabs,
     VToolbar,
     VTooltip,
-    VWindow,
-    VWindowItem,
 } from "vuetify/components";
 import { EMPTY_INVOCATION, type CliInvocation, type FieldMeta, type PlainValue } from "@material-bluemap/config";
 import ConfigApplyDialog from "./ConfigApplyDialog.vue";
@@ -35,6 +30,7 @@ import ConfigSearchField from "./ConfigSearchField.vue";
 import MapsScreen from "./MapsScreen.vue";
 import RunScreen from "./RunScreen.vue";
 import StoragesScreen from "./StoragesScreen.vue";
+import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import { clearFieldValue, fieldValue, replaceText, setFieldValue } from "./configModel.js";
 import {
     createWorkspace,
@@ -123,9 +119,7 @@ const host = resolvedHost;
  */
 
 const workspace = shallowRef<ConfigWorkspace | null>(null);
-// "history" is a tab but not a ScreenId: the settings search indexes screens by their
-// fields, and the history panel has none, so it stays out of that union on purpose.
-const activeScreen = ref<ScreenId | "history">(props.initialScreen);
+const tabsNav = ref<InstanceType<typeof TabbedNavigation> | null>(null);
 const selectedMapKey = ref<string | null>(null);
 const selectedStorageKey = ref<string | null>(null);
 const highlightPath = ref<string | null>(null);
@@ -145,12 +139,53 @@ const regexMode = ref(false);
 // upstream's explanation), so `^` and `$` are only useful per line.
 const flags = ref("im");
 
+/**
+ * One browser-style tab per screen, carried by the project's own `TabbedNavigation`
+ * rather than a bespoke `v-tabs`/`v-window` pair: an overflow surface once the strip
+ * cannot fit every screen, reordering, pinning, grouping, the four tab-discovery
+ * searches and a layout that survives a restart under this editor's own storage key.
+ *
+ * "history" is a tab but not a `ScreenId`: the settings search indexes screens by
+ * their fields, and the history panel has none, so it stays out of that union on
+ * purpose and is appended here as one more page rather than folded into `SCREENS`.
+ */
+const pages = computed<TabPage[]>(() => [
+    ...SCREENS.map((screen) => ({ id: screen.id, label: screen.label, icon: null })),
+    { id: "history", label: t("config.history.tab", "History"), icon: null },
+]);
+
+/** The screen actually on screen right now, read back from the mounted strip. */
+const activeScreen = computed<ScreenId | "history">(
+    () => (tabsNav.value?.activePage?.id as ScreenId | "history" | undefined) ?? props.initialScreen,
+);
+
+/**
+ * `initialScreen` is not merely a seed: `App.vue` recomputes it on every palette jump
+ * (`pendingConfigScreen ?? 'core'`) and expects this screen to follow, exactly as the
+ * old `v-model="activeScreen"` did on every prop change. `revealPage` either activates
+ * that screen's existing tab or reopens it, so the persisted tab order this surface
+ * now keeps between restarts is never fought over by two different sources of truth.
+ */
 watch(
     () => props.initialScreen,
     (screen) => {
-        if (screen !== undefined) activeScreen.value = screen;
+        if (screen !== undefined) tabsNav.value?.revealPage(screen);
     },
 );
+
+/**
+ * `TabbedNavigation` is behind `v-if="workspace"`, so it does not exist yet at the
+ * moment this screen's own `onMounted` runs - the earliest a folder or the generated
+ * defaults can be on screen at all. The strip mounts with "core" seeded active by
+ * default; this is what corrects that to whatever `initialScreen` actually asked for,
+ * every time a workspace appears rather than only the first, since that is also the
+ * only path this screen has for opening on the tab that started the workspace.
+ */
+watch(workspace, async (value) => {
+    if (value === null) return;
+    await nextTick();
+    tabsNav.value?.revealPage(props.initialScreen);
+});
 
 // ---- consent ---------------------------------------------------------------
 
@@ -447,7 +482,7 @@ const searchSummary = computed(() => {
 
 /** Opens the screen a result lives on, reveals its group and marks the row. */
 async function goTo(screenId: ScreenId, entryKey: string, path: string): Promise<void> {
-    activeScreen.value = screenId;
+    tabsNav.value?.revealPage(screenId);
     if (screenId === "maps") selectedMapKey.value = entryKey;
     if (screenId === "storages") selectedStorageKey.value = entryKey;
 
@@ -638,14 +673,15 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                 </v-card-text>
             </v-card>
 
-            <v-tabs v-model="activeScreen" density="comfortable" show-arrows class="mb-config-screen__tabs">
-                <v-tab v-for="screen in SCREENS" :key="screen.id" :value="screen.id">{{ screen.label }}</v-tab>
-                <v-tab value="history">{{ t("config.history.tab", "History") }}</v-tab>
-            </v-tabs>
-            <v-divider />
-
-            <v-window v-model="activeScreen" class="mb-config-screen__window">
-                <v-window-item value="core">
+            <TabbedNavigation
+                ref="tabsNav"
+                :pages="pages"
+                storage-key="material-bluemap-config-editor-tabs"
+                :window-label="t('config.shell.windowLabel', 'The options editor')"
+                :strip-label="t('config.shell.tabsLabel', 'Config screens')"
+                class="mb-config-screen__tabs"
+            >
+                <template #core>
                     <ConfigFileForm
                         v-if="coreEntry"
                         :file="coreEntry.file"
@@ -656,9 +692,9 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                         @update:text="(text) => rawSingleton('core', text)"
                     />
                     <p v-else class="mb-config-screen__note">{{ t("config.shell.missingCore", "This folder has no core.conf.") }}</p>
-                </v-window-item>
+                </template>
 
-                <v-window-item value="maps">
+                <template #maps>
                     <MapsScreen
                         :workspace="workspace"
                         :selected-key="selectedMapKey"
@@ -668,9 +704,9 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                         @consent="emit('consent')"
                         @notify="(message) => notify(notices, 'info', message)"
                     />
-                </v-window-item>
+                </template>
 
-                <v-window-item value="storages">
+                <template #storages>
                     <StoragesScreen
                         :workspace="workspace"
                         :selected-key="selectedStorageKey"
@@ -680,9 +716,9 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                         @consent="emit('consent')"
                         @notify="(message) => notify(notices, 'info', message)"
                     />
-                </v-window-item>
+                </template>
 
-                <v-window-item value="webapp">
+                <template #webapp>
                     <ConfigFileForm
                         v-if="webappEntry"
                         :file="webappEntry.file"
@@ -693,9 +729,9 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                         @update:text="(text) => rawSingleton('webapp', text)"
                     />
                     <p v-else class="mb-config-screen__note">{{ t("config.shell.missingWebapp", "This folder has no webapp.conf.") }}</p>
-                </v-window-item>
+                </template>
 
-                <v-window-item value="webserver">
+                <template #webserver>
                     <ConfigFileForm
                         v-if="webserverEntry"
                         :file="webserverEntry.file"
@@ -708,9 +744,9 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                     <p v-else class="mb-config-screen__note">
                         {{ t("config.shell.missingWebserver", "This folder has no webserver.conf.") }}
                     </p>
-                </v-window-item>
+                </template>
 
-                <v-window-item value="plugin">
+                <template #plugin>
                     <ConfigFileForm
                         v-if="pluginEntry"
                         :file="pluginEntry.file"
@@ -728,9 +764,9 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                             )
                         }}
                     </v-alert>
-                </v-window-item>
+                </template>
 
-                <v-window-item value="run">
+                <template #run>
                     <RunScreen
                         :invocation="invocation"
                         :jar-path="jarPathValue"
@@ -738,15 +774,15 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                         @update:invocation="(value) => (invocation = value)"
                         @consent="emit('consent')"
                     />
-                </v-window-item>
+                </template>
 
-                <v-window-item value="history">
+                <template #history>
                     <HistoryPanel v-if="workspace !== null && workspace.folder !== null" :folder="workspace.folder" />
                     <p v-else class="mb-config-screen__note">
                         {{ t("config.history.noFolder", "History follows a folder. Save this config set to one first.") }}
                     </p>
-                </v-window-item>
-            </v-window>
+                </template>
+            </TabbedNavigation>
         </template>
 
         <v-card v-else variant="tonal" class="mb-config-screen__welcome">
@@ -816,11 +852,7 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
 
 .mb-config-screen__tabs {
     margin-block-start: 8px;
-}
-
-.mb-config-screen__window {
-    padding-block-start: 16px;
-    overflow: visible;
+    padding-block-start: 8px;
 }
 
 .mb-config-screen__note {
