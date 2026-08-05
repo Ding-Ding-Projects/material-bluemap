@@ -1652,6 +1652,15 @@ test("captures the appearance editor, its context menu, typography and the infin
     test.setTimeout(SURFACE_TIMEOUT);
     await ensureOptionsEditorClosed();
 
+    // Taller than the usual surface viewport for this one test. The tab this opens the
+    // editor from sits right under the title bar, and the editor anchors to the *top* of
+    // its target and grows downward from there - so at the standard 800px height, its own
+    // header and tab strip (Text/Surface/Presets) land partly behind the title bar and tab
+    // strip's opaque chrome, and a click on the Surface tab times out on an element that is
+    // technically present but not actually reachable. More vertical room is the fix, not a
+    // different selector - the tabs are exactly where the contract puts them.
+    await page.setViewportSize({ width: SURFACE_VIEWPORT.width, height: 1400 });
+
     await attempt("Appearance editor context menu", async () => {
         // A tab, not a row in some other list: every tab is its own appearance target
         // (the contract's "for tabs specifically" clause), and a tab is always on screen
@@ -1745,6 +1754,8 @@ test("captures the appearance editor, its context menu, typography and the infin
     // appearance editor itself and returns focus to the tab that opened it.
     await dismiss();
     await dismiss();
+
+    await page.setViewportSize(SURFACE_VIEWPORT);
 });
 
 /* -------------------------------------------------------------------------- */
