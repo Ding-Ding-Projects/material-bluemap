@@ -4,6 +4,14 @@
  * Everything here builds nodes and sets `textContent`. No template strings reach
  * `innerHTML`, so no piece of content can inject markup even if it later comes from
  * somewhere less trusted than a TypeScript file in this repository.
+ *
+ * The block's own prose -- a paragraph, a list item, a table cell, a definition, a
+ * callout's `title`/`content` -- is authored article content and stays literal English:
+ * see `packages/site/src/i18n/strings.ts`'s own new-entries comment for why that line is
+ * drawn where it is. The callout's tone badge and the code sample's accessible name are
+ * different: they are chrome this renderer itself adds around the content, not anything an
+ * article author wrote, so they are voiced through `i18n` like every other label in the
+ * shell.
  */
 
 import type {
@@ -12,11 +20,13 @@ import type {
     Inline,
     InlineContent,
 } from "../content/types.js";
+import type { I18n } from "../i18n/I18n.js";
+import type { FixedKey } from "../i18n/strings.js";
 
-const CALLOUT_LABELS: Readonly<Record<CalloutTone, string>> = {
-    note: "Note",
-    warning: "Warning",
-    "not-implemented": "Not implemented",
+const CALLOUT_LABEL_KEYS: Readonly<Record<CalloutTone, FixedKey>> = {
+    note: "callout.note",
+    warning: "callout.warning",
+    "not-implemented": "callout.notImplemented",
 };
 
 function isInlineArray(content: InlineContent): content is readonly Inline[] {
@@ -79,7 +89,7 @@ function renderParagraph(content: InlineContent): HTMLElement {
     return p;
 }
 
-function renderBlock(block: Block): HTMLElement {
+function renderBlock(block: Block, i18n: I18n): HTMLElement {
     switch (block.kind) {
         case "paragraph":
             return renderParagraph(block.content);
@@ -150,7 +160,7 @@ function renderBlock(block: Block): HTMLElement {
             // overflow instead of it simply being unreachable.
             pre.tabIndex = 0;
             pre.setAttribute("role", "region");
-            pre.setAttribute("aria-label", `${block.language} code sample`);
+            i18n.bindAttr(pre, "aria-label", "content.codeSampleAria", { language: block.language });
 
             const code = document.createElement("code");
             code.textContent = block.code;
@@ -186,7 +196,7 @@ function renderBlock(block: Block): HTMLElement {
 
             const tone = document.createElement("span");
             tone.className = "mb-callout-tone";
-            tone.textContent = CALLOUT_LABELS[block.tone];
+            i18n.bindText(tone, CALLOUT_LABEL_KEYS[block.tone]);
             heading.appendChild(tone);
 
             const title = document.createElement("span");
@@ -201,7 +211,7 @@ function renderBlock(block: Block): HTMLElement {
 }
 
 /** Renders a sequence of blocks into `host`, replacing whatever was there. */
-export function renderBlocks(host: HTMLElement, blocks: readonly Block[]): void {
+export function renderBlocks(host: HTMLElement, blocks: readonly Block[], i18n: I18n): void {
     host.replaceChildren();
-    for (const block of blocks) host.appendChild(renderBlock(block));
+    for (const block of blocks) host.appendChild(renderBlock(block, i18n));
 }

@@ -94,6 +94,13 @@ export type Block = ParagraphBlock | ListBlock | TableBlock | CodeBlock | Defini
  * visible badge, because a documentation site that reads identically for shipped and
  * unbuilt features is a site that misleads by default.
  */
+/**
+ * The badge word for each status is voiced, not modelled here: `packages/site/src/i18n/
+ * strings.ts`'s `status.*` FIXED entries are the one source of truth, rendered through
+ * `main.ts`'s `STATUS_LABEL_KEYS`. A second, unvoiced copy of the same four words used to
+ * live here as `FEATURE_STATUS_LABELS`, read only in English regardless of the visitor's
+ * chosen language -- removed rather than kept in step by hand.
+ */
 export type FeatureStatus =
     /** Built, on the default branch, and covered by tests that run in CI. */
     | "shipped"
@@ -102,20 +109,8 @@ export type FeatureStatus =
     /** Written down in a contract or the plan. No implementation exists. */
     | "specified";
 
-export const FEATURE_STATUS_LABELS: Readonly<Record<FeatureStatus, string>> = {
-    shipped: "Shipped",
-    "ported-unverified": "Ported, not yet verified",
-    specified: "Specified, not built",
-};
-
+/** See `FeatureStatus`'s own comment: the section heading word is voiced via `category.*`. */
 export type ArticleCategory = "application" | "engine" | "delivery" | "contracts";
-
-export const ARTICLE_CATEGORY_LABELS: Readonly<Record<ArticleCategory, string>> = {
-    application: "Application",
-    engine: "Engine",
-    delivery: "Build and delivery",
-    contracts: "Product contracts",
-};
 
 /**
  * The five sections every feature article carries. Keeping them as fixed ids rather
@@ -246,18 +241,13 @@ export interface HomeSectionCopy {
     readonly lede: string;
 }
 
+/** See `FeatureStatus`'s own comment: the `status` badge word is voiced via `phase.*`. */
 export interface PhaseRow {
     readonly phase: string;
     readonly scope: string;
     readonly status: "done" | "in-progress" | "pending";
     readonly note?: string;
 }
-
-export const PHASE_STATUS_LABELS: Readonly<Record<PhaseRow["status"], string>> = {
-    done: "Done",
-    "in-progress": "In progress",
-    pending: "Pending",
-};
 
 export interface HomeContent {
     readonly title: string;

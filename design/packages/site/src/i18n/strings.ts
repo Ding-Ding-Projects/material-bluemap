@@ -864,6 +864,62 @@ export const VOICED = {
             "篩選記錄成功逃入 Markdown 檔案。",
         ],
     },
+
+    /* ---------------------------------------------------------------------- */
+    /* Chrome the shared content renderer (shell/renderBlocks.ts) and the     */
+    /* home/docs page framing add around structured articles, not authored    */
+    /* article prose itself -- see this file's own header and FACTS' doc      */
+    /* comment below for the line drawn between the two.                      */
+    /* ---------------------------------------------------------------------- */
+
+    "home.heroEyebrowAvailable": {
+        en: [
+            "Verified release · v{version}",
+            "Verified release · v{version}",
+            "A verified release is up: v{version}",
+            "It is real: v{version} is a verified release",
+            "Bragging rights secured: v{version} is a genuinely verified release",
+        ],
+        yue: [
+            "已驗證版本 · v{version}",
+            "已驗證版本 · v{version}",
+            "有個已驗證版本喇：v{version}",
+            "係真㗎：v{version} 係已驗證版本",
+            "威番次：v{version} 係貨真價實已驗證版本",
+        ],
+    },
+    "home.heroEyebrowUnavailable": {
+        en: [
+            "No verified release yet",
+            "No verified release yet",
+            "No verified release exists yet",
+            "Nothing verified to release yet, hang tight",
+            "Zero verified releases yet, but the suspense is real",
+        ],
+        yue: [
+            "未有已驗證版本",
+            "未有已驗證版本",
+            "暫時未有已驗證版本",
+            "仲未有嘢驗證好攞出嚟，唔使急",
+            "一個已驗證版本都未有，不過緊張感係真㗎",
+        ],
+    },
+    "shell.startupFailedTitle": {
+        en: [
+            "This page failed to start.",
+            "This page failed to start.",
+            "This page failed to start, and that is a real problem.",
+            "Well, this page failed to start. Not exactly the plan.",
+            "This page tripped over its own shoelaces and failed to start.",
+        ],
+        yue: [
+            "呢頁未能啟動。",
+            "呢頁未能啟動。",
+            "呢頁未能啟動，呢個係真係有問題。",
+            "呢頁未能啟動，唔係原本個計劃。",
+            "呢頁跣一跤，未能啟動。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const FIXED = {
@@ -1052,6 +1108,7 @@ export const FIXED = {
     "site.notificationsExported": { en: "Notification history exported.", yue: "通知歷史已匯出。" },
     "site.openHome": { en: "Open Home", yue: "開啟主頁" },
     "site.openDocs": { en: "Open Documentation", yue: "開啟說明文件" },
+    "site.openScreenshots": { en: "Open Screenshots", yue: "開啟螢幕截圖" },
     "site.openSearch": { en: "Open Search everything", yue: "開啟搜尋所有嘢" },
     "site.openChangelog": { en: "Open Changelog", yue: "開啟變更記錄" },
     "site.openNotifications": { en: "Open Notification centre", yue: "開啟通知中心" },
@@ -1084,8 +1141,67 @@ export const FIXED = {
         en: "material-bluemap: go to Home",
         yue: "material-bluemap：返回主頁",
     },
+    "site.descriptionScreenshots": {
+        en: "See real captures from continuous integration",
+        yue: "睇吓 CI 攞返嚟嘅真實截圖",
+    },
+
+    /* Chrome the content renderer adds -- see the matching comment in VOICED above. */
+    "callout.note": { en: "Note", yue: "注意" },
+    "callout.warning": { en: "Warning", yue: "警告" },
+    "callout.notImplemented": { en: "Not implemented", yue: "未實作" },
+    "content.codeSampleAria": { en: "{language} code sample", yue: "{language} 程式碼範例" },
+    "content.suggestedArticlesHeading": { en: "Suggested articles", yue: "推薦文章" },
+    "content.sourcesHeading": { en: "Sources", yue: "資料來源" },
+    "content.phaseTableCaption": { en: "Port progress by phase", yue: "各階段嘅移植進度" },
+    "content.phaseColumnPhase": { en: "Phase", yue: "階段" },
+    "content.phaseColumnScope": { en: "Scope", yue: "範圍" },
+    "content.phaseColumnStatus": { en: "Status", yue: "狀態" },
+    "status.shipped": { en: "Shipped", yue: "已完成" },
+    "status.portedUnverified": { en: "Ported, not yet verified", yue: "已移植，未驗證" },
+    "status.specified": { en: "Specified, not built", yue: "已定義，未實作" },
+    "category.application": { en: "Application", yue: "應用程式" },
+    "category.engine": { en: "Engine", yue: "引擎" },
+    "category.delivery": { en: "Build and delivery", yue: "建置同發佈" },
+    "category.contracts": { en: "Product contracts", yue: "產品約章" },
+    "phase.done": { en: "Done", yue: "完成" },
+    "phase.inProgress": { en: "In progress", yue: "進行中" },
+    "phase.pending": { en: "Pending", yue: "待處理" },
+    "shell.startupFailedReport": { en: "Report this", yue: "回報呢個問題" },
+    "home.glossaryButtonLabel": { en: "Read the glossary of terms", yue: "閱讀詞彙表" },
 } as const satisfies Record<string, FixedString>;
 
 export type VoicedKey = keyof typeof VOICED;
 export type FixedKey = keyof typeof FIXED;
 export type StringKey = VoicedKey | FixedKey;
+
+/* -------------------------------------------------------------------------- */
+/* FACTS: the literal substrings a playful rewrite may never drop             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The literal substring(s) a `VOICED` entry's wording must keep at every funny level, in
+ * both languages -- the same convention `packages/ui/src/copy/appCopy.ts`'s own `FACTS`
+ * documents: the level styles the voice, and this is the mechanical check that it never
+ * touches the one fact the sentence exists to state.
+ *
+ * `Partial` rather than mandatory for every `VOICED` key, unlike the UI package's stricter
+ * version. This catalogue's roughly 150 pre-existing entries were written before this guard
+ * existed, and auditing every one of them for the fact it is meant to pin is a separate pass
+ * this addition does not claim to have done -- see `contract-localization.ts`'s own
+ * `statusNote` for that gap tracked in the open. What this guarantees is narrower and honest
+ * about it: every entry named here keeps its literal fact at every level in both languages,
+ * checked by `strings.test.ts`, and every entry this pass adds for chrome that states a real
+ * claim -- whether a verified release exists, that a page failed to start -- is named here
+ * rather than left to human review alone.
+ */
+export interface VoicedFact {
+    readonly en: readonly string[];
+    readonly yue: readonly string[];
+}
+
+export const FACTS: Partial<Record<VoicedKey, VoicedFact>> = {
+    "home.heroEyebrowAvailable": { en: ["release"], yue: ["已驗證"] },
+    "home.heroEyebrowUnavailable": { en: ["yet"], yue: ["未有"] },
+    "shell.startupFailedTitle": { en: ["failed to start"], yue: ["未能啟動"] },
+};

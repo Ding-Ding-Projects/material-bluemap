@@ -21,9 +21,6 @@ import "./content/content.css";
 
 import { AppearanceController } from "./appearance/index.js";
 import {
-    ARTICLE_CATEGORY_LABELS,
-    FEATURE_STATUS_LABELS,
-    PHASE_STATUS_LABELS,
     articleCategoryOrder,
     articles,
     articlesInCategory,
@@ -45,17 +42,21 @@ import {
     screenshotsCopy,
 } from "./content/index.js";
 import type {
+    ArticleCategory,
     EngineRow,
+    FeatureStatus,
     HomeFeature,
     HomeLink,
     HomeSectionCopy,
     HomeStat,
+    PhaseRow,
     RepoCapture,
 } from "./content/index.js";
 import { maybeShowDimSum } from "./dimsum/index.js";
 import { createChangelogView } from "./content/changelogView.js";
 import { createDiscoveryView } from "./content/discoveryView.js";
 import { I18n } from "./i18n/I18n.js";
+import type { FixedKey } from "./i18n/strings.js";
 import { Notifications } from "./notifications/Notifications.js";
 import { Preferences } from "./platform/Preferences.js";
 import { RegexBuilderSlot } from "./platform/RegexBuilderSlot.js";
@@ -136,14 +137,38 @@ function linkList(links: readonly HomeLink[], className = "mb-link-list"): HTMLE
 }
 
 /**
+ * The badge words: chrome this renderer adds around an article or a phase row, not
+ * anything an author wrote, so they are voiced through `i18n` like every other label in
+ * the shell rather than living as a second, unvoiced copy of the same word.
+ */
+const STATUS_LABEL_KEYS: Readonly<Record<FeatureStatus, FixedKey>> = {
+    shipped: "status.shipped",
+    "ported-unverified": "status.portedUnverified",
+    specified: "status.specified",
+};
+const CATEGORY_LABEL_KEYS: Readonly<Record<ArticleCategory, FixedKey>> = {
+    application: "category.application",
+    engine: "category.engine",
+    delivery: "category.delivery",
+    contracts: "category.contracts",
+};
+const PHASE_LABEL_KEYS: Readonly<Record<PhaseRow["status"], FixedKey>> = {
+    done: "phase.done",
+    "in-progress": "phase.inProgress",
+    pending: "phase.pending",
+};
+
+/**
  * A status badge.
  *
  * The badge is a word before it is a colour, and the note the caller renders beside it says
  * what the word means for that subject. A page that reads the same for shipped and unbuilt
  * work misleads by default, which is the whole reason these exist.
  */
-function statusBadge(status: keyof typeof FEATURE_STATUS_LABELS): HTMLElement {
-    return el("span", `mb-status mb-status-${status}`, FEATURE_STATUS_LABELS[status]);
+function statusBadge(status: FeatureStatus, i18n: I18n): HTMLElement {
+    const badge = el("span", `mb-status mb-status-${status}`);
+    i18n.bindText(badge, STATUS_LABEL_KEYS[status]);
+    return badge;
 }
 
 function captureFigure(capture: RepoCapture, className: string): HTMLElement {
@@ -195,11 +220,16 @@ interface PageNavigation {
  * third type rung above the title on the first screen and a preview of the honest answer
  * to "does this actually work" before the reader has scrolled anywhere.
  */
-function heroEyebrow(): HTMLElement {
-    const text = releaseAvailability.available
-        ? `Verified release · v${releaseAvailability.release.version}`
-        : "No verified release yet";
-    return el("p", "mb-hero-eyebrow", text);
+function heroEyebrow(i18n: I18n): HTMLElement {
+    const eyebrow = el("p", "mb-hero-eyebrow");
+    if (releaseAvailability.available) {
+        i18n.bindText(eyebrow, "home.heroEyebrowAvailable", {
+            version: releaseAvailability.release.version,
+        });
+    } else {
+        i18n.bindText(eyebrow, "home.heroEyebrowUnavailable");
+    }
+    return eyebrow;
 }
 
 /**
@@ -219,12 +249,12 @@ function heroStatTile(stat: HomeStat, tone: number): HTMLElement {
     return tile;
 }
 
-function renderHero(host: HTMLElement): void {
+function renderHero(host: HTMLElement, i18n: I18n): void {
     const hero = el("header", "mb-hero");
     const grid = el("div", "mb-hero-grid");
 
     const main = el("div", "mb-hero-main");
-    main.appendChild(heroEyebrow());
+    main.appendChild(heroEyebrow(i18n));
     main.appendChild(el("h1", "mb-hero-title", home.title));
     main.appendChild(el("p", "mb-hero-tagline", home.tagline));
     main.appendChild(el("p", "mb-hero-summary", home.summary));
@@ -364,12 +394,12 @@ function articleButton(
     return button;
 }
 
-function featureCard(feature: HomeFeature, navigation: PageNavigation): HTMLElement {
+function featureCard(feature: HomeFeature, navigation: PageNavigation, i18n: I18n): HTMLElement {
     const card = el("article", "mb-card");
 
     const head = el("div", "mb-card-head");
     head.appendChild(el("h4", "mb-card-title", feature.title));
-    head.appendChild(statusBadge(feature.status));
+    head.appendChild(statusBadge(feature.status, i18n));
     card.appendChild(head);
 
     card.appendChild(el("p", "mb-card-body", feature.body));
@@ -386,7 +416,7 @@ function featureCard(feature: HomeFeature, navigation: PageNavigation): HTMLElem
     return card;
 }
 
-function renderFeatures(host: HTMLElement, navigation: PageNavigation): void {
+function renderFeatures(host: HTMLElement, navigation: PageNavigation, i18n: I18n): void {
     const wrapper = sectionFor(host, home.featuresSection);
 
     for (const group of home.featureGroups) {
@@ -395,7 +425,7 @@ function renderFeatures(host: HTMLElement, navigation: PageNavigation): void {
         groupEl.appendChild(el("p", "mb-section-lede", group.lede));
 
         const grid = el("div", "mb-card-grid");
-        for (const feature of group.features) grid.appendChild(featureCard(feature, navigation));
+        for (const feature of group.features) grid.appendChild(featureCard(feature, navigation, i18n));
         groupEl.appendChild(grid);
 
         wrapper.appendChild(groupEl);
@@ -409,18 +439,21 @@ function renderNotYet(host: HTMLElement): void {
     wrapper.appendChild(list);
 }
 
-function renderPhases(host: HTMLElement): void {
+function renderPhases(host: HTMLElement, i18n: I18n): void {
     const wrapper = sectionFor(host, home.phasesSection);
 
     const scroll = el("div", "mb-table-scroll");
     const table = el("table", "mb-prose-table");
-    table.appendChild(el("caption", undefined, "Port progress by phase"));
+    const caption = el("caption");
+    i18n.bindText(caption, "content.phaseTableCaption");
+    table.appendChild(caption);
 
     const thead = el("thead");
     const headRow = el("tr");
-    for (const column of ["Phase", "Scope", "Status"]) {
-        const th = el("th", undefined, column);
+    for (const key of ["content.phaseColumnPhase", "content.phaseColumnScope", "content.phaseColumnStatus"] as const) {
+        const th = el("th");
         th.scope = "col";
+        i18n.bindText(th, key);
         headRow.appendChild(th);
     }
     thead.appendChild(headRow);
@@ -441,9 +474,9 @@ function renderPhases(host: HTMLElement): void {
         tr.appendChild(scope);
 
         const status = el("td");
-        status.appendChild(
-            el("span", `mb-status mb-phase-${row.status}`, PHASE_STATUS_LABELS[row.status]),
-        );
+        const badge = el("span", `mb-status mb-phase-${row.status}`);
+        i18n.bindText(badge, PHASE_LABEL_KEYS[row.status]);
+        status.appendChild(badge);
         tr.appendChild(status);
 
         tbody.appendChild(tr);
@@ -466,37 +499,39 @@ function renderPhases(host: HTMLElement): void {
  * The glossary button is a real activation, not a link the block model has no way to wire
  * to the SPA's own navigation.
  */
-function renderGettingStarted(host: HTMLElement, navigation: PageNavigation): void {
+function renderGettingStarted(host: HTMLElement, navigation: PageNavigation, i18n: I18n): void {
     const wrapper = sectionFor(host, home.gettingStartedSection);
     const prose = el("div", "mb-prose");
-    renderBlocks(prose, home.gettingStarted);
+    renderBlocks(prose, home.gettingStarted, i18n);
     wrapper.appendChild(prose);
 
     const actions = el("div", "mb-card-actions");
-    actions.appendChild(articleButton("glossary", navigation, "Read the glossary of terms"));
+    const glossaryButton = articleButton("glossary", navigation);
+    i18n.bindText(glossaryButton, "home.glossaryButtonLabel");
+    actions.appendChild(glossaryButton);
     wrapper.appendChild(actions);
 }
 
-function renderHome(host: HTMLElement, navigation: PageNavigation): void {
+function renderHome(host: HTMLElement, navigation: PageNavigation, i18n: I18n): void {
     const root = page(host);
 
-    renderHero(root);
-    renderGettingStarted(root, navigation);
+    renderHero(root, i18n);
+    renderGettingStarted(root, navigation, i18n);
 
     const intro = el("div", "mb-prose");
-    renderBlocks(intro, home.intro);
+    renderBlocks(intro, home.intro, i18n);
     root.appendChild(intro);
 
     renderStats(root);
     renderEngines(root, navigation);
     renderShowcase(root, navigation);
-    renderFeatures(root, navigation);
+    renderFeatures(root, navigation, i18n);
     renderNotYet(root);
-    renderPhases(root);
+    renderPhases(root, i18n);
 
     const build = sectionFor(root, home.buildSection);
     const buildProse = el("div", "mb-prose");
-    renderBlocks(buildProse, home.buildIt);
+    renderBlocks(buildProse, home.buildIt, i18n);
     build.appendChild(buildProse);
 
     const reading = sectionFor(root, home.readingSection);
@@ -510,22 +545,27 @@ function articleElementId(articleId: string): string {
     return `article-${articleId}`;
 }
 
-function renderDocs(host: HTMLElement): void {
+function renderDocs(host: HTMLElement, i18n: I18n): void {
     const root = page(host);
-    root.appendChild(el("h1", "mb-page-title", "Documentation"));
-    root.appendChild(
-        el(
-            "p",
-            "mb-page-subtitle",
-            contentPages.find((contentPage) => contentPage.id === "docs")?.description ?? "",
-        ),
-    );
+    const title = el("h1", "mb-page-title");
+    // Reuses the tab's own already-voiced label rather than a second, hardcoded copy of
+    // "Documentation" that could drift from it -- the same fix `site.descriptionDocs` below
+    // makes for the subtitle.
+    i18n.bindText(title, "site.docsTab");
+    root.appendChild(title);
+    const subtitle = el("p", "mb-page-subtitle");
+    i18n.bindText(subtitle, "site.descriptionDocs");
+    root.appendChild(subtitle);
 
     for (const category of articleCategoryOrder) {
         const inCategory = articlesInCategory(category);
         if (inCategory.length === 0) continue;
 
-        const wrapper = section(root, ARTICLE_CATEGORY_LABELS[category]);
+        const categoryHeading = el("h2", "mb-section-title");
+        i18n.bindText(categoryHeading, CATEGORY_LABEL_KEYS[category]);
+        const wrapper = el("section", "mb-section");
+        wrapper.appendChild(categoryHeading);
+        root.appendChild(wrapper);
         // A responsive grid of tiles reads as a catalogue; the uniform vertical stack it
         // replaces read as one more settings list. `[open]` articles span the full row
         // (see .mb-article-grid > .mb-article[open] in content.css) so expanded prose,
@@ -540,7 +580,7 @@ function renderDocs(host: HTMLElement): void {
             summary.appendChild(el("span", "mb-article-title", article.title));
             // The status badge is not decoration. A documentation site that reads the
             // same for shipped and unbuilt features misleads by default.
-            summary.appendChild(statusBadge(article.status));
+            summary.appendChild(statusBadge(article.status, i18n));
             details.appendChild(summary);
 
             const body = el("div", "mb-article-body");
@@ -552,12 +592,14 @@ function renderDocs(host: HTMLElement): void {
                 heading.id = `article-${article.id}-${articleSection.id}`;
                 body.appendChild(heading);
                 const prose = el("div", "mb-prose");
-                renderBlocks(prose, articleSection.blocks);
+                renderBlocks(prose, articleSection.blocks, i18n);
                 body.appendChild(prose);
             }
 
             if (article.suggested.length > 0) {
-                body.appendChild(el("h3", "mb-article-section", "Suggested articles"));
+                const suggestedHeading = el("h3", "mb-article-section");
+                i18n.bindText(suggestedHeading, "content.suggestedArticlesHeading");
+                body.appendChild(suggestedHeading);
                 // Its own tonal panel rather than one more plain list under a label, so the
                 // one place every article points somewhere else is visually distinct.
                 const suggestedBox = el("div", "mb-suggested");
@@ -575,7 +617,9 @@ function renderDocs(host: HTMLElement): void {
 
             // Sources were modelled and never rendered, which made every article's
             // evidence unreachable from the article that leaned on it.
-            body.appendChild(el("h3", "mb-article-section", "Sources"));
+            const sourcesHeading = el("h3", "mb-article-section");
+            i18n.bindText(sourcesHeading, "content.sourcesHeading");
+            body.appendChild(sourcesHeading);
             body.appendChild(linkList(article.sources));
 
             details.appendChild(body);
@@ -606,9 +650,16 @@ function renderProvenance(host: HTMLElement): void {
     host.appendChild(where);
 }
 
-function renderScreenshots(host: HTMLElement): void {
+function renderScreenshots(host: HTMLElement, i18n: I18n): void {
     const root = page(host);
-    root.appendChild(el("h1", "mb-page-title", "Screenshots"));
+    // Reuses the tab's own already-voiced label, the same fix `renderDocs` makes for its
+    // own h1, rather than a second hardcoded copy of "Screenshots" that could drift from it.
+    const title = el("h1", "mb-page-title");
+    i18n.bindText(title, "site.screenshotsTab");
+    root.appendChild(title);
+    // `screenshotsCopy.lead` stays authored content rather than a voiced key: it is a
+    // specific factual claim about this page's own captures (Playwright, CI, never a
+    // mockup), not a reusable piece of chrome framing like the h1 above it.
     root.appendChild(el("p", "mb-page-subtitle", screenshotsCopy.lead));
     root.appendChild(el("p", "mb-note", screenshotsCopy.caveat));
 
@@ -683,6 +734,14 @@ const MAIN_CONTENT_ID = "mb-main-content";
  * A site that throws during boot shows nothing at all, and "nothing" is
  * indistinguishable from a failed deploy, a network problem, or a browser with
  * scripting disabled. Saying what broke is worth more than a clean console.
+ *
+ * The visitor's language and tone choice is still honoured here, best effort: a fresh,
+ * independent `I18n`/`Preferences` pair is constructed and used if it succeeds, and
+ * discarded in favour of the plain English fallback below if it does not. `boot()` wraps
+ * everything, including the original construction of `I18n` itself, so the failure being
+ * reported here could be that very construction -- reading it a second time inside a `try`
+ * that falls back cleanly is safer than assuming a working instance exists, which would
+ * risk this handler throwing a second, unhandled error while reporting the first one.
  */
 function showBootFailure(error: unknown): void {
     const message = error instanceof Error ? error.message : String(error);
@@ -691,8 +750,18 @@ function showBootFailure(error: unknown): void {
     notice.className = "mb-boot-error";
     notice.setAttribute("role", "alert");
 
+    let headingText = "This page failed to start";
+    let reportText = "Report this";
+    try {
+        const i18n = new I18n(new Preferences());
+        headingText = i18n.t("shell.startupFailedTitle");
+        reportText = i18n.t("shell.startupFailedReport");
+    } catch {
+        // Keep the plain English fallback already assigned above.
+    }
+
     const heading = document.createElement("h1");
-    heading.textContent = "This page failed to start";
+    heading.textContent = headingText;
     notice.appendChild(heading);
 
     const detail = document.createElement("p");
@@ -701,7 +770,7 @@ function showBootFailure(error: unknown): void {
 
     const link = document.createElement("a");
     link.href = "https://github.com/Ding-Ding-Projects/material-bluemap/issues";
-    link.textContent = "Report this";
+    link.textContent = reportText;
     link.rel = "noopener noreferrer";
     notice.appendChild(link);
 
@@ -834,9 +903,9 @@ function boot(): void {
 
     for (const contentPage of contentPages) {
         const render = (host: HTMLElement): void => {
-            if (contentPage.id === "home") renderHome(host, navigation);
-            else if (contentPage.id === "docs") renderDocs(host);
-            else renderScreenshots(host);
+            if (contentPage.id === "home") renderHome(host, navigation, i18n);
+            else if (contentPage.id === "docs") renderDocs(host, i18n);
+            else renderScreenshots(host, i18n);
             decoratePage(host, contentPage.id, appearance);
         };
         tabs.registerPage({
@@ -1120,6 +1189,13 @@ function createShellPalette(options: {
             description: options.i18n.t("site.descriptionDocs"),
             kind: "page",
             run: () => options.tabs.reveal("docs"),
+        },
+        {
+            id: "open-screenshots",
+            label: options.i18n.t("site.openScreenshots"),
+            description: options.i18n.t("site.descriptionScreenshots"),
+            kind: "page",
+            run: () => options.tabs.reveal("screenshots"),
         },
         {
             id: "open-search",
