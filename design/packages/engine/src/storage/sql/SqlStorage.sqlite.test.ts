@@ -326,6 +326,46 @@ describe("SQLStorage (sqlite dialect) — a real SQLite engine, in-memory", () =
 
         await storage.close();
     });
+
+    it("carries the render-state grids (tileState/chunkState/regionState) — always gzip, regardless of the map's tile compression", async () => {
+        const storage = await openStorage("jdbc:sqlite::memory:", Compression.ZSTD);
+        const map = storage.map("overworld");
+
+        await map.tileState().write(1, 1, Buffer.from("tile-state"));
+        await map.chunkState().write(2, 2, Buffer.from("chunk-state"));
+        await map.regionState().write(3, 3, Buffer.from("region-state"));
+
+        const tileState = await map.tileState().read(1, 1);
+        const chunkState = await map.chunkState().read(2, 2);
+        const regionState = await map.regionState().read(3, 3);
+        expect(tileState!.getCompression()).toBe(Compression.GZIP);
+        expect(chunkState!.getCompression()).toBe(Compression.GZIP);
+        expect(regionState!.getCompression()).toBe(Compression.GZIP);
+        expect((await tileState!.decompress()).toString("utf8")).toBe("tile-state");
+        expect((await chunkState!.decompress()).toString("utf8")).toBe("chunk-state");
+        expect((await regionState!.decompress()).toString("utf8")).toBe("region-state");
+
+        // the three render-state grids and the hires grid are addressed by distinct
+        // keys, so writing to one does not collide with the others at the same (x, z)
+        await map.hiresTiles().write(1, 1, Buffer.from("hires-not-tile-state"));
+        expect((await (await map.tileState().read(1, 1))!.decompress()).toString("utf8")).toBe("tile-state");
+
+        await storage.close();
+    });
+
+    it("carries markers/players/settings — always uncompressed, per KeyedMapStorage", async () => {
+        const storage = await openStorage("jdbc:sqlite::memory:", Compression.ZSTD);
+        const map = storage.map("overworld");
+
+        await map.markers().write(Buffer.from('{"markerSets":{}}'));
+        await map.players().write(Buffer.from("[]"));
+
+        expect((await map.markers().read())!.getCompression()).toBe(Compression.NONE);
+        expect((await map.players().read())!.getCompression()).toBe(Compression.NONE);
+        expect((await (await map.markers().read())!.decompress()).toString("utf8")).toBe('{"markerSets":{}}');
+
+        await storage.close();
+    });
 });
 
 describe("SQLStorage (sqlite dialect) — real file persistence", () => {
