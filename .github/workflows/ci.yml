@@ -526,7 +526,23 @@ jobs:
 
   release:
     name: Publish release
-    needs: [check, package, jars, test-world]
+    # config-java-roundtrip proves the config writer's real behaviour against the real
+    # upstream Java CLI (see that job's own comment above) - without this gate, a release
+    # could ship a config writer that silently fails to round-trip a value into the CLI's
+    # own settings.json, a defect a user would hit the moment they saved a setting through
+    # the app. That is worth blocking a release over, so it is listed here rather than left
+    # as a separate, ungated proof.
+    #
+    # The added wall-clock is effectively zero. config-java-roundtrip needs only `jars`
+    # (same as `check`) and finishes in well under a minute once `jars` is ready - 28
+    # seconds observed end to end in run 31051809784, since all it does past that point is
+    # download one jar, set up a JDK and run one vitest file. Every other job already
+    # listed here takes longer on its own: `check` takes 7+ minutes when it passes,
+    # `package` is a full Windows electron-builder build that runs several minutes on top
+    # of that, and `test-world` is a real Java world render at around 6 minutes. Since
+    # `release` already waits on all three, config-java-roundtrip is never the slowest
+    # input it is blocked on - it is done long before the others are.
+    needs: [check, package, jars, test-world, config-java-roundtrip]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # The one thing that genuinely cannot run twice at once, and not for the reason it

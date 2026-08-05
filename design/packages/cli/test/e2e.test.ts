@@ -106,14 +106,17 @@ async function teardown(result: CliResult): Promise<void> {
  * package's `dist/webapp` at build time — see `webapp.ts`'s own doc comment for the two
  * places it looks.
  *
- * `.github/workflows/ci.yml`'s "Lint, build, test" job checks this repository out without
- * the vendored submodule on purpose ("nothing in the build reads it", its own comment
- * says) precisely because until this test existed, that was true. `copy-webapp.mjs` is
- * deliberately non-fatal when its source is missing, so `pnpm build` still succeeds there
- * and quietly leaves `dist/webapp` absent. Skipping here — the same honest gap the
- * subprocess describe block below already reports for `dist/index.js` — is the accurate
- * statement of what that job can prove; asserting through it would report a real
- * environment gap as a broken render pipeline.
+ * `.github/workflows/ci.yml`'s "Lint, build, test" job now checks this repository out
+ * WITH the vendored submodule (`submodules: true`, `MBM_VENDOR_REQUIRED: "1"` — see that
+ * job's own comment for why), so on hosted CI `pnpm build` copies a real webapp bundle
+ * and this scenario actually runs there rather than being recorded as a skip.
+ * `copy-webapp.mjs` stays deliberately non-fatal when its source is missing, so `pnpm
+ * build` still succeeds on a checkout that genuinely lacks the submodule (a shallow
+ * clone without `submodules: true`, or a workstation that never ran `git submodule
+ * update --init`) and quietly leaves `dist/webapp` absent. Skipping in THAT case — the
+ * same honest gap the subprocess describe block below already reports for
+ * `dist/index.js` — is still the accurate statement of what such a checkout can prove;
+ * asserting through it would report a real environment gap as a broken render pipeline.
  */
 const webappBundleBuilt = existsSync(join(import.meta.dirname, "..", "dist", "webapp", "index.html"));
 if (!webappBundleBuilt) {
