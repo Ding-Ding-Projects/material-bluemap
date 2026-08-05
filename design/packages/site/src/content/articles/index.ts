@@ -59,6 +59,7 @@ import { renderConsole } from "./render-console.js";
 import { publishingToPages } from "./publishing-to-pages.js";
 import { dockerAndLocal } from "./docker-and-local.js";
 import { remoteRender } from "./remote-render.js";
+import { remoteHosting } from "./remote-hosting.js";
 import { automaticRepair } from "./automatic-repair.js";
 
 export const articles: readonly Article[] = [
@@ -91,6 +92,7 @@ export const articles: readonly Article[] = [
     javaRenderPath,
     dockerAndLocal,
     remoteRender,
+    remoteHosting,
     resourcePacks,
     install,
     renderInActions,

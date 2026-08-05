@@ -71,6 +71,7 @@ export const PUBLISHING_TO_PAGES_DOC_URL = repoFile("docs/pages-hosting.md");
 export const AUTOMATIC_UPDATES_DOC_URL = repoFile("docs/automatic-updates.md");
 export const DOCKER_AND_LOCAL_DOC_URL = repoFile("docs/docker-and-local.md");
 export const REMOTE_RENDER_DOC_URL = repoFile("docs/remote-render.md");
+export const REMOTE_HOSTING_DOC_URL = repoFile("docs/remote-hosting.md");
 export const AUTOMATIC_REPAIR_DOC_URL = repoFile("docs/automatic-repair.md");
 export const FINDING_WORLDS_DOC_URL = repoFile("docs/finding-worlds.md");
 export const BEDROCK_WORLDS_DOC_URL = repoFile("docs/bedrock-worlds.md");

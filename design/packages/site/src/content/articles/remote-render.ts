@@ -229,6 +229,10 @@ export const remoteRender: Article = {
 
     suggested: [
         {
+            articleId: "remote-hosting",
+            reason: "The natural next step for a render that finished here: put it on that same kind of server, running, instead of bringing it home.",
+        },
+        {
             articleId: "docker-and-local",
             reason: "The same container problem, run on this machine instead of one reached over the network.",
         },
