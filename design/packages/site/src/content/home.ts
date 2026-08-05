@@ -456,7 +456,7 @@ export const home: HomeContent = {
                     body: "A device flow that shows the code large and verbatim, counts down only from what the main process actually said, and keeps its four endings apart. A pasted token is the other way in. The credential never reaches the interface at all.",
                     status: "ported-unverified",
                     statusNote:
-                        "Built and covered by 126 tests, all of which drive a stand-in for GitHub's endpoints. No code has been typed on github.com from a packaged build. The account now reaches the download path and the backup path, and neither has been run against real GitHub.",
+                        "Built and covered by 166 tests, all of which drive a stand-in for GitHub's endpoints. A gated real-account file now proves the app's own client id and a real account's token against the live server; nobody has clicked Authorize on GitHub's own page, which no script can do for them. The account now reaches the download path and the backup path, and neither has been run against real GitHub.",
                     articleId: "github-sign-in",
                 },
                 {

@@ -92,11 +92,17 @@ export interface WorldFolderListing {
     readonly leveldbFiles: number | null;
 }
 
-/** The file that makes a folder a world. Compared lower-cased; emitted lower-case. */
-const LEVEL_DAT = "level.dat";
+/**
+ * The file that makes a folder a world. Compared lower-cased; emitted lower-case.
+ *
+ * Exported so a caller reading the *same* signal somewhere this module cannot reach - a
+ * remote directory listing over SSH, say - names the file this module names, rather than
+ * re-typing `"level.dat"` a second place that can drift from this one.
+ */
+export const LEVEL_DAT = "level.dat";
 
-/** The directory name every dimension keeps its region files in. */
-const REGION = "region";
+/** The directory name every dimension keeps its region files in. Exported for the same reason. */
+export const REGION = "region";
 
 /** Where a datapack or mod dimension lives, since 1.16. */
 const DIMENSIONS = "dimensions";
@@ -104,8 +110,8 @@ const DIMENSIONS = "dimensions";
 /** Where a Bedrock Edition world keeps its LevelDB chunk database. */
 const LEVELDB = "db";
 
-/** The two dimension folders Minecraft writes beside the overworld. */
-const VANILLA_DIMENSIONS = ["DIM-1", "DIM1"] as const;
+/** The two dimension folders Minecraft writes beside the overworld. Exported for the same reason. */
+export const VANILLA_DIMENSIONS = ["DIM-1", "DIM1"] as const;
 
 /**
  * Caps, so a folder that is not a world cannot turn this into a crawler.

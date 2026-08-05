@@ -9,7 +9,7 @@ export const optionsGui: Article = {
     category: "application",
     status: "ported-unverified",
     statusNote:
-        "The schema, the round-tripping HOCON editor, the seven screens and the main-process bridge that lets them touch a real folder are all built, and the editor is now reachable from the application itself. 176 tests cover the config package, 176 the editor's own interface modules and 75 the bridge, all running in CI. What has not run is the plan's exit check: a config authored here loaded by the real Java server and compared value for value.",
+        "The schema, the round-tripping HOCON editor, the seven screens and the main-process bridge that lets them touch a real folder are all built, and the editor is now reachable from the application itself. 215 tests cover the config package, 331 the editor's own interface modules and 75 the bridge, all running in CI on every push. The plan's exit check has now actually run: a config folder the real Java CLI generated was edited by hand through a packaged build of this editor, saved, and fed back into that same CLI, which read the edit back correctly. What has not run is that check as a standing part of CI, because the workflow never builds the Java CLI jar it needs, and the screens have not been captured at every supported width and display scale.",
 
     sections: [
         {

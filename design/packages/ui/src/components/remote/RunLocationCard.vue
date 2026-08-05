@@ -30,6 +30,7 @@ import {
     saveTargets,
     type TargetStorage,
 } from "./remoteTargets.js";
+import { loadRecency, orderByRecency, recordUsed, type RecencyMap } from "./remoteRecency.js";
 import {
     describeChoice,
     effectiveLocation,
@@ -147,10 +148,20 @@ async function loadRenderModes(): Promise<void> {
 
 const targets = ref<readonly RemoteTarget[]>([]);
 const selectedId = ref<string | null>(null);
+/** When each saved machine was last chosen for a render, per `remoteRecency.ts`. */
+const recency = ref<RecencyMap>({});
 
 const selected = computed<RemoteTarget | null>(
     () => targets.value.find((candidate) => candidate.id === selectedId.value) ?? null,
 );
+
+/**
+ * The list the editor actually shows: most recently used machine first, so a person picking
+ * a machine they render on often finds it at the top rather than re-reading the whole list.
+ * A machine that has never been used keeps the position it was added in, among the others
+ * that have not been used either.
+ */
+const orderedTargets = computed<readonly RemoteTarget[]>(() => orderByRecency(targets.value, recency.value));
 
 function replaceTargets(next: readonly RemoteTarget[]): void {
     targets.value = next;
@@ -256,6 +267,7 @@ function pick(value: unknown): void {
 
 onMounted(() => {
     targets.value = loadTargets(storage);
+    recency.value = loadRecency(storage);
     void probeDocker();
     void loadRenderModes();
 });
@@ -263,10 +275,13 @@ onMounted(() => {
 // A different machine has not been checked, whatever the last one proved. Carrying a
 // passed preflight across a selection change would be the single most dangerous piece of
 // state on this screen: it would let a render start against a host nobody had looked at.
-watch(selectedId, () => {
+watch(selectedId, (id) => {
     report.value = null;
     trustMessage.value = null;
     emit("update:target", selected.value);
+    // Chosen, not merely loaded: this fires on every real pick a person makes (including
+    // picking the same machine again), which is exactly when "last used" should move.
+    if (id !== null) recency.value = recordUsed(id, storage, recency.value);
 });
 
 // The selected machine can also be edited or forgotten underneath the selection.
@@ -282,6 +297,8 @@ defineExpose({
     report,
     decision,
     targets,
+    orderedTargets,
+    recency,
     selectedId,
     check,
     trust,
@@ -398,7 +415,7 @@ defineExpose({
                 <template v-else>
                     <RemoteTargetEditor
                         :bridge="remote"
-                        :targets="targets"
+                        :targets="orderedTargets"
                         :selected-id="selectedId"
                         @update:targets="replaceTargets"
                         @update:selected-id="(value: string | null) => (selectedId = value)"

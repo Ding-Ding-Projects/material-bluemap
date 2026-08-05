@@ -26,6 +26,7 @@ import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import RemoteTargetEditor from "./RemoteTargetEditor.vue";
+import type { RemoteTarget } from "./remoteBridge.js";
 
 beforeAll(() => {
     // jsdom has no layout engine, and Vuetify's fields, radios and overlays observe their

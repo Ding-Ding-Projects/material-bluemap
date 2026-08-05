@@ -63,15 +63,19 @@ import { APP_VOICED, appCopyKeys } from "./appCopy.js";
  * is not a way to fix a failure: it is a statement that the screen went back to speaking
  * English at people who did not choose English.
  *
- * One surface is deliberately absent because its copy is genuinely unfinished, and naming
- * it here is the honest alternative to a guard that quietly asserts less than it appears to:
+ * One surface is deliberately absent because two of its call sites are genuinely
+ * untranslatable, and naming it here is the honest alternative to a guard that quietly
+ * asserts less than it appears to:
  *
  *   components/project   `surfaces/project.ts` now covers every literal call site in all
- *                        five `.vue` files (`ProjectEditor.vue`, `ProjectList.vue`,
- *                        `ProjectMapsPanel.vue`, `ProjectStoragesPanel.vue`,
- *                        `ProjectsScreen.vue`). What is left is `projectModel.ts`'s five
- *                        `project.row.*` keys -- not a component, still unvoiced -- so this
- *                        stays off the list until those land too.
+ *                        five `.vue` files and `projectModel.ts`'s `project.row.*` cluster,
+ *                        202 of 204 keys. The last two, `project.list.key.open` and
+ *                        `project.list.key.choose` in `ProjectList.vue`, pass a computed
+ *                        keyboard-key label (`Enter`, `Space`) as the call's fallback with
+ *                        no literal string for the scanner to read and no placeholder to
+ *                        carry it, so a catalogue entry here would either fail to answer the
+ *                        call or hard-code the wrong key name in every language. This stays
+ *                        off the list until that call shape changes.
  *
  * `components/config` (`surfaces/configFiles.ts`'s config.storages, config.apply and
  * config.run keys covering the maps and storages it writes, the config-folder shell, the
