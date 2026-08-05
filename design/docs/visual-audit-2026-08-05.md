@@ -81,40 +81,56 @@ bug, not a one-off.
 clipping audit could also plausibly own it since the symptom looks like clipping, but
 it is genuinely two text nodes overlapping, not a container cutting text).
 
-## Priority 3 — worth verifying, not certain: settings search may not actually filter
+## Priority 3 — settled: one surface never filtered, the other was never meant to
 
-**Confidence: medium.** I can describe exactly what the pixels show; I cannot rule out
-an innocent explanation (see below), so this is flagged as "verify" rather than "fix."
+**Update, same day, after live verification.** Both `settings-search.png` and
+`menu-search.png` were checked directly — mounted, queried, and read back from the DOM —
+rather than left as a static-screenshot guess. The two surfaces turned out to need
+opposite verdicts, so each gets its own line below rather than one shared one.
 
-Three different search surfaces exist in this app. One behaves as documented; two show
-a pattern that contradicts their own caption text:
+Three different search surfaces exist in this app:
 
 - `config-search.png` (options editor's "Search every setting"): typing "port" produces
   "6 of 154 settings match, across 4 screens" and the panel shows **only** those 6
-  matching settings, correctly filtered. This one works as documented.
+  matching settings, correctly filtered. This one works as documented, and is unaffected
+  by anything below.
 - `settings-search.png` (Settings drawer): typing "java" produces "1 of the 10 settings
   match," and the panel shows the "Java runtime" card (a real match) **followed by the
-  entire, unfiltered "Mojang download consent" section** — full heading, full body text,
-  full warning card, none of which contains "java." If this were truly filtered to 1
-  match, the Mojang section should not be visible at all.
+  entire, unfiltered "Mojang download consent" section**. **Not a bug.** `AppSettings.vue`
+  deliberately does not filter tab content: only the active tab's section is ever mounted
+  (the same rule every `TabbedNavigation` follows), so there is no hidden content for a
+  filter to fold away — a match is a **destination to jump to**, listed above the tab
+  strip exactly the way the config editor lists its own cross-screen matches, and clicking
+  one switches to that section's tab. The already-open "Mojang download consent" tab
+  stays on screen underneath the match list because closing it was never what a search was
+  for. This is confirmed by the component's own doc comment and by an existing, precisely
+  titled test — `AppSettings.test.ts`'s "lists only the sections that match, as
+  destinations rather than as hidden content" — that already locks this behaviour in.
+  `captions.md`'s "filtering the drawer down to the settings that match" is loose wording
+  for "filtering the *match list* down to the settings that match," not a claim the tab
+  body gets filtered; worth a caption polish some day, but not a functional defect.
 - `menu-search.png` (viewer's in-map Settings menu): typing "re" produces "9 of 60" and
-  the panel shows the complete, unfiltered settings list (Perspective, Flat, Free-Flight,
-  every resolution option, every render-distance slider) — visually indistinguishable
-  from the unfiltered `menu-settings.png` capture aside from the added search box and
-  counter.
+  the panel used to show the complete, unfiltered settings list (Perspective, Flat,
+  Free-Flight, every resolution option, every render-distance slider). **Was a real
+  defect, now fixed.** Unlike the Settings drawer, `SettingsMenu.vue` genuinely tries to
+  filter its content with `v-show`-style `v-if`s driven by a `show()` helper — and for
+  switch/slider groups (Lighting, Render Distance, Map Controls, Free-Flight Controls) it
+  worked correctly: searching "sunlight" always did hide the Ambient-Light slider beside
+  it. But the four groups built on `MenuOptionList` (View/Controls, Resolution, Theme,
+  Language) handed it their *entire* unfiltered options array regardless of the query,
+  because `MenuOptionList` itself has no filtering of its own - once the group's own
+  `v-if` passed because *any one* member matched, every sibling option rendered whether or
+  not it individually matched. Searching "Perspective" - not a substring of "Flat" or
+  "Free-Flight" - used to show all three. Confirmed by mounting `SettingsMenu.vue` and
+  reading the DOM back (`SettingsMenu.test.ts`), fixed by filtering what reaches each
+  `MenuOptionList` to the options `show()` itself would keep, and re-verified green by the
+  same mounted tests. The deliberate "searching a category's own name reveals the whole
+  category" behaviour every other group already had is preserved.
 
-The innocent explanation: the Settings drawer and viewer-menu search may intentionally
-work as "jump to first match, but leave already-opened sections/panels visible" (the
-Settings drawer does show tab chips for sections a user has previously opened, e.g.
-"Mojang download consent ×"), rather than a destructive filter. If so, the caption text
-in `captions.md` ("filtering the drawer down to the settings that match") overstates
-what the feature does, which would make this a documentation-accuracy issue rather than
-a functional bug. I cannot distinguish these two possibilities from static screenshots
-alone.
-
-**Owner: UI-bugs lane**, to check the real behavior directly (type into a fresh,
-no-prior-tabs search and see whether non-matching content actually disappears). If it
-does not filter, either fix the filtering or correct the caption's claim.
+**Owner: UI-bugs lane — closed.** No further action on either surface; the Settings
+drawer's behaviour is correct as designed, and the viewer-menu search's real gap is fixed
+and covered by a regression test that mounts the component rather than reading a
+screenshot.
 
 ## Everything else: clean
 
@@ -196,9 +212,12 @@ can be deleted as superseded, rather than left as dead weight in the directory.
 - **1 high-confidence, medium-impact defect**: the Cantonese funny-level slider caption
   overlaps its own "1" tick label — confirmed in 2 screenshots across 2 surfaces (same
   shared component). Owner: UI-bugs lane.
-- **1 medium-confidence item worth verifying**: the Settings-drawer and viewer-menu
-  search may not filter their lists despite claiming to, while the options editor's
-  search demonstrably does filter correctly. Owner: UI-bugs lane, to check live behavior.
+- **1 item settled by live verification, one real defect found and fixed inside it**: the
+  Settings drawer's search was checked and is correct as designed — it lists sections to
+  jump to rather than filtering tab content, and an existing test already locks that in.
+  The viewer-menu search's `MenuOptionList`-based groups (View/Controls, Resolution,
+  Theme, Language) genuinely never filtered their own options; fixed, and covered by a new
+  mounted regression suite (`SettingsMenu.test.ts`). Owner: UI-bugs lane — closed.
 - Everything else reviewed — the appearance editor tab strip, the EULA dialog, docked
   panels and their scrollbars, the notification centre, the accounts list, the
   destructive-action gates, the wizard, first-run, and all shell/theme/scale

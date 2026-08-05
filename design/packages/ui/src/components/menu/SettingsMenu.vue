@@ -338,6 +338,35 @@ const viewOptionNames = computed(() => viewOptions.value.map((option) => option.
 const qualityOptionNames = computed(() => qualityOptions.value.map((option) => option.name));
 const themeOptionNames = computed(() => themeOptions.value.map((option) => option.name));
 const languageOptionNames = computed(() => languageOptions.value.map((option) => option.name));
+
+/*
+ * `MenuOptionList` renders whatever `options` array it is handed with no filtering of its
+ * own (see its own source), so the four groups built on it - View/Controls, Resolution,
+ * Theme, Language - used to show every one of their options the moment `show()` let the
+ * surrounding `MenuGroup` through, which happens whenever *any single* option or the
+ * group's own title matches. Searching "Perspective" still showed "Flat" and
+ * "Free-Flight" beside it: a real defect, not the "jump to a section" design the settings
+ * drawer's own search deliberately uses (see `AppSettings.vue`'s doc comment for that one).
+ *
+ * These narrow what actually reaches `MenuOptionList` to the options `show()` itself would
+ * keep, using the same two-candidate call - the group's own title, plus that one option's
+ * name - every switch- and slider-based group already uses per member. That keeps the
+ * existing, deliberate "searching the category name reveals the whole category" behaviour
+ * (checked against the group's title) while finally also hiding a sibling option whose own
+ * name does not match, exactly what `matchCount`'s "N of {total}" summary already claims.
+ */
+const visibleViewOptions = computed(() =>
+    viewOptions.value.filter((option) => show(labels.value.controls, option.name)),
+);
+const visibleQualityOptions = computed(() =>
+    qualityOptions.value.filter((option) => show(labels.value.resolution, option.name)),
+);
+const visibleThemeOptions = computed(() =>
+    themeOptions.value.filter((option) => show(labels.value.theme, option.name)),
+);
+const visibleLanguageOptions = computed(() =>
+    languageOptions.value.filter((option) => show(labels.value.language, option.name)),
+);
 </script>
 
 <template>
@@ -364,7 +393,7 @@ const languageOptionNames = computed(() => languageOptions.value.map((option) =>
                 :title="labels.controls"
             >
                 <MenuOptionList
-                    :options="viewOptions"
+                    :options="visibleViewOptions"
                     :selected="viewSelection"
                     :label="labels.controls"
                     @select="setView"
@@ -400,7 +429,7 @@ const languageOptionNames = computed(() => languageOptions.value.map((option) =>
                 :title="labels.resolution"
             >
                 <MenuOptionList
-                    :options="qualityOptions"
+                    :options="visibleQualityOptions"
                     :selected="qualitySelection"
                     :label="labels.resolution"
                     @select="setQuality"
@@ -488,7 +517,7 @@ const languageOptionNames = computed(() => languageOptions.value.map((option) =>
                 scrollable
             >
                 <MenuOptionList
-                    :options="themeOptions"
+                    :options="visibleThemeOptions"
                     :selected="themeSelection"
                     :label="labels.theme"
                     @select="setTheme"
@@ -512,7 +541,7 @@ const languageOptionNames = computed(() => languageOptions.value.map((option) =>
                 scrollable
             >
                 <MenuOptionList
-                    :options="languageOptions"
+                    :options="visibleLanguageOptions"
                     :selected="languageSelection"
                     :label="labels.language"
                     @select="changeLanguage"

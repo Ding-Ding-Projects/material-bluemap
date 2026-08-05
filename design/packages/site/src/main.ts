@@ -12,6 +12,7 @@
 import "./theme/tokens.css";
 import "./theme/base.css";
 import "./tabs/tabs.css";
+import "./shell/shell.css";
 import "./notifications/notifications.css";
 import "./settings/settings.css";
 import "./search/search.css";
@@ -592,6 +593,9 @@ function renderScreenshots(host: HTMLElement): void {
 /** The mount point index.html provides. */
 const ROOT_ID = "site-root";
 
+/** The id the skip link jumps to, and the id the main landmark carries. */
+const MAIN_CONTENT_ID = "mb-main-content";
+
 /**
  * Renders the failure instead of leaving a blank page.
  *
@@ -889,12 +893,30 @@ function boot(): void {
         },
     });
 
+    // The first focusable thing on the page: a real jump past the tab strip straight to the
+    // page content, for keyboard and screen-reader visitors alike. Invisible until focused.
+    const skipLink = el("a", "md-skip-link");
+    skipLink.href = `#${MAIN_CONTENT_ID}`;
+    i18n.bindText(skipLink, "shell.skipToContent");
+    root.appendChild(skipLink);
+
     // The strip exposes its bar and its panel host separately, so the shell decides
-    // the layout rather than the tab module dictating it.
-    root.appendChild(tabs.strip.bar);
+    // the layout rather than the tab module dictating it. Wrapping the bar together with a
+    // brand mark in one sticky, elevated topbar is what makes the strip read as the site's
+    // own chrome rather than as one more row of content; the tab module's markup, classes
+    // and behaviour are untouched by the wrapper.
+    const topbar = el("div", "mb-shell-topbar");
+    topbar.appendChild(createBrand(i18n, appearance, () => tabs.reveal("home")));
+    topbar.appendChild(tabs.strip.bar);
+    root.appendChild(topbar);
+
     const main = el("main", "mb-main");
+    main.id = MAIN_CONTENT_ID;
     main.appendChild(tabs.strip.panels);
     root.appendChild(main);
+
+    root.appendChild(createShellFooter(i18n, appearance));
+
     document.body.appendChild(
         createShellPalette({
             prefs,
@@ -911,6 +933,58 @@ function boot(): void {
     // 10% per load, non-blocking, never focus-stealing, and there is deliberately no
     // setting to switch it off.
     maybeShowDimSum({ i18n, host: document.body });
+}
+
+/**
+ * The site's own brand mark.
+ *
+ * It is a real control, not a logo pasted into the corner: it always returns the visitor to
+ * Home, carries a localised accessible name, and is itself an appearance target with the
+ * usual context-menu and Shift+right-click editor, exactly like every other element on the
+ * page.
+ */
+function createBrand(
+    i18n: I18n,
+    appearance: AppearanceController,
+    goHome: () => void,
+): HTMLButtonElement {
+    const brand = el("button", "mb-brand");
+    brand.type = "button";
+
+    const mark = el("span", "mb-brand-mark", "M");
+    mark.setAttribute("aria-hidden", "true");
+    brand.appendChild(mark);
+
+    // The proper noun stays literal text; only the accessible label (below) is localised,
+    // matching how every other proper noun on the site is handled.
+    brand.appendChild(el("span", "mb-brand-word", "material-bluemap"));
+
+    i18n.bindAttr(brand, "aria-label", "site.brandAria");
+    brand.addEventListener("click", goHome);
+    registerAppearanceTarget(
+        brand,
+        { kind: "card", instance: "brand", instanceLabel: "Site brand mark" },
+        appearance,
+    );
+    return brand;
+}
+
+/**
+ * The one honest line about hosting, repeated at the bottom of every page: no external
+ * scripts, fonts, images or analytics. It is itself an appearance target, and its copy
+ * follows the language mode and both funny levels exactly like the rest of the site.
+ */
+function createShellFooter(i18n: I18n, appearance: AppearanceController): HTMLElement {
+    const footer = el("footer", "mb-shell-footer");
+    const note = el("p", "mb-shell-footer-note");
+    i18n.bindText(note, "shell.footerNote");
+    footer.appendChild(note);
+    registerAppearanceTarget(
+        footer,
+        { kind: "card", instance: "footer", instanceLabel: "Site footer" },
+        appearance,
+    );
+    return footer;
 }
 
 function decoratePage(host: HTMLElement, pageId: string, appearance: AppearanceController): void {

@@ -267,3 +267,78 @@ describe("the consent question", () => {
         expect(text).toContain("you confirm that you own a license to Minecraft (Java Edition)");
     });
 });
+
+describe("the welcome step", () => {
+    it("says what BlueMap is, what you end up with, and where to start, in plain words before any jargon", async () => {
+        await openSetup();
+
+        const text = card().textContent ?? "";
+        // What it is, and what this app does with it - stated before any of the wizard's
+        // own ninety-two settings ever appear.
+        expect(text).toContain("BlueMap turns a Minecraft world into a 3D map");
+        expect(text).toContain("your own save");
+        expect(text).toContain("on this computer");
+        expect(text).toContain("connect to a BlueMap server elsewhere");
+        // What you will have at the end.
+        expect(text).toContain("a small website");
+        expect(text).toContain("open in your own browser");
+        // The "start here" pointer into the existing wizard, naming its own discovery
+        // step and giving a rough sense of how long a render takes.
+        expect(text).toContain('open "Make a map"');
+        expect(text).toContain("looks for worlds saved on this computer");
+        expect(text).toContain("a few minutes");
+        // Honest expectations set before commitment: Java may be provisioned, and the
+        // Mojang download uses the very next step's answer rather than a second one.
+        expect(text).toContain("rendering runs on Java");
+        expect(text).toContain("system-wide");
+        expect(text).toContain("Minecraft's own client file");
+        expect(text).toContain("not asked twice");
+    });
+
+    it("carries no stale claim that local rendering does not work", async () => {
+        await openSetup();
+
+        // The app now renders locally (decision D17); a welcome screen that still says
+        // otherwise would be inventing product behaviour rather than describing it.
+        const text = card().textContent ?? "";
+        expect(text).not.toContain("cannot do yet");
+        expect(text).not.toContain("still being written");
+    });
+});
+
+describe("finishing setup", () => {
+    /** Reaches the last step by declining consent, which still finishes setup. */
+    async function reachStorage(): Promise<void> {
+        await openSetup();
+        await press("Next");
+        await press("Next");
+        await press("Decline");
+        expect(card().textContent).toContain("Step 4 of 4");
+    }
+
+    it("emits 'finished' only after a real completion, whichever way consent was answered", async () => {
+        await reachStorage();
+        expect(wrapper?.findComponent(FirstRunSetup).emitted("finished")).toBeUndefined();
+
+        await press("Finish setup");
+
+        expect(wrapper?.findComponent(FirstRunSetup).emitted("finished")).toHaveLength(1);
+    });
+
+    it("does not emit 'finished' when completion fails", async () => {
+        // Set before the mount, not after: `createFirstRunController()` resolves the
+        // bridge once, at mount time, so reassigning the global afterwards would leave
+        // the already-running controller holding the old, succeeding one.
+        (globalThis as { materialBluemap?: Record<string, unknown> }).materialBluemap = {
+            ...fakeBridge(),
+            completeFirstRun: () => Promise.reject(new Error("disk is full")),
+        };
+        await reachStorage();
+
+        await press("Finish setup");
+
+        expect(wrapper?.findComponent(FirstRunSetup).emitted("finished")).toBeUndefined();
+        // The failure is on screen, and the dialog is still open with a way out of it.
+        expect(card().textContent).toContain("disk is full");
+    });
+});

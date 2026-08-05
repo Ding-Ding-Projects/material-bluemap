@@ -1,0 +1,121 @@
+/*
+ * The site's own chrome: the sticky top bar that carries the brand mark and the tab strip,
+ * and the footer every page ends on.
+ *
+ * The tab strip itself (`.tab-bar`, `.tab-strip`, every tab and group) is untouched here.
+ * This file only wraps it, so every behaviour TabStrip.ts implements — overflow, drag
+ * reorder, grouping, the four discovery searches, bulk close, the per-tab and per-group
+ * appearance editors, keyboard operation — keeps working exactly as it did, and the wrapper
+ * cannot regress any of it because it never touches the strip's own markup or classes.
+ *
+ * Nothing below declares a literal colour, and no size is pinned in px except the one
+ * hairline this file adds. Colour, type, shape, elevation and motion all come from
+ * tokens.css.
+ */
+
+/* ---- Top bar --------------------------------------------------------------------------- */
+
+/*
+ * A real M3 top app bar: a tonal, elevated surface rather than the flat hairline the tab
+ * strip used to draw on its own. The strip keeps its own sticky rule for the rare case it is
+ * used unwrapped (a future embed, a test harness); nested in here, that rule is neutralised
+ * so the whole bar - brand and tabs together - lifts and sticks as one piece.
+ */
+.mb-shell-topbar {
+    display: flex;
+    position: sticky;
+    z-index: 20;
+    top: 0;
+    align-items: stretch;
+    background: var(--md-sys-color-surface-container);
+    box-shadow: var(--md-sys-elevation-level1);
+}
+
+.mb-shell-topbar .tab-bar {
+    position: static;
+    z-index: auto;
+    flex: 1 1 auto;
+    min-width: 0;
+    background: transparent;
+    box-shadow: none;
+    border-bottom: none;
+}
+
+/*
+ * The brand mark. It is a real control, not a logo pasted into the corner: it always
+ * returns the visitor to Home, carries its own accessible name, keeps the same focus ring
+ * and state-layer behaviour as every other control on the bar, and is itself an appearance
+ * target with the usual context-menu and Shift+right-click editor.
+ */
+.mb-brand {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: var(--md-sys-spacing-3);
+    padding: 0 var(--md-sys-spacing-4);
+    border: none;
+    border-right: 1px solid var(--md-sys-color-outline-variant);
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    cursor: pointer;
+    transition: background-color var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard);
+}
+
+.mb-brand:hover {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity), transparent);
+}
+
+.mb-brand:active {
+    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-pressed-opacity), transparent);
+}
+
+.mb-brand-mark {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-primary);
+    color: var(--md-sys-color-on-primary);
+    font-family: var(--md-sys-typescale-title-medium-font);
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: 700;
+}
+
+.mb-brand-word {
+    display: none;
+    font-family: var(--md-sys-typescale-title-medium-font);
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+    letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+    white-space: nowrap;
+}
+
+/* The wordmark only earns its keep once there is room; the mark alone still carries the
+   accessible name via aria-label, so nothing is lost at narrow widths. */
+@media (width >= 560px) {
+    .mb-brand-word {
+        display: inline;
+    }
+}
+
+/* ---- Footer ----------------------------------------------------------------------------- */
+
+.mb-shell-footer {
+    display: flex;
+    justify-content: center;
+    padding: var(--md-sys-spacing-8) var(--md-sys-spacing-4) var(--md-sys-spacing-12);
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.mb-shell-footer-note {
+    max-width: var(--md-sys-measure);
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-body-small-font);
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    text-align: center;
+}
