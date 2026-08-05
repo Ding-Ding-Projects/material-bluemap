@@ -1651,6 +1651,33 @@ export const WORLD_VOICED = {
             "一個實實在在嘅 Minecraft 世界，帶住 {dimensions} 個維度同 {regions} 個區域檔案。",
         ],
     },
+
+    /* ---------------------------------------------------------------- */
+    /* BedrockConversionNote.vue: a Bedrock world found in step one       */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * The two facts that survive every level: this is a Bedrock world (not a broken Java
+     * one), and it has to be converted before it renders. See docs/bedrock-worlds.md - the
+     * whole point of `bedrock:detect` existing is replacing a wizard's "not a world" with
+     * this sentence.
+     */
+    "bedrock.detected": {
+        en: [
+            "{name} is a Bedrock Edition world, which has to be converted before it can be rendered.",
+            "{name} is a Bedrock Edition world, which has to be converted before it can be rendered.",
+            "{name} is a Bedrock Edition world - it has to be converted before it can be rendered.",
+            "{name} is a Bedrock Edition world rather than a Java one, so it has to be converted before it can be rendered here.",
+            "{name} is a Bedrock Edition world, not a Java one, so it has to be converted first - there is no shortcut, only the button below.",
+        ],
+        yue: [
+            "{name} 係一個 Bedrock 版世界，要轉換咗先可以 render。",
+            "{name} 係一個 Bedrock 版世界，要轉換咗先可以 render。",
+            "{name} 係一個 Bedrock 版世界，要轉換咗先可以 render。",
+            "{name} 唔係 Java 世界，而係 Bedrock 版，所以要喺呢度轉換咗先可以 render。",
+            "{name} 唔係 Java 世界，係 Bedrock 版，所以一定要先轉換，冇捷徑，淨係得低便嗰個掣。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 /* -------------------------------------------------------------------------- */
@@ -1885,6 +1912,18 @@ export const WORLD_FIXED = {
     "world.mounts.origin.beside": {
         en: "a .minecraft folder beside this application",
         yue: "同呢個程式擺埋一齊嘅 .minecraft 資料夾",
+    },
+
+    /* BedrockConversionNote.vue. */
+    "bedrock.unnamed": { en: "This world", yue: "呢個世界" },
+    "bedrock.convert": { en: "Convert with Chunker", yue: "用 Chunker 轉換" },
+    "bedrock.cancel": { en: "Cancel the conversion", yue: "取消轉換" },
+    "bedrock.phase.starting": { en: "Starting Chunker...", yue: "開緊 Chunker……" },
+    "bedrock.phase.converting": { en: "Converting...", yue: "轉緊換……" },
+    "bedrock.phase.compacting": { en: "Compacting...", yue: "壓緊實……" },
+    "bedrock.phase.verifying": {
+        en: "Verifying the converted world...",
+        yue: "驗緊轉換咗嘅世界……",
     },
 } as const satisfies Record<string, FixedString>;
 
@@ -2218,6 +2257,12 @@ export const WORLD_FACTS = {
         yue: ["未檢查過", "讀唔到資料夾", "照單全收"],
     },
     "world.folder.ok": { en: ["{dimensions}", "{regions}"], yue: ["{dimensions}", "{regions}"] },
+
+    // That this is Bedrock rather than Java, and that a conversion is required.
+    "bedrock.detected": {
+        en: ["Bedrock Edition", "converted"],
+        yue: ["Bedrock", "轉換"],
+    },
 } as const satisfies Record<
     keyof typeof WORLD_VOICED,
     { en: readonly string[]; yue: readonly string[] }

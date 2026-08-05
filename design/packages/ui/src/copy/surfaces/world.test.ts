@@ -193,6 +193,7 @@ const worldComponentsRoot = fileURLToPath(new URL("../../components/world", impo
  * no coverage -- see `world.ts`'s own doc comment for the same note.
  */
 const COVERED_FILES = new Set([
+    "BedrockConversionNote.vue",
     "InterruptedRenders.vue",
     "MapIdentityStep.vue",
     "MapOptionsStep.vue",

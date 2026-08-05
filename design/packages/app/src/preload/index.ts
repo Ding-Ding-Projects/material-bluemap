@@ -40,6 +40,13 @@ import type {
     RepositoryReport,
 } from "../main/backup/index.js";
 import type {
+    BedrockDetectResult,
+    ChunkerStatus,
+    ConversionOutcome,
+    ConversionProgressEvent,
+    ConversionRecord,
+} from "../main/bedrock/index.js";
+import type {
     ProfilesHistoryListing,
     ProfilesSaveResult,
     ProfilesState,
@@ -933,6 +940,47 @@ interface HistoryBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Bedrock Edition worlds: recognising them, and converting them              */
+/* -------------------------------------------------------------------------- */
+
+/** What `bedrock:convert` takes. Mirrors the request shape `main/bedrock/ipc.ts` reads. */
+export interface BedrockConvertRequest {
+    world: string;
+    /** Defaults to a sibling of `world` named "<world> (Java)" when left out. */
+    output?: string;
+    /** A Chunker `EDITION_X_Y_Z` identifier. Defaults to `JAVA_1_21_4` when left out. */
+    format?: string;
+    /** The source world's measured size, so an out-of-memory failure can name it. */
+    sizeBytes?: number | null;
+}
+
+/**
+ * Detecting a Bedrock world and converting it with Chunker, per `main/bedrock/index.js`.
+ *
+ * A namespace for the same reason `config` and `history` are: the wizard feature-detects
+ * the whole capability at once, because a folder step offering Convert on a bridge that has
+ * no `convert` is a button that throws. `detect` is read-only and safe to call as soon as a
+ * folder is typed; `convert` is the only method that writes, and it needs a folder chosen by
+ * hand - see `docs/bedrock-worlds.md` for why nothing here ever converts as a side effect of
+ * looking at a folder.
+ */
+export interface BedrockBridge {
+    detect(folder: string, sizeBytes?: number | null): Promise<BedrockDetectResult>;
+    /** Whether Chunker is installed or configured, and what fetching one would get. */
+    chunkerStatus(): Promise<ChunkerStatus>;
+    /** Downloads the pinned Chunker release, verified against a digest in this app's source. */
+    fetchChunker(): Promise<{ ok: boolean; message: string; jarPath: string | null }>;
+    /** Converts one world. Resolves when the conversion has ended, whichever way it ended. */
+    convert(request: BedrockConvertRequest): Promise<ConversionOutcome & { conversionId: string }>;
+    /** Stops a running conversion. False when nothing is running under that id. */
+    cancel(conversionId: string): Promise<boolean>;
+    /** Whether a world is a conversion, and of what. Null for a native Java world. */
+    record(world: string): Promise<ConversionRecord | null>;
+    /** Subscribes to conversion progress. Returns the unsubscribe function. */
+    onBedrockEvent(listener: (event: ConversionProgressEvent) => void): () => void;
+}
+
+/* -------------------------------------------------------------------------- */
 /* The profile list's and the application settings' own version history      */
 /* -------------------------------------------------------------------------- */
 
@@ -1552,6 +1600,9 @@ interface MaterialBlueMapBridge {
     /** The application settings' own version history. Same shape and reason as {@link profilesHistory}. */
     appSettingsHistory: AppSettingsHistoryBridge;
 
+    /** Recognising and converting Bedrock Edition worlds. See {@link BedrockBridge}. */
+    bedrock: BedrockBridge;
+
     /**
      * A world's own record of how it should be rendered, and the history of it.
      *
@@ -2043,6 +2094,22 @@ const bridge: MaterialBlueMapBridge = {
         save: (state) => ipcRenderer.invoke("settingsHistory:save", state),
         list: (limit) => ipcRenderer.invoke("settingsHistory:list", limit),
         restore: (id) => ipcRenderer.invoke("settingsHistory:restore", id),
+    },
+
+    bedrock: {
+        detect: (folder, sizeBytes) => ipcRenderer.invoke("bedrock:detect", folder, sizeBytes ?? null),
+        chunkerStatus: () => ipcRenderer.invoke("bedrock:chunker"),
+        fetchChunker: () => ipcRenderer.invoke("bedrock:fetchChunker"),
+        convert: (request) => ipcRenderer.invoke("bedrock:convert", request),
+        cancel: (conversionId) => ipcRenderer.invoke("bedrock:cancel", conversionId),
+        record: (world) => ipcRenderer.invoke("bedrock:record", world),
+        onBedrockEvent: (listener) => {
+            const forward = (_event: IpcRendererEvent, payload: ConversionProgressEvent): void => listener(payload);
+            ipcRenderer.on("bedrock:event", forward);
+            return () => {
+                ipcRenderer.off("bedrock:event", forward);
+            };
+        },
     },
 
     listBackupRepositories: () => ipcRenderer.invoke("backup:repositories"),

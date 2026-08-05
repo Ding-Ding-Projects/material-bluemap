@@ -240,6 +240,71 @@ describe("the folder step's way out for somebody with no world", () => {
     });
 });
 
+/**
+ * `main/bedrock/ipc.ts` registers `bedrock:detect`, `bedrock:convert` and the rest on every
+ * launch, fully unit-tested in isolation - and until the preload bridge and this note
+ * existed, nothing in the running app ever called any of them. `BedrockConversionNote`
+ * resolves its own bridge from `globalThis.materialBluemap`, the same way `MinecraftWorldList`
+ * finds its catalog bridge, so this proves the chain the same way "the chain from the screen
+ * the app mounts" below proves the downloader's: stub the global, mount the real step, and
+ * check the note a Bedrock folder is supposed to produce actually reaches the DOM.
+ */
+describe("the Bedrock conversion note this step now mounts", () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("reaches the note when the folder is a Bedrock world, without anything passed down to it", async () => {
+        const detect = vi.fn(async () => ({
+            folder: "/srv/bedrock-world",
+            detection: {
+                bedrock: true,
+                confidence: "certain",
+                markers: { levelDat: true, levelNameFile: true, database: true, databaseFiles: 3 },
+                explanation: "This is a Bedrock Edition world.",
+            },
+            name: "Creative Flat",
+            suggestedOutput: null,
+            estimatedSize: null,
+            fidelity: { notes: [], mayBeOutOfDate: false, checkedAgainst: "1.19.1" },
+            memory: null,
+            error: null,
+        }));
+        vi.stubGlobal("materialBluemap", {
+            bedrock: {
+                detect,
+                chunkerStatus: vi.fn(),
+                fetchChunker: vi.fn(),
+                convert: vi.fn(),
+                cancel: vi.fn(),
+                onBedrockEvent: vi.fn(() => () => undefined),
+            },
+        });
+
+        const wrapper = mount(WorldFolderStep, {
+            props: {
+                modelValue: "/srv/bedrock-world",
+                inspection: uncheckedWorld("/srv/bedrock-world"),
+                inspecting: false,
+                canInspect: true,
+                downloadBridge: null,
+                catalogBridge: null,
+            },
+            global: { plugins: [vuetify, i18n()] },
+        });
+
+        // Past the note's own 400ms debounce on the folder watcher.
+        await new Promise((resolve) => setTimeout(resolve, 450));
+        await nextTick();
+
+        expect(detect).toHaveBeenCalledWith("/srv/bedrock-world", undefined);
+        expect(wrapper.text()).toContain("Creative Flat");
+        expect(wrapper.text()).toContain("Convert with Chunker");
+
+        wrapper.unmount();
+    });
+});
+
 describe("the chain from the screen the app mounts", () => {
     it("reaches the downloader through the wizard, finding the preload for itself", async () => {
         const fake = fakePreload();

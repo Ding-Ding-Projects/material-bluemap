@@ -13,6 +13,7 @@ import {
 import { VAlert, VBtn, VChip, VIcon, VProgressCircular, VTextField } from "vuetify/components";
 import { useConfigHost } from "../config/configHost.js";
 import { ReleaseDownloads, type DownloadBridge } from "../downloads/index.js";
+import BedrockConversionNote from "./BedrockConversionNote.vue";
 import MinecraftWorldList from "./MinecraftWorldList.vue";
 import {
     pathForDroppedFile,
@@ -102,6 +103,19 @@ const downloadsOpen = ref(false);
  * as a `saves` directory picked by hand, rather than a special case that guesses.
  */
 function useDownloaded(folder: string): void {
+    emit("update:modelValue", folder);
+    emit("inspect", folder);
+}
+
+/**
+ * Takes a just-converted Java copy as the world, and checks it like any other.
+ *
+ * `BedrockConversionNote` only emits this once Chunker's own output has been verified to
+ * hold a real world - see `docs/bedrock-worlds.md`'s "nothing that looks like a world" - so
+ * this trusts the folder exactly as much as a picked or dropped one: not at all, until this
+ * step's own inspection says otherwise.
+ */
+function useConverted(folder: string): void {
     emit("update:modelValue", folder);
     emit("inspect", folder);
 }
@@ -329,6 +343,8 @@ function onDrop(event: DragEvent): void {
                     </v-chip>
                 </div>
             </v-alert>
+
+            <BedrockConversionNote :folder="modelValue" @converted="useConverted" />
         </template>
 
         <MinecraftWorldList :model-value="modelValue" :bridge="catalog" @choose="chooseWorld" />
