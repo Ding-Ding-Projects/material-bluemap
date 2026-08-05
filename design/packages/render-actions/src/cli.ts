@@ -11,6 +11,10 @@ import { formatBytes } from "./plan/disk.js";
 import { planShards, validatePlanAlignment, type ShardPlan } from "./plan/plan.js";
 import { measureWorld } from "./world/measure.js";
 import { locateWorld, WorldValidationError } from "./world/validate.js";
+import { fingerprintWorld } from "./world/fingerprint.js";
+import { CI_SCHEDULE_CADENCES, isCadenceDue, isCiScheduleCadence } from "./schedule/cadence.js";
+import { evaluateScheduleChange } from "./schedule/changeCheck.js";
+import type { CiScheduleSourceKind } from "./schedule/changeCheck.js";
 import { LOD_COUNT, LOD_FACTOR, LOWRES_TILE_SIZE, sanitizeMapId } from "./bluemap.js";
 import { mergeLowresLayers } from "./resume/lowresMerge.js";
 import {
@@ -51,6 +55,9 @@ Commands:
   merge-lowres    merge only the lowres layers of several merge-group partials
   verify          prove the merged map lost and duplicated nothing
   static-host     prepare a merged map to be served as plain files, and say if it can be
+  fingerprint     hash a checked-out world folder, cheaply, to tell if it changed
+  schedule-due    say whether a scheduled check is due yet, for a chosen cadence
+  schedule-check  decide whether a scheduled world changed, from two gathered snapshots
 
 Run "<command> --help" for the options of each.
 `;
@@ -896,6 +903,43 @@ async function commandVerify(args: Args): Promise<number> {
     return report.ok ? 0 : 1;
 }
 
+const FINGERPRINT_USAGE = `fingerprint --world <dir> [options]
+
+Hashes a checked-out world folder into one comparable digest - the same function
+"main/cirender/sync.ts" runs in the desktop app before every upload. Used by the
+scheduled render workflow for a "repository" world-source, where the world is already
+checked out and hashing it costs nothing beyond the readdir/stat this does anyway.
+
+  --world <dir>          the world save folder, or a directory containing one
+  --out <path>            also write the fingerprint json here
+  --github-output <path> also write digest/files/bytes for Actions
+`;
+
+const SCHEDULE_DUE_USAGE = `schedule-due --cadence <name> [options]
+
+Says whether a scheduled check is due yet. GitHub's schedule trigger cannot read a
+repository variable to pick its own cron, so the workflow always wakes up on the
+finest cadence (hourly) and asks this command whether the *configured* cadence -
+hourly, sixHourly, daily or weekly - says a check should actually happen this time.
+
+  --cadence <name>        hourly | sixHourly | daily | weekly
+  --last-check-at <iso>   when the last check ran; empty or omitted means never
+  --now <iso>             the current time (default: the real clock)
+  --github-output <path>  also write due/next-check-at for Actions
+`;
+
+const SCHEDULE_CHECK_USAGE = `schedule-check --kind <kind> --current <path|-> [options]
+
+Decides whether a scheduled world changed, from two already-gathered snapshots -
+never by downloading anything itself. See docs/scheduled-render.md for what each kind
+compares and what it honestly cannot tell.
+
+  --kind <kind>            repository | release-asset | url
+  --previous <path|->      the last recorded snapshot's json; "-" or omitted means none
+  --current <path|->       this check's snapshot's json; "-" or omitted means not found
+  --github-output <path>   also write result/reason/changed for Actions
+`;
+
 const STATIC_HOST_USAGE = `static-host --web-root <dir> [options]
 
 Prepares a rendered map to be served by a host that only ever serves files - GitHub
@@ -949,6 +993,126 @@ async function commandStaticHost(args: Args): Promise<number> {
     return report.servable ? 0 : 1;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Scheduled re-rendering: fingerprinting a checked-out world, cadence and     */
+/* change decisions, all pure or reading only what was already gathered.      */
+/* -------------------------------------------------------------------------- */
+
+export async function commandFingerprint(args: Args): Promise<number> {
+    if (args.booleans.has("help")) {
+        process.stdout.write(FINGERPRINT_USAGE);
+        return 0;
+    }
+
+    const world = resolve(required(args, "world", FINGERPRINT_USAGE));
+    const fingerprint = await fingerprintWorld(world);
+
+    process.stderr.write(
+        "Fingerprint of " + world + ": " + fingerprint.digest + " (" + fingerprint.files + " files, " +
+            fingerprint.bytes + " bytes)\n",
+    );
+
+    const outPath = args.flags.get("out");
+    if (outPath !== undefined) {
+        await mkdir(dirname(resolve(outPath)), { recursive: true });
+        await writeFile(resolve(outPath), JSON.stringify(fingerprint, null, 2) + "\n", "utf8");
+    }
+
+    await writeGithubOutput(args.flags.get("github-output"), [
+        ["digest", fingerprint.digest],
+        ["files", String(fingerprint.files)],
+        ["bytes", String(fingerprint.bytes)],
+    ]);
+
+    process.stdout.write(JSON.stringify(fingerprint) + "\n");
+    return 0;
+}
+
+export async function commandScheduleDue(args: Args): Promise<number> {
+    if (args.booleans.has("help")) {
+        process.stdout.write(SCHEDULE_DUE_USAGE);
+        return 0;
+    }
+
+    const rawCadence = required(args, "cadence", SCHEDULE_DUE_USAGE);
+    if (!isCiScheduleCadence(rawCadence)) {
+        process.stderr.write(
+            "--cadence must be one of " + CI_SCHEDULE_CADENCES.join(", ") + ", got " + rawCadence + "\n",
+        );
+        return 2;
+    }
+
+    const rawLastCheckAt = args.flags.get("last-check-at");
+    const lastCheckAt = rawLastCheckAt === undefined || rawLastCheckAt === "" ? null : rawLastCheckAt;
+    const rawNow = args.flags.get("now");
+    const now = rawNow === undefined ? new Date() : new Date(rawNow);
+    if (Number.isNaN(now.getTime())) throw new Error("--now must be a parseable date, got " + String(rawNow));
+
+    const due = isCadenceDue(rawCadence, lastCheckAt, now);
+
+    process.stderr.write(
+        (due.due ? "Due: " : "Not due yet: ") +
+            (lastCheckAt === null ? "no earlier check is recorded" : "last checked " + lastCheckAt) +
+            "; next check at " + due.nextCheckAt + "\n",
+    );
+
+    await writeGithubOutput(args.flags.get("github-output"), [
+        ["due", due.due ? "true" : "false"],
+        ["next-check-at", due.nextCheckAt],
+    ]);
+
+    process.stdout.write(JSON.stringify(due) + "\n");
+    return 0;
+}
+
+const SCHEDULE_SOURCE_KINDS: readonly CiScheduleSourceKind[] = ["repository", "release-asset", "url"];
+
+function isScheduleSourceKind(value: string): value is CiScheduleSourceKind {
+    return (SCHEDULE_SOURCE_KINDS as readonly string[]).includes(value);
+}
+
+/** Reads a snapshot json, or null for "-"/omitted, which both mean "nothing to compare". */
+async function readSnapshot(path: string | undefined): Promise<Record<string, unknown> | null> {
+    if (path === undefined || path === "-") return null;
+    const raw = JSON.parse(await readFile(resolve(path), "utf8")) as unknown;
+    if (typeof raw !== "object" || raw === null) {
+        throw new Error(resolve(path) + " does not hold a json object");
+    }
+    return raw as Record<string, unknown>;
+}
+
+export async function commandScheduleCheck(args: Args): Promise<number> {
+    if (args.booleans.has("help")) {
+        process.stdout.write(SCHEDULE_CHECK_USAGE);
+        return 0;
+    }
+
+    const rawKind = required(args, "kind", SCHEDULE_CHECK_USAGE);
+    if (!isScheduleSourceKind(rawKind)) {
+        process.stderr.write(
+            "--kind must be one of " + SCHEDULE_SOURCE_KINDS.join(", ") + ", got " + rawKind + "\n",
+        );
+        return 2;
+    }
+
+    const previous = await readSnapshot(args.flags.get("previous"));
+    const current = await readSnapshot(args.flags.get("current"));
+    const outcome = evaluateScheduleChange(rawKind, previous, current);
+
+    process.stderr.write(outcome.result + ": " + outcome.reason + "\n");
+
+    await writeGithubOutput(args.flags.get("github-output"), [
+        ["result", outcome.result],
+        ["reason", outcome.reason],
+        ["changed", outcome.result === "changed" ? "true" : "false"],
+    ]);
+
+    process.stdout.write(JSON.stringify(outcome) + "\n");
+    // Only "error" fails the step: "unknown" and "unchanged" are both legitimate, quiet
+    // outcomes that a workflow reads from the outputs above rather than from an exit code.
+    return outcome.result === "error" ? 1 : 0;
+}
+
 async function main(argv: readonly string[]): Promise<number> {
     const command = argv[0];
     const args = parseArgs(argv.slice(1));
@@ -972,6 +1136,12 @@ async function main(argv: readonly string[]): Promise<number> {
             return await commandVerify(args);
         case "static-host":
             return await commandStaticHost(args);
+        case "fingerprint":
+            return await commandFingerprint(args);
+        case "schedule-due":
+            return await commandScheduleDue(args);
+        case "schedule-check":
+            return await commandScheduleCheck(args);
         case "--help":
         case "-h":
         case undefined:
