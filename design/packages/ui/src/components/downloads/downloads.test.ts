@@ -604,11 +604,41 @@ describe("a build that cannot download", () => {
             expect(bridge).not.toBeNull();
             expect(bridge?.canCancel).toBe(false);
             expect(bridge?.canList).toBe(false);
+            expect(bridge?.canParseLink).toBe(false);
             // Answered rather than thrown: nothing is running and nothing can be asked
             // lead to the same screen, and neither may invent a download.
             expect(await bridge?.cancelDownload("x")).toBe(false);
             expect(await bridge?.listDownloads()).toEqual([]);
             expect(await bridge?.activeDownloads()).toEqual([]);
+            // A build with no parseWorldSource is one where the "paste a link" field never
+            // shows, not one where pressing it would throw.
+            expect(await bridge?.parseLink("owner/repo")).toBeNull();
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it("resolves a pasted link through parseWorldSource, when the preload has one", async () => {
+        const host = {
+            discoverRelease: () => Promise.resolve({ ok: true as const, release: RELEASE }),
+            startDownload: () => Promise.resolve({ ok: false } as unknown as DownloadResult),
+            onDownloadEvent: () => () => undefined,
+            parseWorldSource: (text: string) =>
+                Promise.resolve(
+                    text === "https://github.com/cafepromenade/Andyville-World"
+                        ? { owner: "cafepromenade", repo: "Andyville-World" }
+                        : null,
+                ),
+        };
+        vi.stubGlobal("materialBluemap", host);
+        try {
+            const bridge = resolveDownloadBridge();
+            expect(bridge?.canParseLink).toBe(true);
+            expect(await bridge?.parseLink("https://github.com/cafepromenade/Andyville-World")).toEqual({
+                owner: "cafepromenade",
+                repo: "Andyville-World",
+            });
+            expect(await bridge?.parseLink("not a repository")).toBeNull();
         } finally {
             vi.unstubAllGlobals();
         }
