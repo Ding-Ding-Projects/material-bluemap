@@ -460,3 +460,51 @@ describe("multiple accounts", () => {
         ).toBe(false);
     });
 });
+
+describe("accessTokenFor: a token by account id, not only the active one", () => {
+    it("resolves a non-active account's own token without disturbing which account is active", async () => {
+        const { fetch, use } = switchableFetch();
+        const { controller } = controllerWith({ fetch });
+
+        use(deviceFlowRoutes("alice", 1, "ghu_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+        await controller.startDeviceSignIn();
+        use(deviceFlowRoutes("bob", 2, "ghu_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
+        await controller.startDeviceSignIn();
+
+        // bob signed in last, so bob is active - but the token asked for by id is alice's.
+        const list = controller.listAccounts();
+        expect(list.activeId).not.toBeNull();
+        const aliceId = list.accounts.find((account) => account.login === "alice")?.id;
+        expect(aliceId).toBeDefined();
+        if (aliceId === undefined) return;
+
+        const forAlice = await controller.accessTokenFor(aliceId);
+        expect(forAlice.ok).toBe(true);
+        if (!forAlice.ok) return;
+        expect(forAlice.token).toBe("ghu_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+
+        // Asking for a specific account's token by id never switches which one is active,
+        // unlike setActiveAccount() - the whole point is to authenticate as an account
+        // without disturbing every other feature that still reads the active one.
+        expect(controller.activeAccountId()).toBe(list.activeId);
+        expect(controller.status().account?.login).toBe("bob");
+
+        const forBob = await controller.accessTokenFor(list.activeId as string);
+        expect(forBob.ok).toBe(true);
+        if (!forBob.ok) return;
+        expect(forBob.token).toBe("ghu_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    });
+
+    it("refuses an id nobody stored, the same way the other by-id channels do", async () => {
+        const { fetch, use } = switchableFetch();
+        const { controller } = controllerWith({ fetch });
+
+        use(deviceFlowRoutes("alice", 1, "ghu_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"));
+        await controller.startDeviceSignIn();
+
+        const result = await controller.accessTokenFor("u999999-nobody-signed-in-as-this");
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("no-such-account");
+    });
+});

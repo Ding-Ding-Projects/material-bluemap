@@ -17,6 +17,8 @@ import {
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
+import { createGitHubAccountsList } from "../github/githubAccountsStore.js";
+import type { GitHubBridge } from "../github/githubBridge.js";
 import MinecraftWorldList from "../world/MinecraftWorldList.vue";
 import { resolveWorldCatalogBridge } from "../world/worldCatalog.js";
 import type { WorldCatalogBridge } from "../world/worldCatalog.js";
@@ -67,6 +69,19 @@ import type { CiJobReport, CiRenderBridge, CiPreflight } from "./ciRenderBridge.
  * **Which GitHub credential is in play is shown before the button.** A machine typically
  * holds two - this application's sign-in and `gh`'s - and "permission denied" is
  * unactionable when a person cannot tell which one was refused.
+ *
+ * **More than one signed-in account, and picking one here never touches the others.** The
+ * application can hold several GitHub accounts side by side
+ * (`GitHubAccountsList.vue` in Settings is where they are added, removed and made active);
+ * before this picker existed, every call this screen made - who could own the repository,
+ * whether the world was uploaded before, the credential that actually dispatches the
+ * workflow - resolved to whichever one was *active*, with no way to render as a different
+ * signed-in account short of switching in Settings and back. "Render as" is a *local*
+ * choice: picking a different stored account here re-reads the owner list for it and
+ * carries its id through the check and the render, but it never calls the active-account
+ * switch Settings uses. Downloads, backups and every other GitHub-authenticated feature
+ * keep running on whichever account was already active, and leaving the picker untouched
+ * behaves exactly as it always did.
  */
 const props = withDefaults(
     defineProps<{
@@ -84,6 +99,15 @@ const props = withDefaults(
          * bridge itself; an explicit `null` means there is deliberately none.
          */
         catalogBridge?: WorldCatalogBridge | null | undefined;
+        /**
+         * The GitHub bridge behind the "Render as" account picker, injected in tests exactly
+         * like `catalogBridge` above: `undefined` probes the Electron preload, an explicit
+         * `null` means there is deliberately none and the picker never appears. Deliberately
+         * a separate probe from `bridge` - the multi-account registry predates CI rendering
+         * and belongs to `github/`, not to this screen, so it is fine for a build to carry
+         * one bridge and not the other.
+         */
+        accountsBridge?: GitHubBridge | null | undefined;
         /** True when the shell can open settings at a row. */
         canOpenSettings?: boolean | undefined;
     }>(),
@@ -105,6 +129,18 @@ const { t } = useI18n();
 
 const bridge = props.bridge === undefined ? resolveCiRenderBridge() : props.bridge;
 const renders = createCiRenders(bridge);
+
+/**
+ * Every GitHub account this computer has stored, and which one is active - the exact same
+ * store `GitHubAccountsList.vue` drives from Settings, reused rather than forked so this
+ * screen never carries a second idea of what an "account" is. Read-only from here: this
+ * screen calls `load()` to list accounts and reads `activeId` as the picker's default, but
+ * never calls `setActive()` - see "Render as" below for why. A build carrying no accounts
+ * namespace at all reports `canList: false` and the picker section simply never renders.
+ */
+const accountsList = createGitHubAccountsList(
+    props.accountsBridge === undefined ? {} : { bridge: props.accountsBridge },
+);
 
 const worldFolder = ref(props.worlds[0]?.folder ?? "");
 const owner = ref("");
@@ -196,6 +232,87 @@ async function applySuggestedRepoName(folder: string): Promise<void> {
     if (name === "") return;
     const suggestion = await renders.suggestRepoName(name);
     if (suggestion !== null && repo.value.trim() === "" && worldFolder.value === folder) repo.value = suggestion;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Render as: which signed-in account this render authenticates as, chosen    */
+/* on this card and carried through the check and the dispatch - never the   */
+/* application-wide active-account switch                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Which stored account this render runs as. Null means "whichever account is active",
+ * which is the default nobody has to touch: every request this screen sends leaves
+ * `accountId` out entirely while this stays null, so the main process resolves it exactly
+ * the way it always did for a single-account build. Set only by {@link chooseAccount}.
+ */
+const selectedAccountId = ref<string | null>(null);
+
+/**
+ * True once the account list has answered at least once.
+ *
+ * The signed-out state below is only ever shown once this is true - the same rule
+ * `renders.owners` already follows by starting `null` - so the picker never flashes
+ * "nobody is signed in" for the instant before its own first load has come back.
+ */
+const accountsLoaded = ref(false);
+
+const accountOrdered = computed(() =>
+    [...accountsList.accounts.value].sort((a, b) => a.login.localeCompare(b.login)),
+);
+
+/** The account id every request this screen sends actually carries. Undefined for "active". */
+const effectiveAccountId = computed<string | undefined>(() => selectedAccountId.value ?? undefined);
+
+/** Shown once the multi-account registry exists on this build and has answered once. */
+const showAccountPicker = computed(() => accountsList.canList && accountsLoaded.value);
+
+/** Nobody is signed in to GitHub at all - the "sign in" case, not "one account, nothing to choose". */
+const accountSignedOut = computed(() => accountOrdered.value.length === 0);
+
+const accountItems = computed(() =>
+    accountOrdered.value.map((account) => ({
+        title: account.active
+            ? t("cirender.account.itemActive", { login: account.login }, "{login} (active)")
+            : account.login,
+        value: account.id,
+    })),
+);
+
+/**
+ * Why the picker cannot be used to choose anything, or null when a real choice exists.
+ *
+ * The same discipline every disabled control on this card holds to: naming the unmet
+ * condition rather than merely going grey. Exactly one signed-in account has nothing to
+ * switch to, so the picker still renders - showing which one it is - but is trivially
+ * satisfied rather than hidden outright, per the guided-setup convention this screen
+ * already follows for the Browse button and the Check button.
+ */
+const accountPickerDisabledBecause = computed<string | null>(() => {
+    if (accountOrdered.value.length !== 1) return null;
+    return t("cirender.account.single", "Only one GitHub account is signed in, so this is fixed to it.");
+});
+
+/**
+ * Chooses which stored account this render authenticates as.
+ *
+ * Deliberately local to this card and nowhere else: this never calls
+ * `accountsList.setActive`, so it never touches which account Settings, downloads or
+ * backups already resolve to - only which one *this render* does. The owner list is
+ * re-resolved for the account just chosen (its own login and organisations, not the
+ * previous account's), the repository owner field is cleared because a login or
+ * organisation typed for one account may mean nothing under another, and any earlier
+ * "Check before anything is sent" report is dropped because it described the account that
+ * was in play before this choice.
+ */
+function chooseAccount(value: unknown): void {
+    const current = selectedAccountId.value ?? accountsList.activeId.value;
+    if (typeof value !== "string" || value === current) return;
+    selectedAccountId.value = value;
+    owner.value = "";
+    renders.clearPreflight();
+    renders.clearNameAvailability();
+    if (renders.canListOwners) void renders.loadOwners(value);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -461,6 +578,7 @@ async function check(): Promise<void> {
         worldFolder: worldFolder.value.trim(),
         owner: owner.value.trim(),
         repo: repo.value.trim(),
+        ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
     });
 }
 
@@ -473,6 +591,7 @@ async function start(): Promise<void> {
         acknowledgePublic: acknowledgePublic.value,
         forceUpload: forceUpload.value,
         output: publishToPages.value ? "artifact-and-pages" : "artifact",
+        ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
     });
     if (result?.ok === true && result.outcome === "rendered") {
         emit("rendered", {
@@ -513,8 +632,13 @@ function waves(row: CiRow): readonly { wave: number; done: number; total: number
 
 onMounted(() => {
     void renders.loadKnown();
-    if (renders.canListOwners) void renders.loadOwners();
+    if (renders.canListOwners) void renders.loadOwners(effectiveAccountId.value);
     if (renders.canListRepositories) void renders.loadRepositories();
+    if (accountsList.canList) {
+        void accountsList.load().then(() => {
+            accountsLoaded.value = true;
+        });
+    }
     // A world already prefilled from `props.worlds` is a world chosen too, so the name
     // suggestion applies to it exactly as it would to one picked or browsed after mount.
     if (worldFolder.value.trim() !== "") void applySuggestedRepoName(worldFolder.value);
@@ -523,6 +647,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
     if (nameCheckTimer !== null) clearTimeout(nameCheckTimer);
     renders.dispose();
+    accountsList.dispose();
 });
 </script>
 
@@ -558,6 +683,77 @@ onBeforeUnmount(() => {
             <VCard class="mb-4">
                 <VCardTitle>{{ t("cirender.where.title", "What, and where") }}</VCardTitle>
                 <VCardText>
+                    <!--
+                        "Render as": local to this card, never the application-wide
+                        active-account switch. Nobody signed in offers the sign-in action
+                        rather than a dead picker; exactly one signed-in account still shows
+                        the picker, naming why it is fixed, per the guided-setup convention
+                        this card already follows for the Browse and Check buttons.
+                    -->
+                    <div v-if="showAccountPicker" class="mb-4">
+                        <VAlert
+                            v-if="accountSignedOut"
+                            type="info"
+                            variant="tonal"
+                            density="compact"
+                            data-test="account-signed-out"
+                            role="status"
+                            aria-live="polite"
+                        >
+                            {{
+                                t(
+                                    "cirender.account.signedOut",
+                                    "Nobody is signed in to GitHub, so there is no account to render as. Sign in from Settings.",
+                                )
+                            }}
+                            <VBtn
+                                v-if="props.canOpenSettings"
+                                size="small"
+                                variant="text"
+                                class="mt-1"
+                                @click="emit('signIn')"
+                            >
+                                {{ t("cirender.signIn", "Open the GitHub sign-in") }}
+                            </VBtn>
+                        </VAlert>
+                        <template v-else>
+                            <VSelect
+                                :items="accountItems"
+                                :model-value="selectedAccountId ?? accountsList.activeId.value"
+                                :label="t('cirender.account.pick', 'Render as')"
+                                :hint="
+                                    t(
+                                        'cirender.account.help',
+                                        'Which signed-in account this render authenticates as. Choosing a different one here does not change the active account used anywhere else in the app.',
+                                    )
+                                "
+                                persistent-hint
+                                :disabled="accountPickerDisabledBecause !== null"
+                                :title="accountPickerDisabledBecause ?? undefined"
+                                :aria-label="
+                                    accountPickerDisabledBecause !== null
+                                        ? t(
+                                              'cirender.account.disabledLabel',
+                                              { reason: accountPickerDisabledBecause },
+                                              'Render as: {reason}',
+                                          )
+                                        : undefined
+                                "
+                                variant="outlined"
+                                density="compact"
+                                data-test="account-select"
+                                @update:model-value="chooseAccount"
+                            />
+                            <p
+                                v-if="accountPickerDisabledBecause !== null"
+                                class="text-medium-emphasis mt-1"
+                                data-test="account-select-disabled"
+                            >
+                                {{ accountPickerDisabledBecause }}
+                            </p>
+                        </template>
+                    </div>
+
                     <!--
                         The world folder: a text field kept in step with a picker of what
                         this machine already knows about and a browse button, exactly the
@@ -647,7 +843,12 @@ onBeforeUnmount(() => {
                         role="alert"
                     >
                         {{ ownerFailureMessage }}
-                        <VBtn size="small" variant="text" class="mt-1" @click="renders.loadOwners()">
+                        <VBtn
+                            size="small"
+                            variant="text"
+                            class="mt-1"
+                            @click="renders.loadOwners(effectiveAccountId)"
+                        >
                             {{ t("cirender.owner.retry", "Try again") }}
                         </VBtn>
                     </VAlert>

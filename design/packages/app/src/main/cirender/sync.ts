@@ -296,6 +296,18 @@ export interface CiSyncRequest {
     readonly acknowledgePublic?: boolean | undefined;
     /** Upload even when the world looks unchanged. The manual override for the detector. */
     readonly forceUpload?: boolean | undefined;
+    /**
+     * Which signed-in account this sync authenticates as, by id rather than by token.
+     *
+     * Omitted, this resolves to whichever account is active - the exact behaviour every
+     * caller had before the setup card's account picker existed, preserved for backward
+     * compatibility. Named explicitly, the credential comes from that specific stored
+     * account instead, so somebody signed in to several accounts can render as one that is
+     * not the active one without switching it. The id is never a token: `sync.ts` resolves
+     * the real credential per call from `GitHubAccountsController`, and nothing carrying
+     * the account's own secret ever crosses back to the renderer.
+     */
+    readonly accountId?: string | undefined;
     readonly budgetMinutes?: number | undefined;
     readonly maxJobs?: number | undefined;
     readonly output?: CiRenderOutput | undefined;
@@ -398,8 +410,16 @@ export interface BackupSurface {
 export interface CiRenderSyncOptions {
     /** Where maps and sync records live. A function, so a moved folder takes effect. */
     readonly storageDir: () => string;
-    /** The signed-in token, resolved per operation. Null means nobody is signed in. */
-    readonly token: () => Promise<string | null> | string | null;
+    /**
+     * The signed-in token, resolved per operation. Null means nobody is signed in.
+     *
+     * Takes the account id a request named explicitly - see {@link CiSyncRequest.accountId}
+     * - and resolves that stored account's own token. Called with no id, or `undefined`,
+     * this resolves to whichever account is active, exactly as every caller before the
+     * account picker existed already relied on; the parameter is additive; a caller that
+     * has never heard of it calls this the same zero-argument way it always did.
+     */
+    readonly token: (accountId?: string | undefined) => Promise<string | null> | string | null;
     /**
      * Whether Mojang's EULA has been accepted on this computer.
      *
@@ -411,12 +431,14 @@ export interface CiRenderSyncOptions {
     readonly eulaAccepted: () => boolean | Promise<boolean>;
     readonly backup: BackupSurface;
     /**
-     * The login the in-app session belongs to, for a message naming which credential ran.
+     * The login the credential in play belongs to, for a message naming which account ran.
      *
      * A login, never a token: the credential itself is resolved by `token` and never
-     * stored, logged or described anywhere in this feature.
+     * stored, logged or described anywhere in this feature. Takes the same optional
+     * account id `token` does, additively, so the message names the account a request
+     * actually chose rather than always the active one.
      */
-    readonly account?: (() => string | null | Promise<string | null>) | undefined;
+    readonly account?: ((accountId?: string | undefined) => string | null | Promise<string | null>) | undefined;
     /**
      * How `gh` is run. Injected so every test in this folder runs on a machine that does
      * not have it installed - which is the only way "not installed" gets tested at all.
@@ -603,15 +625,15 @@ export class CiRenderSync {
     async #resolveRoute(
         owner: string,
         repo: string,
-        request: Pick<CiSyncRequest, "route">,
+        request: Pick<CiSyncRequest, "route" | "accountId">,
         signal?: AbortSignal,
     ): Promise<{ transport: CiTransport | null; report: RouteReport }> {
         return await resolveTransport({
             owner,
             repo,
             workflowFile: this.#options.workflowFile ?? RENDER_WORKFLOW_FILE,
-            token: await this.#token(),
-            account: (await this.#options.account?.()) ?? null,
+            token: await this.#token(request.accountId),
+            account: (await this.#options.account?.(request.accountId)) ?? null,
             fetch: this.#fetch(),
             runner: this.#options.runner ?? nodeProcessRunner(),
             ...(signal === undefined ? {} : { signal }),
@@ -1413,8 +1435,8 @@ export class CiRenderSync {
         return this.#options.fetch ?? ((url, init) => fetch(url, init));
     }
 
-    async #token(): Promise<string | null> {
-        const value = await this.#options.token();
+    async #token(accountId?: string | undefined): Promise<string | null> {
+        const value = await this.#options.token(accountId);
         return typeof value === "string" && value.length > 0 ? value : null;
     }
 

@@ -380,12 +380,29 @@ export interface CiRenders {
     poll(syncId: string): Promise<CiSyncResult | null>;
     stop(syncId: string): Promise<boolean>;
     loadKnown(): Promise<void>;
-    loadOwners(): Promise<void>;
+    /**
+     * Reads the owner list. Given an account id, reads it for that specific signed-in
+     * account rather than whichever one is active - what the setup card's account picker
+     * calls the moment somebody chooses a different one.
+     */
+    loadOwners(accountId?: string): Promise<void>;
     loadRepositories(): Promise<void>;
     suggestRepoName(sourceName: string): Promise<string | null>;
     checkRepoName(owner: string, repo: string): Promise<void>;
     /** Drops whatever the last check said, for a field that just changed underneath it. */
     clearNameAvailability(): void;
+    /**
+     * Drops whatever the last "Check before anything is sent" report said.
+     *
+     * For the same reason `clearNameAvailability` exists: a preflight report describes one
+     * specific owner, repository and *credential*, and switching the active GitHub account
+     * out from under it - the CI-render screen's own account picker does exactly that -
+     * leaves a report on screen that answered "you can write to this" for an account that is
+     * no longer the one about to try. This does not touch `preflightFailure`'s cousin,
+     * `startFailure`; a sync that has already been refused stays refused until a fresh
+     * attempt is made, never silently forgotten by a field changing underneath it.
+     */
+    clearPreflight(): void;
     dispose(): void;
 }
 
@@ -667,11 +684,11 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
             }
         },
 
-        async loadOwners(): Promise<void> {
+        async loadOwners(accountId?: string): Promise<void> {
             if (bridge?.listCiOwners === undefined) return;
             loadingOwners.value = true;
             try {
-                owners.value = await bridge.listCiOwners();
+                owners.value = await bridge.listCiOwners(accountId);
             } catch (error) {
                 owners.value = { ok: false, signedIn: true, message: describe(error) };
             } finally {
@@ -727,6 +744,11 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
         clearNameAvailability(): void {
             nameCheckToken++;
             nameAvailability.value = null;
+        },
+
+        clearPreflight(): void {
+            preflight.value = null;
+            preflightFailure.value = null;
         },
 
         dispose(): void {

@@ -550,13 +550,29 @@ let ciRenderIpc: CiRenderIpc | null = null;
 
 function startCiRenders(render: RenderIpc, github: GitHubIpc, backup: BackupIpc): CiRenderIpc {
     if (ciRenderIpc !== null) return ciRenderIpc;
+    const activeAccountToken = releaseTokenSource({ session: github.session });
     ciRenderIpc = installCiRenderIpc({
         ipcMain,
         storageDir: () => render.storageDirectory(),
-        token: releaseTokenSource({ session: github.session }),
+        // Resolves the active account, `GH_TOKEN` and all, exactly as before whenever a
+        // request names no account. Named explicitly - by the setup card's account picker
+        // - the credential comes from that specific stored account's own token instead, via
+        // `GitHubAccountsController.accessTokenFor`, without switching which account is
+        // active anywhere else in the application. The token itself never crosses back to
+        // the renderer either way.
+        token: async (accountId) => {
+            if (accountId === undefined || accountId === "") return await activeAccountToken();
+            const result = await github.accounts.accessTokenFor(accountId);
+            return result.ok ? result.token : null;
+        },
         eulaAccepted: () => hasAcceptedDownload(),
         backup: backup.runner,
-        account: () => github.session.status().account?.login ?? null,
+        account: (accountId) => {
+            if (accountId === undefined || accountId === "") {
+                return github.session.status().account?.login ?? null;
+            }
+            return github.accounts.listAccounts().accounts.find((entry) => entry.id === accountId)?.login ?? null;
+        },
         mounts: localMaps,
         broadcast: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {

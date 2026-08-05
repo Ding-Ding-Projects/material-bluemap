@@ -294,6 +294,16 @@ export interface CiSyncRequest {
     /** Force a credential rather than letting the probe choose. */
     readonly route?: CiRoute;
     readonly follow?: boolean;
+    /**
+     * Which signed-in account this render authenticates as, by id.
+     *
+     * Omitted, the main process resolves whichever account is active - the setup card's
+     * own default, so a single-account build behaves exactly as it always did. Set from
+     * the account picker when somebody signed in to several accounts chooses one that is
+     * not the active one. Always an id, never a token: the credential itself never crosses
+     * this bridge in either direction.
+     */
+    readonly accountId?: string;
 }
 
 export type CiSyncEvent =
@@ -399,8 +409,13 @@ export interface CiRenderBridge {
      * the three required methods above depend on any of them.
      */
 
-    /** The signed-in login and its organisations, to choose an owner from rather than type one. */
-    listCiOwners?(): Promise<CiOwnerChoicesAnswer>;
+    /**
+     * The signed-in login and its organisations, to choose an owner from rather than type
+     * one. Given an account id, resolves this for that specific stored account instead of
+     * whichever one is active - what the account picker uses when somebody chooses a
+     * different signed-in account.
+     */
+    listCiOwners?(accountId?: string): Promise<CiOwnerChoicesAnswer>;
     /** A GitHub-safe repository name suggested from a world or map name. Pure, no network. */
     suggestCiRepoName?(sourceName: string): Promise<string>;
     /** Whether `owner/repo` is free on GitHub, right now. */
@@ -423,7 +438,7 @@ type Host = Partial<{
     // The preload's real names for the four optional additions above. `listBackupRepositories`
     // is the backup surface's own method, named for what it is there rather than for cirender
     // - reused read-only, the way `backup:repositories` was already built to be reused.
-    ciRenderOwners: () => Promise<CiOwnerChoicesAnswer>;
+    ciRenderOwners: (accountId?: string) => Promise<CiOwnerChoicesAnswer>;
     suggestCiRepoName: (sourceName: string) => Promise<string>;
     checkCiRepoName: (request: {
         owner: string;
@@ -501,7 +516,9 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
         // because these four are optional on the interface: a caller checks for the method
         // rather than for a canned refusal, and a build with none of them is exactly as
         // capable as it was before this card existed.
-        ...(isFunction(host.ciRenderOwners) ? { listCiOwners: () => host.ciRenderOwners!() } : {}),
+        ...(isFunction(host.ciRenderOwners)
+            ? { listCiOwners: (accountId?: string) => host.ciRenderOwners!(accountId) }
+            : {}),
         ...(isFunction(host.suggestCiRepoName)
             ? { suggestCiRepoName: (sourceName: string) => host.suggestCiRepoName!(sourceName) }
             : {}),

@@ -481,6 +481,33 @@ describe("who could own it: the signed-in login and its organisations", () => {
         expect(renders.owners.value).toBeNull();
         renders.dispose();
     });
+
+    it("forwards an explicit account id, for the account picker's own re-resolve", async () => {
+        const seen: (string | undefined)[] = [];
+        const { bridge: host } = bridge({
+            listCiOwners: (accountId) => {
+                seen.push(accountId);
+                return Promise.resolve({ ok: true, login: "monalisa", owners: [{ login: "monalisa", kind: "user" }] });
+            },
+        });
+        const renders = createCiRenders(host);
+
+        // No id at all - the default every caller before the account picker existed used,
+        // and still the one a single-account build sends.
+        await renders.loadOwners();
+        expect(seen).toEqual([undefined]);
+
+        // A specific account, exactly as it was asked for - never silently dropped, never
+        // substituted for the active one.
+        await renders.loadOwners("a2");
+        expect(seen).toEqual([undefined, "a2"]);
+        expect(renders.owners.value).toEqual({
+            ok: true,
+            login: "monalisa",
+            owners: [{ login: "monalisa", kind: "user" }],
+        });
+        renders.dispose();
+    });
 });
 
 describe("suggesting and checking a repository name", () => {
@@ -628,6 +655,71 @@ describe("suggesting and checking a repository name", () => {
         await inFlight;
 
         expect(renders.nameAvailability.value).toBeNull();
+        renders.dispose();
+    });
+});
+
+describe("clearing a stale preflight report", () => {
+    /** The bare minimum `CiPreflight` a successful check can answer with. */
+    function minimalPreflight(): CiPreflight {
+        return {
+            syncId: "s",
+            repository: null,
+            repositoryFailure: null,
+            routeReport: {
+                route: "session",
+                describe: "Using this application's GitHub sign-in (octocat).",
+                session: { signedIn: true, usable: true, reason: null },
+                gh: {
+                    availability: "not-checked",
+                    version: null,
+                    account: null,
+                    host: null,
+                    message: "",
+                    usable: false,
+                    reason: "not needed",
+                },
+                ready: true,
+                canUpload: true,
+            },
+            eulaAccepted: true,
+            plan: null,
+            planFailure: null,
+            world: null,
+            worldFailure: null,
+            worldChanged: true,
+            uploadNeeded: true,
+            estimatedArchiveBytes: 0,
+            tooLargeToUpload: false,
+            state: null,
+            run: null,
+        };
+    }
+
+    it("drops a successful report, so a switched credential is not shown describing the old one", async () => {
+        const { bridge: host } = bridge({
+            ciRenderPreflight: () => Promise.resolve({ ok: true, value: minimalPreflight() }),
+        });
+        const renders = createCiRenders(host);
+        await renders.check({ worldFolder: "/w", owner: "o", repo: "r" });
+        expect(renders.preflight.value).not.toBeNull();
+
+        renders.clearPreflight();
+        expect(renders.preflight.value).toBeNull();
+        expect(renders.preflightFailure.value).toBeNull();
+        renders.dispose();
+    });
+
+    it("drops a failed report's message too, not only a successful one's value", async () => {
+        const { bridge: host } = bridge({
+            ciRenderPreflight: () => Promise.resolve({ ok: false, message: "repository not found" }),
+        });
+        const renders = createCiRenders(host);
+        await renders.check({ worldFolder: "/w", owner: "o", repo: "r" });
+        expect(renders.preflightFailure.value).toBe("repository not found");
+
+        renders.clearPreflight();
+        expect(renders.preflightFailure.value).toBeNull();
         renders.dispose();
     });
 });

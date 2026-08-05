@@ -519,6 +519,28 @@ export class GitHubAccountsController implements GitHubSessionLike {
         return { ok: true, activeId: id, account, reason: null };
     }
 
+    /**
+     * The token for one specific stored account, chosen by id rather than implicitly
+     * whichever one is active.
+     *
+     * Additive alongside {@link accessToken}, which is untouched and still resolves the
+     * active account for every caller that predates this - `github:status`, downloads,
+     * backups, and every legacy single-account consumer. This exists for the one caller
+     * that now needs to authenticate as an account it named explicitly rather than the
+     * active one: a CI render whose setup card offers a choice of signed-in accounts. It
+     * never routes through `#activeId` to get there, so choosing a non-active account here
+     * never disturbs which account every other feature keeps using.
+     */
+    async accessTokenFor(id: string): Promise<AccessTokenResult> {
+        if (!this.#knowsAccount(id)) {
+            return this.#failure({
+                code: "no-such-account",
+                message: "No stored account has that id.",
+            });
+        }
+        return await this.#sessionFor(id).accessToken();
+    }
+
     /** Renews one specific account's token. Never returns the token itself. */
     async refreshAccount(id: string): Promise<RefreshAccountResult> {
         if (!this.#knowsAccount(id)) {

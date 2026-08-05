@@ -584,6 +584,29 @@ export const CIRENDER_VOICED = {
     /* ---------------------------------------------------------------- */
 
     /*
+     * The account picker's own signed-out state, distinct from the owner picker's below:
+     * this one is about who the render authenticates as at all, not about which login or
+     * organisation it publishes under. Same rule as every signed-out message on this card -
+     * it names the remedy and points at the sign-in row that already exists.
+     */
+    "cirender.account.signedOut": {
+        en: [
+            "Nobody is signed in to GitHub, so there is no account to render as. Sign in from Settings.",
+            "Nobody is signed in to GitHub, so there is no account to render as. Sign in from Settings.",
+            "Nobody is signed in to GitHub yet, so there is no account to render as. Sign in from Settings.",
+            "Nobody is signed in to GitHub, so there is nobody this render could run as. Sign in from Settings to add one.",
+            "Nobody is signed in to GitHub at all, so there is nobody this render could possibly run as. Sign in from Settings, and this picker will suddenly have something to say.",
+        ],
+        yue: [
+            "冇人登入咗 GitHub，所以冇帳戶可以用嚟算圖。請喺設定入面登入。",
+            "冇人登入咗 GitHub，所以冇帳戶可以用嚟算圖。請喺設定入面登入。",
+            "冇人登入咗 GitHub，所以暫時冇帳戶可以用嚟算圖。請喺設定入面登入。",
+            "冇人登入咗 GitHub，所以呢次算圖搵唔到人做。喺設定入面登入一個先。",
+            "成個 GitHub 都冇人登入，所以呢次算圖真係搵唔到人頂替。快啲喺設定入面登入，呢個揀帳戶掣先有嘢好揀。",
+        ],
+    },
+
+    /*
      * Signed out is not a dead end: it says so, and it points at the sign-in row that
      * already exists rather than inventing a second one. That clause survives every level.
      */
@@ -897,6 +920,29 @@ export const CIRENDER_FIXED = {
         yue: "揀咗個世界之後會有個建議名。檢查之前你隨時可以自己改。",
     },
 
+    /*
+     * The account picker: which of possibly several stored GitHub sign-ins this render
+     * authenticates as. The label names the *consequence* of picking one rather than merely
+     * "account", and the hint says the opposite of what it would be easy to assume: this is
+     * a LOCAL choice, scoped to this card, and never the application-wide active-account
+     * switch `GitHubAccountsList.vue` in Settings offers. Shown whenever the multi-account
+     * registry exists at all - see `showAccountPicker` in `CiRenderScreen.vue` - so even a
+     * single stored account is named on screen rather than only implied.
+     */
+    "cirender.account.pick": { en: "Render as", yue: "算圖帳戶" },
+    "cirender.account.help": {
+        en: "Which signed-in account this render authenticates as. Choosing a different one here does not change the active account used anywhere else in the app.",
+        yue: "呢個算圖用邊個已登入帳戶做認證。喺呢度揀第個都唔會改到程式其他地方用緊嗰個帳戶。",
+    },
+    /* Exactly one signed-in account: the picker still shows it, but names why it is fixed. */
+    "cirender.account.single": {
+        en: "Only one GitHub account is signed in, so this is fixed to it.",
+        yue: "淨係得一個 GitHub 帳戶登入咗，所以固定用嗰個。",
+    },
+    /** Which one every other legacy channel already resolves to, named on the item itself. */
+    "cirender.account.itemActive": { en: "{login} (active)", yue: "{login}（用緊）" },
+    "cirender.account.disabledLabel": { en: "Render as: {reason}", yue: "算圖帳戶：{reason}" },
+
     /* The owner picker: its two item shapes, and the two ways it can come up short. */
     "cirender.owner.pick": { en: "Choose an owner", yue: "揀個擁有者" },
     "cirender.owner.asYou": { en: "{login} (you)", yue: "{login}（你）" },
@@ -1048,6 +1094,12 @@ export const CIRENDER_FACTS = {
     "cirender.recorded": {
         en: ["no checksum", "SHA-256", "recorded rather than verified"],
         yue: ["checksum", "SHA-256", "記錄咗", "唔算驗證過"],
+    },
+
+    // Which account this render runs as at all, not which login or org it publishes under.
+    "cirender.account.signedOut": {
+        en: ["Nobody is signed in", "Sign in from Settings"],
+        yue: ["冇人登入", "設定入面登入"],
     },
 
     // The remedy - Settings, or free text - is the point, not merely "nobody signed in".

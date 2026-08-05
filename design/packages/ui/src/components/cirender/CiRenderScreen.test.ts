@@ -24,9 +24,11 @@ import type {
     CiRenderBridge,
     CiRepositoryNameAvailability,
     CiSyncEvent,
+    CiSyncRequest,
     CiSyncResult,
     RouteReport,
 } from "./ciRenderBridge.js";
+import type { GitHubAccountSummaryReadout, GitHubBridge } from "../github/githubBridge.js";
 import type { MinecraftFolder, MinecraftWorldSummary, WorldCatalogBridge } from "../world/worldCatalog.js";
 
 beforeAll(() => {
@@ -259,6 +261,75 @@ function fakeCatalogBridge(
                 ok: true,
                 scan: { folderId: id, savesPath: "", worlds: worldsByFolder[id] ?? [], truncated: false },
             }),
+    };
+}
+
+/** A `GitHubAccountSummaryReadout`, filled with sane defaults so a test only names what it cares about. */
+function ghAccount(overrides: Partial<GitHubAccountSummaryReadout> = {}): GitHubAccountSummaryReadout {
+    return {
+        id: "acct",
+        login: "octocat",
+        userId: 1,
+        name: null,
+        scopes: [],
+        scopesReported: true,
+        source: "oauth-app",
+        signedInAt: "2026-08-01T00:00:00.000Z",
+        expiresAt: null,
+        refreshable: false,
+        persisted: true,
+        warnings: [],
+        active: false,
+        ...overrides,
+    };
+}
+
+/**
+ * A scripted `GitHubBridge` behind the account picker: `list` answers with whichever account
+ * is currently active, `setActive` really changes it (so a follow-up list reflects the
+ * switch), and every call is recorded so a test can prove a switch actually reached the
+ * bridge rather than only updating on-screen state.
+ */
+function fakeAccountsBridge(
+    accounts: readonly GitHubAccountSummaryReadout[],
+    activeId: string | null,
+    options: { readonly setActiveFails?: string } = {},
+): { bridge: GitHubBridge; calls: string[] } {
+    let active = activeId;
+    const calls: string[] = [];
+    return {
+        calls,
+        bridge: {
+            githubListAccounts: () => {
+                calls.push("list");
+                return Promise.resolve({
+                    accounts: accounts.map((account) => ({ ...account, active: account.id === active })),
+                    activeId: active,
+                });
+            },
+            githubSetActiveAccount: (id) => {
+                calls.push(`setActive:${id}`);
+                if (options.setActiveFails !== undefined) {
+                    return Promise.resolve({
+                        ok: false,
+                        activeId: active,
+                        account: null,
+                        reason: options.setActiveFails,
+                    });
+                }
+                const account = accounts.find((candidate) => candidate.id === id) ?? null;
+                if (account === null) {
+                    return Promise.resolve({
+                        ok: false,
+                        activeId: active,
+                        account: null,
+                        reason: "No stored account has that id.",
+                    });
+                }
+                active = id;
+                return Promise.resolve({ ok: true, activeId: active, account, reason: null });
+            },
+        },
     };
 }
 
@@ -855,6 +926,179 @@ describe("the repository owner: chosen from the signed-in account, or typed", ()
             { title: "octocat (you)", value: "octocat" },
             { title: "octo-org (organization)", value: "octo-org" },
         ]);
+    });
+});
+
+describe("render as: which stored GitHub account this render authenticates as", () => {
+    it("shows no picker when this build cannot list accounts at all", async () => {
+        const wrapper = mountScreen(fakeBridge(preflight()), { accountsBridge: null });
+        await flushPromises();
+        expect(wrapper.find('[data-test="account-select"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="account-signed-out"]').exists()).toBe(false);
+    });
+
+    it("offers the sign-in action when the registry exists but nobody is stored in it", async () => {
+        const { bridge: accountsBridge } = fakeAccountsBridge([], null);
+        const wrapper = mountScreen(fakeBridge(preflight()), { accountsBridge });
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="account-signed-out"]').text()).toContain("Nobody is signed in");
+        expect(wrapper.find('[data-test="account-select"]').exists()).toBe(false);
+        const signInButton = wrapper.find('[data-test="account-signed-out"] button');
+        expect(signInButton.exists()).toBe(true);
+        await signInButton.trigger("click");
+        expect(wrapper.emitted("signIn")).toBeTruthy();
+    });
+
+    it("still shows exactly one signed-in account, disabled, naming why", async () => {
+        const { bridge: accountsBridge } = fakeAccountsBridge([ghAccount({ id: "a1", login: "octocat" })], "a1");
+        const wrapper = mountScreen(fakeBridge(preflight()), { accountsBridge });
+        await flushPromises();
+
+        // Trivially satisfied rather than hidden: the picker still names which account it
+        // is fixed to, even though there is nothing to switch to.
+        const select = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.props("label") === "Render as");
+        expect(select?.props("items")).toEqual([{ title: "octocat (active)", value: "a1" }]);
+        expect(select?.props("disabled")).toBe(true);
+        expect(wrapper.find('[data-test="account-select-disabled"]').text()).toContain(
+            "Only one GitHub account is signed in",
+        );
+    });
+
+    it("lists every stored account, naming the active one, and defaults the display to it", async () => {
+        const { bridge: accountsBridge } = fakeAccountsBridge(
+            [ghAccount({ id: "a1", login: "octocat" }), ghAccount({ id: "a2", login: "monalisa" })],
+            "a1",
+        );
+        const wrapper = mountScreen(fakeBridge(preflight()), { accountsBridge });
+        await flushPromises();
+
+        const select = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.props("label") === "Render as");
+        expect(select?.props("items")).toEqual([
+            { title: "monalisa", value: "a2" },
+            { title: "octocat (active)", value: "a1" },
+        ]);
+        expect(select?.props("modelValue")).toBe("a1");
+        expect(select?.props("disabled")).toBe(false);
+    });
+
+    it("re-resolves the owner list for the chosen account rather than the active one, and never switches the active account", async () => {
+        const { bridge: accountsBridge, calls: accountCalls } = fakeAccountsBridge(
+            [ghAccount({ id: "a1", login: "octocat" }), ghAccount({ id: "a2", login: "monalisa" })],
+            "a1",
+        );
+        const ownerCalls: (string | undefined)[] = [];
+        const wrapper = mountScreen(
+            {
+                ...fakeBridge(preflight()),
+                listCiOwners: (accountId) => {
+                    ownerCalls.push(accountId);
+                    const login = accountId === "a2" ? "monalisa" : "octocat";
+                    return Promise.resolve({ ok: true, login, owners: [{ login, kind: "user" }] });
+                },
+            },
+            { accountsBridge },
+        );
+        await flushPromises();
+        // The active account, resolved implicitly - the exact call a single-account build
+        // has always made, with no id named at all.
+        expect(ownerCalls).toEqual([undefined]);
+
+        // Selecting from the picker is what a keyboard-driven choice reaches too: Vuetify's
+        // VSelect emits this same `update:modelValue` event whether an option is activated
+        // by Enter on a focused row or by a click, so this is not a mouse-only path.
+        const select = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.props("label") === "Render as");
+        await select?.vm.$emit("update:modelValue", "a2");
+        await flushPromises();
+
+        expect(ownerCalls.at(-1)).toBe("a2");
+        // Never the application-wide active-account switch. A call log holding only "list"
+        // proves Settings, downloads, backups and everything else kept reading whichever
+        // account was already active - this picker only ever read the list, never wrote it.
+        expect(accountCalls).toEqual(["list"]);
+    });
+
+    it("clears the owner field and a stale preflight report when a different account is chosen", async () => {
+        const { bridge: accountsBridge } = fakeAccountsBridge(
+            [ghAccount({ id: "a1", login: "octocat" }), ghAccount({ id: "a2", login: "monalisa" })],
+            "a1",
+        );
+        const wrapper = mountScreen(fakeBridge(preflight()), { accountsBridge });
+        await check(wrapper);
+        expect(wrapper.find('[data-test="route"]').exists()).toBe(true);
+        expect((wrapper.find('[data-test="owner-field"] input').element as HTMLInputElement).value).toBe("o");
+
+        const select = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.props("label") === "Render as");
+        await select?.vm.$emit("update:modelValue", "a2");
+        await flushPromises();
+
+        expect((wrapper.find('[data-test="owner-field"] input').element as HTMLInputElement).value).toBe("");
+        // Nothing re-checks automatically: "Check before anything is sent" stays the one
+        // deliberate action that reads a report, so the stale one is dropped rather than
+        // silently re-fetched.
+        expect(wrapper.find('[data-test="route"]').exists()).toBe(false);
+    });
+
+    it("carries the chosen account id into the preflight check and the real dispatch", async () => {
+        const { bridge: accountsBridge } = fakeAccountsBridge(
+            [ghAccount({ id: "a1", login: "octocat" }), ghAccount({ id: "a2", login: "monalisa" })],
+            "a1",
+        );
+        const preflightRequests: CiSyncRequest[] = [];
+        const started: CiSyncResult[] = [];
+        const wrapper = mountScreen(
+            {
+                ...fakeBridge(preflight({ uploadNeeded: false, worldChanged: false }), started),
+                ciRenderPreflight: (request) => {
+                    preflightRequests.push(request);
+                    return Promise.resolve({
+                        ok: true,
+                        value: preflight({ uploadNeeded: false, worldChanged: false }),
+                    });
+                },
+            },
+            { accountsBridge },
+        );
+        await flushPromises();
+
+        const select = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.props("label") === "Render as");
+        await select?.vm.$emit("update:modelValue", "a2");
+        await flushPromises();
+
+        await check(wrapper);
+        expect(preflightRequests.at(-1)).toMatchObject({ accountId: "a2" });
+
+        await wrapper.find('[data-test="start"]').trigger("click");
+        await flushPromises();
+        expect(JSON.parse(started[0]?.ok === false ? started[0].failure.message : "{}")).toMatchObject({
+            accountId: "a2",
+        });
+    });
+
+    it("leaves the account id off a request entirely while the picker is untouched", async () => {
+        // The exact wire shape a single-account build, or anybody who never opens the
+        // picker, has always sent - proven here rather than only asserted from behaviour,
+        // because a stray `accountId: undefined` key would still pass a looser check.
+        const started: CiSyncResult[] = [];
+        const wrapper = mountScreen(fakeBridge(preflight({ uploadNeeded: false, worldChanged: false }), started));
+        await check(wrapper);
+        await wrapper.find('[data-test="start"]').trigger("click");
+        await flushPromises();
+        const request = JSON.parse(started[0]?.ok === false ? started[0].failure.message : "{}") as Record<
+            string,
+            unknown
+        >;
+        expect("accountId" in request).toBe(false);
     });
 });
 

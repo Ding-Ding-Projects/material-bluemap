@@ -1731,8 +1731,14 @@ interface MaterialBlueMapBridge {
     cancelCiRender(syncId: string): Promise<boolean>;
     onCiRenderEvent(listener: (event: CiSyncEvent) => void): () => void;
 
-    /** The signed-in login plus every organisation, for the setup card's owner field. */
-    ciRenderOwners(): Promise<CiOwnerChoicesAnswer>;
+    /**
+     * The signed-in login plus every organisation, for the setup card's owner field.
+     *
+     * Given an account id, resolves this for that specific stored account rather than
+     * whichever one is active - what the setup card's account picker uses to re-resolve
+     * the owner list the moment somebody chooses a different signed-in account.
+     */
+    ciRenderOwners(accountId?: string): Promise<CiOwnerChoicesAnswer>;
     /** A world or map name, sanitized to a name GitHub's own rules will accept. Pure; no network. */
     suggestCiRepoName(sourceName: string): Promise<string>;
     /** Whether `owner/repo` is free. `"unknown"` rather than a guess when it could not be told. */
@@ -1994,7 +2000,8 @@ const bridge: MaterialBlueMapBridge = {
         };
     },
 
-    ciRenderOwners: () => ipcRenderer.invoke("cirender:owners"),
+    ciRenderOwners: (accountId) =>
+        ipcRenderer.invoke("cirender:owners", accountId === undefined ? undefined : { accountId }),
     suggestCiRepoName: (sourceName) => ipcRenderer.invoke("cirender:suggestRepoName", sourceName),
     checkCiRepoName: (request) => ipcRenderer.invoke("cirender:checkRepoName", request),
 

@@ -73,14 +73,25 @@ export interface CiRenderIpcOptions {
     readonly ipcMain: IpcMain;
     /** Where maps and sync records live. A function, so a moved storage folder takes effect. */
     readonly storageDir: () => string;
-    /** The signed-in token, resolved per operation. Null means nobody is signed in. */
-    readonly token: () => Promise<string | null> | string | null;
+    /**
+     * The signed-in token, resolved per operation. Null means nobody is signed in.
+     *
+     * Given an account id - see {@link CiSyncRequest.accountId} - resolves that specific
+     * stored account's own token; called with none, exactly as every caller before the
+     * setup card's account picker existed, this resolves to whichever account is active.
+     */
+    readonly token: (accountId?: string | undefined) => Promise<string | null> | string | null;
     /** Whether Mojang's EULA has been accepted here. Read only; never set from a channel. */
     readonly eulaAccepted: () => boolean | Promise<boolean>;
     /** The one backup runner the application owns. The upload is a backup, not a copy of one. */
     readonly backup: BackupSurface;
-    /** The signed-in login, for a message naming which credential drove a render. */
-    readonly account?: (() => string | null | Promise<string | null>) | undefined;
+    /**
+     * The signed-in login, for a message naming which credential drove a render.
+     *
+     * Takes the same optional account id `token` does, so the message names the account a
+     * request actually chose rather than always the active one.
+     */
+    readonly account?: ((accountId?: string | undefined) => string | null | Promise<string | null>) | undefined;
     /** How `gh` is run. Left out, real child processes; injected in every test. */
     readonly runner?: ProcessRunner | undefined;
     /** Overridable so a test can watch what was broadcast. */
@@ -245,19 +256,30 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
     // The setup card's own three answers. Each resolves the token the same way `sync`
     // does - per call, from whatever `options.token` reads right now - and none of them
     // holds anything between calls.
-    options.ipcMain.handle("cirender:owners", async (): Promise<CiOwnerChoicesAnswer> => {
-        try {
-            return await listCiOwnerChoices({
-                token: options.token,
-                ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
-                ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
-            });
-        } catch (error) {
-            // listCiOwnerChoices already turns its own failures into a result rather than
-            // a throw; this is a last resort for anything that got past that.
-            return { ok: false, signedIn: true, message: sentence(error) };
-        }
-    });
+    //
+    // `cirender:owners` takes an optional account id so the account picker can re-resolve
+    // this list for whichever stored account was chosen rather than always the active one.
+    // Omitted, this behaves exactly as it did before the picker existed.
+    options.ipcMain.handle(
+        "cirender:owners",
+        async (
+            _event: IpcMainInvokeEvent,
+            request: { accountId?: unknown } | undefined,
+        ): Promise<CiOwnerChoicesAnswer> => {
+            const accountId = readText(request?.accountId);
+            try {
+                return await listCiOwnerChoices({
+                    token: () => options.token(accountId ?? undefined),
+                    ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+                    ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
+                });
+            } catch (error) {
+                // listCiOwnerChoices already turns its own failures into a result rather
+                // than a throw; this is a last resort for anything that got past that.
+                return { ok: false, signedIn: true, message: sentence(error) };
+            }
+        },
+    );
 
     options.ipcMain.handle(
         "cirender:suggestRepoName",
@@ -314,11 +336,13 @@ function readRequest(value: unknown): CiSyncRequest | null {
     const mapId = readText(record["mapId"]);
     const output = record["output"];
     const route = record["route"];
+    const accountId = readText(record["accountId"]);
     return {
         worldFolder,
         owner,
         repo,
         ...(mapId === null ? {} : { mapId }),
+        ...(accountId === null ? {} : { accountId }),
         acknowledgeUpload: record["acknowledgeUpload"] === true,
         acknowledgePublic: record["acknowledgePublic"] === true,
         forceUpload: record["forceUpload"] === true,

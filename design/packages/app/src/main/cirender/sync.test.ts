@@ -488,6 +488,113 @@ describe("the live events carry the route and the upload's own item counts", () 
     });
 });
 
+/**
+ * The setup card's account picker names a stored account by id, additively, so a sync run
+ * with none of it named still resolves whichever account is active - exactly what every
+ * caller before the picker existed already relied on. `token`/`account` both take that id
+ * now; these tests prove it actually reaches both of them, on both `preflight()` and the
+ * real dispatch inside `sync()`, rather than only decorating a message.
+ */
+describe("an account id a request names drives the credential, not only decorates a message", () => {
+    it("resolves the token and the login for the chosen account through preflight, and the active account when none is named", async () => {
+        const github = baseRoutes(new RecordingGitHub());
+        const tokenCalls: (string | undefined)[] = [];
+        const accountCalls: (string | undefined)[] = [];
+        const sync = new CiRenderSync({
+            storageDir: () => join(workDir, "maps"),
+            token: (accountId) => {
+                tokenCalls.push(accountId);
+                return TOKEN;
+            },
+            account: (accountId) => {
+                accountCalls.push(accountId);
+                return accountId === "acct-2" ? "monalisa" : "octocat";
+            },
+            runner: noGh(),
+            eulaAccepted: () => true,
+            backup: fakeBackup(true),
+            fetch: github.fetch,
+            apiBase: API,
+            uploadsBase: UPLOADS,
+            now: () => NOW,
+            sleep: () => Promise.resolve(),
+        });
+
+        // Nobody named an account: this is the exact call shape every caller before the
+        // picker existed already made, and it must keep resolving to the active account.
+        const active = await sync.preflight(request());
+        expect(active.ok).toBe(true);
+        if (active.ok) expect(active.preflight.routeReport.describe).toContain("octocat");
+
+        // The setup card's picker named a specific stored account instead.
+        const named = await sync.preflight(request({ accountId: "acct-2" }));
+        expect(named.ok).toBe(true);
+        if (named.ok) expect(named.preflight.routeReport.describe).toContain("monalisa");
+
+        // Both the token and the login-for-messages resolvers actually received the id,
+        // rather than only the text shown on screen happening to look right.
+        expect(tokenCalls).toEqual([undefined, "acct-2"]);
+        expect(accountCalls).toEqual([undefined, "acct-2"]);
+    });
+
+    it("carries the chosen account through the real dispatch, not only the preflight read", async () => {
+        const github = releaseRoute(baseRoutes(new RecordingGitHub()))
+            .on("GET", "/actions/workflows/render-world.yml/runs", {
+                status: 200,
+                json: { workflow_runs: [runJson({ id: 7, status: "queued" })] },
+            })
+            .on("GET", /\/actions\/runs\/7$/, { status: 200, json: runJson({ id: 7, status: "queued" }) })
+            .on("GET", "/actions/runs/7/jobs", { status: 200, json: { jobs: [] } });
+        await seedUploadedState();
+
+        const tokenCalls: (string | undefined)[] = [];
+        const accountCalls: (string | undefined)[] = [];
+        const sync = new CiRenderSync({
+            storageDir: () => join(workDir, "maps"),
+            token: (accountId) => {
+                tokenCalls.push(accountId);
+                return TOKEN;
+            },
+            account: (accountId) => {
+                accountCalls.push(accountId);
+                return accountId === "acct-2" ? "monalisa" : "octocat";
+            },
+            runner: noGh(),
+            eulaAccepted: () => true,
+            backup: fakeBackup(true),
+            fetch: github.fetch,
+            apiBase: API,
+            uploadsBase: UPLOADS,
+            now: () => NOW,
+            sleep: () => Promise.resolve(),
+            pollIntervalMs: 0,
+            runLookupAttempts: 2,
+        });
+
+        const result = await sync.sync(request({ accountId: "acct-2", follow: false }));
+
+        expect(result.ok).toBe(true);
+        // The world was unchanged, so this proves the dispatch itself happened - the real
+        // credential-using call, not merely a read - under the account the request named.
+        expect(github.countOf("/dispatches", "POST")).toBe(1);
+        expect(tokenCalls).toContain("acct-2");
+        expect(accountCalls).toContain("acct-2");
+    });
+
+    it("falls back to the active account for every existing caller that never names one", async () => {
+        // The same shape `makeSync()` builds for the whole rest of this file: a single-
+        // argument-ignoring `token`, called the way it always was. Nothing here changed for
+        // it - the parameter is additive, and this is the proof rather than an assumption.
+        const github = baseRoutes(new RecordingGitHub());
+        const sync = makeSync({ github, backup: fakeBackup(true) });
+
+        const result = await sync.preflight(request());
+
+        expect(result.ok).toBe(true);
+        if (result.ok) expect(result.preflight.routeReport.ready).toBe(true);
+    });
+});
+
 describe("a run that is still going is reported as still going", () => {
     it("says which wave a job belongs to, read from its own name", async () => {
         const github = releaseRoute(baseRoutes(new RecordingGitHub()))

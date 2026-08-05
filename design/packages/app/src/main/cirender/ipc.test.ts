@@ -216,6 +216,123 @@ describe("what crosses", () => {
     });
 });
 
+/**
+ * The setup card's account picker names a stored account by id, additively, over these
+ * three channels: `cirender:owners`, `cirender:preflight` and `cirender:start`. Each test
+ * here proves the id in the request payload actually reaches `options.token`, not merely
+ * that the channel still answers something - `install()`'s own `token` above ignores the
+ * argument entirely, which is exactly the backward-compatible shape these prove keeps
+ * working, and a custom recording `token` is what proves the new parameter is not decorative.
+ */
+describe("the account id a request names reaches the token resolver", () => {
+    it("cirender:owners resolves for the account id the request names, and for nobody without one", async () => {
+        const ipcMain = fakeIpcMain();
+        const tokenCalls: (string | undefined)[] = [];
+        const github = new RecordingGitHub().on("GET", /\/user$/, { status: 200, json: { login: "monalisa", id: 2 } });
+        installCiRenderIpc({
+            ipcMain,
+            storageDir: () => join(workDir, "maps"),
+            // Only answers a token for one specific account, so a call that succeeds proves
+            // that exact id was the one asked for rather than merely that some token worked.
+            token: (accountId) => {
+                tokenCalls.push(accountId);
+                return accountId === "acct-2" ? TOKEN : null;
+            },
+            runner: noGh(),
+            eulaAccepted: () => true,
+            backup: backupSurface(true),
+            broadcast: () => {},
+            fetch: github.fetch,
+            apiBase: "https://api.test",
+            sleep: () => Promise.resolve(),
+        });
+
+        const withoutAccount = (await (ipcMain.handlers.get("cirender:owners") as Handler)(
+            noEvent,
+            undefined,
+        )) as { ok: boolean; signedIn?: boolean };
+        expect(withoutAccount.ok).toBe(false);
+        expect(withoutAccount.signedIn).toBe(false);
+
+        const withAccount = (await (ipcMain.handlers.get("cirender:owners") as Handler)(noEvent, {
+            accountId: "acct-2",
+        })) as { ok: boolean; login?: string };
+        expect(withAccount.ok).toBe(true);
+        expect(withAccount.login).toBe("monalisa");
+
+        expect(tokenCalls).toEqual([undefined, "acct-2"]);
+    });
+
+    it("cirender:preflight carries the account id from the request body to the token resolver", async () => {
+        const ipcMain = fakeIpcMain();
+        const tokenCalls: (string | undefined)[] = [];
+        const github = new RecordingGitHub()
+            .on("GET", /\/actions\/workflows\/render-world\.yml$/, {
+                status: 200,
+                json: { id: 1, name: "Render world", state: "active", path: "x" },
+            })
+            .on("GET", /\/repos\/o\/r$/, {
+                status: 200,
+                json: repositoryJson({ owner: OWNER, repo: REPO, isPrivate: true }),
+            });
+        installCiRenderIpc({
+            ipcMain,
+            storageDir: () => join(workDir, "maps"),
+            token: (accountId) => {
+                tokenCalls.push(accountId);
+                return TOKEN;
+            },
+            runner: noGh(),
+            eulaAccepted: () => true,
+            backup: backupSurface(true),
+            broadcast: () => {},
+            fetch: github.fetch,
+            apiBase: "https://api.test",
+            sleep: () => Promise.resolve(),
+        });
+
+        await (ipcMain.handlers.get("cirender:preflight") as Handler)(noEvent, {
+            worldFolder: world,
+            owner: OWNER,
+            repo: REPO,
+            accountId: "acct-9",
+        });
+
+        expect(tokenCalls).toContain("acct-9");
+    });
+
+    it("cirender:start carries the account id from the request body to the token resolver, refused or not", async () => {
+        const ipcMain = fakeIpcMain();
+        const tokenCalls: (string | undefined)[] = [];
+        installCiRenderIpc({
+            ipcMain,
+            storageDir: () => join(workDir, "maps"),
+            token: (accountId) => {
+                tokenCalls.push(accountId);
+                return null;
+            },
+            runner: noGh(),
+            eulaAccepted: () => true,
+            backup: backupSurface(true),
+            broadcast: () => {},
+            fetch: () => Promise.reject(new Error("no network expected")),
+            apiBase: "https://api.test",
+            sleep: () => Promise.resolve(),
+        });
+
+        // Refused for want of a repository read, well before any network call - but the
+        // credential is still resolved for the named account on the way there.
+        await (ipcMain.handlers.get("cirender:start") as Handler)(noEvent, {
+            worldFolder: world,
+            owner: OWNER,
+            repo: REPO,
+            accountId: "acct-9",
+        });
+
+        expect(tokenCalls).toContain("acct-9");
+    });
+});
+
 describe("being signed out is an answer, not a crash", () => {
     it("reports that neither credential can drive a render, without calling GitHub", async () => {
         // Preflight answers rather than refusing: its whole job is to say what would
