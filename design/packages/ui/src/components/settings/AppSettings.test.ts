@@ -52,6 +52,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "github-account": "GitHub account",
     "language-and-tone": "Language and tone",
     "surface-placement": "Where the panels sit",
+    "render-memory": "Render memory",
     "updates": "Updates",
     "history": "Version history",
     "diagnostics": "Diagnostics",

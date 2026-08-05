@@ -101,6 +101,47 @@ export interface JavaRuntimeBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* How much memory a render may use                                          */
+/* -------------------------------------------------------------------------- */
+
+/** Mirrors `RenderMemoryReadout` in `main/files/ipc.ts`. */
+export interface RenderMemoryReadout {
+    readonly mode: "automatic" | "manual";
+    readonly megabytes: number;
+    /** What automatic would choose on this machine right now. */
+    readonly recommendedMegabytes: number;
+    /** Physical memory, in mebibytes. Zero when it could not be read. */
+    readonly machineMegabytes: number;
+    readonly minimumMegabytes: number;
+    /** The ceiling the automatic default will never exceed on its own. */
+    readonly automaticCeilingMegabytes: number;
+    /** One paragraph naming the number, the unit and what happens either side of it. */
+    readonly explanation: string;
+    /** Exactly what a render will be started with, e.g. `["-Xmx4096m"]`. */
+    readonly jvmArgs: readonly string[];
+}
+
+export type RenderMemoryWriteResult =
+    | { readonly ok: true; readonly setting: RenderMemoryReadout }
+    | { readonly ok: false; readonly reason: string };
+
+/** What this row asks the main process to store. Mirrors `RenderMemorySetting`. */
+export type RenderMemoryWriteRequest =
+    | { readonly mode: "automatic" }
+    | { readonly mode: "manual"; readonly megabytes: number };
+
+/**
+ * Reading and writing the render process's `-Xmx` ceiling.
+ *
+ * Optional, like every bridge here: a browser tab has no main process to hold the
+ * setting, and the row says so rather than showing a number nobody measured.
+ */
+export interface RenderMemoryBridge {
+    renderMemory?: () => Promise<RenderMemoryReadout>;
+    setRenderMemory?: (setting: RenderMemoryWriteRequest) => Promise<RenderMemoryWriteResult>;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Renders that have already happened                                         */
 /* -------------------------------------------------------------------------- */
 
@@ -125,7 +166,10 @@ export interface RenderHistoryBridge {
     listRenders?: () => Promise<readonly RenderSummaryReadout[]>;
 }
 
-export type SettingsBridge = StorageDirectoryBridge & JavaRuntimeBridge & RenderHistoryBridge;
+export type SettingsBridge = StorageDirectoryBridge &
+    JavaRuntimeBridge &
+    RenderHistoryBridge &
+    RenderMemoryBridge;
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
     return typeof value === "function";
@@ -155,6 +199,37 @@ export function canReportJava(bridge: SettingsBridge | null): boolean {
 /** True when this build can list the renders already on disk. */
 export function canListRenders(bridge: SettingsBridge | null): boolean {
     return isFunction(bridge?.listRenders);
+}
+
+/** True when this build can report and change the render memory ceiling. */
+export function canReadRenderMemory(bridge: SettingsBridge | null): boolean {
+    return isFunction(bridge?.renderMemory);
+}
+
+/** True when this build can change the render memory ceiling, not merely report it. */
+export function canWriteRenderMemory(bridge: SettingsBridge | null): boolean {
+    return isFunction(bridge?.setRenderMemory);
+}
+
+/** The current ceiling, or null when this build cannot ask about it. */
+export async function readRenderMemory(bridge: SettingsBridge | null): Promise<RenderMemoryReadout | null> {
+    if (!isFunction(bridge?.renderMemory)) return null;
+    return await bridge.renderMemory();
+}
+
+/** Stores a new ceiling, reporting a refusal rather than swallowing it. */
+export async function writeRenderMemory(
+    bridge: SettingsBridge | null,
+    setting: RenderMemoryWriteRequest,
+): Promise<RenderMemoryWriteResult> {
+    if (!isFunction(bridge?.setRenderMemory)) {
+        return {
+            ok: false,
+            reason:
+                "This build cannot change how much memory a render may use. The desktop app owns that setting; a browser tab has no access to it.",
+        };
+    }
+    return await bridge.setRenderMemory(setting);
 }
 
 /**

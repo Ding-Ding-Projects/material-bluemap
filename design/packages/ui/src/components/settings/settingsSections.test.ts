@@ -64,6 +64,12 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["Settings", "Docked to the bottom"],
     },
     {
+        anchor: "render-memory",
+        title: "Render memory",
+        description: "How much memory the render process may use, as a JVM heap ceiling.",
+        values: ["automatic", "4096"],
+    },
+    {
         anchor: "updates",
         title: "Updates",
         description: "Whether this build is up to date, when it last checked, and where updates come from.",
@@ -141,6 +147,7 @@ describe("every section the surface renders", () => {
             "github-account",
             "language-and-tone",
             "surface-placement",
+            "render-memory",
             "updates",
             "history",
             "diagnostics",

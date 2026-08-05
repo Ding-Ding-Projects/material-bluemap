@@ -688,6 +688,71 @@ export const SETTINGS_VOICED = {
             "點解一次 render 或者 web server 開唔到，係由實際觀察到嘅嘢推斷出嚟，唔係靠估。除非裝咗本機 coding agent 仲特登開咗，唔會有半隻 model 埋到身，佢做嘅每一個改動都會記錄喺上面嗰個版本記錄度，隨時都可以反悔。",
         ],
     },
+
+    /* ---------------------------------------------------------------- */
+    /* The Render memory section                                         */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * `settings.renderMemory.description`: the tab that mounts `RenderMemoryRow`, the
+     * control for `files/renderMemory.ts`'s `-Xmx` ceiling - a setting that had a real
+     * store, real validation and a real IPC channel from the day it was written, and
+     * exactly one caller: a unit test. `render/orchestrator.ts`'s `jvmArgs` option is what
+     * finally lets a render read it. "Automatic" and "Manual" are pinned in both languages
+     * at every level because they are this row's own two named modes, not incidental words -
+     * a level that stopped naming one of them would leave a reader unable to find the
+     * button the sentence is describing.
+     */
+    "settings.renderMemory.description": {
+        en: [
+            "How much memory the render process may use, as a JVM heap ceiling. Automatic works out a sensible number from this machine's own memory; Manual lets you set your own.",
+            "How much memory the render process may use, as a JVM heap ceiling. Automatic works out a sensible number from this machine's own memory; Manual lets you set your own.",
+            "How much memory the render process may use, as a JVM heap ceiling. Automatic works out a sensible number from this machine's own memory; Manual lets you set your own instead.",
+            "How much memory a render is allowed to use, as a hard JVM heap ceiling. Automatic, the default, works out a sensible number from this machine's own memory; switch to Manual and pick your own whenever you know better.",
+            "How much memory a render is allowed to gobble, as a hard JVM heap ceiling. Automatic, the default and the polite choice, works out a sensible number from this machine's own memory; flip to Manual and pick your own number whenever you reckon you know better than the app does.",
+        ],
+        yue: [
+            "算圖進程可以用幾多記憶體，即係 JVM heap 上限。Automatic 會按呢部機自己嘅記憶體計出一個合理數值；Manual 就俾你自己揀。",
+            "算圖進程可以用幾多記憶體，即係 JVM heap 上限。Automatic 會按呢部機自己嘅記憶體計出一個合理數值；Manual 就俾你自己揀。",
+            "算圖進程可以用幾多記憶體，即係 JVM heap 上限。Automatic 會按呢部機自己嘅記憶體計出一個合理數值；想自己揀就用 Manual。",
+            "一次算圖可以用幾多記憶體，即係一個實實在在嘅 JVM heap 上限。Automatic（預設）會按呢部機自己嘅記憶體計出個合理數；想自己話事就轉去 Manual 揀個數。",
+            "一次算圖可以食幾多記憶體，即係一個實實在在嘅 JVM heap 上限。Automatic（預設，亦係最斯文嗰個選擇）會按呢部機自己嘅記憶體計出個合理數；覺得自己叻過個 app 就轉去 Manual 自己揀個數。",
+        ],
+    },
+    /* Shown instead of the controls on a build with no main process to ask, e.g. a browser tab. */
+    "settings.renderMemory.unsupported": {
+        en: [
+            "This build cannot report or change how much memory a render may use. Nothing is wrong with the setting; the app has no way to ask about it from this screen yet.",
+            "This build cannot report or change how much memory a render may use. Nothing is wrong with the setting; the app has no way to ask about it from this screen yet.",
+            "This build cannot report or change how much memory a render may use. Nothing is wrong with the setting - the app just has no way to ask about it from this screen yet.",
+            "This build has no way to report or change how much memory a render may use. Nothing is wrong with the setting itself; this screen simply cannot ask the question yet.",
+            "This build has no way to report or change how much memory a render may use, full stop. Nothing is wrong with the setting itself; this screen just cannot ask the question yet, so do not go blaming the poor JVM.",
+        ],
+        yue: [
+            "呢個版本冇辦法睇到或者改動一次算圖可以用幾多記憶體。個設定冇壞；只不過呢個畫面暫時仲問唔到呢個問題。",
+            "呢個版本冇辦法睇到或者改動一次算圖可以用幾多記憶體。個設定冇壞；只不過呢個畫面暫時仲問唔到呢個問題。",
+            "呢個版本冇辦法睇到或者改動一次算圖可以用幾多記憶體。個設定本身冇壞，淨係呢個畫面暫時仲問唔到呢個問題。",
+            "呢個版本完全冇辦法睇到或者改動一次算圖可以用幾多記憶體。個設定本身冇壞，只係呢個畫面而家問唔到呢個問題。",
+            "呢個版本完全冇辦法睇到或者改動一次算圖可以用幾多記憶體，齊晒。個設定本身冇壞，淨係呢個畫面而家問唔到呢條問題，唔關 JVM 事。",
+        ],
+    },
+    /* Shown alongside the controls when this build can read the ceiling but not write it. */
+    "settings.renderMemory.readOnly": {
+        en: [
+            "This build can show the ceiling but cannot change it. The desktop app owns that setting; a browser tab has no access to it.",
+            "This build can show the ceiling but cannot change it. The desktop app owns that setting; a browser tab has no access to it.",
+            "This build can show the ceiling but cannot change it. The desktop app owns that setting, and a browser tab has no access to it.",
+            "This build can show the ceiling, but cannot change it. The desktop app owns that setting, and a browser tab simply has no access to it.",
+            "This build can show the ceiling all it likes, but cannot change it. The desktop app owns that setting, and a browser tab has no access to it whatsoever.",
+        ],
+        yue: [
+            "呢個版本可以顯示個上限，但係改唔到。呢個設定由桌面版負責，網頁分頁冇權限改。",
+            "呢個版本可以顯示個上限，但係改唔到。呢個設定由桌面版負責，網頁分頁冇權限改。",
+            "呢個版本可以顯示個上限，不過改唔到。呢個設定歸桌面版管，網頁分頁冇權限改佢。",
+            "呢個版本淨係顯示到個上限，改唔到。呢個設定歸桌面版管，網頁分頁完全冇權限改。",
+            "呢個版本鍾意點顯示個上限都得，總之就係改唔到。呢個設定歸桌面版管，網頁分頁一啲權限都冇。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const SETTINGS_FIXED = {
@@ -764,6 +829,19 @@ export const SETTINGS_FIXED = {
 
     /* The Diagnostics tab's own heading, above `settings.diagnostics.description`. */
     "settings.diagnostics.title": { en: "Diagnostics", yue: "診斷" },
+
+    /* The Render memory tab's own heading, above `settings.renderMemory.description`. */
+    "settings.renderMemory.title": { en: "Render memory", yue: "算圖記憶體" },
+    "settings.renderMemory.automatic": { en: "Automatic", yue: "自動" },
+    "settings.renderMemory.manual": { en: "Manual", yue: "手動" },
+    "settings.renderMemory.megabytesField": { en: "Megabytes", yue: "MB（百萬位元組）" },
+    "settings.renderMemory.save": { en: "Save this limit", yue: "儲存呢個上限" },
+    "settings.renderMemory.reset": { en: "Reset to automatic", yue: "重設做自動" },
+    "settings.renderMemory.pickerLabel": {
+        en: "How the memory ceiling is chosen",
+        yue: "記憶體上限點揀",
+    },
+    "settings.renderMemory.saved": { en: "Saved.", yue: "已儲存。" },
 } as const satisfies Record<string, FixedString>;
 
 export const SETTINGS_FACTS = {
@@ -910,6 +988,21 @@ export const SETTINGS_FACTS = {
     "settings.diagnostics.description": {
         en: ["model", "recorded"],
         yue: ["model", "記錄"],
+    },
+
+    // The row's own two named modes. A level that stopped naming one would leave a
+    // reader unable to find the button the sentence is describing.
+    "settings.renderMemory.description": {
+        en: ["Automatic", "Manual"],
+        yue: ["Automatic", "Manual"],
+    },
+    "settings.renderMemory.unsupported": {
+        en: ["report or change", "Nothing is wrong"],
+        yue: ["冇辦法", "冇壞"],
+    },
+    "settings.renderMemory.readOnly": {
+        en: ["show", "cannot change", "desktop app"],
+        yue: ["顯示", "改唔到", "桌面版"],
     },
 } as const satisfies Record<
     keyof typeof SETTINGS_VOICED,

@@ -63,7 +63,14 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * all of them at once has to live somewhere a person can find it when they have moved a
  * panel somewhere they now regret. That is what this section is.
  *
- * Updates is last for the same reason GitHub sign-in and language-and-tone are not
+ * Render memory is next: the `-Xmx` ceiling a render's JVM may use, per
+ * `main/files/renderMemory.ts`. Not an anchor for a subtler reason than the two above it —
+ * a render that runs out of heap fails with an `OutOfMemoryError` the engine reports as an
+ * ordinary render failure rather than as a typed `SettingsTarget`, so there is no failure
+ * shape today that could honestly point here. It sits beside surface placement because
+ * both are "the app already picked something sensible; here is where you'd change it".
+ *
+ * Updates is next for the same reason GitHub sign-in and language-and-tone are not
  * anchors: no render stops for the want of an update, so nothing in the bridge's
  * `SettingsTarget` could honestly point at it. It is the one place the installed version,
  * the last check, the feed and a manual "Check for updates" are always reachable rather
@@ -88,6 +95,7 @@ export const SETTINGS_SECTIONS = [
     "github-account",
     "language-and-tone",
     "surface-placement",
+    "render-memory",
     "updates",
     "history",
     "diagnostics",

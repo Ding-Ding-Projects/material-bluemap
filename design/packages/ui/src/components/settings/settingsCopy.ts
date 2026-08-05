@@ -89,6 +89,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Every panel that docks to an edge remembers its own position: floating, or docked to the left, right, top or bottom. Each one is changed from its own title bar. This is where all of them are put back at once.",
             ),
         },
+        "render-memory": {
+            title: t("settings.renderMemory.title", "Render memory"),
+            description: t(
+                "settings.renderMemory.description",
+                "How much memory the render process may use, as a JVM heap ceiling. Automatic works out a sensible number from this machine's own memory; Manual lets you set your own.",
+            ),
+        },
         "updates": {
             title: t("settings.updates.title", "Updates"),
             description: t(

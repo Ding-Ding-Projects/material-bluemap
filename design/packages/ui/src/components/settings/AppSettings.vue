@@ -26,6 +26,8 @@ import { DOCK_PLACEMENTS } from "./dockPlacement.js";
 import { dockedSurfaces } from "./useDockPlacement.js";
 import { createJavaSetting, describeJavaRejections } from "./javaSetting.js";
 import { createMapStorageSetting } from "./mapStorageSetting.js";
+import { createRenderMemorySetting } from "./renderMemorySetting.js";
+import RenderMemoryRow from "./RenderMemoryRow.vue";
 import {
     dockPlacementLabel,
     githubSectionCopy,
@@ -121,6 +123,7 @@ const { t } = useI18n();
 const storage = createMapStorageSetting();
 const java = createJavaSetting();
 const github = createGitHubAccount();
+const renderMemory = createRenderMemorySetting();
 
 /** Every docked panel that is open right now, including this one. */
 const surfaces = dockedSurfaces();
@@ -142,6 +145,7 @@ const worldSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const githubSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const languageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const placementSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const renderMemorySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const historySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const diagnosticsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -275,6 +279,22 @@ const sections = computed<SettingsSectionText[]>(() => {
                 ...DOCK_PLACEMENTS.map((placement) => dockPlacementLabel(t, placement)),
             ],
         },
+        // The current mode, the number, and the machine's own memory when this build can
+        // ask about it - the same "search what is actually on screen" rule every other
+        // section follows, so typing "automatic" or a megabyte figure finds this tab.
+        {
+            anchor: "render-memory",
+            title: text["render-memory"].title,
+            description: text["render-memory"].description,
+            values:
+                renderMemory.readout.value === null
+                    ? []
+                    : [
+                          renderMemory.readout.value.mode,
+                          String(renderMemory.readout.value.megabytes),
+                          renderMemory.readout.value.explanation,
+                      ],
+        },
         // The installed and staged versions, the last check and the feed, plus the row's
         // own words for whatever it is currently saying (checking, up to date, failed,
         // unsupported) - the same "search what is actually on screen" rule every other
@@ -377,6 +397,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return languageSection.value;
         case "surface-placement":
             return placementSection.value;
+        case "render-memory":
+            return renderMemorySection.value;
         case "updates":
             return updatesSection.value;
         case "history":
@@ -510,6 +532,7 @@ watch(
         // Cheap: it reads stored metadata rather than the credential, so asking never
         // prompts the operating system's credential store.
         void github.load();
+        void renderMemory.load();
         scheduleReveal(props.anchor);
     },
     { immediate: true },
@@ -715,6 +738,25 @@ function onDrawer(value: boolean): void {
                         :description="copy['surface-placement'].description"
                     >
                         <SurfacePlacementRow />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    The `-Xmx` heap ceiling a render's JVM may use. `files/renderMemory.ts`
+                    has stored, validated and reported this since it was written; what was
+                    missing was a control, and a render that actually read the choice back
+                    (see `render/orchestrator.ts`'s `jvmArgs` option). No render can send
+                    somebody here today - see `settingsSections.ts`'s own note on why - so
+                    like surface placement and updates this is reached by opening Settings.
+                -->
+                <template #render-memory>
+                    <SettingsSection
+                        ref="renderMemorySection"
+                        anchor="render-memory"
+                        :title="copy['render-memory'].title"
+                        :description="copy['render-memory'].description"
+                    >
+                        <RenderMemoryRow :setting="renderMemory" />
                     </SettingsSection>
                 </template>
 
