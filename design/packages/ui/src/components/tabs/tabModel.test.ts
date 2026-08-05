@@ -16,6 +16,7 @@ import {
     assignTabToGroup,
     closeTabs,
     createGroup,
+    filterHiddenSegments,
     fitCount,
     focusOrder,
     isGroupExpanded,
@@ -304,5 +305,82 @@ describe("identity and overflow arithmetic", () => {
 
     it("keeps nothing when nothing can fit beside the button", () => {
         expect(fitCount([100, 100], 60, 40)).toBe(0);
+    });
+});
+
+describe("filtering the overflow menu's own segments", () => {
+    // The tab-strip overflow list used to be a bare fixed list with no search field at
+    // all, so nothing here narrowed it. This is the algorithm behind the search field it
+    // gained, proven directly against fixtures rather than by forcing a real overflow
+    // inside a mounted component -- jsdom has no layout engine, so nothing would ever
+    // actually measure as not fitting there.
+    const matches = (query: string) => (label: string) => label.toLowerCase().includes(query.toLowerCase());
+
+    function segmentsOf(strip: TabStripState): ReturnType<typeof stripSegments> {
+        return stripSegments(strip);
+    }
+
+    it("keeps a lone tab only when its own label matches", () => {
+        const strip = stripOf("Alpha", "Bravo", "Charlie");
+        const segments = segmentsOf(strip);
+
+        const filtered = filterHiddenSegments(segments, matches("bravo"));
+
+        expect(filtered).toHaveLength(1);
+        expect(filtered[0]).toMatchObject({ kind: "tab", tab: { label: "Bravo" } });
+    });
+
+    it("keeps every member of a group whose own name matches, even ones that do not", () => {
+        const withGroup = createGroup(stripOf("Alpha", "Bravo", "Charlie"), { name: "My Project" }, [
+            "Bravo",
+            "Charlie",
+        ]);
+        const segments = segmentsOf(withGroup);
+
+        const filtered = filterHiddenSegments(segments, matches("project"));
+
+        expect(filtered).toHaveLength(1);
+        const group = filtered[0];
+        if (group?.kind !== "group") throw new Error("expected a group segment");
+        expect(group.tabs.map((tab) => tab.label)).toEqual(["Bravo", "Charlie"]);
+    });
+
+    it("narrows a non-matching group down to just the members that match", () => {
+        const withGroup = createGroup(stripOf("Alpha", "Bravo", "Charlie"), { name: "My Project" }, [
+            "Bravo",
+            "Charlie",
+        ]);
+        const segments = segmentsOf(withGroup);
+
+        const filtered = filterHiddenSegments(segments, matches("bravo"));
+
+        expect(filtered).toHaveLength(1);
+        const group = filtered[0];
+        if (group?.kind !== "group") throw new Error("expected a group segment");
+        expect(group.tabs.map((tab) => tab.label)).toEqual(["Bravo"]);
+    });
+
+    it("drops a group entirely once neither its name nor any member matches", () => {
+        const withGroup = createGroup(stripOf("Alpha", "Bravo", "Charlie"), { name: "My Project" }, [
+            "Bravo",
+            "Charlie",
+        ]);
+        const segments = segmentsOf(withGroup);
+
+        const filtered = filterHiddenSegments(segments, matches("nothing here matches that"));
+
+        expect(filtered).toEqual([]);
+    });
+
+    it("returns every segment unchanged when the query matches everything", () => {
+        const withGroup = createGroup(stripOf("Alpha", "Bravo", "Charlie"), { name: "My Project" }, [
+            "Bravo",
+            "Charlie",
+        ]);
+        const segments = segmentsOf(withGroup);
+
+        const filtered = filterHiddenSegments(segments, () => true);
+
+        expect(filtered).toEqual(segments);
     });
 });

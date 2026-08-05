@@ -838,3 +838,96 @@ describe("the host API: revealPage and renamePage", () => {
         view.unmount();
     });
 });
+
+/**
+ * The new-tab picker's own search field, mounted.
+ *
+ * It used to be a bare fixed `v-list` of the pages this shell can show -- the last context
+ * menu in this application without a search field of its own. This proves the fix actually
+ * filters, rather than trusting `menuCoverage.test.ts`'s source grep alone.
+ */
+describe("the new-tab picker's search field", () => {
+    async function settle(): Promise<void> {
+        for (let index = 0; index < 4; index++) {
+            await nextTick();
+            await Promise.resolve();
+        }
+    }
+
+    async function openNewTabPicker(view: VueWrapper<InstanceType<typeof Host>>): Promise<void> {
+        const button = view.find('[aria-label="Open a new tab"]');
+        expect(button.exists()).toBe(true);
+        await button.trigger("click");
+        await settle();
+    }
+
+    function newTabSearch(): HTMLInputElement {
+        // Vuetify teleports the popup content out of the component's own tree, so this is
+        // read off the document, the same way the searchable tab list is read elsewhere in
+        // this file.
+        const input = document.querySelector<HTMLInputElement>(".mb-tabs-strip__menu-filter input[type='text']");
+        if (input === null) throw new Error("no search field rendered inside the new-tab picker");
+        return input;
+    }
+
+    it("carries a search field once opened, with every page listed", async () => {
+        const view = open();
+        await nextTick();
+        await openNewTabPicker(view);
+
+        expect(newTabSearch()).toBeDefined();
+        for (const label of ["Map", "Make a map", "Servers"]) {
+            expect(document.body.textContent).toContain(label);
+        }
+    });
+
+    it("narrows the pages as the search is typed", async () => {
+        const view = open();
+        await nextTick();
+        await openNewTabPicker(view);
+
+        const search = newTabSearch();
+        search.value = "Servers";
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+        await settle();
+
+        const rows = [...document.querySelectorAll(".mb-tabs-strip__sheet .v-list-item")].map(
+            (row) => row.textContent ?? "",
+        );
+        expect(rows.some((text) => text.includes("Servers"))).toBe(true);
+        expect(rows.every((text) => !text.includes("Map"))).toBe(true);
+    });
+
+    it("shows the honest no-match state when nothing survives the filter", async () => {
+        const view = open();
+        await nextTick();
+        await openNewTabPicker(view);
+
+        const search = newTabSearch();
+        search.value = "nothing here is named that";
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+        await settle();
+
+        expect(document.body.textContent).toContain("No command here matches that");
+    });
+
+    it("clicking a filtered page still opens it", async () => {
+        const view = open();
+        await nextTick();
+        await openNewTabPicker(view);
+
+        const search = newTabSearch();
+        search.value = "Servers";
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+        await settle();
+
+        const row = [...document.querySelectorAll(".mb-tabs-strip__sheet .v-list-item")].find((element) =>
+            (element.textContent ?? "").includes("Servers"),
+        );
+        expect(row).toBeDefined();
+        row?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await settle();
+
+        expect(tabs(view).map((tab) => tab.attributes("title"))).toEqual(["Map", "Make a map", "Servers", "Servers"]);
+    });
+});

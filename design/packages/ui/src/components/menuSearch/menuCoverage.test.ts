@@ -162,22 +162,19 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
     {
         file: "settings/DockedSurface.vue",
         builtVia: "v-menu",
-        menu: "The panel title's appearance editor (has search) and the placement chooser (does not).",
-        status: "pending",
-        // Owner: the dockPlacement.ts / panel host lane (explicitly named do-not-edit in
-        // this task). The placement chooser is a 7-item fixed v-list with no search field
-        // of its own; fixing it is that lane's call, not this task's.
-        owner: "dockPlacement.ts and the panel host lane",
+        menu: "The panel title's appearance editor and the placement chooser (both have search).",
+        status: "has-search",
+        // The placement chooser's filter is a bespoke ConfigSearchField wired directly to
+        // the existing markup, not MenuSearchList, because the options keep their icons
+        // and their menuitemradio selection state, neither of which MenuSearchList renders.
+        markers: ["ConfigSearchField"],
     },
     {
         file: "tabs/TabStrip.vue",
         builtVia: "v-menu",
-        menu: "The tab menu and group menu (both have search via TabMenuList), plus the new-tab picker and the overflow list (neither has search).",
-        status: "pending",
-        // Owner: the tab strip lane (explicitly named do-not-edit in this task: "the tab
-        // strip context menu and appearance-editor open paths"). The new-tab picker and the
-        // overflow list are both named DEFERRED in this task's own instructions.
-        owner: "the tab strip lane",
+        menu: "The tab menu and group menu (search via TabMenuList), plus the new-tab picker and the overflow list (search via a bespoke ConfigSearchField, for the same reason DockedSurface.vue's placement chooser is bespoke: icons and, for the overflow list, group subheaders that TabMenuList/MenuSearchList do not render).",
+        status: "has-search",
+        markers: ["ConfigSearchField", "TabMenuList"],
     },
 
     /* ---------------------------------------------------------------------- */
@@ -415,8 +412,14 @@ describe("menuCoverage.ts: what this pass fixed", () => {
         }
     });
 
-    it("left the deferred, owned menus exactly as it found them: pending, not fixed", () => {
-        expect(registryByFile.get("settings/DockedSurface.vue")?.status).toBe("pending");
-        expect(registryByFile.get("tabs/TabStrip.vue")?.status).toBe("pending");
+    it("gave DockedSurface.vue's placement chooser and TabStrip.vue's new-tab picker and overflow list a search field", () => {
+        // These two were left "pending" by an earlier pass because the files were another
+        // lane's at the time. Both are fair game now, and both are fixed: this asserts the
+        // real behaviour rather than the earlier deferral, so it fails on the old bare-list
+        // markup exactly as the other three fixes above do.
+        for (const file of ["settings/DockedSurface.vue", "tabs/TabStrip.vue"]) {
+            expect(registryByFile.get(file)?.status, file).toBe("has-search");
+            expect(registryByFile.get(file)?.owner, file).toBeUndefined();
+        }
     });
 });

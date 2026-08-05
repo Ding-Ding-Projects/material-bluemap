@@ -15,6 +15,8 @@ import {
 import { VBtn, VDivider, VIcon, VList, VListItem, VMenu, VTooltip } from "vuetify/components";
 
 import AppearanceTarget from "../appearance/AppearanceTarget.vue";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import {
     DOCK_PLACEMENTS,
     FLOATING_MARGIN,
@@ -655,6 +657,71 @@ function resetEverything(): void {
 
 const customised = computed(() => hasStoredPlacement(props.surfaceId));
 
+/* -------------------------------------------------------------------------- */
+/* The chooser's own filter                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A filterable command list needs a search field of its own, exactly like every other
+ * context menu in this application -- this one was the last bare fixed `v-list` without
+ * one. The placement options keep their icons and their `menuitemradio` selection state,
+ * which `MenuSearchList` (built for a flat list of plain rows) does not render, so the
+ * filtering is wired directly to the existing markup instead of replacing it.
+ */
+const placementQuery = ref("");
+const placementRegexMode = ref(false);
+const placementFlags = ref("i");
+
+const placementMatcher = computed(() =>
+    createSettingMatcher(placementQuery.value, placementRegexMode.value, placementFlags.value),
+);
+
+const filteredPlacements = computed(() =>
+    DOCK_PLACEMENTS.filter((option) => placementMatcher.value.test(placementLabel(option))),
+);
+
+const resetThisLabel = computed(() =>
+    t("dock.reset.one", { title: props.title }, "Put {title} back where it started"),
+);
+const resetAllLabel = computed(() => t("dock.reset.all", "Put every panel back where it started"));
+
+const resetThisVisible = computed(() => placementMatcher.value.test(resetThisLabel.value));
+const resetAllVisible = computed(() => placementMatcher.value.test(resetAllLabel.value));
+
+/** What the anchored regex builder previews against: every row this menu can show. */
+const placementSample = computed(() =>
+    [...DOCK_PLACEMENTS.map((option) => placementLabel(option)), resetThisLabel.value, resetAllLabel.value].join(
+        "\n",
+    ),
+);
+
+const placementNoMatches = computed(
+    () => filteredPlacements.value.length === 0 && !resetThisVisible.value && !resetAllVisible.value,
+);
+
+/** The query starts fresh every time the chooser opens, so a leftover filter from last
+ *  time never hides the very placement somebody is about to pick. */
+watch(placementMenuOpen, (open) => {
+    if (open) return;
+    placementQuery.value = "";
+    placementRegexMode.value = false;
+});
+
+/**
+ * Escape clears before it closes, exactly as `MenuSearchList` does: a query still in the
+ * field is consumed here and the keydown stopped in its tracks, so the full list comes
+ * back rather than the whole menu vanishing out from under someone who only meant to see
+ * the rest of it again. An empty field leaves the keydown alone to reach the `v-menu`,
+ * which already closes itself on Escape by default.
+ */
+function onPlacementMenuKeydown(event: KeyboardEvent): void {
+    if (event.key !== "Escape") return;
+    if (placementQuery.value === "") return;
+    event.preventDefault();
+    event.stopPropagation();
+    placementQuery.value = "";
+}
+
 /**
  * Opened by the palette as well as by the button.
  *
@@ -848,13 +915,32 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
                             location="bottom end"
                             offset="4"
                         >
-                            <div class="mb-docked__menu" role="none">
+                            <div class="mb-docked__menu" role="none" @keydown="onPlacementMenuKeydown">
+                                <ConfigSearchField
+                                    v-model="placementQuery"
+                                    v-model:regex="placementRegexMode"
+                                    v-model:flags="placementFlags"
+                                    :label="t('menuSearch.filter', 'Filter these commands')"
+                                    :sample="placementSample"
+                                    class="mb-docked__menu-filter"
+                                />
+
+                                <p v-if="placementNoMatches" class="mb-docked__menu-empty" role="status">
+                                    {{
+                                        t(
+                                            "menuSearch.noMatch",
+                                            "No command here matches that. Clearing the search brings them all back.",
+                                        )
+                                    }}
+                                </p>
+
                                 <v-list
+                                    v-if="filteredPlacements.length > 0"
                                     density="compact"
                                     :aria-label="t('dock.chooser.list', 'Placement')"
                                 >
                                     <v-list-item
-                                        v-for="option in DOCK_PLACEMENTS"
+                                        v-for="option in filteredPlacements"
                                         :key="option"
                                         :prepend-icon="PLACEMENT_ICONS[option]"
                                         :title="placementLabel(option)"
@@ -865,24 +951,24 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
                                     />
                                 </v-list>
 
-                                <v-divider />
+                                <v-divider v-if="filteredPlacements.length > 0 && (resetThisVisible || resetAllVisible)" />
 
-                                <v-list density="compact" :aria-label="t('dock.chooser.reset', 'Reset')">
+                                <v-list
+                                    v-if="resetThisVisible || resetAllVisible"
+                                    density="compact"
+                                    :aria-label="t('dock.chooser.reset', 'Reset')"
+                                >
                                     <v-list-item
+                                        v-if="resetThisVisible"
                                         :prepend-icon="mdiRestore"
                                         :disabled="!customised"
-                                        :title="
-                                            t(
-                                                'dock.reset.one',
-                                                { title: props.title },
-                                                'Put {title} back where it started',
-                                            )
-                                        "
+                                        :title="resetThisLabel"
                                         @click="resetThis()"
                                     />
                                     <v-list-item
+                                        v-if="resetAllVisible"
                                         :prepend-icon="mdiRestore"
-                                        :title="t('dock.reset.all', 'Put every panel back where it started')"
+                                        :title="resetAllLabel"
                                         @click="resetEverything()"
                                     />
                                 </v-list>
@@ -1113,6 +1199,17 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
     box-shadow: 0 4px 8px 3px rgba(0, 0, 0, 0.15), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.mb-docked__menu-filter {
+    margin: 8px 8px 4px;
+}
+
+.mb-docked__menu-empty {
+    padding: 8px 12px 12px;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 /* -------------------------------------------------------------------------- */

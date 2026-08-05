@@ -211,6 +211,34 @@ export function stripSegments(strip: TabStripState): readonly StripSegment[] {
 }
 
 /**
+ * Narrows the overflow menu's own segments to what a local filter allows.
+ *
+ * A lone tab is kept only when its own label matches. A group is kept whole when its own
+ * name matches -- the group itself is what was found, so every member stays reachable --
+ * or narrowed to just the members whose own label matches when the name does not, and
+ * dropped entirely when neither is true. An empty group heading left behind by a filter
+ * would be a result nobody asked for and a row that does nothing when clicked.
+ *
+ * Pulled out of `TabStrip.vue` as a plain function precisely so it can be proven here,
+ * against fixtures, rather than only by forcing a real overflow inside a mounted
+ * component -- jsdom has no layout engine, so nothing here would ever actually be
+ * measured as not fitting.
+ */
+export function filterHiddenSegments(
+    segments: readonly StripSegment[],
+    matches: (label: string) => boolean,
+): readonly StripSegment[] {
+    return segments.flatMap((segment): readonly StripSegment[] => {
+        if (segment.kind === "tab") {
+            return matches(segment.tab.label) ? [segment] : [];
+        }
+        if (matches(segment.group.name)) return [segment];
+        const tabs = segment.tabs.filter((tab) => matches(tab.label));
+        return tabs.length > 0 ? [{ kind: "group", group: segment.group, tabs }] : [];
+    });
+}
+
+/**
  * Whether a group's tabs are on screen right now.
  *
  * `revealed` is the runtime set a search result adds to when it lands inside a

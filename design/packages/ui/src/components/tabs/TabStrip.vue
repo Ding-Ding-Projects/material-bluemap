@@ -40,6 +40,8 @@ import {
     typographyCapabilities,
     unregisterAppearanceTarget,
 } from "../appearance/useAppearance.js";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import { onRevealRequested } from "../shell/revealRequests.js";
 import TabButton from "./TabButton.vue";
 import TabFinder from "./TabFinder.vue";
@@ -49,6 +51,7 @@ import TabMenuList from "./TabMenuList.vue";
 import TabPlanConfirm from "./TabPlanConfirm.vue";
 import { planCloseOthers, planCloseToEdge, type TabClosePlan } from "./closePlans.js";
 import {
+    filterHiddenSegments,
     fitCount,
     focusOrder,
     isGroupExpanded,
@@ -867,6 +870,83 @@ function closeGroupAppearanceEditor(): void {
 
 const finderOpen = ref(false);
 const overflowOpen = ref(false);
+const newTabMenuOpen = ref(false);
+
+/* -------------------------------------------------------------------------- */
+/* The new-tab picker's own filter                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The new-tab picker was a bare fixed `v-list`, the last one in this file with no search
+ * field of its own. `TabMenuItem`/`TabMenuList` do not fit here: a page's icon can be
+ * `null` and there is no shortcut or danger styling to show, so the filter is wired
+ * directly to the existing markup instead, the same way the tab-strip overflow list below
+ * it is.
+ */
+const newTabQuery = ref("");
+const newTabRegexMode = ref(false);
+const newTabFlags = ref("i");
+
+const newTabMatcher = computed(() =>
+    createSettingMatcher(newTabQuery.value, newTabRegexMode.value, newTabFlags.value),
+);
+
+const filteredPages = computed(() => props.pages.filter((page) => newTabMatcher.value.test(page.label)));
+
+const newTabSample = computed(() => props.pages.map((page) => page.label).join("\n"));
+
+watch(newTabMenuOpen, (open) => {
+    if (open) return;
+    newTabQuery.value = "";
+    newTabRegexMode.value = false;
+});
+
+function onNewTabMenuKeydown(event: KeyboardEvent): void {
+    if (event.key !== "Escape") return;
+    if (newTabQuery.value === "") return;
+    event.preventDefault();
+    event.stopPropagation();
+    newTabQuery.value = "";
+}
+
+/* -------------------------------------------------------------------------- */
+/* The overflow list's own filter                                             */
+/* -------------------------------------------------------------------------- */
+
+const overflowQuery = ref("");
+const overflowRegexMode = ref(false);
+const overflowFlags = ref("i");
+
+const overflowMatcher = computed(() =>
+    createSettingMatcher(overflowQuery.value, overflowRegexMode.value, overflowFlags.value),
+);
+
+/** The same segments `hiddenSegments` already draws, narrowed by `filterHiddenSegments`
+ *  in `tabModel.ts` -- see that function for exactly what "narrowed" means for a group. */
+const filteredHiddenSegments = computed(() =>
+    filterHiddenSegments(hiddenSegments.value, (label) => overflowMatcher.value.test(label)),
+);
+
+/** What the builder previews against: every row this menu can show, flattened. */
+const overflowSample = computed(() =>
+    hiddenSegments.value
+        .flatMap((segment) => (segment.kind === "tab" ? [segment.tab.label] : [segment.group.name, ...segment.tabs.map((tab) => tab.label)]))
+        .join("\n"),
+);
+
+watch(overflowOpen, (open) => {
+    if (open) return;
+    overflowQuery.value = "";
+    overflowRegexMode.value = false;
+});
+
+function onOverflowMenuKeydown(event: KeyboardEvent): void {
+    if (event.key !== "Escape") return;
+    if (overflowQuery.value === "") return;
+    event.preventDefault();
+    event.stopPropagation();
+    overflowQuery.value = "";
+}
 
 /*
  * The command palette can ask for the finder by name.
@@ -1068,15 +1148,35 @@ const tabCountLabel = computed(() =>
                 density="comfortable"
             >
                 <v-icon :icon="mdiPlus" />
-                <v-menu activator="parent" location="bottom end" offset="4">
-                    <v-list density="compact" :aria-label="t('tabs.strip.newTab', 'Open a new tab')">
-                        <v-list-item v-for="page in pages" :key="page.id" @click="emit('open-page', page.id)">
-                            <template v-if="page.icon" #prepend>
-                                <v-icon :icon="page.icon" size="18" aria-hidden="true" />
-                            </template>
-                            {{ page.label }}
-                        </v-list-item>
-                    </v-list>
+                <v-menu v-model="newTabMenuOpen" activator="parent" location="bottom end" offset="4">
+                    <div class="mb-tabs-strip__sheet" @keydown="onNewTabMenuKeydown">
+                        <ConfigSearchField
+                            v-model="newTabQuery"
+                            v-model:regex="newTabRegexMode"
+                            v-model:flags="newTabFlags"
+                            :label="t('tabs.menu.filter', 'Filter these commands')"
+                            :sample="newTabSample"
+                            class="mb-tabs-strip__menu-filter"
+                        />
+
+                        <p v-if="filteredPages.length === 0" class="mb-tabs-strip__menu-empty" role="status">
+                            {{
+                                t(
+                                    "tabs.menu.noMatch",
+                                    "No command here matches that. Clearing the filter brings them all back.",
+                                )
+                            }}
+                        </p>
+
+                        <v-list v-else density="compact" :aria-label="t('tabs.strip.newTab', 'Open a new tab')">
+                            <v-list-item v-for="page in filteredPages" :key="page.id" @click="emit('open-page', page.id)">
+                                <template v-if="page.icon" #prepend>
+                                    <v-icon :icon="page.icon" size="18" aria-hidden="true" />
+                                </template>
+                                {{ page.label }}
+                            </v-list-item>
+                        </v-list>
+                    </div>
                 </v-menu>
             </v-btn>
 
@@ -1108,36 +1208,64 @@ const tabCountLabel = computed(() =>
                 >
                     <v-icon :icon="mdiChevronDown" />
                     <v-menu v-model="overflowOpen" activator="parent" location="bottom end" offset="4">
-                        <v-list density="compact" :aria-label="t('tabs.strip.overflowList', 'Tabs that do not fit')">
-                            <template
-                                v-for="segment in hiddenSegments"
-                                :key="segment.kind === 'tab' ? segment.tab.id : segment.group.id"
+                        <div class="mb-tabs-strip__sheet" @keydown="onOverflowMenuKeydown">
+                            <ConfigSearchField
+                                v-model="overflowQuery"
+                                v-model:regex="overflowRegexMode"
+                                v-model:flags="overflowFlags"
+                                :label="t('tabs.menu.filter', 'Filter these commands')"
+                                :sample="overflowSample"
+                                class="mb-tabs-strip__menu-filter"
+                            />
+
+                            <p
+                                v-if="filteredHiddenSegments.length === 0"
+                                class="mb-tabs-strip__menu-empty"
+                                role="status"
                             >
-                                <v-list-item
-                                    v-if="segment.kind === 'tab'"
-                                    @click="onOverflowChoice(segment.tab.id, null, false)"
+                                {{
+                                    t(
+                                        "tabs.menu.noMatch",
+                                        "No command here matches that. Clearing the filter brings them all back.",
+                                    )
+                                }}
+                            </p>
+
+                            <v-list
+                                v-else
+                                density="compact"
+                                :aria-label="t('tabs.strip.overflowList', 'Tabs that do not fit')"
+                            >
+                                <template
+                                    v-for="segment in filteredHiddenSegments"
+                                    :key="segment.kind === 'tab' ? segment.tab.id : segment.group.id"
                                 >
-                                    {{ segment.tab.label }}
-                                </v-list-item>
-                                <template v-else>
-                                    <!--
-                                        A subheader, not a disabled row. The group
-                                        name is a label here, and a row drawn like a
-                                        command that refuses every click is worse
-                                        than a heading that never claimed to be one.
-                                    -->
-                                    <v-list-subheader>{{ segment.group.name }}</v-list-subheader>
                                     <v-list-item
-                                        v-for="tab in segment.tabs"
-                                        :key="tab.id"
-                                        class="mb-tabs-strip__overflow-member"
-                                        @click="onOverflowChoice(tab.id, segment.group.id, segment.group.collapsed)"
+                                        v-if="segment.kind === 'tab'"
+                                        @click="onOverflowChoice(segment.tab.id, null, false)"
                                     >
-                                        {{ tab.label }}
+                                        {{ segment.tab.label }}
                                     </v-list-item>
+                                    <template v-else>
+                                        <!--
+                                            A subheader, not a disabled row. The group
+                                            name is a label here, and a row drawn like a
+                                            command that refuses every click is worse
+                                            than a heading that never claimed to be one.
+                                        -->
+                                        <v-list-subheader>{{ segment.group.name }}</v-list-subheader>
+                                        <v-list-item
+                                            v-for="tab in segment.tabs"
+                                            :key="tab.id"
+                                            class="mb-tabs-strip__overflow-member"
+                                            @click="onOverflowChoice(tab.id, segment.group.id, segment.group.collapsed)"
+                                        >
+                                            {{ tab.label }}
+                                        </v-list-item>
+                                    </template>
                                 </template>
-                            </template>
-                        </v-list>
+                            </v-list>
+                        </div>
                     </v-menu>
                 </v-btn>
             </v-badge>
@@ -1477,6 +1605,17 @@ const tabCountLabel = computed(() =>
 
 .mb-tabs-strip__overflow-member {
     padding-inline-start: 28px;
+}
+
+.mb-tabs-strip__menu-filter {
+    margin: 8px 8px 4px;
+}
+
+.mb-tabs-strip__menu-empty {
+    padding: 8px 12px 12px;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 @media (prefers-reduced-motion: reduce) {
