@@ -33,7 +33,9 @@ import * as directives from "vuetify/directives";
 import RenderRunPanel from "./RenderRunPanel.vue";
 import WorldScreen from "./WorldScreen.vue";
 import WorldWizard from "./WorldWizard.vue";
+import ContainerOffers from "./ContainerOffers.vue";
 import { forgetConsent } from "./consentState.js";
+import type { ContainerOffersBridge, ContainerScan, ReattachResult } from "./containerOffers.js";
 import type { MapWizard } from "./wizardModel.js";
 import type { RenderRequest, RenderResult, WorldBridge } from "./worldBridge.js";
 import type { ProjectHost, ProjectListing, ProjectReadAnswer, ProjectWriteAnswer } from "../project/projectHost.js";
@@ -372,5 +374,97 @@ describe("the route the panel reports", () => {
         await flushPromises();
 
         expect(run.progress.value.route).toBe("remote");
+    });
+});
+
+/**
+ * Reachability guard: `main/runtime/ipc.ts` has answered `runtime:containers` (and the
+ * three actions beside it) since Docker rendering shipped, and the preload has exposed all
+ * four on `containerOffers`/`reattachContainer`/`cancelContainer`/`dismissContainer` for
+ * just as long - but nothing in this package ever called any of them, so a render left
+ * running in a container after the app closed was invisible to every screen. This is the
+ * test that fails the moment that wiring is removed again: it does not merely check that a
+ * panel exists, it proves the screen actually calls `containerOffers()` on mount and that
+ * accepting an offer actually calls `reattachContainer` with the right render id.
+ */
+describe("containers left running from an earlier session", () => {
+    function fakeContainerBridge(scan: ContainerScan, reattached: string[]): ContainerOffersBridge {
+        return {
+            containerOffers: () => Promise.resolve(scan),
+            reattachContainer: (renderId) => {
+                reattached.push(renderId);
+                return Promise.resolve({
+                    ok: true,
+                    renderId,
+                    action: "attached",
+                    dataRoot: "C:/renders/web",
+                    message: "Picked back up.",
+                } satisfies ReattachResult);
+            },
+            cancelContainer: () => Promise.resolve(true),
+            dismissContainer: () => Promise.resolve(true),
+        };
+    }
+
+    it("calls runtime:containers on mount and shows what it finds", async () => {
+        const scan: ContainerScan = {
+            offers: [
+                {
+                    renderId: "r9",
+                    containerName: "material-bluemap-r9",
+                    mode: "docker",
+                    where: "this computer",
+                    mapIds: ["overworld"],
+                    startedAt: "2026-08-05T09:00:00Z",
+                    state: "running",
+                    action: "attach",
+                    canResume: true,
+                    suggestRestart: false,
+                    message: "Still running. Pick it up to watch its progress here.",
+                },
+            ],
+            strays: [],
+        };
+        const reattached: string[] = [];
+
+        const screen = mount(WorldScreen, {
+            props: {
+                bridge: fakeBridge({ accepted: true }),
+                optionalBridge: null,
+                host: null,
+                projectHost: null,
+                containerOffersBridge: fakeContainerBridge(scan, reattached),
+            },
+            global: { plugins: [vuetify, i18n()] },
+        });
+        await flushPromises();
+
+        const panel = screen.findComponent(ContainerOffers);
+        expect(panel.exists()).toBe(true);
+        expect(screen.text()).toContain("material-bluemap-r9");
+        expect(screen.text()).toContain("Still running. Pick it up to watch its progress here.");
+
+        const pickUp = screen.findAll("button").find((button) => button.text().includes("Pick this up"));
+        expect(pickUp).toBeDefined();
+        await pickUp?.trigger("click");
+        await flushPromises();
+
+        expect(reattached).toEqual(["r9"]);
+    });
+
+    it("stays off screen when this build has no container channel, rather than a Pick this up button that would throw", async () => {
+        const screen = mount(WorldScreen, {
+            props: {
+                bridge: fakeBridge({ accepted: true }),
+                optionalBridge: null,
+                host: null,
+                projectHost: null,
+                containerOffersBridge: null,
+            },
+            global: { plugins: [vuetify, i18n()] },
+        });
+        await flushPromises();
+
+        expect(screen.findComponent(ContainerOffers).exists()).toBe(false);
     });
 });

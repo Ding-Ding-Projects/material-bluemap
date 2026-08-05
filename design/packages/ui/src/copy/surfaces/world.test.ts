@@ -194,6 +194,7 @@ const worldComponentsRoot = fileURLToPath(new URL("../../components/world", impo
  */
 const COVERED_FILES = new Set([
     "BedrockConversionNote.vue",
+    "ContainerOffers.vue",
     "InterruptedRenders.vue",
     "MapIdentityStep.vue",
     "MapOptionsStep.vue",

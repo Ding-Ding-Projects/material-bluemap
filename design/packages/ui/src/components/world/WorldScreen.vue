@@ -3,10 +3,12 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiMapPlus, mdiProgressClock } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardText, VIcon } from "vuetify/components";
+import ContainerOffers from "./ContainerOffers.vue";
 import InterruptedRenders from "./InterruptedRenders.vue";
 import RenderRunPanel from "./RenderRunPanel.vue";
 import WorldWizard from "./WorldWizard.vue";
 import { consentIsAccepted, refreshConsent } from "./consentState.js";
+import { createContainerOffers, resolveContainerOffersBridge, type ContainerOffersBridge } from "./containerOffers.js";
 import { createRenderRun } from "./renderRun.js";
 import { createResumeOffers } from "./resumeOffers.js";
 import {
@@ -25,6 +27,7 @@ import { createBridgeConfigHost, provideConfigHost, type ConfigHost } from "../c
 import { provideSettingsOpener } from "../downloads/index.js";
 import { resolveProjectHost, type ProjectHost } from "../project/projectHost.js";
 import { projectFromWizard } from "../project/projectModel.js";
+import { emitTutorialSignal } from "../tutorial/tutorialSignals.js";
 import {
     RunLocationCard,
     createRenderRouter,
@@ -87,6 +90,14 @@ const props = withDefaults(
         remoteBridge?: RemoteBridge | null;
         /** True when the shell can open the surface that renders on GitHub's runners. */
         canOpenCi?: boolean;
+        /**
+         * The container-reattach channel, on the same convention as `bridge`.
+         *
+         * `undefined` means probe the Electron preload, `null` means there is deliberately
+         * none, in which case the "containers left running" panel stays off screen rather
+         * than offering a Pick this up button that would throw.
+         */
+        containerOffersBridge?: ContainerOffersBridge | null;
     }>(),
     { settingsEpoch: 0, canOpenCi: false },
 );
@@ -160,6 +171,16 @@ const router = createRenderRouter(bridge, remote, () => ({
 // actually goes to, not whichever one was chosen first. See `RenderRunOptions.route`.
 const run = createRenderRun(router ?? bridge, { route: () => runLocation.value });
 const offers = createResumeOffers(bridge);
+/**
+ * Containers left running from an earlier session - a render that outlived the window that
+ * started it, rendering in Docker or on a remote host. `main/runtime/ipc.ts` has answered
+ * `runtime:containers`/`runtime:reattach`/`runtime:cancelContainer`/`runtime:dismissContainer`
+ * since Docker rendering itself shipped; nothing on this screen ever asked, so a render left
+ * running this way was invisible until somebody went looking with `docker ps`.
+ */
+const containerOffers = createContainerOffers(
+    props.containerOffersBridge === undefined ? resolveContainerOffersBridge() : props.containerOffersBridge,
+);
 
 /**
  * Consent is read, not remembered.
@@ -195,6 +216,11 @@ let probedWorld = "";
 
 async function lookForProject(folder: string): Promise<void> {
     probedWorld = folder;
+    // A real, observable "the user did the thing" for the tour's own "finding a world" step -
+    // see `tutorialSignals.ts`. Fired on any world folder that resolved, whether it came from
+    // the auto-detected list, a manual path, a browsed folder or a drop, because all four are
+    // equally "picked a world" from where a newcomer is standing.
+    if (folder.trim() !== "") emitTutorialSignal("world-chosen");
     if (projects === null || folder === "") {
         existingProject.value = null;
         return;
@@ -308,6 +334,7 @@ onMounted(async () => {
     // mounts when there is a bridge and only renders when it has something to offer.
     // What is running right now has to be known either way.
     void offers.load();
+    void containerOffers.load();
     rereadConsent();
 
     // The record can also be changed by another window or another process, and those do
@@ -452,6 +479,7 @@ async function resume(renderId: string): Promise<void> {
         </section>
 
         <InterruptedRenders v-if="offers.available" :offers="offers" @resume="resume" />
+        <ContainerOffers v-if="containerOffers.available" :offers="containerOffers" />
 
         <RenderRunPanel
             :run="run"
@@ -519,7 +547,7 @@ async function resume(renderId: string): Promise<void> {
 
         <v-card v-if="wizardOpen" class="mb-world-screen__card">
             <v-card-text>
-                <header class="mb-world-screen__intro">
+                <header class="mb-world-screen__intro" data-tutorial-anchor="world-render-explainer">
                     <h2 class="mb-world-screen__title">
                         {{ t("world.screen.title", "Make a map, the quick way") }}
                     </h2>

@@ -691,6 +691,29 @@ export const WORLD_VOICED = {
             "BlueMap 自己嘅引擎，實牙實齒喺本機運作，唔關第二部機事。開始之後會即刻報返實際版本，唔使亂咁估。",
         ],
     },
+    /**
+     * The honest-expectations disclosure at the point of commitment, right beside the
+     * "Engine" fact it belongs next to. `welcome.cannot` in `setupStrings.ts` states the
+     * same fact before the wizard is ever opened; this restates it here because somebody
+     * who skipped past the welcome step, or is only now deciding whether to press the
+     * render button, deserves to see it again right where the decision actually happens.
+     */
+    "world.review.javaValue": {
+        en: [
+            "If this computer does not already have a suitable Java runtime, the app fetches one into its own folder before rendering starts. It is not installed system-wide.",
+            "If this computer does not already have a suitable Java runtime, the app fetches one into its own folder before rendering starts. It is not installed system-wide.",
+            "If this computer does not already have a suitable Java runtime, the render sets one up first, fetched into its own folder. It is not installed system-wide.",
+            "No suitable Java runtime on this machine? No bother. The app quietly fetches its own into its own folder before the first render, and it is not installed system-wide.",
+            "Missing a Java runtime? Not your problem. The app happily fetches its own copy into its own folder the moment it is needed, and it is not installed system-wide, so your machine stays exactly as tidy as before.",
+        ],
+        yue: [
+            "如果呢部電腦未有合適嘅 Java，算圖之前會幫你攞一份，放喺自己嘅資料夾入面，唔會裝落成部電腦。",
+            "如果呢部電腦未有合適嘅 Java，算圖之前會幫你攞一份，放喺自己嘅資料夾入面，唔會裝落成部電腦。",
+            "如果呢部電腦未有合適嘅 Java，算圖會自動幫手攞一份返嚟，放喺自己嘅資料夾，唔會裝落成部電腦。",
+            "呢部機冇合適嘅 Java？唔緊要，程式會靜靜雞幫你攞一份，放喺自己嘅資料夾，唔會裝落成部電腦。",
+            "冇 Java？唔關你事，程式一於自己攞一份返嚟，收埋喺自己嘅資料夾，一樣唔會裝落成部電腦，你部機照舊咁乾淨。",
+        ],
+    },
     "world.review.consentMissing": {
         en: [
             "BlueMap builds its blocks from the Minecraft client files, which are downloaded from Mojang. That download has not been accepted, so this render would stop before it started.",
@@ -1678,6 +1701,32 @@ export const WORLD_VOICED = {
             "{name} 唔係 Java 世界，係 Bedrock 版，所以一定要先轉換，冇捷徑，淨係得低便嗰個掣。",
         ],
     },
+    /* ---------------------------------------------------------------- */
+    /* ContainerOffers.vue                                                */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * The one sentence in this small panel that carries a fact worth pinning: a
+     * containerised render keeps going after the app closes, and nothing here stops one on
+     * its own. `world.containers.pickUp`/`.notNow`/`.stop` are plain button labels and stay
+     * fixed rather than voiced for the same reason `settings.history.profiles` does.
+     */
+    "world.containers.blurb": {
+        en: [
+            "A container can go on rendering after this app closes. Anything listed here was left running from an earlier session; picking one up shows its progress in the render list below, and nothing here is stopped on its own.",
+            "A container can go on rendering after this app closes. Anything listed here was left running from an earlier session; picking one up shows its progress in the render list below, and nothing here is stopped on its own.",
+            "A container really can go on rendering after this app closes. Anything listed here was left running from an earlier session; picking one up shows its progress in the render list below, and nothing here is stopped on its own.",
+            "A container can happily go on rendering after this app closes. Anything listed here was left running from an earlier session; picking one up shows its progress in the render list below, and nothing here is stopped on its own - not unless you say so.",
+            "A container can go right on rendering long after this app has clocked out, quietly minding its own business. Anything listed here was left running from an earlier session; picking one up shows its progress in the render list below, and nothing here is stopped on its own - not unless you say so.",
+        ],
+        yue: [
+            "容器喺呢個程式關咗之後都可以繼續算緊圖。呢度列出嚟嘅，全部都係上一次session剩低運行緊嘅；揀返一個就會喺下面嘅算圖清單度顯示佢嘅進度，呢度啲嘢唔會自動停止。",
+            "容器喺呢個程式關咗之後都可以繼續算緊圖。呢度列出嚟嘅，全部都係上一次session剩低運行緊嘅；揀返一個就會喺下面嘅算圖清單度顯示佢嘅進度，呢度啲嘢唔會自動停止。",
+            "容器真係喺呢個程式關咗之後都可以繼續算緊圖。呢度列出嚟嘅，全部都係上一次session剩低運行緊嘅；揀返一個就會喺下面嘅算圖清單度顯示佢嘅進度，呢度啲嘢唔會自動停止。",
+            "容器都幾叻仔㗎，程式關咗之後照舊算緊圖。呢度列出嚟嘅，全部都係上一次session剩低運行緊嘅；揀返一個就會喺下面嘅算圖清單度顯示佢嘅進度，呢度啲嘢唔會自動停止，除非你講一聲先。",
+            "容器勁到唔得掕，個程式收咗工佢都照樣算緊圖，靜雞雞喺度做緊自己嘅嘢。呢度列出嚟嘅，全部都係上一次session剩低運行緊嘅；揀返一個就會喺下面嘅算圖清單度顯示佢嘅進度，呢度啲嘢唔會自動停止，除非你講一聲先。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 /* -------------------------------------------------------------------------- */
@@ -1685,6 +1734,22 @@ export const WORLD_VOICED = {
 /* -------------------------------------------------------------------------- */
 
 export const WORLD_FIXED = {
+    /* ContainerOffers.vue */
+    "world.containers.title": { en: "Containers left running", yue: "仲運行緊嘅容器" },
+    "world.containers.searchLabel": { en: "Search these containers", yue: "搜尋呢啲容器" },
+    "world.containers.searchHint": { en: "a container name, or where it is running", yue: "容器名，或者喺邊度運行" },
+    "world.containers.pickUp": { en: "Pick this up", yue: "攞返嚟" },
+    "world.containers.notNow": { en: "Not now", yue: "而家唔要" },
+    "world.containers.stop": { en: "Stop it", yue: "停止佢" },
+    "world.containers.strayNote": {
+        en: "This app started these too, but their record is gone, so nothing here can say which render they belong to. They are named rather than stopped.",
+        yue: "呢啲都係呢個程式開嘅，但係佢哋嘅記錄唔見咗，所以呢度講唔到佢哋屬於邊個算圖。淨係講返有呢啲嘢，唔會自動停止。",
+    },
+    "world.containers.noMatch": {
+        en: "No container matches that search. Clearing it brings them all back; nothing was declined.",
+        yue: "冇容器符合呢個搜尋。清空佢就會全部返晒嚟；乜都冇拒絕過。",
+    },
+
     /* InterruptedRenders.vue */
     "world.resume.title": { en: "Renders that did not finish", yue: "未完成嘅算圖" },
     "world.resume.searchLabel": { en: "Search these renders", yue: "搜尋呢啲算圖" },
@@ -1786,6 +1851,7 @@ export const WORLD_FIXED = {
     "world.review.mapLabel": { en: "Map", yue: "地圖" },
     "world.review.storageLabel": { en: "Written to", yue: "寫去邊" },
     "world.review.engineLabel": { en: "Engine", yue: "引擎" },
+    "world.review.javaLabel": { en: "Java runtime", yue: "Java 執行環境" },
     "world.review.consentAction": { en: "Open the setting", yue: "打開個設定" },
     "world.review.howTitle": { en: "How to run it", yue: "點樣運行" },
     "world.review.force": { en: "Render everything again", yue: "全部再算多次" },
@@ -1932,6 +1998,10 @@ export const WORLD_FIXED = {
 /* -------------------------------------------------------------------------- */
 
 export const WORLD_FACTS = {
+    "world.containers.blurb": {
+        en: ["left running from an earlier session", "nothing here is stopped on its own"],
+        yue: ["上一次session剩低運行緊", "唔會自動停止"],
+    },
     "world.resume.blurb": {
         en: ["already on disk", "is skipped", "Nothing is deleted"],
         yue: ["磁碟上已經有嘅圖磚", "會跳過", "唔會刪走任何嘢"],
@@ -2040,6 +2110,10 @@ export const WORLD_FACTS = {
     "world.review.engineValue": {
         en: ["BlueMap's own engine", "run locally", "reported once it starts"],
         yue: ["BlueMap 自己嘅引擎", "本機", "報返實際版本"],
+    },
+    "world.review.javaValue": {
+        en: ["Java", "own folder", "not installed system-wide"],
+        yue: ["Java", "自己嘅資料夾", "唔會裝落成部電腦"],
     },
     "world.review.consentMissing": {
         en: ["Mojang", "download has not been accepted", "stop before it started"],
