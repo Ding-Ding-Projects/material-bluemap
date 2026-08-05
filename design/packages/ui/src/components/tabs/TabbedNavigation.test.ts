@@ -617,12 +617,52 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
         expect(document.body.textContent).toContain("Edit appearance...");
     });
 
+    /**
+     * Regression for "right click menu not closing when clicking off the menu", reproduced at
+     * the scale the report actually happened at: `root` in `AppearanceTarget.vue` used to sit
+     * in Vuetify's own outside-click `include` list (`:activator="root"`), and for
+     * `id="app.tabBar"` `root` is this entire wrapper - the whole strip and every tab under
+     * it. So a right-click on the strip's own chrome, followed by a perfectly ordinary click
+     * on a tab a moment later, landed *inside* `root` and the menu never closed. See
+     * `AppearanceTarget.test.ts`'s own `menuId` comment for the fix; this is that fix proved
+     * against the real, full-sized wrapper rather than a small test host.
+     */
+    it("closes the wrapper's own menu on an ordinary click elsewhere in the strip it wraps", async () => {
+        const view = openWrapped();
+        await nextTick();
+
+        const target = view.find(".mb-appearance-target");
+        target.element.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+        await nextTick();
+        expect(document.querySelectorAll(".v-overlay--active .mb-appearance-target__menu")).toHaveLength(1);
+
+        // An everyday click on a tab: still inside `root`, nowhere near the popup itself -
+        // exactly "clicking off the menu" as reported.
+        const tabEl = view.findAll('[role="tab"]')[0]!.element;
+        tabEl.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        tabEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        // Vuetify's click-outside handler defers its own close by one macrotask (see the
+        // `setTimeout(() => {...}, 0)` in `vuetify/lib/directives/click-outside`), matching
+        // the settle sequence the Escape tests above already need for the same reason.
+        await nextTick();
+        await nextTick();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await nextTick();
+
+        expect(document.querySelectorAll(".v-overlay--active .mb-appearance-target__menu")).toHaveLength(0);
+    });
+
     it("group header: opens exactly one menu on right-click, with the working shortcut shown", async () => {
         cells.set("material-bluemap-tabs", SAVED_LAYOUT);
         const view = openWrapped();
         await nextTick();
 
-        const header = view.find('[aria-expanded="false"]');
+        // Not `[aria-expanded="false"]`: the `app.tabBar` wrapper this suite is about now
+        // carries that exact attribute itself (see the fix for "right click menu not closing
+        // when clicking off the menu" - `AppearanceTarget.vue` advertises its own popup state
+        // on `root`), and it sits earlier in the DOM than the group header, so the generic
+        // selector would find the wrapper instead. The header's own class is unambiguous.
+        const header = view.find(".mb-tabs-strip__group-head");
         await header.trigger("contextmenu");
         await nextTick();
 
@@ -637,7 +677,8 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
         const view = openWrapped();
         await nextTick();
 
-        const header = view.find('[aria-expanded="false"]');
+        // See the comment on the same selector in the test above.
+        const header = view.find(".mb-tabs-strip__group-head");
         await header.trigger("contextmenu", { shiftKey: true });
         await nextTick();
 
@@ -835,6 +876,143 @@ describe("the host API: revealPage and renamePage", () => {
 
         const rows = tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>);
         expect(rows.map((tab) => tab.attributes("title"))).toEqual(["Map", "Make a map", "Servers"]);
+        view.unmount();
+    });
+});
+
+/**
+ * `pinnedPageIds` (seed time) and `ensurePage` (the upgrade path), both of which Home
+ * relies on: a page named there is pinned the moment its tab first exists, and
+ * `ensurePage` is the only way a page declared after somebody's layout was already saved
+ * ever gets a tab without them asking for one.
+ */
+function openDirectPinned(
+    pinnedPageIds: readonly string[],
+    storageKey = "test-pinned-tabs",
+): VueWrapper<InstanceType<typeof TabbedNavigation>> {
+    const direct = mount(TabbedNavigation, {
+        props: { pages: PAGES, windowLabel: "Material BlueMap", stripLabel: "Main", storageKey, pinnedPageIds },
+        slots: {
+            map: () => h("p", { class: "page-map" }, "the map"),
+            world: () => h("p", { class: "page-world" }, "the wizard"),
+            servers: () => h("p", { class: "page-servers" }, "the servers"),
+        },
+        global: { plugins: [vuetify, i18n] },
+        attachTo: document.body,
+    });
+    return direct;
+}
+
+function isPinned(view: VueWrapper<InstanceType<typeof TabbedNavigation>>, title: string): boolean {
+    const pinnedRegion = view.find(".mb-tabs-strip__pinned");
+    if (!pinnedRegion.exists()) return false;
+    return pinnedRegion.findAll('[role="tab"]').some((tab) => tab.attributes("title") === title);
+}
+
+/** "Make a map" and "Servers", so a mount against this list predates whichever page is dropped. */
+const PAGES_WITHOUT_SERVERS: readonly TabPage[] = PAGES.filter((page) => page.id !== "servers");
+
+function mountDirect(
+    pages: readonly TabPage[],
+    pinnedPageIds: readonly string[],
+    storageKey: string,
+): VueWrapper<InstanceType<typeof TabbedNavigation>> {
+    return mount(TabbedNavigation, {
+        props: { pages, windowLabel: "Material BlueMap", stripLabel: "Main", storageKey, pinnedPageIds },
+        slots: {
+            map: () => h("p", { class: "page-map" }, "the map"),
+            world: () => h("p", { class: "page-world" }, "the wizard"),
+            servers: () => h("p", { class: "page-servers" }, "the servers"),
+        },
+        global: { plugins: [vuetify, i18n] },
+        attachTo: document.body,
+    });
+}
+
+describe("pinnedPageIds and ensurePage", () => {
+    it("pins a page's tab from the moment it is first seeded on a fresh install", async () => {
+        const view = openDirectPinned(["world"]);
+        await nextTick();
+
+        expect(isPinned(view, "Make a map")).toBe(true);
+        expect(isPinned(view, "Map")).toBe(false);
+        view.unmount();
+    });
+
+    it("still opens on the first declared page even when a later page is the pinned one", async () => {
+        const view = openDirectPinned(["world"]);
+        await nextTick();
+
+        expect(tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>)
+            .find((tab) => tab.attributes("aria-selected") === "true")
+            ?.attributes("title")).toBe("Map");
+        view.unmount();
+    });
+
+    it("ensurePage adds a tab for a page a saved workspace predates, pinning it, without moving the active tab", async () => {
+        // A real workspace, written by this component itself, from before "servers" was
+        // one of its declared pages: two tabs, "Make a map" made active by hand.
+        const seed = mountDirect(PAGES_WITHOUT_SERVERS, [], "test-ensure-tabs");
+        await nextTick();
+        seed.vm.revealPage("world");
+        await nextTick();
+        seed.unmount();
+
+        const view = mountDirect(PAGES, ["servers"], "test-ensure-tabs");
+        await nextTick();
+
+        expect(
+            tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>).map((tab) => tab.attributes("title")),
+        ).toEqual(["Map", "Make a map"]);
+
+        view.vm.ensurePage("servers");
+        await nextTick();
+
+        const rows = tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>);
+        expect(rows.map((tab) => tab.attributes("title"))).toEqual(["Servers", "Map", "Make a map"]);
+        // The tab the user was already looking at is undisturbed - the new pinned tab
+        // renders first, but "in front" is a matter of `aria-selected`, not DOM order.
+        expect(rows.find((tab) => tab.attributes("aria-selected") === "true")?.attributes("title")).toBe(
+            "Make a map",
+        );
+        expect(isPinned(view, "Servers")).toBe(true);
+        view.unmount();
+    });
+
+    it("ensurePage never re-pins a tab the user has since unpinned by hand", async () => {
+        // A real workspace with "world" already open and never pinned - `pinnedPageIds`
+        // asks for it only from here on, which must not reach back and pin a tab that
+        // already existed unpinned. `revealPage` is called once purely so the watcher that
+        // persists the workspace actually fires - the initial seed on mount is not itself a
+        // change vue-i18n's `watch` sees, so an untouched fresh mount never reaches storage
+        // at all and the next mount would seed all over again instead of restoring.
+        const seed = mountDirect(PAGES, [], "test-no-repin-tabs");
+        await nextTick();
+        seed.vm.revealPage("map");
+        await nextTick();
+        seed.unmount();
+
+        const view = mountDirect(PAGES, ["world"], "test-no-repin-tabs");
+        await nextTick();
+
+        expect(isPinned(view, "Make a map")).toBe(false);
+
+        view.vm.ensurePage("world");
+        await nextTick();
+
+        expect(isPinned(view, "Make a map")).toBe(false);
+        expect(tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>)).toHaveLength(3);
+        view.unmount();
+    });
+
+    it("ensurePage changes nothing for a page id the shell never declared", async () => {
+        const view = openDirectPinned([]);
+        await nextTick();
+
+        view.vm.ensurePage("no-such-page");
+        await nextTick();
+
+        expect(tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>)).toHaveLength(3);
         view.unmount();
     });
 });

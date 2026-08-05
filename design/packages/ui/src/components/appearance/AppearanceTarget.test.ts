@@ -16,7 +16,7 @@
  * thing to ship without noticing, because nobody testing with a mouse will ever find it.
  */
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { h, nextTick } from "vue";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
@@ -513,5 +513,192 @@ describe("the wrapper's own cursor", () => {
         // same regex this test uses to check the *declarations*.
         const css = (await styleBlock()).replace(/\/\*[\s\S]*?\*\//g, "");
         expect(css).not.toMatch(/cursor:\s*pointer/);
+    });
+});
+
+/**
+ * Regression for "right click menu not closing when clicking off the menu".
+ *
+ * Both `<v-menu>`s used to bind `:activator="root"`, which registers `root` - the *entire*
+ * wrapped surface - in Vuetify's own outside-click `include` list (`VOverlay.js`:
+ * `include: () => [activatorEl.value]`). For a host as small as this file's own
+ * `.host-button`, that already meant clicking the host's own control while the menu was
+ * open failed to close it; for real hosts such as `App.vue`'s `id="app.tabBar"`, `root` is
+ * the whole tab bar and every page beneath it, so almost any click anywhere in the running
+ * application was swallowed the same way. The fix drops `:activator` in favour of `:target`
+ * plus hand-wired `aria-*` attributes (see the component's own `menuId` comment), which
+ * empties that include list back to just the popup's own content - exactly the pattern
+ * `TabStrip.vue`'s tab and group menus already used correctly.
+ */
+describe("dismissal: closes on an outside pointer press", () => {
+    /**
+     * Vuetify's click-outside directive keys off a real `mousedown` followed by a real
+     * `click`, both in the capture phase (`vuetify/lib/directives/click-outside`) - a bare
+     * synthetic `click` alone does not prime `lastMousedownWasOutside`, so both are needed.
+     */
+    function press(el: Element): void {
+        el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        el.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
+
+    /**
+     * Counts only instances of `selector` sitting inside a genuinely open `v-overlay`, the
+     * same idiom `TabbedNavigation.test.ts` uses for the same reason: under jsdom the exit
+     * transition has no real CSS duration to finish against, so a just-closed overlay's
+     * inert content node can still be mounted a tick later even though it has genuinely
+     * closed. `.v-overlay--active` gone is what "closed" means here; the DOM node's presence
+     * on its own proves nothing either way.
+     */
+    function activeCount(selector: string): number {
+        return document.querySelectorAll(`.v-overlay--active ${selector}`).length;
+    }
+
+    it("closes the context menu on a press elsewhere inside the wrapped surface", async () => {
+        // The host's own button sits inside `root` and outside the popup - exactly the
+        // click a user makes to "click off the menu", and exactly the click the old
+        // `:activator="root"` binding mistook for an inside click.
+        mountTarget();
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+        expect(activeCount(".mb-appearance-target__menu")).toBe(1);
+
+        press(document.querySelector(".host-button")!);
+        await settle();
+
+        expect(activeCount(".mb-appearance-target__menu")).toBe(0);
+    });
+
+    it("closes the anchored editor on a press elsewhere inside the wrapped surface", async () => {
+        // The editor carries no scrim (see "is non-modal" above), so an outside click is the
+        // *only* pointer route that can dismiss it - this half of the defect trapped the
+        // user more completely than the menu half did.
+        mountTarget();
+        targetElement().dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }),
+        );
+        await settle();
+        expect(activeCount(".mb-appearance-editor")).toBe(1);
+
+        press(document.querySelector(".host-button")!);
+        await settle();
+
+        expect(activeCount(".mb-appearance-editor")).toBe(0);
+    });
+
+    it("closes the context menu on a press entirely outside the component too", async () => {
+        mountTarget();
+        const decoy = document.createElement("button");
+        decoy.textContent = "elsewhere on the page";
+        document.body.appendChild(decoy);
+
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+
+        press(decoy);
+        await settle();
+
+        expect(activeCount(".mb-appearance-target__menu")).toBe(0);
+    });
+
+    it("does not close on a press inside the menu's own content", async () => {
+        mountTarget();
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+
+        const search = document.querySelector<HTMLInputElement>(".mb-config-search input");
+        expect(search).not.toBeNull();
+        if (search !== null) press(search);
+        await settle();
+
+        expect(activeCount(".mb-appearance-target__menu")).toBe(1);
+    });
+
+    it("does not close a nested popover's parent when the press lands inside the nested popover", async () => {
+        // `ConfigSearchField`'s own regex-builder popup is rendered inside this menu's
+        // content and registers itself with this menu as a child through Vuetify's
+        // `VMenuSymbol` (component-tree parent/child, unaffected by the `<Teleport>` each
+        // overlay uses for where it actually paints). A click inside that nested popover
+        // must stay "inside" for both overlays, never bubbling up as an outside click that
+        // closes the menu it belongs to.
+        mountTarget();
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+
+        const builderButton = [...document.querySelectorAll<HTMLElement>(".mb-config-search button")].find(
+            (button) => button.textContent?.trim() === ".*",
+        );
+        expect(builderButton).not.toBeUndefined();
+        builderButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await settle();
+        expect(activeCount(".mb-config-regex")).toBe(1);
+
+        const patternField = document.querySelector<HTMLTextAreaElement>(".mb-config-regex textarea");
+        expect(patternField).not.toBeNull();
+        if (patternField !== null) press(patternField);
+        await settle();
+
+        // Both survive: the nested popover the click actually landed in, and the menu it
+        // belongs to underneath it.
+        expect(activeCount(".mb-config-regex")).toBe(1);
+        expect(activeCount(".mb-appearance-target__menu")).toBe(1);
+    });
+
+    it("does not close on the press that reopens it, even once the listener is already mounted", async () => {
+        // A real right-click is a `mousedown` (button 2) followed by `contextmenu`, never a
+        // `click` - so the directive's `click` handler, the one that actually closes the
+        // overlay, never fires for the gesture that opens it. Opening and closing once first
+        // proves this holds once Vuetify's click-outside listener is already mounted at the
+        // document from the first open, not only on a component's very first render.
+        mountTarget();
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        await settle();
+        expect(activeCount(".mb-appearance-target__menu")).toBe(0);
+
+        targetElement().dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 2 }));
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+
+        expect(activeCount(".mb-appearance-target__menu")).toBe(1);
+    });
+
+    it("a second right-click elsewhere repositions the menu rather than opening a duplicate", async () => {
+        mountTarget();
+        targetElement().dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, clientX: 10, clientY: 10 }),
+        );
+        await settle();
+        expect(document.querySelectorAll(".mb-appearance-target__menu")).toHaveLength(1);
+
+        targetElement().dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, clientX: 200, clientY: 200 }),
+        );
+        await settle();
+
+        expect(document.querySelectorAll(".mb-appearance-target__menu")).toHaveLength(1);
+    });
+
+    it("removes its outside-click listeners from the document when it unmounts", async () => {
+        // The reported bug's failure mode was a menu that traps the user; the mirror-image
+        // failure this proves against is a listener that outlives the component and quietly
+        // degrades every click in the window forever. Vuetify's own click-outside directive
+        // tears itself down in `beforeUnmount` - this proves that teardown actually runs
+        // here rather than assuming it, per the dismissal contract's listener-leak clause.
+        mountTarget();
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+        expect(document.querySelector(".mb-appearance-target__menu")).not.toBeNull();
+
+        const removeSpy = vi.spyOn(document, "removeEventListener");
+        wrapper?.unmount();
+        wrapper = null;
+        await settle();
+
+        const removedTypes = removeSpy.mock.calls.map((call) => call[0]);
+        expect(removedTypes).toContain("click");
+        expect(removedTypes).toContain("mousedown");
+        removeSpy.mockRestore();
     });
 });

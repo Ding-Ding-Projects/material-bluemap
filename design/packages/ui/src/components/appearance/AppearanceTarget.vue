@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiPalette, mdiRestore } from "@mdi/js";
 import { VList, VListItem, VMenu } from "vuetify/components";
@@ -100,6 +100,26 @@ const editorOpen = ref(false);
  * the last mouse position would be somewhere else entirely.
  */
 const contextTarget = ref<[number, number] | HTMLElement | undefined>(undefined);
+
+/**
+ * Stable ids for the two popups, so the wrapper can advertise `aria-controls` itself.
+ *
+ * These exist because of what they are *not* used for: neither `<v-menu>` below takes an
+ * `:activator`. Vuetify's own `useActivator` composable would happily write
+ * `aria-haspopup`/`aria-controls` onto whatever `:activator` points at - but it would also
+ * register that same element in the overlay's outside-click `include` list (see
+ * `VOverlay.js`'s `include: () => [activatorEl.value]`), so a click anywhere inside it stops
+ * counting as "outside". `root` here is the *entire* wrapped surface - for `id="app.tabBar"`
+ * that is the whole tab bar and every page under it - so that inclusion is exactly how "right
+ * click menu not closing when clicking off the menu" was reported: the click that was
+ * supposed to dismiss the menu landed inside `root` and the directive waved it through.
+ *
+ * `:target` positions an overlay without any of that side effect, so both menus below use
+ * `:target` only and the wrapper wires the accessibility attributes onto `root` by hand
+ * instead of trusting `:activator` to do it as a side effect.
+ */
+const menuId = useId();
+const editorId = useId();
 
 const paintsABox = computed(() =>
     BOX_DECLARATIONS.some((declaration) => declaration in target.style.value.style),
@@ -234,6 +254,9 @@ function onKeydown(event: KeyboardEvent): void {
         tabindex="-1"
         :style="target.style.value.style"
         :aria-keyshortcuts="`Shift+F10 ${EDITOR_SHORTCUT}`"
+        aria-haspopup="menu"
+        :aria-expanded="menuOpen || editorOpen ? 'true' : 'false'"
+        :aria-controls="menuOpen ? menuId : editorOpen ? editorId : undefined"
         @contextmenu="onContextMenu"
         @keydown="onKeydown"
     >
@@ -243,11 +266,12 @@ function onKeydown(event: KeyboardEvent): void {
             The context menu. Anchored at the pointer for a right-click and at the element for
             the keyboard path, painting its own surface, bounded and scrollable, and carrying
             its own search field wired to the project's regex builder like every other search
-            surface in this app.
+            surface in this app. `:target` only, deliberately no `:activator` - see the comment
+            on `menuId` above for why.
         -->
         <v-menu
             v-model="menuOpen"
-            :activator="root ?? undefined"
+            :id="menuId"
             :target="contextTarget"
             :open-on-click="false"
             :close-on-content-click="false"
@@ -295,11 +319,15 @@ function onKeydown(event: KeyboardEvent): void {
             The editor. Anchored to the element and tracking it, non-modal, with no scrim, so
             the element it is editing stays visible and usable while it is open. `location`
             puts it beside rather than over the element, and Vuetify's connected strategy
-            flips it at the viewport edge without detaching it from the anchor.
+            flips it at the viewport edge without detaching it from the anchor. `:target`
+            only, deliberately no `:activator` - see the comment on `menuId` above for why;
+            it matters even more here, because this popup has no scrim, so an outside click
+            is the *only* pointer route that can dismiss it.
         -->
         <v-menu
             v-model="editorOpen"
-            :activator="root ?? undefined"
+            :id="editorId"
+            :target="root ?? undefined"
             :open-on-click="false"
             :close-on-content-click="false"
             :scrim="false"
@@ -324,20 +352,21 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 /*
- * Neither `<v-menu>` above is decorative: Vuetify's own `useActivator` composable writes
- * `aria-haspopup` and `aria-controls` onto whatever element the `activator` prop points
- * at, which here is `root` - the wrapper itself. That is correct ARIA (a screen reader
- * should be told this element owns a popup), and it is also exactly what trips Vuetify's
- * own normalize stylesheet: `[aria-controls] { cursor: pointer }` exists to give a small,
- * dedicated trigger - a disclosure button, a combobox - a hand cursor. It was never
- * written with "the wrapper around every rendered element in the application" in mind.
+ * `root` carries `aria-haspopup`/`aria-expanded`/`aria-controls` by hand (see the script's
+ * `menuId`/`editorId` comment for why it is hand-wired rather than left to Vuetify's
+ * `:activator`), which is correct ARIA - a screen reader should be told this element owns a
+ * popup - and it is also exactly what trips Vuetify's own normalize stylesheet:
+ * `[aria-controls] { cursor: pointer }` exists to give a small, dedicated trigger - a
+ * disclosure button, a combobox - a hand cursor. It was never written with "the wrapper
+ * around every rendered element in the application" in mind.
  *
  * `cursor` inherits, and this wrapper is `display: contents`, so left unanswered that one
  * attribute turned into a pointer cursor over literally everything on screen: headings,
  * empty panels, the title bar's drag region, prose nobody can click - "the full GUI has a
  * mouse click cursor" as filed. The wrapper itself is not a left-click target (it opens on
  * right-click and on a keyboard shortcut only), so `auto` is also the honest cursor for it,
- * not just the fix for its descendants.
+ * not just the fix for its descendants. `aria-controls` is only present while a popup is
+ * actually open, but the rule below is unconditional so there is nothing to leak either way.
  *
  * `[aria-controls]` and a single class both carry specificity (0,1,0), so a plain
  * `.mb-appearance-target { cursor: auto }` would only win by source-order luck. The class
