@@ -79,8 +79,18 @@ const props = withDefaults(
          * groups persist independently rather than overwriting the shell's.
          */
         storageKey?: string;
+        /**
+         * Page ids pinned automatically the moment a tab for them first exists - at seed
+         * time on a genuinely fresh install, and via {@link ensurePage} for a workspace
+         * that predates the page. Never reapplied once a tab already exists: a person who
+         * deliberately unpins one of these later keeps it unpinned across every future
+         * restart, because "hard to lose by accident" is a promise about the first time a
+         * page appears, not a standing rule this component re-enforces against a choice
+         * the user already made.
+         */
+        pinnedPageIds?: readonly string[];
     }>(),
-    { windowLabel: "", stripLabel: "", storageKey: DEFAULT_TAB_STORAGE_KEY },
+    { windowLabel: "", stripLabel: "", storageKey: DEFAULT_TAB_STORAGE_KEY, pinnedPageIds: () => [] },
 );
 
 const { t } = useI18n();
@@ -109,10 +119,18 @@ function seedStrip(): TabStripState {
         (state, page) => addTab(state, { pageId: page.id, label: page.label, icon: page.icon }),
         empty,
     );
+    // Pinned before the active tab is chosen: pinning never touches `activeTabId`, so the
+    // order makes no difference to which tab ends up in front, but doing it first keeps
+    // this function reading top-to-bottom as "build the tabs, plant the pins, then choose
+    // what is in front" rather than interleaving the two concerns.
+    const pinned = props.pinnedPageIds.reduce<TabStripState>((state, pageId) => {
+        const tab = state.tabs.find((candidate) => candidate.pageId === pageId);
+        return tab === undefined ? state : pinTab(state, tab.id);
+    }, seeded);
     // The first page rather than the last one opened, which is what a fresh
     // install should land on.
-    const first = seeded.tabs[0];
-    return first === undefined ? seeded : setActiveTab(seeded, first.id);
+    const first = pinned.tabs[0];
+    return first === undefined ? pinned : setActiveTab(pinned, first.id);
 }
 
 const workspace = ref<TabWorkspaceState>(
@@ -217,6 +235,44 @@ function revealPage(pageId: string): void {
 }
 
 /**
+ * Adds a tab for a page that has never had one in this workspace, without disturbing
+ * whichever tab is currently in front - and pins it, when the host asked for that, exactly
+ * as {@link seedStrip} would have on a fresh install.
+ *
+ * This is the upgrade path {@link seedStrip}'s own seeding cannot reach: a page declared
+ * after somebody's tab layout was already saved is invisible to a workspace that was
+ * written before that page existed, because restoring never invents tabs for pages a saved
+ * record does not know about. A host calls this once a page it wants guaranteed reachable -
+ * a landing page, say - so an upgrading user gets it too, without their last-active tab
+ * being yanked out from under them the way {@link revealPage} would.
+ *
+ * A no-op once the tab exists, on purpose: it is safe to call on every mount rather than
+ * only once, and it never re-pins a tab the user has since unpinned by hand - see the
+ * `pinnedPageIds` prop doc for why that matters.
+ */
+function ensurePage(pageId: string): void {
+    const page = props.pages.find((candidate) => candidate.id === pageId);
+    if (page === undefined) return;
+    if (strip.value.tabs.some((tab) => tab.pageId === pageId)) return;
+
+    const previousActive = strip.value.activeTabId;
+    let next = addTab(strip.value, { pageId: page.id, label: page.label, icon: page.icon });
+    // `addTab` makes the new tab active; a returning user's place is restored unless the
+    // strip had nothing active at all, in which case the new tab is a perfectly reasonable
+    // thing to land on.
+    if (previousActive !== null && next.tabs.some((tab) => tab.id === previousActive)) {
+        next = setActiveTab(next, previousActive);
+    }
+
+    if (props.pinnedPageIds.includes(pageId)) {
+        const created = next.tabs.find((tab) => tab.pageId === pageId);
+        if (created !== undefined) next = pinTab(next, created.id);
+    }
+
+    update(next);
+}
+
+/**
  * Renames every open tab that shows one page.
  *
  * A page's own label - the string in {@link TabPage.label} - is read only once, when a
@@ -243,9 +299,11 @@ function renamePage(pageId: string, label: string): void {
  * buttons pointing at nothing, which is exactly the decorative control this project refuses to
  * ship. `revealPage` and `renamePage` are the only two writes a host gets: which tab is in
  * front, and what an existing tab is called. Everything else about the layout - order, pins,
- * groups - stays changed only through this component's own strip.
+ * groups - stays changed only through this component's own strip. `ensurePage` is a third,
+ * narrower write: it can only add a tab for a page that has none, never move, close or
+ * rename one that already exists.
  */
-defineExpose({ activePage, revealPage, renamePage });
+defineExpose({ activePage, revealPage, renamePage, ensurePage });
 
 function newGroup(tabId: string): void {
     update(createGroup(strip.value, { name: t("tabs.group.newName", "New group") }, [tabId]));
