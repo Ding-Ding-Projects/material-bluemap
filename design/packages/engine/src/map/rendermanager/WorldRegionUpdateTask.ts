@@ -28,10 +28,19 @@
  *
  * The comparators (`regionLastUpdatedComparator`, `defaultComparator`) are here too — they
  * decide which region a `MapUpdateTask` renders first, which is behaviour, not decoration.
- * The `Serialized` form is still absent: it is resumption across process restarts, and it
- * needs a serialization registry this port does not have.
+ *
+ * The `Serialized` form lives at the bottom of this file. It carries only `map`,
+ * `regionPos` and `force` — never the tile cursor — so a region that was mid-render when
+ * the process stopped restarts that region's tiles from the top on resume rather than
+ * resuming inside it, exactly as upstream's own `Serialized` does. That is deliberate, not
+ * a gap: the checkpoint granularity this port's queue persistence gives you is "which
+ * regions are already finished", from {@link MapUpdateTask}'s `currentTaskIndex`, and a
+ * finished region is never re-touched at all. See `rendermanager/serialization/` for the
+ * registry that dispatches every task's `Serialized` form by a stable type-key.
  */
 
+import { IOException, TypeToken } from "@material-bluemap/nbt";
+import type { ObjectSchema } from "@material-bluemap/nbt";
 import { Vector2i } from "@material-bluemap/shared";
 import type { Grid } from "@material-bluemap/shared";
 import type { BmMap } from "../BmMap.js";
@@ -44,6 +53,8 @@ import { TileState } from "../renderstate/TileState.js";
 import { TileInfo } from "../renderstate/TileInfoRegion.js";
 import type { MapRenderTask } from "./MapRenderTask.js";
 import { RenderTask } from "./RenderTask.js";
+import type { SerializableRenderTask, Serialized } from "./serialization/SerializableRenderTask.js";
+import { BM_MAP_TOKEN, TILE_UPDATE_STRATEGY_TOKEN, VECTOR2I_TOKEN } from "./serialization/tokens.js";
 import { TileUpdateStrategy } from "./TileUpdateStrategy.js";
 
 /*
@@ -74,7 +85,9 @@ export interface WorldRegionUpdateResult {
     readonly unchanged: number;
 }
 
-export class WorldRegionUpdateTask implements MapRenderTask {
+export class WorldRegionUpdateTask
+    implements MapRenderTask, SerializableRenderTask<WorldRegionUpdateTaskSerialized>
+{
     readonly #map: BmMap;
     readonly #regionPos: Vector2i;
     readonly #force: TileUpdateStrategy;
@@ -694,4 +707,71 @@ export class WorldRegionUpdateTask implements MapRenderTask {
             return Math.sign(t1x * t1x + t1z * t1z - (t2x * t2x + t2z * t2z));
         };
     }
+
+    /** upstream: `Serialized serialize() { return new Serialized(map, regionPos, force); }` */
+    serialize(): WorldRegionUpdateTaskSerialized {
+        return new WorldRegionUpdateTaskSerialized(this.#map, this.#regionPos, this.#force);
+    }
+}
+
+/** upstream: {@code TypeToken.of(WorldRegionUpdateTask.Serialized.class)} */
+export const WORLD_REGION_UPDATE_TASK_SERIALIZED_TOKEN: TypeToken<WorldRegionUpdateTaskSerialized> =
+    TypeToken.of("rendermanager.WorldRegionUpdateTask.Serialized");
+
+/**
+ * upstream: `WorldRegionUpdateTask.Serialized` — map, region position and force strategy;
+ * deliberately *not* the tile cursor (`nextTileX`/`nextTileZ`), the chunk-hash array or the
+ * tile-action array, none of which upstream saves either. See the class doc comment above
+ * for why that is the right trade-off rather than a missing feature.
+ *
+ * `force` defaults to {@link TileUpdateStrategy.FORCE_NONE} rather than `null` so a
+ * truncated file missing that one field still restores a *correct*, if less aggressive,
+ * region task instead of failing to restore the region at all — the same trade-off
+ * {@link WorldRegionUpdateTask}'s own constructor already makes for a caller who omits
+ * `force`.
+ */
+export class WorldRegionUpdateTaskSerialized implements Serialized<WorldRegionUpdateTask> {
+    map: BmMap | null;
+    regionPos: Vector2i | null;
+    force: TileUpdateStrategy;
+
+    constructor(
+        map: BmMap | null = null,
+        regionPos: Vector2i | null = null,
+        force: TileUpdateStrategy = TileUpdateStrategy.FORCE_NONE,
+    ) {
+        this.map = map;
+        this.regionPos = regionPos;
+        this.force = force;
+    }
+
+    /**
+     * upstream: `public WorldRegionUpdateTask deserialize() { return new
+     * WorldRegionUpdateTask(map, regionPos, force); }`
+     *
+     * Because {@link TileUpdateStrategy.fixed} — and the {@link TileUpdateStrategy.REGISTRY}
+     * lookup the `RegistryAdapter` registered for this field performs on read — only ever
+     * hand back the three shared singletons, `force` here is always
+     * `FORCE_ALL`/`FORCE_EDGE`/`FORCE_NONE` by reference, never a fresh look-alike object.
+     * That identity is load-bearing: {@link WorldRegionUpdateTask.equals} compares `force`
+     * with `===`, which is exactly what lets a restored region task dedup correctly against
+     * one freshly scheduled for the same region with the same strategy.
+     */
+    deserialize(): WorldRegionUpdateTask {
+        if (this.map === null)
+            throw new IOException("region-update render-task is missing its 'map' field");
+        if (this.regionPos === null)
+            throw new IOException("region-update render-task is missing its 'region-pos' field");
+        return new WorldRegionUpdateTask(this.map, this.regionPos, this.force);
+    }
+
+    /** Port addition: the explicit nbt-schema replacing upstream's field-reflection. */
+    static readonly SCHEMA: ObjectSchema<WorldRegionUpdateTaskSerialized> = {
+        create: () => new WorldRegionUpdateTaskSerialized(),
+        fields: {
+            map: { names: ["map"], type: BM_MAP_TOKEN },
+            regionPos: { names: ["region-pos"], type: VECTOR2I_TOKEN },
+            force: { names: ["force"], type: TILE_UPDATE_STRATEGY_TOKEN },
+        },
+    };
 }

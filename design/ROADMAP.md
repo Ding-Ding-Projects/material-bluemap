@@ -163,6 +163,64 @@ Not proven, made less true on 2026-08-05 (issue #29, landed with #41 above):
   implemented as `saveIfDue(60_000)` at completion, with a regression test; the 200x200 oracle
   compared 63 files identically and the 1000x1000 oracle compared 995 files identically.
 
+Ported on 2026-08-05 (issue #30), in `packages/engine/src/map/rendermanager/serialization/`:
+
+- **`SerializableRenderTask`, the polymorphic `RenderTaskAdapter`, `BmMapAdapter` and
+  `Vector2iAdapter`** — upstream's four `serialization/` files, ported onto this package's
+  own `@material-bluemap/nbt` (BlueNBT) implementation rather than JSON, matching upstream's
+  on-disk shape. `RenderTaskAdapter` dispatches by a stable `{ type, data }` key
+  (`map-purge`/`map-save`/`map-update`/`region-update`, upstream's own keys); an unknown
+  `type` on read is refused with a readable `IOException` rather than guessed at.
+  `BmMapAdapter` resolves a saved map id against a live `maps` set handed in by the caller —
+  a name that no longer exists fails clearly instead of silently rendering nothing. One
+  upstream bug was fixed rather than reproduced: `BmMapAdapter`'s not-found branch calls
+  `reader.nextString()` a second time to build its own error message, which would corrupt
+  the reader's position; the port reads the id once and reuses it.
+- **Each task's `Serialized` form** — `MapPurgeTaskSerialized`, `MapSaveTaskSerialized`,
+  `MapUpdateTaskSerialized`, `WorldRegionUpdateTaskSerialized` — added beside their tasks
+  in the existing files, each with its own `ObjectSchema` (this port's stand-in for
+  upstream's reflection) and a `deserialize()` that refuses a truncated/missing required
+  field with an `IOException` instead of building a half-formed task. `MapUpdateTask`'s
+  carries its full sub-task list and `currentTaskIndex`, so a resumed update skips every
+  already-finished region rather than re-running it — the same checkpoint granularity
+  upstream's own `Serialized` gives, no finer: a region that was mid-render when the process
+  stopped restarts that region's tiles from the top on resume, because neither this port nor
+  upstream saves the tile cursor.
+- **Whole-queue persistence**: `saveRenderTaskQueue`/`loadRenderTaskQueue`
+  (`RenderTaskQueueStorage.ts`), written and read through this package's own
+  atomic-write convention (`<file>.filepart` then rename, `util/FileHelper.ts`) rather than
+  upstream's `FileHelper.createFilepartOutputStream`. The file carries an explicit format
+  `version`; a version that does not match, or a top-level structure that fails to parse at
+  all (a genuinely truncated write), is refused and deleted wholesale rather than
+  half-applied. A task with no `Serialized` form at all (`StorageDeleteTask`,
+  `MapUpdatePreparationTask`) is filtered out *before* the list is written — writing it
+  through the shared `LenientListAdapter`'s per-element skip, the way upstream's own
+  `RenderTaskAdapter`/`LenientListAdapter` pairing would, commits to the pre-filter element
+  count in the nbt stream and produces a corrupt file if any element writes nothing; this is
+  closed at the one call site that matters rather than carried forward unverified from the
+  Java. Individual bad entries elsewhere in the queue (an unloaded map, an unknown type) are
+  still dropped one at a time and reported, exactly as upstream's own `LenientListAdapter`
+  usage does.
+- **Round trip is the test, 17 of them** (`RenderTaskSerialization.test.ts`): every adapter
+  and every task type serialize-then-deserialize back to a functionally identical task,
+  including `TileUpdateStrategy` identity — a deserialized `fixed(true)` is asserted `.toBe`
+  the shared `FORCE_ALL` singleton, not merely `.equal`, which is exactly the bug this
+  repository's own history already produced once (see the `TileUpdateStrategy` entry
+  above). A dedicated resume-after-crash test drives a two-region `MapUpdateTask` partway
+  into its second region, serializes it, restores it against a *freshly constructed* `BmMap`
+  over the same on-disk storage (not the same in-memory object — a genuine simulated
+  restart), and proves by tile coordinate that the finished region is never touched again
+  while the interrupted one is fully re-rendered from scratch. The existing
+  `rendertasks.test.ts`/`RenderManager.test.ts`/`ProgressTracker.test.ts` suites are
+  untouched at 110 tests; `rendermanager/`'s own total is now 127.
+- **Not this**: the app's own resumable-render machinery for GitHub Actions renders
+  (`docs/resumable-renders.md`) is unrelated and untouched — that survives a crash by
+  remembering which shards finished, not by serializing an engine `RenderTask` queue. Not
+  wired into `RenderManager` itself, `packages/server` or `packages/cli`: nothing yet calls
+  `saveRenderTaskQueue`/`loadRenderTaskQueue` from a running process. Loading the queue at
+  startup and saving it periodically (upstream's `Plugin#load`/`Plugin#save`, on a timer and
+  at shutdown) remains open, tracked separately from this issue's own scope.
+
 ## Delivery, which the plan never described
 
 None of this is in `plan.md`, because the plan assumed a single desktop application rendering

@@ -1,13 +1,17 @@
+import { IOException, TypeToken } from "@material-bluemap/nbt";
+import type { ObjectSchema } from "@material-bluemap/nbt";
 import type { BmMap } from "../BmMap.js";
 import type { MapRenderTask } from "./MapRenderTask.js";
 import { RenderTask } from "./RenderTask.js";
+import type { SerializableRenderTask, Serialized } from "./serialization/SerializableRenderTask.js";
+import { BM_MAP_TOKEN } from "./serialization/tokens.js";
 
 /**
  * upstream: `common/.../rendermanager/MapSaveTask.java`
  *
  * Saves the map exactly once, then reports itself finished forever.
  */
-export class MapSaveTask implements MapRenderTask {
+export class MapSaveTask implements MapRenderTask, SerializableRenderTask<MapSaveTaskSerialized> {
     readonly #map: BmMap;
 
     /**
@@ -77,4 +81,42 @@ export class MapSaveTask implements MapRenderTask {
         if (!(task instanceof MapSaveTask)) return false;
         return this.#map.getId() === task.#map.getId();
     }
+
+    /** upstream: `Serialized serialize() { return new Serialized(map); }` */
+    serialize(): MapSaveTaskSerialized {
+        return new MapSaveTaskSerialized(this.#map);
+    }
+}
+
+/** upstream: {@code TypeToken.of(MapSaveTask.Serialized.class)} */
+export const MAP_SAVE_TASK_SERIALIZED_TOKEN: TypeToken<MapSaveTaskSerialized> = TypeToken.of(
+    "rendermanager.MapSaveTask.Serialized",
+);
+
+/**
+ * upstream: `MapSaveTask.Serialized` — just the map. A restored save-task always starts
+ * `#saved = false`, so a save interrupted mid-write is simply retried in full on resume,
+ * exactly as a freshly-scheduled one would be.
+ */
+export class MapSaveTaskSerialized implements Serialized<MapSaveTask> {
+    map: BmMap | null;
+
+    constructor(map: BmMap | null = null) {
+        this.map = map;
+    }
+
+    /** upstream: `public MapSaveTask deserialize() { return new MapSaveTask(map); }` */
+    deserialize(): MapSaveTask {
+        if (this.map === null)
+            throw new IOException("map-save render-task is missing its 'map' field");
+        return new MapSaveTask(this.map);
+    }
+
+    /** Port addition: the explicit nbt-schema replacing upstream's field-reflection. */
+    static readonly SCHEMA: ObjectSchema<MapSaveTaskSerialized> = {
+        create: () => new MapSaveTaskSerialized(),
+        fields: {
+            map: { names: ["map"], type: BM_MAP_TOKEN },
+        },
+    };
 }

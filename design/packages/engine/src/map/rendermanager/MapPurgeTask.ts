@@ -1,6 +1,10 @@
+import { IOException, TypeToken } from "@material-bluemap/nbt";
+import type { ObjectSchema } from "@material-bluemap/nbt";
 import type { BmMap, LowresTileManagerLike } from "../BmMap.js";
 import type { MapRenderTask } from "./MapRenderTask.js";
 import { RenderTask } from "./RenderTask.js";
+import type { SerializableRenderTask, Serialized } from "./serialization/SerializableRenderTask.js";
+import { BM_MAP_TOKEN } from "./serialization/tokens.js";
 
 /**
  * upstream: `LowresTileManager#discard()`.
@@ -34,7 +38,9 @@ async function discardLowres(lowres: LowresTileManagerLike): Promise<void> {
  * reset. Resetting the render state before the delete would leave a window in which a
  * concurrent update believes nothing is rendered while the tiles are still on disk.
  */
-export class MapPurgeTask implements MapRenderTask {
+export class MapPurgeTask
+    implements MapRenderTask, SerializableRenderTask<MapPurgeTaskSerialized>
+{
     readonly #map: BmMap;
 
     #progress: number;
@@ -118,4 +124,43 @@ export class MapPurgeTask implements MapRenderTask {
     getDetail(): string | null {
         return RenderTask.getDetail();
     }
+
+    /** upstream: `Serialized serialize() { return new Serialized(map); }` */
+    serialize(): MapPurgeTaskSerialized {
+        return new MapPurgeTaskSerialized(this.#map);
+    }
+}
+
+/** upstream: {@code TypeToken.of(MapPurgeTask.Serialized.class)} */
+export const MAP_PURGE_TASK_SERIALIZED_TOKEN: TypeToken<MapPurgeTaskSerialized> = TypeToken.of(
+    "rendermanager.MapPurgeTask.Serialized",
+);
+
+/**
+ * upstream: `MapPurgeTask.Serialized` — an `@AllArgsConstructor` nested static class
+ * holding just the map being purged. Restarting a purge from scratch on resume is correct
+ * because {@link MapPurgeTask.doWork} always begins by discarding lowres and re-running
+ * the whole delete, so there is no partial-purge progress that resuming needs to preserve.
+ */
+export class MapPurgeTaskSerialized implements Serialized<MapPurgeTask> {
+    map: BmMap | null;
+
+    constructor(map: BmMap | null = null) {
+        this.map = map;
+    }
+
+    /** upstream: `public MapPurgeTask deserialize() { return new MapPurgeTask(map); }` */
+    deserialize(): MapPurgeTask {
+        if (this.map === null)
+            throw new IOException("map-purge render-task is missing its 'map' field");
+        return new MapPurgeTask(this.map);
+    }
+
+    /** Port addition: the explicit nbt-schema replacing upstream's field-reflection. */
+    static readonly SCHEMA: ObjectSchema<MapPurgeTaskSerialized> = {
+        create: () => new MapPurgeTaskSerialized(),
+        fields: {
+            map: { names: ["map"], type: BM_MAP_TOKEN },
+        },
+    };
 }
