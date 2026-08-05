@@ -21,11 +21,13 @@ function dateValue(entry: ChangeEntry): number {
 /** Render the complete released history with a bounded date range and searchable entries. */
 export function createChangelogView(i18n: I18n): HTMLElement {
     const root = el("section", { class: "mb-changelog" });
+    const kicker = el("p", { class: "mb-page-kicker" });
+    i18n.bindText(kicker, "site.changelogKicker");
     const title = el("h1", { class: "mb-page-title" });
     i18n.bindText(title, "site.changelogTitle");
     const subtitle = el("p", { class: "mb-page-subtitle" });
     i18n.bindText(subtitle, "site.changelogSubtitle");
-    root.append(title, subtitle);
+    root.append(kicker, title, subtitle);
 
     const filter = el("div", { class: "mb-changelog-filters", attrs: { role: "group" } });
     i18n.bindAttr(filter, "aria-label", "site.changelogDateFilter");
@@ -62,6 +64,15 @@ export function createChangelogView(i18n: I18n): HTMLElement {
         },
         renderResult: ({ item, hit }) => {
             const row = el("article", { class: "mb-changelog-entry" });
+            // "Unreleased" is always the first section CHANGELOG.md carries (see
+            // changelogParser.ts's own default), which is exactly the "today" position a
+            // timeline's newest marker belongs at -- so this is a stable, filter-independent
+            // way to mark it, not an index-based guess that would drift once the visitor
+            // searches or narrows the date range.
+            if (item.version === "Unreleased") {
+                row.classList.add("mb-changelog-entry--unreleased");
+                row.append(el("span", { class: "mb-changelog-entry__latest", text: i18n.t("site.changelogLatestLabel") }));
+            }
             const heading = el("h2", { class: "mb-changelog-entry__title" });
             heading.append(
                 hit?.field === "subject"

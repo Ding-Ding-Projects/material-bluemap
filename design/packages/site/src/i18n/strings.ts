@@ -1041,6 +1041,19 @@ export const FIXED = {
     "site.changelogTab": { en: "Changelog", yue: "變更記錄" },
     "site.notificationsTab": { en: "Notifications", yue: "通知" },
     "site.discoveryTitle": { en: "Search everything", yue: "搜尋所有嘢" },
+    /*
+     * The kicker line above the Documentation and Changelog page titles, and the rail
+     * headings inside an opened article -- new chrome this pass introduces, following the
+     * same "small caps label, one fixed string" convention every other section heading on
+     * this page already uses (see `site.docsSearchHeading` below), not a new pattern.
+     */
+    "site.docsKicker": { en: "Every feature, indexed", yue: "每個功能都編晒目錄" },
+    "site.changelogKicker": {
+        en: "Every version, linked to its commit",
+        yue: "每個版本都連住個 commit",
+    },
+    "site.onThisPageHeading": { en: "On this page", yue: "呢版有咩" },
+    "site.changelogLatestLabel": { en: "Latest", yue: "最新" },
     "site.docsSearchHeading": { en: "Documentation search", yue: "說明文件搜尋" },
     "site.settingsSearchHeading": { en: "Settings search", yue: "設定搜尋" },
     "site.tabDiscoveryHeading": { en: "Tab discovery", yue: "分頁探索" },

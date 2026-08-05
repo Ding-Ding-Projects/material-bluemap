@@ -100,6 +100,60 @@ export async function listBackupIds(storageDir: string): Promise<string[]> {
 }
 
 /**
+ * Where a restore lives on disk. The same shape `download/workspace.ts` uses for a
+ * download, because a restore *is* one: parts fetched from a release, verified against a
+ * digest and rejoined. The difference is only which digest a restore checks against - the
+ * Cheap LFS pointer rather than a `.parts.json` manifest - so the layout matches on
+ * purpose rather than by coincidence.
+ *
+ * ```
+ * <storageDir>/restores/<restoreId>/
+ *   parts/            the downloaded parts, plus a manifest translated from the pointer
+ *   <archive>          the rejoined archive, written only once every part is verified
+ *   content/           what the archive unpacked into
+ * ```
+ */
+export const RESTORES_DIRECTORY = "restores";
+
+export interface RestoreWorkspace {
+    readonly restoreId: string;
+    /** `<storageDir>/restores/<restoreId>`, absolute. */
+    readonly root: string;
+    /** `<root>/parts` - downloaded parts and the translated manifest. */
+    readonly partsDir: string;
+    /** `<root>/content` - where the archive was unpacked. */
+    readonly contentDir: string;
+}
+
+export function restoreWorkspace(storageDir: string, restoreId: string): RestoreWorkspace {
+    const root = resolve(storageDir, RESTORES_DIRECTORY, restoreId);
+    return {
+        restoreId,
+        root,
+        partsDir: join(root, "parts"),
+        contentDir: join(root, "content"),
+    };
+}
+
+/** The rejoined archive's path inside a restore workspace. */
+export function restoreArchivePath(workspace: RestoreWorkspace, archiveName: string): string {
+    return join(workspace.root, archiveName);
+}
+
+/**
+ * A stable id for one restore of one backup, so a resumed restore continues into the same
+ * folder rather than fetching a 20 GB world a second time beside the first.
+ */
+export function restoreIdFor(owner: string, repo: string, tag: string): string {
+    const digest = createHash("sha256")
+        .update(`restore:${owner}/${repo}@${tag}`.toLowerCase())
+        .digest("hex")
+        .slice(0, 12);
+    const leaf = slug(tag);
+    return leaf.length > 0 ? `${leaf}-${digest}` : digest;
+}
+
+/**
  * Throws away the staged archive and its parts, keeping the pointer and the sidecar.
  *
  * Called only after every part is on the release. Called *before* that, it would delete

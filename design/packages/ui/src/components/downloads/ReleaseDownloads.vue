@@ -28,7 +28,16 @@ import { useSettingsOpener } from "./settingsOpener.js";
  * honest account of a process that takes tens of minutes, which is why every row carries
  * real byte counts rather than a spinner.
  *
- * Two behaviours are deliberate and easy to mistake for omissions.
+ * The world does not have to be this project's own release, either. `owner`, `repo` and
+ * `tag` reach `worldsource:discover`/`worldsource:fetch`, which understand any public
+ * repository and both split layouts this project knows about - its own parts manifest and
+ * the far more common `SHA256SUMS` beside numbered parts a plain `sha256sum` produces. See
+ * `docs/world-sources.md`. The optional "paste a link" field above them calls
+ * `bridge.parseLink` on every keystroke and writes what it resolves to into those same
+ * three fields; it is convenience over them, never a replacement, and a bridge that cannot
+ * parse a link (`canParseLink` false) simply never shows it.
+ *
+ * Three behaviours are deliberate and easy to mistake for omissions.
  *
  * **Nothing is fetched until somebody asks.** Mounting this reconciles with what is
  * already on disk and in flight, which costs nothing and touches no network; reading a
@@ -40,6 +49,11 @@ import { useSettingsOpener } from "./settingsOpener.js";
  * work: a browser tab has nowhere to write a twenty gigabyte world, no way to resume a
  * ranged request into a file, and no zip reader that streams. Saying that plainly is worth
  * more than a Download button that fails on press.
+ *
+ * **A pasted link never overwrites a repository somebody already typed by hand, on its
+ * own.** Parsing runs on every keystroke and only ever fills the three fields in when it
+ * resolves to something real; text that names no repository - which is what most
+ * keystrokes look like while somebody is still typing - leaves them exactly as they were.
  */
 const props = withDefaults(
     defineProps<{
@@ -81,6 +95,31 @@ const openSettings = useSettingsOpener();
 const owner = ref(props.where?.owner ?? DEFAULT_RELEASE.owner);
 const repo = ref(props.where?.repo ?? DEFAULT_RELEASE.repo);
 const tag = ref(props.where?.tag ?? DEFAULT_RELEASE.tag);
+
+/**
+ * A whole `owner/repo`, a URL, or a release link, resolved into the three fields above.
+ *
+ * A build whose bridge cannot parse one - `bridge?.canParseLink` false - simply never
+ * shows this field rather than showing a control that would silently do nothing: the
+ * three fields underneath stay the only way in, exactly as they always were. Resolved on
+ * every keystroke, the same way `main/worldsource/repository.ts` was built to be called:
+ * it touches no network, so there is nothing here worth waiting for a blur or an Enter to
+ * ask.
+ */
+const link = ref("");
+
+async function onLinkInput(): Promise<void> {
+    if (bridge === null) return;
+    const parsed = await bridge.parseLink(link.value);
+    // Text that names no repository leaves the three fields exactly as they were, rather
+    // than clearing them: that is what the field looks like for every keystroke before it
+    // resolves to something real, and blanking a repository somebody had already typed
+    // out from under them would be a worse field than no parsing at all.
+    if (parsed === null) return;
+    owner.value = parsed.owner;
+    repo.value = parsed.repo;
+    tag.value = parsed.tag ?? "";
+}
 
 /** Asset names being transferred right now, so the list never offers a second copy. */
 const activeAssets = computed(() =>
@@ -214,6 +253,21 @@ defineExpose({ downloads });
         </v-alert>
 
         <template v-else>
+            <v-text-field
+                v-if="downloads.available && bridge?.canParseLink"
+                v-model="link"
+                :label="t('downloads.link', 'Paste a link, or type owner, repository and tag below')"
+                :placeholder="t('downloads.linkHint', 'https://github.com/owner/repo/releases/tag/...')"
+                variant="outlined"
+                density="compact"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                hide-details="auto"
+                class="mb-downloads__link"
+                @update:model-value="onLinkInput"
+            />
+
             <div class="mb-downloads__where">
                 <v-text-field
                     v-model="owner"
@@ -412,6 +466,11 @@ defineExpose({ downloads });
 
 .mb-downloads__alert {
     margin-block-start: 12px;
+}
+
+.mb-downloads__link {
+    margin-block-start: 12px;
+    max-width: 480px;
 }
 
 .mb-downloads__where {

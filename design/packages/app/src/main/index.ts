@@ -249,6 +249,23 @@ function registerIpc(): void {
  */
 let renderIpc: RenderIpc | null = null;
 
+/**
+ * The persisted `-Xmx` ceiling, shared between the render channel (which applies it to
+ * every render that does not specify its own) and the files channel (which reads and
+ * writes the setting itself). One instance, constructed on first use by whichever of the
+ * two runs first - `createWindow` always calls `startRendering()` before
+ * `startFileAccess()`, but neither should have to assume that ordering forever.
+ */
+let renderMemory: RenderMemoryStore | null = null;
+
+function getRenderMemoryStore(): RenderMemoryStore {
+    renderMemory ??= new RenderMemoryStore({
+        dataDir: app.getPath("userData"),
+        totalMemoryBytes: totalmem(),
+    });
+    return renderMemory;
+}
+
 function startRendering(): RenderIpc {
     // `createWindow` runs again on macOS `activate`, and `ipcMain.handle` throws when a
     // channel already has a handler. Registering once is the difference between

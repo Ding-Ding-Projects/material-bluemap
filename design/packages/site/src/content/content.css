@@ -977,7 +977,63 @@
     }
 }
 
-/* ---- Documentation articles ---------------------------------------------------------- */
+/* ---- Documentation shelves ------------------------------------------------------------ */
+
+/*
+ * One banner per category, cycling the same primary/secondary/tertiary container roles the
+ * hero and the stat grid already declare, plus a fourth dashed-outline neutral treatment for
+ * "specified, not built" work. The index used to be four identical h2-on-page-background
+ * headings, indistinguishable except for their words; a reader now learns the colour code
+ * within one screen. Values are read from the shared `--md-sys-color-*` role tokens, never
+ * pinned literally, so a seed change in tokens.css reaches every shelf for free.
+ */
+.mb-docs-shelf {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-4);
+}
+
+.mb-docs-shelf-header {
+    padding: var(--md-sys-spacing-3) var(--md-sys-spacing-5);
+    /* Rounded on the two top corners only, square on the bottom -- a banner sitting above
+       its row of tiles, not one more card matching everything else on the page. */
+    border-radius: var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large) 0 0;
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface);
+}
+
+.mb-docs-shelf[data-category="application"] .mb-docs-shelf-header {
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+}
+
+.mb-docs-shelf[data-category="engine"] .mb-docs-shelf-header {
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+}
+
+.mb-docs-shelf[data-category="delivery"] .mb-docs-shelf-header {
+    background: var(--md-sys-color-tertiary-container);
+    color: var(--md-sys-color-on-tertiary-container);
+}
+
+/* "Product contracts" stays deliberately neutral and dashed: every article filed under it
+   is specified, not built, and painting it like a shipped category would misrepresent it. */
+.mb-docs-shelf[data-category="contracts"] .mb-docs-shelf-header {
+    border: 1px dashed var(--md-sys-color-outline);
+    border-bottom: none;
+    background: var(--md-sys-color-surface-container-high);
+    color: var(--md-sys-color-on-surface-variant);
+}
+
+.mb-docs-shelf-title {
+    margin: 0;
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
 
 /*
  * The index used to be a uniform stack of same-height rows — visually indistinguishable
@@ -991,6 +1047,45 @@
     align-items: start;
     gap: var(--md-sys-spacing-3);
     grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+}
+
+/*
+ * The glossary and every product contract read as a feature card even collapsed: a full
+ * row, a bigger title, and (below) a visible excerpt inside `<summary>`, which renders
+ * whether or not the disclosure is open. This is the "not every entry is the same size or
+ * shape" rule the direction asks for, applied concretely instead of left as one more
+ * uniform tile.
+ */
+.mb-article-grid > .mb-article[data-feature="true"] {
+    grid-column: 1 / -1;
+}
+
+.mb-article[data-feature="true"] .mb-article-summary {
+    padding: var(--md-sys-spacing-5);
+}
+
+.mb-article[data-feature="true"] .mb-article-title {
+    font-family: var(--md-sys-typescale-headline-small-font);
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: 600;
+}
+
+.mb-article[data-feature="true"] {
+    box-shadow: var(--md-sys-elevation-level1);
+    transition: box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.mb-article[data-feature="true"]:hover {
+    box-shadow: var(--md-sys-elevation-level2);
+}
+
+.mb-article-excerpt {
+    flex: 1 1 100%;
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+    overflow-wrap: anywhere;
 }
 
 /* An opened article carries a full reading column of prose, tables and code — squeezing
@@ -1044,10 +1139,19 @@
     overflow-wrap: anywhere;
 }
 
+/*
+ * The dead right-half whitespace an opened article used to leave (a single ~55%-wide
+ * reading column against a blank right half) becomes a real two-column skeleton on a wide
+ * viewport: the reading column left, a sticky rail right holding the auto-generated "On
+ * this page" outline, the status panel, related articles and sources. Below the same
+ * 56.25rem breakpoint the hero's own grid already uses, the rail drops beneath the reading
+ * column and stops being sticky, matching the responsive pattern already proven there.
+ */
 .mb-article-body {
-    display: flex;
-    flex-direction: column;
-    gap: var(--md-sys-spacing-4);
+    display: grid;
+    align-items: start;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--md-sys-spacing-6);
     /*
      * A local, article-scoped reading measure. `--md-sys-measure` (74ch, in tokens.css)
      * stays untouched as the site-wide default; this narrows it for opened article prose
@@ -1058,6 +1162,94 @@
      */
     --md-sys-measure: 66ch;
     padding: var(--md-sys-spacing-5) var(--md-sys-spacing-4) var(--md-sys-spacing-6);
+}
+
+@media (min-width: 56.25rem) {
+    .mb-article-body {
+        grid-template-columns: minmax(0, 1fr) minmax(15rem, 20rem);
+    }
+}
+
+.mb-article-reading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-4);
+    min-width: 0;
+}
+
+.mb-article-rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-5);
+    min-width: 0;
+    padding: var(--md-sys-spacing-4);
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: var(--md-sys-color-surface-container-low);
+}
+
+@media (min-width: 56.25rem) {
+    .mb-article-rail {
+        position: sticky;
+        top: var(--md-sys-spacing-6);
+        max-height: calc(100vh - var(--md-sys-spacing-12));
+        overflow-y: auto;
+    }
+}
+
+.mb-article-status-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--md-sys-spacing-2);
+}
+
+.mb-article-toc-heading {
+    margin: 0;
+    color: var(--md-sys-color-on-surface-variant);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.mb-article-toc-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-1);
+    margin: var(--md-sys-spacing-2) 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.mb-article-toc-link {
+    display: block;
+    width: 100%;
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-3);
+    border: 0;
+    border-radius: var(--md-sys-shape-corner-small);
+    background: transparent;
+    color: var(--md-sys-color-on-surface);
+    font-family: inherit;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    text-align: start;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+
+.mb-article-toc-link:hover,
+.mb-article-toc-link:focus-visible {
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-primary) var(--md-sys-state-hover-opacity),
+        transparent
+    );
+}
+
+/* The rail's own suggested-articles panel sits inside `.mb-article-rail`'s padding, so it
+   does not need the reading column's own margin/max-width rules. */
+.mb-article-rail .mb-suggested {
+    padding: var(--md-sys-spacing-3);
 }
 
 .mb-article-lede {
@@ -1500,22 +1692,121 @@
 }
 
 /*
- * A real elevated tile rather than a flat outlined row: the entry lifts on hover the same
- * way the rest of this pass lifts a card, one motion vocabulary reused instead of a second
- * one invented for this surface.
+ * The left-rail timeline: a thin vertical line with a dot per entry, entries hanging off it
+ * to the right, most recent at the top -- a genuinely different reading shape than the docs
+ * shelves above or the settings card-wall, rather than one more flat list. Built entirely
+ * from the search surface's own generic markup (`.mbm-results` / `.mbm-results__item`,
+ * shared by every search bar on the site) through pseudo-elements scoped under `.mb-changelog`,
+ * so it never touches `search/searchSurface.ts` and never bleeds into docs search, settings
+ * search or the command palette, which render the exact same classes elsewhere.
+ *
+ * `:has()` is a progressive enhancement, not a requirement: a browser without it simply
+ * never matches the guard selectors below and renders the plain line-and-dot without the
+ * "today/unreleased" emphasis, rather than failing.
+ */
+.mb-changelog .mbm-results {
+    --mb-timeline-gutter: var(--md-sys-spacing-8);
+    --mb-timeline-line-x: var(--md-sys-spacing-4);
+    --mb-timeline-dot: 10px;
+    position: relative;
+    margin: 0;
+    padding: 0 0 0 var(--mb-timeline-gutter);
+    list-style: none;
+}
+
+.mb-changelog .mbm-results:has(.mbm-results__item)::before {
+    content: "";
+    position: absolute;
+    top: var(--md-sys-spacing-2);
+    bottom: var(--md-sys-spacing-2);
+    left: calc(var(--mb-timeline-line-x) - 1px);
+    width: 2px;
+    background: var(--md-sys-color-outline-variant);
+}
+
+.mb-changelog .mbm-results__item {
+    position: relative;
+}
+
+.mb-changelog .mbm-results__item::before {
+    content: "";
+    position: absolute;
+    top: var(--md-sys-spacing-4);
+    left: calc(
+        -1 * var(--mb-timeline-gutter) + var(--mb-timeline-line-x) - (var(--mb-timeline-dot) / 2)
+    );
+    width: var(--mb-timeline-dot);
+    height: var(--mb-timeline-dot);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-primary);
+    box-shadow: 0 0 0 4px var(--md-sys-color-surface-container-low);
+}
+
+/* The one entry that is always "today": Unreleased is always the first section
+   CHANGELOG.md carries (changelogParser.ts's own default), so this is a stable,
+   filter-independent marker rather than a first-child guess that would drift once the
+   visitor searches or narrows the date range. */
+.mb-changelog .mbm-results__item:has(.mb-changelog-entry--unreleased)::before {
+    width: calc(var(--mb-timeline-dot) + 6px);
+    height: calc(var(--mb-timeline-dot) + 6px);
+    left: calc(
+        -1 * var(--mb-timeline-gutter) + var(--mb-timeline-line-x) -
+            ((var(--mb-timeline-dot) + 6px) / 2)
+    );
+    background: var(--md-sys-color-tertiary);
+    box-shadow: 0 0 0 4px var(--md-sys-color-tertiary-container);
+}
+
+@media (max-width: 40rem) {
+    .mb-changelog .mbm-results {
+        --mb-timeline-gutter: var(--md-sys-spacing-6);
+        --mb-timeline-line-x: var(--md-sys-spacing-3);
+    }
+}
+
+/*
+ * Dense reading shape for the timeline: a flat, bordered row rather than the elevated tile
+ * every other card on the site uses (Tier 0 in the direction's depth scale -- "dense data
+ * reads calm"), and a step down the shape scale (small, not large) so the hero's own
+ * extra-large corners read as expressive by contrast rather than the same radius repeated
+ * at every size on the page.
  */
 .mb-changelog-entry {
     display: grid;
     gap: var(--md-sys-spacing-2);
     padding: var(--md-sys-spacing-4);
-    border-radius: var(--md-sys-shape-corner-large);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-small);
     background: var(--md-sys-color-surface-container-low);
-    box-shadow: var(--md-sys-elevation-level1);
-    transition: box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+    transition:
+        border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
 }
 
 .mb-changelog-entry:hover {
-    box-shadow: var(--md-sys-elevation-level2);
+    border-color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-surface-container);
+}
+
+.mb-changelog-entry--unreleased {
+    border-color: var(--md-sys-color-tertiary);
+    background: color-mix(in srgb, var(--md-sys-color-tertiary-container) 30%, var(--md-sys-color-surface-container-low));
+}
+
+.mb-changelog-entry__latest {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 var(--md-sys-spacing-3);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-tertiary);
+    color: var(--md-sys-color-on-tertiary);
+    font-family: var(--md-sys-typescale-label-small-font);
+    font-size: var(--md-sys-typescale-label-small-size);
+    font-weight: var(--md-sys-typescale-label-small-weight);
+    letter-spacing: var(--md-sys-typescale-label-small-tracking);
+    text-transform: uppercase;
 }
 
 /*
