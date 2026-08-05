@@ -28,6 +28,7 @@ import {
     CONVENTIONS_URL,
     DECISIONS_URL,
     DEVIATIONS_URL,
+    DOCKER_AND_LOCAL_DOC_URL,
     DOCS_INDEX_URL,
     HANDOFF_URL,
     ISSUES_URL,
@@ -38,6 +39,7 @@ import {
     PLAN_URL,
     PRIVATE_WORLD_DOC_URL,
     REGEX_BUILDER_DOC_URL,
+    REMOTE_RENDER_DOC_URL,
     RENDER_IN_ACTIONS_DOC_URL,
     RENDER_CONSOLE_DOC_URL,
     RENDER_PRIVATE_WORKFLOW_URL,
@@ -234,7 +236,7 @@ export const home: HomeContent = {
         {
             id: "render",
             title: "Rendering a world",
-            lede: "Three routes to a map: your own machine, GitHub's runners, or a generated world when you have no Minecraft installation to hand.",
+            lede: "Several routes to a map: your own machine, a container on it or a remote one, GitHub's runners, or a generated world when you have no Minecraft installation to hand.",
             features: [
                 {
                     title: "Render a world on your own machine",
@@ -244,6 +246,24 @@ export const home: HomeContent = {
                         "Built and unit tested, and one 961-tile render was produced by hand on one Windows machine. It has not run in CI, on macOS or on Linux, and that render was driven by invoking the renderer directly rather than through the app.",
                     articleId: "java-render-path",
                     reading: [{ label: "design/docs/decisions.md", href: DECISIONS_URL }],
+                },
+                {
+                    title: "Or run the same render in a Docker container",
+                    body: "The same jar, the same arguments, inside a container instead of as a bare process, when you want the engine kept off the rest of the disk or need a Java version this machine does not have. Progress, logs, cancellation and a container that outlives a closed app all read exactly as the local path does.",
+                    status: "shipped",
+                    statusNote:
+                        "The probe, the mount planning and the reattachment machinery are built with 126 tests in CI, none needing Docker installed. Nobody has rendered a world through this path against a real, installed Docker from a packaged build.",
+                    articleId: "docker-and-local",
+                    reading: [{ label: "docs/docker-and-local.md", href: DOCKER_AND_LOCAL_DOC_URL }],
+                },
+                {
+                    title: "Or send it to a machine over SSH",
+                    body: "Hand a render to a Linux box with real cores and real disk. Keys only, never a password; an unknown host key is a decision you make and a changed one is refused with no override; the world uploads resumably when both machines have rsync, and a render that outlives a closed app is picked back up by name.",
+                    status: "shipped",
+                    statusNote:
+                        "The SSH invocation, host-key trust, preflight, transfer and reattachment are built with 154 tests in CI, none needing a real SSH client or server. No capture from a real remote host exists yet.",
+                    articleId: "remote-render",
+                    reading: [{ label: "docs/remote-render.md", href: REMOTE_RENDER_DOC_URL }],
                 },
                 {
                     title: "Render a world in GitHub Actions",

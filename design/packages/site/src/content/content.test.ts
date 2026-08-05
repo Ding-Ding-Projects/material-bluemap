@@ -484,6 +484,86 @@ describe("committed captures", () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* install                                                                    */
+/* -------------------------------------------------------------------------- */
+
+describe("install article", () => {
+    // Regression: the "Updates" definition used to say "Nothing in the app checks for
+    // updates yet: the update checker is Phase I." That was true when it was written
+    // and became false the moment design/packages/app/src/main/update/ shipped a real,
+    // tested autoUpdater wiring (checks 30s after launch, every 6h after, a
+    // non-blocking restart banner) -- see docs/automatic-updates.md and design/HANDOFF.md's
+    // "The app updates itself" line. The article never caught up, so it told a reader the
+    // opposite of what the shipped app does.
+    const article = findArticle("install");
+    const haystack = () => articleStrings(article!).join(" \n ").toLowerCase();
+
+    it("exists", () => {
+        expect(article).toBeDefined();
+    });
+
+    it("no longer claims nothing checks for updates", () => {
+        expect(haystack()).not.toMatch(/nothing in the app checks for updates/i);
+        expect(haystack()).not.toMatch(/the update checker is phase i\b/i);
+    });
+
+    it("describes the real update behaviour instead", () => {
+        expect(haystack()).toMatch(/restart to install/i);
+        expect(haystack()).toMatch(/30 seconds after launch|6 hours/i);
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Render-location routes: Docker/local and remote SSH                       */
+/* -------------------------------------------------------------------------- */
+
+describe("docker-and-local article", () => {
+    // Regression: docs/docker-and-local.md documents a real, shipped, mounted feature
+    // (choosing Local vs. Docker as the render runtime, via
+    // packages/ui/src/components/remote/RunLocationCard.vue and its 126 main-process
+    // tests in packages/app/src/main/runtime/), and the site's article registry used to
+    // have no article for it at all.
+    const article = findArticle("docker-and-local");
+
+    it("exists", () => {
+        expect(article).toBeDefined();
+    });
+
+    it("is reachable from a landing-page feature card", () => {
+        const carded = new Set(homeFeatures.map((feature) => feature.articleId));
+        expect(carded.has("docker-and-local")).toBe(true);
+    });
+
+    it("cites the runtime module and the doc it summarises", () => {
+        const labels = article!.sources.map((source) => source.label);
+        expect(labels).toContain("docs/docker-and-local.md");
+    });
+});
+
+describe("remote-render article", () => {
+    // Regression: docs/remote-render.md documents rendering over SSH, one of three
+    // render-location routes HANDOFF.md names together. The GitHub Actions route
+    // (render-in-actions.ts) had a full article; this one -- with its own UI
+    // (RemotePreflightPanel.vue, mounted inside RunLocationCard.vue) and 154 main-process
+    // tests in packages/app/src/main/remote/ -- had none.
+    const article = findArticle("remote-render");
+
+    it("exists", () => {
+        expect(article).toBeDefined();
+    });
+
+    it("is reachable from a landing-page feature card", () => {
+        const carded = new Set(homeFeatures.map((feature) => feature.articleId));
+        expect(carded.has("remote-render")).toBe(true);
+    });
+
+    it("cites the doc it summarises", () => {
+        const labels = article!.sources.map((source) => source.label);
+        expect(labels).toContain("docs/remote-render.md");
+    });
+});
+
+/* -------------------------------------------------------------------------- */
 /* Search                                                                     */
 /* -------------------------------------------------------------------------- */
 

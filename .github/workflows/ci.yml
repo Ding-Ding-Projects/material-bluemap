@@ -139,7 +139,11 @@ jobs:
 
   package:
     name: Windows installer
-    needs: check
+    # Needs `jars` too: the CLI jar downloaded below is what makes local rendering work
+    # in the packaged app at all. Without it electron-builder still produces an
+    # installer, but every local render in that installer fails immediately with
+    # "The BlueMap engine is not installed" - see jars.ts and orchestrator.ts.
+    needs: [check, jars]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -162,6 +166,31 @@ jobs:
       - name: Build workspace
         working-directory: design
         run: pnpm build
+
+      - name: Download the CLI jar built by the jars job
+        uses: actions/download-artifact@v4
+        with:
+          name: bluemap-jar-cli
+          path: jar-download
+
+      # jars.ts's bundledJarDirectory() reads resources/jars in a packaged build, and
+      # electron-builder.config.cjs's extraResources copies this exact staging
+      # directory there - the same directory `tools/build-jars.mjs` stages into on a
+      # workstation, so a packaged build and a local checkout resolve the CLI jar the
+      # same way. actions/upload-artifact does not guarantee the jar lands at the
+      # artifact's top level, so `find` locates it rather than assuming a path.
+      - name: Stage the CLI jar to bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p tools/oracle/out/jars
+          jar=$(find jar-download -name '*.jar' | head -1)
+          if [ -z "$jar" ]; then
+            echo "::error::the bluemap-jar-cli artifact contained no .jar file"
+            exit 1
+          fi
+          cp "$jar" tools/oracle/out/jars/
+          ls -la tools/oracle/out/jars
 
       # Every build must carry a version Squirrel can order, or installing a newer
       # release over an older one silently does nothing: same version, nothing to do,

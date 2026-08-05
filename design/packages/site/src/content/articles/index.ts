@@ -56,6 +56,8 @@ import { contractLocalization } from "./contract-localization.js";
 import { contractSuperConfirmation } from "./contract-super-confirmation.js";
 import { renderConsole } from "./render-console.js";
 import { publishingToPages } from "./publishing-to-pages.js";
+import { dockerAndLocal } from "./docker-and-local.js";
+import { remoteRender } from "./remote-render.js";
 import { automaticRepair } from "./automatic-repair.js";
 
 export const articles: readonly Article[] = [
@@ -85,6 +87,8 @@ export const articles: readonly Article[] = [
     legacyWorldSupport,
     bedrockWorlds,
     javaRenderPath,
+    dockerAndLocal,
+    remoteRender,
     resourcePacks,
     install,
     renderInActions,

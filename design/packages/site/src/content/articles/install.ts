@@ -1,5 +1,5 @@
 import type { Article } from "../types.js";
-import { repoFile, RELEASES_URL, PAGES_WORKFLOW_URL } from "../links.js";
+import { repoFile, RELEASES_URL, PAGES_WORKFLOW_URL, AUTOMATIC_UPDATES_DOC_URL } from "../links.js";
 
 export const install: Article = {
     id: "install",
@@ -81,10 +81,12 @@ export const install: Article = {
                         {
                             term: "Updates",
                             description: [
-                                "Squirrel emits the ",
-                                { code: "RELEASES" },
-                                " and package pair that an updater consumes. Nothing in the app checks for updates ",
-                                "yet: the update checker is Phase I.",
+                                "The app checks the Squirrel feed 30 seconds after launch and every 6 hours after ",
+                                "that, backing off when a check fails. A downloaded, verified update sits staged ",
+                                "until you choose ",
+                                { code: "Restart to install" },
+                                " from the non-blocking banner; the app never restarts itself, and a render in ",
+                                "progress holds the restart off.",
                             ],
                         },
                         {
@@ -200,5 +202,6 @@ export const install: Article = {
             href: repoFile("design/packages/app/electron-builder.config.cjs"),
         },
         { label: ".github/workflows/pages.yml", href: PAGES_WORKFLOW_URL },
+        { label: "docs/automatic-updates.md", href: AUTOMATIC_UPDATES_DOC_URL },
     ],
 };

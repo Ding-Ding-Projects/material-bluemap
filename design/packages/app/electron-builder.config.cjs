@@ -40,10 +40,26 @@ module.exports = {
     // inside `createWindow`, which is invoked as `void createWindow()`, so the
     // rejection is swallowed and the window is never created. It looks exactly like
     // the app not launching.
+    //
+    // `../../../tools/oracle/out/jars` is the same directory `tools/build-jars.mjs`
+    // stages into on a workstation (jars.ts's DEFAULT_STAGING / stagingJarDirectory),
+    // and the CI package job populates it with the CLI jar before this config runs.
+    // `bundledJarDirectory()` in jars.ts reads it back from `resourcesPath/jars` in a
+    // packaged build, so this is the one place that makes local rendering possible in
+    // a shipped installer at all. Without a staged jar this copies nothing - it is not
+    // required to exist, unlike `../ui/dist` above, because a developer running
+    // `pnpm run make` without first running `tools/build-jars.mjs` should still get an
+    // installer, just one whose local render fails the same honest way a checkout's
+    // does until the jar is built.
     extraResources: [
         {
             from: "../ui/dist",
             to: "ui",
+            filter: ["**/*"],
+        },
+        {
+            from: "../../../tools/oracle/out/jars",
+            to: "jars",
             filter: ["**/*"],
         },
     ],
