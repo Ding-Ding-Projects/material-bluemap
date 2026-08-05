@@ -85,10 +85,41 @@ Ported on 2026-08-04, in `packages/engine/src/map/rendermanager/`:
 
 Not ported, and so keeping this phase open:
 
-- **Watch-driven re-render.** `WatchService` and `MCAWorldRegionWatchService` exist in the
-  engine, but nothing joins a file-system event to a render task (issue #40).
 - **The standalone server CLI and its Dockerfile.** `packages/cli` is a stub with no tests
-  (issue #42).
+  (issue #42) — under active restructuring as of 2026-08-05.
+
+Ported on 2026-08-05 (issue #40), in `packages/server/src/plugin/MapUpdateService.ts`
+(`50e4b1a`):
+
+- **The missing middle between a file-system event and a render task.** `WatchService` and
+  `MCAWorldRegionWatchService` existed in the engine and `RenderManager`/`RenderDriver`
+  existed to drive a render, but nothing joined the two. `MapUpdateService` is a port of
+  upstream's `common/plugin/MapUpdateService.java`: it reads batches of changed
+  region-positions off a map's `createRegionWatchService()` and, once a region has been
+  quiet for a debounce window, constructs a real `WorldRegionUpdateTask` and schedules it on
+  a real `RenderManager` — reusing `RenderDriver`'s exact task/scheduling layer rather than
+  adding a second one.
+- **Both hard parts the issue called out are upstream's own answers, not new inventions.**
+  Bursts coalesce because `updateRegion` cancels and replaces whatever timer is already
+  pending for a region (upstream's own `max(regionUpdateCooldown - timeSinceLastUpdate,
+  5000)` delay formula, kept as constructor-overridable options so tests need not sit
+  through 5+ real seconds). Dedup needs no new logic at all: every fire constructs
+  `new WorldRegionUpdateTask(map, regionPos)` with the shared `TileUpdateStrategy.FORCE_NONE`
+  singleton, so `RenderManager.scheduleRenderTask`'s own equals-based queue-containment
+  refuses a region already queued — and a region already **at the head** (i.e. currently
+  being worked on) is deliberately *not* refused, so a new event for it queues safely behind
+  the running one instead of racing or being dropped, verified against the real
+  `RenderManager`'s queue rather than assumed.
+- **Tests are against real fixtures throughout** (`packages/server/test/map-update-service
+  .test.ts`, 8 tests): a real `packages/worldgen`-generated world's real region file,
+  touched, schedules exactly its own region; a real chokidar-backed watch service (not a
+  mock) drives every burst/coalescing/cooldown/head-of-queue/error-surfacing case, the last
+  proven with a live `process.on('unhandledRejection')` guard that never fires.
+- **Not wired into `packages/cli`.** That package was mid-restructure by a different task in
+  the same pass this landed in, so the bridge stops at a clean `start()`/`close()` API
+  (`new MapUpdateService(renderManager, map).start()` per watched map,
+  `await service.close()` on shutdown) rather than fighting over a file someone else was
+  actively editing. The CLI hookup itself remains open.
 
 Ported on 2026-08-05 (issue #41), in `packages/server/`:
 

@@ -197,6 +197,47 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
         await service.close();
     });
 
+    it("queues behind, never races or drops, a new event for a region already at the head of the queue", { timeout: 15000 }, async () => {
+        // upstream's own point (see the issue's "two hard parts"): a region can get a new
+        // fs-event while its previous task is already being worked on. RenderManager's own
+        // containsRenderTask deliberately exempts index 0 (the head, "already being
+        // processed" — see RenderManager.ts's own doc comment on containsRenderTask), so a
+        // second equal task for that region is *not* refused as a duplicate: it queues
+        // behind the running one instead of being dropped or racing it. This bridge does not
+        // special-case that: it is a direct, unmodified consequence of reusing
+        // RenderManager.scheduleRenderTask exactly as RenderDriver already does, verified
+        // here rather than assumed.
+        const regionFolder = join(root, "region");
+        const map = await buildMapOverRegionFolder(regionFolder);
+        const manager = new RenderManager();
+        const service = new MapUpdateService(manager, map, { regionUpdateCooldownMs: 40, minUpdateDelayMs: 40 });
+
+        // simulate "a render for this region is already running": put an equal
+        // WorldRegionUpdateTask directly at the head of the queue, the same way the real
+        // render manager would once a worker claims it — RenderManager's containment check
+        // only reads the queue, it never distinguishes "running" from "merely queued at 0".
+        const headTask = new WorldRegionUpdateTask(map, new Vector2i(2, 2));
+        expect(manager.scheduleRenderTask(headTask)).toBe(true);
+        expect(manager.getScheduledRenderTaskCount()).toBe(1);
+
+        service.start();
+        await watcherReady(service);
+
+        writeFileSync(join(regionFolder, "r.2.2.mca"), "data");
+        await new Promise((resolve) => setTimeout(resolve, 400));
+
+        // the running/head task is untouched, and the new one queued behind it rather than
+        // being refused as a duplicate or clobbering the head.
+        expect(manager.getScheduledRenderTaskCount()).toBe(2);
+        const [first, second] = manager.getScheduledRenderTasks();
+        expect(first).toBe(headTask);
+        expect(second).toBeInstanceOf(WorldRegionUpdateTask);
+        expect((second as WorldRegionUpdateTask).getRegionPos().equals(new Vector2i(2, 2))).toBe(true);
+        expect(second).not.toBe(headTask);
+
+        await service.close();
+    });
+
     it("stretches the delay by the cooldown so two real schedules of one region stay cooldownMs apart", { timeout: 15000 }, async () => {
         const regionFolder = join(root, "region");
         const map = await buildMapOverRegionFolder(regionFolder);
