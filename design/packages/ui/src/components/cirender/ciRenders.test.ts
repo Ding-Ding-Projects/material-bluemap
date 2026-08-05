@@ -834,16 +834,20 @@ describe("scheduled re-rendering", () => {
         expect(createCiRenders(both).canManageSchedule).toBe(true);
     });
 
-    it("loadSchedule reads the status into schedule.value", async () => {
+    it("loadSchedule reads the status into schedule.value, for the owner/repo asked about", async () => {
+        const seen: { owner: string; repo: string }[] = [];
         const { bridge: host } = bridge({
-            ciRenderScheduleRead: (owner, repo) =>
-                Promise.resolve({
+            ciRenderScheduleRead: (owner, repo) => {
+                seen.push({ owner, repo });
+                return Promise.resolve({
                     ok: true,
                     value: status({ enabled: true, cadence: "daily", lastCheckResult: "unchanged" }),
-                }),
+                });
+            },
         });
         const renders = createCiRenders(host);
         await renders.loadSchedule("o", "r");
+        expect(seen).toEqual([{ owner: "o", repo: "r" }]);
         expect(renders.schedule.value?.enabled).toBe(true);
         expect(renders.schedule.value?.cadence).toBe("daily");
         expect(renders.scheduleFailure.value).toBeNull();
