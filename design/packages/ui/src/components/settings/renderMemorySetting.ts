@@ -16,6 +16,7 @@
  */
 
 import { computed, ref, type ComputedRef, type Ref } from "vue";
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 import {
     canReadRenderMemory,
     canWriteRenderMemory,
@@ -172,6 +173,13 @@ export function createRenderMemorySetting(options: RenderMemorySettingOptions = 
             }
             applyReadout(result.setting);
             savedJustNow.value = true;
+            // This setting's real, authoritative copy is `render-memory.json` in the main
+            // process - it has no dedicated version history of its own the way profiles and
+            // the app-settings bag do, so this is the only place a change to it becomes
+            // visible in the "Application settings" history at all. Fire-and-forget, the
+            // same as every other key `recordAppSetting` carries: a history mirror that
+            // fails must never turn a save that worked into one that failed.
+            recordAppSetting("renderMemory", result.setting);
             return true;
         } catch (error) {
             failure.value = describe(error);

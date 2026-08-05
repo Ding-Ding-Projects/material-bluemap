@@ -117,6 +117,7 @@ export const APP_SETTINGS_HISTORY_KEYS: readonly AppSettingsHistoryKey[] = [
     { key: "funnyLevelYue", owner: "components/setup/setupI18n.ts" },
     { key: "updateDismissed", owner: "components/update/updateModel.ts" },
     { key: "noticeDuration", owner: "components/config/noticeDurationPrefs.ts" },
+    { key: "renderMemory", owner: "components/settings/renderMemorySetting.ts" },
     // tabStorage.ts backs four independent tab strips through one module, each keyed by
     // its own `localStorage` key (see `DEFAULT_TAB_STORAGE_KEY` and each `storage-key`
     // prop) - `writeTabWorkspace` records under `tabs.<that key>` so the four cannot
