@@ -12,9 +12,13 @@
  * wired to nothing.
  */
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
+import { nextTick } from "vue";
 import { createI18n } from "vue-i18n";
+
+vi.mock("../../stores/appSettingsHistorySync.js", () => ({ recordAppSetting: vi.fn() }));
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
@@ -176,6 +180,23 @@ describe("the sort control", () => {
         await wrapper.find(".mb-marker-menu__filters-head button").trigger("click");
 
         expect(wrapper.find(".mb-marker-menu__filters-head .v-chip").text()).toBe("name");
+
+        wrapper.unmount();
+    });
+});
+
+describe("mirroring the filters-open state into the application-settings history", () => {
+    beforeEach(() => {
+        vi.mocked(recordAppSetting).mockClear();
+    });
+
+    it("mirrors under the markerFiltersOpen key when the filters panel is collapsed", async () => {
+        const wrapper = render();
+
+        await wrapper.find(".mb-marker-menu__filters-head button").trigger("click");
+        await nextTick();
+
+        expect(recordAppSetting).toHaveBeenCalledWith("markerFiltersOpen", false);
 
         wrapper.unmount();
     });
