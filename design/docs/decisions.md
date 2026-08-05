@@ -64,6 +64,33 @@ world. Nothing switches silently; the application states which engine rendered a
 - The options GUI is unblocked ahead of schedule. It writes BlueMap's own HOCON configuration and
   invokes the CLI, so it no longer waits for the TypeScript render manager in Phase E.
 
+**Amendment, 2026-08-05 — the gate closed; the "until" is retired.** The Phase D parity gate
+described above closed on 2026-08-04: `tools/oracle/compare.mjs` reported a generated
+1000x1000 world byte-identical between the two engines (995 files matched, 961/961 hires
+tiles equal after decompression, 24/24 lowres tiles equal pixel for pixel), and a 200x200
+fixture on a different seed reported the same. That closes the condition this decision
+originally wrote as "until it proves byte-identical output" — and the decision is amended
+rather than superseded, because the answer is not "so it switches now."
+
+The Java engine remains the default by a standing decision of 2026-08-05, not by the gate
+being open. Nothing above this paragraph is rewritten: D17 was decided for the interval
+before the gate closed, and it correctly drove that interval. What changes here is what
+happens *after* the gate closes, which the original text left as "the mesher takes over."
+It does not. The TypeScript mesher becomes the default only through a later, separately
+verified switch decision — its own evidence, its own date, its own number — never as a
+side effect of the oracle going green. `upstreamJavaEngine` is pinned as the production
+`resolveEngine` by a named test beside the orchestrator's own
+(`packages/app/src/main/render/engine.test.ts`), so that a future switch has to edit an
+assertion on purpose rather than happen as drift in the wiring.
+
+**Why amend instead of leaving it implicit.** A gate that closes and a product that
+silently starts using the thing it gated is the switch nobody decided. The oracle proves
+the mesher's *output*; it says nothing about operational readiness, rollout risk, or
+whether anyone has verified the switch itself end to end. Closing the gate was Phase D's
+job. Deciding to flip the default is a different, still-unmade decision, and this
+amendment makes the gap between the two explicit instead of leaving a stale "until" for
+the next reader to trip over.
+
 ## D18 — Port every implementation, including the six platform adapters
 
 **Decided 2026-08-03, superseding exclusions S2 and S4 in `plan.md`.**

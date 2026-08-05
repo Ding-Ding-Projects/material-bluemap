@@ -15,7 +15,7 @@ multi-agent pass: all seven jobs passed** (workflow lint; lint, build, test; the
 BlueMap jars; the Windows installer; the test-world render; Screenshots; Publish release),
 and it published
 [`v0.1.0-build.370`](https://github.com/Ding-Ding-Projects/material-bluemap/releases/tag/v0.1.0-build.370).
-**The issue board is at zero open issues** — eighteen closed across this pass, `#28` through
+**The issue board is at zero open issues** — twenty closed across this pass, `#28` through
 `#47`, each against real evidence. Phase C's three exit checks (issue #31) finished for
 real: `textures.json` parity passes for both vanilla (1723/1723) and modded (1725/1725, an
 offline synthetic mod pack — see the dated section on it below), the live end-to-end
@@ -51,7 +51,7 @@ document says so.
 | **Phase D** | The project phase that ports the mesher. Phases are named A through J; their status is in `ROADMAP.md` |
 | **The gate** | Phase D's exit test: a whole world rendered by both engines must come out byte-identical (PRBM bytes equal, PNG pixels equal) |
 | **The oracle** | `tools/oracle/compare.mjs`. Renders one generated world twice (Java engine, then TypeScript engine) and reports every byte that differs. This is how the gate is measured |
-| **D17, D18** | Numbered project decisions, recorded in `design/docs/decisions.md`. D17: the app ships and uses the original Java engine until the TypeScript mesher passes the gate. D18: the six Minecraft server plugins are built and shipped too |
+| **D17, D18** | Numbered project decisions, recorded in `design/docs/decisions.md`. D17: the app ships and uses the original Java engine, and stays on it as a standing default (amended 2026-08-05) even now that the mesher's parity gate has closed — the mesher takes over only through a later, separately verified switch decision. D18: the six Minecraft server plugins are built and shipped too |
 | **Squirrel** | The Windows installer technology the app ships with |
 | **The contracts** | Product rules every user-facing surface must follow (regex builder on every search bar, browser-style tabs, appearance editors, language modes, super-confirmation for destructive actions). Tracked as GitHub issues #6 to #13, all now closed |
 | **The recurring defect** | "Built, tested, unreachable": code that works and has green tests, but no user can reach it, because nothing mounts it or wires it. It has happened repeatedly. An audit on 2026-08-03 found nine more cases; on 2026-08-04 the tab system, the appearance editors, the language section, the remote-render subsystem, the world-source subsystem and the update banner were each mounted after being built, tested and reachable by nobody |
@@ -457,7 +457,7 @@ workflow lint, `Lint, build, test`, the seven BlueMap jars, the Windows installe
 test-world render, Screenshots, and Publish release. It published
 [`v0.1.0-build.370`](https://github.com/Ding-Ding-Projects/material-bluemap/releases/tag/v0.1.0-build.370)
 — code name Silver Thread Roll · 銀絲卷. The GitHub issue board is at **zero open issues**:
-eighteen closed across this pass, `#28` through `#47`, every one against real evidence
+twenty closed across this pass, `#28` through `#47`, every one against real evidence
 rather than a claim alone. Getting from "every run red" (the state the entry directly below
 this one left things in) to this took four separate, unrelated causes, found and fixed one
 at a time against real failing runs rather than guessed at, plus one more real bug found

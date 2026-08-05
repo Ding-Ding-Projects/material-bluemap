@@ -9,16 +9,20 @@ renders, and that change reorders some of what follows.
 | | |
 |---|---|
 | **Local rendering today** | Upstream BlueMap's **Java engine**, built from the vendored source at `vendor/BlueMap` and driven by the app as a child process |
-| **Local rendering later** | The **TypeScript mesher** in `packages/engine`, which keeps being written and takes over when it passes the Phase D gate |
-| **The gate** | Decompressed PRBM bytes identical to the Java engine's, and lowres PNGs identical pixel for pixel, on every fixture world |
+| **The Phase D gate** | Decompressed PRBM bytes identical to the Java engine's, and lowres PNGs identical pixel for pixel, on every fixture world. **Closed 2026-08-04** |
+| **Local rendering standing default** | The **Java engine stays the default**, by D17's amendment of 2026-08-05 — the gate closing did not itself switch anything. The **TypeScript mesher** in `packages/engine` keeps being written and takes over only through a later, separately verified switch decision with its own evidence |
 | **How you can tell which ran** | Every render writes `render.json` beside its output naming the engine, its version and the JVM. The app shows it. Nothing switches silently |
 
 This reverses the pure-TypeScript position in D5 for the interval, not for the end state.
-The reasoning and the cost are in `docs/decisions.md` (D17) and in `../plan.md`
-(Amendment 1). The short version: the mesher is the largest and highest-risk part of the
-port, and until it is finished the app renders nothing at all. Driving upstream's engine
-means a world renders now, and it gives the mesher an exact oracle to be checked against
-instead of an approximation that looks plausible.
+The reasoning and the cost are in `docs/decisions.md` (D17, and its 2026-08-05 amendment)
+and in `../plan.md` (Amendment 1). The short version: the mesher is the largest and
+highest-risk part of the port, and until it was finished the app rendered nothing at all.
+Driving upstream's engine meant a world could render from day one, and it gave the mesher
+an exact oracle to be checked against instead of an approximation that looks plausible.
+That oracle now reports byte-identical output (below), and the Java engine remains the
+default anyway: passing the gate was never the same decision as flipping the default, and
+D17's amendment says so in writing rather than leaving it to be assumed the moment the
+oracle went green.
 
 **What is proven, on the machine D17 was decided on.** `./gradlew :cli:shadowJar` produces
 `implementations/cli/build/libs/cli-5.22-27-shadow.jar` (6.4 MB, 34s warm), and that jar

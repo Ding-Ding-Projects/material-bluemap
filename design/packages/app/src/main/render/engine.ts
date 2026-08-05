@@ -9,9 +9,12 @@
  * shape.
  *
  * Decisions D17 and D18 put a second engine in the tree - the TypeScript mesher in
- * `packages/engine`, which replaces the Java one once its output is byte-identical.
- * The resolver is a function for exactly that reason: swapping which engine renders is
- * a different `resolveEngine`, not a change to the orchestrator.
+ * `packages/engine`. D17's Phase D parity gate closed on 2026-08-04 (byte-identical output
+ * at both fixture sizes), but passing that gate does not itself move this seam: D17 was
+ * amended the next day to keep the Java engine the standing default, and the mesher takes
+ * over only through a later, separately verified switch decision. The resolver is a
+ * function for exactly that reason: swapping which engine renders is a different
+ * `resolveEngine`, not a change to the orchestrator - see `engine.test.ts` for the pin.
  */
 
 import { ensureJava, NoUsableJavaError, resolveCliJar } from "../java/index.js";
