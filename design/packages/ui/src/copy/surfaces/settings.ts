@@ -817,6 +817,71 @@ export const SETTINGS_VOICED = {
             "資訊同成功提示會死賴喺畫面度唔走，直到你親手收埋為止，同警告同錯誤而家嘅做法一模一樣，冇得例外。",
         ],
     },
+
+    /* ---------------------------------------------------------------- */
+    /* The Download concurrency section                                  */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * `settings.downloadConcurrency.description`: the tab that mounts
+     * `DownloadConcurrencyRow`, the control for `files/downloadConcurrency.ts`'s worker
+     * count - a setting `download/downloader.ts` had always accepted correctly, but only
+     * as a plain number frozen the moment the app launched, so writing a new one from
+     * Settings would have changed nothing until a restart. "Four" is pinned at every level
+     * because it is the one number that is a fact rather than a live reading - the shipped
+     * default, unchanged by this control existing - and "at once" is pinned because the
+     * whole sentence is about concurrency, not about total speed.
+     */
+    "settings.downloadConcurrency.description": {
+        en: [
+            "How many release-asset parts a download fetches at once, four by default: more at once can finish a fast connection sooner, and fewer means a dropped connection costs less and the disk is not asked to write several parts at once.",
+            "How many release-asset parts a download fetches at once, four by default: more at once can finish a fast connection sooner, and fewer means a dropped connection costs less and the disk is not asked to write several parts at once.",
+            "How many release-asset parts a download fetches at once, four by default. More at once can finish a fast connection sooner; fewer means a dropped connection costs less and the disk is not asked to write several parts at once - the number to lower on a slow or flaky connection.",
+            "How many release-asset parts a download pulls down at once, four by default and untouched unless you say otherwise. Push it up on a fast, honest connection and things finish sooner; pull it down on a slow or metered one so a dropped connection only costs one part instead of several, and the disk is never asked to write more than one at once.",
+            "How many release-asset parts a download tries to grab at once, four by default and nobody has complained about that number yet. Crank it up on a fast, honest connection and watch things finish sooner; dial it right back down on a slow, flaky or metered one, so a dropped connection only ever costs one part rather than several, and the poor disk is never asked to write more than one of them at once.",
+        ],
+        yue: [
+            "一次下載可以同時攞幾多個 release-asset part。預設係四個：攞多啲喺快嘅連線上完成得快啲，攞少啲就萬一斷咗都蝕少啲，個磁碟又唔使同一時間寫幾個 part。",
+            "一次下載可以同時攞幾多個 release-asset part。預設係四個：攞多啲喺快嘅連線上完成得快啲，攞少啲就萬一斷咗都蝕少啲，個磁碟又唔使同一時間寫幾個 part。",
+            "一次下載可以同時攞幾多個 release-asset part，預設四個。攞多啲喺快連線上完成得快啲；攞少啲就斷線蝕少啲，個磁碟又唔使同一時間寫幾個 part，連線慢或者唔穩就撳細啲。",
+            "一次下載想同時攞幾多個 release-asset part，預設四個，冇改過就一直係咁。連線快又靠得住就撳大啲，完成得快；連線慢或者計流量就撳細啲，斷咗都淨係蝕一個 part 唔係幾個，個磁碟亦都唔使同一時間寫幾份。",
+            "一次下載想同時扯幾多個 release-asset part，預設四個，一直冇人投訴過呢個數。連線又快又老實就撳大啲，睇住佢完成得快；連線慢、唔穩定或者計緊流量就撳細啲，咁斷線都淨係蝕一個 part 唔使蝕成班，個磁碟都唔使同一時間死命寫幾份。",
+        ],
+    },
+    /* Shown instead of the controls on a build with no main process to ask, e.g. a browser tab. */
+    "settings.downloadConcurrency.unsupported": {
+        en: [
+            "This build cannot report or change how many parts a download fetches at once. Nothing is wrong with the setting; the app has no way to ask about it from this screen yet.",
+            "This build cannot report or change how many parts a download fetches at once. Nothing is wrong with the setting; the app has no way to ask about it from this screen yet.",
+            "This build cannot report or change how many parts a download fetches at once. Nothing is wrong with the setting - the app just has no way to ask about it from this screen yet.",
+            "This build has no way to report or change how many parts a download fetches at once. Nothing is wrong with the setting itself; this screen simply cannot ask the question yet.",
+            "This build has no way to report or change how many parts a download fetches at once, full stop. Nothing is wrong with the setting itself; this screen just cannot ask the question yet, so do not go blaming the poor downloader.",
+        ],
+        yue: [
+            "呢個版本冇辦法睇到或者改動一次下載同時攞幾多個 part。個設定冇壞；只不過呢個畫面暫時仲問唔到呢個問題。",
+            "呢個版本冇辦法睇到或者改動一次下載同時攞幾多個 part。個設定冇壞；只不過呢個畫面暫時仲問唔到呢個問題。",
+            "呢個版本冇辦法睇到或者改動一次下載同時攞幾多個 part。個設定本身冇壞，淨係呢個畫面暫時仲問唔到呢個問題。",
+            "呢個版本完全冇辦法睇到或者改動一次下載同時攞幾多個 part。個設定本身冇壞，只係呢個畫面而家問唔到呢個問題。",
+            "呢個版本完全冇辦法睇到或者改動一次下載同時攞幾多個 part，齊晒。個設定本身冇壞，淨係呢個畫面而家問唔到呢條問題，唔關個 downloader 事。",
+        ],
+    },
+    /* Shown alongside the controls when this build can read the count but not write it. */
+    "settings.downloadConcurrency.readOnly": {
+        en: [
+            "This build can show the count but cannot change it. The desktop app owns that setting; a browser tab has no access to it.",
+            "This build can show the count but cannot change it. The desktop app owns that setting; a browser tab has no access to it.",
+            "This build can show the count but cannot change it. The desktop app owns that setting, and a browser tab has no access to it.",
+            "This build can show the count, but cannot change it. The desktop app owns that setting, and a browser tab simply has no access to it.",
+            "This build can show the count all it likes, but cannot change it. The desktop app owns that setting, and a browser tab has no access to it whatsoever.",
+        ],
+        yue: [
+            "呢個版本可以顯示個數量，但係改唔到。呢個設定由桌面版負責，網頁分頁冇權限改。",
+            "呢個版本可以顯示個數量，但係改唔到。呢個設定由桌面版負責，網頁分頁冇權限改。",
+            "呢個版本可以顯示個數量，不過改唔到。呢個設定歸桌面版管，網頁分頁冇權限改佢。",
+            "呢個版本淨係顯示到個數量，改唔到。呢個設定歸桌面版管，網頁分頁完全冇權限改。",
+            "呢個版本鍾意點顯示個數量都得，總之就係改唔到。呢個設定歸桌面版管，網頁分頁一啲權限都冇。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const SETTINGS_FIXED = {
@@ -923,6 +988,17 @@ export const SETTINGS_FIXED = {
     },
     "settings.noticeDuration.defaultChip": { en: "Default", yue: "預設" },
     "settings.noticeDuration.reset": { en: "Reset to Balanced", yue: "重設做均衡" },
+
+    /* The Download concurrency tab's own heading, above `settings.downloadConcurrency.description`. */
+    "settings.downloadConcurrency.title": { en: "Download concurrency", yue: "下載併發" },
+    "settings.downloadConcurrency.workersField": { en: "Parts at once", yue: "同時幾多個 part" },
+    "settings.downloadConcurrency.save": { en: "Save this limit", yue: "儲存呢個上限" },
+    "settings.downloadConcurrency.reset": { en: "Reset to default", yue: "重設做預設" },
+    "settings.downloadConcurrency.pickerLabel": {
+        en: "How many parts are fetched at once",
+        yue: "幾多個 part 同時攞",
+    },
+    "settings.downloadConcurrency.saved": { en: "Saved.", yue: "已儲存。" },
 } as const satisfies Record<string, FixedString>;
 
 export const SETTINGS_FACTS = {
@@ -1098,6 +1174,22 @@ export const SETTINGS_FACTS = {
     "settings.noticeDuration.levelSummaryPersistent": {
         en: ["dismiss", "warning or an error"],
         yue: ["收埋", "警告同錯誤"],
+    },
+
+    // "Four" is the real, fixed shipped default - not a live reading like the render
+    // memory ceiling's own numbers, which is why it can be pinned as a fact at all.
+    // "at once" is the other fact worth keeping: this is about concurrency, not raw speed.
+    "settings.downloadConcurrency.description": {
+        en: ["four by default", "at once"],
+        yue: ["四個", "同時"],
+    },
+    "settings.downloadConcurrency.unsupported": {
+        en: ["report or change", "Nothing is wrong"],
+        yue: ["冇辦法", "冇壞"],
+    },
+    "settings.downloadConcurrency.readOnly": {
+        en: ["show", "cannot change", "desktop app"],
+        yue: ["顯示", "改唔到", "桌面版"],
     },
 } as const satisfies Record<
     keyof typeof SETTINGS_VOICED,

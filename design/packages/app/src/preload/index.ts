@@ -27,6 +27,8 @@ import type {
 } from "../main/pages/index.js";
 import type { RemoteHostEvent } from "../main/remote/index.js";
 import type {
+    DownloadConcurrencyReadout,
+    DownloadConcurrencyWriteResult,
     MapStorageDefaultReadout,
     RenderMemoryReadout,
     RenderMemoryWriteResult,
@@ -1934,6 +1936,9 @@ interface MaterialBlueMapBridge {
         mode: "automatic" | "manual";
         megabytes: number;
     }): Promise<RenderMemoryWriteResult>;
+    /** How many release-asset parts a download fetches at once, with its bounds. */
+    downloadConcurrency(): Promise<DownloadConcurrencyReadout>;
+    setDownloadConcurrency(workers: number): Promise<DownloadConcurrencyWriteResult>;
 
     /* ---- Backing a world or a rendered map up to GitHub ------------------ */
 
@@ -2192,6 +2197,8 @@ const bridge: MaterialBlueMapBridge = {
     mapStorageDefault: () => ipcRenderer.invoke("files:mapStorageDefault"),
     renderMemory: () => ipcRenderer.invoke("files:renderMemory"),
     setRenderMemory: (setting) => ipcRenderer.invoke("files:setRenderMemory", setting),
+    downloadConcurrency: () => ipcRenderer.invoke("files:downloadConcurrency"),
+    setDownloadConcurrency: (workers) => ipcRenderer.invoke("files:setDownloadConcurrency", workers),
 
     project: {
         read: (worldFolder) => ipcRenderer.invoke("project:read", worldFolder),

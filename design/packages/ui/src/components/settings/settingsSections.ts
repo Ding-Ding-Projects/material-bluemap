@@ -77,6 +77,13 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * here. A shell-wide preference, not a per-render one, so it sits with the other two
  * "the app already behaves reasonably; here is where you would change that" rows above it.
  *
+ * Download concurrency is next: how many release-asset parts a download fetches at once,
+ * per `main/files/downloadConcurrency.ts`. Not an anchor either, and for the same reason
+ * notification duration is not one - a slow or contended download reports as a download
+ * failure or simply as slowness, neither of which is a typed `SettingsTarget` a render or a
+ * download could honestly point here from. It sits beside the other two "already sensible,
+ * here is where you'd change it" rows for the same reason they sit together.
+ *
  * Updates is next for the same reason GitHub sign-in and language-and-tone are not
  * anchors: no render stops for the want of an update, so nothing in the bridge's
  * `SettingsTarget` could honestly point at it. It is the one place the installed version,
@@ -104,6 +111,7 @@ export const SETTINGS_SECTIONS = [
     "surface-placement",
     "render-memory",
     "notification-duration",
+    "download-concurrency",
     "updates",
     "history",
     "diagnostics",

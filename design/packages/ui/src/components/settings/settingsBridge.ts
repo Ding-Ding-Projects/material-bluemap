@@ -142,6 +142,37 @@ export interface RenderMemoryBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* How many parts a download fetches at once                                 */
+/* -------------------------------------------------------------------------- */
+
+/** Mirrors `DownloadConcurrencyReadout` in `main/files/ipc.ts`. */
+export interface DownloadConcurrencyReadout {
+    readonly workers: number;
+    /** True when nothing has been chosen and this is the shipped default. */
+    readonly isDefault: boolean;
+    readonly defaultWorkers: number;
+    readonly minimumWorkers: number;
+    readonly maximumWorkers: number;
+    /** One paragraph naming the number and both directions of the trade-off. */
+    readonly explanation: string;
+}
+
+export type DownloadConcurrencyWriteResult =
+    | { readonly ok: true; readonly setting: DownloadConcurrencyReadout }
+    | { readonly ok: false; readonly reason: string };
+
+/**
+ * Reading and writing how many release-asset parts a download fetches at once.
+ *
+ * Optional, like every bridge here: a browser tab has no main process to hold the
+ * setting, and the row says so rather than showing a number nobody measured.
+ */
+export interface DownloadConcurrencyBridge {
+    downloadConcurrency?: () => Promise<DownloadConcurrencyReadout>;
+    setDownloadConcurrency?: (workers: number) => Promise<DownloadConcurrencyWriteResult>;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Renders that have already happened                                         */
 /* -------------------------------------------------------------------------- */
 
@@ -169,7 +200,8 @@ export interface RenderHistoryBridge {
 export type SettingsBridge = StorageDirectoryBridge &
     JavaRuntimeBridge &
     RenderHistoryBridge &
-    RenderMemoryBridge;
+    RenderMemoryBridge &
+    DownloadConcurrencyBridge;
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
     return typeof value === "function";
@@ -271,4 +303,37 @@ export async function browseForFolder(
     const picker = bridge?.chooseMapStorageDirectory;
     if (!isFunction(picker)) return null;
     return await picker(current);
+}
+
+/** True when this build can report the download-concurrency setting. */
+export function canReadDownloadConcurrency(bridge: SettingsBridge | null): boolean {
+    return isFunction(bridge?.downloadConcurrency);
+}
+
+/** True when this build can change it, not merely report it. */
+export function canWriteDownloadConcurrency(bridge: SettingsBridge | null): boolean {
+    return isFunction(bridge?.setDownloadConcurrency);
+}
+
+/** The current worker count, or null when this build cannot ask about it. */
+export async function readDownloadConcurrency(
+    bridge: SettingsBridge | null,
+): Promise<DownloadConcurrencyReadout | null> {
+    if (!isFunction(bridge?.downloadConcurrency)) return null;
+    return await bridge.downloadConcurrency();
+}
+
+/** Stores a new worker count, reporting a refusal rather than swallowing it. */
+export async function writeDownloadConcurrency(
+    bridge: SettingsBridge | null,
+    workers: number,
+): Promise<DownloadConcurrencyWriteResult> {
+    if (!isFunction(bridge?.setDownloadConcurrency)) {
+        return {
+            ok: false,
+            reason:
+                "This build cannot change how many parts a download fetches at once. The desktop app owns that setting; a browser tab has no access to it.",
+        };
+    }
+    return await bridge.setDownloadConcurrency(workers);
 }

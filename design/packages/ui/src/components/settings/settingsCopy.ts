@@ -104,6 +104,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "How long an informational or success toast stays on screen before it dismisses itself. Warnings and errors are never affected: they always stay until you dismiss them.",
             ),
         },
+        "download-concurrency": {
+            title: t("settings.downloadConcurrency.title", "Download concurrency"),
+            description: t(
+                "settings.downloadConcurrency.description",
+                "How many release-asset parts a download fetches at once. More at a time can finish a fast connection sooner; fewer means a dropped connection costs less and the disk is not asked to write several parts at the same time.",
+            ),
+        },
         "updates": {
             title: t("settings.updates.title", "Updates"),
             description: t(

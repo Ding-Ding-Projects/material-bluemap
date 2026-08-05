@@ -76,6 +76,12 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["3 · Balanced"],
     },
     {
+        anchor: "download-concurrency",
+        title: "Download concurrency",
+        description: "How many release-asset parts a download fetches at once.",
+        values: ["4"],
+    },
+    {
         anchor: "updates",
         title: "Updates",
         description: "Whether this build is up to date, when it last checked, and where updates come from.",
@@ -155,6 +161,7 @@ describe("every section the surface renders", () => {
             "surface-placement",
             "render-memory",
             "notification-duration",
+            "download-concurrency",
             "updates",
             "history",
             "diagnostics",

@@ -29,6 +29,8 @@ import { createMapStorageSetting } from "./mapStorageSetting.js";
 import { createRenderMemorySetting } from "./renderMemorySetting.js";
 import RenderMemoryRow from "./RenderMemoryRow.vue";
 import NotificationDurationRow from "./NotificationDurationRow.vue";
+import { createDownloadConcurrencySetting } from "./downloadConcurrencySetting.js";
+import DownloadConcurrencyRow from "./DownloadConcurrencyRow.vue";
 import {
     dockPlacementLabel,
     githubSectionCopy,
@@ -126,6 +128,7 @@ const storage = createMapStorageSetting();
 const java = createJavaSetting();
 const github = createGitHubAccount();
 const renderMemory = createRenderMemorySetting();
+const downloadConcurrency = createDownloadConcurrencySetting();
 
 /** Every docked panel that is open right now, including this one. */
 const surfaces = dockedSurfaces();
@@ -149,6 +152,7 @@ const languageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const placementSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const renderMemorySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const noticeDurationSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const downloadConcurrencySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const historySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const diagnosticsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -309,6 +313,21 @@ const sections = computed<SettingsSectionText[]>(() => {
                 noticeDurationLevelLabel(t, level as 1 | 2 | 3 | 4 | 5),
             ),
         },
+        // The current worker count and its own explanation - the same "search what is
+        // actually on screen" rule every other section follows, so typing "4" or "bandwidth"
+        // finds this tab.
+        {
+            anchor: "download-concurrency",
+            title: text["download-concurrency"].title,
+            description: text["download-concurrency"].description,
+            values:
+                downloadConcurrency.readout.value === null
+                    ? []
+                    : [
+                          String(downloadConcurrency.readout.value.workers),
+                          downloadConcurrency.readout.value.explanation,
+                      ],
+        },
         // The installed and staged versions, the last check and the feed, plus the row's
         // own words for whatever it is currently saying (checking, up to date, failed,
         // unsupported) - the same "search what is actually on screen" rule every other
@@ -415,6 +434,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return renderMemorySection.value;
         case "notification-duration":
             return noticeDurationSection.value;
+        case "download-concurrency":
+            return downloadConcurrencySection.value;
         case "updates":
             return updatesSection.value;
         case "history":
@@ -549,6 +570,7 @@ watch(
         // prompts the operating system's credential store.
         void github.load();
         void renderMemory.load();
+        void downloadConcurrency.load();
         scheduleReveal(props.anchor);
     },
     { immediate: true },
@@ -791,6 +813,27 @@ function onDrawer(value: boolean): void {
                         :description="copy['notification-duration'].description"
                     >
                         <NotificationDurationRow />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    How many release-asset parts a download fetches at once.
+                    `files/downloadConcurrency.ts` has stored, validated and reported this
+                    since it was written; what was missing was a control, and a downloader
+                    that actually read the choice back on every download rather than only
+                    at app launch (see `download/downloader.ts`'s own `concurrency` option).
+                    No render or download failure can send somebody here today, so like
+                    render memory and notification duration this is reached by opening
+                    Settings.
+                -->
+                <template #download-concurrency>
+                    <SettingsSection
+                        ref="downloadConcurrencySection"
+                        anchor="download-concurrency"
+                        :title="copy['download-concurrency'].title"
+                        :description="copy['download-concurrency'].description"
+                    >
+                        <DownloadConcurrencyRow :setting="downloadConcurrency" />
                     </SettingsSection>
                 </template>
 
