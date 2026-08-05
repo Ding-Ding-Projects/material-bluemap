@@ -82,21 +82,26 @@ layers away from anything that would point at the download.
 
 ## Using one in the desktop application
 
-> [!WARNING]
-> **This section describes `main/worldsource/`, which is fully built and tested (see
-> Verification below) but is not yet reachable from the desktop app's own UI.** The map
-> wizard's world step's release downloader (`ReleaseDownloads.vue`) still only calls
-> `download:discover`/`download:start`, which understand this project's own
-> `<name>.parts.json` manifest but not the checksum-list layout most third-party releases
-> actually use. Nothing in `design/packages/ui` calls `worldsource:parse`,
-> `worldsource:discover`, `worldsource:fetch`, `worldsource:cancel` or `worldsource:active` -
-> the five channels `main/worldsource/ipc.ts` registers and the preload exposes. A repository
-> field alone does not prove this: the *existing* downloader also takes an owner and a repo,
-> for this project's own manifest-shaped releases, and would show a checksum-list split as a
-> pile of unfetchable individual parts rather than the one world it really is. The rest of
-> this section describes the intended, tested behaviour of `main/worldsource/` in isolation,
-> not what pressing a button in the shipped app does today. Using it from GitHub Actions
-> (below) does not depend on the desktop app and is unaffected by this gap.
+The map wizard's world step's release downloader (`ReleaseDownloads.vue`) reaches this
+through the downloads bridge's `discoverRelease` and `startDownload`, which the preload
+answers from `worldsource:discover` and `worldsource:fetch` rather than from
+`download:discover`/`download:start`. That is the whole of the wiring: the panel's own
+contract to the interface - `owner`, `repo`, an optional `tag`, and a `split`/`parts`/`bytes`
+summary of what a release offers - never changed, so a manifest-shaped download from this
+project's own releases keeps behaving exactly as it always did. What changed is what answers
+it, and a checksum-list release from any public repository is understood the same way a
+manifest-shaped one always was. `main/preload/worldSourceBridge.ts` is the seam that turns a
+source's `kind` into the panel's `split` flag; see its own test for the mapping.
+
+An optional field above the owner/repository/tag fields calls `worldsource:parse` on every
+keystroke and writes what it resolves to into those three - the "paste a link" behaviour
+described above. `worldsource:cancel` and `worldsource:active` are used for the same reason
+`discoverRelease`/`startDownload` are: they are the union of what the checksum-list fetcher's
+own in-flight map and the shared release downloader each have running, and asking only
+`download:cancel`/`download:active` would silently fail to stop or list a checksum-list
+download. `download:list` is untouched, because both paths write the same `DownloadRecord`
+shape into the same on-disk workspace layout, so it already reads a checksum-list download
+back with no change of its own.
 
 Under the hood, `main/worldsource/` is deliberately thin. Everything already solved is reused:
 
@@ -240,7 +245,18 @@ token or a GitHub account:
 | `fetcher.test.ts` | the whole path end to end against a real zip, really split, really served: a cross-repository release, a part that fails its digest and is repaired, a part that stays wrong and leaves nothing behind, a part the list never mentions, the derived manifest, and a cancellation |
 | `ipc.test.ts` | the channels register and dispose exactly, and no handler rejects |
 
-Run them with `npx vitest run packages/app` from `design/`.
+The desktop UI's wiring to those channels - the part this section used to carry a warning
+about - has its own coverage. `preload/worldSourceBridge.test.ts` has 8 tests proving the
+mapping between what `worldsource:discover` answers and what the downloads panel has always
+read (a checksum-list source becomes `split: true`, a `whole` one becomes `split: false`,
+a failure carries its message through), free of every Electron import so a plain vitest run
+exercises it directly rather than trusting the wiring. `ReleaseDownloads.test.ts` and
+`downloads.test.ts` in `design/packages/ui/src/components/downloads/` cover the panel itself
+end to end against a fake bridge: the "paste a link" field stays hidden without
+`canParseLink`, a real release link fills the owner/repository/tag fields, and text that
+resolves to nothing leaves them alone.
+
+Run them with `npx vitest run packages/app` and `npx vitest run packages/ui` from `design/`.
 
 The workflow is checked with `actionlint` **and** `shellcheck` installed. That pairing matters:
 actionlint silently skips every shell check when shellcheck is absent and still exits 0, so a clean
