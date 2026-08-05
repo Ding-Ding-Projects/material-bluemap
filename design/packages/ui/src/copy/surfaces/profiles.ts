@@ -186,9 +186,6 @@ export const PROFILES_FIXED = {
         yue: "呢張地圖或者伺服器做到啲咩",
     },
     "servers.menuOpen": { en: "Open this map", yue: "開呢張地圖" },
-    // The handler's Enter / Space pair is assembled from code constants, so the catalogue
-    // translates the surrounding placeholder without inventing a different shortcut.
-    "servers.key.open": { en: "{keys}", yue: "{keys}" },
     /*
      * The keys shown beside that command, and the one entry in this file that deliberately
      * says nothing.
