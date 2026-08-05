@@ -160,7 +160,7 @@ export const notificationCentre: Article = {
                         ],
                         [
                             { code: "notificationPolicy.test.ts" },
-                            "Source policy: every blocking surface in the package declared with the decision it asks for, the notification path itself free of them, nothing anywhere asking for payment, sponsorship, a rating, a subscription or an upgrade, and the corner's layout guarantees read out of the stylesheet.",
+                            "Source policy: every blocking surface in the package declared with the decision it asks for, the notification path itself free of them, nothing anywhere asking for money, a rating, a subscription, a sign-up or a share, and the corner's layout guarantees read out of the stylesheet.",
                         ],
                     ],
                 },
