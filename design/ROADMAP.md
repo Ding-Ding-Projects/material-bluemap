@@ -51,7 +51,7 @@ exclusions **S2 and S4 are withdrawn**; S1 and S3 still stand.
 | G | Docker hosting GUI (dockerode instance manager) | Pending |
 | H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | **Part done.** SQL storages ported (issue #32, see below); command palette, marker editor, JS addon system, static export and the three.js upgrade remain Pending |
 | I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending |
-| Contracts | Regex builder everywhere · full tab system · per-element appearance editors · EN/HK-Cantonese/bilingual + funny-level · super confirmation · local version history (see `docs/contracts/`) | Pages mounts the discovery searches, live-localized command palette, anchored changelog range picker, notification centre, and two-key gate. **Local version history landed for config folders** (`1b77779`, `docs/config-history.md`): an isolated git repository beside the app data directory, append-only including restore, a History tab, and trim behind the two-key gate. **Projects joined it on 2026-08-04** (`f4d3abd`, `packages/app/src/main/project/history.ts`), under their own repository root so one repository never mirrors two folders. It does not yet cover profiles, application settings or the maps-and-servers list. Remaining desktop-app contract work is tracked in the open issues |
+| Contracts | Regex builder everywhere · full tab system · per-element appearance editors · EN/HK-Cantonese/bilingual + funny-level · super confirmation · local version history (see `docs/contracts/`) | Pages mounts the discovery searches, live-localized command palette, anchored changelog range picker, notification centre, and two-key gate. **Local version history landed for config folders** (`1b77779`, `docs/config-history.md`): an isolated git repository beside the app data directory, append-only including restore, a History tab, and trim behind the two-key gate. **Projects joined it on 2026-08-04** (`f4d3abd`, `packages/app/src/main/project/history.ts`), under their own repository root so one repository never mirrors two folders. **Server profiles and application settings joined it on 2026-08-05** (issue #35, `profiles/history.ts` and `settings/history.ts`), each under their own repository root; the maps-and-servers list is covered by the same profiles history, per the issue's own text that it is one store viewed two ways. Remaining desktop-app contract work is tracked in the open issues |
 | Pages | Material 3 GitHub Pages shell, tabbed discovery, repository-backed changelog, command palette, notification centre and responsive documentation surface | **Built and locally verified; the newest hosted proof is still a Pages deployment, not a CI verdict.** The site adds every-rendered-element appearance coverage, dynamic per-group discovery searches, searchable tab/group/overflow menus with adjacent builders, cross-platform config line-ending preservation, and a site-owned super-confirmation gate for notification clearing, tab closes, group removal and bulk-close actions (`2ba959d`). The desktop app now also has a `Publish to Pages` tab (`22b475a`, `e7bd403`) with preflight size/limit facts, guarded branch ownership, live-only status, durable resume checkpoints, recorded-site status refresh and a two-key stop-hosting gate. The screenshot harness captures it and refuses stale UI/main/preload bundles (`54559eb`). Local continuation verification is **381 files, 6,174 passed, 3 skipped** before this follow-up; the Pages host now adds 37 main-process tests for resume and refresh. Site typecheck/build and repository lint remain required. Pages run `30949965713` succeeded for `ecc5168` and run `30943812059` succeeded for `80369ec`, whose live site returned 200 with the menu-search, regex-builder, appearance-coverage and dynamic-group-search markers. The exact latest CI `30960216270` and Pages `30960216143` runs for `54559eb` remain pending. The `site` package contributes 132 of the workspace's tests. A runtime/headless capture of the live site remains a separate boundary |
 | Delivery | Sign-in, private worlds, split archives, resumable renders, Actions rendering, packaging pipeline | **Landed.** Not a plan phase; see below |
 
@@ -177,12 +177,15 @@ Not proven, made less true on 2026-08-05 (issue #29, landed with #41 above):
   for. What is still true, and deliberately: local rendering still goes through upstream's
   Java engine per D17; the desktop app was not switched over to this driver, on purpose —
   that remains a separate, explicit piece of work issue #29 itself calls out of scope.
-- **One known difference from upstream remains in `WorldRegionUpdateTask`**: `run()` calls
-  `complete()` even for a region with nothing to do, writing chunk hashes upstream would not.
-  That is observable only on an incremental re-render, which is why a first-render oracle
-  never caught it. The other difference — upstream's periodic 60-second `map.save` — is now
-  implemented as `saveIfDue(60_000)` at completion, with a regression test; the 200x200 oracle
-  compared 63 files identically and the 1000x1000 oracle compared 995 files identically.
+- **Both known differences from upstream in `WorldRegionUpdateTask` are now fixed.**
+  Upstream's periodic 60-second `map.save` was implemented first, as `saveIfDue(60_000)` at
+  completion. The second — `run()` calling `complete()` even for a region with nothing to
+  do, writing chunk hashes upstream would not, observable only on an incremental re-render
+  — was fixed on 2026-08-05 (issue #28): `run()` now returns before `#complete()` on the
+  no-op path. Both fixes are proven by the full byte-exact oracle run to completion at both
+  sizes after the second fix landed: the 200x200 fixture compared 63 files identically and
+  the 1000x1000 fixture compared 995 files identically, including all 961 hires tiles, plus
+  the 1.12.2 legacy check (14/14) since it depends on the same region-completion code.
 
 Ported on 2026-08-05 (issue #30), in `packages/engine/src/map/rendermanager/serialization/`:
 
@@ -262,7 +265,7 @@ locally in TypeScript. All of it is on the branch and tested.
 | | |
 |---|---|
 | **Sign-in** | OAuth device flow, OAuth app by default with the GitHub app behind an override. Token in the OS credential store, refused rather than written in the clear when that is unavailable, never crossing the bridge, scrubbed from every error path |
-| **Rendering in GitHub Actions** | Worlds too large for one job split across a matrix, in sequential waves past the 256-job cap. 961 of 961 tiles byte-identical to an unsharded reference, zero differences across 6,024,024 lowres pixels |
+| **Rendering in GitHub Actions** | Worlds too large for one job split across a matrix, in sequential waves past the 256-job cap. 961 of 961 tiles byte-identical to an unsharded reference, zero differences across 6,024,024 lowres pixels. **Issue #39 (2026-08-05):** the wave ceiling was hardcoded at 6 (1,536 shards max); it is now 12 (3,072 shards), driven by the plan rather than a constant, with a test that reads `render-world.yml` itself and fails if the declared wave jobs and `RENDER_WAVE_SLOTS` disagree. A new early disk-requirement check measures the runner's actual free disk against the plan's estimate and fails with a named limit before any wave dispatches, rather than letting a runner die mid-render. 73/73 tests pass. **Still unproven, and the issue stays open on this alone:** no dispatch of a genuinely large world has been run with `df -h` evidence recorded in `docs/large-worlds.md` — this is real, hosted-runner-only proof a local pass cannot manufacture |
 | **Private worlds** | Sealed with AES-256-GCM and rendered on public runners, opaque HMAC-keyed identifiers, output published only to the private repository, no artifacts |
 | **Resumable renders** | A crash, a shutdown or a six hour ceiling costs one wave rather than everything. Crash detection by app-instance id, not pid, which is reused |
 | **Large downloads** | A release asset is capped at 2 GB, so oversized archives ship as 1.7 GB parts with per-part and whole-file digests, and the app downloads and rejoins them with resume |
@@ -391,6 +394,15 @@ oracle fixtures (the same tiles `PRBMWriter.test.ts` checks against the real Jav
 
 ## Test counts
 
+**Current: `npx vitest run` from `design/`, freshly run 2026-08-05, at `0bc90c2`: 469 files,
+7,288 tests, 7,278 passed, 3 skipped, 7 failed, in about 225 seconds.** The per-package
+breakdown below is the 2026-08-04-evening figure and is now stale in its totals — the suite
+grew by more than a hundred files during the 2026-08-05 pass (`packages/server` and
+`packages/cli` in particular went from a handful of tests to real suites; see their own
+sections above) — but is kept for package-shape context until a fresh per-package count is
+taken. The 7 current failures are `CommandPalette.test.ts`/`tabGroupPickerMount.test.ts` and
+their neighbours; see "Hosted CI, the 2026-08-05 pass" above.
+
 `npx vitest run` from `design/`, 2026-08-04 evening, at `9f34cff`: **355 files, 5,745 tests,
 5,741 passed, 3 skipped, 1 failed**, in about 50 seconds.
 
@@ -428,41 +440,92 @@ recently run 30935770990 at `0008dd4`, which published `v0.1.0-build.196`.
 
 ## Hosted CI, as it actually stands
 
-No CI run on `main` has produced a verdict for the current tip. The last one that did is
+**Superseded by the 2026-08-05 pass below — this paragraph describes an older window and is
+kept only so the `80369ec` cause (a since-fixed import/file split across two commits) is not
+lost.** For the current, honest CI state, read the next section instead of this one.
+
+No CI run on `main` produced a verdict for that older tip. The last one that did was
 [30943812775](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30943812775)
 at `80369ec` — **failure**, `Could not resolve "../console/annotations.js" from
 "src/components/world/renderRun.ts"` during `pnpm build` of `packages/ui`. The cause is worth
 knowing exactly, because it is invisible on a developer machine where the file is simply
 present: `f4d3abd` committed the import, and the file it imports was not committed until
-`897ecad`, three commits later. `80369ec` sits between them. The console files are tracked now
-(seven of them, per `git ls-files packages/ui/src/components/console/`), and
-`pnpm --filter @material-bluemap/ui build` succeeds locally, so that cause is gone. Every CI
-run since — `897ecad`, `92c392f`, `2887d71`, `cee6779`, `56fcd97`, `6e90336`, `6e3260f`,
-`c01aab6`, `3119425` — was **cancelled by the next push**, which has been arriving every 30
-to 60 seconds. The runs for `ecc5168` and `9f34cff` had not finished when this was written.
+`897ecad`, three commits later. `80369ec` sits between them. The console files were tracked
+correctly by the time this pass started, and `pnpm --filter @material-bluemap/ui build`
+succeeds locally, so that specific cause is gone — but a *different* cause has kept every run
+in the pass below red, and it is real, not a re-run of this one.
 
-The honest statement is therefore neither "green" nor "failing": the local gate passes and no
-hosted verdict for the current tip exists. Getting one requires pausing pushes long enough
-for a run to survive.
+## Hosted CI, the 2026-08-05 pass, as it actually stands
 
-## Revealed by the 2026-08-04 work, still open
+**No commit across this entire multi-agent pass has produced a green hosted CI run.** The
+last CI run on `main` that **succeeded** is still
+[30935770990](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30935770990)
+on commit `0008dd4`, which published release `v0.1.0-build.196` — checked against the 100
+most recent CI runs on `main`, none of which report `success`.
 
-- **Drive the render manager from something.** Phase E's pool and task layer are ported,
-  tested and exported, and no code outside `packages/engine` calls them. Until that changes,
-  a local render still goes through the Java engine and the port's own render loop is
-  unexercised outside its unit tests.
-- **Decide whether to match upstream's empty-region completion semantics** in
-  `WorldRegionUpdateTask`, then re-run the incremental parity check if that behaviour changes.
+The cause is a real, locally-reproducible test failure, not hosted-runner-only flakiness.
+Run [30986840852](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30986840852)
+on commit `e976ee9` — the native-module fix expected to finally clear the way to green —
+still came back **failure**, for a different reason than the one it fixed: two recurring
+Vuetify-rendering assertion failures, `packages/ui/src/components/palette/
+CommandPalette.test.ts` ("the Debug row should render a switch, not a label") and
+`packages/ui/src/components/tabs/tabGroupPickerMount.test.ts` (a button rendering the wrong
+label/icon), plus a `[vitest-worker]: Timeout calling "onTaskUpdate"` unhandled error. Every
+CI run checked after it — `d948635`, `6981bf9`, `50e4b1a`, `2b86de9`, `a5e5cf7`, `d4f83fa`,
+`8f61600`, `53e6474`, `cbc135c`, `0bc90c2` — also came back **failure**, all for the same
+recurring pair. A full local `npx vitest run` at `0bc90c2` reproduces the same shape: 469
+files, 7,288 tests, 7,278 passed, 3 skipped, **7 failed**, in ~225s. The dedicated "Lint the
+workflow files" job (a separate `actionlint` step) is green on every run checked; it is
+specifically the `Lint, build, test` job that fails. This has not been root-caused or fixed
+by this pass — it is named here as the single most valuable next task, because it is the
+reason the entire pass has shipped with no hosted verdict.
+
+## Revealed by the 2026-08-04 work, now resolved
+
+Kept for the record; every item below was open when this section was first written and is
+closed now. See the 2026-08-05 HANDOFF.md entry for the evidence behind each.
+
+- ~~Drive the render manager from something.~~ **Done (issues #29/#41).**
+  `packages/server/src/render/RenderDriver.ts` constructs a real `MapUpdateTask` and drives
+  it through a real `RenderManager`, proven against a real `packages/worldgen` world and a
+  real resource pack. Local rendering still goes through the Java engine per D17, on
+  purpose — that is a separate, explicit switch, not this item.
+- ~~Decide whether to match upstream's empty-region completion semantics~~ **Done (issue
+  #28).** `WorldRegionUpdateTask.run()` now returns before `#complete()` on a no-op region,
+  matching upstream; the incremental parity check was re-run at both oracle sizes and both
+  report identical output.
 - **The first-class screen capture gate is now complete.** `packages/app/test/screenshots.spec.ts`
   photographs History, Projects, the CI-render screen and the EULA viewer as required local
   surfaces, and records the render console as an explicit runtime-dependent gap when no render
   is in flight. The captions name the real state instead of substituting a mock screen.
-- **Extend the version history past config folders and projects** to profiles, application
-  settings and the maps-and-servers list, so a mistaken deletion there can also be undone.
+- ~~Extend the version history past config folders and projects~~ **Done (issue #35).**
+  Server profiles and application settings are now snapshotted; the maps-and-servers list is
+  covered by the same profiles history, per the issue's own text that it is one store viewed
+  two ways.
 - **The options editor inventory is pinned.** `configSearch.test.ts` now asserts the generated
   workspace exposes 154 settings across the seven configuration tabs, with History as the
   eighth navigation tab, so a schema change cannot quietly make the published screenshot and
   README lie.
+
+## Open going into the next pass
+
+- **Fix the recurring `CommandPalette.test.ts`/`tabGroupPickerMount.test.ts` CI failure**
+  described above — this is what has kept every hosted run red through the whole
+  2026-08-05 pass.
+- **Wire `RenderManager.saveRenderTaskQueue`/`.loadRenderTaskQueue` into something that
+  actually calls them** — a periodic-save timer and load-on-startup, in `packages/server`
+  or `packages/cli` (issue #30's own follow-on, not closed by it).
+- **Join `packages/cli`'s `-u`/`--watch` to `packages/server`'s `MapUpdateService`** — both
+  exist; nothing calls the second from the first yet.
+- **Prove MySQL and PostgreSQL storage against a real server**, and prove
+  cross-compatibility with upstream's Java engine, both named as open in issue #32.
+- **Run Phase C's three exit checks to completion** and record the results (issue #31, in
+  progress as of this pass).
+- **Dispatch a genuinely large world through the render-world workflow** with `df -h`
+  evidence at each stage, recorded in `docs/large-worlds.md` (issue #39's own remaining
+  checklist item).
+- **Test the private-repository Pages 403 mapping, and staging time on a real large map**
+  (issue #44's two remaining sub-items).
 
 ## Deferred verification
 

@@ -7,8 +7,12 @@ uses. Read it first. Everything after it is a dated log written by people who we
 this section is for anyone who was not, including a small language model with no other
 context.
 
-It was last checked against the code on **2026-08-04, late evening**, at commit `39b869e`
-on the `main` branch.
+It was last checked against the code on **2026-08-05**, at commit `b32f423` on the `main`
+branch, at the end of a large multi-agent pass that pushed roughly thirty commits directly
+to `main` (no branches). Several of those agents were still working when this summary was
+written — SQL storage (issue #32) and the Phase C exit checks (issue #31) in particular —
+so a newer commit may already exist. Check `git log --oneline -5` before trusting this
+stamp as current.
 
 ### What this project is
 
@@ -132,112 +136,151 @@ document says so.
   queue, the worker pool, the ordering, the progress reporting and the retirement rules that
   turn "render one tile" into "render a map". It is exported from
   `packages/engine/src/index.ts` and has its own tests.
+- **Something outside the engine now drives the render manager.** As of 2026-08-05,
+  `packages/server/src/render/RenderDriver.ts` constructs a real `MapUpdateTask` and hands
+  it to a real, running `RenderManager` — proven against a real `packages/worldgen` world
+  meshed through a real resource pack, with real tiles landing in a real `FileMapStorage`.
+  This is the smallest honest version of "driven end to end", not a product switch: local
+  rendering still goes through the Java engine per decision D17, on purpose. See "What does
+  not work yet" below for what still calls nothing.
+- **`packages/server` has real HTTP routes, live data over Server-Sent Events, and a render
+  trigger.** Grown from four files (a static handler, an HTTP server, a remote proxy, an
+  index) to include map-data-over-HTTP with upstream's exact gzip content-negotiation
+  rules, real SSE for `live/sse` plus honest empty-shape stubs for
+  `live/players.json`/`live/markers.json`, and `POST`/`GET /maps/{id}/update`. See
+  `design/docs/deviations.md`'s "Server package" section for the two intentional additions.
+- **Watch-driven re-render is joined end to end**, within `packages/server`:
+  `MapUpdateService` debounces bursts of file-system change events into one render task per
+  region and schedules it on a real `RenderManager`, verified against real chokidar watch
+  events on a real generated world. Not yet wired into `packages/cli`'s `-u` flag — see
+  below.
+- **The standalone server CLI is real, and its Dockerfile was built and run.**
+  `packages/cli` parses upstream's real flag set, bootstraps a real config folder, renders
+  real worlds and serves real HTTP routes, with 22 tests including a full end-to-end run of
+  the built `dist/index.js`. `docker build -f design/packages/cli/Dockerfile .` produces an
+  image that renders a mounted read-only world, serves it, and runs as a non-root user —
+  confirmed by actually running it, not just authoring it. What it still refuses to do, and
+  says so loudly rather than silently: mod-resource scanning, SQL storages, non-box render
+  masks, and `-u`/`--watch` (it renders once, then exits non-zero naming the still-unwired
+  `MapUpdateService`).
+- **A render task queue can be saved to disk and resumed after a simulated crash.**
+  `RenderManager.saveRenderTaskQueue`/`.loadRenderTaskQueue` round-trip every task type
+  through a BlueNBT-based format with an explicit version number. A dedicated test kills a
+  two-region update partway through its second region and proves, after restoring against a
+  freshly built `BmMap`, that the finished region is never touched again while the
+  interrupted one restarts from scratch. **Nothing yet calls either method from a running
+  process** — see below.
+- **SQL storage is ported**, for `sql.js` (SQLite, WASM), `mysql2` and `pg` — all pure
+  JavaScript, no native addons. Proven with a real WASM SQLite engine: round trips,
+  compression, paging, purge, byte-fidelity against file storage. MySQL and PostgreSQL are
+  proven against SQL-text contract tests only; no real server was available to test against.
+- **A Minecraft 1.12.2 world now draws correctly**, not just reads correctly.
+  `packages/engine/src/world/mca/legacy/FlatteningRename.ts` translates a pre-flattening
+  block name to its modern equivalent before a resource pack is consulted, fixing grass
+  rendering as a see-through plant and snow/podzol rendering as nothing. One rename is
+  deliberately left out — `wooden_button` — because the modern block gained a `face`
+  property a legacy button's `facing` cannot be decomposed into without guessing; the code
+  says so in a comment rather than guessing.
 
 ### What does not work yet
 
-- **Nothing outside the engine drives the render manager yet.** It is built, tested and
-  exported, but no code in `packages/app`, `packages/server` or `packages/cli` calls it. A
-  local render still goes through the Java engine. Wiring it up is real work, not a
-  one-liner, and it has not been done. This is the recurring defect described in the
-  glossary; it is named here so the next person does not mistake "ported" for "in use".
-- **Two known differences from upstream are still in `WorldRegionUpdateTask`.** Both were
-  found while porting the task layer and both were deliberately left alone, because that
-  file's `run()` method is what the closed Phase D gate measured, and changing it would
-  invalidate the gate result until the oracle is re-run.
-  1. Upstream saves the map periodically while a region is being updated (a checkpoint
-     every 60 seconds). This port's `#complete()` does not.
-  2. This port's `run()` calls `#complete()` even for a region where nothing needed
-     rendering or deleting. That writes chunk hashes upstream would not write.
-
-  Neither shows up on a first render. Both only appear when a world is rendered again over
-  an existing map ("an incremental re-render"), which is why the gate never caught them.
-  Fixing them, and re-running the oracle afterwards to prove the gate still closes, is a
-  good next task.
-- **Four kinds of block from a 1.12.2 world are drawn wrongly.** Reading the world is
-  right; drawing it is not, and the reason is not in the world reader. The reader gives back
-  the *old* block name (`minecraft:grass` for a grass block). Nothing then turns that old
-  name into the new one before the pictures are looked up. So the modern picture list is
-  asked for `minecraft:grass`, and modern Minecraft uses that name for a small grass plant.
-  Every grass block in the map is drawn as a see-through plant instead of a solid cube, and
-  you can see the dirt through the ground. Snow blocks, snow layers and podzol are drawn as
-  nothing at all. The full list, the numbers behind it, and the two possible fixes are in
-  the 2026-08-04 section near the bottom of this file.
+- **The Java engine still renders locally, by design (decision D17).** The TypeScript
+  engine's render manager is now driven end to end by `packages/server`'s `RenderDriver`
+  (see above), but nothing has switched the desktop app's default local-render path over to
+  it. That switch is separate, explicit, out-of-scope work everywhere it is mentioned.
+- **The render task queue's save/load methods are never called.** They exist on
+  `RenderManager`, are unit tested, and nothing in a running process invokes either one — no
+  periodic-save timer, no load-on-startup wiring into `packages/server` or `packages/cli`.
+- **`packages/cli`'s `-u`/`--watch` flag does not actually watch.** `MapUpdateService`
+  exists and is tested in `packages/server`, but the CLI was mid-restructure when that
+  landed, so the CLI still runs one real render under `-u` and then exits non-zero naming
+  the gap, rather than joining the two.
+- **MySQL and PostgreSQL storage are unverified against a real server**, and
+  cross-compatibility with upstream's Java engine (a map the Java CLI wrote, read by this
+  port, and the reverse) needs a JVM run nobody has done.
+- **Phase C's exit criteria are still unproven** — `textures.json` parity, a real 1.12.2
+  jar, live blockstate resolution. A plan was posted for this on 2026-08-05; as of this
+  summary, no results have been reported yet.
+- **Two known differences from upstream are still in `WorldRegionUpdateTask`.** One is
+  fixed as of 2026-08-05: `run()` now returns before `#complete()` on a no-op region,
+  matching upstream, proven with both oracle sizes run to completion (63/63 and 995/995
+  files identical) plus the 1.12.2 legacy check (14/14). The other was already fixed before
+  that: upstream's periodic 60-second checkpoint save is implemented as `saveIfDue(60_000)`.
+  Both were found while porting the task layer; watch this space rather than assume either
+  is still open without checking the 2026-08-05 entry below.
 - **A warning for anyone measuring the gate: build first.** `tools/oracle` runs the
   *compiled* engine, so a run measures the last build rather than the current source. It
   now compiles automatically, but a report older than 2026-08-03 late-evening may have been
   grading a stale build.
-- **Phase E is part done. Phases G, H and I have not been started.** Phase E's worker pool
-  and task layer landed on 2026-08-04; its watch-driven re-render, its full HTTP routes with
-  server-sent events, and its standalone server command line and Dockerfile have not. Phase
-  C has three unfinished exit checks. See `ROADMAP.md`.
-- **The version history covers config folders and projects only.** Application settings and
-  the maps-and-servers list are not snapshotted yet, so deleting one of those still cannot
-  be undone.
+- **Phase E is now mostly done.** As of 2026-08-05 its worker pool, task layer,
+  watch-driven re-render, full HTTP routes with server-sent events, serialized/resumable
+  render tasks, and standalone server CLI + Dockerfile have all landed. What is not yet
+  done: the CLI's `-u`/`--watch` join to the watcher, and nothing calls the queue's
+  save/load methods from a running process. Phase H (SQL storages) is part done; command
+  palette, marker editor, JS addon system, static export and the three.js upgrade have not
+  started. Phase C has three unfinished exit checks, in progress as of this writing. See
+  `ROADMAP.md`.
+- **The version history covers config folders, projects, server profiles and application
+  settings**, as of 2026-08-05 (issue #35). The maps-and-servers list is covered by the same
+  profiles history, since the issue's own text notes it is the same store viewed
+  differently.
 - **Backup interoperability is proven against a copy of the other application's rules, not
-  against that application.** The pointer files this app writes are checked with the
-  patterns Desktop Material uses to read them. Nobody has yet made a backup here and
-  restored it there.
+  against that application.** Settled as format conformance, permanently (issue #36,
+  Outcome B) — the pointer files this app writes are checked with the patterns Desktop
+  Material uses to read them, but nobody has made a backup here and restored it there, and
+  that is not the plan.
 - One latent bug worth fixing next: `stores/profiles.ts` writes `localStorage` unguarded
   while `load()` wraps `getItem` in try/catch, so where storage is full or unavailable the
   first profile mutation throws inside a Vue watcher.
 
 ### The state of the automated checks, stated exactly
 
-**Locally, on this machine, on 2026-08-04 evening.** `npx vitest run` from `design/`
-reported **355 test files, 5,745 tests, 5,741 passed, 3 skipped, 1 failed**, in about 50
-seconds. `pnpm --filter @material-bluemap/ui build` succeeded.
+**Locally, on this machine, freshly run for this entry, at commit `0bc90c2` (2026-08-05).**
+`npx vitest run` from `design/` reported **469 test files, 7,288 tests, 7,278 passed, 3
+skipped, 7 failed**, plus 2 unhandled worker-timeout errors, in about 225 seconds. That is
+up from 355 files / 5,745 tests on 2026-08-04 evening — the suite grew by more than a
+hundred files during this pass. This is **not** the old kind of "one flaky test a concurrent
+session hadn't finished committing yet". The 7 failures are real and reproduce both locally
+and on GitHub's own runners: two Vuetify-rendering assertion failures recur across every
+hosted run checked in this pass —
+`packages/ui/src/components/palette/CommandPalette.test.ts` ("the Debug row should render a
+switch, not a label") and
+`packages/ui/src/components/tabs/tabGroupPickerMount.test.ts` (a button rendering the wrong
+label/icon — `"( ): capturing group"` expected, `"Copy the flags"` received) — alongside a
+`[vitest-worker]: Timeout calling "onTaskUpdate"` error. This reads like test-order-dependent
+pollution between files that share module-level state, but nobody has root-caused it yet as
+of this writing. It has not been fixed by this pass. Fixing it is the single most valuable
+next thing to do, because it is the reason every hosted CI run in this entire pass has failed.
 
-The one failure was worth reading rather than treating as a broken build, and it has already
-been resolved by somebody else. It was
-`packages/ui/src/components/confirm/superConfirmPolicy.test.ts`, the guard that refuses an
-undeclared destructive action, reacting to
-`packages/ui/src/components/remote/remoteTargets.ts` — a file that was not yet committed. A
-concurrent session is writing into this working tree, fast enough to see under a running
-measurement: a run five minutes before this one reported 353 files and 5,721 tests, and by
-17:27 that session had declared the call, after which
-`npx vitest run packages/ui/src/components/confirm/superConfirmPolicy.test.ts` passes its
-**14 tests**.
+**On GitHub's machines, `main` has not gone green once during this whole pass.** This is a
+plain fact and not a way of avoiding a bad one:
 
-The generalisable point, since this guard exists precisely to catch it: any commit that adds
-a destructive call site must declare it in `DESTRUCTIVE_FILES` in the same commit, or CI fails
-on that commit.
-
-**On GitHub's machines, no verdict is currently available for `main`.** This is a plain fact
-and not a way of avoiding a bad one:
-
-- The last CI run on `main` that finished with a verdict is
-  [30943812775](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30943812775)
-  on commit `80369ec`, and it **failed**. The reason was
-  `Could not resolve "../console/annotations.js" from "src/components/world/renderRun.ts"`
-  during `pnpm build` of `packages/ui`. The exact cause is worth understanding, because it
-  cannot be seen on a machine where the file is simply sitting on disk: commit `f4d3abd`
-  committed the **import**, and the file it imports was not committed until `897ecad`, three
-  commits later. `80369ec` sits between them, so the hosted checkout had an importer and no
-  file to import. The console files are tracked now
-  (`git ls-files packages/ui/src/components/console/` lists seven files) and the UI package
-  builds clean locally, so that specific cause is gone. The general lesson is the one this
-  project keeps relearning: a green local build proves nothing about what git actually holds.
-- Every CI run after it — for `897ecad`, `92c392f`, `2887d71`, `cee6779`, `56fcd97`,
-  `6e90336`, `6e3260f`, `c01aab6` and `3119425` — was **cancelled**, because a new push
-  superseded it before it could finish. Pushes have been arriving every 30 to 60 seconds.
-- The runs for `ecc5168` and `9f34cff` had not finished when this was written.
-- The last CI run on `main` that **succeeded** is
+- The last CI run on `main` that **succeeded** is still
   [30935770990](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30935770990)
-  on commit `0008dd4`, which published release `v0.1.0-build.196`.
+  on commit `0008dd4`, which published release `v0.1.0-build.196` — unchanged since
+  2026-08-04. Checking the 100 most recent CI runs on `main` (`gh run list --branch main
+  --limit 100 --json ... -q '... select(.conclusion=="success")'`) finds no later success.
+- Run [30986840852](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30986840852),
+  on commit `e976ee9` (the native-module fix that was expected to finally get a clean run),
+  came back **failure** — for the CommandPalette/tabGroupPickerMount reason above, not the
+  `@node-rs/crc32` reason it was fixed to address.
+- Every CI run checked after it — `d948635`, `6981bf9`, `50e4b1a`, `2b86de9`, `a5e5cf7`,
+  `d4f83fa`, `8f61600`, `53e6474`, `cbc135c`, `0bc90c2` — also came back **failure**, all for
+  the same recurring test-file pair. `b32f423` was still running when this was written.
+- The dedicated **"Lint the workflow files"** job (a separate `actionlint` step) is green on
+  every run checked; it is specifically the `Lint, build, test` job that fails.
 
-Do not write "CI is green" and do not write "CI is failing". The true sentence is: the local
-checks pass, and no hosted verdict for the current tip exists yet. To get one, stop pushing
-for long enough that a run survives.
+Do not write "CI is green" for any commit named in this file. The true sentence, right now,
+is: most of the feature work in this pass is proven by its own local, freshly-run tests
+(named per issue above), and the repository-wide `Lint, build, test` CI job has been red
+throughout, for a specific, reproducible, as-yet-unfixed cause.
 
 ### How to verify things yourself
 
-Run these from the repository root. All of them succeed today, with the one exception noted
-just above: the single failure seen at 17:15 was fixed by a concurrent session by 17:27, and
-that test file now passes on its own. The full suite has not been re-run since, so the total
-below is the 17:15 figure.
+Run these from the repository root.
 
 ```bash
-cd design && npx vitest run          # every unit test (5,745 on 2026-08-04 evening, about 50 seconds)
+cd design && npx vitest run          # every unit test (7,288 at 0bc90c2 on 2026-08-05, ~225s; 7 known failures, see above)
 cd design && pnpm typecheck          # type-checks all 13 packages (vue-tsc for the ui one)
 cd design && pnpm lint
 cd design && pnpm build
@@ -258,16 +301,305 @@ further down for the wrong conclusion its absence produced.
    at the top of the file. Everything under it is the dated log: newest first down to
    2026-08-04, then older material from 2026-08-03 that grew from the bottom up.** The dates
    are the only reliable ordering, so read them.
-2. The most useful next piece of work is in the engine. The render manager and the task
-   layer are ported but nothing calls them, and the two `WorldRegionUpdateTask` differences
-   above are written down and unfixed. Both are described in the "Update, 2026-08-04
-   evening" section immediately below.
+2. The most useful next piece of work is fixing the two recurring test failures
+   (`CommandPalette.test.ts`, `tabGroupPickerMount.test.ts`) that have kept hosted CI red
+   through every commit in the 2026-08-05 pass — see "Hosted CI, honestly, as it stands
+   right now" in the entry immediately below. After that: wiring `RenderManager`'s
+   save/load-queue methods and `packages/server`'s `MapUpdateService` into something that
+   actually calls them at startup, and `packages/cli`'s `-u`/`--watch` join to the same
+   service.
 3. Compare against the Java source in
    `vendor/BlueMap/core/src/main/java/de/bluecolored/bluemap/core/`. Never weaken a
    comparison to make it pass. If something cannot be verified, write that it was not
    verified.
 4. Every change: run the tests, run the linter, commit with a message that says what
    actually changed, push, and check CI.
+
+---
+
+## Update, 2026-08-05 — a large concurrent pass: seven issues closed, three server pieces
+   landed, one giant commit is a cautionary tale, and CI is still red
+
+**Read this one first. It is the newest.**
+
+### The short version
+
+Many agents worked on this repository at once, on `main`, pulling before every commit
+rather than using branches. Seven GitHub issues were closed with real evidence. `packages/
+server` grew from four files into a real HTTP layer with routes, live data over
+Server-Sent Events and a real render driver. `packages/cli` grew from a one-line stub into
+a working command-line server with a Dockerfile that was actually built and run. The
+engine's render tasks can now be serialized to disk and resumed after a simulated crash.
+SQL storage (`sql.js`/`mysql2`/`pg`) was ported. One event in the middle of all this is
+worth naming as a mistake rather than quietly stepping around: a 245-file, 34,674-line
+commit landed with the message "Auto commit 2026-08-05 04:37:15.299Z" and no description
+of what it did. The per-task commits that followed it are the corrective example — small,
+named, evidenced — and that contrast is worth remembering the next time a large pass runs
+unsupervised for a while. Hosted CI has not gone green once across this entire window; the
+reason is a real, locally-reproducible test failure, not hosted-runner flakiness, and it is
+still unresolved as this is written.
+
+### Seven issues closed, with what actually proved each one
+
+All seven were closed against real evidence — a regression test, a full-scale oracle run,
+or (for #45) a re-check of evidence that already existed — never against a claim alone.
+
+- **#28** — `WorldRegionUpdateTask.run()` was writing chunk hashes and a region timestamp
+  even when a region had nothing to render or delete, which upstream's Java engine does
+  not do. Fixed to return before `#complete()` on the no-op path. Proven with the full
+  byte-exact oracle at **both** fixture sizes run to completion (200×200: 63/63 files
+  identical; 1000×1000: 995/995 files identical, all 961 hires tiles byte-identical after
+  decompression) plus the 1.12.2 legacy check (14/14), because this fix touches the same
+  region-completion code that check depends on.
+- **#34** — five screens (History, Projects, the CI-render screen, the EULA viewer, and
+  more) had no screenshot capture step, so a broken screen could stop rendering and nothing
+  would notice. `packages/app/test/screenshots.spec.ts` now photographs all five from a
+  real packaged build.
+- **#35** — version history did not cover server profiles, application settings or the
+  maps-and-servers list. `packages/app/src/main/profiles/history.ts` and
+  `.../settings/history.ts` now snapshot both, each under its own repository root, with the
+  same append-only restore-is-a-new-revision rule the config-folder history already
+  enforces. 28/28 tests.
+- **#36** — backup interoperability with Desktop Material was settled as **format
+  conformance, not a round trip**: the pointer files this app writes are checked against
+  the patterns Desktop Material's Cheap LFS v1 uses to read them, but nobody has made a
+  backup here and restored it there. That is Outcome B from the issue's own options, chosen
+  and recorded rather than left ambiguous.
+- **#37** — the options editor's "154 settings across eight tabs" claim, printed in the
+  changelog viewer's own text, was asserted by no test and would have silently gone stale.
+  `configSearch.test.ts` now counts the generated workspace directly and fails loudly, with
+  the real number in the message, the moment a setting or tab changes.
+- **#38** — the progress panel's five honesty gaps (no tile/region/chunk counts, no byte
+  count for a remote transfer, CI upload-byte correlation, which wave a shard belongs to,
+  which of the four render routes is active) were re-checked one at a time against the
+  panel's own "never invent a denominator" rule. Four were genuinely closed; the wave-shard
+  gap's *first* "closed" claim was wrong in a specific, findable way — the visible summary
+  in `CiRenderScreen.vue` had been fixed, but `ciProgress.ts`, the file the issue actually
+  named, still carried a stale doc comment claiming waves are never published and fired its
+  "unknown wave" note unconditionally. That gap is the reason this entry says "re-checked"
+  rather than "trusted": a verification pass that checks the visible fix but not the file
+  the issue named is exactly how a fixed feature ships next to a note calling it broken.
+  Fixed for real in `d4f83fa`; 158 new/changed tests, 1,009 tests total across the touched
+  packages. This is the one issue whose own author closed it directly rather than leaving
+  it for this pass, and the evidence stands on its own re-reading.
+- **#45** — Pages publish resume-after-crash and re-checking an already-published site were
+  verified against evidence that already existed before this pass started (commits
+  `07bab792`, `2cb828f`, `6141e9e`), re-confirmed live: the throwaway proof repository is
+  still public, its Pages status is still `built`, and its URL still answers HTTP 200.
+
+### The flattening rename table, and the one gap left in it on purpose
+
+The old "what does not work yet" line about four kinds of 1.12.2 block drawing wrong
+(grass as a see-through plant, snow and podzol as nothing) is **fixed**. A new module,
+`packages/engine/src/world/mca/legacy/FlatteningRename.ts`, translates a pre-flattening
+block name to its modern equivalent after the legacy block-state extensions run and before
+a resource pack is asked for a model — so `SnowyExtension`'s derived `snowy` on
+`grass`/`mycelium` and similar extension-added properties survive the rename untouched. It
+is wired into `BlockStateModelRenderer.ts`, `ExtendedBlock.ts` and `Chunk.ts`, not merely
+exported and unreachable, and has its own 304-line test file.
+
+**One rename is deliberately left out, and the source says why.** `wooden_button` is not
+mapped to `oak_button`: the modern button gained a `face` property (floor/wall/ceiling)
+that a legacy button's `facing` (a single six-direction enum) cannot cleanly decompose into
+without guessing. The comment in `FlatteningRename.ts` reads: `// NOT "wooden_button" ->
+"oak_button": the modern button gained a "face" property ... that a legacy button's
+"facing" ... does not cleanly decompose into without guessing, so it is left exactly as
+broken as before`. That is a real, named, remaining gap — a 1.12.2 wooden button still
+renders wrong — left alone on purpose rather than papered over with a guess.
+
+### The server package: routes, live data, and a real render driver (issues #41, #29, #40)
+
+`packages/server` was four files (a static handler, an HTTP server, a remote proxy, an
+index) at the start of this pass. Three pushes, reusing rather than rewriting those four,
+took it to a real HTTP layer:
+
+1. **`d78bbbc`** — `MapStorageHandler.ts` ports `MapStorageRequestHandler.java`: the tile
+   regex, the settings/textures/assets metadata switch, and the exact gzip
+   content-negotiation rules (passthrough when the client already accepts the stored
+   compression, on-the-fly gzip otherwise, never for PNG, 204 for a tile never rendered),
+   against a real `FileMapStorage`. 14 new tests.
+2. **`00261d4`** — `SseConnectionManager.ts` and `LiveDataBroadcaster.ts` port
+   `SseConnection`/`SseConnectionManager`/`LiveDataSupplierBroadcaster.java`: real
+   Server-Sent Events (confirmed from the Java source, not assumed — `MapRequestHandler
+   .java` is the only upstream web file mentioning `text/event-stream`), with a mounted map
+   always answering `live/players.json`/`live/markers.json` with upstream's own honest
+   empty shape (`{"players":[]}`, `{}`) when nothing real is wired in yet. The tests caught
+   a real bug before shipping: Node buffers HTTP response headers until the first `write`,
+   and nothing forced a flush on connect, so a second SSE client (or an unlucky first one)
+   would have hung forever waiting for headers. Fixed with `res.flushHeaders()`. 8 new tests.
+3. **`19103df`** — `RenderDriver.ts` and its HTTP surface `RenderUpdateHandler.ts`
+   (`POST`/`GET /maps/{id}/update`) call `MapUpdatePreparationTask.updateMap(map,
+   renderManager)` — the exact function upstream's own plugin command calls — against a
+   real, unmocked `RenderManager` and a real, unmocked `HiresModelManager`, asserting real
+   tile files land in a real `FileMapStorage`. A follow-up test (`2b86de9`) went further:
+   it loads a real `packages/worldgen`-generated world through the real `MCAWorld.load`
+   anvil reader and meshes it against a real self-authored resource pack, closing the gap
+   the first test left open (a structural fake `World` and a bare `ResourcePack`).
+
+This is also **the smallest honest version of issue #29** ("nothing outside
+`packages/engine` drives the ported RenderManager"): `RenderDriver.ts` is the first code
+outside `packages/engine` to construct a real `MapUpdateTask` and hand it to a real running
+`RenderManager`. Local rendering still goes through the Java engine per decision D17; that
+switch remains separate, explicit, out-of-scope work, on purpose.
+
+**Issue #40** — the missing middle between a file-system change and a render task — landed
+as `packages/server/src/plugin/MapUpdateService.ts` (`50e4b1a`), a port of upstream's
+`common/plugin/MapUpdateService.java`: a per-region debounce timer that coalesces a burst of
+writes into one task, and no new dedup logic at all, because `RenderManager.
+scheduleRenderTask`'s own equals-based queue-containment check already refuses a duplicate —
+deliberately *except* at the head of the queue, so a new event for a region already being
+rendered queues safely behind it instead of racing or being dropped. A follow-up test
+(`d948635`) proves that head-of-queue exemption directly against the real queue rather than
+assuming it. **Not wired into `packages/cli`'s `-u`/`--watch` flag** — that package was
+being restructured by a different task in the same pass, so the API stops at a clean
+`start()`/`close()` a caller can reach for.
+
+### The CLI and a Dockerfile that was actually built and run (issue #42)
+
+`packages/cli/src/index.ts` was one line, `export {};`. It now mirrors `BlueMapCLI.main
+()`'s real branching, reusing `@material-bluemap/config`'s existing `cli/flags.ts` model
+rather than a second copy of it, so the GUI and this real CLI cannot quietly drift apart on
+what a flag combination does. It loads a config folder the way `BlueMapConfigManager` does
+(per-file/per-folder defaults, never a single-shot dump), resolves resources through
+`MinecraftVersion`'s real consent-gated download, builds real `BmMap`s, drives real renders
+through `RenderDriver`, serves real routes through `packages/server`'s handlers, and writes
+the webapp's real `settings.json` field for field. 3 files, 22 tests, including one
+end-to-end test that renders a real `packages/worldgen` world and serves it, plus a real
+subprocess spawn of the built `dist/index.js`. Two real bugs were caught before shipping:
+the generated `sql.conf`'s `storage-type` is the short form `"sql"` (comparing it as a raw
+string silently read every SQL storage as a file storage), and a `-w`-only run built a
+`RenderManager` for the render-trigger route but never started its worker pool.
+
+**The Dockerfile was built and run for real, not authored blind.** `docker build -f
+design/packages/cli/Dockerfile .` from the repository root, against a local Docker daemon,
+hit three real build failures (a gid collision with the base image's own `node` user, pnpm
+refusing a non-interactive `node_modules` swap, pnpm v10's `deploy` needing `--legacy`),
+each fixed in the Dockerfile itself. The built image then rendered a real mounted-read-only
+world, served a real hires tile/`index.html`/`settings.json` over its mapped port, answered
+a real `POST /maps/{id}/update`, and runs as `uid=1000(node)` — confirmed with `docker exec
+... id`, never root.
+
+**Deliberately deferred, and said so out loud wherever the CLI is asked for it, per its own
+"never exit 0 having done nothing" requirement:** `-n`/mod-resource scanning,
+`resourceExtensions.zip` parity, SQL storages (refused with a named reason), non-box render
+masks, and — the largest gap — `-u`/`--watch`: the CLI runs the one real render `-u`
+implies, then exits non-zero naming issue #40's `MapUpdateService` as the still-unwired
+piece, rather than pretending to watch.
+
+### Serializable render tasks and the resume-after-crash proof (issue #30)
+
+Upstream's four `serialization/` files (`SerializableRenderTask`, the polymorphic
+`RenderTaskAdapter`, `BmMapAdapter`, `Vector2iAdapter`) are ported onto this package's own
+BlueNBT implementation, matching upstream's on-disk shape rather than switching to JSON.
+Each task type grew its own `Serialized` form. One upstream bug was fixed rather than
+reproduced: `BmMapAdapter`'s not-found branch called `reader.nextString()` a second time to
+build its own error message, which would corrupt the reader's position; the port reads the
+id once and reuses it.
+
+**The proof that matters is a simulated crash, not just a round trip.** A two-region
+`MapUpdateTask` is driven partway into its second region, serialized, then restored against
+a *freshly constructed* `BmMap` over the same on-disk storage — not the same in-memory
+object, a genuine simulated restart — and the test proves by tile coordinate that the
+finished region is never touched again while the interrupted one is fully re-rendered from
+scratch. `rendermanager/`'s own test total is now 129 (was 110).
+
+**`RenderManager.saveRenderTaskQueue`/`.loadRenderTaskQueue`** (`8f61600`) put this on the
+manager itself rather than a separate module a caller has to know exists. **What remains
+open, named rather than glossed over: nothing yet calls either method from a running
+process.** No periodic-save timer, no load-on-startup wiring into `packages/server` or
+`packages/cli`. The methods exist and are tested; nothing invokes them outside a test.
+
+### The frontend sweep — what actually landed inside the 245-file commit
+
+Once the individual file list was read rather than trusted from its message, the "Auto
+commit" turned out to contain real, substantial, working feature work: the guided "What,
+and where" card in the CI-render screen; multi-account GitHub sign-in
+(`main/github/accounts.ts`, `ui/components/github/`); config presets and per-surface panels
+(`copy/surfaces/presets.ts`, `panels.ts`); notification centre bulk actions
+(`NoticeBulkToolbar.vue`, `noticeBulk.ts`); an in-app documentation browser
+(`components/docs/DocsPage.vue`, `docsModel.ts`, `docsContent.ts`); the render Speed dial
+control (`config/SpeedControl.vue`, `speedLevels.ts`); "explain this setting" coverage
+across the config editor (`explainField.ts`, `configExplain.ts`, with a coverage test);
+browse buttons wired to a real native file/folder picker (`PathField.vue`,
+`pathFieldPolicy.ts`); a searchable master menu (`menuSearch/MenuSearchList.vue`,
+`menuCoverage.test.ts`); and the tab group picker (`tabs/TabGroupPicker.vue`,
+`tabGroupPicker.ts`) — all with their own tests. This is real, and it is exactly why the
+commit is worth naming rather than shrugging off: a 245-file, unreviewed, undescribed
+commit is how a tab-group-picker search leak (fixed afterward in `f8e8283`) and the CI
+redness investigated below both got in without anyone choosing to let them in.
+
+### The native-module lesson: `yauzl-promise`, `@node-rs/crc32`, and the packaging contract
+
+The repeated CI build failure this whole pass fought before finding its real cause was
+`Could not resolve` / a `.node`-loader error inside `@node-rs/crc32`, a transitive
+dependency of `yauzl-promise`, which `packages/engine`'s `ZipFileSystem` used to read
+resource-pack zips. **esbuild cannot bundle a native `.node` addon.** It can be installed
+and can run un-bundled, but the moment a build tries to inline it into a single output
+file, the build breaks — and it breaks in a way that is invisible on a machine where
+`node_modules` is simply present, which is exactly why this took so long to pin down.
+`e976ee9` replaced it with a pure-JS zip reader, dropping the native dependency entirely.
+**The packaging contract this establishes for the rest of the project: a dependency that
+ships a `.node` file cannot be bundled by esbuild, full stop — pick a pure-JS or WASM
+alternative (as the SQL storage port then did deliberately for `sql.js`/`mysql2`/`pg`), or
+keep it external to the bundle and document why.**
+
+### Honest gaps, named rather than implied closed
+
+- **Issue #39** (hardcoded six waves / no disk check) is **structurally fixed but stays
+  open**: `RENDER_WAVE_SLOTS` is now 12 (not 6), and a disk-requirement check fails a plan
+  early with a named limit before any wave is dispatched, both self-tested (73/73,
+  including a test that reads the workflow file itself and fails if the declared wave jobs
+  and the constant ever disagree). What the issue's own checklist demands and nobody has
+  done: **an actual dispatched run with a world large enough to need a seventh wave, with
+  `df -h` at each stage, recorded in `docs/large-worlds.md`.** That is hosted, external-state
+  proof a local pass cannot manufacture, so the issue stays open on its own terms.
+- **Issue #44** (Pages publishing against a real account) has its title claim **proven** —
+  a real desktop-app-driven publish, in 35.5 seconds, with a screenshot. What remains, named
+  by the issue's own thread rather than by this entry: the private-repository 403 → "needs a
+  paid plan" mapping is untested (both throwaway proof repos are public, and converting
+  either to private would destroy standing evidence for an unrelated feature), and the
+  staging-time evidence (70 files, 5.8 MB, 35.5s) says nothing about a real multi-gigabyte,
+  tens-of-thousands-of-tile map.
+- **Issue #32** (SQL storage) landed its core port (`0bc90c2`) and a second push
+  (`b32f423`) covering dialect resolution, driver-adapter parsing and error classification,
+  and a byte-fidelity proof against file storage using real PRBM oracle fixtures. **MySQL
+  and PostgreSQL are proven against SQL-text contract tests only — no real server was
+  available on this machine**, and cross-compatibility with upstream's Java engine (a map
+  the Java CLI wrote, read by this port, and the reverse) needs a JVM run nobody has done.
+  Stays open on those two named gaps.
+- **Issue #31** (Phase C exit criteria — `textures.json` parity, a real 1.12.2 jar, live
+  blockstate resolution) had a plan posted and was picked up in this pass; as of this
+  writing no results comment has landed yet. Do not write that Phase C's gate closed until
+  that comment exists and says so.
+- **Engine queue save/load is built and tested, never called.** Repeating it here because
+  it is the shape of the project's most common defect: `saveRenderTaskQueue`/
+  `loadRenderTaskQueue` exist on `RenderManager`, are unit tested, and nothing in a running
+  process invokes either — no timer, no load-on-startup wiring in `packages/server` or
+  `packages/cli`.
+- **The CLI's named deferrals** (above) are current, not aspirational: `-u`/`--watch` prints
+  what is missing and exits non-zero rather than pretending to watch.
+
+### Hosted CI, honestly, as it stands right now
+
+**No commit across this entire pass has produced a green hosted CI run.** The cause moved
+during the pass — first `@node-rs/crc32`'s `.node`-loader failure (fixed by `e976ee9`), and
+after that fix landed, run **30986840852** (the first commit with a genuine shot at green)
+still came back **failure**. The cause this time is different and, as far as this entry can
+tell, still unfixed: two Vuetify-rendering assertion failures that recur across every run
+since — `packages/ui/src/components/palette/CommandPalette.test.ts` ("the Debug row should
+render a switch, not a label") and `packages/ui/src/components/tabs/
+tabGroupPickerMount.test.ts` (a button rendering the wrong label/icon combination,
+`"( ): capturing group"` expected but `"Copy the flags"` received) — plus a
+`[vitest-worker]: Timeout calling "onTaskUpdate"` unhandled error. **This is not
+hosted-runner flakiness alone.** A full local `npx vitest run` at commit `0bc90c2`, run
+fresh for this entry, reproduced the same failure shape: **469 test files, 7,288 tests,
+7,278 passed, 3 skipped, 7 failed, 2 unhandled errors**, in 224.5 seconds (up from 355
+files/5,745 tests on 2026-08-04 evening — the suite grew by more than a hundred files during
+this pass). Every CI run checked in this pass — `2b86de9`, `50e4b1a`, `6981bf9`, `d948635`,
+`e976ee9`, `a5e5cf7`, `d4f83fa`, `8f61600`, `53e6474`, `cbc135c`, `0bc90c2` — came back
+**failure** for this reason. The dedicated "Lint the workflow files" job is green on every
+run checked; it is specifically the `Lint, build, test` job that fails. Do not write "CI is
+green" for any commit named in this entry.
 
 ---
 
