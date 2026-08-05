@@ -676,18 +676,29 @@ export function resolveDockLayout(request: DockRequest): DockLayout {
  * it without a layout engine. `position: fixed` throughout: a docked surface is chrome
  * over the window, not a participant in the document's flow, and at 200% display scale
  * that is the only way its edge stays the window's edge.
+ *
+ * A floating panel carries both `height` and `max-height` at the same value, not
+ * `max-height` alone. `max-height` alone leaves the panel's own height "auto" as far as a
+ * descendant's percentage height is concerned - `.mb-docked__frame`'s `block-size: 100%`
+ * then resolves to nothing, the flex chain that is supposed to bound `.mb-docked__body`
+ * never engages, and content taller than the panel spills silently past its border with no
+ * scrollbar and no way to reach it. `height` gives the frame a real number to be 100% of;
+ * `max-height` stays alongside it as the same belt-and-braces the docked top/bottom cases
+ * already use (`height: thickness` plus a `max-height` safety net for a shrunk viewport).
  */
 export function dockStyle(layout: DockLayout): Readonly<Record<string, string>> {
     if (layout.placement === "floating") {
         const size = layout.size ?? { width: 0, height: 0 };
         const offset = layout.offset ?? { top: FLOATING_MARGIN, left: FLOATING_MARGIN };
+        const height = `${String(Math.round(size.height))}px`;
         return {
             position: "fixed",
             top: `${String(Math.round(offset.top))}px`,
             left: `${String(Math.round(offset.left))}px`,
             width: `${String(Math.round(size.width))}px`,
             "max-width": `calc(100vw - ${String(FLOATING_MARGIN * 2)}px)`,
-            "max-height": `${String(Math.round(size.height))}px`,
+            height,
+            "max-height": height,
         };
     }
 

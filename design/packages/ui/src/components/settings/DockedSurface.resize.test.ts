@@ -75,18 +75,36 @@ const Host = defineComponent({
     props: {
         surfaceId: { type: String, required: true },
         defaultPlacement: { type: String as () => "floating" | "left" | "right" | "top" | "bottom", default: "right" },
+        // Off by default so every existing test keeps mounting the plain panel it always
+        // has. Turned on only by the scroll tests below, which need slot content taller
+        // than the panel to have anything to prove.
+        tallContent: { type: Boolean, default: false },
     },
     setup(props) {
         return () =>
             h(VApp, null, {
                 default: () => [
-                    h(DockedSurface, {
-                        surfaceId: props.surfaceId,
-                        title: "Settings",
-                        open: true,
-                        defaultPlacement: props.defaultPlacement,
-                        "onUpdate:open": () => {},
-                    }),
+                    h(
+                        DockedSurface,
+                        {
+                            surfaceId: props.surfaceId,
+                            title: "Settings",
+                            open: true,
+                            defaultPlacement: props.defaultPlacement,
+                            "onUpdate:open": () => {},
+                        },
+                        props.tallContent
+                            ? {
+                                  default: () => [
+                                      h(
+                                          "div",
+                                          { class: "scroll-test__tall", "data-testid": "tall-marker" },
+                                          "content past the fold",
+                                      ),
+                                  ],
+                              }
+                            : {},
+                    ),
                 ],
             });
     },
@@ -97,9 +115,10 @@ let wrapper: VueWrapper<InstanceType<typeof Host>> | null = null;
 function mountSurface(
     surfaceId: string,
     defaultPlacement: "floating" | "left" | "right" | "top" | "bottom" = "right",
+    tallContent = false,
 ): VueWrapper<InstanceType<typeof Host>> {
     wrapper = mount(Host, {
-        props: { surfaceId, defaultPlacement },
+        props: { surfaceId, defaultPlacement, tallContent },
         global: { plugins: [vuetify, i18n] },
         attachTo: document.body,
     }) as unknown as VueWrapper<InstanceType<typeof Host>>;
@@ -420,5 +439,99 @@ describe("putting a panel back where it started", () => {
         await settle();
 
         expect(floatingRectFor("app-settings")).toBeNull();
+    });
+});
+
+/**
+ * Regression for "docked panels are non scrollable": content taller than the panel used to
+ * spill silently past its edge, with nothing to scroll it back into view.
+ *
+ * jsdom computes no layout at all - not just no clipping, no CSS cascade either, so a
+ * `.mb-docked__body { overflow: auto }` rule in `DockedSurface.vue`'s own `<style>` block
+ * never reaches `getComputedStyle` here regardless of whether it is right. That is exactly
+ * the gap `RenderConsole.test.ts`'s own "the scrolling region" tests work around: the three
+ * numbers a scroll rule reads - `scrollHeight`, `clientHeight`, `scrollTop` - are supplied
+ * directly rather than produced by a layout engine that does not exist in this environment.
+ * The same technique is used here. What a mounted test in this suite *can* still prove, and
+ * what actually regressed:
+ *
+ *  - the body that is supposed to be the scroll container is the one truly holding the slot
+ *    content (not a sibling the content silently escaped to, which is exactly how a broken
+ *    ancestor chain looks from the DOM's point of view);
+ *  - it is keyboard-reachable, per the platform norm for a scrollable region with no other
+ *    focusable descendant;
+ *  - `scrollTop` actually moves and is read back, so content declared to be "past the fold"
+ *    (`scrollHeight > clientHeight`, faked exactly as `RenderConsole.test.ts` fakes it) is
+ *    reachable rather than stuck at the top with nothing able to move it;
+ *  - for the floating placement specifically, the panel's own rendered `height` is a real
+ *    pixel value rather than empty - the precise defect `dockPlacement.test.ts`'s
+ *    "gives a floating panel a real height" test pins at the pure-function layer, checked
+ *    again here against the actual mounted inline style.
+ *
+ * The CSS rules that make the scrolling itself happen (`.mb-docked__body`'s `display: flex`
+ * and `overflow: auto`, and the matching chain in `EulaSurface.vue` and `EulaViewer.vue`)
+ * were checked against a real layout engine (Chromium, via Playwright) while diagnosing this,
+ * outside this suite - see the commit message for the measurements.
+ */
+describe("the content region scrolls when it does not fit", () => {
+    it("keeps a docked panel's slot content inside the scroll container, reachable by scrolling", async () => {
+        mountSurface("app-settings", "right", true);
+        await settle();
+
+        const body = document.querySelector<HTMLElement>(".mb-docked__body");
+        expect(body).not.toBeNull();
+        if (body === null) throw new Error("unreachable");
+
+        // The content is really inside the element that scrolls, not a sibling it escaped
+        // to - the exact shape "docked panels are non scrollable" takes when the ancestor
+        // chain between the scroll container and the slot content is broken.
+        const marker = body.querySelector<HTMLElement>('[data-testid="tall-marker"]');
+        expect(marker).not.toBeNull();
+
+        // A scrollable region with no other focusable descendant is reachable with the
+        // keyboard per platform norms, the same contract `RenderConsole.test.ts` checks
+        // for `.mb-console__scroll`.
+        expect(body.getAttribute("tabindex")).toBe("-1");
+
+        // jsdom computes no layout, so the three numbers a scroll rule reads are supplied
+        // directly - see this describe block's own doc comment.
+        Object.defineProperty(body, "scrollHeight", { value: 1400, configurable: true });
+        Object.defineProperty(body, "clientHeight", { value: 500, configurable: true });
+        expect(body.scrollHeight).toBeGreaterThan(body.clientHeight);
+
+        body.scrollTop = 620;
+        await body.dispatchEvent(new Event("scroll", { bubbles: true }));
+        expect(body.scrollTop).toBe(620);
+    });
+
+    it("keeps a floating panel's slot content inside the scroll container, reachable by scrolling", async () => {
+        setDockPlacement("app-settings", "floating");
+        mountSurface("app-settings", "floating", true);
+        await settle();
+
+        const body = document.querySelector<HTMLElement>(".mb-docked__body");
+        expect(body).not.toBeNull();
+        if (body === null) throw new Error("unreachable");
+
+        const marker = body.querySelector<HTMLElement>('[data-testid="tall-marker"]');
+        expect(marker).not.toBeNull();
+        expect(body.getAttribute("tabindex")).toBe("-1");
+
+        Object.defineProperty(body, "scrollHeight", { value: 1400, configurable: true });
+        Object.defineProperty(body, "clientHeight", { value: 500, configurable: true });
+        expect(body.scrollHeight).toBeGreaterThan(body.clientHeight);
+
+        body.scrollTop = 620;
+        await body.dispatchEvent(new Event("scroll", { bubbles: true }));
+        expect(body.scrollTop).toBe(620);
+
+        // The floating-panel-specific half of the regression: a floating panel's own box
+        // used to carry `max-height` with no `height`, which is what left `.mb-docked__body`
+        // unbounded in the first place (see `dockPlacement.ts`'s `dockStyle`). Checked here
+        // against the actual mounted inline style, not just the pure function.
+        const style = panel().style;
+        expect(style.height).not.toBe("");
+        expect(parseInt(style.height, 10)).toBeGreaterThan(0);
+        expect(style.height).toBe(style.getPropertyValue("max-height"));
     });
 });

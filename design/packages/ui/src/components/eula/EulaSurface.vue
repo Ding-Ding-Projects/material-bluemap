@@ -45,7 +45,19 @@ const i18n = useSetupI18n();
 </template>
 
 <style>
+/*
+ * A flex column filling `DockedSurface`'s own `.mb-docked__body`, not a plain padded
+ * block: `EulaViewer.vue`'s root `.mb-eula` wants to be handed a real height so its own
+ * `.mb-eula__panel` - the section text itself - can bound and scroll while the provenance
+ * notice, the search field and the tab strip above it stay in view. See the matching
+ * comment on `.mb-docked__body` in `DockedSurface.vue` for why the chain has to be
+ * unbroken all the way down.
+ */
 .mb-eula-surface__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-block-size: 0;
     padding: 16px;
 }
 </style>

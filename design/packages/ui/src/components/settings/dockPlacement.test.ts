@@ -249,6 +249,48 @@ describe("the style a layout becomes", () => {
         );
         expect(style["max-width"]).toBe("100vw");
     });
+
+    /**
+     * Regression for the panel that could not scroll: a floating panel's style used to carry
+     * `max-height` alone, with no `height`. `max-height` bounds what the *browser paints*,
+     * but leaves the box's height "auto" as far as a descendant's `block-size: 100%` is
+     * concerned - `DockedSurface.vue`'s `.mb-docked__frame` never got a real number to be
+     * 100% of, its own `overflow: hidden` and its child `.mb-docked__body`'s `overflow: auto`
+     * never had a bounded box to clip or scroll, and content taller than the panel spilled
+     * silently past its border instead - confirmed against a real layout engine while
+     * diagnosing this. This pins the fix at the pure-function layer so a revert of the
+     * `dockStyle` change, not just the visual symptom, fails a test.
+     */
+    it("gives a floating panel a real height, not only a max-height that leaves its box unbounded", () => {
+        const style = dockStyle(
+            resolveDockLayout({
+                placement: "floating",
+                viewport: VIEWPORT,
+                opener: null,
+                preferredThickness: 400,
+                preferredSize: { width: 400, height: 360 },
+            }),
+        );
+        expect(style["height"]).toBe("360px");
+        // Kept alongside `height`, at the same value, as the same belt-and-braces the
+        // docked top/bottom cases already use - see this function's own doc comment.
+        expect(style["max-height"]).toBe(style["height"]);
+    });
+
+    it("keeps the floating height in step with a stored or clamped rectangle, not just the preferred size", () => {
+        const stored = dockStyle(
+            resolveDockLayout({
+                placement: "floating",
+                viewport: VIEWPORT,
+                opener: null,
+                preferredThickness: 400,
+                preferredSize: { width: 400, height: 360 },
+                storedFloatingRect: { top: 20, left: 20, width: 500, height: 611 },
+            }),
+        );
+        expect(stored["height"]).toBe("611px");
+        expect(stored["max-height"]).toBe("611px");
+    });
 });
 
 /* -------------------------------------------------------------------------- */

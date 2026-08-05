@@ -569,6 +569,13 @@ defineExpose({ sections, activeSection, state: eula.state });
     display: flex;
     flex-direction: column;
     gap: 12px;
+    /* Fills the height its parent hands it - `EulaSurface.vue`'s `.mb-eula-surface__body`
+       when docked, nothing in particular when embedded standalone in first-run setup or
+       the consent settings row, where `flex` on a non-flex parent is simply inert. Either
+       way `.mb-eula__panel` below still needs `min-block-size: 0` on every box between it
+       and that bounded height, or its own `flex: 1 1 auto; overflow: auto` has nothing to
+       shrink against and the section text grows the whole viewer instead of scrolling. */
+    flex: 1 1 auto;
     min-block-size: 0;
 }
 

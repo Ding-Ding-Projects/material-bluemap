@@ -1059,7 +1059,25 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
     text-wrap: pretty;
 }
 
+/*
+ * A flex column, not a plain block: the host's content - `AppSettings.vue`'s
+ * `.mb-settings__body` wrapping `TabbedNavigation`, `EulaSurface.vue`'s
+ * `.mb-eula-surface__body` wrapping `EulaViewer`'s `.mb-eula` - is built on the same
+ * "flex: 1 1 auto; min-block-size: 0; overflow: auto" idiom this application uses
+ * everywhere a strip of chrome sits above scrolling content (see `.mb-shell-tabs` in
+ * `App.vue` and `.mb-tabs__panel` in `TabbedNavigation.vue`). That idiom only works when
+ * every ancestor up to the nearest bounded box is itself a flex container passing on a
+ * real height - a plain block here breaks the chain two levels down: the host's own
+ * `flex: 1 1 auto` has nothing to flex against, its height becomes "however tall the
+ * content is" rather than "however tall the available space is", and the tab strip or
+ * search header that was supposed to stay pinned while only the active tab's content
+ * scrolls ends up scrolling away with everything else instead. `overflow: auto` stays
+ * here too, as the outer safety net every docked surface keeps regardless of what its
+ * host does with the space handed to it.
+ */
 .mb-docked__body {
+    display: flex;
+    flex-direction: column;
     flex: 1 1 auto;
     min-block-size: 0;
     overflow: auto;
