@@ -22,11 +22,11 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
-- Merge rendered profile shortcut coverage - [`1b3a745970`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1b3a74597083f1ea260b8abe233173e4e97ea50a) _(summary of 2 commits, also listed here)_
 - Prove profile shortcuts in the rendered menu - [`9cbce505af`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/9cbce505af08a45a94d713aa2bc4b54e281242c7)
-- Keep one profile keyboard hint in the catalogue - [`7174ccc5ec`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7174ccc5ec9a37ca852a1f391ef1e1cfa9071287)
-- Merge profile keyboard shortcuts into main - [`87c4e1204f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/87c4e1204f2cc888933cd9d98faceb87fca02bc7) _(summary of 2 commits, also listed here)_
 - Show the real profile-row opening keys - [`ac5ac795d7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ac5ac795d751ab121f4c5b75103bcd7143b06deb)
+- Prove profile shortcuts in the rendered menu - [`2b8595b9ea`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2b8595b9ead3c687a30b5926a1024cace0c3408b)
+- Keep one profile keyboard hint in the catalogue - [`5f4bfee8cd`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5f4bfee8cd2c83942937bca7afc2f754a74b6089)
+- Show the real profile-row opening keys - [`45a07d9bfd`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/45a07d9bfd5dfc6684b7f22602771addc4669d28)
 - Voice the config surfaces and harden capture cleanup - [`688bccec17`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/688bccec17ecda7727711cd926a46c5955c95c09)
 - Document the fixed appearance editor tabs - [`17d0dc6b67`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/17d0dc6b67ca21f8d3f7733f9e7500ff0f53afa8)
 - Complete tabbed material surfaces and resumable Pages publishing - [`1e9ae1b379`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1e9ae1b37973f169e010c759455fc8dbefe8f716)
@@ -74,6 +74,7 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- Stop the no-tiles error reading as one run-on sentence, and unbreak the lint - [`39b869e16d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/39b869e16da9b1b1a7e717023ddc77c6d2054d03)
 - Stop a new CI run cancelling the one before it - [`451304984a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/451304984aae74e84dc4b21b1e0f3faeab8029c1)
 - Publish rendered maps to plain file hosts - [`bd63de8080`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/bd63de80804b3913ff3b9c00c111cb6449158b9a)
 
@@ -84,6 +85,10 @@ full message for the in-app changelog viewer.
 - Show the map hosted on Pages, with the evidence and the trap - [`a8276c8a42`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a8276c8a42a5188df2610b110ea53030f6eaecc7)
 - Add a real hosted map capture - [`e571a49a46`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e571a49a46def0d43c19391e00d16c73b3a21c5e)
 - Document static Pages map hosting - [`c85a3bf686`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c85a3bf68674f10bf5a3a144f43be737a5fc3df8)
+
+### Elsewhere in the repository
+
+- Merge the preserved profile shortcut branch - [`f940fd2fef`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f940fd2fef4d50770d20b3ad11c219efa5fb57be) _(summary of 3 commits, also listed here)_
 
 ## 0.1.0-build.257 - 2026-08-04
 
