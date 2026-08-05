@@ -41,7 +41,10 @@ import {
  * and every restore is billed again. Release assets are free on a public repository and
  * capped per asset rather than in total, and this application already ships both halves of
  * the machinery for them. The format written here is Desktop Material's shipped **Cheap
- * LFS v1** pointer, so a backup made by either application is readable by the other.
+ * LFS v1** pointer, checked here against that grammar line by line — format conformance,
+ * proven; a live restore of a backup made by one application through the other has not
+ * been run, and the surface and the documentation both say so rather than the stronger
+ * claim. See `docs/backup.md` and issue #36 for the full accounting.
  *
  * The surface says this too, in one sentence, because "why is there no LFS button" is
  * otherwise a reasonable thing to wonder and an unanswerable one.
@@ -349,7 +352,7 @@ defineExpose({ backups, kind, folder, owner, repo, source, inspect, check });
             {{
                 t(
                     "backup.whyNotLfs",
-                    "This deliberately does not use Git LFS. A free GitHub account gets one gigabyte of LFS storage and one gigabyte of bandwidth a month, and every restore is metered against it, so a single multi-gigabyte world exhausts the free tier and each restore is billed again. Release assets are free on a public repository and capped per file rather than in total. The pointer format is Desktop Material's Cheap LFS v1, so a backup made here is readable there.",
+                    "This deliberately does not use Git LFS. A free GitHub account gets one gigabyte of LFS storage and one gigabyte of bandwidth a month, and every restore is metered against it, so a single multi-gigabyte world exhausts the free tier and each restore is billed again. Release assets are free on a public repository and capped per file rather than in total. The pointer format matches Desktop Material's published Cheap LFS v1 grammar, checked against it here; a live restore through that application has not been run.",
                 )
             }}
         </p>

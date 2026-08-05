@@ -1,5 +1,6 @@
 /**
- * The interop claim, made only as far as it is actually checkable here.
+ * Format conformance only, permanently — not the interop claim, and this file never grows
+ * into it.
  *
  * What can be proved in this repository is that the text this writer produces satisfies
  * the grammar the canonical parser applies. So the regular expressions and the head-field
@@ -8,10 +9,15 @@
  * by line. A change to this writer that drifted off the contract fails here rather than
  * on somebody else's machine a release later.
  *
- * What is deliberately **not** claimed: that a backup made by this application restores
- * through Desktop Material's own restore path end to end. That needs that application
- * running against a real release, which cannot happen in this test suite, and asserting it
- * from a passing regex would be a claim about software this repository does not build.
+ * What is deliberately, permanently **not** claimed: that a backup made by this application
+ * restores through Desktop Material's own restore path end to end, or the reverse. That
+ * needs that application running against a real release, which cannot happen in this test
+ * suite, and asserting it from a passing regex would be a claim about software this
+ * repository does not build. See `docs/backup.md` and
+ * https://github.com/Ding-Ding-Projects/material-bluemap/issues/36 for why this line was
+ * drawn deliberately rather than left as an open question: the sibling application was
+ * confirmed to exist and to share this exact format, so the limit here is a scoping
+ * decision, not an unavailability.
  */
 
 import { describe, expect, it } from "vitest";

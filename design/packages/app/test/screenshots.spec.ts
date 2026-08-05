@@ -1257,7 +1257,13 @@ test("captures the options editor, its tabs and its dialogs", async () => {
 
     await attempt("Options editor tabs", async () => {
         await ensureOptionsEditor();
-        const tabs = page.locator(".mb-config-screen__tabs .v-tab");
+        // `TabbedNavigation`/`TabButton` render a `[role="tab"]` div, not a Vuetify
+        // `.v-tab` - the editor's tab strip stopped being Vuetify tabs some time ago, and
+        // this selector was never updated to follow. Left as `.v-tab`, this locator
+        // matches nothing, `tabs.first().waitFor` times out, and the whole step - plus
+        // every step below it that opens a specific tab - reports "could not open it"
+        // instead of the real failure, which is that the selector is stale.
+        const tabs = page.locator('.mb-config-screen__tabs [role="tab"]');
         await tabs.first().waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         const count = await tabs.count();
         expect(count, "the options editor rendered no tabs").toBeGreaterThan(0);
@@ -1317,7 +1323,7 @@ test("captures the options editor, its tabs and its dialogs", async () => {
     await attempt("Options editor delete gate", async () => {
         await ensureOptionsEditor();
         await page
-            .locator(".mb-config-screen__tabs .v-tab", { hasText: "Maps" })
+            .locator('.mb-config-screen__tabs [role="tab"]', { hasText: "Maps" })
             .first()
             .click({ timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".mb-config-maps", {
@@ -1389,12 +1395,18 @@ test("captures the remaining first-class screens", async () => {
 
     await attempt("History", async () => {
         await ensureOptionsEditor();
-        const historyTab = page.locator(".mb-config-screen__tabs .v-tab", { hasText: "History" }).first();
+        const historyTab = page.locator('.mb-config-screen__tabs [role="tab"]', { hasText: "History" }).first();
         await historyTab.click({ timeout: ELEMENT_TIMEOUT });
         // A fresh profile has no folder yet, so the panel deliberately renders its
         // truthful "save this config set to one first" state rather than a fake timeline.
         // The window is still the History screen and is the surface worth proving.
-        const history = page.locator(".mb-config-screen__window");
+        //
+        // `.mb-config-screen__window` does not exist anywhere in the UI source - another
+        // selector this step was written against that the tab strip's move to
+        // `TabbedNavigation` left behind. The one active tab's real content lives in that
+        // component's own `.mb-tabs__panel` (`role="tabpanel"`), scoped to this editor's
+        // strip so it cannot match the application's outer tab strip instead.
+        const history = page.locator('.mb-config-screen__tabs .mb-tabs__panel[role="tabpanel"]');
         await history.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await expect(history).toContainText(/History follows a folder|save this config set/i);
         await page.waitForTimeout(500);

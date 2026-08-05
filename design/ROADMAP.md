@@ -117,7 +117,7 @@ locally in TypeScript. All of it is on the branch and tested.
 | **Resumable renders** | A crash, a shutdown or a six hour ceiling costs one wave rather than everything. Crash detection by app-instance id, not pid, which is reused |
 | **Large downloads** | A release asset is capped at 2 GB, so oversized archives ship as 1.7 GB parts with per-part and whole-file digests, and the app downloads and rejoins them with resume |
 | **Test worlds** | Generated in anvil format with no Minecraft and no network, a fresh seed every build, attached to every release |
-| **Backups** | A world or a rendered map packed, split and published as the assets of a new GitHub release, with a pointer naming every part and its SHA-256 (`8cbac63`, `docs/backup.md`). The pointer is Desktop Material's Cheap LFS v1 rather than a rival format. Restore verifies each part and the whole file; an upload that stopped before its pointer went up is listed as unfinished and offered no restore. Git LFS was rejected on cost, by name. Interoperability is proven against a fixture copy of the canonical patterns, **not** by a round trip through the other application |
+| **Backups** | A world or a rendered map packed, split and published as the assets of a new GitHub release, with a pointer naming every part and its SHA-256 (`8cbac63`, `docs/backup.md`). The pointer format conforms to Desktop Material's Cheap LFS v1 rather than a rival format. Restore verifies each part and the whole file; an upload that stopped before its pointer went up is listed as unfinished and offered no restore. Git LFS was rejected on cost, by name. This is **format conformance, permanently** — checked against a fixture copy of the canonical patterns — and **not** interoperability: no round trip through the other application has been run in either direction. Settled as issue #36's Outcome B; see `docs/backup.md` |
 
 Added on 2026-08-04. Each row was read with `git show --stat` before it was written here.
 All of it is built and unit tested; what is **not** claimed is a hosted CI verdict or a
@@ -264,8 +264,6 @@ for a run to survive.
   is in flight. The captions name the real state instead of substituting a mock screen.
 - **Extend the version history past config folders and projects** to profiles, application
   settings and the maps-and-servers list, so a mistaken deletion there can also be undone.
-- **Round-trip a backup through Desktop Material**, or state permanently that the claim is
-  format conformance only.
 - **The options editor inventory is pinned.** `configSearch.test.ts` now asserts the generated
   workspace exposes 154 settings across the seven configuration tabs, with History as the
   eighth navigation tab, so a schema change cannot quietly make the published screenshot and

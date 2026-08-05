@@ -102,17 +102,32 @@ restored here. That is stated at the surface rather than reported as a corrupt p
 somebody holding an encrypted backup needs to be told this build has no password path, not that
 their file is broken.
 
-### What has actually been verified about the interoperability
+### What has actually been verified — format conformance only, permanently
 
 `packages/app/src/main/backup/pointer.test.ts` copies the canonical regular expressions and the
 head-field rules **verbatim** out of `app/src/lib/cheap-lfs/pointer.ts` and runs every pointer this
 writer produces through them, line by line. That is a real, checkable claim: what is written here
 satisfies the grammar the canonical parser applies.
 
-What is **not** claimed: that a backup made by this application restores through Desktop Material's
-own restore path end to end. That needs that application running against a real release, which this
-test suite cannot do, and asserting it from a passing regular expression would be a claim about
-software this repository does not build.
+This project states, permanently, that the claim stops there. It is **format conformance**, not
+**interoperability**, and the two are not the same claim — a backup made by this application has
+never been restored through Desktop Material's own restore path, and a backup made by Desktop
+Material has never been restored by this application. See
+[issue #36](https://github.com/Ding-Ding-Projects/material-bluemap/issues/36) for the full
+accounting of what was checked before this was settled: Desktop Material was confirmed present on
+the verifying machine and does share this exact canonical pointer format and a release-asset
+backend, so a round trip is not blocked by the sibling application being unavailable. It was not
+run because a genuine two-application, real-GitHub round trip in both directions, over both the
+single-asset and the split pointer shapes, is a substantial cross-project integration effort that
+was judged to be its own piece of work rather than something to attempt inside an unrelated pass.
+Outcome B — stating the limit permanently rather than proving the stronger claim — is the
+explicitly sanctioned resolution the issue itself offers for exactly this situation, and this
+project has taken it. A future task that wants to attempt the live round trip instead starts from
+this same file, `pointer.test.ts`, and `design/ROADMAP.md`'s Backups row.
+
+Nothing here is claiming something false in the other direction either: the code, the tests, and
+this documentation have always been accurate about the limit. This section exists so the boundary
+reads as a permanent, deliberate decision instead of an open question nobody answered.
 
 ## What a backup looks like on a release
 
