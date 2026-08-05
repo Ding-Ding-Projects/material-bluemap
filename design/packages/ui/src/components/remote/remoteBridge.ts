@@ -190,6 +190,61 @@ export interface RemoteRenderFailed {
 export type RemoteRenderResult = RemoteRenderSuccess | RemoteRenderFailed;
 
 /* -------------------------------------------------------------------------- */
+/* Browsing a remote folder, Explorer-style                                   */
+/* -------------------------------------------------------------------------- */
+
+export type RemoteOs = "linux" | "windows";
+
+/**
+ * What is known about whether a folder is a Minecraft world, from the cheap signal alone.
+ *
+ * Mirrors `RemoteWorldSignal` in `main/remote/browse.ts`. Never a single boolean: a folder
+ * with only `level.dat` or only a region folder is real evidence, and reporting it as "not
+ * a world" with no further word would throw away the one fact that could tell somebody they
+ * are one save away from finding it.
+ */
+export interface RemoteWorldSignal {
+    readonly hasLevelDat: boolean;
+    readonly regionDimensions: readonly string[];
+    readonly looksLikeWorld: boolean;
+}
+
+export interface RemoteEntry {
+    readonly name: string;
+    readonly directory: boolean;
+    readonly symlink: boolean;
+    readonly sizeBytes: number | null;
+    readonly modifiedAt: string | null;
+    readonly world: RemoteWorldSignal;
+}
+
+export interface RemoteDirectoryListing {
+    readonly path: string;
+    readonly os: RemoteOs;
+    readonly separator: "/" | "\\";
+    readonly entries: readonly RemoteEntry[];
+    readonly truncated: boolean;
+    readonly totalEntries: number;
+}
+
+export type RemoteBrowseFailureCode =
+    | "not-found"
+    | "not-a-directory"
+    | "permission-denied"
+    | "symlink-loop"
+    | "unreachable"
+    | "remote-failed";
+
+export type RemoteBrowseOutcome =
+    | { readonly ok: true; readonly listing: RemoteDirectoryListing }
+    | {
+          readonly ok: false;
+          readonly code: RemoteBrowseFailureCode;
+          readonly message: string;
+          readonly detail: string | null;
+      };
+
+/* -------------------------------------------------------------------------- */
 /* The bridges                                                                */
 /* -------------------------------------------------------------------------- */
 
@@ -202,6 +257,8 @@ export interface RemoteBridge {
     startRemoteRender(request: unknown): Promise<RemoteRenderResult>;
     cancelRemoteRender(renderId: string): Promise<boolean>;
     activeRemoteRenders(): Promise<readonly string[]>;
+    /** Lists one remote folder, for the Explorer-style browser. */
+    browseRemoteDirectory(target: unknown, path: string): Promise<RemoteBrowseOutcome>;
     /** True when the disclosure ("what is sent, what is never sent") can be asked for. */
     readonly canDescribe: boolean;
     /** True when an unknown host key can actually be recorded from here. */
@@ -210,6 +267,8 @@ export interface RemoteBridge {
     readonly canCancel: boolean;
     /** True when the ids in flight right now can be asked for. */
     readonly canSeeActive: boolean;
+    /** True when this build can actually list a remote folder. */
+    readonly canBrowse: boolean;
 }
 
 export interface RuntimeBridge {
@@ -244,6 +303,7 @@ type Host = Partial<{
     startRemoteRender: (request: unknown) => Promise<unknown>;
     cancelRemoteRender: (renderId: string) => Promise<boolean>;
     activeRemoteRenders: () => Promise<readonly string[]>;
+    browseRemoteDirectory: (target: unknown, path: string) => Promise<unknown>;
     dockerRuntime: () => Promise<unknown>;
     runtimeModes: () => Promise<unknown>;
     renderRuntimeModes: () => Promise<unknown>;
@@ -284,6 +344,7 @@ export function resolveRemoteBridge(): RemoteBridge | null {
     const canTrustHostKey = isFunction(found.trustRemoteHostKey);
     const canCancel = isFunction(found.cancelRemoteRender);
     const canSeeActive = isFunction(found.activeRemoteRenders);
+    const canBrowse = isFunction(found.browseRemoteDirectory);
 
     return {
         validateRemoteTarget: async (target) =>
@@ -331,10 +392,27 @@ export function resolveRemoteBridge(): RemoteBridge | null {
             const active = found.activeRemoteRenders;
             return isFunction(active) ? await active() : [];
         },
+        // A plain "not supported" answer rather than a rejection, exactly as every other
+        // optional method on this bridge does: a build with no listing channel is a real,
+        // ordinary answer the browser renders as "type the path instead", not an exception.
+        browseRemoteDirectory: async (target, path) => {
+            const browse = found.browseRemoteDirectory;
+            if (!isFunction(browse)) {
+                return {
+                    ok: false,
+                    code: "remote-failed",
+                    message:
+                        "This build cannot browse a remote folder. The desktop application is what lists it over ssh.",
+                    detail: null,
+                };
+            }
+            return (await browse(target, path)) as RemoteBrowseOutcome;
+        },
         canDescribe,
         canTrustHostKey,
         canCancel,
         canSeeActive,
+        canBrowse,
     };
 }
 

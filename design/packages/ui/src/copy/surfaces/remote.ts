@@ -1119,6 +1119,171 @@ export const REMOTE_VOICED = {
             "呢次算圖會經 SSH，喺 {target} 嘅container入面行。成個世界會先upload上去，一格都唔會漏，之後先算第一塊tile。",
         ],
     },
+
+    /* ---------------------------------------------------------------- */
+    /* The remote file browser: what a folder shows, and the world badge */
+    /* ---------------------------------------------------------------- */
+
+    "remote.browse.truncated": {
+        en: [
+            "Showing the first {shown} of {total} entries. Use the search above to narrow it down.",
+            "Showing the first {shown} of {total} entries. Use the search above to narrow it down.",
+            "Showing the first {shown} of {total} entries here - the search above narrows that down.",
+            "This folder has {total} entries; only the first {shown} are shown. The search above is the fast way to the rest.",
+            "{total} entries live here and only the first {shown} made it onto the screen. The search above is how the other ones get found.",
+        ],
+        yue: [
+            "而家淨係顯示緊 {total} 個入面頭 {shown} 個。用上面嘅搜尋可以收窄範圍。",
+            "而家淨係顯示緊 {total} 個入面頭 {shown} 個。用上面嘅搜尋可以收窄範圍。",
+            "呢度 {total} 個入面淨係顯示緊頭 {shown} 個，用上面個搜尋收窄返啲。",
+            "呢個資料夾有 {total} 個項目，但淨係顯示緊頭 {shown} 個。想搵返其他嘅，最快就係用上面嘅搜尋。",
+            "呢度成 {total} 個項目，得頭 {shown} 個瞓得上個畫面。想搵返剩低嗰啲，就靠上面嗰個搜尋。",
+        ],
+    },
+    "remote.browse.world.reasonFull": {
+        en: [
+            "This folder has level.dat and a region folder ({regions}), so it looks like a Minecraft world.",
+            "This folder has level.dat and a region folder ({regions}), so it looks like a Minecraft world.",
+            "This folder has level.dat and a region folder ({regions}), so this looks like a Minecraft world.",
+            "level.dat is here, and so is a region folder ({regions}) - both signs point to this being a Minecraft world.",
+            "level.dat is here and so is a region folder ({regions}), which is exactly what a Minecraft world looks like from the outside.",
+        ],
+        yue: [
+            "呢個資料夾有 level.dat，仲有region資料夾（{regions}），所以睇落似個 Minecraft 世界。",
+            "呢個資料夾有 level.dat，仲有region資料夾（{regions}），所以睇落似個 Minecraft 世界。",
+            "呢度有 level.dat，又有region資料夾（{regions}），睇落真係個 Minecraft 世界。",
+            "level.dat 有埋，region資料夾（{regions}）都有，兩個訊號齊晒，睇嚟係個 Minecraft 世界。",
+            "level.dat 喺度，region資料夾（{regions}）都喺度，兩個訊號齊全，一個 Minecraft 世界嘅樣。",
+        ],
+    },
+    "remote.browse.world.reasonLevelOnly": {
+        en: [
+            "This folder has level.dat but no region folder yet, so it is not confirmed as a Minecraft world - it may be a freshly created one.",
+            "This folder has level.dat but no region folder yet, so it is not confirmed as a Minecraft world - it may be a freshly created one.",
+            "This folder has level.dat but no region folder yet, so it is not confirmed as a world - possibly one just created with no terrain generated.",
+            "level.dat is here, but there is no region folder yet, so this is not confirmed as a world - it may simply be too new to have generated any terrain.",
+            "level.dat is here and there is no region folder in sight, so this is not confirmed as a world yet - it may just be a newborn one that has not generated a single chunk.",
+        ],
+        yue: [
+            "呢個資料夾有 level.dat，但係仲未有region資料夾，所以未能確認係 Minecraft 世界：可能係啱啱整好嘅。",
+            "呢個資料夾有 level.dat，但係仲未有region資料夾，所以未能確認係 Minecraft 世界：可能係啱啱整好嘅。",
+            "呢度有 level.dat，但仲未有region資料夾，未能確認係世界：有可能啱啱整好，未生成過地形。",
+            "level.dat 有，但仲未有region資料夾，所以未能確認係世界：可能太新，仲未生成任何地形。",
+            "level.dat 喺度，但仲未有region資料夾，所以未能確認係世界：可能係個新出世、連一個chunk都未生過嘅世界。",
+        ],
+    },
+    "remote.browse.world.reasonRegionOnly": {
+        en: [
+            "This folder has a region folder ({regions}) but no level.dat, so it is not confirmed as a Minecraft world.",
+            "This folder has a region folder ({regions}) but no level.dat, so it is not confirmed as a Minecraft world.",
+            "This folder has a region folder ({regions}) but no level.dat, so it is not confirmed as a world - possibly a dimension folder chosen by itself.",
+            "A region folder ({regions}) is here, but there is no level.dat, so this is not confirmed as a world - it may be a dimension folder opened one level too deep.",
+            "A region folder ({regions}) is here, but there is no level.dat in sight, so this is not confirmed as a world - it may be a dimension folder that got picked instead of the world holding it.",
+        ],
+        yue: [
+            "呢個資料夾有region資料夾（{regions}），但係冇 level.dat，所以未能確認係 Minecraft 世界。",
+            "呢個資料夾有region資料夾（{regions}），但係冇 level.dat，所以未能確認係 Minecraft 世界。",
+            "呢度有region資料夾（{regions}），但係冇 level.dat，未能確認係世界：有可能係揀咗個維度資料夾。",
+            "region資料夾（{regions}）有，但係冇 level.dat，未能確認係世界：可能揀深咗一層，揀咗個維度資料夾。",
+            "region資料夾（{regions}）喺度，但係冇 level.dat，未能確認係世界：可能揀錯咗，揀咗載住世界嗰個維度資料夾。",
+        ],
+    },
+    "remote.browse.error.notFound": {
+        en: [
+            "There is nothing at {path}.",
+            "There is nothing at {path}.",
+            "There is nothing at {path} on this remote.",
+            "Nothing lives at {path} on this remote - check the spelling, or go up and pick it from the list.",
+            "{path} does not exist on this remote - a typo, most likely. Going up a level and picking it from the list is the safe way back.",
+        ],
+        yue: [
+            "{path} 呢度冇嘢。",
+            "{path} 呢度冇嘢。",
+            "遠端呢個 {path} 冇嘢。",
+            "遠端嘅 {path} 冇嘢喺度：睇下有冇串錯字，或者上返一層由個list度揀。",
+            "遠端根本冇 {path} 呢樣嘢：多數係打錯字。上返一層，由個list度揀返，穩陣啲。",
+        ],
+    },
+    "remote.browse.error.notDirectory": {
+        en: [
+            "{path} is a file, not a folder.",
+            "{path} is a file, not a folder.",
+            "{path} is a file rather than a folder.",
+            "{path} turned out to be a file, not a folder - go up a level and pick a folder instead.",
+            "{path} is a file wearing a folder's typed path - go up a level and pick an actual folder this time.",
+        ],
+        yue: [
+            "{path} 係個檔案，唔係資料夾。",
+            "{path} 係個檔案，唔係資料夾。",
+            "{path} 係個檔案，唔係資料夾嚟嘅。",
+            "{path} 原來係個檔案，唔係資料夾：上返一層，揀返個真係資料夾嘅嘢。",
+            "{path} 呢個係檔案扮資料夾：上返一層，今次揀返個貨真價實嘅資料夾。",
+        ],
+    },
+    "remote.browse.error.denied": {
+        en: [
+            "{path} could not be read: this account is not allowed to open it.",
+            "{path} could not be read: this account is not allowed to open it.",
+            "{path} could not be read - this account is not allowed to open it.",
+            "{path} refused to open: this account is not allowed to read it.",
+            "{path} slammed the door shut: this account is simply not allowed to read it.",
+        ],
+        yue: [
+            "{path} 讀唔到：呢個帳戶冇權開佢。",
+            "{path} 讀唔到：呢個帳戶冇權開佢。",
+            "{path} 讀唔到：呢個帳戶冇權開佢。",
+            "{path} 唔畀開：呢個帳戶冇權讀佢。",
+            "{path} 直情閂晒門：呢個帳戶根本冇權讀佢。",
+        ],
+    },
+    "remote.browse.error.loop": {
+        en: [
+            "{path} is a link that never resolves to a real folder.",
+            "{path} is a link that never resolves to a real folder.",
+            "{path} is a link that never resolves to a real folder - it is stuck pointing at itself.",
+            "{path} is a symbolic link that loops back on itself and never reaches a real folder.",
+            "{path} is a symbolic link chasing its own tail - it never actually resolves to a real folder.",
+        ],
+        yue: [
+            "{path} 係個link，永遠去唔到一個真嘅資料夾。",
+            "{path} 係個link，永遠去唔到一個真嘅資料夾。",
+            "{path} 係個link，永遠去唔到真資料夾：卡咗喺自己度。",
+            "{path} 係個symbolic link，兜咗個圈返返自己度，去唔到真資料夾。",
+            "{path} 呢條symbolic link一直追住自己條尾，永遠都去唔到個真資料夾。",
+        ],
+    },
+    "remote.browse.error.unreachable": {
+        en: [
+            "This remote could not be reached or signed in to.",
+            "This remote could not be reached or signed in to.",
+            "This remote could not be reached, or could not be signed in to.",
+            "This remote could not be reached, or could not be signed in to - the same two reasons a render's preflight would report.",
+            "This remote could not be reached, or could not be signed in to, and honestly it could be either - exactly the two things a render's preflight already checks for, before a byte of a world ever moves.",
+        ],
+        yue: [
+            "呢部遠端機連唔到，或者登入唔到。",
+            "呢部遠端機連唔到，或者登入唔到。",
+            "呢部遠端機連唔到，又或者登入唔到。",
+            "呢部遠端機連唔到，又或者登入唔到：同算圖preflight check嘅兩個原因一樣。",
+            "呢部遠端機連唔到，又或者登入唔到，老實講兩個都有可能：同算圖preflight check嗰兩個原因一模一樣，喺個世界郁都未郁之前就會check到。",
+        ],
+    },
+    "remote.browse.bridgeFailed": {
+        en: [
+            "This folder could not be listed: {message}",
+            "This folder could not be listed: {message}",
+            "This folder could not be listed - {message}",
+            "Listing this folder did not work: {message}",
+            "Listing this folder fell over: {message}",
+        ],
+        yue: [
+            "呢個資料夾列唔到：{message}",
+            "呢個資料夾列唔到：{message}",
+            "呢個資料夾列唔到：{message}",
+            "列呢個資料夾唔成功：{message}",
+            "列呢個資料夾嗰陣仆咗街：{message}",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const REMOTE_FIXED = {
@@ -1284,6 +1449,46 @@ export const REMOTE_FIXED = {
         yue: "喺呢部電腦嘅container入面",
     },
     "remote.place.remote.title": { en: "On another machine, over SSH", yue: "經 SSH 喺另一部機" },
+
+    /* The remote file browser: toolbar, breadcrumb, columns and the two grid actions. */
+    "remote.browse.backAria": { en: "Go back to the previous folder", yue: "返去上一個資料夾" },
+    "remote.browse.upAria": { en: "Go up one level", yue: "上返一層" },
+    "remote.browse.breadcrumbAria": { en: "Current folder path", yue: "而家嘅資料夾路徑" },
+    "remote.browse.refresh": { en: "Refresh", yue: "重新整理" },
+    "remote.browse.pathLabel": { en: "Path", yue: "路徑" },
+    "remote.browse.pathHint": {
+        en: "Type a path directly, or navigate with the list below.",
+        yue: "可以直接打路徑，或者用下面個list行去。",
+    },
+    "remote.browse.searchLabel": { en: "Search this folder", yue: "搵呢個資料夾" },
+    "remote.browse.searchHint": { en: "a name", yue: "個名" },
+    "remote.browse.searchSummary": { en: "Showing {shown} of {total}", yue: "顯示緊 {total} 之中嘅 {shown}" },
+    "remote.browse.loading": { en: "Listing this folder...", yue: "列緊呢個資料夾…" },
+    "remote.browse.empty": { en: "This folder is empty.", yue: "呢個資料夾冇嘢。" },
+    "remote.browse.noMatch": { en: "No entry matches that search.", yue: "冇項目夾夾中呢個搜尋。" },
+    "remote.browse.gridAria": { en: "Folder contents", yue: "資料夾內容" },
+    "remote.browse.column.name": { en: "Name", yue: "名" },
+    "remote.browse.column.size": { en: "Size", yue: "大細" },
+    "remote.browse.column.modified": { en: "Modified", yue: "修改時間" },
+    "remote.browse.world.badge": { en: "Minecraft world", yue: "Minecraft 世界" },
+    "remote.browse.world.partialBadge": { en: "Possibly a world", yue: "可能係個世界" },
+    "remote.browse.choose": { en: "Use this folder", yue: "用呢個資料夾" },
+    "remote.browse.cancel": { en: "Cancel", yue: "取消" },
+
+    /* The Browse button beside the work directory field, and the dialog it opens. */
+    "remote.targets.browseWorkDir": { en: "Browse...", yue: "揀資料夾…" },
+    "remote.targets.browseWorkDirAria": {
+        en: "Browse the folders on this machine to choose the work directory",
+        yue: "喺呢部機度揀資料夾嚟做work directory",
+    },
+    "remote.targets.browseNeedsHostUser": {
+        en: "A host and an account are needed before this machine can be browsed.",
+        yue: "要有host同帳戶先至可以瀏覽呢部機。",
+    },
+    "remote.targets.browseDialogTitle": {
+        en: "Choose the work directory on {target}",
+        yue: "揀返 {target} 上面嘅work directory",
+    },
 } as const satisfies Record<string, FixedString>;
 
 export const REMOTE_FACTS = {
@@ -1607,6 +1812,48 @@ export const REMOTE_FACTS = {
     "remote.choice.remote": {
         en: ["{target}", "in a container", "SSH", "uploaded there first"],
         yue: ["{target}", "container", "SSH", "先upload上去"],
+    },
+
+    /* The remote browser's voiced facts: the truncation count, the world reasons, and the errors. */
+    "remote.browse.truncated": {
+        en: ["{shown}", "{total}"],
+        yue: ["{shown}", "{total}"],
+    },
+    "remote.browse.world.reasonFull": {
+        en: ["level.dat", "region folder", "{regions}", "Minecraft world"],
+        yue: ["level.dat", "region資料夾", "{regions}", "Minecraft 世界"],
+    },
+    "remote.browse.world.reasonLevelOnly": {
+        en: ["level.dat", "no region folder", "not confirmed"],
+        yue: ["level.dat", "未有region資料夾", "未能確認"],
+    },
+    "remote.browse.world.reasonRegionOnly": {
+        en: ["region folder", "{regions}", "no level.dat", "not confirmed"],
+        yue: ["region資料夾", "{regions}", "冇 level.dat", "未能確認"],
+    },
+    "remote.browse.error.notFound": {
+        en: ["{path}"],
+        yue: ["{path}"],
+    },
+    "remote.browse.error.notDirectory": {
+        en: ["{path}", "file"],
+        yue: ["{path}", "檔案"],
+    },
+    "remote.browse.error.denied": {
+        en: ["{path}", "not allowed"],
+        yue: ["{path}", "冇權"],
+    },
+    "remote.browse.error.loop": {
+        en: ["{path}", "link"],
+        yue: ["{path}", "link"],
+    },
+    "remote.browse.error.unreachable": {
+        en: ["reached", "signed in"],
+        yue: ["連唔到", "登入"],
+    },
+    "remote.browse.bridgeFailed": {
+        en: ["{message}"],
+        yue: ["{message}"],
     },
 } as const satisfies Record<
     keyof typeof REMOTE_VOICED,

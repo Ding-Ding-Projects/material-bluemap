@@ -9,6 +9,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
+import type { browseRemoteDirectory, RemoteBrowseOutcome } from "./browse.js";
 import { REMOTE_CHANNELS, disclosureFor, registerRemoteHandlers } from "./ipc.js";
 import type { preflight, PreflightReport } from "./preflight.js";
 import type { trustHostKey } from "./hostkey.js";
@@ -187,5 +188,94 @@ describe("the remote channels", () => {
         const ipcMain = register();
         expect(await ipcMain.handlers.get("remote:cancel")?.(noEvent, "x")).toBe(false);
         expect(await ipcMain.handlers.get("remote:active")?.(noEvent)).toEqual([]);
+    });
+
+    it("lists a folder through the injected browse function, target checked first", async () => {
+        const browse = vi.fn<typeof browseRemoteDirectory>(() =>
+            Promise.resolve({
+                ok: true,
+                listing: {
+                    path: "/srv/saves",
+                    os: "linux",
+                    separator: "/",
+                    entries: [],
+                    truncated: false,
+                    totalEntries: 0,
+                },
+            }),
+        );
+        const ipcMain = register({ browse });
+        const answer = (await ipcMain.handlers.get("remote:browse")?.(
+            noEvent,
+            TARGET,
+            "/srv/saves",
+        )) as RemoteBrowseOutcome;
+        expect(answer.ok).toBe(true);
+        expect(browse.mock.calls[0]?.[0]).toBe("/srv/saves");
+        expect((browse.mock.calls[0]?.[1] as { target: { host: string } }).target.host).toBe(
+            "render.example",
+        );
+    });
+
+    it("refuses a browse for a target that is not one, without calling browse at all", async () => {
+        const browse = vi.fn<typeof browseRemoteDirectory>(() =>
+            Promise.resolve({
+                ok: true,
+                listing: {
+                    path: "/",
+                    os: "linux",
+                    separator: "/",
+                    entries: [],
+                    truncated: false,
+                    totalEntries: 0,
+                },
+            }),
+        );
+        const ipcMain = register({ browse });
+        const answer = (await ipcMain.handlers.get("remote:browse")?.(
+            noEvent,
+            { host: "" },
+            "/srv/saves",
+        )) as RemoteBrowseOutcome;
+        expect(answer.ok).toBe(false);
+        expect(browse).not.toHaveBeenCalled();
+    });
+
+    it("refuses a browse whose path is not a string, without calling browse at all", async () => {
+        const browse = vi.fn<typeof browseRemoteDirectory>(() =>
+            Promise.resolve({
+                ok: true,
+                listing: {
+                    path: "/",
+                    os: "linux",
+                    separator: "/",
+                    entries: [],
+                    truncated: false,
+                    totalEntries: 0,
+                },
+            }),
+        );
+        const ipcMain = register({ browse });
+        const answer = (await ipcMain.handlers.get("remote:browse")?.(
+            noEvent,
+            TARGET,
+            42,
+        )) as RemoteBrowseOutcome;
+        expect(answer.ok).toBe(false);
+        expect(browse).not.toHaveBeenCalled();
+    });
+
+    it("does not reject when the browse step itself blows up", async () => {
+        const browse = vi.fn<typeof browseRemoteDirectory>(() =>
+            Promise.reject(new Error("the listing fell over")),
+        );
+        const ipcMain = register({ browse });
+        const answer = (await ipcMain.handlers.get("remote:browse")?.(
+            noEvent,
+            TARGET,
+            "/srv/saves",
+        )) as RemoteBrowseOutcome;
+        expect(answer.ok).toBe(false);
+        if (!answer.ok) expect(answer.message).toContain("the listing fell over");
     });
 });

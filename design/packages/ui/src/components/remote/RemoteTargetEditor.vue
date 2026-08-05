@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiCheck, mdiContentCopy, mdiDeleteOutline, mdiPencilOutline, mdiServerPlus } from "@mdi/js";
+import {
+    mdiCheck,
+    mdiContentCopy,
+    mdiDeleteOutline,
+    mdiFolderSearchOutline,
+    mdiPencilOutline,
+    mdiServerPlus,
+} from "@mdi/js";
 import {
     VAlert,
     VBtn,
@@ -10,10 +17,12 @@ import {
     VCardTitle,
     VCheckbox,
     VChip,
+    VDialog,
     VTextField,
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import PathField from "../PathField.vue";
+import RemoteFileBrowser from "./RemoteFileBrowser.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import type { RemoteBridge, RemoteDisclosure, RemoteTarget } from "./remoteBridge.js";
 import {
@@ -230,7 +239,35 @@ const canSave = computed(
         draft.value.user.trim() !== "",
 );
 
-defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing });
+/* -- browsing the remote folder for the work directory ---------------------- */
+
+/**
+ * The Explorer-style browser needs a host and a user to have anything to connect to, and
+ * the build itself needs to be able to list a folder at all. Neither has to have been saved
+ * or checked yet - the browser's own listing is itself a live proof the machine answers,
+ * which is exactly the "which folder holds it" question this is here to answer.
+ */
+const canBrowseWorkDir = computed(
+    () =>
+        props.bridge !== null &&
+        props.bridge.canBrowse &&
+        draft.value.host.trim() !== "" &&
+        draft.value.user.trim() !== "",
+);
+
+const browsingWorkDir = ref(false);
+
+function openWorkDirBrowser(): void {
+    if (!canBrowseWorkDir.value) return;
+    browsingWorkDir.value = true;
+}
+
+function chooseWorkDir(path: string): void {
+    patch({ workDir: path });
+    browsingWorkDir.value = false;
+}
+
+defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing, browsingWorkDir });
 </script>
 
 <template>
@@ -420,23 +457,49 @@ defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing })
                 </div>
 
                 <div class="mb-remote-targets__grid">
-                    <v-text-field
-                        :model-value="draft.workDir"
-                        :label="t('remote.targets.field.workDir', 'Work directory on that machine')"
-                        :hint="
-                            t(
-                                'remote.targets.field.workDirHint',
-                                'Everything this render sends lives under here, in a folder of its own.',
-                            )
-                        "
-                        persistent-hint
-                        variant="outlined"
-                        density="compact"
-                        spellcheck="false"
-                        autocapitalize="off"
-                        autocomplete="off"
-                        @update:model-value="(value: string) => patch({ workDir: value })"
-                    />
+                    <div class="mb-remote-targets__pathWithBrowse">
+                        <v-text-field
+                            :model-value="draft.workDir"
+                            :label="t('remote.targets.field.workDir', 'Work directory on that machine')"
+                            :hint="
+                                t(
+                                    'remote.targets.field.workDirHint',
+                                    'Everything this render sends lives under here, in a folder of its own.',
+                                )
+                            "
+                            persistent-hint
+                            variant="outlined"
+                            density="compact"
+                            spellcheck="false"
+                            autocapitalize="off"
+                            autocomplete="off"
+                            @update:model-value="(value: string) => patch({ workDir: value })"
+                        />
+                        <v-btn
+                            :prepend-icon="mdiFolderSearchOutline"
+                            :disabled="!canBrowseWorkDir"
+                            :aria-label="
+                                t(
+                                    'remote.targets.browseWorkDirAria',
+                                    'Browse the folders on this machine to choose the work directory',
+                                )
+                            "
+                            variant="tonal"
+                            size="small"
+                            class="mb-remote-targets__browseBtn"
+                            @click="openWorkDirBrowser"
+                        >
+                            {{ t("remote.targets.browseWorkDir", "Browse...") }}
+                        </v-btn>
+                        <p v-if="!canBrowseWorkDir" class="mb-remote-targets__fieldHint">
+                            {{
+                                t(
+                                    'remote.targets.browseNeedsHostUser',
+                                    'A host and an account are needed before this machine can be browsed.',
+                                )
+                            }}
+                        </p>
+                    </div>
                     <v-text-field
                         :model-value="draft.image"
                         :label="t('remote.targets.field.image', 'Container image (optional)')"
@@ -535,6 +598,36 @@ defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing })
                 </p>
             </v-card-text>
         </v-card>
+
+        <!--
+            The Explorer-style browser, for the one field on this form that names a folder
+            somebody cannot be expected to type from memory. It never needs the machine to be
+            saved first: a live listing is itself a stronger proof the machine answers than
+            the Check button below would give without one.
+        -->
+        <v-dialog v-model="browsingWorkDir" max-width="720" scrollable>
+            <v-card class="mb-remote-targets__browseDialog">
+                <v-card-title class="mb-remote-targets__formTitle">
+                    {{
+                        t(
+                            "remote.targets.browseDialogTitle",
+                            { target: draft.host },
+                            "Choose the work directory on {target}",
+                        )
+                    }}
+                </v-card-title>
+                <v-card-text>
+                    <RemoteFileBrowser
+                        v-if="browsingWorkDir"
+                        :bridge="bridge"
+                        :target="draftToTarget(draft)"
+                        :start-path="draft.workDir.trim() === '' ? '/' : draft.workDir.trim()"
+                        @choose="chooseWorkDir"
+                        @cancel="browsingWorkDir = false"
+                    />
+                </v-card-text>
+            </v-card>
+        </v-dialog>
     </div>
 </template>
 
@@ -629,6 +722,26 @@ defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing })
 
 .mb-remote-targets__wide {
     margin-block-end: 8px;
+}
+
+.mb-remote-targets__pathWithBrowse {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.mb-remote-targets__pathWithBrowse > .v-input {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.mb-remote-targets__browseBtn {
+    margin-block-start: 4px;
+}
+
+.mb-remote-targets__browseDialog {
+    border-radius: 16px;
 }
 
 /*

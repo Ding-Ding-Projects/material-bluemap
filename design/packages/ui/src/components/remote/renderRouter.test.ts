@@ -102,10 +102,12 @@ function fakeRemote(answer: RemoteRenderResult): {
                 return true;
             },
             activeRemoteRenders: async () => [],
+            browseRemoteDirectory: async () => ({ ok: false, code: "remote-failed", message: "not asked here", detail: null }),
             canDescribe: true,
             canTrustHostKey: true,
             canCancel: true,
             canSeeActive: true,
+            canBrowse: true,
         },
     };
 }

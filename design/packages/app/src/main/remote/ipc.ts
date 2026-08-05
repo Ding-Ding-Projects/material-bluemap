@@ -27,6 +27,7 @@
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import type { CommandRunner } from "../runtime/command.js";
+import { browseRemoteDirectory, type RemoteBrowseOutcome } from "./browse.js";
 import * as failures from "./failure.js";
 import type { RemoteFailure } from "./failure.js";
 import { trustHostKey, type HostKeyOffer } from "./hostkey.js";
@@ -44,6 +45,7 @@ export const REMOTE_CHANNELS = [
     "remote:render",
     "remote:cancel",
     "remote:active",
+    "remote:browse",
 ] as const;
 
 export type ValidateAnswer =
@@ -78,6 +80,8 @@ export interface RemoteIpcOptions {
     readonly preflight?: typeof preflight;
     /** Injected so a test can prove a key is recorded without `ssh-keyscan`. */
     readonly trust?: typeof trustHostKey;
+    /** Injected so a test can answer a directory listing without a server. */
+    readonly browse?: typeof browseRemoteDirectory;
 }
 
 export interface RemoteIpc {
@@ -89,6 +93,7 @@ export function registerRemoteHandlers(ipcMain: IpcMain, options: RemoteIpcOptio
     const orchestrator = options.orchestrator ?? null;
     const runPreflight = options.preflight ?? preflight;
     const recordKey = options.trust ?? trustHostKey;
+    const runBrowse = options.browse ?? browseRemoteDirectory;
 
     const hostKeyOptions = {
         knownHostsFile: options.knownHostsFile,
@@ -175,6 +180,46 @@ export function registerRemoteHandlers(ipcMain: IpcMain, options: RemoteIpcOptio
                 return await recordKey(checked.target, fingerprint, hostKeyOptions);
             } catch (error) {
                 return { ok: false, message: describe(error) };
+            }
+        },
+    );
+
+    /**
+     * Lists one folder on the target, for the Explorer-style browser.
+     *
+     * The same never-rejects promise every channel here makes: a bad path, a refused
+     * permission or a dead connection is a `RemoteBrowseOutcome` the browser renders,
+     * never a stack trace arriving where a folder listing was expected.
+     */
+    ipcMain.handle(
+        "remote:browse",
+        async (
+            _event: IpcMainInvokeEvent,
+            value: unknown,
+            path: unknown,
+        ): Promise<RemoteBrowseOutcome> => {
+            const checked = validateTarget(asPartial(value));
+            if (!checked.ok) {
+                return { ok: false, code: "remote-failed", message: checked.failure.message, detail: null };
+            }
+            if (typeof path !== "string") {
+                return {
+                    ok: false,
+                    code: "not-found",
+                    message: "No folder was given, so there was nothing to list.",
+                    detail: null,
+                };
+            }
+            try {
+                return await runBrowse(path, {
+                    target: checked.target,
+                    ...hostKeyOptions,
+                    ...(options.ssh === undefined ? {} : { ssh: options.ssh }),
+                });
+            } catch (error) {
+                // `browseRemoteDirectory` is documented never to reject. This is the belt,
+                // so a folder listing never receives a stack trace where a sentence belongs.
+                return { ok: false, code: "remote-failed", message: describe(error), detail: null };
             }
         },
     );

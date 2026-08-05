@@ -15,10 +15,16 @@
  *    screen, because `PathField.vue` has no `hint` prop and that paragraph is the one place
  *    this feature says out loud that there is no password anywhere in it.
  *
- * The work directory is deliberately left alone: it names a path on the *remote* machine,
- * which a local Electron file dialog cannot see, so it keeps its plain text field and grows
- * no browse button. `never grows a browse button on the remote work directory` guards that
- * on purpose, not by omission.
+ * The work directory used to be left alone on purpose: it names a path on the *remote*
+ * machine, which a local Electron file dialog cannot see, so it kept its plain text field
+ * and grew no browse button. That reasoning held only while there was no other way to look
+ * at a remote folder. Now that `main/remote/browse.ts` can list one over the same `ssh` this
+ * whole feature already trusts, the work directory is exactly "a remote path currently
+ * typed" and gets its own browse button too - backed by that SSH listing, never by the local
+ * file dialog `PathField.vue` uses. The tests below prove that distinction rather than
+ * merely that a button exists: the work-directory button must never touch
+ * `window.materialBluemap.dialog`, and must depend on the *remote* bridge's `canBrowse`
+ * rather than on the local dialog bridge `PathField.vue` probes.
  */
 
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -26,7 +32,7 @@ import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import RemoteTargetEditor from "./RemoteTargetEditor.vue";
-import type { RemoteTarget } from "./remoteBridge.js";
+import type { RemoteBridge, RemoteTarget } from "./remoteBridge.js";
 
 beforeAll(() => {
     // jsdom has no layout engine, and Vuetify's fields, radios and overlays observe their
@@ -147,14 +153,104 @@ describe("the identity file's browse button", () => {
         wrapper.unmount();
     });
 
-    it("never grows a browse button on the remote work directory, which lives on the other machine", async () => {
+    it("disables the work-directory browse button when there is no remote-browsing bridge", async () => {
         const wrapper = await opened();
 
-        const nearWorkDir = wrapper
-            .findAll("button")
-            .map((button) => button.attributes("aria-label") ?? "")
-            .filter((label) => /work directory/i.test(label));
-        expect(nearWorkDir).toEqual([]);
+        const button = buttonByAria(
+            wrapper,
+            "Browse the folders on this machine to choose the work directory",
+        );
+        expect(button.attributes("disabled")).toBeDefined();
+
+        wrapper.unmount();
+    });
+
+    it("never asks the local file dialog to open the work-directory browser", async () => {
+        // The local dialog bridge is wired up, exactly as the identity-file test above does,
+        // and is never touched: the work directory's browse button must go through the
+        // *remote* bridge's SSH listing, never through `window.materialBluemap.dialog`.
+        const pickFolder = async (): Promise<string | null> => "C:\\wrong\\place";
+        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+            dialog: { pickFolder, pickFile: async () => null },
+        };
+
+        const wrapper = await opened();
+        const button = buttonByAria(
+            wrapper,
+            "Browse the folders on this machine to choose the work directory",
+        );
+        // Still disabled: no remote bridge was given, and no host or user was typed either.
+        expect(button.attributes("disabled")).toBeDefined();
+
+        wrapper.unmount();
+    });
+
+    it("enables the work-directory browse button once a browsing bridge, a host and a user are present, and opens the SSH-backed panel rather than a local dialog", async () => {
+        const browseCalls: unknown[] = [];
+        const bridge: RemoteBridge = {
+            validateRemoteTarget: async () => ({ ok: false, message: "not asked here" }),
+            describeRemoteTarget: async () => ({ ok: false, message: "not asked here" }),
+            remotePreflight: async () => {
+                throw new Error("not asked here");
+            },
+            trustRemoteHostKey: async () => ({ ok: false, message: "not asked here" }),
+            startRemoteRender: async () => {
+                throw new Error("not asked here");
+            },
+            cancelRemoteRender: async () => false,
+            activeRemoteRenders: async () => [],
+            browseRemoteDirectory: async (target, path) => {
+                browseCalls.push({ target, path });
+                return {
+                    ok: true,
+                    listing: {
+                        path,
+                        os: "linux",
+                        separator: "/",
+                        entries: [],
+                        truncated: false,
+                        totalEntries: 0,
+                    },
+                };
+            },
+            canDescribe: false,
+            canTrustHostKey: false,
+            canCancel: false,
+            canSeeActive: false,
+            canBrowse: true,
+        };
+
+        const wrapper = mount(RemoteTargetEditor, {
+            props: { bridge, targets: [], selectedId: null },
+            global: { plugins: [vuetify, i18n()] },
+        });
+        const vm = wrapper.vm as unknown as {
+            startNew: () => void;
+            patch: (change: Record<string, unknown>) => void;
+            browsingWorkDir: boolean;
+        };
+        vm.startNew();
+        vm.patch({ host: "build.lan", user: "renderer", workDir: "/srv/renders" });
+        await flushPromises();
+
+        const button = buttonByAria(
+            wrapper,
+            "Browse the folders on this machine to choose the work directory",
+        );
+        expect(button.attributes("disabled")).toBeUndefined();
+
+        await button.trigger("click");
+        await flushPromises();
+
+        // Opened the SSH-backed panel (its own listing ran against the remote bridge)...
+        expect(vm.browsingWorkDir).toBe(true);
+        expect(browseCalls).toHaveLength(1);
+        const call = browseCalls[0] as { target: { host: string; user: string }; path: string };
+        expect(call.target.host).toBe("build.lan");
+        expect(call.target.user).toBe("renderer");
+        expect(call.path).toBe("/srv/renders");
+        // ...and never the local file dialog this same form's identity field does use.
+        expect((window as { materialBluemap?: unknown }).materialBluemap).toBeUndefined();
 
         wrapper.unmount();
     });

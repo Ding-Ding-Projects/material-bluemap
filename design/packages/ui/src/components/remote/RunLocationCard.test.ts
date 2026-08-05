@@ -145,10 +145,15 @@ function remoteBridge(report: PreflightReport, trust = vi.fn(async () => ({ ok: 
         startRemoteRender: async () => ({ ok: false, renderId: "", failure: { code: "x", message: "", detail: null, exitCode: null } }),
         cancelRemoteRender: async () => false,
         activeRemoteRenders: async () => [],
+        browseRemoteDirectory: async () => ({
+            ok: true,
+            listing: { path: "/", os: "linux", separator: "/", entries: [], truncated: false, totalEntries: 0 },
+        }),
         canDescribe: true,
         canTrustHostKey: true,
         canCancel: true,
         canSeeActive: true,
+        canBrowse: true,
     };
 }
 
