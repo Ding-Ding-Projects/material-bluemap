@@ -32,8 +32,8 @@ export const DOCSVIEWER_VOICED = {
             "Every article this project documents, bundled into this build so it can be read with no network at all.",
             "Every article this project documents, bundled into this build so it can be read with no network at all.",
             "Every article this project documents. It is bundled into this build, so reading it needs no network at all.",
-            "Every article this project documents, bundled right into this build. No network, no fetch, nothing missing.",
-            "Every article this project documents, baked straight into this build. No network, no fetch, and nothing goes missing just because the wifi did.",
+            "Every article this project documents, bundled right into this build. Reading it needs no network, no fetch, nothing missing.",
+            "Every article this project documents, baked straight into this build. Reading it needs no network, no fetch, and nothing goes missing just because the wifi did.",
         ],
         yue: [
             "呢個專案有嘅每一篇文件，全部打包咗喺呢個版本入面，唔使上網都睇得到。",

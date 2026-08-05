@@ -112,8 +112,24 @@ function focusSearch(): void {
     });
 }
 
-/** Called by the host right after it renders the picker open. */
+/**
+ * Called by the host right after it renders the picker open.
+ *
+ * `TabStrip.vue` mounts exactly one `TabGroupPicker` behind a `v-menu` and keeps it alive
+ * across a close -- `closeTabGroupPicker` only flips the menu's own `v-model` shut, so the
+ * same component instance (and the same `query`/`regexMode`/`flags` refs `matcher` reads)
+ * is what reopens next time, whether that is the same tab again or a different one entirely.
+ * `focus()` is the one call the host already makes on every open, so it is also where the
+ * search that belonged to whichever tab this was open for last gets put away: without this,
+ * a search typed while moving one tab stays on screen, still filtering the list, the next
+ * time any tab's picker opens -- including a "No group's name matches that search" empty
+ * state for a group that is right there, because the query nobody can see any more is still
+ * active.
+ */
 function focus(): void {
+    query.value = "";
+    regexMode.value = false;
+    flags.value = "i";
     activeIndex.value = -1;
     focusSearch();
 }
@@ -244,11 +260,25 @@ function trapAcrossBuilder(event: KeyboardEvent, builder: readonly HTMLElement[]
  * originated inside `rootRef` and was already dealt with there by the ordinary `trapTab`
  * path in `onKeydown` -- that path already covers the popover-closed case identically to
  * before this listener existed.
+ *
+ * Also a no-op whenever focus is no longer inside the popover by the time this runs, which is
+ * not the same condition as "the popover is open": Vuetify's own `v-menu` binds its own
+ * bubble-phase `keydown` listener directly to the popover's content, closer to the pressed key
+ * than this `document`-level one, and it already implements exactly the boundary this trap
+ * exists for -- Shift+Tab on the popover's own first control (with `retain-focus` off, the
+ * default) closes the menu and returns focus to the activator that opened it, which is this
+ * dialog's own ".*" button. Left unguarded, this listener still ran on the very same keydown
+ * afterwards, read the *new* `document.activeElement` (the button `v-menu` had just focused,
+ * not the control the press actually started on), and stepped it one place further -- turning
+ * a boundary `v-menu` had already handled correctly into one this dialog then mishandled.
+ * Bailing out once focus has already left the popover leaves that already-correct outcome
+ * alone rather than second-guessing it.
  */
 function onDocumentKeydown(event: KeyboardEvent): void {
     if (event.key !== "Tab") return;
     const builder = openBuilderElements();
     if (builder.length === 0) return;
+    if (!builder.includes(document.activeElement as HTMLElement)) return;
     trapAcrossBuilder(event, builder);
 }
 

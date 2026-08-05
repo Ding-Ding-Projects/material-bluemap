@@ -40,9 +40,11 @@ import type { Notice, NoticeState } from "./config/notifications.js";
  *
  * Lives at `components/NoticeBulkToolbar.vue`, outside `components/notifications/`, for the
  * reason `notificationsBulk.ts`'s file header explains: `components/notifications` is a
- * finished surface in `catalogueCoverage.test.ts`, and this toolbar's copy is not registered
- * there yet. `NoticeCentrePanel.vue` mounts this as a child and adds no `t()` call of its own
- * for anything it renders.
+ * finished surface in `catalogueCoverage.test.ts`, and keeping the two components that call
+ * this toolbar's own keys out of that folder let the bulk toolbar exist before its copy was
+ * registered, without wiring a half-written catalogue entry into an already-finished surface.
+ * The registration has since landed in `copy/surfaces/index.ts`. `NoticeCentrePanel.vue`
+ * mounts this as a child and adds no `t()` call of its own for anything it renders.
  *
  * Selection itself is owned by the parent, not here: `selected` arrives as a prop and every
  * change to it - select all in either scope, invert, clear, or the selection an action

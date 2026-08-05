@@ -282,15 +282,24 @@ function currentThickness(): number {
     return layout.value.thickness > 0 ? layout.value.thickness : props.preferredThickness;
 }
 
-const RESIZE_EDGE_LABEL_FALLBACK: Readonly<Record<DockedEdge, string>> = {
-    left: "Resize {title} from the left edge",
-    right: "Resize {title} from the right edge",
-    top: "Resize {title} from the top edge",
-    bottom: "Resize {title} from the bottom edge",
-};
-
+/**
+ * One translation call per edge rather than building the key from `edge` with a template
+ * string: a key built that way cannot be found by either of the catalogue's own scanners --
+ * `catalogueCoverage.test.ts`'s `CALL_TO_T` looking for a call site to match against a key,
+ * and `appCopy.test.ts`'s matching scanner looking the other way for a call site to match
+ * against a catalogue entry -- both read only a plain quoted literal as the key, on purpose.
+ */
 function splitterLabel(edge: DockedEdge): string {
-    return t(`panels.resize.${edge}`, { title: props.title }, RESIZE_EDGE_LABEL_FALLBACK[edge]);
+    switch (edge) {
+        case "left":
+            return t("panels.resize.left", { title: props.title }, "Resize {title} from the left edge");
+        case "right":
+            return t("panels.resize.right", { title: props.title }, "Resize {title} from the right edge");
+        case "top":
+            return t("panels.resize.top", { title: props.title }, "Resize {title} from the top edge");
+        case "bottom":
+            return t("panels.resize.bottom", { title: props.title }, "Resize {title} from the bottom edge");
+    }
 }
 
 function splitterValueText(): string {

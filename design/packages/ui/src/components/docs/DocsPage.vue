@@ -286,6 +286,7 @@ watch([selectedArticle, renderedArticle], async () => {
 
         <!-- The index: docs/README.md's own grouping, mirrored rather than duplicated by hand. -->
         <nav v-else class="mb-docs__index" :aria-label="t('docsViewer.articleNav', 'Documentation articles')">
+            <h3 class="mb-docs__index-heading">{{ t("docsViewer.indexHeading", "Every article") }}</h3>
             <template v-for="group in groups" :key="group.id">
                 <VCard class="mb-docs__category" variant="outlined">
                     <VCardText>
@@ -354,6 +355,15 @@ watch([selectedArticle, renderedArticle], async () => {
     flex-direction: column;
     gap: 12px;
     margin-block-start: 8px;
+}
+
+.mb-docs__index-heading {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-block-end: 0;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-docs__category-title {

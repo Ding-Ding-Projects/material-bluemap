@@ -875,6 +875,30 @@ export const CONFIGEDITOR_VOICED = {
             "當你打嘅嘢係一個 ECMAScript 正規表達式，同 builder 預覽緊嗰個方言一樣，之後就交返個 pattern 做嘢。",
         ],
     },
+    /*
+     * `ConfigSearchField.vue`'s own sibling of `config.form.badPattern` above, for every
+     * search bar that filters a *list* rather than a form's fields -- `GitHubAccountsList.vue`
+     * is the first of these to reach the shared field wired to `createSettingMatcher`, and it
+     * is the field itself that refuses an unparseable pattern, so the wording says "listed"
+     * rather than "shown". Same rule as its sibling: never imply the pattern failed for a
+     * reason nobody can read, and never blank the list without saying why.
+     */
+    "config.search.badPattern": {
+        en: [
+            "The pattern is not valid, so nothing is listed.",
+            "The pattern is not valid, so nothing is listed.",
+            "The pattern is not valid, so nothing is listed. No row was removed.",
+            "The pattern is not valid, so nothing is listed. Every row is still there; the pattern just cannot be matched against.",
+            "The pattern is not valid, so nothing is listed rather than something wrong. Every row is still there, unbothered; the pattern is simply the thing that does not parse.",
+        ],
+        yue: [
+            "個 pattern 唔正確，所以冇列出任何嘢。",
+            "個 pattern 唔正確，所以冇列出任何嘢。",
+            "個 pattern 唔正確，所以冇列出任何嘢。冇一行被刪走。",
+            "個 pattern 唔正確，所以冇列出任何嘢。每一行都仲喺度，淨係嗰個 pattern 冧唔到嚟對。",
+            "個 pattern 唔正確，所以寧願冇列出任何嘢，好過亂咁列。每一行都好地地喺度，出事嘅淨係嗰個 pattern 本身。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const CONFIGEDITOR_FIXED = {
@@ -1151,6 +1175,10 @@ export const CONFIGEDITOR_FACTS = {
         yue: ["純文字", "原樣"],
     },
     "config.search.regexOnHint": { en: ["regular expression"], yue: ["正規表達式"] },
+    "config.search.badPattern": {
+        en: ["not valid", "nothing is listed"],
+        yue: ["唔正確", "冇列出任何嘢"],
+    },
 } as const satisfies Record<
     keyof typeof CONFIGEDITOR_VOICED,
     { en: readonly string[]; yue: readonly string[] }

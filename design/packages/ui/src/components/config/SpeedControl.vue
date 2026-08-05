@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiChevronDown, mdiChevronUp, mdiSpeedometer } from "@mdi/js";
-import { VBtn, VBtnToggle, VCard, VCardText, VChip, VIcon, VTable } from "vuetify/components";
+import { VBtn, VBtnToggle, VCard, VCardText, VChip, VIcon, VTable, VTooltip } from "vuetify/components";
 import type { FieldMeta, PlainValue } from "@material-bluemap/config";
 import { fieldValue, type EditableConfigFile } from "./configModel.js";
 import { DEFAULT_SPEED_LEVEL, SPEED_LEVELS, speedLevelFor, type SpeedLevel } from "./speedLevels.js";
@@ -68,6 +68,38 @@ function onToggle(value: number | null): void {
     const level = SPEED_LEVELS.find((candidate) => candidate.level === value);
     if (level) chooseLevel(level);
 }
+
+/**
+ * The five level names, looked up rather than built with `` `speed.level.${level}` `` --
+ * `catalogueCoverage.test.ts`'s own `CALL_TO_T` scanner (and `appCopy.test.ts`'s matching
+ * call-site scanner in the other direction) both read only a translation call whose key is a
+ * plain quoted literal, on purpose: a key assembled from a template string cannot be found by
+ * grepping the source either, which is the same reason nothing else in this catalogue is
+ * looked up dynamically.
+ */
+function levelLabel(level: number): string {
+    switch (level) {
+        case 1:
+            return t("speed.level.1", "1 · Gentle");
+        case 2:
+            return t("speed.level.2", "2 · Light");
+        case 3:
+            return t("speed.level.3", "3 · Balanced");
+        case 4:
+            return t("speed.level.4", "4 · Fast");
+        default:
+            return t("speed.level.5", "5 · Fastest");
+    }
+}
+
+/** What choosing this level would actually write, shown as a tooltip before anybody clicks it. */
+function levelSummary(level: SpeedLevel): string {
+    return t(
+        "speed.levelSummary",
+        { count: String(level.threadCount), priority: String(level.threadPriority) },
+        "Sets render-thread-count to {count} and render-thread-priority to {priority}.",
+    );
+}
 </script>
 
 <template>
@@ -106,12 +138,20 @@ function onToggle(value: number | null): void {
                 class="mb-speed__toggle"
                 @update:model-value="(value: number | null) => onToggle(value)"
             >
-                <v-btn v-for="level in SPEED_LEVELS" :key="level.level" :value="level.level" :aria-pressed="matchedLevel?.level === level.level">
-                    {{ t(`speed.level.${level.level}`, level.level === 1 ? "1 · Gentle" : level.level === 2 ? "2 · Light" : level.level === 3 ? "3 · Balanced" : level.level === 4 ? "4 · Fast" : "5 · Fastest") }}
-                    <v-chip v-if="level.level === DEFAULT_SPEED_LEVEL" size="x-small" variant="flat" class="ml-2">
-                        {{ t("speed.defaultChip", "BlueMap's default") }}
-                    </v-chip>
-                </v-btn>
+                <v-tooltip v-for="level in SPEED_LEVELS" :key="level.level" :text="levelSummary(level)" location="top">
+                    <template #activator="{ props: levelTip }">
+                        <v-btn
+                            v-bind="levelTip"
+                            :value="level.level"
+                            :aria-pressed="matchedLevel?.level === level.level"
+                        >
+                            {{ levelLabel(level.level) }}
+                            <v-chip v-if="level.level === DEFAULT_SPEED_LEVEL" size="x-small" variant="flat" class="ml-2">
+                                {{ t("speed.defaultChip", "BlueMap's default") }}
+                            </v-chip>
+                        </v-btn>
+                    </template>
+                </v-tooltip>
             </v-btn-toggle>
 
             <p v-if="matchedLevel === null" class="mb-speed__state mb-speed__state--custom" role="status">
@@ -168,7 +208,7 @@ function onToggle(value: number | null): void {
                 <tbody>
                     <tr v-for="level in SPEED_LEVELS" :key="level.level" :class="{ 'mb-speed__row--current': matchedLevel?.level === level.level }">
                         <td>
-                            {{ t(`speed.level.${level.level}`, level.level === 1 ? "1 · Gentle" : level.level === 2 ? "2 · Light" : level.level === 3 ? "3 · Balanced" : level.level === 4 ? "4 · Fast" : "5 · Fastest") }}
+                            {{ levelLabel(level.level) }}
                             <v-chip v-if="level.level === DEFAULT_SPEED_LEVEL" size="x-small" variant="outlined" class="ml-2">
                                 {{ t("speed.defaultChip", "BlueMap's default") }}
                             </v-chip>

@@ -121,7 +121,7 @@ function noteFocus(id: string): void {
 function onOptionKeydown(event: KeyboardEvent, account: GitHubAccountSummaryReadout): void {
     if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
         event.preventDefault();
-        void state.setActive(account.id);
+        void setActiveAccount(account.id);
         return;
     }
 
@@ -140,6 +140,59 @@ function onOptionKeydown(event: KeyboardEvent, account: GitHubAccountSummaryRead
     const target = ids[Math.min(Math.max(wanted, 0), ids.length - 1)];
     if (target !== undefined) focusOption(target);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Switching the active account, and refreshing one account's token           */
+/* -------------------------------------------------------------------------- */
+
+/** The login a switch just landed on, so the same confirmation `removeReportText` gives a
+ *  removal has an equivalent for the far more ordinary action of picking a different row. */
+const switchedLogin = ref<string | null>(null);
+
+/**
+ * Which action `state.actionFailure` belongs to, so the alert can pick the sentence that is
+ * actually true. The store keeps one shared `actionFailure` for switch, refresh and remove
+ * alike (`githubAccountsStore.ts`'s own doc comment on it), so without this a refresh that
+ * failed and a switch that failed would read as the exact same alert.
+ */
+const lastFailedAction = ref<"switch" | "refresh" | null>(null);
+
+async function setActiveAccount(id: string): Promise<void> {
+    lastFailedAction.value = "switch";
+    switchedLogin.value = null;
+    const ok = await state.setActive(id);
+    if (!ok) return;
+    lastFailedAction.value = null;
+    switchedLogin.value = ordered.value.find((account) => account.id === id)?.login ?? null;
+}
+
+async function refreshOneAccount(id: string): Promise<void> {
+    lastFailedAction.value = "refresh";
+    const ok = await state.refreshAccount(id);
+    if (ok) lastFailedAction.value = null;
+}
+
+/**
+ * The alert text for the last switch/refresh/remove failure.
+ *
+ * A refresh failure gets its own sentence, `settings.github.accounts.refreshFailed`, with
+ * the store's own reason carried into it verbatim - the same "name the real reason" rule
+ * every other refusal in this surface already follows. A switch failure and the rarer
+ * remove-time exception keep the store's own reason exactly as before: it already reads as
+ * a sentence, and the main process is the one that wrote it.
+ */
+const actionFailureText = computed(() => {
+    const reason = state.actionFailure.value;
+    if (reason === null) return null;
+    if (lastFailedAction.value === "refresh") {
+        return t(
+            "settings.github.accounts.refreshFailed",
+            { reason },
+            "That account's token could not be renewed: {reason}",
+        );
+    }
+    return reason;
+});
 
 /* -------------------------------------------------------------------------- */
 /* Per-row sign-out, confirmed inline before it runs                          */
@@ -163,6 +216,16 @@ async function confirmSignOut(id: string): Promise<void> {
 /* -------------------------------------------------------------------------- */
 /* What the last removal actually did                                        */
 /* -------------------------------------------------------------------------- */
+
+/** The confirmation shown after a switch actually lands. Cleared by the next switch attempt. */
+const switchedReportText = computed(() => {
+    if (switchedLogin.value === null) return null;
+    return t(
+        "settings.github.accounts.switched",
+        { login: switchedLogin.value },
+        "{login} is now the active account.",
+    );
+});
 
 const removeReportText = computed(() => {
     const report = state.removeReport.value;
@@ -244,15 +307,24 @@ function timestamp(value: string | null): string | null {
         </v-alert>
 
         <v-alert
-            v-if="state.actionFailure.value !== null"
+            v-if="actionFailureText !== null"
             type="error"
             variant="tonal"
             density="comfortable"
             role="alert"
             class="mb-accounts__alert"
         >
-            {{ state.actionFailure.value }}
+            {{ actionFailureText }}
         </v-alert>
+
+        <p
+            v-if="switchedReportText !== null"
+            class="mb-accounts__report"
+            role="status"
+            aria-live="polite"
+        >
+            {{ switchedReportText }}
+        </p>
 
         <p
             v-if="removeReportText !== null"
@@ -304,7 +376,7 @@ function timestamp(value: string | null): string | null {
                             :tabindex="rovingId === account.id ? 0 : -1"
                             @keydown="onOptionKeydown($event, account)"
                             @focus="noteFocus(account.id)"
-                            @click="state.setActive(account.id)"
+                            @click="setActiveAccount(account.id)"
                         >
                             <div class="mb-accounts__optionHead">
                                 <v-chip
@@ -363,7 +435,7 @@ function timestamp(value: string | null): string | null {
                                 variant="text"
                                 size="small"
                                 :disabled="account.active || state.busyId.value === account.id || !state.canSetActive"
-                                @click.stop="state.setActive(account.id)"
+                                @click.stop="setActiveAccount(account.id)"
                             >
                                 {{ t("settings.github.accounts.setActive", "Make active") }}
                             </v-btn>
@@ -373,9 +445,13 @@ function timestamp(value: string | null): string | null {
                                 size="small"
                                 :loading="state.busyId.value === account.id"
                                 :disabled="!state.canRefresh || (state.busyId.value !== null && state.busyId.value !== account.id)"
-                                @click.stop="state.refreshAccount(account.id)"
+                                @click.stop="refreshOneAccount(account.id)"
                             >
-                                {{ t("settings.github.accounts.refresh", "Refresh") }}
+                                {{
+                                    state.busyId.value === account.id
+                                        ? t("settings.github.accounts.refreshing", "Refreshing…")
+                                        : t("settings.github.accounts.refresh", "Refresh")
+                                }}
                             </v-btn>
                             <v-btn
                                 v-if="confirmingId !== account.id"

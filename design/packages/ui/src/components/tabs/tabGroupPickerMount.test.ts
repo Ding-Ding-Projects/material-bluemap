@@ -12,8 +12,8 @@
  * covers the picker's pure model.
  */
 
-import { beforeAll, describe, expect, it } from "vitest";
-import { defineComponent, h } from "vue";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { defineComponent, h, nextTick } from "vue";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
@@ -40,9 +40,71 @@ beforeAll(() => {
         removeEventListener: () => {},
         dispatchEvent: () => false,
     })) as unknown as typeof globalThis.matchMedia;
+
+    // Vuetify's overlay placement reads `visualViewport` unguarded and jsdom has none --
+    // see `WizardReviewStep.test.ts`'s own stub for the same reason. Without it the
+    // reference error surfaces on `v-menu`'s teardown rather than its opening, which is why
+    // this only bit the three tests below that actually leave the popover open at unmount.
+    globalThis.visualViewport = {
+        width: 1024,
+        height: 768,
+        offsetLeft: 0,
+        offsetTop: 0,
+        pageLeft: 0,
+        pageTop: 0,
+        scale: 1,
+        onresize: null,
+        onscroll: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+    } as unknown as VisualViewport;
+
+    // Vuetify's own `v-menu` decides whether a Tab press landed on its content's *last*
+    // focusable control (`focusableChildren()`/`getNextElement()` in Vuetify's own
+    // `util/helpers.ts`) by checking `getClientRects()` and `offsetParent` to tell a genuinely
+    // rendered element from one that only exists in the tree. jsdom has no layout engine, so
+    // both are always empty/null for every element, with no exception for a real one mid-list
+    // -- every position looks like "the last one" to that check, and `v-menu` closed itself
+    // and returned focus to its activator on the very first Tab press instead of only at an
+    // actual boundary, which is what made this suite unable to tell a genuine boundary from a
+    // press in the middle of the popover's control list. Both are stubbed together because
+    // `v-menu`'s own check is an `||`: either one reporting "rendered" is enough, but
+    // `getNextElement`'s inner loop separately requires `offsetParent` specifically, so
+    // stubbing only `getClientRects` still leaves every candidate skipped there. `offsetParent`
+    // is answered as the element's real parent rather than unconditionally `document.body`:
+    // the flat, unconditional answer sent something elsewhere in Vuetify's own visibility
+    // logic into a loop that never returned.
+    Element.prototype.getClientRects = function (): DOMRectList {
+        const rect = { x: 0, y: 0, width: 1, height: 1, top: 0, right: 1, bottom: 1, left: 0, toJSON: () => ({}) };
+        return Object.assign([rect], { item: (index: number) => (index === 0 ? rect : null) }) as unknown as DOMRectList;
+    };
+    Object.defineProperty(HTMLElement.prototype, "offsetParent", {
+        configurable: true,
+        get(this: HTMLElement) {
+            return this.parentElement;
+        },
+    });
 });
 
 const vuetify = createVuetify();
+
+/**
+ * Vuetify's own `v-menu` teleports its content straight to `document.body` and, per
+ * `TabGroupPicker.vue`'s own doc comment on `openBuilderElements`, leaves it there
+ * `v-show`-hidden between opens of the *same* instance rather than removing it -- but this
+ * suite mounts a fresh `TabGroupPicker` (and therefore a fresh regex-builder `v-menu`) in
+ * nearly every `it()`, and `document.querySelector(".mb-config-regex")` -- both this file's
+ * own `openBuilder` and the component's matching lookup -- takes whichever one is *first* in
+ * document order, not whichever belongs to the wrapper this test just mounted. A stray node
+ * left behind by an earlier test's `v-menu` therefore shadows the current test's own builder
+ * the moment it sorts earlier in the DOM, which is silent right up until a later assertion
+ * reads the wrong element's content. Sweeping up after every test is what keeps each one
+ * starting from the single builder it opened itself.
+ */
+afterEach(() => {
+    document.querySelectorAll(".mb-config-regex").forEach((element) => element.remove());
+});
 
 function emptyI18n() {
     return createI18n({
@@ -148,6 +210,38 @@ describe("searching the picker", () => {
         expect(options).toHaveLength(2);
         expect(options[0]?.text()).toContain("Reference");
         expect(options[1]?.text()).toContain("New group...");
+    });
+
+    /**
+     * Regression for a confirmed leak: `TabStrip.vue` mounts exactly one `TabGroupPicker`
+     * behind a `v-menu` and keeps that same instance alive across a close --
+     * `closeTabGroupPicker` only flips the menu's own `v-model` shut, never the `v-if` that
+     * would actually destroy and recreate the component -- so a query typed while moving one
+     * tab used to still be sitting in `query` the next time any tab's picker opened, filtering
+     * a list the reader has no way to know is filtered. `focus()` is the one call the host
+     * already makes on every open (`openTabGroupPicker`'s own `tabGroupPickerRef.value?.focus()`),
+     * so it is also where a leftover search, regex mode and flags all get put away -- exercised
+     * here directly against the exposed method, the same one `TabStrip.vue` calls, rather than
+     * against a full close/reopen round trip through that host component.
+     */
+    it("puts a typed search away when the host calls focus() again, as it does on every open", async () => {
+        const wrapper = mountPicker();
+        const toggle = wrapper.find('[aria-label*="regular expression"]');
+        await toggle.trigger("click");
+        await searchInput(wrapper).setValue("zzz-no-match");
+        expect(wrapper.text()).toContain("No group's name matches that search");
+
+        const vm = picker(wrapper).vm as unknown as { focus: () => void };
+        vm.focus();
+        await nextTick();
+        await nextTick();
+
+        expect((searchInput(wrapper).element as HTMLInputElement).value).toBe("");
+        expect(toggle.attributes("aria-pressed")).toBe("false");
+        const options = wrapper.findAll('[role="option"]');
+        expect(options).toHaveLength(3);
+        expect(options[0]?.text()).toContain("Research");
+        expect(options[1]?.text()).toContain("Reference");
     });
 });
 
@@ -333,6 +427,13 @@ describe("Tab, with the teleported regex builder open", () => {
      * press has nothing to redirect it unless something is actually listening.
      */
     async function openBuilder(wrapper: VueWrapper): Promise<HTMLElement> {
+        // Vuetify's `v-menu` binds its activator's click handler one tick after mount, from
+        // a post-flush watcher (see `WizardReviewStep.test.ts`'s own `openBuilder`, which
+        // settles for this exact reason before ever clicking). A click fired immediately
+        // after mount lands on a button with no listener attached yet, so `builderOpen`
+        // never flips and the popover this whole suite exists to test never renders --
+        // which is a mount-timing gap in the test, not the Tab-trap defect below it.
+        await settle();
         const builderButton = wrapper.find('[aria-label="Open the regex builder"]');
         expect(builderButton.exists()).toBe(true);
         await builderButton.trigger("click");
@@ -348,6 +449,33 @@ describe("Tab, with the teleported regex builder open", () => {
         );
     }
 
+    /**
+     * KNOWN RESIDUAL, left honestly red rather than weakened: this test passes cleanly run
+     * alone or as the only test in this file (`npx vitest run tabGroupPickerMount.test.ts -t
+     * "steps Tab through"`), and passes as part of the file too once the other two tests in
+     * this same `describe` are excluded -- but fails, deterministically, whenever the full
+     * 19-test file runs together, landing `document.activeElement` on one of the last two
+     * buttons in `ConfigRegexBuilder.vue`'s own copy row ("Copy the pattern" or "Copy the
+     * flags", varying by exactly which other tests ran first) instead of `focusable[middleIndex
+     * + 1]`. `event.defaultPrevented` is `true` either way, so this dialog's own
+     * `trapAcrossBuilder` is genuinely the code path that ran, not `v-menu`'s boundary-close
+     * behaviour reasserting itself.
+     *
+     * Ruled out while chasing this: a stale `.mb-config-regex` node left over from an earlier
+     * test's `v-menu` shadowing the current one in `document.querySelector` (an `afterEach`
+     * sweep of every such node before each test changed nothing); the popover's own focusable
+     * list actually changing shape between the pre-dispatch snapshot and the fresh
+     * `openBuilderElements()` read inside the handler (traced directly -- both reads agree,
+     * 31 elements, same order, same content); and Vuetify's shared `useFocusTrap` registry
+     * (`retainFocus` is off for this `v-menu`, so nothing of this component's own registers
+     * into it). The jsdom layout stubs above are necessary and correct -- without them this
+     * exact test fails a different, unconditional way on every run, not only in the full file
+     * -- and the two sibling tests in this same `describe`, which exercise the same trap from
+     * the two boundary directions, pass reliably both alone and in the full run. What is left
+     * unexplained is specifically why the *middle* case's freshly-read `document.activeElement`
+     * differs between an isolated run and this file's full run, despite every input the trap
+     * itself reads about the popover starting identical in both.
+     */
     it("steps Tab through the popover's own controls instead of leaving the keydown unhandled", async () => {
         // A stand-in for "the tab strip behind the picker" / "the rest of the page": a real,
         // independently focusable element sitting in ordinary document order, so an escape
