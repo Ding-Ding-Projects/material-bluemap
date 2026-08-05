@@ -332,6 +332,84 @@ describe("completion persists, and it does not reappear on its own", () => {
     });
 });
 
+describe("reduced motion", () => {
+    const realMatchMedia = globalThis.matchMedia;
+
+    afterEach(() => {
+        globalThis.matchMedia = realMatchMedia;
+    });
+
+    it("scrolls the anchor into view instantly rather than smoothly when the platform asks for reduced motion", async () => {
+        globalThis.matchMedia = ((query: string) => ({
+            matches: query.includes("prefers-reduced-motion"),
+            media: query,
+            onchange: null,
+            addListener: () => {},
+            removeListener: () => {},
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            dispatchEvent: () => false,
+        })) as unknown as typeof globalThis.matchMedia;
+
+        const scrolls: (ScrollIntoViewOptions | boolean | undefined)[] = [];
+        const original = Element.prototype.scrollIntoView;
+        Element.prototype.scrollIntoView = function scrollIntoView(
+            opts?: ScrollIntoViewOptions | boolean,
+        ) {
+            scrolls.push(opts);
+        };
+
+        try {
+            installStandInAnchors();
+            open();
+            requestTutorialLaunch();
+            await settle();
+
+            expect(scrolls.length).toBeGreaterThan(0);
+            for (const call of scrolls) {
+                expect(typeof call === "object" ? call.behavior : call).not.toBe("smooth");
+            }
+        } finally {
+            Element.prototype.scrollIntoView = original;
+        }
+    });
+
+    it("scrolls smoothly when the platform has no reduced-motion preference", async () => {
+        globalThis.matchMedia = ((query: string) => ({
+            matches: false,
+            media: query,
+            onchange: null,
+            addListener: () => {},
+            removeListener: () => {},
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            dispatchEvent: () => false,
+        })) as unknown as typeof globalThis.matchMedia;
+
+        const scrolls: (ScrollIntoViewOptions | boolean | undefined)[] = [];
+        const original = Element.prototype.scrollIntoView;
+        Element.prototype.scrollIntoView = function scrollIntoView(
+            opts?: ScrollIntoViewOptions | boolean,
+        ) {
+            scrolls.push(opts);
+        };
+
+        try {
+            installStandInAnchors();
+            open();
+            requestTutorialLaunch();
+            await settle();
+
+            expect(scrolls.length).toBeGreaterThan(0);
+            expect(scrolls.some((call) => typeof call === "object" && call.behavior === "smooth")).toBe(
+                true,
+            );
+        } finally {
+            Element.prototype.scrollIntoView = original;
+        }
+    });
+});
+
 describe("advancing on the real signal, not only on Next", () => {
     it("the findWorld step advances itself when world-chosen fires", async () => {
         installStandInAnchors();
