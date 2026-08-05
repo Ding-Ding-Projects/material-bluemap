@@ -8,6 +8,31 @@ exactly what it will do before it does it.
 The code is `design/packages/ui/src/components/tabs/`. A host mounts `TabbedNavigation`, declares
 its pages and renders one named slot per page id; nothing else needs to know that tabs exist.
 
+## Where it is mounted
+
+Every settings-style surface in the desktop app now carries its own `TabbedNavigation` rather than
+a bespoke `v-tabs`/`v-window` pair, each under its own `storageKey` so one surface's layout can
+never overwrite another's:
+
+| Surface | `storageKey` | What each tab is |
+|---|---|---|
+| The application shell (`App.vue`) | `material-bluemap-tabs` (the default) | Map, world wizard, servers, projects, backups, GitHub runners, Pages hosting |
+| Settings (`AppSettings.vue`) | `material-bluemap-settings-tabs` | One tab per setting section - consent, Java, storage folder, world folder, GitHub account, language and tone, panel placement |
+| The options editor (`ConfigScreen.vue`) | `material-bluemap-config-editor-tabs` | One tab per config screen, plus history |
+| The project editor (`ProjectEditor.vue`) | `material-bluemap-project-editor-tabs` | Maps, storages, how it renders, and the four whole-file singletons |
+
+`renamePage(pageId, label)` is what a host uses to keep a tab's label current after the fact - a
+page's own `label` is read only once, when a tab for it is first seeded or opened, so a live count
+like "Maps (3)" needs the host to push a rename through explicitly whenever that count changes.
+
+**`AppearanceEditor.vue` is the one settings-style surface that keeps a plain `v-tabs` on
+purpose**, documented in its own file rather than left as a silent gap: it is a small, anchored,
+non-modal popover editing one element at a time, with exactly three permanent tabs that are never
+opened, closed, reordered or searched for, so the strip's whole apparatus - overflow, a new-tab
+control, per-tab menus, four searchable-tab surfaces, bulk closes - has no referent there. Its
+Surface and Presets tabs still each carry their own `ConfigSearchField` with the full regex
+builder, because the regex-builder rule has no such size exemption.
+
 ## Behaviour
 
 ### One authority per ordering
@@ -109,8 +134,8 @@ reported as a whole one. Running a plan goes through the
 
 | Setting | Value |
 |---|---|
-| Storage key | `material-bluemap-tabs` in `localStorage` |
-| Stored shape version | `TAB_STORAGE_VERSION`, currently 1 |
+| Storage key | `material-bluemap-tabs` in `localStorage` by default; every host passes its own `storageKey` prop instead - see [Where it is mounted](#where-it-is-mounted) |
+| Stored shape version | `TAB_STORAGE_VERSION`, currently 1, shared across every `storageKey` |
 | Group colours | `primary`, `secondary`, `tertiary`, `success`, `warning`, `error`, `info`; default `primary` |
 
 Persisted: tab order, pinned order, groups, group order, collapsed state, membership, and each
@@ -184,7 +209,7 @@ filtering a menu is typing what they can read on it.
 | `closePlans.test.ts` | The partition property for any query in either mode, plans that close nothing on an empty or uncompilable query, pinned and unsaved tabs held back and named, scope carried on the plan, and `applyClosePlan` reporting kept tabs honestly. |
 | `tabStorage.test.ts` | The six persisted orderings round-tripping, `dirty` dropped, queries and patterns never written, appearance records preserved verbatim, a blocked storage staying silent, and a file this build cannot read seeding defaults instead. |
 | `tabMenus.test.ts` | The menu's own search filters its items without changing what they do. |
-| `TabbedNavigation.test.ts` | Mounted: roles and roving focus, selection moving panel and tab order together, arrow keys stopping at the ends, Home and End, the advertised keyboard commands, a compact pinned tab keeping its name, a collapsed group drawn as a header with name, count and state and its members out of the focus order, expanding writing the preference, and the layout being written and read back on the next mount. |
+| `TabbedNavigation.test.ts` | Mounted: roles and roving focus, selection moving panel and tab order together, arrow keys stopping at the ends, Home and End, the advertised keyboard commands, a compact pinned tab keeping its name, a collapsed group drawn as a header with name, count and state and its members out of the focus order, expanding writing the preference, the layout being written and read back on the next mount, `revealPage` activating an existing tab or reopening a closed one, and `renamePage` relabelling every open tab for a page without touching one that shows a different page. |
 
 Run them with `npx vitest run packages/ui/src/components/tabs` from `design/`.
 
