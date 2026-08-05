@@ -9,7 +9,7 @@ export const regexBuilderSurfaces: Article = {
     category: "application",
     status: "shipped",
     statusNote:
-        "Three shared search fields, three anchored builders and the source guard are on the default branch, with the guard, the engine and the backtracking refusal covered by tests in CI. The exemption list the guard allows is currently empty. The builder's own copy is not in the language catalogue, so its labels render their English fallbacks in every language mode.",
+        "Three shared search fields, three anchored builders and the source guard are on the default branch, with the guard, the engine and the backtracking refusal covered by tests in CI. The exemption list the guard allows is currently empty. All three builders' copy is in the language catalogue now: config and menu were already voiced, and the marker panel's builder was voiced under its own markerRegex.* namespace after its old regexBuilder.* keys turned out to collide with menu's under different English wording.",
 
     sections: [
         {
@@ -184,14 +184,14 @@ export const regexBuilderSurfaces: Article = {
                 },
                 {
                     kind: "callout",
-                    tone: "warning",
+                    tone: "note",
                     title: "Coverage is what the guard says, not what this page says",
                     content: [
                         "The list of surfaces changes as the application grows, so the authority is the guard, ",
-                        "which enumerates the components on every run. What is still owed against the wider ",
-                        "contract, including the language modes on the builder's own surface, is tracked as ",
+                        "which enumerates the components on every run. The wider contract, tracked as ",
                         { link: "issue 6", href: issue(6), external: true },
-                        ".",
+                        ", is closed: the builder's own surface is in the language catalogue too, in all three ",
+                        "desktop instances.",
                     ],
                 },
             ],

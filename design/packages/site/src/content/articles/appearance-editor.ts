@@ -9,7 +9,7 @@ export const appearanceEditor: Article = {
     category: "application",
     status: "shipped",
     statusNote:
-        "The feature is on the default branch with nine test files running in CI, two of them mounting the real components. The desktop application currently wraps four things: the window title bar, the tab bar, each server profile row, and the editor's own chrome. The Pages surface now walks and registers every rendered HTMLElement, so its prose, headings, summaries, table cells, links and controls all have the same entry point. The cross-surface contract still asks the desktop application for that same coverage, so this is the machinery shipped rather than the contract met.",
+        "The feature is on the default branch with test files running in CI, several of them mounting the real components, including 42 tab- and group-editor tests in TabbedNavigation.test.ts. The desktop application wraps ten component families: the window title bar and tab bar, each server profile row, the editor's own chrome, the control bar, EULA sections and viewer, history, project rows, docked surfaces, and every tab and group. The Pages surface walks and registers every rendered HTMLElement, so its prose, headings, summaries, table cells, links and controls all have the same entry point. The cross-surface contract still asks the desktop application for that same literal-every-element coverage rather than ten named families, so this is the machinery shipped rather than the contract met.",
 
     sections: [
         {
@@ -220,9 +220,9 @@ export const appearanceEditor: Article = {
                 {
                     kind: "callout",
                     tone: "warning",
-                    title: "Four elements, not every element",
+                    title: "Ten component families, not every element",
                     content:
-                        "Editability is the set of places the wrapper is used, and today that is the window title bar, the tab bar, each server profile row, and the editor's own chrome. Everything else the application renders is not yet a target. Nobody has driven the editor in an installed build, and there is no committed capture of it.",
+                        "Editability is the set of places the wrapper is used: the window title bar, the tab bar, each server profile row, the editor's own chrome, the control bar, EULA sections and the EULA viewer's tabs, the history panel, each project row, docked surfaces, and every tab and group (the last covered by 42 tests in TabbedNavigation.test.ts). Everything else the application renders is not yet a target -- this is real, tested coverage of the surfaces most likely to be right-clicked, not the literal every-rendered-element traversal the Pages site now has.",
                 },
             ],
         },

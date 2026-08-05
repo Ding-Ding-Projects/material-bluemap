@@ -9,7 +9,7 @@ export const contractSuperConfirmation: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "The gate is shipped and documented separately, in both an anchored and a modal presentation over one shared state machine, in front of seven destructive actions, and the contract's own test list has now been run against both cards. What keeps this pending is the coverage clause: a source inventory declares every destructive call site in the application, and two of them, signing out of GitHub and the primitive behind it, are declared as gaps rather than gated. Partial credit does not apply, so this stays specified. Tracked as issue 10.",
+        "The gate is shipped and documented separately, in both an anchored and a modal presentation over one shared state machine, in front of every destructive call site the application declares. Desktop's own source inventory, packages/ui/src/components/confirm/superConfirmPolicy.test.ts, declares KNOWN_GAPS as an empty list across 38 call sites -- 23 gated, plus reversible, buffered and resumable actions that the contract does not require a gate for -- and the two call sites this article used to name as gaps, signing out of GitHub and the primitive behind it, are now declared gated, each rendering its own ConfigSuperConfirm instance (see components/github/GitHubAccountsList.vue and GitHubStatusRow.vue). The Pages site carries its own equivalent gate at packages/site/src/settings/confirm.ts, proven by destructiveActionPolicy.test.ts's own inventory of 9 gated and 2 reversible call sites with zero gaps. Both surfaces' contract test lists -- untouched, one key, both keys, partial slider, full slider, cancel, Escape, reduced motion, keyboard and screen-reader labelling -- run and pass: 113 tests across superConfirmPolicy.test.ts, superConfirmGate.test.ts, superConfirm.test.ts, destructiveActionPolicy.test.ts and confirm.test.ts. Issue 10 is closed. What has not been done is a line-by-line audit of every remaining clause in design/docs/contracts/super-confirmation.md beyond the coverage clause and the test list above, so this stays specified rather than shipped until that fuller audit runs.",
 
     sections: [
         {
@@ -19,23 +19,29 @@ export const contractSuperConfirmation: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "This describes a requirement, and two call sites still fall outside it",
+                    title: "This describes a requirement, and it is met against every clause checked so far",
                     content: [
-                        "It used to say the application had no destructive action to gate at all. Seven of them ",
-                        "are gated now, both presentations run one shared state machine, and the test list below ",
-                        "has been run against both cards. What is built is documented in ",
+                        "It used to say two call sites fell outside the gate: signing out of GitHub, which ",
+                        "revokes the stored token, and the primitive behind that row. Both now render their ",
+                        "own ",
+                        { code: "ConfigSuperConfirm" },
+                        " instance, and the desktop inventory that used to list them as gaps, ",
+                        { code: "packages/ui/src/components/confirm/superConfirmPolicy.test.ts" },
+                        ", declares its ",
+                        { code: "KNOWN_GAPS" },
+                        " list empty. What is built is documented in ",
                         {
                             link: "the gate's own article",
                             href: repoFile("docs/super-confirmation.md"),
                             external: true,
                         },
-                        ". What keeps this pending is that a source inventory declares every destructive call ",
-                        "site in the application and two of them are declared as gaps: signing out of GitHub, ",
-                        "which revokes the stored token, and the primitive behind that row. Both are confirmed ",
-                        "inline in two steps with focus return, and neither is behind the two-key gate. Progress ",
-                        "is tracked as ",
+                        ". Every clause checked against the contract document is now met, but that document has ",
+                        "more clauses than the one this page used to name, and not every one has been checked ",
+                        "line by line, so the page stays specified pending that fuller pass rather than claiming ",
+                        "shipped on the strength of the clause everybody already knew about. Progress was tracked ",
+                        "as ",
                         { link: "issue 10", href: issue(10), external: true },
-                        ".",
+                        ", now closed.",
                     ],
                 },
                 {
@@ -146,10 +152,10 @@ export const contractSuperConfirmation: Article = {
                 },
                 {
                     kind: "callout",
-                    tone: "not-implemented",
-                    title: "The list has run; the coverage clause has not been met",
+                    tone: "note",
+                    title: "The list has run, and the coverage clause is met",
                     content:
-                        "Both cards are now driven through untouched, one key, both keys, a partial slider, a full slider, cancellation, the escape path, reduced motion, keyboard-only operation and what assistive technology is told, alongside the real success paths of the operations they guard. The contract is still pending for a different reason: two declared destructive call sites are not behind it, and a gate in front of most destructive actions is a pending contract with a defect rather than a met one.",
+                        "Both cards are driven through untouched, one key, both keys, a partial slider, a full slider, cancellation, the escape path, reduced motion, keyboard-only operation and what assistive technology is told, alongside the real success paths of the operations they guard. Both surfaces' own source inventories -- superConfirmPolicy.test.ts on desktop and destructiveActionPolicy.test.ts on the Pages site -- declare zero call sites standing outside the gate, so the coverage clause that used to keep this contract pending is now satisfied on both surfaces.",
                 },
             ],
         },
@@ -158,7 +164,7 @@ export const contractSuperConfirmation: Article = {
     suggested: [
         {
             articleId: "destructive-action-gate",
-            reason: "What is actually built against this contract, and the two call sites it does not cover.",
+            reason: "What is actually built against this contract, and the full inventory of gated call sites.",
         },
         {
             articleId: "contract-localization",

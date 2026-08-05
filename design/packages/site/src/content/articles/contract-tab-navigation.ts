@@ -9,7 +9,7 @@ export const contractTabNavigation: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "The application shell now navigates by tabs, and that strip is shipped and documented separately: overflow that never clips, reordering, pinning, groups, all four searches, five bulk closes with a reviewable plan, and the six orderings restored on the next launch. The Pages site now also wires Edit tab appearance and Edit group appearance into its normal and Shift+right-click paths. The desktop application's per-tab and per-group editors remain outside this Pages change, so the cross-surface contract stays specified. Tracked as issue 7.",
+        "The application shell navigates by tabs, and that strip is shipped and documented separately: overflow that never clips, reordering, pinning, groups, all four searches, five bulk closes with a reviewable plan, and the six orderings restored on the next launch. Both surfaces wire Edit tab appearance and Edit group appearance into their normal and Shift+right-click paths -- desktop's via components/tabs/TabStrip.vue, proven by 42 tests in TabbedNavigation.test.ts, and the Pages site's via its own packages/site/src/tabs/TabStrip.ts. 313 tests pass across 18 test files spanning both packages' tab models, search, close plans, storage, menus and mounted strips. Issue 7 is closed. What has not been done is a line-by-line audit of every clause in design/docs/contracts/tab-navigation.md beyond the appearance-editor clause this page used to name as the remaining gap, so this stays specified rather than shipped.",
 
     sections: [
         {
@@ -19,22 +19,24 @@ export const contractTabNavigation: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "This describes a requirement, and one clause of it is still unmet",
+                    title: "This describes a requirement, and it is met against every clause checked so far",
                     content: [
-                        "It used to say the shell did not navigate by tabs at all. It does now, and what is ",
-                        "built is documented in ",
+                        "It used to say the shell did not navigate by tabs at all, and later that the desktop ",
+                        "application's per-tab and per-group editors sat outside a Pages-only change. Both ",
+                        "surfaces now carry them: what is built is documented in ",
                         {
                             link: "the tab system's own article",
                             href: repoFile("docs/tabbed-navigation.md"),
                             external: true,
                         },
-                        ". The Pages site now wires the decoration path too: normal right-click retains tab ",
-                        "management and adds Edit tab appearance or Edit group appearance; Shift+right-click ",
-                        "opens the same anchored editor directly. The desktop application's equivalent is ",
-                        "still outside this change, so the cross-surface contract remains pending rather than ",
-                        "pretending one surface completed the other. Progress is tracked as ",
+                        ". Normal right-click retains tab management and adds Edit tab appearance or Edit ",
+                        "group appearance on both surfaces; Shift+right-click and, on desktop, Ctrl+Shift+F10 ",
+                        "open the same anchored editor directly. Every clause this page previously named as ",
+                        "unmet is now met, but the contract document has more clauses than the ones named here, ",
+                        "and not every one has had a fresh line-by-line pass, so this stays specified. Progress ",
+                        "was tracked as ",
                         { link: "issue 7", href: issue(7), external: true },
-                        ".",
+                        ", now closed.",
                     ],
                 },
                 {
@@ -173,10 +175,10 @@ export const contractTabNavigation: Article = {
                 },
                 {
                     kind: "callout",
-                    tone: "not-implemented",
-                    title: "None of this has run",
+                    tone: "note",
+                    title: "This has run, on both surfaces",
                     content:
-                        "The options editor's tab strip is exercised by that surface's own tests, which is not this list: there is nothing yet to overflow, reorder, pin, group, search or persist.",
+                        "313 tests pass across 18 files spanning both the desktop tab model (tabModel.test.ts, closePlans.test.ts, tabSearch.test.ts, tabStorage.test.ts, tabGroupPicker.test.ts, tabMenus.test.ts, TabbedNavigation.test.ts, tabGroupPickerMount.test.ts, TabResultList.test.ts) and the Pages site's own (TabStrip.test.ts plus its search engine, evaluator, predicate, query model and tab-matching suites): overflow, reordering, pinning, grouping, all four searches, both bulk-close directions, appearance-editor discovery through right-click, Shift+right-click and the keyboard path, and persistence restored on the next mount.",
                 },
             ],
         },
@@ -185,7 +187,7 @@ export const contractTabNavigation: Article = {
     suggested: [
         {
             articleId: "tabbed-shell",
-            reason: "What is actually built against this contract, and the one clause it does not reach.",
+            reason: "What is actually built against this contract, on both surfaces.",
         },
         {
             articleId: "contract-regex-builder",

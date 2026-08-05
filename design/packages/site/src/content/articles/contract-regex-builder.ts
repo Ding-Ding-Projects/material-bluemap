@@ -9,7 +9,7 @@ export const contractRegexBuilder: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "The builder itself is shipped and is documented separately, and a source guard now proves that every search-shaped input in the application takes its search from one of the three shared fields, with no exemption recorded. Two clauses of the contract remain unmet: the builder's own surface is not in the language catalogue, so it renders English fallbacks in all three modes, and the funny-level sliders therefore do not reach it. Partial credit does not apply, so this stays specified. Tracked as issue 6.",
+        "The builder itself is shipped and is documented separately, and a source guard, packages/ui/src/components/config/regexPolicy.test.ts, proves that every search-shaped input in the application takes its search from one of the three shared fields, with no exemption recorded. The localisation clause is met on all three desktop instances now: config.regex.* and menu's regexBuilder.* were already catalogued, and the marker panel's builder, which had been calling tx() with its own regexBuilder.* keys, is now catalogued under its own markerRegex.* namespace -- discovered and fixed as a real bug in the process, since it shared literal key names with menu's builder under different English wording, so whichever entry landed in the catalogue silently overwrote the other's translation. 64 keys and appCopy.test.ts's full shape, placeholder and fact checks pass. The Pages site carries a separate, already-bilingual regex builder of its own (packages/site/src/search/), with its own funny-level wiring. Issue 6 is closed. What has not been done is a line-by-line audit of every remaining clause in design/docs/contracts/regex-builder.md beyond the two this page used to name, so this stays specified rather than shipped.",
 
     sections: [
         {
@@ -19,19 +19,23 @@ export const contractRegexBuilder: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "This describes a requirement, and two clauses of it are still unmet",
+                    title: "This describes a requirement, and both named clauses are met now",
                     content: [
-                        "Most of what follows is now built, and what is built is documented in ",
+                        "What is built is documented in ",
                         { link: "the builder's own article", href: repoFile("docs/regex-builder.md"), external: true },
                         ": guided construction, the raw editor, every supported flag, a real sample, live ",
                         "matches and capture groups, the engine and its limits named on the surface, and a ",
                         "source guard that walks every component and fails when a search bar appears without a ",
-                        "builder. What is not met is the localisation clause below: the builder's own labels are ",
-                        "not in the language catalogue, so they render English fallbacks in all three modes and ",
-                        "neither funny-level slider reaches them. A contract with an unmet clause is a pending ",
-                        "contract, so this page stays marked as unbuilt. Progress is tracked as ",
+                        "builder. The localisation clause used to say the builder's own labels were not in the ",
+                        "language catalogue. All three desktop instances -- config, menu and the marker panel's ",
+                        "builder -- are catalogued now, and fixing the marker panel's surfaced a real bug: it had ",
+                        "been sharing literal key names with menu's builder under different English text, so the ",
+                        "catalogue was silently answering one of them with the other's wording. It now has its own ",
+                        "markerRegex.* namespace. Both clauses this page used to name as unmet are met, but the ",
+                        "contract document carries more clauses than those two, and not every one has had a ",
+                        "fresh line-by-line pass, so this stays specified. Progress was tracked as ",
                         { link: "issue 6", href: issue(6), external: true },
-                        ".",
+                        ", now closed.",
                     ],
                 },
                 {
@@ -154,8 +158,8 @@ export const contractRegexBuilder: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "The contract sets the test list, and it is not the list the builders in the application ",
-                        "are tested against today. Those have their own bounded engine and its own suite; what ",
+                        "The contract sets the test list. The builders in the application are tested against their ",
+                        "own bounded engine and its own suite rather than this exact list line by line; what ",
                         "follows is what the contract itself would require before it counted as met.",
                     ],
                 },
@@ -172,9 +176,9 @@ export const contractRegexBuilder: Article = {
                 {
                     kind: "callout",
                     tone: "note",
-                    title: "Partial credit does not apply",
+                    title: "All three desktop instances now share one honest catalogue",
                     content:
-                        "A builder reachable from four of five search bars is a pending contract with a bug, not a shipped one.",
+                        "A builder reachable from every search bar but voiced for only some of them, or two builders silently trading translations under a shared key, would both still be a pending contract with a bug. Neither is true now: config, menu and markers each answer their own namespace, and regexPolicy.test.ts still proves every search-shaped input reaches one of the three shared, builder-carrying fields.",
                 },
             ],
         },

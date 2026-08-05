@@ -12,17 +12,14 @@
  * untouched, the tiles already rendered stay put, and every setting the removed thing held
  * goes with it.
  *
- * ## This module is now the whole Vue surface, but not the whole screen
+ * ## Almost the whole surface, `.vue` files and the model underneath
  *
- * Every literal `t(...)` call site in the five `.vue` files under `components/project` now
- * resolves in this catalogue. What remains is `projectModel.ts`, which is not a component:
- * its five `project.row.*` keys (the list row's secondary line - "world {world}", "{maps}
- * maps", "last edited {at}", and so on) are real literal call sites too, just not inside a
- * `.vue` file, and a future pass can pick them up. Until then this surface stays absent from
- * `COVERED_SURFACES` in `catalogueCoverage.test.ts`: adding it now would make the guard
- * assert that `components/project` is fully translated when one file underneath it still
- * carries five English-only keys. When `project.row.*` lands, add it here and flip the
- * surface on in the same change.
+ * Every literal `t(...)` call site in the five `.vue` files under `components/project`
+ * resolves in this catalogue, and so does `projectModel.ts`'s `project.row.*` cluster (the
+ * list row's secondary line - "world {world}", "{maps} maps", "last edited {at}", and so
+ * on), even though that file is not a component: 202 of 204 real call sites, all voiced.
+ * `components/project` still stays off `COVERED_SURFACES` in `catalogueCoverage.test.ts`
+ * because of the two that are left, both in `ProjectList.vue`'s row menu.
  *
  * ## Keys deliberately left out
  *
@@ -1269,6 +1266,80 @@ export const PROJECT_VOICED = {
             "Project 檔案會安家喺你揀嘅世界資料夾嘅根目錄，所以個世界流浪去邊都帶住自己嘅設定。儲存之前乜都唔會寫入去，一個位元組都唔會。",
         ],
     },
+
+    /* ---------------------------------------------------------------- */
+    /* projectModel.ts: the list row's secondary line. Not inside a      */
+    /* .vue file, but still a real literal call site.                    */
+    /* ---------------------------------------------------------------- */
+
+    "project.row.world": {
+        en: [
+            "world {world}",
+            "world {world}",
+            "in world {world}",
+            "living in world {world}",
+            "making its home in world {world}",
+        ],
+        yue: [
+            "世界 {world}",
+            "世界 {world}",
+            "喺世界 {world}",
+            "住喺世界 {world}",
+            "喺世界 {world} 安咗家",
+        ],
+    },
+    "project.row.oneMap": {
+        en: ["1 map", "1 map", "1 map", "just 1 map", "a grand total of 1 map"],
+        yue: ["1 張地圖", "1 張地圖", "1 張地圖", "淨係 1 張地圖", "隆重登場，總共 1 張地圖"],
+    },
+    "project.row.maps": {
+        en: [
+            "{maps} maps",
+            "{maps} maps",
+            "{maps} maps",
+            "{maps} maps and counting",
+            "{maps} maps, proudly counted",
+        ],
+        yue: [
+            "{maps} 張地圖",
+            "{maps} 張地圖",
+            "{maps} 張地圖",
+            "{maps} 張地圖，仲數緊",
+            "{maps} 張地圖，隻隻都數過",
+        ],
+    },
+    "project.row.edited": {
+        en: [
+            "last edited {at}",
+            "last edited {at}",
+            "last edited {at}",
+            "last edited {at}, for the record",
+            "last edited {at}, if anyone is keeping score",
+        ],
+        yue: [
+            "上次編輯 {at}",
+            "上次編輯 {at}",
+            "上次編輯 {at}",
+            "上次編輯 {at}，記低咗",
+            "上次編輯 {at}，如果有人記緊分數嘅話",
+        ],
+    },
+    "project.row.fromWizard": {
+        en: [
+            "made by the guide, never opened in the editor",
+            "made by the guide, never opened in the editor",
+            "made by the guide, never opened in the editor",
+            "made by the guide, never opened in the editor even once",
+            "made by the guide, never opened in the editor, not even once",
+        ],
+        yue: [
+            "由引導整嘅，仲未喺編輯器度打開過",
+            "由引導整嘅，仲未喺編輯器度打開過",
+            "由引導整嘅，仲未喺編輯器度打開過",
+            "由引導整嘅，仲未喺編輯器度打開過，一次都未",
+            "由引導整嘅，仲未喺編輯器度打開過，連一次都未",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const PROJECT_FIXED = {
@@ -1689,6 +1760,14 @@ export const PROJECT_FACTS = {
     "project.create.blurb": {
         en: ["root of the world folder", "Nothing is written until you save"],
         yue: ["世界資料夾嘅根目錄", "儲存之前乜都唔會寫"],
+    },
+    "project.row.world": { en: ["{world}"], yue: ["{world}"] },
+    "project.row.oneMap": { en: ["1 map"], yue: ["1 張地圖"] },
+    "project.row.maps": { en: ["{maps}"], yue: ["{maps}"] },
+    "project.row.edited": { en: ["{at}"], yue: ["{at}"] },
+    "project.row.fromWizard": {
+        en: ["made by the guide", "never opened in the editor"],
+        yue: ["由引導整嘅", "仲未喺編輯器度打開過"],
     },
 } as const satisfies Record<
     keyof typeof PROJECT_VOICED,

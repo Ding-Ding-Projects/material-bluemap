@@ -9,7 +9,7 @@ export const contractAppearanceEditors: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "The machinery is shipped and documented separately: the anchored non-modal editor, the continuous colour picker with its eleven-notation translator, the word-processor-depth typography editor, layered records, per-property reset, presets and theme export and import. The Pages decorator now registers every rendered HTMLElement, including prose, headings, disclosure summaries, table cells and links; the desktop application still reaches four elements, and its tabs and groups remain a separate gap. Partial credit does not apply to the cross-surface contract, so this stays specified. Tracked as issue 8.",
+        "The machinery is shipped and documented separately: the anchored non-modal editor, the continuous colour picker with its eleven-notation translator, the word-processor-depth typography editor, layered records, per-property reset, presets and theme export and import. The Pages decorator registers every rendered HTMLElement, proven by packages/site/src/appearance/editor/coverage.test.ts's recursive traversal, so it genuinely meets the every-element clause. Desktop wraps AppearanceTarget around ten component families -- App.vue's title bar and tab-bar wrapper, ProfileManager's rows, the appearance editor's own chrome, ControlBar, EulaSectionPanel, EulaViewer, HistoryPanel, ProjectList's rows, DockedSurface, and TabStrip's own dynamic per-tab and per-group registration (42 tests in TabbedNavigation.test.ts) -- out of the 146 .vue component files the application renders. That is real, tested coverage of the surfaces most likely to be right-clicked, but it is component-family targeting rather than the literal every-rendered-element traversal the site now has, and the contract asks for the latter on both surfaces. Partial credit does not apply to the cross-surface contract, so this stays specified. Tracked as issue 8.",
 
     sections: [
         {
@@ -19,7 +19,7 @@ export const contractAppearanceEditors: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "This describes a requirement, and the hard clause is still unmet",
+                    title: "This describes a requirement, and the hard clause is still unmet on one surface",
                     content: [
                         "It used to say nothing could be customised per element and nothing was persisted. Both ",
                         "are now false, and what is built is documented in ",
@@ -28,10 +28,18 @@ export const contractAppearanceEditors: Article = {
                             href: repoFile("docs/appearance-editors.md"),
                             external: true,
                         },
-                        ". What remains is the clause this contract is mostly about: every rendered element. The ",
-                        "wrapper that carries the feature is around four things today, the window title bar, the ",
-                        "tab bar, each server profile row and the editor's own chrome, and everything else the ",
-                        "application draws is not yet a target. Progress is tracked as ",
+                        ". The Pages site meets the every-element clause outright: its decorator walks the ",
+                        "rendered DOM recursively and registers what it finds, proven by ",
+                        { code: "appearance/editor/coverage.test.ts" },
+                        ". The desktop application does not do the equivalent traversal -- it wraps ten named ",
+                        "component families in ",
+                        { code: "AppearanceTarget" },
+                        " (the title bar, the tab bar, profile rows, the editor's own chrome, the control bar, ",
+                        "EULA sections and viewer, history, project rows, docked surfaces, and tabs and groups) ",
+                        "out of 146 rendered ",
+                        { code: ".vue" },
+                        " files, which is real coverage of the surfaces a user is most likely to right-click ",
+                        "rather than the literal every-element reach the contract asks for. Progress is tracked as ",
                         { link: "issue 8", href: issue(8), external: true },
                         ".",
                     ],
@@ -167,8 +175,9 @@ export const contractAppearanceEditors: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "None of this has run",
-                    content: "There is no editor to test.",
+                    title: "Most of this has run; the inventory clause has not",
+                    content:
+                        "Right-click, Shift+right-click, Ctrl+Shift+F10, anchor tracking, collision handling, live preview, persistence, reset and the colour and typography round-trips are exercised on both surfaces, including 42 tab- and group-editor tests in TabbedNavigation.test.ts. What has not run is a test proving desktop's coverage against an inventory of every rendered element the way the Pages site's coverage.test.ts does -- because that inventory does not exist for the desktop application yet, since the desktop application does not yet reach every element.",
                 },
             ],
         },
@@ -177,7 +186,7 @@ export const contractAppearanceEditors: Article = {
     suggested: [
         {
             articleId: "appearance-editor",
-            reason: "What is actually built against this contract, including complete Pages-element registration and the smaller desktop-app surface.",
+            reason: "What is actually built against this contract: exhaustive Pages-element registration and desktop's nine covered component families.",
         },
         {
             articleId: "contract-tab-navigation",

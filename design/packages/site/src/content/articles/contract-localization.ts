@@ -9,7 +9,7 @@ export const contractLocalization: Article = {
     category: "contracts",
     status: "specified",
     statusNote:
-        "The three modes, both sliders and the voice-not-facts guarantee are shipped and documented separately, the sliders are now reachable from the settings surface rather than only during first-run setup, and the catalogue is merged into the locale the application already uses so an entry starts varying at every existing call site. What is unmet is coverage: roughly a hundred keys are catalogued and the rest of the application still renders its English fallback in every mode. Partial credit does not apply, so this stays specified. Tracked as issue 9.",
+        "The three modes, both sliders and the voice-not-facts guarantee are shipped and documented separately, the sliders are reachable from the settings surface rather than only during first-run setup, and the catalogue is merged into the locale the application already uses so an entry starts varying at every existing call site. Coverage is now large rather than small: packages/ui/src/copy/catalogueCoverage.test.ts declares 27 surfaces fully covered against 2187 real call-site keys, up from roughly a hundred out of fifteen hundred. components/project, once a named gap, is now voiced down to two structurally untranslatable keys: project.list.key.open and project.list.key.choose pass a computed key name -- Enter, Space -- as their own fallback with no literal string for the scanner to read, so a catalogue entry would either miss the call or hard-code the wrong key in every language. The application still has surfaces this catalogue has not reached yet, which is the designed behaviour for an uncatalogued key rather than a defect, so this stays specified. Tracked as issue 9.",
 
     sections: [
         {
@@ -19,20 +19,23 @@ export const contractLocalization: Article = {
                 {
                     kind: "callout",
                     tone: "not-implemented",
-                    title: "This describes a requirement, and it is met on some surfaces rather than all",
+                    title: "This describes a requirement, and it is met on most surfaces rather than all",
                     content: [
-                        "It used to say one surface met this and everywhere else was untouched. The mechanism now ",
-                        "reaches every call site in the application, and what is built is documented in ",
+                        "It used to say one surface met this and everywhere else was untouched, then that roughly ",
+                        "a hundred keys were catalogued. The mechanism now reaches every call site in the ",
+                        "application, and what is built is documented in ",
                         {
                             link: "the language layer's own article",
                             href: repoFile("docs/language-and-tone.md"),
                             external: true,
                         },
-                        ". What is unmet is coverage: the catalogue answers the options editor, the world wizard, ",
-                        "the settings surface, the downloads list, the notification centre and the destructive ",
-                        "action gate, and every other key still renders its English fallback in all three modes. ",
-                        "That is the designed behaviour for an uncatalogued key and it is also, plainly, not this ",
-                        "contract. Progress is tracked as ",
+                        ". 27 surfaces are declared fully covered by ",
+                        { code: "catalogueCoverage.test.ts" },
+                        " -- the options editor, the world wizard, the settings surface, the downloads list, the ",
+                        "notification centre, the destructive action gate, the command palette and 20 more -- and ",
+                        "any key outside a covered surface still renders its English fallback in all three modes. ",
+                        "That is the designed behaviour for an uncatalogued key, and coverage keeps growing one ",
+                        "surface at a time rather than in one pass. Progress is tracked as ",
                         { link: "issue 9", href: issue(9), external: true },
                         ".",
                     ],
@@ -159,10 +162,10 @@ export const contractLocalization: Article = {
                 },
                 {
                     kind: "callout",
-                    tone: "not-implemented",
-                    title: "None of this has run against the application as a whole",
+                    tone: "note",
+                    title: "Most of this has run, on 27 covered surfaces",
                     content:
-                        "The setup flow's own modes and levels are covered by that surface's tests, including the rule that a funny level can never reach the consent facts. The contract's list is about every message in every surface, and against that the application is untested because most of it has no mode to test.",
+                        "The setup flow's own modes and levels are covered by that surface's tests, including the rule that a funny level can never reach the consent facts. appCopy.test.ts additionally proves, for every catalogued key: five levels in both languages, no empty string, level 1 reading differently from level 5, the same placeholders surviving every level, and every required fact surviving every level in both languages -- 2183 keys' worth. The contract's list is about every message in every surface, and the surfaces not yet on the covered list are the part still untested, not the whole application.",
                 },
             ],
         },
@@ -171,7 +174,7 @@ export const contractLocalization: Article = {
     suggested: [
         {
             articleId: "language-and-tone",
-            reason: "What is actually built against this contract, and exactly how far the catalogue reaches.",
+            reason: "What is actually built against this contract, and exactly which surfaces the catalogue covers.",
         },
         {
             articleId: "contract-super-confirmation",

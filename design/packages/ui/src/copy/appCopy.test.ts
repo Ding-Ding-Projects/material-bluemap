@@ -187,18 +187,22 @@ function endOfString(text: string, start: number): number {
 }
 
 /**
- * Every `t("<catalogue key>", ...)` in the package, with the placeholders its English
- * fallback carries.
+ * Every `t("<catalogue key>", ...)` and `markers/i18nHelpers.ts`'s `tx("<key>", ...)` /
+ * `tp("<key>", ...)` in the package, with the placeholders its English fallback carries.
  *
- * The fallback is the last string literal in the call, which is what both the two-argument
- * and the three-argument form put it. Test files are skipped: a test may legitimately call
- * a key with a fabricated fallback to prove a point about resolution, and that is not a
- * statement about which values the product passes.
+ * The fallback is the last string literal in the call. For `t(key, fallback)` and
+ * `t(key, vars, fallback)` that is the same thing this comment always said. `tx` and `tp`
+ * put their fallback second rather than last -- `tx(key, fallback, values?)` -- but their
+ * `values`/count argument is never a string literal itself in this codebase, so "the last
+ * string literal in the call" still lands on the fallback for both shapes without needing
+ * two code paths. Test files are skipped: a test may legitimately call a key with a
+ * fabricated fallback to prove a point about resolution, and that is not a statement about
+ * which values the product passes.
  */
 function callSitePlaceholders(): Map<string, Set<string>> {
     const catalogue = new Set<string>(appCopyKeys());
     const byKey = new Map<string, Set<string>>();
-    const call = /(?<![\w$.])\$?t\s*\(\s*(["'])([A-Za-z0-9_.\-]+)\1\s*,/g;
+    const call = /(?<![\w$.])\$?t[xp]?\s*\(\s*(["'])([A-Za-z0-9_.\-]+)\1\s*,/g;
 
     for (const file of sourceFiles(sourceRoot)) {
         if (file.endsWith(".test.ts")) continue;

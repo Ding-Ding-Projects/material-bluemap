@@ -80,82 +80,82 @@ function token(label: string, before: string, hint: string, after = ""): Token {
 const tokenGroups = computed<TokenGroup[]>(() => [
     {
         id: "characters",
-        title: tx("regexBuilder.group.characters", "Characters"),
+        title: tx("markerRegex.group.characters", "Characters"),
         tokens: [
-            token(".", ".", tx("regexBuilder.token.any", "any character")),
-            token("\\d", "\\d", tx("regexBuilder.token.digit", "a digit")),
-            token("\\D", "\\D", tx("regexBuilder.token.notDigit", "not a digit")),
-            token("\\w", "\\w", tx("regexBuilder.token.word", "a word character")),
-            token("\\W", "\\W", tx("regexBuilder.token.notWord", "not a word character")),
-            token("\\s", "\\s", tx("regexBuilder.token.space", "whitespace")),
-            token("\\S", "\\S", tx("regexBuilder.token.notSpace", "not whitespace")),
-            token("[abc]", "[", tx("regexBuilder.token.class", "one of these characters"), "]"),
+            token(".", ".", tx("markerRegex.token.any", "any character")),
+            token("\\d", "\\d", tx("markerRegex.token.digit", "a digit")),
+            token("\\D", "\\D", tx("markerRegex.token.notDigit", "not a digit")),
+            token("\\w", "\\w", tx("markerRegex.token.word", "a word character")),
+            token("\\W", "\\W", tx("markerRegex.token.notWord", "not a word character")),
+            token("\\s", "\\s", tx("markerRegex.token.space", "whitespace")),
+            token("\\S", "\\S", tx("markerRegex.token.notSpace", "not whitespace")),
+            token("[abc]", "[", tx("markerRegex.token.class", "one of these characters"), "]"),
             token(
                 "[^abc]",
                 "[^",
-                tx("regexBuilder.token.negClass", "none of these characters"),
+                tx("markerRegex.token.negClass", "none of these characters"),
                 "]",
             ),
-            token("[a-z]", "[a-z]", tx("regexBuilder.token.range", "a character range")),
+            token("[a-z]", "[a-z]", tx("markerRegex.token.range", "a character range")),
         ],
     },
     {
         id: "anchors",
-        title: tx("regexBuilder.group.anchors", "Anchors"),
+        title: tx("markerRegex.group.anchors", "Anchors"),
         tokens: [
-            token("^", "^", tx("regexBuilder.token.start", "start of input")),
-            token("$", "$", tx("regexBuilder.token.end", "end of input")),
-            token("\\b", "\\b", tx("regexBuilder.token.wordEdge", "word boundary")),
-            token("\\B", "\\B", tx("regexBuilder.token.notWordEdge", "not a word boundary")),
+            token("^", "^", tx("markerRegex.token.start", "start of input")),
+            token("$", "$", tx("markerRegex.token.end", "end of input")),
+            token("\\b", "\\b", tx("markerRegex.token.wordEdge", "word boundary")),
+            token("\\B", "\\B", tx("markerRegex.token.notWordEdge", "not a word boundary")),
         ],
     },
     {
         id: "groups",
-        title: tx("regexBuilder.group.groups", "Groups and captures"),
+        title: tx("markerRegex.group.groups", "Groups and captures"),
         tokens: [
-            token("( )", "(", tx("regexBuilder.token.capture", "capturing group"), ")"),
-            token("(?: )", "(?:", tx("regexBuilder.token.nonCapture", "non-capturing group"), ")"),
+            token("( )", "(", tx("markerRegex.token.capture", "capturing group"), ")"),
+            token("(?: )", "(?:", tx("markerRegex.token.nonCapture", "non-capturing group"), ")"),
             token(
                 "(?<name> )",
                 "(?<name>",
-                tx("regexBuilder.token.namedCapture", "named capturing group"),
+                tx("markerRegex.token.namedCapture", "named capturing group"),
                 ")",
             ),
-            token("(?= )", "(?=", tx("regexBuilder.token.lookahead", "positive lookahead"), ")"),
-            token("(?! )", "(?!", tx("regexBuilder.token.negLookahead", "negative lookahead"), ")"),
-            token("\\1", "\\1", tx("regexBuilder.token.backreference", "back-reference to group 1")),
+            token("(?= )", "(?=", tx("markerRegex.token.lookahead", "positive lookahead"), ")"),
+            token("(?! )", "(?!", tx("markerRegex.token.negLookahead", "negative lookahead"), ")"),
+            token("\\1", "\\1", tx("markerRegex.token.backreference", "back-reference to group 1")),
         ],
     },
     {
         id: "alternation",
-        title: tx("regexBuilder.group.alternation", "Alternation"),
+        title: tx("markerRegex.group.alternation", "Alternation"),
         tokens: [
-            token("|", "|", tx("regexBuilder.token.or", "either side matches")),
-            token("(a|b)", "(", tx("regexBuilder.token.orGroup", "a group of alternatives"), "|)"),
+            token("|", "|", tx("markerRegex.token.or", "either side matches")),
+            token("(a|b)", "(", tx("markerRegex.token.orGroup", "a group of alternatives"), "|)"),
         ],
     },
     {
         id: "quantifiers",
-        title: tx("regexBuilder.group.quantifiers", "Quantifiers"),
+        title: tx("markerRegex.group.quantifiers", "Quantifiers"),
         tokens: [
-            token("*", "*", tx("regexBuilder.token.star", "zero or more")),
-            token("+", "+", tx("regexBuilder.token.plus", "one or more")),
-            token("?", "?", tx("regexBuilder.token.optional", "zero or one")),
-            token("{n}", "{2}", tx("regexBuilder.token.exactly", "exactly n times")),
-            token("{n,}", "{2,}", tx("regexBuilder.token.atLeast", "n or more times")),
-            token("{n,m}", "{2,5}", tx("regexBuilder.token.between", "between n and m times")),
-            token("*?", "*?", tx("regexBuilder.token.lazy", "lazy, as few as possible")),
+            token("*", "*", tx("markerRegex.token.star", "zero or more")),
+            token("+", "+", tx("markerRegex.token.plus", "one or more")),
+            token("?", "?", tx("markerRegex.token.optional", "zero or one")),
+            token("{n}", "{2}", tx("markerRegex.token.exactly", "exactly n times")),
+            token("{n,}", "{2,}", tx("markerRegex.token.atLeast", "n or more times")),
+            token("{n,m}", "{2,5}", tx("markerRegex.token.between", "between n and m times")),
+            token("*?", "*?", tx("markerRegex.token.lazy", "lazy, as few as possible")),
         ],
     },
 ]);
 
 const flagHints = computed<Record<string, string>>(() => ({
-    g: tx("regexBuilder.flag.g", "global, find every match (preview only)"),
-    i: tx("regexBuilder.flag.i", "ignore case"),
-    m: tx("regexBuilder.flag.m", "multiline, ^ and $ match every line"),
-    s: tx("regexBuilder.flag.s", "dot matches newlines"),
-    u: tx("regexBuilder.flag.u", "unicode mode"),
-    y: tx("regexBuilder.flag.y", "sticky, match from lastIndex (preview only)"),
+    g: tx("markerRegex.flag.g", "global, find every match (preview only)"),
+    i: tx("markerRegex.flag.i", "ignore case"),
+    m: tx("markerRegex.flag.m", "multiline, ^ and $ match every line"),
+    s: tx("markerRegex.flag.s", "dot matches newlines"),
+    u: tx("markerRegex.flag.u", "unicode mode"),
+    y: tx("markerRegex.flag.y", "sticky, match from lastIndex (preview only)"),
 }));
 
 function patternInput(): HTMLTextAreaElement | null {
@@ -194,7 +194,7 @@ function insert(before: string, after: string): void {
     const selected = value.slice(start, end);
     const next = value.slice(0, start) + before + selected + after + value.slice(end);
     if (next.length > MAX_PATTERN_LENGTH) {
-        notice.value = tx("regexBuilder.tooLong", "The pattern is already at its maximum length.");
+        notice.value = tx("markerRegex.tooLong", "The pattern is already at its maximum length.");
         return;
     }
 
@@ -216,7 +216,7 @@ function escapeSelection(): void {
     const escaped = escapeLiteral(target);
     const next = wholeField ? escaped : value.slice(0, start) + escaped + value.slice(end);
     if (next.length > MAX_PATTERN_LENGTH) {
-        notice.value = tx("regexBuilder.tooLong", "The pattern is already at its maximum length.");
+        notice.value = tx("markerRegex.tooLong", "The pattern is already at its maximum length.");
         return;
     }
     emit("update:pattern", next);
@@ -239,9 +239,9 @@ async function copy(text: string): Promise<void> {
         const bridge = window.materialBluemap;
         if (bridge) await bridge.writeClipboardText(text);
         else await navigator.clipboard.writeText(text);
-        notice.value = tx("regexBuilder.copied", "Copied to the clipboard.");
+        notice.value = tx("markerRegex.copied", "Copied to the clipboard.");
     } catch {
-        notice.value = tx("regexBuilder.copyFailed", "Could not reach the clipboard.");
+        notice.value = tx("markerRegex.copyFailed", "Could not reach the clipboard.");
     }
 }
 
@@ -253,7 +253,7 @@ function download(name: string, type: string, body: string): void {
     link.download = name;
     link.click();
     URL.revokeObjectURL(url);
-    notice.value = tx("regexBuilder.exported", "Exported {name}.", { name });
+    notice.value = tx("markerRegex.exported", "Exported {name}.", { name });
 }
 
 function exportJson(): void {
@@ -298,7 +298,7 @@ function reset(): void {
     emit("update:mode", "text");
     sample.value = props.sampleSeed;
     sampleEdited.value = false;
-    notice.value = tx("regexBuilder.reset", "Search reset to plain text.");
+    notice.value = tx("markerRegex.reset", "Search reset to plain text.");
 }
 
 const literalForm = computed(() => `/${props.pattern}/${props.flags}`);
@@ -313,7 +313,7 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
     >
         <v-toolbar density="compact" color="surface" flat>
             <v-toolbar-title class="text-subtitle-2">
-                {{ tx("regexBuilder.title", "Regular expression builder") }}
+                {{ tx("markerRegex.title", "Regular expression builder") }}
             </v-toolbar-title>
             <v-btn
                 :icon="mdiClose"
@@ -339,7 +339,7 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
                 <template v-if="mode === 'text'">
                     {{
                         tx(
-                            "regexBuilder.plainNote",
+                            "markerRegex.plainNote",
                             "Plain text is the default. The query is matched as a literal, ignoring case, against each marker's id, label, player name and player uuid.",
                         )
                     }}
@@ -347,7 +347,7 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
                 <template v-else>
                     {{
                         tx(
-                            "regexBuilder.regexNote",
+                            "markerRegex.regexNote",
                             "The pattern is tested against each marker's id, label, player name and player uuid. The g and y flags are dropped for that test because they would carry a lastIndex from one field to the next; they still apply to the preview below.",
                         )
                     }}
@@ -379,16 +379,16 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
 
             <div class="mb-regex-builder__row">
                 <v-btn size="small" variant="tonal" @click="escapeSelection">
-                    {{ tx("regexBuilder.escape", "Escape as literal") }}
+                    {{ tx("markerRegex.escape", "Escape as literal") }}
                 </v-btn>
                 <v-btn size="small" variant="text" :prepend-icon="mdiRestore" @click="reset">
-                    {{ tx("regexBuilder.resetButton", "Reset") }}
+                    {{ tx("markerRegex.resetButton", "Reset") }}
                 </v-btn>
             </div>
 
             <fieldset class="mb-regex-builder__flags" :disabled="mode !== 'regex'">
                 <legend class="text-caption text-medium-emphasis">
-                    {{ tx("regexBuilder.flags", "Flags") }}
+                    {{ tx("markerRegex.flags", "Flags") }}
                 </legend>
                 <div class="mb-regex-builder__flag-list">
                     <v-checkbox-btn
@@ -438,7 +438,7 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
             <p v-else class="mb-regex-builder__note text-medium-emphasis">
                 {{
                     tx(
-                        "regexBuilder.guidedHint",
+                        "markerRegex.guidedHint",
                         "Switch on regular expressions to insert character classes, anchors, groups, alternation and quantifiers.",
                     )
                 }}
@@ -477,26 +477,26 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
                 <div class="mb-regex-builder__result-head">
                     <v-chip size="small" variant="tonal" :prepend-icon="mdiCheck">
                         {{
-                            tx("regexBuilder.matchCount", "{count} matches in the sample", {
+                            tx("markerRegex.matchCount", "{count} matches in the sample", {
                                 count: evaluation.matches.length,
                             })
                         }}
                     </v-chip>
                     <span v-if="evaluation.truncated" class="text-caption text-warning">
                         {{
-                            tx("regexBuilder.truncated", "Stopped after {max} matches.", {
+                            tx("markerRegex.truncated", "Stopped after {max} matches.", {
                                 max: MAX_MATCHES,
                             })
                         }}
                     </span>
                     <span v-if="evaluation.timedOut" class="text-caption text-warning">
                         {{
-                            tx("regexBuilder.timedOut", "Stopped after {ms} ms.", { ms: MAX_EVAL_MS })
+                            tx("markerRegex.timedOut", "Stopped after {ms} ms.", { ms: MAX_EVAL_MS })
                         }}
                     </span>
                     <span v-if="evaluation.sampleTruncated" class="text-caption text-warning">
                         {{
-                            tx("regexBuilder.sampleTruncated", "Sample cut to {max} characters.", {
+                            tx("markerRegex.sampleTruncated", "Sample cut to {max} characters.", {
                                 max: MAX_SAMPLE_LENGTH,
                             })
                         }}
@@ -507,11 +507,11 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
                     <li v-for="(match, index) of shownMatches" :key="index">
                         <code>{{
                             match.text === ""
-                                ? tx("regexBuilder.emptyMatch", "(empty match)")
+                                ? tx("markerRegex.emptyMatch", "(empty match)")
                                 : match.text
                         }}</code>
                         <span class="text-caption text-medium-emphasis">
-                            {{ tx("regexBuilder.atIndex", "at {index}", { index: match.index }) }}
+                            {{ tx("markerRegex.atIndex", "at {index}", { index: match.index }) }}
                         </span>
                         <span
                             v-for="group of match.groups"
@@ -519,20 +519,20 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
                             class="text-caption text-medium-emphasis"
                         >
                             {{ group.name }}={{
-                                group.value ?? tx("regexBuilder.unset", "(unset)")
+                                group.value ?? tx("markerRegex.unset", "(unset)")
                             }}
                         </span>
                     </li>
                 </ul>
                 <p v-else class="text-caption text-medium-emphasis">
-                    {{ tx("regexBuilder.noMatches", "Nothing in the sample matches.") }}
+                    {{ tx("markerRegex.noMatches", "Nothing in the sample matches.") }}
                 </p>
             </div>
 
             <p class="mb-regex-builder__engine text-caption text-medium-emphasis">
                 {{
                     tx(
-                        "regexBuilder.engine",
+                        "markerRegex.engine",
                         "Engine: ECMAScript RegExp, run by this browser, the same engine the marker search uses. Escaping follows JavaScript regular-expression rules. Limits: pattern {pattern} characters, sample {sample} characters, {matches} matches, {ms} ms per preview run.",
                         {
                             pattern: MAX_PATTERN_LENGTH,
@@ -547,7 +547,7 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
 
         <v-card-actions class="mb-regex-builder__actions">
             <v-btn size="small" variant="text" :prepend-icon="mdiContentCopy" @click="copy(pattern)">
-                {{ tx("regexBuilder.copyPattern", "Copy pattern") }}
+                {{ tx("markerRegex.copyPattern", "Copy pattern") }}
             </v-btn>
             <v-btn
                 size="small"
@@ -555,13 +555,13 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
                 :prepend-icon="mdiContentCopy"
                 @click="copy(literalForm)"
             >
-                {{ tx("regexBuilder.copyLiteral", "Copy /pattern/flags") }}
+                {{ tx("markerRegex.copyLiteral", "Copy /pattern/flags") }}
             </v-btn>
             <v-btn size="small" variant="text" :prepend-icon="mdiDownload" @click="exportJson">
-                {{ tx("regexBuilder.exportJson", "Export JSON") }}
+                {{ tx("markerRegex.exportJson", "Export JSON") }}
             </v-btn>
             <v-btn size="small" variant="text" :prepend-icon="mdiDownload" @click="exportText">
-                {{ tx("regexBuilder.exportText", "Export text") }}
+                {{ tx("markerRegex.exportText", "Export text") }}
             </v-btn>
         </v-card-actions>
 

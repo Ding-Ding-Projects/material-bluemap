@@ -9,7 +9,7 @@ export const tabbedShell: Article = {
     category: "application",
     status: "shipped",
     statusNote:
-        "On the default branch and mounted by the shell, with six test files running in CI covering the model, the four searches, the close plans, storage, the menus and the mounted strip. Pages tab, group, overflow and page-action menus now each own a plain-text filter with an adjacent guided regex builder; the desktop application's equivalent remains a separate gap, so the wider cross-surface contract is still open.",
+        "On the default branch and mounted by the shell, with test files running in CI covering the model, the four searches, the close plans, storage, the menus and the mounted strip. Pages tab, group, overflow and page-action menus each own a plain-text filter with an adjacent guided regex builder, and desktop's equivalent -- components/tabs/tabSearch.ts and its 19-test suite, plus the appearance-editor discovery covered by TabbedNavigation.test.ts's 42 tests -- is built and tested too, so the wider cross-surface contract is met.",
 
     sections: [
         {
@@ -227,7 +227,7 @@ export const tabbedShell: Article = {
                     tone: "warning",
                     title: "What remains outside this surface",
                     content:
-                        "The Pages tab code now reads its appearance records: normal right-click keeps management actions and adds Edit tab appearance or Edit group appearance, while Shift+right-click opens the same anchored editor directly. The desktop application's equivalent is not wired by this Pages change, so the contract page continues to call out that cross-surface gap rather than implying the two products are one surface.",
+                        "The Pages tab code reads its appearance records: normal right-click keeps management actions and adds Edit tab appearance or Edit group appearance, while Shift+right-click opens the same anchored editor directly. Desktop's own equivalent lives in components/tabs/TabStrip.vue, wired independently of this Pages change and proven by TabbedNavigation.test.ts, so both surfaces meet this clause on their own evidence rather than one borrowing the other's.",
                 },
             ],
         },
