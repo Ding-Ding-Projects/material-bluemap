@@ -310,15 +310,28 @@ function download(scope: "section" | "all", format: EulaExportFormat): void {
  * to: a row scoped to "this section" makes no sense with no section open, and filtering the
  * list never changes that -- a disabled row can still be found by search, it just still
  * cannot be chosen.
+ *
+ * The three section-scoped rows also carry `reason` while disabled, rendered as the row's
+ * own subtitle by `MenuSearchList.vue` -- a screen reader used to hear "dimmed" and nothing
+ * else, and a sighted person had no way to learn what a filterable list has no tooltip to
+ * anchor. `exactOptionalPropertyTypes` is why this spreads the key in rather than setting
+ * it to `undefined` for the three rows that stay enabled: `reason?: string` on
+ * `MenuSearchItem` rejects an explicit `undefined` under that setting.
  */
-const exportItems = computed<MenuSearchItem[]>(() => [
-    { id: "section-markdown", label: i18n.t("eula.exportSectionMarkdown"), disabled: activeSection.value === null },
-    { id: "section-text", label: i18n.t("eula.exportSectionText"), disabled: activeSection.value === null },
-    { id: "all-markdown", label: i18n.t("eula.exportAllMarkdown") },
-    { id: "all-text", label: i18n.t("eula.exportAllText") },
-    { id: "copy-section", label: i18n.t("eula.copySection"), disabled: activeSection.value === null },
-    { id: "copy-all", label: i18n.t("eula.copyAll") },
-]);
+const sectionExportReason = computed(() => i18n.t("eula.exportNeedsSection"));
+
+const exportItems = computed<MenuSearchItem[]>(() => {
+    const needsSection = activeSection.value === null;
+    const sectionReason = needsSection ? { reason: sectionExportReason.value } : {};
+    return [
+        { id: "section-markdown", label: i18n.t("eula.exportSectionMarkdown"), disabled: needsSection, ...sectionReason },
+        { id: "section-text", label: i18n.t("eula.exportSectionText"), disabled: needsSection, ...sectionReason },
+        { id: "all-markdown", label: i18n.t("eula.exportAllMarkdown") },
+        { id: "all-text", label: i18n.t("eula.exportAllText") },
+        { id: "copy-section", label: i18n.t("eula.copySection"), disabled: needsSection, ...sectionReason },
+        { id: "copy-all", label: i18n.t("eula.copyAll") },
+    ];
+});
 
 function chooseExport(id: string): void {
     switch (id) {
@@ -358,7 +371,7 @@ async function copy(scope: "section" | "all"): Promise<void> {
     }
 }
 
-defineExpose({ sections, activeSection, state: eula.state });
+defineExpose({ sections, activeSection, state: eula.state, exportItems });
 </script>
 
 <template>

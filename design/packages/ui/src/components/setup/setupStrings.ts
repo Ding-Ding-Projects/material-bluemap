@@ -277,6 +277,15 @@ export const FIXED = {
     "eula.exportAllText": { en: "The whole document, as plain text", yue: "成份文件，純文字格式" },
     "eula.copySection": { en: "Copy this section", yue: "複製呢個章節" },
     "eula.copyAll": { en: "Copy the whole document", yue: "複製成份文件" },
+    /*
+     * Why the three section-scoped rows are dimmed, shown as their own subtitle by
+     * `MenuSearchList.vue` rather than left for a screen reader to announce as "dimmed"
+     * and nothing else.
+     */
+    "eula.exportNeedsSection": {
+        en: "This works on the section that is open. Open one first.",
+        yue: "呢個掣做緊開住嗰個章節嘅嘢，要先開返一個先得。",
+    },
     "eula.copied": {
         en: "Copied, with a header saying which part of the document it is.",
         yue: "已複製，開頭有註明呢段係文件邊一部分。",

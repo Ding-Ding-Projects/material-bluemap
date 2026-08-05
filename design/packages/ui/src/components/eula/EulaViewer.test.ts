@@ -7,8 +7,8 @@
  * provenance sentences -- has its own tests next door. What this file proves is narrower:
  * that the "Export" picker carries a search field at all, that typing into it narrows the
  * six rows without changing what any of them does, that a row disabled because no section is
- * active stays disabled even while it is shown, and that Escape behaves the same two-step
- * way every other filterable context menu in this application does.
+ * active stays disabled even while it is shown and says why, and that Escape behaves the
+ * same two-step way every other filterable context menu in this application does.
  */
 
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
@@ -19,6 +19,7 @@ import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
 import EulaViewer from "./EulaViewer.vue";
 import type { EulaController, EulaState } from "./eulaBridge.js";
+import type { MenuSearchItem } from "../menuSearch/MenuSearchList.vue";
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -211,5 +212,39 @@ describe("the export menu", () => {
         await settle();
 
         expect(document.querySelectorAll(".mb-menu-search")).toHaveLength(0);
+    });
+
+    it("names why the three section-scoped rows are dimmed once no section is open", async () => {
+        wrapper = render();
+        await settle();
+        const viewer = wrapper?.findComponent(EulaViewer);
+        if (viewer === undefined) throw new Error("EulaViewer was not found in the tree");
+
+        // The fixture text parses into two sections and seedEulaStrip opens the first one,
+        // so this closes both tabs through the real close button rather than reaching into
+        // private state - the only way `activeSection` genuinely reaches null.
+        for (let round = 0; round < 2; round++) {
+            const closeButton = wrapper
+                ?.findAll("button")
+                .find((button) => (button.attributes("aria-label") ?? "").startsWith("Close "));
+            if (closeButton === undefined) throw new Error(`expected a close button to remain, round ${round}`);
+            await closeButton.trigger("click");
+            await settle();
+        }
+
+        expect(viewer.vm.activeSection).toBeNull();
+
+        const items = viewer.vm.exportItems as MenuSearchItem[];
+        for (const id of ["section-markdown", "section-text", "copy-section"]) {
+            const item = items.find((candidate) => candidate.id === id);
+            expect(item?.disabled, id).toBe(true);
+            expect(item?.reason, id).toBeTruthy();
+        }
+        // The two whole-document rows never depended on a section being open and still do not.
+        for (const id of ["all-markdown", "all-text", "copy-all"]) {
+            const item = items.find((candidate) => candidate.id === id);
+            expect(item?.disabled, id).toBeFalsy();
+            expect(item?.reason, id).toBeUndefined();
+        }
     });
 });

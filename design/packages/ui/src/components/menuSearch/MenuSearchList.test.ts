@@ -129,6 +129,20 @@ describe("disabled rows", () => {
         await item?.trigger("click");
         expect(wrapper.emitted("choose")).toBeUndefined();
     });
+
+    it("names why a disabled row cannot be chosen, rather than leaving it a mystery", () => {
+        wrapper = render([
+            { id: "csv", label: "CSV file", disabled: true, reason: "Open a section first." },
+        ]);
+        const item = wrapper.findAll(".v-list-item").find((row) => row.text().includes("CSV file"));
+        expect(item?.text()).toContain("Open a section first.");
+    });
+
+    it("renders no subtitle for a disabled row that carries no reason, rather than a blank one", () => {
+        wrapper = render([{ id: "csv", label: "CSV file", disabled: true }]);
+        const item = wrapper.findAll(".v-list-item").find((row) => row.text().includes("CSV file"));
+        expect(item?.find(".v-list-item-subtitle").exists()).toBe(false);
+    });
 });
 
 describe("Escape, in two steps", () => {

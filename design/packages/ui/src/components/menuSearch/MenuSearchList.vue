@@ -9,11 +9,19 @@ import { createSettingMatcher } from "../config/regexEngine.js";
  * One row a bare fixed-item menu can offer: an id the host maps back to whatever the row
  * actually does, the label filtered and rendered, and an optional reason the row is
  * temporarily unavailable (no active section, nothing selected, and so on).
+ *
+ * `reason` is shown whenever `disabled` is true, as the row's subtitle - a screen reader
+ * hears it as part of the same option, and a sighted person sees it without hovering for a
+ * tooltip that a filterable list has nowhere obvious to anchor. A disabled row with no
+ * `reason` set renders with no subtitle at all rather than a blank one, which is a real gap
+ * this doc comment used to promise was already covered and was not: every caller wiring a
+ * `disabled` row is expected to also set `reason`.
  */
 export interface MenuSearchItem {
     readonly id: string;
     readonly label: string;
     readonly disabled?: boolean;
+    readonly reason?: string;
 }
 
 /**
@@ -108,6 +116,7 @@ function onKeydown(event: KeyboardEvent): void {
                 v-for="item in shown"
                 :key="item.id"
                 :title="item.label"
+                v-bind="item.disabled === true && item.reason !== undefined ? { subtitle: item.reason } : {}"
                 :disabled="item.disabled === true"
                 @click="choose(item)"
             />
