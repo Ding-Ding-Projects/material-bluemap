@@ -346,13 +346,25 @@
 
 /* ---- Tabs -------------------------------------------------------------------------- */
 
+/*
+ * Rendered as an M3 segmented button group rather than the underlined text tabs the
+ * primary chrome strip uses one level up — the same role (General/Language/Appearance/
+ * Accessibility/Data are still real ARIA tabs with the same keyboard model, the same
+ * search-and-badge wiring, the same appearance-editor hooks), but a different navigation
+ * shape, so Settings reads as its own control surface instead of a second copy of the
+ * page-level TabStrip nested a level down. `TabStrip.ts`/`tabs.css`, the primary chrome
+ * this deliberately does not match, is untouched.
+ */
 .mb-tabstrip {
-    display: flex;
-    gap: 4px;
+    display: inline-flex;
+    gap: 2px;
+    max-width: 100%;
+    padding: 4px;
     /* Wide strips scroll inside themselves; the page never scrolls sideways. */
     overflow-x: auto;
-    padding-bottom: 2px;
-    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    border: 1px solid var(--md-sys-color-outline);
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-surface-container-low);
     scrollbar-width: thin;
 }
 
@@ -362,15 +374,18 @@
     flex: 0 0 auto;
     align-items: center;
     gap: var(--md-sys-spacing-2);
-    min-height: max(var(--mb-min-target, 44px), 44px);
+    min-height: max(var(--mb-min-target, 44px), 40px);
     padding: 8px 16px;
     border: 0;
-    border-radius: var(--md-sys-shape-corner-small, 8px) var(--md-sys-shape-corner-small, 8px) 0 0;
+    border-radius: var(--md-sys-shape-corner-full);
     background: transparent;
     color: var(--md-sys-color-on-surface-variant);
     font: inherit;
     font-weight: 500;
     cursor: pointer;
+    transition:
+        background-color var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard),
+        color var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
 }
 
 .mb-tab:hover {
@@ -378,18 +393,16 @@
 }
 
 .mb-tab[aria-selected="true"] {
-    color: var(--md-sys-color-primary);
+    background: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
 }
 
-.mb-tab[aria-selected="true"]::after {
-    position: absolute;
-    right: 12px;
-    bottom: 0;
-    left: 12px;
-    height: 3px;
-    border-radius: 3px 3px 0 0;
-    background: var(--md-sys-color-primary);
-    content: "";
+.mb-tab[aria-selected="true"]:hover {
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-on-primary-container) var(--md-sys-state-hover-opacity, 8%),
+        var(--md-sys-color-primary-container)
+    );
 }
 
 .mb-tab-badge {
