@@ -190,8 +190,15 @@ if (!LIVE || TOKEN === undefined || TOKEN.trim() === "" || REPO === undefined ||
                     });
                     await new Promise<void>((resolve) => {
                         const check = (): void => {
+                            // Waits specifically for real upload progress, not just any
+                            // progress - packing and splitting also emit progress events
+                            // with bytesDone > 0, and cancelling during those would abort
+                            // before the release (and therefore anything to resume) exists.
                             const uploadedSomething = firstEvents.some(
-                                (event) => event.type === "log" || (event.type === "progress" && event.task.bytesDone > 0),
+                                (event) =>
+                                    event.type === "progress" &&
+                                    event.phase === "uploading" &&
+                                    event.task.bytesDone > 0,
                             );
                             if (uploadedSomething && !cancelled) {
                                 cancelled = true;
