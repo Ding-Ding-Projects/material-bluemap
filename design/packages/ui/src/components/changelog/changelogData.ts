@@ -24,6 +24,37 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "7174ccc5ec9a37ca852a1f391ef1e1cfa9071287",
+        shortSha: "7174ccc5ec",
+        date: "2026-08-04T20:28:36-04:00",
+        subject: "Keep one profile keyboard hint in the catalogue",
+        details: "The merged profile branch and the main branch had each already carried the same shortcut key, so the merge briefly printed it twice in one object. Remove the duplicate; one Enter / Space hint is plenty, even for a menu that thinks it deserves an encore.\\n\\nProfile branch 同 main 各自已有同一條 shortcut key，merge 完一度令 object 重複報幕。刪走重複嗰條就夠，Enter / Space 一次已經好足，唔使個 menu 再 encore。",
+        category: "interface",
+        areas: ["interface"],
+        files: 1,
+    },
+    {
+        sha: "87c4e1204f2cc888933cd9d98faceb87fca02bc7",
+        shortSha: "87c4e1204f",
+        date: "2026-08-04T20:27:11-04:00",
+        subject: "Merge profile keyboard shortcuts into main",
+        details: "",
+        category: "interface",
+        areas: ["interface"],
+        files: 2,
+        summarizes: 2,
+    },
+    {
+        sha: "ac5ac795d751ab121f4c5b75103bcd7143b06deb",
+        shortSha: "ac5ac795d7",
+        date: "2026-08-04T20:27:05-04:00",
+        subject: "Show the real profile-row opening keys",
+        details: "Profile rows now expose the same Enter / Space keys their handler accepts, with the translated placeholder sourced from the copy catalogue. The menu no longer hides the shortcut while the code quietly accepts it; two doors, one sign, no keyboard treasure hunt.\\n\\nProfile row 而家會顯示 handler 真係接受嘅 Enter / Space，外圍 placeholder 亦由 copy catalogue 出聲。menu 唔再收埋 shortcut，code 又唔會偷偷開另一道門；兩道門一塊牌，唔使玩鍵盤尋寶。",
+        category: "interface",
+        areas: ["interface"],
+        files: 2,
+    },
+    {
         sha: "ba29f1a495b747ee48d67d7d5fc01fce106e7f07",
         shortSha: "ba29f1a495",
         date: "2026-08-04T20:24:12-04:00",

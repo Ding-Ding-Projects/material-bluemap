@@ -22,6 +22,9 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Keep one profile keyboard hint in the catalogue - [`7174ccc5ec`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7174ccc5ec9a37ca852a1f391ef1e1cfa9071287)
+- Merge profile keyboard shortcuts into main - [`87c4e1204f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/87c4e1204f2cc888933cd9d98faceb87fca02bc7) _(summary of 2 commits, also listed here)_
+- Show the real profile-row opening keys - [`ac5ac795d7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ac5ac795d751ab121f4c5b75103bcd7143b06deb)
 - Voice the config surfaces and harden capture cleanup - [`688bccec17`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/688bccec17ecda7727711cd926a46c5955c95c09)
 - Document the fixed appearance editor tabs - [`17d0dc6b67`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/17d0dc6b67ca21f8d3f7733f9e7500ff0f53afa8)
 - Complete tabbed material surfaces and resumable Pages publishing - [`1e9ae1b379`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1e9ae1b37973f169e010c759455fc8dbefe8f716)
