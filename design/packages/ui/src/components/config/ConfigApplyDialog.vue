@@ -65,6 +65,21 @@ const open = computed<boolean>({
  */
 const isSaving = computed(() => props.saving === true);
 
+/**
+ * Blocks Escape and an outside click while a write is in flight, matching the disabled
+ * Cancel button beside them.
+ *
+ * The Cancel button being disabled during a save was never the whole guard: `v-dialog`
+ * closes on Escape and on a click outside by default, and neither of those paths looks at
+ * a disabled button. A file delete this dialog is in the middle of writing has no way
+ * back once it lands - `host.deleteFiles` inside `confirmSave` is a real removal from
+ * disk - so dismissing the dialog mid-write must not look like cancelling something that
+ * can still be cancelled. `persistent` is only ever true while `isSaving` is, so the
+ * dialog is dismissable exactly the rest of the time: opening it, reviewing the plan, and
+ * after a save has finished or failed.
+ */
+const guardDismissal = computed(() => isSaving.value);
+
 const errors = computed(() => props.issues.filter((issue) => issue.severity === "error"));
 const warnings = computed(() => props.issues.filter((issue) => issue.severity === "warning"));
 
@@ -105,7 +120,7 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
 </script>
 
 <template>
-    <v-dialog v-model="open" max-width="620" scrollable>
+    <v-dialog v-model="open" max-width="620" scrollable :persistent="guardDismissal">
         <v-card>
             <v-card-title class="mb-config-apply__title">
                 <v-icon :icon="mdiContentSaveOutline" size="22" aria-hidden="true" />
