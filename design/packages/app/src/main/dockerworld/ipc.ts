@@ -105,11 +105,15 @@ function describe(error: unknown): string {
 
 export function registerDockerWorldHandlers(ipcMain: IpcMain, options: DockerWorldIpcOptions = {}): DockerWorldIpc {
     const fetcher = options.fetcher ?? new DockerWorldFetcher(options);
+    // Threaded into every inventory call below so a test can inject a runner rather than
+    // this handler reaching for the real `docker` binary on whatever machine runs it - the
+    // same reason `fetcher` itself is injectable.
+    const inventoryOptions = { ...(options.runner === undefined ? {} : { runner: options.runner }), ...(options.docker === undefined ? {} : { docker: options.docker }) };
 
     ipcMain.handle("dockerworld:list", async (): Promise<DockerWorldListAnswer> => {
         try {
             const [containers, volumes]: [InventoryResult<readonly DockerContainerSummary[]>, InventoryResult<readonly DockerVolumeSummary[]>] =
-                await Promise.all([listContainers(), listVolumes()]);
+                await Promise.all([listContainers(inventoryOptions), listVolumes(inventoryOptions)]);
             if (!containers.ok) return { ok: false, failure: containers.failure };
             if (!volumes.ok) return { ok: false, failure: volumes.failure };
             return { ok: true, containers: containers.value, volumes: volumes.value };
@@ -129,7 +133,7 @@ export function registerDockerWorldHandlers(ipcMain: IpcMain, options: DockerWor
                 return { ok: false, failure: failures.invalidRequest("A container id is required.") };
             }
             try {
-                const result = await inspectContainer(id);
+                const result = await inspectContainer(id, inventoryOptions);
                 return result.ok ? { ok: true, detail: result.value } : { ok: false, failure: result.failure };
             } catch (error) {
                 return { ok: false, failure: failures.unusable(describe(error)) };
@@ -144,7 +148,7 @@ export function registerDockerWorldHandlers(ipcMain: IpcMain, options: DockerWor
                 return { ok: false, failure: failures.invalidRequest("A volume name is required.") };
             }
             try {
-                const result = await inspectVolume(name);
+                const result = await inspectVolume(name, inventoryOptions);
                 return result.ok ? { ok: true, detail: result.value } : { ok: false, failure: result.failure };
             } catch (error) {
                 return { ok: false, failure: failures.unusable(describe(error)) };
