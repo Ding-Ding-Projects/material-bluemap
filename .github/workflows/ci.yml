@@ -737,6 +737,18 @@ jobs:
           echo "server plugins: $(du -h "$jars.zip" | cut -f1)   extras: $(du -h "$extras.zip" | cut -f1)"
 
           assets=(installer-out/*Setup.exe "$jars.zip" "$extras.zip")
+          # The Squirrel update set has to exist as its own loose release assets, not
+          # only zipped inside $extras.zip. Electron's autoUpdater (and the public
+          # update.electronjs.org feed this app points at by default, see
+          # design/packages/app/src/main/update/feed.ts) fetches RELEASES and the
+          # matching .nupkg straight from
+          # github.com/<repo>/releases/download/<tag>/<filename> - a plain HTTPS GET,
+          # never an unzip step. A release that only ships them inside extras.zip
+          # answers that GET with 404, so every installed copy's "check for updates"
+          # would find the release but never be able to fetch it. The copies inside
+          # extras.zip stay, for the reader who wants the whole set in one file; these
+          # are what the updater itself actually reads.
+          assets+=(installer-out/*.nupkg installer-out/RELEASES)
           # The parts and manifest of anything that was over the 2 GB cap, attached
           # instead of the oversized file rather than beside it.
           assets+=(split-out/*)
