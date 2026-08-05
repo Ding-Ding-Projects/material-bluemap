@@ -32,7 +32,12 @@ import {
     UPDATE_EVENT_CHANNEL,
     type InstalledUpdates,
 } from "./update/index.js";
-import { RenderMemoryStore, registerFileHandlers, windowsMapStorageDefault } from "./files/index.js";
+import {
+    DownloadConcurrencyStore,
+    RenderMemoryStore,
+    registerFileHandlers,
+    windowsMapStorageDefault,
+} from "./files/index.js";
 import { registerEulaHandlers } from "./eula/index.js";
 import { join } from "node:path";
 import { homedir } from "node:os";
@@ -317,6 +322,10 @@ function startDownloads(render: RenderIpc, github: GitHubIpc): DownloadIpc {
     downloadIpc = installDownloadIpc({
         storageDir: () => render.storageDirectory(),
         token: releaseTokenSource({ session: github.session }),
+        // The worker count somebody chose in Settings, read fresh for every download
+        // rather than captured here - `files/downloadConcurrency.ts`'s own store already
+        // re-reads its file on every call, so this is never stale.
+        concurrency: () => getDownloadConcurrencyStore().concurrency(),
     });
     return downloadIpc;
 }
@@ -534,6 +543,7 @@ function startUpdates(render: RenderIpc): void {
  * `startFileAccess()`, but neither should have to assume that ordering forever.
  */
 let renderMemory: RenderMemoryStore | null = null;
+let downloadConcurrency: DownloadConcurrencyStore | null = null;
 let filesRegistered = false;
 
 function getRenderMemoryStore(): RenderMemoryStore {
@@ -544,14 +554,27 @@ function getRenderMemoryStore(): RenderMemoryStore {
     return renderMemory;
 }
 
+/**
+ * The persisted "how many parts at once" setting, shared the same way
+ * {@link getRenderMemoryStore} is: `startDownloads` reads it on every download,
+ * `startFileAccess` registers the channel that reads and writes it, and neither call
+ * order is assumed - both create the one instance on whichever of them runs first.
+ */
+function getDownloadConcurrencyStore(): DownloadConcurrencyStore {
+    downloadConcurrency ??= new DownloadConcurrencyStore({ dataDir: app.getPath("userData") });
+    return downloadConcurrency;
+}
+
 function startFileAccess(render: RenderIpc): RenderMemoryStore {
     const memory = getRenderMemoryStore();
+    const concurrency = getDownloadConcurrencyStore();
     if (filesRegistered) return memory;
     filesRegistered = true;
     registerFileHandlers(ipcMain, {
         shell,
         documents: { reported: app.getPath("documents"), home: app.getPath("home") },
         memory,
+        downloadConcurrency: concurrency,
         roots: () => [
             { id: "maps", label: "the folder rendered maps go in", path: render.storageDirectory() },
             { id: "data", label: "this app's own data folder", path: app.getPath("userData") },
