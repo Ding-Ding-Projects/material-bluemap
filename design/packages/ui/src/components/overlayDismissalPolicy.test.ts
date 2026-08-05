@@ -1,0 +1,512 @@
+// @vitest-environment node
+
+/**
+ * "Right click menu not closing when clicking off the menu" -- kept fixed by a test rather
+ * than by remembering, and generalised to every overlay this package can open, not only the
+ * one the report named.
+ *
+ * ## The mechanism, traced rather than guessed
+ *
+ * Every popover-shaped surface in this package is Vuetify's `<v-menu>` (built on
+ * `VOverlay`), which already supplies Escape handling, window-listener teardown and
+ * outside-click detection via its own `v-click-outside` directive -- one shared primitive,
+ * not a document listener reinvented per file. That directive treats a click as "outside"
+ * unless it lands inside the overlay's own content OR inside whatever `VOverlay`'s
+ * `useActivator` composable resolved as `activatorEl`:
+ *
+ * ```
+ * // VOverlay.js
+ * include: () => [activatorEl.value]
+ * ```
+ *
+ * `activatorEl` comes from the `:activator` prop, and only from that prop -- reading
+ * `useActivator.js` shows `target` (positioning) and `activatorEl` (click-outside inclusion,
+ * hover, focus, and the `aria-haspopup`/`aria-controls`/`aria-expanded` wiring) are resolved
+ * independently:
+ *
+ * ```
+ * const target = computed(() => {
+ *     if (props.target === 'cursor' && cursorTarget.value) return cursorTarget.value;
+ *     if (targetRef.value) return targetRef.el;
+ *     return getTarget(props.target, vm) || activatorEl.value;
+ * });
+ * ```
+ *
+ * So a `<v-menu>` that sets an explicit `:target` for positioning (a pointer coordinate, a
+ * specific anchor element) *and* a separate dynamic `:activator` for its ARIA wiring gets
+ * positioned by `:target` but still treats the *entire* `:activator` element as permanently
+ * "inside" for outside-click purposes -- regardless of where `:target` actually put the
+ * overlay on screen. `AppearanceTarget.vue` did exactly this: `:activator="root"` where
+ * `root` is the whole wrapped surface (for `id="app.tabBar"`, the entire tab bar and every
+ * page under it), so almost any click anywhere in the application landed "inside" `root` and
+ * the outside-click directive waved it through. That is the reported bug, traced to the
+ * exact line.
+ *
+ * The fix used throughout this file's own history is not "delete `:activator`, lose the
+ * ARIA wiring" -- `aria-haspopup`/`aria-controls`/`aria-expanded` are real accessibility
+ * information a screen-reader user needs, and `useActivator` only writes them when
+ * `:activator` is set. The correct shape, and the one this test enforces, is: a `<v-menu>`
+ * that needs `:target` for positioning wires its own `aria-haspopup`/`aria-expanded`/
+ * `aria-controls` by hand and never *also* binds a dynamic `:activator` -- see
+ * `AppearanceTarget.vue`'s `menuId`/`editorId` for the worked example. `activator="parent"`
+ * on a small dedicated trigger (a bell icon, a `+` button) stays exactly as safe as it always
+ * was: `:target` is never set alongside it, so there is nothing to collide with.
+ *
+ * ## The two-part guard
+ *
+ *  1. **The mechanism sweep.** Every `<v-menu>` tag under `packages/ui/src` is parsed for a
+ *     dynamic (non-`"parent"`) `:activator` binding *and* an explicit `:target` binding at
+ *     the same time. Finding both on one tag is the defect, full stop -- this is checked
+ *     structurally, so a brand new overlay written the same wrong way next month fails this
+ *     file exactly as `AppearanceTarget.vue` would have, without anyone updating a list.
+ *     Alongside it: no swept `<v-menu>` may set `persistent`, which would silently disable
+ *     both Escape and outside-click dismissal at once -- the other easy way to reintroduce
+ *     this exact bug class.
+ *  2. **The declared inventory.** Every file that either owns a `<v-menu>` or wraps content
+ *     in the shared `<AppearanceTarget>` wrapper (which brings its own two `<v-menu>`s along
+ *     for free) is named below with its current dismissal status, cross-checked against the
+ *     live sweep rather than trusted. `"pending"` names a surface this task's own scouting
+ *     found broken, with the owner fixing it; a `"pending"` entry whose file the live sweep
+ *     now finds clean fails this test too, which is what forces the entry to be promoted to
+ *     `"clean"` the moment the real fix lands, rather than the registry quietly going stale.
+ *
+ * A file wrapped in `<AppearanceTarget>` gets exactly one thing to say about the mechanism:
+ * whichever way `AppearanceTarget.vue` itself is wired, every one of its callers is wired the
+ * same way, because it is the one shared component doing the work for all of them. That is
+ * also why fixing `AppearanceTarget.vue` alone clears every row below that only wraps it.
+ */
+
+import { describe, expect, it } from "vitest";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
+import { fileURLToPath } from "node:url";
+
+/** `packages/ui/src`, one level above this file (`components/overlayDismissalPolicy.test.ts`). */
+const UI_SRC = fileURLToPath(new URL("..", import.meta.url));
+
+function read(file: string): string {
+    return readFileSync(join(UI_SRC, file), "utf8");
+}
+
+function relativeToSource(path: string): string {
+    return relative(UI_SRC, path).split("\\").join("/");
+}
+
+function vueFiles(dir: string, found: string[] = []): string[] {
+    for (const name of readdirSync(dir)) {
+        if (name === "node_modules" || name === "dist") continue;
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) {
+            vueFiles(path, found);
+            continue;
+        }
+        if (name.endsWith(".vue")) found.push(path);
+    }
+    return found;
+}
+
+const VUE_FILES = vueFiles(UI_SRC).map(relativeToSource);
+
+/* -------------------------------------------------------------------------- */
+/* The detector: every <v-menu ...> opening tag, and what it binds            */
+/* -------------------------------------------------------------------------- */
+
+/** Every `<v-menu ...>` opening tag in `source`, attributes and all, up to the closing `>`. */
+function vMenuTags(source: string): string[] {
+    const tags: string[] = [];
+    const OPEN = /<v-menu\b/g;
+    let match: RegExpExecArray | null;
+    while ((match = OPEN.exec(source)) !== null) {
+        const close = source.indexOf(">", match.index);
+        if (close === -1) continue;
+        tags.push(source.slice(match.index, close + 1));
+    }
+    return tags;
+}
+
+/** A bound `:activator="..."` whose value is not the literal string `"parent"`. */
+function hasDynamicActivator(tag: string): boolean {
+    const match = /:activator="([^"]*)"/.exec(tag);
+    if (match === null) return false;
+    const expression = match[1]?.trim() ?? "";
+    return expression !== "'parent'" && expression !== '"parent"';
+}
+
+function hasExplicitTarget(tag: string): boolean {
+    return /:target="/.test(tag);
+}
+
+function isPersistent(tag: string): boolean {
+    return /\bpersistent\b/.test(tag);
+}
+
+/** Every file with at least one `<v-menu` tag. */
+const SWEPT_V_MENU = new Set(VUE_FILES.filter((file) => vMenuTags(read(file)).length > 0));
+
+/** Every file wrapping content in `<AppearanceTarget>`, other than the primitive itself. */
+const APPEARANCE_TARGET_USERS = new Set(
+    VUE_FILES.filter(
+        (file) =>
+            file !== "components/appearance/AppearanceTarget.vue" && /<AppearanceTarget\b/.test(read(file)),
+    ),
+);
+
+/** True when one of `file`'s own `<v-menu>` tags binds a colliding activator and target. */
+function fileCollides(file: string): boolean {
+    return vMenuTags(read(file)).some((tag) => hasDynamicActivator(tag) && hasExplicitTarget(tag));
+}
+
+function filePersistent(file: string): boolean {
+    return vMenuTags(read(file)).some((tag) => isPersistent(tag));
+}
+
+const APPEARANCE_TARGET_FILE = "components/appearance/AppearanceTarget.vue";
+
+/* -------------------------------------------------------------------------- */
+/* The declared inventory                                                     */
+/* -------------------------------------------------------------------------- */
+
+type Status = "clean" | "pending" | "not-applicable";
+
+interface OverlayEntry {
+    readonly file: string;
+    readonly surface: string;
+    /** This file's own `<v-menu>` tag(s), if any, are part of the mechanism check. */
+    readonly ownVMenu: boolean;
+    /** This file wraps content in `<AppearanceTarget>`, inheriting its wiring wholesale. */
+    readonly wrapsAppearanceTarget: boolean;
+    readonly status: Status;
+    /** Required, and asserted non-empty, when `status` is `"pending"`. */
+    readonly owner?: string;
+    /** Required, and asserted non-empty, when `status` is `"not-applicable"`. */
+    readonly reason?: string;
+}
+
+const REGISTRY: readonly OverlayEntry[] = [
+    {
+        file: APPEARANCE_TARGET_FILE,
+        surface:
+            "The shared per-element 'Edit appearance...' context menu and its editor popover -- " +
+            "the wrapper every AppearanceTarget consumer below reuses.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "App.vue",
+        surface:
+            "Two AppearanceTarget wrappers: id=\"app.titleBar\" (the whole title bar) and " +
+            "id=\"app.tabBar\" (the whole tab bar and every page under it) -- the highest-blast-" +
+            "radius instance of the defect, and very likely the exact reproduction reported.",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/ProfileManager.vue",
+        surface: "Context menu of a map/server profile row (Edit/Reset appearance).",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/project/ProjectList.vue",
+        surface: "Context menu of a project/world row (Edit/Reset appearance).",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/controlbar/ControlBar.vue",
+        surface: "Context menu of the whole map control bar.",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/eula/EulaSectionPanel.vue",
+        surface: "Context menu of one EULA section.",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/settings/DockedSurface.vue",
+        surface:
+            "Its own placement-chooser <v-menu> (activator=\"parent\" on a small icon button -- " +
+            "always clean) PLUS an AppearanceTarget wrapper around the panel title, which " +
+            "inherits AppearanceTarget.vue's wiring.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/appearance/ColorField.vue",
+        surface: "The colour-picker popover hosting InfiniteColorPicker.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/appearance/TypographyEditor.vue",
+        surface: "The font-family picker popover.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/changelog/ChangelogDateFilter.vue",
+        surface: "The advanced calendar popover behind the changelog's date-range filter.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/changelog/ChangelogViewer.vue",
+        surface: "The 'Copy' and 'Export' format pickers on the changelog viewer's toolbar.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/config/ConfigSearchField.vue",
+        surface: "The regex builder popover anchored to every settings search field.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/config/ConfigSuperConfirm.vue",
+        surface: "The destructive-action two-key confirmation gate popover.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/eula/EulaViewer.vue",
+        surface:
+            "The EULA viewer's 'Export' picker (section/whole document x formats), PLUS an " +
+            "AppearanceTarget wrapper around its own tab strip, which inherits " +
+            "AppearanceTarget.vue's wiring.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/glossary/GlossaryTerm.vue",
+        surface: "The in-place glossary term popover (one definition and a 'Read more' link).",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/history/HistoryComparison.vue",
+        surface: "The two-revision comparison's 'Export' format picker.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/history/HistoryPanel.vue",
+        surface:
+            "The whole history panel's own toolbar 'Export' format picker, PLUS an " +
+            "AppearanceTarget wrapper (id=\"history.panel\") around the whole panel, which " +
+            "inherits AppearanceTarget.vue's wiring.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/markers/MarkerSearchField.vue",
+        surface: "The regex builder popover anchored to the in-viewer marker search field.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/menu/MenuSearchField.vue",
+        surface:
+            "The regex builder popover anchored to BlueMap's own in-viewer menu search field. " +
+            "`:activator=\"anchor\"` alone, no `:target` -- Vuetify's own `target` computed falls " +
+            "back to `activatorEl` when `:target` is unset, so the popover's position and its " +
+            "click-outside inclusion agree: clicking anywhere inside this one small field while " +
+            "its builder is open is deliberately treated as 'inside', not the broad-wrapper defect.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/notifications/NotificationCentre.vue",
+        surface: "The notification centre popover (bell icon), hosting NoticeCentrePanel.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/tabs/TabStrip.vue",
+        surface:
+            "The tab menu and group menu (:target only, no :activator), the new-tab picker, " +
+            "the overflow list and the tab finder popover (activator=\"parent\" on their own " +
+            "small trigger buttons, no :target).",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+] as const;
+
+const registryByFile = new Map(REGISTRY.map((entry) => [entry.file, entry]));
+
+/** Whether the live sweep currently finds `entry`'s mechanism broken. */
+function isBroken(entry: OverlayEntry): boolean {
+    if (entry.ownVMenu && fileCollides(entry.file)) return true;
+    if (entry.wrapsAppearanceTarget && fileCollides(APPEARANCE_TARGET_FILE)) return true;
+    return false;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The mechanism sweep                                                        */
+/* -------------------------------------------------------------------------- */
+
+describe("overlayDismissalPolicy.ts: the mechanism sweep", () => {
+    it("finds the surfaces it is supposed to be watching", () => {
+        expect(VUE_FILES.length).toBeGreaterThan(40);
+        expect(SWEPT_V_MENU.size).toBeGreaterThan(10);
+    });
+
+    it("never binds a dynamic :activator together with an explicit :target on one <v-menu>", () => {
+        const colliding = [...SWEPT_V_MENU].filter((file) => fileCollides(file));
+        expect(
+            colliding,
+            "Right click menu not closing when clicking off the menu (the reported bug): " +
+                "Vuetify's outside-click directive always includes the whole :activator element, " +
+                "regardless of what :target positions the overlay against. Wire aria-haspopup/" +
+                "aria-expanded/aria-controls by hand instead (see AppearanceTarget.vue's menuId/" +
+                "editorId) and drop the dynamic :activator, or register this file in REGISTRY as " +
+                "'pending' with an owner if another lane is already fixing it.",
+        ).toEqual([]);
+    });
+
+    it("never sets persistent on a <v-menu>, which would silently disable Escape and outside-click both", () => {
+        const persistent = [...SWEPT_V_MENU].filter((file) => filePersistent(file));
+        expect(persistent).toEqual([]);
+    });
+
+    it("catches a fabricated collision, and does not accuse an ordinary menu", () => {
+        // The detector is the whole mechanism check, so it is exercised rather than trusted.
+        const broken = '<v-menu v-model="open" :activator="root ?? undefined" :target="pos">';
+        expect(hasDynamicActivator(broken) && hasExplicitTarget(broken)).toBe(true);
+
+        const targetOnly = '<v-menu v-model="open" :target="pos">';
+        expect(hasDynamicActivator(targetOnly) && hasExplicitTarget(targetOnly)).toBe(false);
+
+        const smallTrigger = '<v-menu v-model="open" activator="parent">';
+        expect(hasDynamicActivator(smallTrigger) && hasExplicitTarget(smallTrigger)).toBe(false);
+
+        const literalParent = '<v-menu v-model="open" :activator="\'parent\'" :target="pos">';
+        expect(hasDynamicActivator(literalParent)).toBe(false);
+
+        expect(isPersistent('<v-menu v-model="open" persistent activator="parent">')).toBe(true);
+        expect(isPersistent('<v-menu v-model="open" activator="parent">')).toBe(false);
+
+        expect(vMenuTags('<v-menu v-model="a" activator="parent">\n  x\n</v-menu>')).toHaveLength(1);
+        expect(vMenuTags("no menu here")).toHaveLength(0);
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The declared inventory                                                     */
+/* -------------------------------------------------------------------------- */
+
+describe("overlayDismissalPolicy.ts: the declared inventory", () => {
+    it("registers every file the sweep finds with a real <v-menu> tag", () => {
+        const unregistered = [...SWEPT_V_MENU].filter(
+            (file) => !registryByFile.has(file) || registryByFile.get(file)?.ownVMenu !== true,
+        );
+        expect(
+            unregistered,
+            "a new <v-menu> shipped without joining REGISTRY in overlayDismissalPolicy.test.ts " +
+                "(ownVMenu: true). Add an entry for it before this can pass.",
+        ).toEqual([]);
+    });
+
+    it("registers every file the sweep finds wrapped in <AppearanceTarget>", () => {
+        const unregistered = [...APPEARANCE_TARGET_USERS].filter(
+            (file) => !registryByFile.has(file) || registryByFile.get(file)?.wrapsAppearanceTarget !== true,
+        );
+        expect(
+            unregistered,
+            "a new AppearanceTarget-wrapped surface shipped without joining REGISTRY " +
+                "(wrapsAppearanceTarget: true).",
+        ).toEqual([]);
+    });
+
+    it("never lists an entry for a file that does not exist", () => {
+        const missing = REGISTRY.filter((entry) => !VUE_FILES.includes(entry.file));
+        expect(missing.map((entry) => entry.file)).toEqual([]);
+    });
+
+    it("never claims ownVMenu for a file the live sweep no longer finds a <v-menu> in", () => {
+        const stale = REGISTRY.filter((entry) => entry.ownVMenu && !SWEPT_V_MENU.has(entry.file));
+        expect(
+            stale.map((entry) => entry.file),
+            "the <v-menu> this entry described was removed or renamed. Update or remove the entry.",
+        ).toEqual([]);
+    });
+
+    it("never claims wrapsAppearanceTarget for a file that no longer wraps one", () => {
+        const stale = REGISTRY.filter(
+            (entry) => entry.wrapsAppearanceTarget && !APPEARANCE_TARGET_USERS.has(entry.file),
+        );
+        expect(stale.map((entry) => entry.file)).toEqual([]);
+    });
+
+    it("does not register the same file twice", () => {
+        const seen = new Set<string>();
+        const duplicates: string[] = [];
+        for (const entry of REGISTRY) {
+            if (seen.has(entry.file)) duplicates.push(entry.file);
+            seen.add(entry.file);
+        }
+        expect(duplicates).toEqual([]);
+    });
+
+    it("names an owner for every 'pending' entry", () => {
+        const unowned = REGISTRY.filter(
+            (entry) => entry.status === "pending" && (entry.owner ?? "").trim().length < 20,
+        );
+        expect(unowned.map((entry) => entry.file)).toEqual([]);
+    });
+
+    it("names a reason for every 'not-applicable' entry", () => {
+        const unexplained = REGISTRY.filter(
+            (entry) => entry.status === "not-applicable" && (entry.reason ?? "").trim().length < 20,
+        );
+        expect(unexplained.map((entry) => entry.file)).toEqual([]);
+    });
+
+    it("keeps a 'clean' entry clean, so a regression on an already-fixed surface cannot hide", () => {
+        const regressed = REGISTRY.filter((entry) => entry.status === "clean" && isBroken(entry));
+        expect(
+            regressed.map((entry) => entry.file),
+            "this surface was marked clean, but the live sweep now finds its mechanism broken " +
+                "again -- either the fix was reverted, or something new collides.",
+        ).toEqual([]);
+    });
+
+    it("promotes a 'pending' entry the moment its fix actually lands, rather than trusting the label", () => {
+        const stalePending = REGISTRY.filter((entry) => entry.status === "pending" && !isBroken(entry));
+        expect(
+            stalePending.map((entry) => entry.file),
+            "this entry is still marked 'pending' but the live sweep no longer finds it broken. " +
+                "The fix landed -- flip its status to 'clean' rather than leaving the registry " +
+                "stale.",
+        ).toEqual([]);
+    });
+
+    it("only exercises three statuses, so a typo cannot silently mean 'skip this row'", () => {
+        const STATUSES: readonly Status[] = ["clean", "pending", "not-applicable"];
+        for (const entry of REGISTRY) {
+            expect(STATUSES, entry.file).toContain(entry.status);
+        }
+    });
+});
