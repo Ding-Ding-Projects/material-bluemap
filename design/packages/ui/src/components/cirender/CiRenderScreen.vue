@@ -618,6 +618,8 @@ onBeforeUnmount(() => {
                         density="compact"
                         class="mt-4 mb-2"
                         data-test="owner-signed-out"
+                        role="status"
+                        aria-live="polite"
                     >
                         {{
                             t(
@@ -642,6 +644,7 @@ onBeforeUnmount(() => {
                         density="compact"
                         class="mt-4 mb-2"
                         data-test="owner-load-failed"
+                        role="alert"
                     >
                         {{ ownerFailureMessage }}
                         <VBtn size="small" variant="text" class="mt-1" @click="renders.loadOwners()">
@@ -724,6 +727,8 @@ onBeforeUnmount(() => {
                         v-if="renders.checkingName.value"
                         class="text-medium-emphasis mt-1"
                         data-test="repo-availability"
+                        role="status"
+                        aria-live="polite"
                     >
                         {{ t("cirender.repo.checking", "Checking whether that name is free...") }}
                     </p>
@@ -736,6 +741,8 @@ onBeforeUnmount(() => {
                             'text-medium-emphasis': repoAvailabilityTone === 'muted',
                         }"
                         data-test="repo-availability"
+                        role="status"
+                        aria-live="polite"
                     >
                         {{ repoAvailabilityText }}
                     </p>

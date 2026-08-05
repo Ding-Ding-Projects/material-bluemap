@@ -22,6 +22,7 @@ import type {
     Answer,
     CiPreflight,
     CiRenderBridge,
+    CiRepositoryNameAvailability,
     CiSyncEvent,
     CiSyncResult,
     RouteReport,
@@ -734,6 +735,25 @@ describe("the world folder: a picker of what this machine already knows about", 
         expect(wrapper.find('[data-test="world-browse"]').attributes("disabled")).toBeDefined();
     });
 
+    it("gives the disabled Browse button a reason that is on screen, not only in a hover title", () => {
+        // A `title` attribute is a mouse-hover tooltip and nothing else: it never reaches a
+        // keyboard-only user, and a disabled button is skipped by Tab entirely, so an
+        // aria-label attached to the button can go unheard too. The one route both a
+        // keyboard user and a screen reader in normal reading order actually encounter is
+        // plain text sitting on the page - which this asserts exists and says why.
+        const wrapper = mountScreen(fakeBridge(preflight()));
+        const browse = wrapper.find('[data-test="world-browse"]');
+        expect(browse.attributes("disabled")).toBeDefined();
+
+        const reason = wrapper.find('[data-test="world-browse-unavailable"]');
+        expect(reason.exists()).toBe(true);
+        expect(reason.text().length).toBeGreaterThan(0);
+        // The visible text and the button's own accessible name say the same thing, so a
+        // screen reader landing on either route hears an actual reason rather than a bare
+        // "Browse, dimmed".
+        expect(browse.attributes("aria-label")).toContain(reason.text());
+    });
+
     it("fills the field from the shared browse affordance when this build carries it", async () => {
         vi.stubGlobal("materialBluemap", { dialog: { pickFolder: () => Promise.resolve("/browsed/world") } });
         try {
@@ -777,6 +797,39 @@ describe("the repository owner: chosen from the signed-in account, or typed", ()
 
         expect(wrapper.find('[data-test="owner-load-failed"]').text()).toContain("500");
         expect(wrapper.find('[data-test="owner-signed-out"]').exists()).toBe(false);
+    });
+
+    it("announces the signed-out and load-failed owner states to assistive technology", async () => {
+        // Both states relied on VAlert's own hardcoded default of role="alert" *regardless
+        // of severity* - correct by accident for a real failure, but exactly wrong for the
+        // signed-out state, which is routine information with a remedy, not an emergency
+        // that should interrupt whatever a screen reader was already saying. Every sibling
+        // that shows the same kind of "nothing is wrong, here's what to do" info alert -
+        // `GitHubAccountRow.vue`, `JavaRuntimeRow.vue`, `StorageSettingRow.vue`,
+        // `ConsentSettingsRow.vue` - downgrades it to the polite `role="status"` instead,
+        // and this screen's owner-signed-out alert is the same kind of message.
+        const signedOut = mountScreen({
+            ...fakeBridge(preflight()),
+            listCiOwners: () =>
+                Promise.resolve({ ok: false, signedIn: false, message: "Nobody is signed in to GitHub." }),
+        });
+        await flushPromises();
+        const signedOutAlert = signedOut.find('[data-test="owner-signed-out"]');
+        expect(signedOutAlert.attributes("role")).toBe("status");
+        expect(signedOutAlert.attributes("aria-live")).toBe("polite");
+
+        // The load-failed state is a genuine failure - the list itself could not be read -
+        // so it keeps the assertive `role="alert"` every sibling failure alert uses
+        // (`dropFailure`, `sourceFailure`, the repositories-failure alert on this same
+        // screen), stated explicitly here rather than left to a library default that could
+        // change under it.
+        const loadFailed = mountScreen({
+            ...fakeBridge(preflight()),
+            listCiOwners: () => Promise.resolve({ ok: false, signedIn: true, message: "GitHub answered 500." }),
+        });
+        await flushPromises();
+        const loadFailedAlert = loadFailed.find('[data-test="owner-load-failed"]');
+        expect(loadFailedAlert.attributes("role")).toBe("alert");
     });
 
     it("lists the signed-in login and every organisation to choose from", async () => {
@@ -922,17 +975,17 @@ describe("the repository name: suggested once a world is chosen, checked live", 
     it.each([
         [
             "available" as const,
-            { status: "available", owner: "o", repo: "r" },
+            { status: "available", owner: "o", repo: "r" } as CiRepositoryNameAvailability,
             "free on GitHub",
         ],
         [
             "taken" as const,
-            { status: "taken", owner: "o", repo: "r", private: false, htmlUrl: null },
+            { status: "taken", owner: "o", repo: "r", private: false, htmlUrl: null } as CiRepositoryNameAvailability,
             "already exists",
         ],
         [
             "unknown" as const,
-            { status: "unknown", owner: "o", repo: "r", message: "offline" },
+            { status: "unknown", owner: "o", repo: "r", message: "offline" } as CiRepositoryNameAvailability,
             "Could not check",
         ],
     ])("says the %s verdict in plain words, after a pause rather than on every keystroke", async (_label, answer, expected) => {
@@ -956,6 +1009,45 @@ describe("the repository name: suggested once a world is chosen, checked live", 
         } finally {
             vi.useRealTimers();
         }
+    });
+
+    it("marks both the checking and the settled availability text as a polite live region", async () => {
+        // The paragraph used to carry no ARIA role at all, so "checking...", then "taken" or
+        // "free", silently replaced each other on screen with nothing telling a screen
+        // reader that had moved on to another field that either had happened. Real timers
+        // and a manually-resolved promise, rather than fake timers, because
+        // `advanceTimersByTimeAsync` also drains the already-resolved bridge promise in the
+        // same tick and there would be no window left in which "checking" is actually on
+        // screen to assert against.
+        let resolveCheck: (value: CiRepositoryNameAvailability) => void = () => {};
+        const bridgeWithCheck: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            checkCiRepoName: () =>
+                new Promise<CiRepositoryNameAvailability>((resolve) => {
+                    resolveCheck = resolve;
+                }),
+        };
+        const wrapper = mountScreen(bridgeWithCheck);
+
+        await wrapper.find('[data-test="owner-field"] input').setValue("o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+
+        // Past the 600ms debounce, so the check has actually started, but the bridge's own
+        // promise is still deliberately unresolved.
+        await new Promise((resolve) => setTimeout(resolve, 650));
+        await flushPromises();
+
+        const checking = wrapper.find('[data-test="repo-availability"]');
+        expect(checking.exists()).toBe(true);
+        expect(checking.attributes("role")).toBe("status");
+        expect(checking.attributes("aria-live")).toBe("polite");
+
+        resolveCheck({ status: "available", owner: "o", repo: "r" });
+        await flushPromises();
+
+        const settled = wrapper.find('[data-test="repo-availability"]');
+        expect(settled.attributes("role")).toBe("status");
+        expect(settled.attributes("aria-live")).toBe("polite");
     });
 
     it("names the exact GitHub naming rule a typed name breaks", async () => {

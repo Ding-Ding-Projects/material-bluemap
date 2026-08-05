@@ -318,6 +318,23 @@ describe("the tab strip", () => {
         expect(app.findComponent(CiRenderScreen).exists()).toBe(true);
     });
 
+    it("takes the CI-render screen's sign-in button to the GitHub row, not to Settings left blind", async () => {
+        // `openSettings()` used to be called with no anchor at all for this button, which
+        // opened the sheet on whichever tab it last remembered - anywhere but the GitHub
+        // sign-in row the button claims to open. A click that looks like it worked and
+        // leaves the person exactly where they started is worse than no button.
+        const app = shell();
+        tabButton("GitHub runners").click();
+        await settle();
+
+        app.findComponent(CiRenderScreen).vm.$emit("signIn");
+        await settle();
+
+        const settings = app.findComponent(AppSettings);
+        expect(settings.props("open")).toBe(true);
+        expect(settings.props("anchor")).toBe("github-account");
+    });
+
     it("reaches the Pages-hosting surface through its tab, rather than leaving it in the bundle", async () => {
         const app = shell();
         expect(app.findComponent(PagesScreen).exists()).toBe(false);

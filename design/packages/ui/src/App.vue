@@ -28,7 +28,7 @@ import { AppTitleBar } from "./components/shell/index.js";
 import { requestReveal } from "./components/shell/revealRequests.js";
 import { FirstRunSetup } from "./components/setup/index.js";
 import { useSetupI18n } from "./components/setup/setupI18n.js";
-import { AppSettings, type SettingsAnchor } from "./components/settings/index.js";
+import { AppSettings, type SettingsSectionAnchor } from "./components/settings/index.js";
 import { EulaSurface } from "./components/eula/index.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
@@ -251,7 +251,16 @@ watch(
 /* -------------------------------------------------------------------------- */
 
 const settingsOpen = ref(false);
-const settingsAnchor = ref<SettingsAnchor | null>(null);
+/**
+ * `SettingsSectionAnchor` rather than the narrower `SettingsAnchor`: a render failure can
+ * only ever point at the four bridge-reachable anchors, but this shell also opens the
+ * surface at sections a render never points at - GitHub sign-in among them, from the
+ * CI-render screen's "Open the GitHub sign-in" button. `openSettings()` with no argument
+ * used to be the only way that button's `signIn` emit was wired, which opened the sheet
+ * without ever switching to, scrolling to or focusing the sign-in row - a click that looked
+ * like it worked and left the person exactly where they started.
+ */
+const settingsAnchor = ref<SettingsSectionAnchor | null>(null);
 const settingsMissing = ref(false);
 
 /**
@@ -274,7 +283,7 @@ watch(settingsOpen, (open) => {
     if (!open) settingsEpoch.value += 1;
 });
 
-function openSettings(anchor: SettingsAnchor | null = null, missing = false): void {
+function openSettings(anchor: SettingsSectionAnchor | null = null, missing = false): void {
     settingsAnchor.value = anchor;
     settingsMissing.value = missing;
     settingsOpen.value = true;
@@ -626,7 +635,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                 <div class="mb-shell-centre">
                                     <CiRenderScreen
                                         :can-open-settings="true"
-                                        @sign-in="openSettings()"
+                                        @sign-in="openSettings('github-account')"
                                         @open-consent="openSettings('mojang-download-consent')"
                                         @open="openInBrowser"
                                         @rendered="openCiRenderedMap"
