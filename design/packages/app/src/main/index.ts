@@ -60,6 +60,8 @@ import { installCiRenderIpc } from "./cirender/ipc.js";
 import type { CiRenderIpc } from "./cirender/ipc.js";
 import { installPagesIpc, PAGES_EVENT_CHANNEL } from "./pages/index.js";
 import type { PagesIpc } from "./pages/index.js";
+import { installWorldRepoIpc, WORLD_REPO_EVENT_CHANNEL } from "./worldrepo/index.js";
+import type { WorldRepoIpc } from "./worldrepo/index.js";
 import { registerProjectHandlers } from "./project/index.js";
 import type { ProjectIpc } from "./project/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
@@ -639,6 +641,33 @@ function startPagesHosting(render: RenderIpc): PagesIpc {
 }
 
 /**
+ * Keeping a Minecraft world in a git repository, so a render never has to re-zip it.
+ *
+ * Registered the same way `startPagesHosting` is, and for the same reason: `workRoot` is
+ * under this application's own data directory, never inside a world, and a git directory
+ * kept there stages against whatever folder the person points at directly - a several
+ * -gigabyte world is synced without being copied first, and there is never a `.git`
+ * inside somebody's actual world save.
+ */
+let worldRepoIpc: WorldRepoIpc | null = null;
+
+function startWorldRepoHosting(): WorldRepoIpc {
+    if (worldRepoIpc !== null) return worldRepoIpc;
+    worldRepoIpc = installWorldRepoIpc({
+        ipcMain,
+        workRoot: () => join(app.getPath("userData"), "world-repos"),
+        broadcast: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (window.isDestroyed()) continue;
+                window.webContents.send(WORLD_REPO_EVENT_CHANNEL, event);
+            }
+        },
+    });
+    app.on("will-quit", () => worldRepoIpc?.dispose());
+    return worldRepoIpc;
+}
+
+/**
  * Worlds published as somebody else's release, including the split ones.
  *
  * Broadcast on the DOWNLOAD channel and handed the downloader the panel already lists,
@@ -902,6 +931,7 @@ async function createWindow(): Promise<void> {
     startBackups(render, github);
     startCiRenders(render, github, startBackups(render, github));
     startPagesHosting(render);
+    startWorldRepoHosting();
     startWorldSources(render, downloads, github);
     startSshWorldSources();
     startRuntime(render);

@@ -55,16 +55,18 @@ on:
           - repository
           - url
           - release-asset
+          - git
       world:
         description: >-
           repository: path in this repo · url: link to a .zip ·
-          release-asset: asset name or glob, optionally "tag/glob" (default tag: latest)
+          release-asset: asset name or glob, optionally "tag/glob" (default tag: latest) ·
+          git: branch, optionally "branch:subpath" when the world is not at the branch root
         type: string
         default: worlds/world
       world-repository:
         description: >-
-          release-asset only. owner/name of the repository whose release holds the world.
-          Blank means this repository.
+          release-asset and git only. owner/name of the repository the world lives in.
+          Blank means this repository (release-asset only - git always needs one named).
         type: string
         default: ''
       dimension:
@@ -264,6 +266,49 @@ jobs:
               echo "Downloading $WORLD"
               curl -fSL --retry 3 --retry-delay 5 -o world.zip "$WORLD"
               unzip -q world.zip -d world-in
+              ;;
+            git)
+              # A world kept as a git repository - see design/packages/app/src/main/worldrepo -
+              # is fetched with a shallow, single-branch clone: one commit's worth of tree, no
+              # history at all. That is the whole saving a plain `git clone` misses, and it is
+              # available here for free because the app only ever pushes one commit per branch.
+              #
+              # "branch" or "branch:subpath" when the world is not published at the branch's
+              # root. Colons cannot appear in a git branch name, so splitting on the first one
+              # is unambiguous - unlike a slash, which real branch names use all the time.
+              if [ -z "$WORLD_REPOSITORY" ]; then
+                echo "::error::'world-repository' is required when world-source is 'git': the owner/name the world's repository lives in."
+                exit 1
+              fi
+              slashes="$(printf '%s' "$WORLD_REPOSITORY" | tr -cd '/' | wc -c)"
+              if [ "$slashes" != "1" ] \
+                || [ "${WORLD_REPOSITORY#/}" != "$WORLD_REPOSITORY" ] \
+                || [ "${WORLD_REPOSITORY%/}" != "$WORLD_REPOSITORY" ]; then
+                echo "::error::'world-repository' must be owner/name, and was '$WORLD_REPOSITORY'."
+                exit 1
+              fi
+              case "$WORLD" in
+                *:*) BRANCH="${WORLD%%:*}"; SUBPATH="${WORLD#*:}" ;;
+                *)   BRANCH="$WORLD";       SUBPATH="" ;;
+              esac
+              if [ -z "$BRANCH" ]; then
+                echo "::error::'world' must name a branch (optionally 'branch:subpath') when world-source is 'git'."
+                exit 1
+              fi
+              echo "Cloning $WORLD_REPOSITORY at $BRANCH (shallow, single branch, no history)"
+              git -c credential.helper= -c "credential.helper=!gh auth git-credential" \
+                clone --quiet --depth 1 --single-branch --branch "$BRANCH" \
+                "https://github.com/${WORLD_REPOSITORY}.git" world-repo-in
+              SOURCE_DIR="world-repo-in"
+              if [ -n "$SUBPATH" ]; then
+                SOURCE_DIR="world-repo-in/${SUBPATH}"
+                if [ ! -d "$SOURCE_DIR" ]; then
+                  echo "::error::No such path '$SUBPATH' on branch '$BRANCH' of $WORLD_REPOSITORY."
+                  exit 1
+                fi
+              fi
+              cp -r "$SOURCE_DIR" world-in/
+              rm -rf world-repo-in
               ;;
             release-asset)
               # "asset-glob", or "tag/asset-glob" to pin a release. A release asset's file
