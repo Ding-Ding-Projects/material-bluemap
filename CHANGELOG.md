@@ -20,7 +20,122 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
-_No changes have been committed since `v0.1.0-build.370`._
+### Interface
+
+- Give the placement chooser, the new-tab picker and the overflow list a search field - [`9bf33b3c66`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/9bf33b3c661c7d7ad6991e061f54cf4d133b210d)
+- Fix the repair panel's agent chip clipping its own sentence at the docked-right width - [`56b12939f8`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/56b12939f844f713f52dbde397324fc10c3c073a)
+- Prove the settings drawer needs no FAB gutter: its z-index already wins - [`cf80e54a8c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cf80e54a8c4dbd2628c0a80449daf771e4a6424d)
+- Fix EULA export rows that dim with no stated reason: the doc comment already promised one - [`c02e867cb0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c02e867cb02ab9592b00a157d72328564ca94e16)
+- Fix the Cantonese funny-level caption landing on top of its own tick label - [`8e2c44b57f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8e2c44b57ffbce4380f54bd8fb11631dcf719655)
+- Fix the bottom-left FAB stack painting over page text at every width and scale - [`26d74a8a28`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/26d74a8a28061adeb2d56de2d4a795f99df3d1f9)
+
+### Landing page and documentation site
+
+- Give the site's command palette real inline setting controls, not just a link - [`a72fa8f43f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a72fa8f43f31a8677357a47424a6ee6d3ccb2e67)
+- Site: publish a newcomer glossary, reachable from the install article - [`67358ace08`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/67358ace083674a5917f26924016ae9115e9e071)
+- Site: cover appearance/colour, confirm gate, notifications and dim sum with tests - [`1ce004035c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1ce004035c89ca4fb3cc1fa77ab25de878e6e8e4)
+- Bring settings, content and search surfaces onto the M3 token layer - [`dafbad470f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/dafbad470fb88d8e05c21797014cb997ea328eec)
+- Site: document the world-sources release-downloads path, tidy two blank table headers - [`f18c50b9dc`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f18c50b9dcd709f37f5fe492b98444fc36e3a7be)
+- Fix four stale/missing claims: update copy, two render-location docs, and a Windows installer shipping no CLI jar - [`c13916cddc`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c13916cddc24879c771fbfcc464ebf33e23de986)
+- Give automatic repair a site article; fix two stale facts and a missing roadmap credit - [`aacfb707ff`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/aacfb707ffd72af5d0fc4f23601992734b4ee883)
+- Add site articles for world discovery and Bedrock conversion; correct a stale "pending" CI claim - [`2c2ae68ad6`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2c2ae68ad6519b42434a259964ddfa2a18f2d47b)
+
+### Build, release and tooling
+
+- Publish RELEASES and the Squirrel .nupkg as their own release assets, not only zipped - [`e613e68439`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e613e68439ee22a87e00c4015fb7f2358c78a68d)
+
+### Documentation
+
+- Bring HANDOFF and ROADMAP up to the current tip after the UI-defect wave - [`b4e2879650`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b4e287965076e32e2d22c4901547a3abe181dab1)
+- Recapture the six render-*.png screenshots with real consent, and cite them in eula-and-consent.md - [`8ca84fa7f7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8ca84fa7f78653c5bf0fad019801a14834d06537)
+- Make Java the standing render default, not a placeholder for the gate - [`be296c29b3`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/be296c29b3df70ed5d7ed2982e7d1df856f07745)
+- Audit the whole session against reality: 24 done, 2 partial, one stale summary caught - [`0ce6ed0c46`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0ce6ed0c468c150c83ee7d649f5f7c7ccea6683d)
+- Document the test-and-capture pass: two real bugs, the cleared screenshot backlog - [`8ae6a0a7ba`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8ae6a0a7ba6a1950fed587074e9d10cb8fc58f15)
+
+### Elsewhere in the repository
+
+- Publish RELEASES and the Squirrel .nupkg as their own release assets, not only zipped - [`b66725b7f7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b66725b7f7eaa375c7330c5e38f85fba1f066d6e)
+
+## 0.1.0-build.389 - 2026-08-05
+
+Tagged at [`b3ab47a548`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b3ab47a548f50873e83a17fe5d427e37bee1fb9e).
+
+### Interface
+
+- Fix: the save gate could ellipsis a file path with no way to read it back - [`d7cda3bb41`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d7cda3bb419abc787a38944982b5f52a0d5b9685)
+
+### Desktop shell
+
+- Add a per-render account picker to CI render setup, no active-account switch - [`44e8453262`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/44e84532628bb9a623d45d9b1ff5a1fcc51c701b)
+
+### Documentation
+
+- Refresh both live-Pages screenshots against the real hosted proof sites - [`b3ab47a548`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b3ab47a548f50873e83a17fe5d427e37bee1fb9e)
+
+## 0.1.0-build.386 - 2026-08-05
+
+Tagged at [`7dbfc17754`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7dbfc177547db4456db22c7c9797822ade3d6a1a).
+
+### Interface
+
+- Fix: the docs browser's index and search results ellipsed titles with no recovery - [`7dbfc17754`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7dbfc177547db4456db22c7c9797822ade3d6a1a)
+- Fix: a long marker set id could overflow its own panel header - [`7601828449`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/76018284492955b7a80d666bd6ec0c35cb9e3154)
+- Fix: tab search results and the group picker lost long labels to a silent ellipsis - [`df1037d947`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/df1037d947098ea654f2b435a269a663d0b4fc1f)
+- Fix the whole GUI wearing a hand cursor: answer Vuetify's [aria-controls] rule at the appearance wrapper - [`01d21eb901`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/01d21eb901c5785c08dd3b759780925c595c2210)
+
+## 0.1.0-build.382 - 2026-08-05
+
+Tagged at [`1074ea3325`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1074ea332537fbe9832085558553dba007bef4dc).
+
+### Interface
+
+- Fix docked panels not scrolling: floating panels had no real height, and the body's flex chain to nested content was broken - [`2b04a82f5b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2b04a82f5b9bc8198978904c508b2bcc5279c49c)
+
+### Documentation
+
+- Refresh 49 documentation screenshots against a quiet machine, fix the settings-tab capture gap the sweep exposed - [`1074ea3325`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1074ea332537fbe9832085558553dba007bef4dc)
+
+## 0.1.0-build.380 - 2026-08-05
+
+Tagged at [`89702241b2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/89702241b2abf007af5138a03d8028dfce4d09cf).
+
+### Documentation
+
+- Record a screenshot-by-screenshot visual audit of the current build - [`89702241b2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/89702241b2abf007af5138a03d8028dfce4d09cf)
+
+## 0.1.0-build.378 - 2026-08-05
+
+Tagged at [`c533c8c8d4`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c533c8c8d49655194057882a5896e583c35ffd8e).
+
+### Rendering and world data
+
+- Give the hyphenated-map-id resume test its own real-I/O timeout - [`623807459a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/623807459a7fe8325a9889144462f06ec5ad2c88)
+
+### Desktop shell
+
+- Fix #resume: a resumed backup renamed every part and re-uploaded all of them - [`c533c8c8d4`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c533c8c8d49655194057882a5896e583c35ffd8e)
+
+## 0.1.0-build.374 - 2026-08-05
+
+Tagged at [`0e9b4edf53`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0e9b4edf53185ae3e12553ac29933274eb7cff29).
+
+### Build, release and tooling
+
+- Release notes: link the changelog they never mentioned - [`0e9b4edf53`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0e9b4edf53185ae3e12553ac29933274eb7cff29)
+
+## 0.1.0-build.373 - 2026-08-05
+
+Tagged at [`0ad90f07be`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0ad90f07be4fe747a0ad3453c56c4407669713ed).
+
+_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
+
+## 0.1.0-build.372 - 2026-08-05
+
+Tagged at [`db9affde7c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/db9affde7cfa1bdf1cdefc95fe94c609fa0c6a62).
+
+### Documentation
+
+- Stamp HANDOFF and ROADMAP to the green tip: CI run 31013825875, release v0.1.0-build.370, zero open issues - [`db9affde7c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/db9affde7cfa1bdf1cdefc95fe94c609fa0c6a62)
 
 ## 0.1.0-build.370 - 2026-08-05
 
