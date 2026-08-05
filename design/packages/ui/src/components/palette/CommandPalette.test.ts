@@ -322,12 +322,28 @@ describe("destinations", () => {
 });
 
 describe("settings rows are the real control", () => {
+    /*
+     * This used to search "diagnostics" and take rows()[0] on faith. That stopped being
+     * safe once the app settings surface grew its own "Diagnostics" section (repair
+     * diagnosis and the guardrailed local-agent repair, per `settingsSections.ts`): that
+     * section's own keyword is literally "diagnostics", it is a *destination* rather than
+     * a setting, and `buildPaletteCatalog` lists the app-settings group ahead of the
+     * viewer's own settings — so "diagnostics" now surfaces that destination row first,
+     * ahead of the Debug toggle this test actually means to flip. Filtering preserves
+     * catalogue order rather than ranking matches (see `paletteItems.ts`'s own doc
+     * comment), so that is not a bug to fix here; the query just stopped being unique.
+     *
+     * "developer" is one of the Debug toggle's own keywords (`viewerSettings.ts`) and,
+     * unlike "debug" itself, does not also appear in "Show chunk borders"' keywords or in
+     * the config screens' collapsed-search text (the Core tab's own description mentions
+     * "the debug log") — so it isolates exactly the row this test means to exercise.
+     */
     it("writes the setting from inside the palette, and persists it", async () => {
         const fake = fakeApp();
         setBlueMapApp(fake.app);
 
         await open();
-        await type("diagnostics");
+        await type("developer");
 
         const checkbox = rows()[0]?.querySelector<HTMLInputElement>("input[type=checkbox]");
         expect(checkbox, "the Debug row should render a switch, not a label").not.toBeNull();

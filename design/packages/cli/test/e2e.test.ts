@@ -99,8 +99,34 @@ async function teardown(result: CliResult): Promise<void> {
     }
 }
 
+/**
+ * `-r` renders unconditionally through `runCreateOrUpdateWebApp` when `webapp.enabled`
+ * (upstream's real behaviour, see `cli.ts`), which needs the real webapp bundle
+ * `scripts/copy-webapp.mjs` copies from `vendor/BlueMap/common/webapp/dist` into this
+ * package's `dist/webapp` at build time — see `webapp.ts`'s own doc comment for the two
+ * places it looks.
+ *
+ * `.github/workflows/ci.yml`'s "Lint, build, test" job checks this repository out without
+ * the vendored submodule on purpose ("nothing in the build reads it", its own comment
+ * says) precisely because until this test existed, that was true. `copy-webapp.mjs` is
+ * deliberately non-fatal when its source is missing, so `pnpm build` still succeeds there
+ * and quietly leaves `dist/webapp` absent. Skipping here — the same honest gap the
+ * subprocess describe block below already reports for `dist/index.js` — is the accurate
+ * statement of what that job can prove; asserting through it would report a real
+ * environment gap as a broken render pipeline.
+ */
+const webappBundleBuilt = existsSync(join(import.meta.dirname, "..", "dist", "webapp", "index.html"));
+if (!webappBundleBuilt) {
+    console.warn(
+        "[e2e.test.ts] packages/cli/dist/webapp is missing (vendor/BlueMap not checked out, or " +
+            "the package was never built) — run \"pnpm --filter @material-bluemap/cli build\" from a " +
+            "checkout with the vendor/BlueMap submodule present. The render+webserver scenario is " +
+            "skipped, not passed.",
+    );
+}
+
 describe("e2e: runCli renders a real fixture map and serves real routes", () => {
-    it("renders real hires tiles, then a separate -w run serves them and the render-trigger route", async () => {
+    it.skipIf(!webappBundleBuilt)("renders real hires tiles, then a separate -w run serves them and the render-trigger route", async () => {
         const { configFolder } = await prepareFixtureConfig();
 
         const renderResult = await runCli(["-c", configFolder, "-r"], "0.0.0-test");
