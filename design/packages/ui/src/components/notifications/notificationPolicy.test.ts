@@ -118,6 +118,14 @@ const BLOCKING_SURFACES: Record<string, BlockingSurface> = {
             "The command palette, which the user summons by shortcut and closes with Escape. It " +
             "takes the keyboard on purpose because typing a command is the whole point of it.",
     },
+    "components/remote/RemoteTargetEditor.vue": {
+        count: 1,
+        decision:
+            "The remote file browser opened by the work directory's Browse button: choose a " +
+            "folder on that machine to use as the work directory, or cancel and keep the typed " +
+            "value. The user opens it themselves and closes it with Cancel, Escape, or by " +
+            "choosing a folder - it never appears on its own.",
+    },
 };
 
 /** Opens something the user cannot see past. */
