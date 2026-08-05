@@ -1284,8 +1284,25 @@
     box-shadow: var(--md-sys-elevation-level2);
 }
 
+/*
+ * `overflow-wrap: anywhere` here is load-bearing, not decoration. `.mb-changelog-entry` sits
+ * inside `.mb-changelog`, a CSS Grid with no `grid-template-columns` (a single implicit `auto`
+ * column). An `auto` track's minimum size is the largest min-content contribution among every
+ * item placed in it, and text only shrinks to the width of its longest unbreakable run unless
+ * `overflow-wrap` says otherwise. A merge-commit subject that swallows its own markdown link
+ * (parser quirk, `changelogParser.ts`'s `ENTRY` regex only strips a trailing
+ * `- [\`hash\`](url)` when nothing follows it) can leave a ~100-character run with no spaces —
+ * `https://github.com/.../commit/<40 hex chars>)` — sitting right here. That one entry's
+ * min-content forced the *whole* grid column, and therefore every sibling in it (the search
+ * box, the date-range filter row, every other entry), to blow out past the viewport at phone
+ * widths: 701px of forced width inside a 390px viewport, measured with Playwright at
+ * documentElement.scrollWidth. `anywhere` is the one that actually shrinks a grid item's
+ * automatic minimum size, unlike `break-word`, which only changes where text wraps at layout
+ * time and leaves intrinsic sizing untouched. See content.css.test.ts.
+ */
 .mb-changelog-entry__title {
     margin: 0;
+    overflow-wrap: anywhere;
     font-family: var(--md-sys-typescale-title-large-font);
     font-size: var(--md-sys-typescale-title-large-size);
     font-weight: var(--md-sys-typescale-title-large-weight);
@@ -1294,6 +1311,7 @@
 
 .mb-changelog-entry__commit {
     justify-self: start;
+    overflow-wrap: anywhere;
     font-family: var(--md-ref-typeface-mono);
     font-size: var(--md-sys-typescale-body-small-size);
 }
