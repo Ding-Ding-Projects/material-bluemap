@@ -537,6 +537,130 @@ export interface JavaRuntimeSummary {
     required: number;
 }
 
+/** Mirrors `JavaDownloadConsentSummary` in `main/java/ipc.ts`. */
+export interface JavaDownloadConsentSummary {
+    accepted: boolean;
+    acceptedAt: string | null;
+}
+
+/** Mirrors `JavaProvisionOutcome` in `main/java/ipc.ts`. Never rejects. */
+export type JavaProvisionOutcome =
+    | { ok: true; installation: JavaInstallationSummary; provisioned: boolean }
+    | { ok: false; message: string };
+
+/** Mirrors `ProvisionEvent` in `main/java/provision.ts`. */
+export interface JavaProvisionEvent {
+    stage: "resolving" | "downloading" | "verifying" | "extracting" | "installing" | "done";
+    /** A sentence suitable for a progress notification, already user-readable. */
+    message: string;
+    received: number | null;
+    total: number | null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Installing git, the GitHub CLI, Docker Desktop and rsync via winget/Chocolatey */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Mirrors the types in `main/sysdeps/`, restated for the same reason the Java types
+ * above are: the preload is bundled separately, so this is a plain structural copy
+ * rather than an import across that boundary.
+ *
+ * `SysdepProgress` deliberately has no field that can be read as a fabricated
+ * percentage: `"determinate"` only ever carries a real number Chocolatey printed,
+ * `"indeterminate"` is the honest answer for winget (which drops its own progress bar
+ * once stdout is not a real console - see `main/sysdeps/winget.ts`), and `"none"` is
+ * for phases with no percentage concept at all.
+ */
+export type SysdepManagerId = "winget" | "chocolatey";
+
+export type SysdepElevation = "required" | "possible" | "none" | "unknown";
+
+export type SysdepProgress =
+    | { kind: "determinate"; percent: number }
+    | { kind: "indeterminate" }
+    | { kind: "none" };
+
+export type SysdepPreviewRoute =
+    | { kind: "package-manager"; manager: SysdepManagerId; packageId: string }
+    | { kind: "unsupported"; reason: string }
+    | { kind: "unavailable"; reason: string };
+
+/** One row of the preview shown before the install button is pressed. */
+export interface SysdepPreviewRow {
+    id: string;
+    displayName: string;
+    route: SysdepPreviewRoute;
+    elevation: SysdepElevation;
+    /** The exact sentence to show before the button is pressed. Facts only. */
+    elevationDisclosure: string;
+    alreadyInstalled: boolean;
+    installedVersion: string | null;
+}
+
+export type SysdepInstallStage =
+    | "queued"
+    | "checking-existing"
+    | "elevation-notice"
+    | "resolving"
+    | "downloading"
+    | "installing"
+    | "verifying"
+    | "done"
+    | "skipped"
+    | "failed"
+    | "cancelled";
+
+export interface SysdepInstallEvent {
+    dependency: string;
+    manager: SysdepManagerId | null;
+    stage: SysdepInstallStage;
+    message: string;
+    progress: SysdepProgress;
+}
+
+/**
+ * The real outcome of trying to get one dependency onto the machine. Every branch
+ * that can genuinely happen is named - there is no generic "error" branch that
+ * swallows the interesting ones.
+ */
+export type SysdepOutcome =
+    | { kind: "installed"; dependency: string; manager: SysdepManagerId; verified: boolean; verifiedOutput: string | null }
+    | {
+          kind: "already-installed";
+          dependency: string;
+          manager: SysdepManagerId | null;
+          verified: boolean;
+          verifiedOutput: string | null;
+      }
+    | { kind: "declined-elevation"; dependency: string; manager: SysdepManagerId; exitCode: number | null }
+    | { kind: "not-found"; dependency: string; manager: SysdepManagerId; packageId: string }
+    | { kind: "network-failure"; dependency: string; manager: SysdepManagerId; message: string }
+    | {
+          kind: "verification-failed";
+          dependency: string;
+          manager: SysdepManagerId;
+          /** The package manager's own exit code - it reported success. */
+          exitCode: number | null;
+          message: string;
+      }
+    | {
+          kind: "failed";
+          dependency: string;
+          manager: SysdepManagerId | null;
+          exitCode: number | null;
+          /** The package manager's real output, never a generic apology. */
+          message: string;
+      }
+    | { kind: "cancelled"; dependency: string }
+    | { kind: "unsupported"; dependency: string; message: string };
+
+export interface SysdepBatchResult {
+    outcomes: SysdepOutcome[];
+    /** True the moment the batch stopped early because of cancellation. */
+    cancelled: boolean;
+}
+
 /* -------------------------------------------------------------------------- */
 /* The BlueMap config folder                                                  */
 /* -------------------------------------------------------------------------- */
@@ -1465,6 +1589,73 @@ interface MaterialBlueMapBridge {
     javaRuntime(): Promise<JavaRuntimeSummary>;
 
     /**
+     * Whether downloading a Java runtime has been agreed to, in the same one-asked-once
+     * shape as the Mojang download consent above.
+     */
+    javaDownloadConsent(): Promise<JavaDownloadConsentSummary>;
+
+    /**
+     * Records agreement to download a Java runtime. Idempotent: calling it again keeps
+     * the original timestamp.
+     */
+    acceptJavaDownloadConsent(): Promise<JavaDownloadConsentSummary>;
+
+    /**
+     * Downloads, verifies and installs a Temurin JDK, only when consent was already
+     * given - the main process refuses otherwise rather than asking on the renderer's
+     * behalf. Never rejects: a refusal comes back `ok: false` with a message. Watch
+     * `onJavaProvisionEvent` for progress while this is in flight.
+     */
+    provisionJavaRuntime(): Promise<JavaProvisionOutcome>;
+
+    /**
+     * Subscribes to `java:provision` progress. Returns the unsubscribe function.
+     *
+     * Pushed rather than polled for the same reason render progress is: a ~180 MB
+     * download and extraction takes real time, and a spinner for a minute is
+     * indistinguishable from a hang.
+     */
+    onJavaProvisionEvent(listener: (event: JavaProvisionEvent) => void): () => void;
+
+    /**
+     * What winget/Chocolatey would do for every known system dependency (git, the
+     * GitHub CLI, Docker Desktop, rsync), before anything is downloaded or installed.
+     *
+     * Detects both package managers and checks every dependency's presence, so the
+     * settings screen can show the exact route, the exact elevation disclosure and
+     * the exact "already installed" state before the one install button is pressed.
+     */
+    sysdepsPreview(): Promise<SysdepPreviewRow[]>;
+
+    /**
+     * Installs every dependency id in the list, in order. Never rejects: every
+     * outcome - installed, already installed, declined elevation, not found, a
+     * network failure, cancelled, or a genuine failure with its real exit code -
+     * comes back as data in the returned batch result. Watch `onSysdepInstallEvent`
+     * for progress while this is in flight.
+     */
+    installSysdeps(ids: string[]): Promise<SysdepBatchResult>;
+
+    /**
+     * Cancels whichever `installSysdeps` batch is currently running. Reports
+     * `{ cancelled: false }` when nothing is running rather than pretending it did
+     * something. The real child process is what gets killed - see `main/sysdeps/
+     * winget.ts`/`chocolatey.ts`, both of which check the real abort before
+     * anything else, so a cancelled dependency comes back `"cancelled"`, never
+     * folded into a generic failure.
+     */
+    cancelSysdepInstall(): Promise<{ cancelled: boolean }>;
+
+    /**
+     * Subscribes to `sysdeps:install` progress. Returns the unsubscribe function.
+     *
+     * Pushed rather than polled for the same reason Java provisioning is: a first
+     * Docker Desktop download can take minutes, and a spinner for minutes is
+     * indistinguishable from a hang.
+     */
+    onSysdepInstallEvent(listener: (event: SysdepInstallEvent) => void): () => void;
+
+    /**
      * Subscribes to render progress. Returns the unsubscribe function.
      *
      * Pushed rather than polled because a render takes minutes and moves in ten-second
@@ -2020,6 +2211,27 @@ const bridge: MaterialBlueMapBridge = {
     setMapStorageDirectory: (value) => ipcRenderer.invoke("render:setStorageDirectory", value),
 
     javaRuntime: () => ipcRenderer.invoke("java:runtime"),
+    javaDownloadConsent: () => ipcRenderer.invoke("java:downloadConsent"),
+    acceptJavaDownloadConsent: () => ipcRenderer.invoke("java:acceptDownloadConsent"),
+    provisionJavaRuntime: () => ipcRenderer.invoke("java:provision"),
+    onJavaProvisionEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: JavaProvisionEvent): void => listener(payload);
+        ipcRenderer.on("java:provisionEvent", forward);
+        return () => {
+            ipcRenderer.off("java:provisionEvent", forward);
+        };
+    },
+
+    sysdepsPreview: () => ipcRenderer.invoke("sysdeps:preview"),
+    installSysdeps: (ids) => ipcRenderer.invoke("sysdeps:install", ids),
+    cancelSysdepInstall: () => ipcRenderer.invoke("sysdeps:cancel"),
+    onSysdepInstallEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: SysdepInstallEvent): void => listener(payload);
+        ipcRenderer.on("sysdeps:installEvent", forward);
+        return () => {
+            ipcRenderer.off("sysdeps:installEvent", forward);
+        };
+    },
 
     onRenderEvent: (listener) => {
         // The renderer never sees the raw IpcRendererEvent: handing it across the
