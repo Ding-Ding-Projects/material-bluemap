@@ -39,6 +39,17 @@ import type {
     RepositoryChoice,
     RepositoryReport,
 } from "../main/backup/index.js";
+import type {
+    ProfilesHistoryListing,
+    ProfilesSaveResult,
+    ProfilesState,
+} from "../main/profiles/index.js";
+import type {
+    AppSettingsHistoryListing,
+    AppSettingsSaveResult,
+    AppSettingsState,
+} from "../main/settings/index.js";
+import type { RestoreResult } from "../main/history/index.js";
 
 /** Mirrors `ConsentRecord` in the main process. */
 export interface ConsentRecord {
@@ -922,6 +933,43 @@ interface HistoryBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* The profile list's and the application settings' own version history      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The profile list's version history, mirroring `main/profiles/ipc.ts`.
+ *
+ * A narrower namespace than {@link HistoryBridge}: `profilesHistory:*` has no `folder`
+ * argument at all, because there is exactly one profile list per installation rather than
+ * one a person chose, and the main-process side offers only what `docs/config-history.md`
+ * calls "genuinely wired" today - reading, saving, listing and restoring. Diffing,
+ * labelling and discarding older revisions are the config-folder history's own extras and
+ * are not offered here; a bridge namespace that promised them would be a control that
+ * throws the moment it was pressed.
+ *
+ * Nothing here rejects, for the same reason nothing on `history` does: every method
+ * resolves with a value, failures included.
+ */
+interface ProfilesHistoryBridge {
+    /** The profile list as it is on disk right now. */
+    read(): Promise<ProfilesState>;
+    /** Writes the profile list and records exactly one revision of it, when it changed. */
+    save(state: ProfilesState): Promise<ProfilesSaveResult | { ok: false; message: string }>;
+    /** Every revision of the profile list, newest first. */
+    list(limit?: number): Promise<ProfilesHistoryListing>;
+    /** Puts the profile list back as it was at one revision, recorded as a new revision. */
+    restore(id: string): Promise<RestoreResult>;
+}
+
+/** The application settings' version history. Same shape as {@link ProfilesHistoryBridge}, same reason. */
+interface AppSettingsHistoryBridge {
+    read(): Promise<AppSettingsState>;
+    save(state: AppSettingsState): Promise<AppSettingsSaveResult | { ok: false; message: string }>;
+    list(limit?: number): Promise<AppSettingsHistoryListing>;
+    restore(id: string): Promise<RestoreResult>;
+}
+
+/* -------------------------------------------------------------------------- */
 /* GitHub sign-in                                                             */
 /* -------------------------------------------------------------------------- */
 
@@ -1495,6 +1543,16 @@ interface MaterialBlueMapBridge {
     history: HistoryBridge;
 
     /**
+     * The server-profile list's own version history: read, save, list, restore. Additive
+     * and narrower than {@link HistoryBridge} - see {@link ProfilesHistoryBridge}'s doc for
+     * why there is no `folder` argument and no diff, label or discard here.
+     */
+    profilesHistory: ProfilesHistoryBridge;
+
+    /** The application settings' own version history. Same shape and reason as {@link profilesHistory}. */
+    appSettingsHistory: AppSettingsHistoryBridge;
+
+    /**
      * A world's own record of how it should be rendered, and the history of it.
      *
      * The world list uses `discoverMany` to show which worlds carry a project. A `present`
@@ -1971,6 +2029,20 @@ const bridge: MaterialBlueMapBridge = {
         restoreFiles: (folder, id, paths) => ipcRenderer.invoke("history:restoreFiles", folder, id, paths),
         restoreSettings: (folder, id, files, keys) =>
             ipcRenderer.invoke("history:restoreSettings", folder, id, files, keys),
+    },
+
+    profilesHistory: {
+        read: () => ipcRenderer.invoke("profilesHistory:read"),
+        save: (state) => ipcRenderer.invoke("profilesHistory:save", state),
+        list: (limit) => ipcRenderer.invoke("profilesHistory:list", limit),
+        restore: (id) => ipcRenderer.invoke("profilesHistory:restore", id),
+    },
+
+    appSettingsHistory: {
+        read: () => ipcRenderer.invoke("settingsHistory:read"),
+        save: (state) => ipcRenderer.invoke("settingsHistory:save", state),
+        list: (limit) => ipcRenderer.invoke("settingsHistory:list", limit),
+        restore: (id) => ipcRenderer.invoke("settingsHistory:restore", id),
     },
 
     listBackupRepositories: () => ipcRenderer.invoke("backup:repositories"),

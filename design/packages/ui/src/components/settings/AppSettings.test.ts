@@ -53,6 +53,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "language-and-tone": "Language and tone",
     "surface-placement": "Where the panels sit",
     "updates": "Updates",
+    "history": "Version history",
 };
 
 const scrollIntoView = vi.fn();

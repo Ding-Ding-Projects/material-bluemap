@@ -596,6 +596,70 @@ export const SETTINGS_VOICED = {
             "有 {n} 個面板記住咗位置，呢個數包埋閂咗嗰啲，佢哋記得一樣咁牢。",
         ],
     },
+
+    /* ---------------------------------------------------------------- */
+    /* The Updates section                                               */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * `settings.updates.title`/`.description`: the settings-surface tab that mounts
+     * `UpdateStatusRow` -- installed version, last check, the feed, a manual check and the
+     * recovery action for a dismissed banner. Merged in from `uiFixes.ts`'s own staging copy,
+     * written alongside the fix that actually wires `UpdateStatusRow` into `AppSettings.vue`;
+     * before that fix the component existed and was fully tested but was never reachable from
+     * the running app. Three facts are pinned rather than one, because a reader deciding
+     * whether to open this tab needs all three regardless of the funny level: this is where
+     * you find out how current the build is (`last checked`), this is where you trigger a
+     * check yourself (`by hand`) rather than only waiting on the background schedule, and this
+     * is the one place a `dismissed` update banner comes back from.
+     */
+    "settings.updates.description": {
+        en: [
+            "Whether this build is up to date, when it last checked, and where updates come from. Check for updates by hand from here, and bring back an update banner you dismissed.",
+            "Whether this build is up to date, when it last checked, and where updates come from. Check for updates by hand from here, and bring back an update banner you dismissed.",
+            "Whether this build is up to date, when it last checked, and where updates come from. Check for updates by hand from here any time, and bring back an update banner you dismissed.",
+            "The full story on this build's updates: current or not, when it last checked, and where updates come from. Check for updates by hand whenever you like, and bring back an update banner you dismissed, right from here.",
+            "Everything this build knows about its own updates, all in one row: current or not, when it last checked, and where updates come from. Check for updates by hand whenever the mood strikes, and haul back an update banner you dismissed without lifting more than one finger.",
+        ],
+        yue: [
+            "呢個版本係咪最新、幾時check過、更新喺邊度嚟，呢度都答到你。可以喺度手動check更新，亦都可以攞返一個你之前收埋咗嘅更新提示。",
+            "呢個版本係咪最新、幾時check過、更新喺邊度嚟，呢度都答到你。可以喺度手動check更新，亦都可以攞返一個你之前收埋咗嘅更新提示。",
+            "呢個版本係咪最新、幾時check過、更新喺邊度嚟，呢度都答到你。隨時都可以喺度手動check更新，呢度亦都係攞返一個你收埋咗嘅更新提示嘅地方。",
+            "呢個版本嘅更新故事全部喺呢一行：新唔新、幾時check過、由邊度嚟。想幾時手動check都得，仲可以喺呢度攞返一個你收埋咗嘅更新提示。",
+            "呢個版本嘅更新身家全部攤晒喺呢一行俾你睇：新唔新、幾時check過、成日打電話返嗰個地址係邊。心血來潮都可以手動check，仲可以唔使郁多隻手指就攞返一個你收埋咗嘅更新提示。",
+        ],
+    },
+
+    /* ---------------------------------------------------------------- */
+    /* The History section                                               */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * `settings.history.description`: the tab that mounts `SimpleHistoryList` twice, once
+     * for the server-profile list and once for the application settings. Both facts pinned
+     * at every level are the two things that make this tab worth opening rather than a
+     * curiosity: `restorable` (a deleted profile or setting is not actually gone), and
+     * `recorded first` (restoring is never destructive, because what it replaces becomes a
+     * revision of its own before anything is overwritten - the same guarantee
+     * `docs/config-history.md` states for the config-folder history this tab's little
+     * sibling was built from).
+     */
+    "settings.history.description": {
+        en: [
+            "Every saved version of your server profiles and your application settings, each one restorable. Restoring is never destructive: what it replaces is recorded first, so it can always be undone.",
+            "Every saved version of your server profiles and your application settings, each one restorable. Restoring is never destructive: what it replaces is recorded first, so it can always be undone.",
+            "Every saved version of your server profiles and your application settings lives here, each one restorable. Restoring is never destructive - what it replaces is recorded first, so it can always be undone.",
+            "Every saved version of your server profiles and your application settings lives here, and every one of them is restorable. Restoring is never destructive, because what it replaces is recorded first, as its own revision, so it can always be undone in turn.",
+            "Every saved version of your server profiles and your application settings lives here, and every single one of them is restorable. Restoring is never destructive, because what it replaces is recorded first, as a revision in its own right, so even a restore can always be undone.",
+        ],
+        yue: [
+            "呢度有你伺服器設定檔同應用程式設定嘅每一個已儲存版本，個個都還原得返。還原永遠唔會破壞嘢：佢換走嘅嗰個會事先記低，所以永遠都可以反悔。",
+            "呢度有你伺服器設定檔同應用程式設定嘅每一個已儲存版本，個個都還原得返。還原永遠唔會破壞嘢：佢換走嘅嗰個會事先記低，所以永遠都可以反悔。",
+            "呢度存住你伺服器設定檔同應用程式設定嘅每一個版本，個個都還原得返。還原唔會破壞嘢——佢換走嗰個會事先記低，所以隨時都可以反悔。",
+            "呢度存住你伺服器設定檔同應用程式設定嘅每一個版本，個個都還原得返。還原永遠唔會破壞嘢，因為佢換走嗰個會事先記低成一個獨立版本，所以隨時都可以反悔。",
+            "呢度存住你伺服器設定檔同應用程式設定嘅每一個版本，一個都唔漏，個個都還原得返。還原永遠唔會破壞嘢，因為佢換走嗰個會事先記低成一個版本，所以就算係還原本身，都一樣可以反悔。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const SETTINGS_FIXED = {
@@ -661,6 +725,14 @@ export const SETTINGS_FIXED = {
      * reader that announces two unnamed tab lists on one screen has announced nothing.
      */
     "settings.tabs.strip": { en: "Settings sections", yue: "設定分區" },
+
+    /* The Updates tab's own heading, above `settings.updates.description`. */
+    "settings.updates.title": { en: "Updates", yue: "更新" },
+
+    /* The History tab's own heading, above `settings.history.description`. */
+    "settings.history.title": { en: "Version history", yue: "版本記錄" },
+    "settings.history.profiles": { en: "Server profiles", yue: "伺服器設定檔" },
+    "settings.history.appSettings": { en: "Application settings", yue: "應用程式設定" },
 } as const satisfies Record<string, FixedString>;
 
 export const SETTINGS_FACTS = {
@@ -786,6 +858,20 @@ export const SETTINGS_FACTS = {
     "settings.placement.someMoved": {
         en: ["{n}", "remembered position", "closed"],
         yue: ["{n}", "記住咗位置", "閂咗"],
+    },
+
+    // Last checked, a manual check, and a dismissed banner coming back -- all three are why
+    // this tab exists, so no level may drop one of them for the other two.
+    "settings.updates.description": {
+        en: ["last checked", "by hand", "dismissed"],
+        yue: ["幾時check過", "手動", "收埋咗"],
+    },
+
+    // That everything here is restorable, and that a restore is safe because what it
+    // replaces is recorded first -- the two facts that make this tab worth opening.
+    "settings.history.description": {
+        en: ["restorable", "recorded first"],
+        yue: ["還原得返", "事先記低"],
     },
 } as const satisfies Record<
     keyof typeof SETTINGS_VOICED,

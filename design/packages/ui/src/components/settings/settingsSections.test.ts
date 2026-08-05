@@ -63,6 +63,18 @@ const SECTIONS: SettingsSectionText[] = [
         description: "Every panel that docks to an edge remembers its own position.",
         values: ["Settings", "Docked to the bottom"],
     },
+    {
+        anchor: "updates",
+        title: "Updates",
+        description: "Whether this build is up to date, when it last checked, and where updates come from.",
+        values: ["1.4.0", "Checked 3 August 2026"],
+    },
+    {
+        anchor: "history",
+        title: "Version history",
+        description: "Every saved version of your server profiles and your application settings.",
+        values: ["Server profiles", "Application settings"],
+    },
 ];
 
 describe("the anchors a render can point at", () => {
@@ -100,8 +112,15 @@ describe("every section the surface renders", () => {
      * private repository fails on the repository, not on a settings row. Language and tone
      * is here for the same reason and one of its own: a render never stops for the want of
      * a funny level, and before this section existed the mode and the two levels could only
-     * be reached while first-run setup was still on screen. Widening the bridge contract to
-     * make one list would be widening a contract to suit a layout.
+     * be reached while first-run setup was still on screen. Updates is here for the same
+     * reason again: no render stops for the want of an update either, so the installed
+     * version, the last check, the feed and a manual check are only ever reachable by
+     * opening Settings and reading, never by following a link out of a failed render.
+     * History is last for the same reason once more: no render stops for the want of an
+     * old profile or an old setting, so the version histories of both are only ever
+     * reachable by opening Settings and reading, never by a link out of a failed render.
+     * Widening the bridge contract to make one list would be widening a contract to suit a
+     * layout.
      */
     it("is the four a render can point at, plus the ones only Settings reaches", () => {
         expect([...SETTINGS_SECTIONS]).toEqual([
@@ -112,6 +131,8 @@ describe("every section the surface renders", () => {
             "github-account",
             "language-and-tone",
             "surface-placement",
+            "updates",
+            "history",
         ]);
     });
 

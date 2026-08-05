@@ -949,6 +949,70 @@ export const HISTORY_VOICED = {
             "用 Git {version} 記錄，即係呢部機有咩就用咩。份記錄係真嘅儲存庫，唔係扮出嚟嗰種。",
         ],
     },
+
+    /* ---------------------------------------------------------------- */
+    /* SimpleHistoryList.vue: browse and restore, for a history that      */
+    /* offers only that - the profile list's and the application         */
+    /* settings' own, per main/profiles/ipc.ts and main/settings/ipc.ts.  */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * `HistoryRevisionRow`'s "reading what changed" spinner only runs while it is waiting
+     * for a `diff` that never arrives; this is shown unconditionally instead, so expanding a
+     * row explains what is missing rather than spinning forever. Two facts, and both matter:
+     * that a comparison is genuinely absent (not merely slow), and that the file list above
+     * this text still names what a revision touched.
+     */
+    "history.simple.diffUnavailable": {
+        en: [
+            "This history does not keep a comparison between revisions, only the list of files each one touched.",
+            "This history does not keep a comparison between revisions, only the list of files each one touched.",
+            "This history keeps no comparison between revisions - only the list of files each one touched, above.",
+            "There is no comparison between revisions here, only the list of files each one touched, shown above.",
+            "There is no side-by-side comparison here between revisions - only the list of files each one touched, shown above, which is honestly all this history keeps track of today.",
+        ],
+        yue: [
+            "呢份記錄冇兩個版本之間嘅比較，淨係有每個版本改過邊啲檔案嘅清單。",
+            "呢份記錄冇兩個版本之間嘅比較，淨係有每個版本改過邊啲檔案嘅清單。",
+            "呢份記錄唔會兩個版本咁樣比較——淨係上面嗰張每個版本改過邊啲檔案嘅清單。",
+            "呢度冇兩個版本嘅比較，淨係上面嗰張每個版本改過邊啲檔案嘅清單。",
+            "呢度冇兩個版本並排比較呢回事，淨係上面嗰張每個版本改過邊啲檔案嘅清單——講句老實話，呢份記錄而家就係得咁多。",
+        ],
+    },
+
+    "history.simple.unavailable": {
+        en: [
+            "This history is not available right now.",
+            "This history is not available right now.",
+            "This history is not available right now, and nothing recorded through it has been lost.",
+            "This history is not available right now. Whatever has already been recorded through it is still there and has not been lost.",
+            "This history is not available right now, whatever the reason - but nothing recorded through it in the past has gone anywhere.",
+        ],
+        yue: [
+            "而家用唔到呢份記錄。",
+            "而家用唔到呢份記錄。",
+            "而家用唔到呢份記錄，之前記低咗嘅嘢一樣都冇唔見。",
+            "而家用唔到呢份記錄。之前透過佢記低咗嘅嘢，依然喺度，冇唔見過。",
+            "唔理係咩原因，而家就係用唔到呢份記錄——但之前透過佢記低咗嘅嘢，一樣都冇走鬼。",
+        ],
+    },
+
+    "history.simple.empty": {
+        en: [
+            "No revisions recorded yet. One is kept every time this is saved.",
+            "No revisions recorded yet. One is kept every time this is saved.",
+            "No revisions recorded yet - one is kept every time this is saved.",
+            "Nothing has been recorded here yet. A revision is kept every time this is saved, so the first one is not far off.",
+            "Nothing has been recorded here yet, which is a beginning rather than a loss. A revision is kept every time this is saved, so the first one shows up the moment there is something to keep.",
+        ],
+        yue: [
+            "暫時仲未記錄過任何版本。每次儲存都會記低一個。",
+            "暫時仲未記錄過任何版本。每次儲存都會記低一個。",
+            "暫時仲未記錄過任何版本——每次儲存都會記低一個。",
+            "呢度暫時仲未記錄過任何嘢。每次儲存都會記低一個版本，第一個好快就會嚟。",
+            "呢度暫時仲未記錄過任何嘢，呢個係開始，唔係唔見咗嘢。每次儲存都會記低一個版本，一有嘢好記，第一個就即刻出現。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const HISTORY_FIXED = {
@@ -1096,6 +1160,11 @@ export const HISTORY_FIXED = {
     },
     "history.trimNothing": { en: "Nothing to remove", yue: "冇嘢要移除" },
     "history.trim": { en: "Remove {drop} older revisions", yue: "移除 {drop} 個較舊嘅版本" },
+
+    /* SimpleHistoryList.vue's own chrome. */
+    "history.simple.refresh": { en: "Read {title} history again", yue: "重新讀取{title}嘅版本記錄" },
+    "history.simple.refreshShort": { en: "Refresh", yue: "重新整理" },
+    "history.simple.loading": { en: "Reading the history...", yue: "讀緊版本記錄……" },
 } as const satisfies Record<string, FixedString>;
 
 export const HISTORY_FACTS = {
@@ -1235,6 +1304,13 @@ export const HISTORY_FACTS = {
         yue: ["{remotes}", "remote", "唔會送"],
     },
     "history.gitVersion": { en: ["Git {version}"], yue: ["Git {version}"] },
+
+    "history.simple.diffUnavailable": {
+        en: ["comparison", "list of files"],
+        yue: ["比較", "清單"],
+    },
+    "history.simple.unavailable": { en: ["not available"], yue: ["用唔到"] },
+    "history.simple.empty": { en: ["recorded", "saved"], yue: ["記錄", "儲存"] },
 } as const satisfies Record<
     keyof typeof HISTORY_VOICED,
     { en: readonly string[]; yue: readonly string[] }

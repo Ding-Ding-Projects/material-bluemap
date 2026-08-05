@@ -20,6 +20,7 @@ import WorldFolderRow from "./WorldFolderRow.vue";
 import UpdateStatusRow from "../update/UpdateStatusRow.vue";
 import { updateText } from "../update/updateCopy.js";
 import type { UpdatesController } from "../update/useUpdates.js";
+import { SimpleHistoryList, simpleHistoryHostFrom } from "../history/index.js";
 import { DOCK_PLACEMENTS } from "./dockPlacement.js";
 import { dockedSurfaces } from "./useDockPlacement.js";
 import { createJavaSetting, describeJavaRejections } from "./javaSetting.js";
@@ -141,6 +142,23 @@ const githubSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const languageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const placementSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const historySection = ref<InstanceType<typeof SettingsSection> | null>(null);
+
+/**
+ * Resolved once, from the same `globalThis.materialBluemap` every other controller on this
+ * surface probes, rather than handed down: this surface mounts with three props and
+ * nothing else, and a fourth pair for two capabilities most builds and most sessions never
+ * touch would be plumbing for its own sake. Null in a browser tab, exactly like every other
+ * bridge-backed capability here.
+ */
+const profilesHistoryHost = simpleHistoryHostFrom(
+    typeof window === "undefined" ? null : window.materialBluemap,
+    "profilesHistory",
+);
+const appSettingsHistoryHost = simpleHistoryHostFrom(
+    typeof window === "undefined" ? null : window.materialBluemap,
+    "appSettingsHistory",
+);
 
 /* -------------------------------------------------------------------------- */
 /* Search                                                                     */
@@ -154,6 +172,12 @@ const regexMode = ref(false);
 const flags = ref("im");
 
 const copy = computed(() => sectionCopy(t));
+
+/** The two `SimpleHistoryList` headings, read live so a language switch renames them too. */
+const historyCopy = computed(() => ({
+    profiles: t("settings.history.profiles", "Server profiles"),
+    appSettings: t("settings.history.appSettings", "Application settings"),
+}));
 
 /**
  * What each section can be found by: its title, its explanation, and the values it is
@@ -265,6 +289,15 @@ const sections = computed<SettingsSectionText[]>(() => {
                 updateText(props.updates.status.value.messageKey, props.updates.status.value.vars),
             ].filter((value) => value !== ""),
         },
+        // The two headings this tab actually renders, so typing "profiles" or "application
+        // settings" finds the version-history tab, the same "search what is on screen"
+        // rule every other section follows.
+        {
+            anchor: "history",
+            title: text.history.title,
+            description: text.history.description,
+            values: [historyCopy.value.profiles, historyCopy.value.appSettings],
+        },
     ];
 });
 
@@ -338,6 +371,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return placementSection.value;
         case "updates":
             return updatesSection.value;
+        case "history":
+            return historySection.value;
     }
 }
 
@@ -697,6 +732,25 @@ function onDrawer(value: boolean): void {
                             @restart="restartForSettingsUpdate"
                             @show-banner="showUpdateBannerAgain"
                         />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    The server-profile list's and the application settings' own version
+                    histories, per `main/profiles/ipc.ts` and `main/settings/ipc.ts`. Both
+                    resolve their host from the same bridge the config-folder history panel
+                    probes, feature-detected the same way: `null` when this build has neither
+                    method, never a control that throws.
+                -->
+                <template #history>
+                    <SettingsSection
+                        ref="historySection"
+                        anchor="history"
+                        :title="copy.history.title"
+                        :description="copy.history.description"
+                    >
+                        <SimpleHistoryList :title="historyCopy.profiles" :host="profilesHistoryHost" />
+                        <SimpleHistoryList :title="historyCopy.appSettings" :host="appSettingsHistoryHost" />
                     </SettingsSection>
                 </template>
             </TabbedNavigation>

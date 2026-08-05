@@ -70,6 +70,18 @@ const props = withDefaults(
         comparable?: boolean;
         /** True when the host can put single files and settings back. */
         selective?: boolean;
+        /**
+         * False when the host cannot attach a note to a revision, so the label pencil is
+         * not offered where pressing it would throw.
+         *
+         * The config-folder history this row was built for offers `history:label`
+         * unconditionally, so this defaults to `true` and every existing caller is
+         * unaffected. The profile-list and application-settings histories added later offer
+         * only read, save, list and restore - see `docs/config-history.md` - so the browser
+         * built for those passes `false` here rather than presenting a control with nothing
+         * behind it.
+         */
+        labellable?: boolean;
     }>(),
     {
         current: false,
@@ -82,6 +94,7 @@ const props = withDefaults(
         compareRole: null,
         comparable: false,
         selective: false,
+        labellable: true,
     },
 );
 
@@ -114,6 +127,7 @@ const isActive = computed(() => props.active === true);
 const canWrite = computed(() => props.writable !== false);
 const canCompare = computed(() => props.comparable === true);
 const canSelect = computed(() => props.selective === true);
+const canLabel = computed(() => props.labellable !== false);
 const role = computed<"a" | "b" | null>(() => props.compareRole ?? null);
 const diffFiles = computed<readonly HistoryComparisonFile[] | null>(() => props.diff ?? null);
 const diffProblem = computed(() => props.diffError ?? null);
@@ -352,7 +366,7 @@ defineExpose({ focusRow });
                 />
 
                 <v-btn
-                    v-if="canWrite && !editingLabel"
+                    v-if="canWrite && canLabel && !editingLabel"
                     :icon="mdiLabelOutline"
                     :aria-label="
                         revision.note

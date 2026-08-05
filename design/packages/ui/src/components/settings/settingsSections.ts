@@ -68,6 +68,13 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * `SettingsTarget` could honestly point at it. It is the one place the installed version,
  * the last check, the feed and a manual "Check for updates" are always reachable rather
  * than only appearing as a banner when there happens to be one to show.
+ *
+ * History is last of all: the server-profile list's and the application settings' own
+ * version histories, per `main/profiles/ipc.ts` and `main/settings/ipc.ts`. No render
+ * stops for the want of an old profile either, so this is reached the same way updates is —
+ * by opening Settings — and it is where a profile or a setting deleted by mistake is put
+ * back, the same "browse a list, restore one" shape the config folder's own history panel
+ * already uses.
  */
 export const SETTINGS_SECTIONS = [
     ...SETTINGS_ANCHORS,
@@ -75,6 +82,7 @@ export const SETTINGS_SECTIONS = [
     "language-and-tone",
     "surface-placement",
     "updates",
+    "history",
 ] as const;
 
 /** A section this surface renders, whether or not a render can send somebody to it. */

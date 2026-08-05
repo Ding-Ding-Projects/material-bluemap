@@ -24,6 +24,13 @@ export { default as HistoryComparison } from "./HistoryComparison.vue";
 export { default as HistoryPanel } from "./HistoryPanel.vue";
 export { default as HistoryReadableDiff } from "./HistoryReadableDiff.vue";
 export { default as HistoryRevisionRow } from "./HistoryRevisionRow.vue";
+export { default as SimpleHistoryList } from "./SimpleHistoryList.vue";
+
+export {
+    simpleHistoryHostFrom,
+    type SimpleHistoryHost,
+    type SimpleHistoryListing,
+} from "./simpleHistoryHost.js";
 
 export {
     ACTION_ORDER,

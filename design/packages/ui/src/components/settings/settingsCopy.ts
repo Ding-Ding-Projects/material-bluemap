@@ -96,6 +96,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Whether this build is up to date, when it last checked, and where updates come from. Check for updates by hand from here, and bring back an update banner you dismissed.",
             ),
         },
+        "history": {
+            title: t("settings.history.title", "Version history"),
+            description: t(
+                "settings.history.description",
+                "Every saved version of your server profiles and your application settings, each one restorable. Restoring is never destructive: what it replaces is recorded first, so it can always be undone.",
+            ),
+        },
     };
 }
 
