@@ -171,11 +171,25 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
         await service.close();
     });
 
+    // A real, generous cooldown rather than a fake-timer rewrite: the fixture is a genuine
+    // chokidar-backed watcher over a real temp folder (see this file's own top comment),
+    // and faking timers would have to fake or bypass chokidar's own internal debouncing
+    // too - which stops proving the actual bridge between an fs-event and a scheduled task
+    // that issue #40 is about. A 60ms cooldown against three writes 25ms apart leaves no
+    // margin once the process is starved of CPU: a scheduling delay of a few tens of
+    // milliseconds (documented elsewhere in this repo - see 1074ea33's commit message on
+    // "sustained 80-100% CPU contention from other agents") is enough for the first write's
+    // cooldown to fire and schedule a task before the second write's fs-event has even
+    // arrived, coalescing that pair separately from the third and producing two scheduled
+    // tasks instead of one - confirmed on a hosted run (31029389328): "expected 2 to be 1".
+    // Widening the cooldown to 500ms (matching the margin the "stretches the delay" test
+    // below already uses) and the settle wait to 1500ms does not change what is asserted,
+    // only how much contention it can absorb before a real debounce race like that one.
     it("coalesces a burst of events for one region into a single scheduled task (dedup)", { timeout: 15000 }, async () => {
         const regionFolder = join(root, "region");
         const map = await buildMapOverRegionFolder(regionFolder);
         const manager = new RenderManager();
-        const service = new MapUpdateService(manager, map, { regionUpdateCooldownMs: 60, minUpdateDelayMs: 60 });
+        const service = new MapUpdateService(manager, map, { regionUpdateCooldownMs: 500, minUpdateDelayMs: 500 });
 
         service.start();
         await watcherReady(service);
@@ -188,7 +202,7 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
         writeFileSync(regionFile, "abc");
 
         // give every event time to arrive, and the (last-reset) debounce time to fire
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await new Promise((resolve) => setTimeout(resolve, 1500));
 
         expect(manager.getScheduledRenderTaskCount()).toBe(1);
         const task = manager.getScheduledRenderTasks()[0] as WorldRegionUpdateTask;

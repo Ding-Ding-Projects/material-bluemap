@@ -1233,6 +1233,41 @@ test("captures the backup screen", async () => {
     });
 });
 
+/**
+ * Opens Settings if it is not already open, then switches to one section through the
+ * panel's own search - the same route a person uses, and the only one this harness can
+ * rely on regardless of which tab Settings was last showing.
+ *
+ * That last part is not hypothetical. `AppSettings.vue`'s `revealAnchor()` says so in its
+ * own comment: opening the panel through the plain Settings FAB passes no anchor, and "no
+ * anchor means just open it... no tab is switched, so whichever tab this surface last
+ * remembered stays exactly where it was left" - deliberate app behaviour, a settings panel
+ * that remembers where you were, not a bug. The "Settings sections" step below drives
+ * through all six sections and leaves the last one (Language and tone) active when it
+ * finishes; a later step that reopens Settings with the bare FAB and assumes the Mojang
+ * consent tab is showing - because that used to be the only tab there was, before every
+ * section became its own lazily-mounted tab - reopens on whatever the previous test left
+ * behind instead, and a locator scoped to a tab that is not mounted times out looking for
+ * an element that was never going to appear. That is what sent release `v0.1.0-build.419`
+ * (run 31031646647) out with a red Screenshots job: "EULA viewer - the harness could not
+ * open it in this run: locator.click: Timeout 15000ms exceeded", chasing
+ * `.mb-consent-row button` on whatever tab happened to be left open rather than the one
+ * that actually holds it.
+ */
+async function openSettingsSection(anchor: string, title: string): Promise<void> {
+    if (!(await visible(".mb-settings"))) {
+        await page.locator('.mb-shell-fab[aria-label="Settings"]').first().click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-settings", { state: "visible", timeout: ELEMENT_TIMEOUT });
+    }
+    const searchInput = page.locator(".mb-settings__search input").first();
+    await searchInput.fill("");
+    await searchInput.fill(anchor);
+    const result = page.locator(".mb-settings__result", { hasText: title });
+    await result.first().waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    await result.first().click();
+    await searchInput.fill("");
+}
+
 test("captures the settings surface and every section in it", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
 
@@ -1634,7 +1669,10 @@ test("captures the remaining first-class screens", async () => {
     });
 
     await attempt("EULA viewer", async () => {
-        await page.locator('.mb-shell-fab[aria-label="Settings"]').first().click({ timeout: ELEMENT_TIMEOUT });
+        // Reached through the search, not the bare FAB: see openSettingsSection()'s doc
+        // comment for why a plain reopen cannot be trusted to land on the Mojang consent
+        // tab that `.mb-consent-row` actually lives on.
+        await openSettingsSection("mojang-download-consent", "Mojang download consent");
         const settings = page.locator(".mb-settings");
         await settings.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         const readLicence = settings.locator(".mb-consent-row button").first();
