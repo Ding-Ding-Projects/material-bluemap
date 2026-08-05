@@ -5,11 +5,22 @@ on:
   pull_request:
   workflow_dispatch:
 
-# A later push supersedes an in-flight run on the same ref, except on main where
-# every push is meant to produce its own release.
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+# No workflow-level concurrency: a run is never cancelled by a later one.
+#
+# There used to be a group here with `cancel-in-progress` switched off for main, and it did
+# not hold. Over one afternoon of frequent pushes, every single run on main was cancelled at
+# the exact second the next one was created, and the branch went a long stretch with no green
+# and no red at all - which reads as "verified" to anybody glancing at it, and is worse than
+# a failure, because a failure is at least visible.
+#
+# Two things can cancel a run in a shared group, and only one of them is the setting: a group
+# also holds **one** pending run, so a third arrival evicts the queued middle one. Both are
+# avoided the same way, by not sharing a group, so this does not depend on working out which
+# was at fault here. Runners are free on a public repository; a verdict on every commit is
+# worth far more than the minutes saved by superseding one.
+#
+# What still has to be serialised is publishing, and that is a job-level group on `release`
+# below rather than a whole-workflow one - see the reason there.
 
 permissions:
   contents: read
@@ -395,6 +406,22 @@ jobs:
     needs: [check, package, jars, test-world]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    # The one thing that genuinely cannot run twice at once, and not for the reason it
+    # looks like. The tag is `v<version>-build.<run number>`, which is unique per run, so
+    # two releases could never collide on it.
+    #
+    # The dim sum code name can. It is chosen from the ordinal below, and the ordinal is
+    # `how many releases exist right now` - so two publishes in flight together read the
+    # same count, pick the same dish, and ship two different builds under one code name,
+    # which is the single thing a code name exists to prevent.
+    #
+    # `cancel-in-progress: false` because a queued publish must wait, never be dropped. A
+    # group holds one pending run, so three publishes racing can still evict the middle;
+    # that is a narrower window than the whole workflow had, and the honest fix for it is
+    # an ordinal that does not depend on a live count. Recorded rather than papered over.
+    concurrency:
+      group: ci-release-${{ github.ref }}
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
