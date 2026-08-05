@@ -252,6 +252,75 @@ jobs:
     name: BlueMap jars
     uses: ./.github/workflows/build-jars.yml
 
+  # packages/config/test/javaRoundTrip.test.ts is the one test that proves the whole
+  # point of the HOCON reader/writer: it generates a config set, edits real values
+  # through this package's own reader/writer (the same code path the options GUI
+  # uses), hands the folder to the *real* upstream CLI jar, and asserts the edited
+  # values - including map sort order - round-tripped correctly into the CLI's own
+  # settings.json. It is describe.skipIf(!runnable) gated on a CLI jar plus a `java`
+  # on PATH, and until now nothing in this workflow ever gave it either, so it was a
+  # named skip on every hosted run - a proof that only ever ran on somebody's laptop.
+  #
+  # A separate job rather than adding this to `check`: `check` already runs on every
+  # push and is the fast lint/build/test loop everyone waits on, while `jars` is a
+  # full Gradle build of upstream (cold-cache ceiling: 120 minutes, see
+  # build-jars.yml). Making `check` depend on `jars` would serialise the pipeline and
+  # tack that build onto the front of every single push's feedback, warm cache or
+  # not. This job needs only `jars`, runs beside `check` rather than after it, and on
+  # the common warm-cache path finishes in well under a minute past `jars` itself.
+  config-java-roundtrip:
+    name: Config / real Java CLI round trip
+    needs: [jars]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      # Upstream pins JavaLanguageVersion.of(25) (buildSrc/bluemap.java.gradle.kts,
+      # see build-jars.yml), and the shadow jar's own class files require exactly
+      # that version - not merely "some JVM".
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: bluemap-jar-cli
+          path: jar-download
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      # javaRoundTrip.test.ts resolves its jar from BLUEMAP_CLI_JAR when set (see the
+      # test file's own findCliJar()), so pointing that at the artifact this job just
+      # downloaded is the whole gate: cliJar !== null, hasJava() true, runnable true,
+      # describe.skipIf(!runnable) actually runs instead of recording a named skip.
+      # `find`, not an assumed path: actions/upload-artifact does not guarantee the
+      # jar lands at the download's top level.
+      - name: Run the real Java CLI round-trip test
+        working-directory: design
+        shell: bash
+        run: |
+          set -euo pipefail
+          jar=$(find "$GITHUB_WORKSPACE/jar-download" -name '*.jar' | head -1)
+          if [ -z "$jar" ]; then
+            echo "::error::the bluemap-jar-cli artifact contained no .jar file"
+            exit 1
+          fi
+          echo "Using CLI jar: $jar"
+          BLUEMAP_CLI_JAR="$jar" npx vitest run packages/config/test/javaRoundTrip.test.ts
+
   # A world of our own, rendered by the Java engine, so the screenshot harness never
   # touches somebody else's public demo server. Closes issue #17: every push used to
   # pull map tiles from bluecolored.de, which is another person's bandwidth, made the
