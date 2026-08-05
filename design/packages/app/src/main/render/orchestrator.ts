@@ -193,6 +193,25 @@ export interface RenderProgressEvent {
     readonly at: string;
 }
 
+/**
+ * Bytes actually counted for a transfer, on their own event rather than folded into
+ * {@link RenderProgressEvent}'s item-based percentage.
+ *
+ * Only `main/remote/orchestrator.ts` emits this, and only for `direction: "up"`: the size
+ * of what is being sent is known before anything leaves this computer, but the size of the
+ * rendered map coming back is not known until the remote render has finished producing it,
+ * so a `"down"` transfer would carry a total nobody could vouch for. `bytesTotal` is `null`
+ * rather than a guess whenever a path's size could not be measured.
+ */
+export interface RenderTransferEvent {
+    readonly type: "transfer";
+    readonly renderId: string;
+    readonly direction: "up" | "down";
+    readonly bytesDone: number;
+    readonly bytesTotal: number | null;
+    readonly at: string;
+}
+
 export interface RenderLogEvent {
     readonly type: "log";
     readonly renderId: string;
@@ -236,6 +255,7 @@ export type RenderEvent =
     | RenderStartedEvent
     | RenderPhaseEvent
     | RenderProgressEvent
+    | RenderTransferEvent
     | RenderLogEvent
     | RenderFinishedEvent
     | RenderFailedEvent

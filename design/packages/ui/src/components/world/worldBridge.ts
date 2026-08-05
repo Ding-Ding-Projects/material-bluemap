@@ -88,6 +88,14 @@ export type RenderEvent =
     | { type: "started"; renderId: string; mapIds: string[]; engine: EngineDescription; at: string }
     | { type: "phase"; renderId: string; phase: string; at: string }
     | { type: "progress"; renderId: string; phase: string; task: RenderTaskProgress; at: string }
+    | {
+          type: "transfer";
+          renderId: string;
+          direction: "up" | "down";
+          bytesDone: number;
+          bytesTotal: number | null;
+          at: string;
+      }
     | { type: "log"; renderId: string; level: string; message: string; at: string }
     | {
           type: "finished";

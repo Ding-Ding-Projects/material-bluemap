@@ -168,10 +168,12 @@ export interface ShardStat {
     readonly id: string;
     readonly name: string;
     /**
-     * The stem a matrix job shares with its siblings, e.g. `render` for `render (3)`.
+     * What this shard is shown grouped under.
      *
-     * Mechanical, from the provider's own naming, not a guess at a wave number. Null when
-     * the name carries no matrix suffix to strip.
+     * Never a guess: it is either the wave a job's own name actually carried - `ciProgress.ts`
+     * reads `CiJobReport.wave`, which the main process parsed from the workflow's own job
+     * naming - or, for a job that named none, the stem a matrix job mechanically shares with
+     * its siblings, e.g. `render` for `render (3)`. Null when neither is available.
      */
     readonly group: string | null;
     readonly state: ShardState;

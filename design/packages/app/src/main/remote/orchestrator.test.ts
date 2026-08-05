@@ -11,7 +11,7 @@
 import { EventEmitter } from "node:events";
 import { Readable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { RenderEvent, ResolvedEngine } from "../render/orchestrator.js";
@@ -206,6 +206,54 @@ describe("a remote render that works", () => {
         expect(rendering.task.percent).toBeCloseTo(25.663);
         expect(rendering.task.mapId).toBe("overworld");
         expect(rendering.task.etaSeconds).toBe(47);
+    });
+
+    it("reports real bytes for what goes up, sized before anything moves", async () => {
+        // A small but real tree, so the byte total this test checks is not asserted
+        // against itself.
+        await mkdir(join(worldPath, "region"), { recursive: true });
+        await writeFile(join(worldPath, "level.dat"), "x".repeat(100));
+        await writeFile(join(worldPath, "region", "r.0.0.mca"), "y".repeat(400));
+
+        const { orchestrator, events } = harness();
+        const result = await orchestrator.render(request());
+        expect(result.ok).toBe(true);
+
+        const transfers = events.filter((event) => event.type === "transfer");
+        expect(transfers.length).toBeGreaterThan(0);
+        for (const event of transfers) {
+            // Only ever the upload direction - see `RenderTransferEvent`'s own comment
+            // for why the download leg never gets one.
+            if (event.type === "transfer") expect(event.direction).toBe("up");
+        }
+
+        const first = transfers[0];
+        const last = transfers.at(-1);
+        if (first?.type !== "transfer" || last?.type !== "transfer") {
+            throw new Error("expected transfer events");
+        }
+        // The world alone is 500 bytes; the engine jar and the written config add more,
+        // so this checks a floor rather than an exact figure that would also have to
+        // track `writeEngineConfig`'s own output byte for byte.
+        expect(last.bytesTotal).not.toBeNull();
+        expect(last.bytesTotal ?? 0).toBeGreaterThanOrEqual(500);
+        expect(last.bytesDone).toBe(last.bytesTotal);
+        expect(first.bytesDone).toBe(0);
+        expect(first.bytesTotal).toBe(last.bytesTotal);
+    });
+
+    it("reports the upload as unsized rather than guessing, when a path cannot be measured", async () => {
+        // This harness's own world folder is never created on disk - standing in for any
+        // path this cannot stat - so the total is genuinely unknown and must say so
+        // rather than silently summing only the parts it could measure.
+        const { orchestrator, events } = harness();
+        await orchestrator.render(request());
+
+        const transfers = events.filter((event) => event.type === "transfer");
+        expect(transfers.length).toBeGreaterThan(0);
+        for (const event of transfers) {
+            if (event.type === "transfer") expect(event.bytesTotal).toBeNull();
+        }
     });
 
     it("removes the staging directory, and says it did", async () => {

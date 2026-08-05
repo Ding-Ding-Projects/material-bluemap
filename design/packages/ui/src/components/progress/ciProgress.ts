@@ -23,10 +23,14 @@
  *   second stream for one transfer is two chances to disagree about how far it has got. So
  *   this reports no {@link TransferStat} and says so in a note, rather than converting a
  *   phase name into a fake byte count.
- * - **Waves are not published.** The workflow shards through its own matrix and nothing in
- *   the run report names a wave. Jobs are grouped by the stem GitHub itself gave them —
- *   `render (3)` and `render (4)` under `render` — which is a mechanical reading of the
- *   provider's naming rather than an inference about scheduling.
+ * - **A shard groups by its wave when the run actually named one.** `render-shard-wave.yml`
+ *   names every job it starts `Wave <n> shard <m>`, and `CiJobReport.wave` is that number,
+ *   already read from it by the main process - see that field's own comment for why a job
+ *   naming no wave carries `null` rather than a guessed `0`. When at least one job in the
+ *   run carries a real wave, shards group by it. Only a run with no wave anywhere - an
+ *   older workflow, or one dispatched by hand outside it - falls back to the stem GitHub's
+ *   own default matrix naming gives a job, `render (3)` and `render (4)` under `render`,
+ *   and only then does a note say the wave is not known.
  */
 
 import type { CiJobReport, CiPreflight, CiRunReport, CiSyncPhase } from "../cirender/ciRenderBridge.js";
@@ -89,12 +93,21 @@ export function shardFromJob(job: CiJobReport): ShardStat {
     return {
         id: String(job.id),
         name: job.name,
-        group: shardGroupOf(job.name),
+        // The wave, when the run actually named one, over the mechanical stem: a real
+        // schedule grouping is worth more than "render (3)" and "render (4)" both reading
+        // "render", and it is what lets the note below say the wave truly is not known
+        // only when it truly is not.
+        group: job.wave !== null ? waveGroupLabel(job.wave) : shardGroupOf(job.name),
         state: shardStateOf(job),
         startedAtMs: parseTime(job.startedAt),
         finishedAtMs: parseTime(job.completedAt),
         url: job.htmlUrl === "" ? null : job.htmlUrl,
     };
+}
+
+/** The label a wave-numbered job groups under, e.g. `Wave 2`. */
+function waveGroupLabel(wave: number): string {
+    return `Wave ${wave}`;
 }
 
 function shardStateOf(job: CiJobReport): ShardStat["state"] {
@@ -201,7 +214,12 @@ export function ciProgressFacts(input: CiProgressInput): ProgressFacts {
             values: {},
         });
     }
-    if (shards.length > 0) {
+    // A note only while the wave genuinely is unknown - dropped, not softened, the moment
+    // any job in the run actually named one. A run with jobs that all carry `wave: null`
+    // predates `render-shard-wave.yml`'s naming, or was dispatched by hand outside it; a
+    // run with even one wave-named job is trusted to have named them all.
+    const anyWaveKnown = (input.run?.jobs ?? []).some((job) => job.wave !== null);
+    if (shards.length > 0 && !anyWaveKnown) {
         notes.push({
             key: "progress.ci.waves",
             fallback:

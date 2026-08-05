@@ -155,7 +155,10 @@ const router = createRenderRouter(bridge, remote, () => ({
     target: runTarget.value,
 }));
 
-const run = createRenderRun(router ?? bridge);
+// A function, not `runLocation.value` read here: the picker below can change the location
+// after this run was constructed, and the panel's route has to say whichever one a render
+// actually goes to, not whichever one was chosen first. See `RenderRunOptions.route`.
+const run = createRenderRun(router ?? bridge, { route: () => runLocation.value });
 const offers = createResumeOffers(bridge);
 
 /**

@@ -263,6 +263,14 @@ export type RenderEvent =
           task: RenderTaskProgress;
           at: string;
       }
+    | {
+          type: "transfer";
+          renderId: string;
+          direction: "up" | "down";
+          bytesDone: number;
+          bytesTotal: number | null;
+          at: string;
+      }
     | { type: "log"; renderId: string; level: string; message: string; at: string }
     | {
           type: "finished";

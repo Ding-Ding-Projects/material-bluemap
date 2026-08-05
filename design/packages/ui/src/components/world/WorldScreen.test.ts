@@ -30,12 +30,14 @@ import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
+import RenderRunPanel from "./RenderRunPanel.vue";
 import WorldScreen from "./WorldScreen.vue";
 import WorldWizard from "./WorldWizard.vue";
 import { forgetConsent } from "./consentState.js";
 import type { MapWizard } from "./wizardModel.js";
 import type { RenderRequest, RenderResult, WorldBridge } from "./worldBridge.js";
 import type { ProjectHost, ProjectListing, ProjectReadAnswer, ProjectWriteAnswer } from "../project/projectHost.js";
+import { RunLocationCard } from "../remote/index.js";
 import type { ProjectFile } from "@material-bluemap/config";
 
 beforeAll(() => {
@@ -326,5 +328,49 @@ describe("a world that already has a project", () => {
 
         expect(mounted.screen.text()).toContain("This world already has a project");
         expect(mounted.screen.text()).toContain("Open the project");
+    });
+});
+
+/**
+ * Issue #38's gap (5): the panel never learned which of the four routes a render was on,
+ * because neither of its two call sites passed one. This is the one that already knew - the
+ * location picker sitting right beside the guide.
+ */
+describe("the route the panel reports", () => {
+    it("reports whichever location the picker is set to when the render starts", async () => {
+        const started: RenderRequest[] = [];
+        const mounted = await mountScreen(fakeBridge({ accepted: true }, started), fakeProjectHost([]));
+        await reachReview(mounted);
+
+        // The picker sits beside the guide the whole time, so a person can change their
+        // mind about where a render goes right up until the button that starts one.
+        mounted.screen.findComponent(RunLocationCard).vm.$emit("update:location", "docker");
+        await flushPromises();
+
+        mounted.screen.findComponent(WorldWizard).vm.$emit(
+            "start",
+            { maps: [{ id: "overworld", world: "C:/saves/Survival", name: "Overworld", dimension: "minecraft:overworld", sorting: 0 }] },
+            "",
+            "C:/renders",
+        );
+        await flushPromises();
+
+        expect(started).toHaveLength(1);
+        const run = mounted.screen.findComponent(RenderRunPanel).props("run") as { progress: { value: { route: string | null } } };
+        expect(run.progress.value.route).toBe("docker");
+    });
+
+    it("follows the picker even after the run was built, rather than freezing the first choice", async () => {
+        const started: RenderRequest[] = [];
+        const mounted = await mountScreen(fakeBridge({ accepted: true }, started), fakeProjectHost([]));
+        await reachReview(mounted);
+
+        const run = mounted.screen.findComponent(RenderRunPanel).props("run") as { progress: { value: { route: string | null } } };
+        expect(run.progress.value.route).toBe("local");
+
+        mounted.screen.findComponent(RunLocationCard).vm.$emit("update:location", "remote");
+        await flushPromises();
+
+        expect(run.progress.value.route).toBe("remote");
     });
 });

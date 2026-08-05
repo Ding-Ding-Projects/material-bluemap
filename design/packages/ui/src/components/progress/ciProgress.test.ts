@@ -76,6 +76,21 @@ describe("one job, as a shard", () => {
         expect(shard.finishedAtMs).toBe(Date.parse("2026-08-03T09:18:00.000Z"));
         expect(shard.group).toBe("render");
     });
+
+    it("groups by the wave the workflow actually named, over the mechanical stem", () => {
+        // `render-shard-wave.yml` names its jobs `Wave <n> shard <m>`, which carries no
+        // trailing `(...)` for `shardGroupOf` to read a stem out of at all - the wave is
+        // the only real grouping a job like this has.
+        const shard = shardFromJob(job({ name: "Wave 2 shard 3", wave: 2 }));
+
+        expect(shard.group).toBe("Wave 2");
+    });
+
+    it("falls back to the mechanical stem for a job that names no wave", () => {
+        const shard = shardFromJob(job({ name: "render (3)", wave: null }));
+
+        expect(shard.group).toBe("render");
+    });
 });
 
 describe("the whole sync", () => {
@@ -150,7 +165,7 @@ describe("the whole sync", () => {
         expect(facts.notes.map((note) => note.key)).toContain("progress.ci.uploadBytes");
     });
 
-    it("says that waves are not published rather than inventing one", () => {
+    it("says that waves are not published rather than inventing one, for a run with none", () => {
         const facts = ciProgressFacts({
             phase: "rendering",
             run: run([job({})]),
@@ -159,5 +174,36 @@ describe("the whole sync", () => {
         });
 
         expect(facts.notes.map((note) => note.key)).toContain("progress.ci.waves");
+    });
+
+    it("drops the note once the run's own jobs actually name a wave", () => {
+        // Issue #38, gap (4): the note is stale the moment the fact it describes is
+        // supplied, and it must be dropped rather than left to read as still true.
+        const facts = ciProgressFacts({
+            phase: "rendering",
+            run: run([job({ id: 1, name: "Wave 1 shard 0", wave: 1 })]),
+            active: true,
+            startedAt: null,
+        });
+
+        expect(facts.notes.map((note) => note.key)).not.toContain("progress.ci.waves");
+        const shardLevel = facts.shards.find((shard) => shard.id === "1");
+        expect(shardLevel?.group).toBe("Wave 1");
+    });
+
+    it("trusts one wave-named job to mean the whole run is wave-aware", () => {
+        // A build or merge job in the same run legitimately carries no wave of its own -
+        // see `CiJobReport.wave`'s own comment - and must not bring the note back.
+        const facts = ciProgressFacts({
+            phase: "rendering",
+            run: run([
+                job({ id: 1, name: "Build the BlueMap CLI", wave: null }),
+                job({ id: 2, name: "Wave 1 shard 0", wave: 1 }),
+            ]),
+            active: true,
+            startedAt: null,
+        });
+
+        expect(facts.notes.map((note) => note.key)).not.toContain("progress.ci.waves");
     });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { ref } from "vue";
 import { createI18n } from "vue-i18n";
 import {
     LOG_LIMIT,
@@ -17,6 +18,7 @@ import type {
     WorldBridge,
 } from "./worldBridge.js";
 import type { Translate } from "./worldFolder.js";
+import type { ProgressRoute } from "../progress/progressModel.js";
 
 /**
  * The fallback-returning translator, which is what a build with no locale uses.
@@ -624,5 +626,198 @@ describe("wording", () => {
         // A phase name carries no value, so it is the same either way. Asserted so a
         // failure above is read as a lost value rather than a broken translator.
         expect(phaseLabel("rendering", real)).toBe("Rendering tiles");
+    });
+});
+
+/**
+ * Issue #38's remaining gaps: the panel's own route, and the truth about the numbers a
+ * remote render can and cannot count.
+ */
+describe("which route the panel reports", () => {
+    it("reports no route when the surface that built this run said nothing", () => {
+        const fake = fakeBridge(OK);
+        const run = createRenderRun(fake.bridge);
+
+        expect(run.progress.value.route).toBeNull();
+        run.dispose();
+    });
+
+    it("reports a plain route exactly as given", () => {
+        const fake = fakeBridge(OK);
+        const run = createRenderRun(fake.bridge, { route: "docker" });
+
+        expect(run.progress.value.route).toBe("docker");
+        run.dispose();
+    });
+
+    it("reads a function route fresh on every access, not once at construction", () => {
+        // `WorldScreen.vue`'s picker can change after `createRenderRun` was called, and a
+        // plain value captured once would go on reporting whichever route was chosen
+        // first no matter how many times the picker changed afterwards. A `ref`, exactly
+        // as `WorldScreen.vue`'s own `runLocation` is one, so `progress` - itself a
+        // `computed` - has a real reactive dependency to invalidate on.
+        const fake = fakeBridge(OK);
+        const chosen = ref<ProgressRoute>("local");
+        const run = createRenderRun(fake.bridge, { route: () => chosen.value });
+
+        expect(run.progress.value.route).toBe("local");
+        chosen.value = "remote";
+        expect(run.progress.value.route).toBe("remote");
+        run.dispose();
+    });
+});
+
+describe("the tile-count gap, said out loud rather than left silent", () => {
+    it("says nothing about tile counts before a render task has been seen", () => {
+        const fake = fakeBridge(OK);
+        const run = createRenderRun(fake.bridge);
+
+        expect(run.progress.value.notes.some((note) => note.key === "progress.note.noTileCounts")).toBe(false);
+        run.dispose();
+    });
+
+    it("has no count for a per-map render task, and says precisely why", () => {
+        const fake = fakeBridge(OK);
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+
+        fake.emit({
+            type: "progress",
+            renderId: "world-abc",
+            phase: "rendering",
+            task: {
+                kind: "updating-map",
+                mapId: "survival",
+                description: "updating map 'survival'",
+                percent: 25.663,
+                etaSeconds: 47,
+                etaText: "47 seconds",
+            },
+            at: "t1",
+        });
+
+        const task = run.progress.value.levels.find((level) => level.id === "task");
+        expect(task?.count ?? null).toBeNull();
+        expect(run.progress.value.notes.some((note) => note.key === "progress.note.noTileCounts")).toBe(true);
+        run.dispose();
+    });
+
+    it("says the same for a region task, which also names no map", () => {
+        const fake = fakeBridge(OK);
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+
+        fake.emit({
+            type: "progress",
+            renderId: "world-abc",
+            phase: "rendering",
+            task: {
+                kind: "updating-region",
+                mapId: null,
+                description: "updating region (3, -1)",
+                percent: 60,
+                etaSeconds: null,
+                etaText: null,
+            },
+            at: "t1",
+        });
+
+        expect(run.progress.value.notes.some((note) => note.key === "progress.note.noTileCounts")).toBe(true);
+        run.dispose();
+    });
+});
+
+describe("real bytes for what went up, an honest gap for what comes back", () => {
+    it("builds a transfer stat from the remote route's byte events", () => {
+        const fake = fakeBridge(OK);
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "2026-01-01T00:00:00.000Z" });
+
+        fake.emit({
+            type: "transfer",
+            renderId: "world-abc",
+            direction: "up",
+            bytesDone: 0,
+            bytesTotal: 1000,
+            at: "2026-01-01T00:00:00.000Z",
+        });
+        expect(run.progress.value.transfers).toHaveLength(1);
+        expect(run.progress.value.transfers[0]?.bytesTotal).toBe(1000);
+        expect(run.progress.value.transfers[0]?.bytesDone).toBe(0);
+        // One sample says a transfer has begun, not how fast - never extrapolated.
+        expect(run.progress.value.transfers[0]?.bytesPerSecond).toBeNull();
+
+        fake.emit({
+            type: "transfer",
+            renderId: "world-abc",
+            direction: "up",
+            bytesDone: 500,
+            bytesTotal: 1000,
+            at: "2026-01-01T00:00:01.000Z",
+        });
+        expect(run.progress.value.transfers[0]?.bytesDone).toBe(500);
+        expect(run.progress.value.transfers[0]?.bytesPerSecond).toBe(500);
+
+        // The upload leg now has real bytes, so it earns no "unknown" note.
+        expect(run.progress.value.notes.some((note) => note.key === "progress.note.stagedNotBytes")).toBe(false);
+        run.dispose();
+    });
+
+    it("never claims the upload's own item-count progress needs the download's note", () => {
+        // Regression: this used to set the same generic note for the "starting" phase
+        // item-count progress the remote route also reports, even though that phase now
+        // carries its own real bytes through the "transfer" event instead.
+        const fake = fakeBridge(OK);
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+
+        fake.emit({
+            type: "progress",
+            renderId: "world-abc",
+            phase: "starting",
+            task: {
+                kind: "unknown",
+                mapId: null,
+                description: "Sending the engine",
+                percent: 0,
+                etaSeconds: null,
+                etaText: null,
+            },
+            at: "t1",
+        });
+
+        expect(run.progress.value.transfers).toEqual([]);
+        expect(run.progress.value.notes.some((note) => note.key === "progress.note.stagedNotBytes")).toBe(false);
+        run.dispose();
+    });
+
+    it("still says the fetch-back leg is unsized, because it genuinely is", () => {
+        const fake = fakeBridge(OK);
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+
+        fake.emit({
+            type: "progress",
+            renderId: "world-abc",
+            phase: "stopping",
+            task: {
+                kind: "unknown",
+                mapId: null,
+                description: "Fetching the rendered map",
+                percent: 0,
+                etaSeconds: null,
+                etaText: null,
+            },
+            at: "t1",
+        });
+
+        expect(run.progress.value.transfers).toEqual([]);
+        expect(run.progress.value.notes.some((note) => note.key === "progress.note.stagedNotBytes")).toBe(true);
+        run.dispose();
     });
 });

@@ -47,6 +47,7 @@ import type {
     ProgressLevel,
     ProgressRoute,
     ProgressText,
+    TransferStat,
 } from "../progress/progressModel.js";
 import type {
     EngineDescription,
@@ -481,10 +482,22 @@ export interface RenderRunOptions {
      * `label`, which is an English sentence and not something to match on. So the surface
      * that chose the location is the thing that can say, and when nobody says, this reports
      * no route rather than guessing at one.
+     *
+     * Accepts a function as well as a plain value, for the surface that lets somebody
+     * change where a render will go *after* this was constructed - `WorldScreen.vue`'s
+     * location picker is read at the moment a render starts, not at the moment its panel
+     * was built, and a plain value captured once would go on reporting whichever route was
+     * chosen first no matter how many times the picker changed afterwards.
      */
-    readonly route?: ProgressRoute;
+    readonly route?: ProgressRoute | (() => ProgressRoute | null);
     /** The clock, for a test that decides what time it is. */
     readonly now?: () => number;
+}
+
+/** Resolves a `route` option, whichever of its two shapes was given. */
+function resolveRoute(route: ProgressRoute | (() => ProgressRoute | null) | undefined): ProgressRoute | null {
+    if (route === undefined) return null;
+    return typeof route === "function" ? route() : route;
 }
 
 export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOptions = {}): RenderRun {
@@ -537,14 +550,44 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
      */
     const taskPhase = ref<string | null>(null);
     /**
-     * True once a progress report has arrived that is a transfer rather than a render.
+     * True once a real per-map or per-region render task has been seen.
      *
-     * Only the remote route produces these - it reports the world going up and the map
-     * coming back on the render's own progress channel - and it reports them as files
-     * staged, not as bytes. The flag is what lets the panel say that in words rather than
-     * leaving a byte counter mysteriously absent.
+     * `"rendering"` is the phase upstream's own progress lines report through, and every
+     * one of them - `progress.ts`'s doc comment quotes the exact `logInfo` call that
+     * produces them - is a percentage and, when it has one, an ETA. Nothing else. There is
+     * no tile, region or chunk count anywhere in that line for this port to have discarded,
+     * so a task-level `count` stays `null` for the life of this file, and this flag is what
+     * lets the panel say why in words instead of leaving that a silent gap.
      */
-    const transferSeen = ref(false);
+    const mapTaskSeen = ref(false);
+    /**
+     * True once the render has started fetching the finished map back.
+     *
+     * Only the remote route reports this, on the render's own progress channel, and it
+     * reports it as files staged rather than as bytes: the size of what is coming back is
+     * not known until the remote render has finished producing it, so there is nothing to
+     * count against in advance. The flag is what lets the panel say that in words rather
+     * than leaving a byte counter mysteriously absent. See `transferStats` for the other
+     * half of a remote transfer - what went up - which does carry real bytes.
+     */
+    const downloadTransferSeen = ref(false);
+    /**
+     * Real bytes over the wire, when the route actually counts them.
+     *
+     * Only `main/remote/orchestrator.ts` emits a `"transfer"` event, and only while a world
+     * is going up: its size is known before anything leaves this computer, sized folder by
+     * folder in `sizeOfFolder`. There is at most one entry - one render sends at most one
+     * world upload's worth of bytes - and it is replaced wholesale on every event rather
+     * than appended to, because each event already carries the running total.
+     */
+    const transferStats = ref<readonly TransferStat[]>([]);
+    /**
+     * The upload's last sample, for a rate that is never extrapolated from one point.
+     *
+     * `bytesPerSecond` on a fresh transfer is null until a second sample exists to measure
+     * a delta against - the first sample only says a transfer has begun, not how fast.
+     */
+    let lastTransferSample: { atMs: number; bytesDone: number } | null = null;
 
     /**
      * The estimator, which is upstream's own maths and not a second one.
@@ -616,6 +659,25 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         if (at === undefined) return now();
         const parsed = Date.parse(at);
         return Number.isNaN(parsed) ? now() : parsed;
+    }
+
+    /**
+     * Bytes per second, measured between this sample and the one before it.
+     *
+     * Never from one sample against the transfer's start: an upload's own first sample
+     * often arrives well after the transfer began (staging, `mkdir`, the preflight already
+     * behind it), and dividing by that stale elapsed time would report a rate nobody would
+     * believe. Two consecutive samples, close together, is what a rate this application
+     * stands behind actually needs.
+     */
+    function transferRate(bytesDone: number, atMs: number): number | null {
+        const previous = lastTransferSample;
+        lastTransferSample = { atMs, bytesDone };
+        if (previous === null) return null;
+        const elapsedMs = atMs - previous.atMs;
+        const movedBytes = bytesDone - previous.bytesDone;
+        if (elapsedMs <= 0 || movedBytes <= 0) return null;
+        return (movedBytes / elapsedMs) * 1000;
     }
 
     /**
@@ -742,27 +804,37 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
     }
 
     function notes(): readonly ProgressText[] {
-        if (!transferSeen.value) return [];
-        return [
-            {
+        const built: ProgressText[] = [];
+        if (mapTaskSeen.value) {
+            built.push({
+                key: "progress.note.noTileCounts",
+                fallback:
+                    "The engine's own progress line for a map or a region is a percentage only - upstream's CLI never prints how many tiles, regions or chunks that percentage is out of, so there is no count to show beside it.",
+                values: {},
+            });
+        }
+        if (downloadTransferSeen.value) {
+            built.push({
                 key: "progress.note.stagedNotBytes",
                 fallback:
-                    "Sending a world and fetching a map back are reported as files staged, not as bytes moved: the copy is done by scp, which does not say how many bytes have gone. There is no byte count or transfer rate to show.",
+                    "Fetching the rendered map back is reported as files staged, not as bytes moved: its size is not known until the render on the far end has finished, so there is no byte count or transfer rate to show for that part.",
                 values: {},
-            },
-        ];
+            });
+        }
+        return built;
     }
 
     const progress = computed<ProgressFacts>(() => ({
-        route: options.route ?? null,
+        route: resolveRoute(options.route),
         active: active.value,
         startedAtMs: startedAtMs.value,
         lastEventAtMs: lastEventAtMs.value,
         lastProgressAtMs: lastProgressAtMs.value,
         levels: levels(),
         estimate: estimate(),
-        // Nothing on this stream counts bytes. See `notes()`.
-        transfers: [],
+        // Real bytes when the remote route's own "transfer" event supplied them. See
+        // `transferStats`'s own comment for why only the upload direction ever can.
+        transfers: transferStats.value,
         // Nothing on this stream shards. A local, container or SSH render is one engine.
         shards: [],
         notes: notes(),
@@ -895,20 +967,48 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
                 if (event.task.mapId !== null && !observedMaps.value.includes(event.task.mapId)) {
                     observedMaps.value = [...observedMaps.value, event.task.mapId];
                 }
-                // A progress report that names no map during the phases either side of the
-                // render is the remote route moving files. It is real progress and gets its
-                // own bar, but it is not a map being drawn and must not move the overall one.
-                if (
-                    event.task.mapId === null &&
-                    (event.phase === "starting" || event.phase === "stopping")
-                ) {
-                    transferSeen.value = true;
+                // A progress report naming no map, during the "rendering" phase itself, is
+                // a real per-map or per-region task upstream's log format simply has no
+                // count in - see `mapTaskSeen`'s own comment. One naming no map during the
+                // phases either side of rendering is the remote route moving files instead;
+                // it is real progress and gets its own bar, but it is not a map being drawn
+                // and must not move the overall one.
+                if (event.phase === "rendering") {
+                    mapTaskSeen.value = true;
+                } else if (event.task.mapId === null && event.phase === "stopping") {
+                    downloadTransferSeen.value = true;
                 }
                 {
                     const fraction = overallFraction();
                     if (fraction !== null) eta.observe(fraction, at);
                 }
                 break;
+            case "transfer": {
+                const rate = transferRate(event.bytesDone, at);
+                transferStats.value = [
+                    {
+                        id: `${event.renderId}-${event.direction}`,
+                        direction: event.direction,
+                        label:
+                            event.direction === "up"
+                                ? {
+                                      key: "progress.transfer.sending",
+                                      fallback: "Sending files",
+                                      values: {},
+                                  }
+                                : {
+                                      key: "progress.transfer.fetching",
+                                      fallback: "Fetching the rendered map",
+                                      values: {},
+                                  },
+                        bytesDone: event.bytesDone,
+                        bytesTotal: event.bytesTotal,
+                        bytesPerSecond: rate,
+                    },
+                ];
+                lastProgressAtMs.value = at;
+                break;
+            }
             case "log":
                 append(event.level, event.message, event.at);
                 break;
@@ -964,7 +1064,10 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         lastEventAtMs.value = null;
         lastProgressAtMs.value = null;
         taskPhase.value = null;
-        transferSeen.value = false;
+        mapTaskSeen.value = false;
+        downloadTransferSeen.value = false;
+        transferStats.value = [];
+        lastTransferSample = null;
         eta.reset();
         adopting = false;
         ended = false;

@@ -107,7 +107,10 @@ provideConfigHost(configHost);
  */
 provideSettingsOpener((target) => emit("settings", target));
 
-const run = createRenderRun(bridge);
+// Always "local": this screen renders through `bridge` directly, with no router and no
+// location picker, so every render it starts runs on this computer. See
+// `RenderRunOptions.route`.
+const run = createRenderRun(bridge, { route: "local" });
 
 const separator = computed(() => configHost?.separator ?? "/");
 

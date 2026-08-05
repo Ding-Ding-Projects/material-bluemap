@@ -60,7 +60,8 @@
  * offered to resume.
  */
 
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, stat } from "node:fs/promises";
+import { readFolderContents } from "../backup/archive.js";
 import { EngineProcess } from "../runtime/process.js";
 import type { EngineLaunch } from "../runtime/plan.js";
 import type { ContainerHandoffStore } from "../runtime/handoff.js";
@@ -329,9 +330,31 @@ export class RemoteRenderOrchestrator {
 
             /* 4: the jar, then each world. ---------------------------------- */
 
+            // Sized before anything moves, so the byte total the panel shows is known from
+            // the first event rather than only after the last file has gone. A path this
+            // cannot measure - already gone, unreadable, or simply not there under a build
+            // that fakes the transfer beneath it - contributes `null` rather than aborting
+            // a render over a number nobody asked to see; the running total then stays
+            // honestly unknown too, because a sum with a missing addend is not a total.
+            const engineBytes = await this.sizeOfFile(engine.enginePath);
+            const configBytes = await this.sizeOfFolder(workspace.configDir, entry.value.controller.signal);
+            const mapBytes = await Promise.all(
+                request.maps.map((map) => this.sizeOfFolder(map.world, entry.value.controller.signal)),
+            );
+            const sizes = [engineBytes, configBytes, ...mapBytes];
+            const uploadTotal = sizes.every((size) => size !== null)
+                ? sizes.reduce((sum: number, size) => sum + (size as number), 0)
+                : null;
+            let uploadDone = 0;
+
+            this.transfer(renderId, "up", uploadDone, uploadTotal);
             this.progress(renderId, "starting", "Sending the engine", 0, mapIds.length + 1);
             await transfer.uploadFile(engine.enginePath, paths.jarPath, transferOptions);
+            uploadDone += engineBytes ?? 0;
+            this.transfer(renderId, "up", uploadDone, uploadTotal);
             await transfer.uploadDirectory(workspace.configDir, paths.configDir, transferOptions);
+            uploadDone += configBytes ?? 0;
+            this.transfer(renderId, "up", uploadDone, uploadTotal);
 
             for (const [index, map] of request.maps.entries()) {
                 if (entry.value.cancelled) return await this.cancelledAfter(renderId, target, paths, transfer);
@@ -347,6 +370,8 @@ export class RemoteRenderOrchestrator {
                     remoteWorldPath(paths, map.id),
                     transferOptions,
                 );
+                uploadDone += mapBytes[index] ?? 0;
+                this.transfer(renderId, "up", uploadDone, uploadTotal);
             }
 
             if (entry.value.cancelled) return await this.cancelledAfter(renderId, target, paths, transfer);
@@ -676,6 +701,43 @@ export class RemoteRenderOrchestrator {
             etaText: null,
         };
         this.emit({ type: "progress", renderId, phase, task, at: this.timestamp() });
+    }
+
+    /** A single file's size, or null when it could not be measured. */
+    private async sizeOfFile(path: string): Promise<number | null> {
+        try {
+            const info = await stat(path);
+            return info.isFile() ? info.size : null;
+        } catch {
+            return null;
+        }
+    }
+
+    /** A folder's total size, or null when it could not be measured. */
+    private async sizeOfFolder(path: string, signal: AbortSignal): Promise<number | null> {
+        try {
+            return (await readFolderContents(path, signal)).bytes;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Bytes over the wire, on their own event.
+     *
+     * Kept apart from `progress()`: that one's percentage is deliberately item-based
+     * ("2 of 3 things staged") and is reused for every phase this class reports through,
+     * while a byte count is a genuinely different fact that only the upload direction can
+     * ever honestly carry - see {@link RenderTransferEvent}'s own comment for why the
+     * download direction never gets one.
+     */
+    private transfer(
+        renderId: string,
+        direction: "up" | "down",
+        bytesDone: number,
+        bytesTotal: number | null,
+    ): void {
+        this.emit({ type: "transfer", renderId, direction, bytesDone, bytesTotal, at: this.timestamp() });
     }
 
     /** The container's own output, turned into the events a local render emits. */
