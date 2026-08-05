@@ -281,6 +281,10 @@ function startRendering(): RenderIpc {
         // (see its own doc comment) and creates itself on first call, which this becomes
         // the moment a render genuinely fails rather than at `createWindow`'s own ordering.
         rememberFailure: (evidence) => startRepairDiagnostics().remember(evidence),
+        // The heap ceiling somebody chose in Settings, read fresh for every render rather
+        // than captured here - `files/renderMemory.ts`'s own store already re-reads the
+        // machine's memory and the stored file on every call, so this is never stale.
+        jvmArgs: () => getRenderMemoryStore().jvmArgs(),
     });
     // Maps rendered in an earlier session are served again without re-rendering.
     void render.restoreExisting();
@@ -514,26 +518,38 @@ function startUpdates(render: RenderIpc): void {
     app.on("will-quit", () => updatesInstalled?.dispose());
 }
 
+/**
+ * The persisted `-Xmx` ceiling, shared between the render channel (which applies it to
+ * every render that does not specify its own) and the files channel (which reads and
+ * writes the setting itself). One instance, constructed on first use by whichever of the
+ * two runs first - `createWindow` always calls `startRendering()` before
+ * `startFileAccess()`, but neither should have to assume that ordering forever.
+ */
 let renderMemory: RenderMemoryStore | null = null;
 let filesRegistered = false;
 
-function startFileAccess(render: RenderIpc): RenderMemoryStore {
+function getRenderMemoryStore(): RenderMemoryStore {
     renderMemory ??= new RenderMemoryStore({
         dataDir: app.getPath("userData"),
         totalMemoryBytes: totalmem(),
     });
-    if (filesRegistered) return renderMemory;
+    return renderMemory;
+}
+
+function startFileAccess(render: RenderIpc): RenderMemoryStore {
+    const memory = getRenderMemoryStore();
+    if (filesRegistered) return memory;
     filesRegistered = true;
     registerFileHandlers(ipcMain, {
         shell,
         documents: { reported: app.getPath("documents"), home: app.getPath("home") },
-        memory: renderMemory,
+        memory,
         roots: () => [
             { id: "maps", label: "the folder rendered maps go in", path: render.storageDirectory() },
             { id: "data", label: "this app's own data folder", path: app.getPath("userData") },
         ],
     });
-    return renderMemory;
+    return memory;
 }
 
 /**

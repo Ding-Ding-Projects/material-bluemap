@@ -99,6 +99,15 @@ export interface RenderIpcOptions {
      * escape. `main/index.ts` passes its `startRepairDiagnostics()` singleton's `remember`.
      */
     readonly rememberFailure?: (evidence: RepairEvidence) => void;
+    /**
+     * The `-Xmx` ceiling to apply to a render that does not already specify one.
+     *
+     * Forwarded straight to {@link RenderOrchestrator}'s own option of the same name; see
+     * its doc comment for why this is a function rather than a captured value. Absent
+     * (a build with no `RenderMemoryStore`, or a test) means every render keeps running
+     * with whatever heap the JVM picks for itself, exactly as before this existed.
+     */
+    readonly jvmArgs?: () => readonly string[];
 }
 
 /**
@@ -194,6 +203,7 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         ...(options.dockerImage === undefined ? {} : { dockerImage: options.dockerImage }),
         ...(options.home === undefined ? {} : { home: options.home }),
         ...(options.rememberFailure === undefined ? {} : { rememberFailure: options.rememberFailure }),
+        ...(options.jvmArgs === undefined ? {} : { jvmArgs: options.jvmArgs }),
     });
 
     /**

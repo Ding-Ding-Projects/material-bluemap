@@ -340,6 +340,19 @@ export interface RenderOrchestratorOptions {
      */
     readonly rememberFailure?: (evidence: RepairEvidence) => void;
     readonly now?: () => Date;
+    /**
+     * The `-Xmx` ceiling to apply when a request does not already carry one.
+     *
+     * A function, for the same reason {@link storageDir} is: the ceiling is a persisted
+     * setting somebody can change in Settings between two renders (`files/renderMemory.ts`),
+     * and a value captured once at construction would keep applying whatever heap was chosen
+     * at app launch. `main/index.ts` passes `() => renderMemory.jvmArgs()`.
+     *
+     * Never overrides a request that already names `jvmArgs` - today nothing sets one before
+     * this runs, but a future caller (an advanced per-render override) must win over the
+     * settings-wide default rather than being silently replaced by it.
+     */
+    readonly jvmArgs?: readonly string[] | (() => readonly string[]);
 
     /* ---- The container half. Every one of these is optional and local ignores them. ---- */
 
@@ -459,8 +472,24 @@ export class RenderOrchestrator {
      * An exception here would have to be caught identically by every caller and turned
      * back into the same shape, and the one caller that forgets shows a stack trace to
      * somebody who pressed a button.
+     *
+     * The memory ceiling from {@link RenderOrchestratorOptions.jvmArgs} is applied here,
+     * once, before anything else reads `request`: both the local `CliRun` path and the
+     * container `planContainer` path read `request.jvmArgs` already, so filling it in here
+     * covers both without either needing to know where the default comes from. A request
+     * that already names `jvmArgs` - none does today - is left exactly as it is.
      */
     async render(request: RenderRequest): Promise<RenderResult> {
+        if (request.jvmArgs === undefined) {
+            const configured = this.options.jvmArgs;
+            const defaults = configured === undefined
+                ? []
+                : typeof configured === "function"
+                  ? configured()
+                  : configured;
+            if (defaults.length > 0) request = { ...request, jvmArgs: defaults };
+        }
+
         let renderId = request.renderId ?? "";
         try {
             validateMaps(request.maps);
