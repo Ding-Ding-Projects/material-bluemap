@@ -6,9 +6,12 @@ import {
     mdiArrowRightBold,
     mdiChevronDown,
     mdiChevronRight,
+    mdiPalette,
+    mdiRestore,
     mdiTabUnselected,
 } from "@mdi/js";
 import { VBtn, VDivider, VTextField, VTooltip } from "vuetify/components";
+import { appearanceState } from "../appearance/useAppearance.js";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import TabBulkClose from "./TabBulkClose.vue";
@@ -39,10 +42,11 @@ import { groupSample, searchGroupTabs, type TabHit } from "./tabSearch.js";
  * writes on input and is announced by its own label.
  *
  * Per-group appearance beyond the colour - typography, badges, borders, state
- * styling - is the appearance editor's work and is deliberately absent rather
- * than stubbed. A row here that opened nothing would be exactly the decorative
- * control this project refuses to ship. The model already carries the slot it
- * will attach to; see `setGroupAppearance` in `tabModel.ts`.
+ * styling - is a full target of the shared appearance editor, under
+ * `group.<id>` in the same store every other target in the app uses. This menu
+ * only raises `edit-appearance`; `TabStrip.vue` is what actually owns the
+ * anchored, non-modal editor surface, because it is anchored to the group's
+ * header element rather than to anything this popup can see.
  */
 const props = defineProps<{ strip: TabStripState; group: TabGroup }>();
 
@@ -54,6 +58,10 @@ const emit = defineEmits<{
     move: [delta: number];
     /** Ungroup: the group goes, its tabs stay exactly where they were. */
     remove: [];
+    /** Opens the anchored appearance editor for this group; `TabStrip.vue` owns the surface. */
+    "edit-appearance": [];
+    /** Clears this group's appearance overrides; `TabStrip.vue` owns the shared store. */
+    "reset-appearance": [];
     activate: [hit: TabHit];
     pin: [hit: TabHit];
     unpin: [hit: TabHit];
@@ -114,6 +122,11 @@ const summary = computed(() =>
 /* Commands                                                                    */
 /* -------------------------------------------------------------------------- */
 
+/** True once this group carries any appearance overrides of its own. */
+const customised = computed(
+    () => appearanceState().value.elements[`group.${props.group.id}`] !== undefined,
+);
+
 /*
  * The shortcuts named here are bound by `TabStrip.vue` on the group header, so
  * an item claims a key only where that key really works.
@@ -149,6 +162,24 @@ const items = computed<readonly TabMenuItem[]>(() => [
         shortcut: null,
         danger: false,
     },
+    {
+        id: "appearance",
+        label: t("tabs.group.editAppearance", "Edit group appearance..."),
+        icon: mdiPalette,
+        shortcut: t("tabs.key.editAppearance", "Ctrl+Shift+F10"),
+        danger: false,
+    },
+    ...(customised.value
+        ? [
+              {
+                  id: "reset-appearance",
+                  label: t("tabs.group.resetAppearance", "Reset this group's appearance"),
+                  icon: mdiRestore,
+                  shortcut: null,
+                  danger: false,
+              },
+          ]
+        : []),
 ]);
 
 function choose(id: string): void {
@@ -156,6 +187,8 @@ function choose(id: string): void {
     else if (id === "left") emit("move", -1);
     else if (id === "right") emit("move", 1);
     else if (id === "remove") emit("remove");
+    else if (id === "appearance") emit("edit-appearance");
+    else if (id === "reset-appearance") emit("reset-appearance");
 }
 </script>
 

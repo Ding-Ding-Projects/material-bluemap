@@ -9,9 +9,11 @@ import {
     mdiClose,
     mdiDotsHorizontal,
     mdiMagnify,
+    mdiPalette,
     mdiPin,
     mdiPinOffOutline,
     mdiPlus,
+    mdiRestore,
     mdiTabPlus,
     mdiTabUnselected,
 } from "@mdi/js";
@@ -27,6 +29,17 @@ import {
     VMenu,
     VTooltip,
 } from "vuetify/components";
+import AppearanceEditor from "../appearance/AppearanceEditor.vue";
+import { appearanceStyle } from "../appearance/appearanceRecord.js";
+import { resolveTarget, withElementReset } from "../appearance/appearanceStore.js";
+import {
+    appearanceState,
+    commitAppearance,
+    fontCatalog,
+    registerAppearanceTarget,
+    typographyCapabilities,
+    unregisterAppearanceTarget,
+} from "../appearance/useAppearance.js";
 import { onRevealRequested } from "../shell/revealRequests.js";
 import TabButton from "./TabButton.vue";
 import TabFinder from "./TabFinder.vue";
@@ -90,9 +103,22 @@ import type { GroupHit, TabHit } from "./tabSearch.js";
  *
  * ### Appearance
  *
- * Per-tab and per-group appearance beyond the group colour belongs to the
- * appearance editor and is deliberately absent rather than stubbed out. Both
- * records already have somewhere to live on the model; see `setTabAppearance`.
+ * Every tab and every group is a target of the shared appearance editor, under
+ * the ids `tab.<id>` and `group.<id>` in the same global, id-keyed store every
+ * other target in the app uses (the title bar, the tab bar itself, a project
+ * row) - not the opaque `appearance` field `tabModel.ts` reserves on the record
+ * itself. That field stays exactly as it was: unread, round-tripped verbatim,
+ * and free for whatever eventually wants a slot that travels with the tab's own
+ * persistence rather than with the appearance feature's. Using the shared store
+ * instead means a tab gets the whole editor - typography, presets, export,
+ * reset - for free, rather than a second, smaller implementation of it.
+ *
+ * The context menu gains **Edit tab appearance...** / **Edit group appearance...**
+ * underneath the existing commands, Shift+right-click on a tab or a group header
+ * opens the editor directly, and Ctrl+Shift+F10 does the same from the keyboard -
+ * mirroring `AppearanceTarget`'s own convention exactly, so the gesture means the
+ * same thing everywhere in this application. The editor is anchored to the tab
+ * or group element, not to the pointer, and closing it returns focus there.
  */
 const props = defineProps<{
     strip: TabStripState;
@@ -145,9 +171,102 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const tabDomId = (tabId: string): string => `${props.idPrefix}-tab-${tabId}`;
+const groupDomId = (groupId: string): string => `${props.idPrefix}-group-${groupId}`;
+const tabAppearanceId = (tabId: string): string => `tab.${tabId}`;
+const groupAppearanceId = (groupId: string): string => `group.${groupId}`;
 
 const pinned = computed(() => pinnedTabs(props.strip));
 const segments = computed(() => stripSegments(props.strip));
+
+/* -------------------------------------------------------------------------- */
+/* Registering every tab and group as an appearance target                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Keeps the appearance editor's registry honest as tabs and groups come and go.
+ *
+ * `AppearanceTarget` registers itself once per mounted component because it is one component
+ * per element; a tab is a plain row inside one `v-for`, so this strip does the same
+ * register-on-mount, unregister-on-unmount bookkeeping itself, diffed against the strip's
+ * current membership rather than tied to any one component's lifecycle.
+ */
+const registeredAppearanceIds = new Set<string>();
+
+function syncAppearanceRegistrations(): void {
+    const desired = new Map<string, string>();
+    for (const tab of props.strip.tabs) desired.set(tabAppearanceId(tab.id), tab.label);
+    for (const group of props.strip.groups) desired.set(groupAppearanceId(group.id), group.name);
+
+    for (const [id, label] of desired) {
+        if (registeredAppearanceIds.has(id)) continue;
+        registerAppearanceTarget({ id, labelKey: `appearance.target.${id}`, fallback: label });
+        registeredAppearanceIds.add(id);
+    }
+    for (const id of [...registeredAppearanceIds]) {
+        if (desired.has(id)) continue;
+        unregisterAppearanceTarget(id);
+        registeredAppearanceIds.delete(id);
+    }
+}
+
+watch(() => [props.strip.tabs, props.strip.groups], syncAppearanceRegistrations, {
+    immediate: true,
+    deep: true,
+});
+
+onBeforeUnmount(() => {
+    for (const id of registeredAppearanceIds) unregisterAppearanceTarget(id);
+    registeredAppearanceIds.clear();
+});
+
+/**
+ * The live style every tab and group actually paints, resolved from the same global store
+ * the editor writes to.
+ *
+ * One computed per kind rather than one `useAppearanceTarget` call per tab: the ids in a
+ * strip come and go with every open, close, pin and group, and a hook meant to be called
+ * once per element does not fit a `v-for` whose membership changes at runtime. This reaches
+ * for the same pure pieces `AppearanceEditor.vue` and `useAppearanceTarget` are built from,
+ * so a tab painted here and a tab painted through the editor's own preview never disagree.
+ */
+const globalAppearance = appearanceState();
+const fonts = fontCatalog();
+
+const tabStyles = computed<Record<string, Record<string, string>>>(() => {
+    const map: Record<string, Record<string, string>> = {};
+    for (const tab of props.strip.tabs) {
+        map[tab.id] = appearanceStyle(
+            resolveTarget(globalAppearance.value, tabAppearanceId(tab.id)),
+            typographyCapabilities,
+            fonts.value,
+        ).style;
+    }
+    return map;
+});
+
+const groupStyles = computed<Record<string, Record<string, string>>>(() => {
+    const map: Record<string, Record<string, string>> = {};
+    for (const group of props.strip.groups) {
+        map[group.id] = appearanceStyle(
+            resolveTarget(globalAppearance.value, groupAppearanceId(group.id)),
+            typographyCapabilities,
+            fonts.value,
+        ).style;
+    }
+    return map;
+});
+
+function tabIsCustomised(tabId: string): boolean {
+    return globalAppearance.value.elements[tabAppearanceId(tabId)] !== undefined;
+}
+
+function resetTabAppearance(tabId: string): void {
+    commitAppearance(withElementReset(globalAppearance.value, tabAppearanceId(tabId)));
+}
+
+function resetGroupAppearance(groupId: string): void {
+    commitAppearance(withElementReset(globalAppearance.value, groupAppearanceId(groupId)));
+}
 
 /* -------------------------------------------------------------------------- */
 /* Overflow                                                                   */
@@ -291,7 +410,10 @@ function onTabKeydown(event: KeyboardEvent, tab: TabRecord): void {
         emit("close", tab.id, props.strip.id);
     } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
         event.preventDefault();
-        openTabMenuAt(tab, event.currentTarget as HTMLElement);
+        // Ctrl+Shift+F10 goes straight to the appearance editor, mirroring the mouse's
+        // Shift+right-click exactly and `AppearanceTarget`'s own keyboard convention.
+        if (event.ctrlKey) openTabAppearanceEditor(tab);
+        else openTabMenuAt(tab, event.currentTarget as HTMLElement);
     }
 }
 
@@ -342,7 +464,37 @@ function openTabMenuAt(tab: TabRecord, target: HTMLElement | [number, number]): 
 
 function onTabContextMenu(event: MouseEvent, tab: TabRecord): void {
     event.preventDefault();
+    // Shift+right-click is the direct route to the appearance editor, exactly as it is on
+    // every other `AppearanceTarget` in the app: no menu, straight to the editor.
+    if (event.shiftKey) {
+        openTabAppearanceEditor(tab);
+        return;
+    }
     openTabMenuAt(tab, [event.clientX, event.clientY]);
+}
+
+/* -------------------------------------------------------------------------- */
+/* The tab's own appearance editor                                            */
+/* -------------------------------------------------------------------------- */
+
+const tabAppearanceOpen = ref(false);
+const tabAppearanceTab = ref<TabRecord | null>(null);
+const tabAppearanceTarget = ref<HTMLElement | undefined>(undefined);
+
+/** Anchored to the tab element itself, never to the pointer, so it behaves like the keyboard path. */
+function openTabAppearanceEditor(tab: TabRecord): void {
+    tabMenuOpen.value = false;
+    tabAppearanceTab.value = tab;
+    tabAppearanceTarget.value = document.getElementById(tabDomId(tab.id)) ?? undefined;
+    tabAppearanceOpen.value = true;
+}
+
+function closeTabAppearanceEditor(): void {
+    tabAppearanceOpen.value = false;
+    const tab = tabAppearanceTab.value;
+    void nextTick(() => {
+        if (tab !== null) document.getElementById(tabDomId(tab.id))?.focus();
+    });
 }
 
 const menuTabIsPinned = computed(() =>
@@ -419,7 +571,24 @@ const tabMenuItems = computed<readonly TabMenuItem[]>(() => {
             shortcut: null,
             danger: false,
         },
+        {
+            id: "appearance",
+            label: t("tabs.action.editAppearance", "Edit tab appearance..."),
+            icon: mdiPalette,
+            shortcut: t("tabs.key.editAppearance", "Ctrl+Shift+F10"),
+            danger: false,
+        },
     ];
+
+    if (tabIsCustomised(tabMenuTab.value?.id ?? "")) {
+        items.push({
+            id: "reset-appearance",
+            label: t("tabs.action.resetAppearance", "Reset this tab's appearance"),
+            icon: mdiRestore,
+            shortcut: null,
+            danger: false,
+        });
+    }
 
     if (menuTabGroup.value !== null) {
         items.push({
@@ -453,6 +622,18 @@ function onTabMenuChoose(id: string): void {
         // These stay inside the menu and become a preview with its own gate,
         // rather than closing several tabs the instant they are clicked.
         tabMenuPlan.value = id;
+        return;
+    }
+
+    if (id === "appearance") {
+        // Opens its own anchored surface rather than closing back to nothing, so the
+        // menu-driven route and the Shift+right-click route land in the same place.
+        openTabAppearanceEditor(tab);
+        return;
+    }
+    if (id === "reset-appearance") {
+        resetTabAppearance(tab.id);
+        tabMenuOpen.value = false;
         return;
     }
 
@@ -510,6 +691,10 @@ function openGroupMenu(groupId: string, target: HTMLElement | [number, number]):
 
 function onGroupContextMenu(event: MouseEvent, groupId: string): void {
     event.preventDefault();
+    if (event.shiftKey) {
+        openGroupAppearanceEditor(groupId);
+        return;
+    }
     openGroupMenu(groupId, [event.clientX, event.clientY]);
 }
 
@@ -523,11 +708,39 @@ function onGroupKeydown(event: KeyboardEvent, groupId: string, collapsed: boolea
     }
     if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
         event.preventDefault();
-        openGroupMenu(groupId, event.currentTarget as HTMLElement);
+        if (event.ctrlKey) openGroupAppearanceEditor(groupId);
+        else openGroupMenu(groupId, event.currentTarget as HTMLElement);
     } else if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         emit("set-group-collapsed", groupId, !collapsed);
     }
+}
+
+/* -------------------------------------------------------------------------- */
+/* The group's own appearance editor                                          */
+/* -------------------------------------------------------------------------- */
+
+const groupAppearanceOpen = ref(false);
+const groupAppearanceGroupId = ref<string | null>(null);
+const groupAppearanceTarget = ref<HTMLElement | undefined>(undefined);
+
+const groupAppearanceGroup = computed(() =>
+    props.strip.groups.find((group) => group.id === groupAppearanceGroupId.value) ?? null,
+);
+
+function openGroupAppearanceEditor(groupId: string): void {
+    groupMenuOpen.value = false;
+    groupAppearanceGroupId.value = groupId;
+    groupAppearanceTarget.value = document.getElementById(groupDomId(groupId)) ?? undefined;
+    groupAppearanceOpen.value = true;
+}
+
+function closeGroupAppearanceEditor(): void {
+    groupAppearanceOpen.value = false;
+    const groupId = groupAppearanceGroupId.value;
+    void nextTick(() => {
+        if (groupId !== null) document.getElementById(groupDomId(groupId))?.focus();
+    });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -618,6 +831,7 @@ const tabCountLabel = computed(() =>
                     :active="tab.id === strip.activeTabId"
                     :roving="isRoving(tab)"
                     :panel-id="panelId"
+                    :style="tabStyles[tab.id]"
                     compact
                     pinned
                     @activate="goTo(tab.id)"
@@ -648,6 +862,7 @@ const tabCountLabel = computed(() =>
                             :active="segment.tab.id === strip.activeTabId"
                             :roving="isRoving(segment.tab)"
                             :panel-id="panelId"
+                            :style="tabStyles[segment.tab.id]"
                             @activate="goTo(segment.tab.id)"
                             @close="emit('close', segment.tab.id, strip.id)"
                             @keydown="onTabKeydown($event, segment.tab)"
@@ -662,6 +877,7 @@ const tabCountLabel = computed(() =>
                                 :id="`${idPrefix}-group-${segment.group.id}`"
                                 class="mb-tabs-strip__group-head"
                                 type="button"
+                                :style="groupStyles[segment.group.id]"
                                 :aria-expanded="isGroupExpanded(segment.group, revealed) ? 'true' : 'false'"
                                 :aria-label="
                                     t(
@@ -709,6 +925,7 @@ const tabCountLabel = computed(() =>
                                     :active="tab.id === strip.activeTabId"
                                     :roving="isRoving(tab)"
                                     :panel-id="panelId"
+                                    :style="tabStyles[tab.id]"
                                     @activate="goTo(tab.id)"
                                     @close="emit('close', tab.id, strip.id)"
                                     @keydown="onTabKeydown($event, tab)"
@@ -898,6 +1115,8 @@ const tabCountLabel = computed(() =>
                         groupMenuOpen = false;
                         emit('remove-group', groupMenuGroup.id);
                     "
+                    @edit-appearance="openGroupAppearanceEditor(groupMenuGroup.id)"
+                    @reset-appearance="resetGroupAppearance(groupMenuGroup.id)"
                     @activate="onResult"
                     @pin="emit('pin', $event.tabId, $event.stripId)"
                     @unpin="emit('unpin', $event.tabId, $event.stripId)"
@@ -911,6 +1130,47 @@ const tabCountLabel = computed(() =>
                     "
                 />
             </div>
+        </v-menu>
+
+        <!--
+            The tab's own appearance editor: non-modal, anchored to the tab rather than to
+            wherever the pointer was, with no scrim so the tab it is editing stays visible.
+            Reached from the menu item above, from Shift+right-click, and from
+            Ctrl+Shift+F10 - the same three routes `AppearanceTarget` offers everywhere else.
+        -->
+        <v-menu
+            v-model="tabAppearanceOpen"
+            :target="tabAppearanceTarget"
+            :open-on-click="false"
+            :close-on-content-click="false"
+            :scrim="false"
+            location="end top"
+            offset="12"
+            @update:model-value="(value: boolean) => !value && closeTabAppearanceEditor()"
+        >
+            <AppearanceEditor
+                v-if="tabAppearanceTab !== null"
+                :target-id="tabAppearanceId(tabAppearanceTab.id)"
+                :target-label="tabAppearanceTab.label"
+            />
+        </v-menu>
+
+        <!-- And the same, anchored to the group's own header, for a group. -->
+        <v-menu
+            v-model="groupAppearanceOpen"
+            :target="groupAppearanceTarget"
+            :open-on-click="false"
+            :close-on-content-click="false"
+            :scrim="false"
+            location="end top"
+            offset="12"
+            @update:model-value="(value: boolean) => !value && closeGroupAppearanceEditor()"
+        >
+            <AppearanceEditor
+                v-if="groupAppearanceGroup !== null"
+                :target-id="groupAppearanceId(groupAppearanceGroup.id)"
+                :target-label="groupAppearanceGroup.name"
+            />
         </v-menu>
     </div>
 </template>

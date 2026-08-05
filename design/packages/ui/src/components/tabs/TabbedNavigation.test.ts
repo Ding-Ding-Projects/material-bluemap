@@ -20,6 +20,7 @@ import { mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
+import { appearanceTargets } from "../appearance/index.js";
 import TabbedNavigation from "./TabbedNavigation.vue";
 import type { TabPage } from "./tabModel.js";
 
@@ -271,6 +272,63 @@ describe("the keyboard commands the context menu advertises", () => {
         expect(tabs(view)).toHaveLength(0);
         expect(view.find('[role="tabpanel"]').exists()).toBe(false);
         expect(view.text()).toContain("Every tab is closed.");
+    });
+});
+
+describe("the tab and group appearance editors", () => {
+    it("registers every open tab as an appearance target the editor can be pointed at", async () => {
+        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        open();
+        await nextTick();
+
+        const ids = appearanceTargets().value.map((entry) => entry.id);
+        expect(ids).toContain("tab.t-map");
+        expect(ids).toContain("tab.t-world");
+        expect(ids).toContain("tab.t-servers");
+    });
+
+    it("lists Edit tab appearance... in the ordinary right-click menu", async () => {
+        const view = open();
+        await nextTick();
+
+        await tabs(view)[0]?.trigger("contextmenu");
+        await nextTick();
+
+        expect(document.body.textContent).toContain("Edit tab appearance...");
+    });
+
+    it("opens the anchored editor straight from a Shift+right-click on a tab", async () => {
+        const view = open();
+        await nextTick();
+
+        await tabs(view)[0]?.trigger("contextmenu", { shiftKey: true });
+        await nextTick();
+
+        expect(document.body.textContent).toContain("Appearance of Map");
+    });
+
+    it("opens the same editor from Ctrl+Shift+F10 on the focused tab", async () => {
+        const view = open();
+        await nextTick();
+
+        await tabs(view)[0]?.trigger("keydown", { key: "F10", shiftKey: true, ctrlKey: true });
+        await nextTick();
+
+        expect(document.body.textContent).toContain("Appearance of Map");
+    });
+
+    it("opens the group's own editor from a Shift+right-click on its header", async () => {
+        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        const view = open();
+        await nextTick();
+
+        const ids = appearanceTargets().value.map((entry) => entry.id);
+        expect(ids).toContain("group.g1");
+
+        await view.find('[aria-expanded="false"]').trigger("contextmenu", { shiftKey: true });
+        await nextTick();
+
+        expect(document.body.textContent).toContain("Appearance of Renders");
     });
 });
 
