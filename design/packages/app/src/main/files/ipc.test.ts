@@ -3,9 +3,12 @@ import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DownloadConcurrencyStore } from "./downloadConcurrency.js";
 import {
     FILES_CHANNELS,
     registerFileHandlers,
+    type DownloadConcurrencyReadout,
+    type DownloadConcurrencyWriteResult,
     type MapStorageDefaultReadout,
     type RenderMemoryReadout,
     type RenderMemoryWriteResult,
@@ -66,12 +69,14 @@ async function harness(options: { readonly roots?: readonly RevealRoot[] } = {})
     readonly ipcMain: IpcMain & { readonly handlers: Map<string, Handler> };
     readonly shell: ReturnType<typeof fakeShell>;
     readonly store: RenderMemoryStore;
+    readonly concurrencyStore: DownloadConcurrencyStore;
     readonly dispose: () => void;
 }> {
     const ipcMain = fakeIpcMain();
     const shell = fakeShell();
     const dataDir = await tempFolder();
     const store = new RenderMemoryStore({ dataDir, totalMemoryBytes: 16 * GB });
+    const concurrencyStore = new DownloadConcurrencyStore({ dataDir: await tempFolder() });
 
     const ipc = registerFileHandlers(ipcMain, {
         roots: () => options.roots ?? [],
@@ -83,9 +88,10 @@ async function harness(options: { readonly roots?: readonly RevealRoot[] } = {})
             directoryExists: () => true,
         },
         memory: store,
+        downloadConcurrency: concurrencyStore,
     });
 
-    return { ipcMain, shell, store, dispose: () => ipc.dispose() };
+    return { ipcMain, shell, store, concurrencyStore, dispose: () => ipc.dispose() };
 }
 
 describe("registerFileHandlers", () => {
@@ -177,6 +183,47 @@ describe("registerFileHandlers", () => {
         expect(tooBig.ok).toBe(false);
         if (tooBig.ok) return;
         expect(tooBig.reason).toContain("more memory than this machine has");
+        test.dispose();
+    });
+
+    it("reports the download concurrency with its bounds and its explanation", async () => {
+        const test = await harness();
+        const readout = (await test.ipcMain.handlers.get("files:downloadConcurrency")?.(
+            noEvent,
+        )) as DownloadConcurrencyReadout;
+
+        expect(readout.workers).toBe(4);
+        expect(readout.isDefault).toBe(true);
+        expect(readout.defaultWorkers).toBe(4);
+        expect(readout.minimumWorkers).toBe(1);
+        expect(readout.maximumWorkers).toBe(16);
+        expect(readout.explanation).toContain("4 parts");
+        test.dispose();
+    });
+
+    it("stores a chosen concurrency and answers with the new readout", async () => {
+        const test = await harness();
+        const written = (await test.ipcMain.handlers.get("files:setDownloadConcurrency")?.(
+            noEvent,
+            8,
+        )) as DownloadConcurrencyWriteResult;
+
+        expect(written.ok).toBe(true);
+        if (!written.ok) return;
+        expect(written.setting.workers).toBe(8);
+        expect(written.setting.isDefault).toBe(false);
+        expect(test.concurrencyStore.concurrency()).toBe(8);
+        test.dispose();
+    });
+
+    it("refuses a nonsense concurrency as a value rather than a rejection", async () => {
+        const test = await harness();
+        const setter = test.ipcMain.handlers.get("files:setDownloadConcurrency");
+
+        for (const bad of [undefined, null, "lots", 0, -1, 99]) {
+            const answer = (await setter?.(noEvent, bad)) as DownloadConcurrencyWriteResult;
+            expect(answer.ok).toBe(false);
+        }
         test.dispose();
     });
 });

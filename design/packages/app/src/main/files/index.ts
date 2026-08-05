@@ -64,8 +64,23 @@ export {
 } from "./renderMemory.js";
 
 export {
+    DEFAULT_CONCURRENCY,
+    DOWNLOAD_CONCURRENCY_FILE,
+    DownloadConcurrencyStore,
+    MAX_CONCURRENCY,
+    MIN_CONCURRENCY,
+    describeConcurrency,
+    validateConcurrency,
+    type ConcurrencyProblem,
+    type DownloadConcurrencySetting,
+    type DownloadConcurrencyStoreOptions,
+} from "./downloadConcurrency.js";
+
+export {
     FILES_CHANNELS,
     registerFileHandlers,
+    type DownloadConcurrencyReadout,
+    type DownloadConcurrencyWriteResult,
     type FilesIpc,
     type FilesIpcOptions,
     type MapStorageDefaultReadout,

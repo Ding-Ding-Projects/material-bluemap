@@ -15,11 +15,21 @@
  *  - `files:mapStorageDefault` reports where maps should go, and whether that answer was
  *    moved out of OneDrive and why.
  *  - `files:renderMemory` / `files:setRenderMemory` read and write the JVM heap ceiling.
+ *  - `files:downloadConcurrency` / `files:setDownloadConcurrency` read and write how many
+ *    release-asset parts a download fetches at once.
  *
  * None of them can be done in the renderer, and all of them are refusals-as-values.
  */
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
+import {
+    DEFAULT_CONCURRENCY,
+    DownloadConcurrencyStore,
+    MAX_CONCURRENCY,
+    MIN_CONCURRENCY,
+    describeConcurrency,
+    type ConcurrencyProblem,
+} from "./downloadConcurrency.js";
 import {
     defaultMapStorageDirectory,
     resolveDocumentsDirectory,
@@ -45,6 +55,8 @@ export const FILES_CHANNELS = [
     "files:mapStorageDefault",
     "files:renderMemory",
     "files:setRenderMemory",
+    "files:downloadConcurrency",
+    "files:setDownloadConcurrency",
 ] as const;
 
 /* -------------------------------------------------------------------------- */
@@ -85,6 +97,22 @@ export type RenderMemoryWriteResult =
     | { readonly ok: true; readonly setting: RenderMemoryReadout }
     | { readonly ok: false; readonly reason: string };
 
+/** How many parts a download fetches at once, and the plain explanation for the row. */
+export interface DownloadConcurrencyReadout {
+    readonly workers: number;
+    /** True when nothing has been chosen and this is the shipped default. */
+    readonly isDefault: boolean;
+    readonly defaultWorkers: number;
+    readonly minimumWorkers: number;
+    readonly maximumWorkers: number;
+    /** One paragraph naming the number and both directions of the trade-off. */
+    readonly explanation: string;
+}
+
+export type DownloadConcurrencyWriteResult =
+    | { readonly ok: true; readonly setting: DownloadConcurrencyReadout }
+    | { readonly ok: false; readonly reason: string };
+
 /* -------------------------------------------------------------------------- */
 /* Registration                                                               */
 /* -------------------------------------------------------------------------- */
@@ -103,6 +131,7 @@ export interface FilesIpcOptions {
     /** Everything {@link resolveDocumentsDirectory} needs, from Electron's `app`. */
     readonly documents: DocumentsInputs;
     readonly memory: RenderMemoryStore;
+    readonly downloadConcurrency: DownloadConcurrencyStore;
 }
 
 export interface FilesIpc {
@@ -132,6 +161,18 @@ function requestedSetting(value: unknown): RenderMemorySetting | null {
     if (given.mode !== "manual") return null;
     if (typeof given.megabytes !== "number") return null;
     return { mode: "manual", megabytes: given.megabytes };
+}
+
+function downloadConcurrencyReadout(store: DownloadConcurrencyStore): DownloadConcurrencyReadout {
+    const setting = store.read();
+    return {
+        workers: setting.workers,
+        isDefault: setting.isDefault,
+        defaultWorkers: DEFAULT_CONCURRENCY,
+        minimumWorkers: MIN_CONCURRENCY,
+        maximumWorkers: MAX_CONCURRENCY,
+        explanation: describeConcurrency(setting.workers),
+    };
 }
 
 /**
@@ -178,6 +219,19 @@ export function registerFileHandlers(ipcMain: IpcMain, options: FilesIpcOptions)
             const written: MemoryProblem = options.memory.write(requested);
             if (!written.ok) return { ok: false, reason: written.reason };
             return { ok: true, setting: readout(options.memory) };
+        },
+    );
+
+    ipcMain.handle("files:downloadConcurrency", (_event: IpcMainInvokeEvent): DownloadConcurrencyReadout =>
+        downloadConcurrencyReadout(options.downloadConcurrency),
+    );
+
+    ipcMain.handle(
+        "files:setDownloadConcurrency",
+        (_event: IpcMainInvokeEvent, given: unknown): DownloadConcurrencyWriteResult => {
+            const written: ConcurrencyProblem = options.downloadConcurrency.write(given);
+            if (!written.ok) return { ok: false, reason: written.reason };
+            return { ok: true, setting: downloadConcurrencyReadout(options.downloadConcurrency) };
         },
     );
 
