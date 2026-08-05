@@ -318,6 +318,16 @@ If those shards would exceed the six-hour job limit, raise `max-jobs` so more sh
 planned across more waves, or raise `budget-minutes` so the arithmetic is honest and split
 the render by dimension.
 
+**Measured on a real hosted run**, not only reasoned about: a 369,664-chunk, 361-region-file
+world dispatched with a deliberately small `budget-minutes` so the planner's own arithmetic (not
+`--force-shards`) asked for 361 shards — past the 256-job matrix limit for the first time this
+project has hosted-run-verified. The plan chose **2 waves**; Wave 1 fanned out to all 256 shards
+and every one completed; Wave 2 then appeared carrying exactly the remaining 105
+(`wave2-needed: true`, shards 256–360) and began executing before the run was cancelled once the
+sequencing was confirmed. See
+[large-worlds.md's "Measured: a real two-wave hosted dispatch"](large-worlds.md#measured-a-real-two-wave-hosted-dispatch)
+for the full numbers and the run link.
+
 ### Disk: measured, not assumed
 
 A GitHub standard runner's published spec has already been caught understating its real
@@ -347,6 +357,13 @@ wave is dispatched and before the (possibly large) world artifact is uploaded, s
 undersized runner fails here with the exact numbers and a named reason, instead of a shard
 runner dying mid-render with a bare "no space left on device". Render fewer dimensions per
 run, trim the world, or dispatch on a runner with more disk to clear it.
+
+Measured again on the two-wave run described above: the plan required `5825668056` bytes
+(~6 GiB with the check's rounding) and the runner reported ~84 GiB free — the same order-of-
+magnitude gap between the published spec and a runner's real disk that the Andyville figures
+above already showed, this time confirmed on a `ubuntu-latest` runner mid-plan rather than
+inferred from a different step. The check passed comfortably, so this run says nothing about
+where the ceiling actually is — only that it is well above 6 GiB.
 
 ## Why shard edges land on block 32k+2
 

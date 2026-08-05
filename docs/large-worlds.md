@@ -139,6 +139,62 @@ first:
 cd design && pnpm install && pnpm --filter @material-bluemap/parts run build
 ```
 
+## Measured: a real two-wave hosted dispatch
+
+Everything above was arithmetic until [issue #39](https://github.com/Ding-Ding-Projects/material-bluemap/issues/39)
+was closed out against a real run rather than an estimate. A 9728×9728 block world was generated
+with `@material-bluemap/worldgen` (seed `20260805`; regenerate with
+`node packages/worldgen/dist/cli.js --seed 20260805 --size 9728 --out ./out`), published as a
+single 717 MB release asset (`test-world-issue39-20260805`, under the 2 GB cap so it needed no
+splitting), and dispatched through `Render world` with `budget-minutes: 1` and `max-jobs: 400` so
+the planner's own, non-forced arithmetic — not `--force-shards` — would need more shards than one
+matrix can hold.
+
+**The world:** 361 region files (19×19), 369,664 chunks.
+
+**What the plan step measured and decided**, from
+[run 30998777252](https://github.com/Ding-Ding-Projects/material-bluemap/actions/runs/30998777252)'s
+own log:
+
+```
+Measured 361 region files holding 369664 chunks, spanning blocks x 0..9727 and z 0..9727.
+Estimated 4h 8m of rendering, 6h 12m with the safety margin, against a per-job budget of 1m 0s.
+Needs roughly 5.4 GiB of free disk on a job's runner...
+Shard plan written (361 jobs) — shardCount: 361, waveCount: 2, groupCount: 12
+```
+
+**The disk check, real `df` against the estimate, before any wave was dispatched:**
+
+```
+REQUIRED_BYTES: 5825668056
+Required (estimate, with safety margin): ~6 GiB free
+Free on this runner right now:            ~84 GiB free
+```
+
+6 GiB required against 84 GiB actually free on a standard `ubuntu-latest` runner — the same gap
+this project had already documented on the 6.6 GB Andyville world, now reproduced on a second,
+independently generated world that pushed the *shard count*, not just the world's own size, past a
+boundary the plan had never hit before.
+
+**Wave dispatch, watched directly rather than assumed:** Wave 1 fanned out to all 256 shards and
+every one completed successfully. Only then did Wave 2 appear — `render-world.yml` declares
+`wave2: needs: [cli, plan, wave1]`, so it structurally cannot exist earlier — carrying exactly the
+remaining 105 shards (`Wave 2 shard 256` through `Wave 2 shard 360`). Wave 2 began executing (7 of
+its shards finished successfully) before the run was cancelled once this evidence was captured, to
+avoid an hours-long full render this proof did not need; 98 of Wave 2's shards were cancelled
+in-flight rather than run to completion.
+
+**What this settles:** the plan-driven wave count (raised from a hardcoded 6 to `RENDER_WAVE_SLOTS`
+= 12 shortly before this measurement), the disk-estimate-vs-real-`df` check, and — the part no
+amount of code reading could confirm — that a second wave genuinely dispatches, in order, once the
+first finishes, against a plan the estimate produced rather than one forced with `--force-shards`.
+
+**What this does not settle:** the full run was not carried to completion, so the merge across two
+waves' worth of shards (12 merge groups, per `groupCount` above) and the final map this world would
+have produced are unverified by this pass. Where the disk ceiling actually sits also remains open —
+84 GiB free comfortably covered a 5.4 GiB estimate, so this run says nothing about a world close to
+that boundary.
+
 ## Publishing one
 
 CI does this on every release, and only when it is actually needed. Before the release is
