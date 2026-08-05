@@ -241,9 +241,40 @@ function focusOption(id: string): void {
  *
  * The ends clamp rather than wrap. Somebody holding ArrowDown to reach the bottom of a long
  * list should stop at the bottom, not silently reappear at the top having lost their place.
+ *
+ * Both keys are named once, here, and read by both the handler below and the row menu's own
+ * `<kbd>` hint (in the template, through {@link openKeysLabel}). A menu that printed its own
+ * copy of "Enter" would keep printing it after somebody changed the handler, and a shortcut
+ * hint that is wrong is worse than none: it teaches a user to press a key that does nothing.
  */
+const ROW_OPEN_KEY = "Enter";
+const ROW_OPEN_ALT_KEY = " ";
+
+/** The word somebody would look for on their own keyboard, for a `KeyboardEvent.key` value. */
+function keyLabel(key: string): string {
+    return key === " " ? "Space" : key;
+}
+
+/**
+ * Both keys as the menu shows them, because here they genuinely do the same thing.
+ *
+ * A slash rather than the word "or": this string is rendered inside a `<kbd>` in every
+ * language, and "or" would be English prose sitting in a key hint that is otherwise
+ * identical in both. See `servers.key.open` in `copy/surfaces/profiles.ts`, whose catalogue
+ * entry is the bare placeholder for exactly this reason - the key names come from the two
+ * constants above and never from a translated string that could name a different key.
+ */
+const openKeysLabel = [ROW_OPEN_KEY, ROW_OPEN_ALT_KEY].map(keyLabel).join(" / ");
+
 function onOptionKeydown(event: KeyboardEvent, profile: ServerProfile): void {
-    if (event.key === "Enter" || event.key === " " || event.key === "Spacebar") {
+    // "Spacebar" is the legacy alias older engines report for `ROW_OPEN_ALT_KEY`. It stays a
+    // literal because it is only ever compared against and never displayed, so there is no
+    // label anywhere for it to drift away from.
+    if (
+        event.key === ROW_OPEN_KEY ||
+        event.key === ROW_OPEN_ALT_KEY ||
+        event.key === "Spacebar"
+    ) {
         // Space scrolls the card underneath if it is left alone, which moves the list out
         // from under the row the user just opened.
         event.preventDefault();
@@ -495,6 +526,12 @@ function whatRemovalCosts(profile: ServerProfile): string[] {
                         the row and removing it stay where a user already expects them and
                         **Edit appearance...** arrives as an addition rather than a
                         replacement.
+
+                        Opening shows the keys that do the same thing from the keyboard, so
+                        the menu teaches the shortcut rather than hiding it. Removing shows
+                        none because it has none: the gate is reached by Tab from the row,
+                        not by a key, and padding the column with a made-up chord would train
+                        somebody to press it.
                     -->
                     <template #menu="{ close }">
                         <v-list
@@ -512,7 +549,19 @@ function whatRemovalCosts(profile: ServerProfile): string[] {
                                         activate(profile.id);
                                     }
                                 "
-                            />
+                            >
+                                <!--
+                                    `kbd` rather than a styled span so the keys are exposed
+                                    as keys, and the item's own accessible name already
+                                    carries the command, so this is not announced twice as
+                                    prose.
+                                -->
+                                <template #append>
+                                    <kbd class="mb-profiles__kbd">{{
+                                        t("servers.key.open", { keys: openKeysLabel }, "{keys}")
+                                    }}</kbd>
+                                </template>
+                            </v-list-item>
                             <v-list-item
                                 :prepend-icon="mdiDelete"
                                 :title="
@@ -666,6 +715,19 @@ function whatRemovalCosts(profile: ServerProfile): string[] {
 .mb-profiles__actions {
     display: inline-flex;
     flex: 0 0 auto;
+}
+
+/*
+ * The shortcut hint in the row menu. De-emphasised and monospaced: it is the answer to
+ * "what else opens this", not something to read before the command it sits beside.
+ */
+.mb-profiles__kbd {
+    padding: 1px 6px;
+    border: 1px solid rgba(var(--v-theme-on-surface), 0.3);
+    border-radius: 4px;
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: 0.6875rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-profiles__empty {
