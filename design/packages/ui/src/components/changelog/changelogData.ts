@@ -24,6 +24,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "cf4d2dc5fa5d67409b2df05f29f3dfddaca68852",
+        shortSha: "cf4d2dc5fa",
+        date: "2026-08-04T20:33:40-04:00",
+        subject: "Hand off: what is proven, what is not, and the two traps that cost hours",
+        details: "A new dated entry at the top of the log, written plainly enough for a small\nmodel with no other context, and the summary stamp moved in the same commit so\nthe two cannot drift.\n\nSays what is genuinely proven -- a real map published to a real GitHub Pages\nsite twice, once by hand and once by the application driving real git and real\ngh, with the 200-on-.gz / 404-on-plain evidence that shows why the fix is\nload-bearing -- and refuses to round the rest up. Private repositories, big\nmaps and crash-resume are named as untested, with resume's specific oddity\nrecorded: it announces staging and pushing while doing neither, so either it\nlies to the user or the shortcut is not firing, and only a test that counts real\ngit add calls can say which.\n\nAlso records the planner trap (past 32 shards the map ships in parts nobody can\ndownload or host, so speed had to stop there), the three copy surfaces still\nunvoiced with their exact counts, why CI stopped cancelling itself and what it\nnow costs in queueing, and the two traps: the screenshot tool photographs the\nUI package's build rather than the app's, and a rule test catches a thing done\nwrongly but never a thing not done at all.\n\n新一段交接寫喺最前面,用返最直白嘅句子,連個「對到邊個 commit」都同一個 commit\n改埋,免得兩邊各講各話。做得到嘅就話做得到 -- 幅圖真係上咗兩次 GitHub Pages,\n一次人手一次係 app 自己行 git 同 gh -- 做唔到嘅就照直講:私人 repo、大地圖、\n撞機之後續傳,全部未試過。仲寫低咗兩個坑,唔想下一手再踩多次。",
+        category: "docs",
+        areas: ["docs"],
+        files: 1,
+    },
+    {
         sha: "f940fd2fef4d50770d20b3ad11c219efa5fb57be",
         shortSha: "f940fd2fef",
         date: "2026-08-04T20:31:09-04:00",

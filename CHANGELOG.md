@@ -80,6 +80,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Hand off: what is proven, what is not, and the two traps that cost hours - [`cf4d2dc5fa`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cf4d2dc5fa5d67409b2df05f29f3dfddaca68852)
 - Write down which surfaces actually mounted the tab strip, and why one did not - [`51f7ccad79`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/51f7ccad79422ef1f836a77d9ef50566c76fbdcc)
 - Record the map the application itself published to Pages - [`d8e1ee15b0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d8e1ee15b08b82f3cb294150eead80f6e8274d0a)
 - Show the map hosted on Pages, with the evidence and the trap - [`a8276c8a42`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a8276c8a42a5188df2610b110ea53030f6eaecc7)
