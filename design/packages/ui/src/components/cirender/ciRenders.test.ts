@@ -542,13 +542,20 @@ describe("suggesting and checking a repository name", () => {
         // its network answer lands second, exactly like a laggy request racing a quick one.
         // Whichever finished last used to win outright; the field the user is actually
         // looking at ("foobar") must win instead, regardless of arrival order.
-        let resolveFoo: ((value: CiRepositoryNameAvailability) => void) | null = null;
-        let resolveFoobar: ((value: CiRepositoryNameAvailability) => void) | null = null;
+        //
+        // Boxed rather than a bare `let`: TypeScript's control-flow analysis does not
+        // widen a `let` back to its declared type when the only assignment to it lives
+        // inside a nested closure (`checkCiRepoName`'s executor here) - it keeps reading
+        // the outer-scope use as narrowed to the `null` initialiser, so `resolveFoo?.(...)`
+        // below would type-check as calling `never`. A `{ current }` box sidesteps the
+        // whole limitation, because narrowing a property read never worked that way.
+        const resolveFoo: { current: ((value: CiRepositoryNameAvailability) => void) | null } = { current: null };
+        const resolveFoobar: { current: ((value: CiRepositoryNameAvailability) => void) | null } = { current: null };
         const { bridge: host } = bridge({
             checkCiRepoName: ({ repo }) =>
                 new Promise<CiRepositoryNameAvailability>((resolve) => {
-                    if (repo === "foo") resolveFoo = resolve;
-                    else resolveFoobar = resolve;
+                    if (repo === "foo") resolveFoo.current = resolve;
+                    else resolveFoobar.current = resolve;
                 }),
         });
         const renders = createCiRenders(host);
@@ -557,13 +564,13 @@ describe("suggesting and checking a repository name", () => {
         const fresh = renders.checkRepoName("o", "foobar");
 
         // The fresher request (for what the field now holds) answers first...
-        resolveFoobar?.({ status: "available", owner: "o", repo: "foobar" });
+        resolveFoobar.current?.({ status: "available", owner: "o", repo: "foobar" });
         await fresh;
         expect(renders.nameAvailability.value).toEqual({ status: "available", owner: "o", repo: "foobar" });
 
         // ...and the older, slower one answers after it. It must not clobber the fresher
         // verdict the user is already looking at.
-        resolveFoo?.({ status: "taken", owner: "o", repo: "foo", private: false, htmlUrl: null });
+        resolveFoo.current?.({ status: "taken", owner: "o", repo: "foo", private: false, htmlUrl: null });
         await stale;
         expect(renders.nameAvailability.value).toEqual({ status: "available", owner: "o", repo: "foobar" });
         expect(renders.checkingName.value).toBe(false);
@@ -571,16 +578,19 @@ describe("suggesting and checking a repository name", () => {
     });
 
     it("a superseded check that fails late does not overwrite the fresh verdict either", async () => {
-        let rejectFoo: ((error: Error) => void) | null = null;
-        let resolveFoobar: ((value: CiRepositoryNameAvailability) => void) | null = null;
+        // Same boxed-closure pattern as the test above, and for the same reason: the
+        // executor assigns these from inside `checkCiRepoName`'s nested function, which is
+        // outside the control-flow analysis TypeScript performs at the read sites below.
+        const rejectFoo: { current: ((error: Error) => void) | null } = { current: null };
+        const resolveFoobar: { current: ((value: CiRepositoryNameAvailability) => void) | null } = { current: null };
         const { bridge: host } = bridge({
             checkCiRepoName: ({ repo }) =>
                 repo === "foo"
                     ? new Promise<CiRepositoryNameAvailability>((_resolve, reject) => {
-                          rejectFoo = reject;
+                          rejectFoo.current = reject;
                       })
                     : new Promise<CiRepositoryNameAvailability>((resolve) => {
-                          resolveFoobar = resolve;
+                          resolveFoobar.current = resolve;
                       }),
         });
         const renders = createCiRenders(host);
@@ -588,11 +598,11 @@ describe("suggesting and checking a repository name", () => {
         const stale = renders.checkRepoName("o", "foo");
         const fresh = renders.checkRepoName("o", "foobar");
 
-        resolveFoobar?.({ status: "available", owner: "o", repo: "foobar" });
+        resolveFoobar.current?.({ status: "available", owner: "o", repo: "foobar" });
         await fresh;
         expect(renders.nameAvailability.value).toEqual({ status: "available", owner: "o", repo: "foobar" });
 
-        rejectFoo?.(new Error("network blip"));
+        rejectFoo.current?.(new Error("network blip"));
         await stale;
         expect(renders.nameAvailability.value).toEqual({ status: "available", owner: "o", repo: "foobar" });
         expect(renders.checkingName.value).toBe(false);
@@ -600,11 +610,12 @@ describe("suggesting and checking a repository name", () => {
     });
 
     it("a clear that lands while a check is still in flight keeps the field cleared", async () => {
-        let resolveCheck: ((value: CiRepositoryNameAvailability) => void) | null = null;
+        // Same boxed-closure pattern as the two tests above.
+        const resolveCheck: { current: ((value: CiRepositoryNameAvailability) => void) | null } = { current: null };
         const { bridge: host } = bridge({
             checkCiRepoName: () =>
                 new Promise<CiRepositoryNameAvailability>((resolve) => {
-                    resolveCheck = resolve;
+                    resolveCheck.current = resolve;
                 }),
         });
         const renders = createCiRenders(host);
@@ -613,7 +624,7 @@ describe("suggesting and checking a repository name", () => {
         renders.clearNameAvailability();
         expect(renders.nameAvailability.value).toBeNull();
 
-        resolveCheck?.({ status: "available", owner: "o", repo: "r" });
+        resolveCheck.current?.({ status: "available", owner: "o", repo: "r" });
         await inFlight;
 
         expect(renders.nameAvailability.value).toBeNull();

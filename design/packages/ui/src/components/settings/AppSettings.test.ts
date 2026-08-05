@@ -36,6 +36,7 @@ import SetupLanguagePanel from "../setup/SetupLanguagePanel.vue";
 import { currentPlatform, mapStorageExample, readMapStorageDir } from "../setup/mapStorage.js";
 import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
 import { reloadSetupLanguage, setLanguageMode } from "../setup/setupI18n.js";
+import { createUpdates } from "../update/useUpdates.js";
 import {
     SETTINGS_ANCHORS,
     SETTINGS_SECTIONS,
@@ -51,6 +52,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "github-account": "GitHub account",
     "language-and-tone": "Language and tone",
     "surface-placement": "Where the panels sit",
+    "updates": "Updates",
 };
 
 const scrollIntoView = vi.fn();
@@ -138,6 +140,15 @@ function fakeBridge(): Record<string, unknown> {
 
 const vuetify = createVuetify();
 
+/**
+ * `AppSettings.vue`'s "updates" tab needs the shell's one shared `UpdatesController`, exactly
+ * as `App.vue` mounts a single `createUpdates()` and hands it to both the always-on banner
+ * and this settings row. `bridge: null` is a real, supported build shape - "this build has no
+ * updater" - rather than a hand-rolled stand-in, so this exercises the same unsupported path
+ * a feed-less build hits in production.
+ */
+const updates = createUpdates({ bridge: null });
+
 const i18n = createI18n({
     legacy: false,
     locale: "en",
@@ -166,6 +177,7 @@ const Host = defineComponent({
                         open: props.open,
                         anchor: props.anchor,
                         anchorMissing: props.anchorMissing,
+                        updates,
                         "onUpdate:open": (value: boolean) => emit("update:open", value),
                     }),
                 ],

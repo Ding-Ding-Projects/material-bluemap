@@ -17,6 +17,9 @@ import SettingsSection from "./SettingsSection.vue";
 import StorageSettingRow from "./StorageSettingRow.vue";
 import SurfacePlacementRow from "./SurfacePlacementRow.vue";
 import WorldFolderRow from "./WorldFolderRow.vue";
+import UpdateStatusRow from "../update/UpdateStatusRow.vue";
+import { updateText } from "../update/updateCopy.js";
+import type { UpdatesController } from "../update/useUpdates.js";
 import { DOCK_PLACEMENTS } from "./dockPlacement.js";
 import { dockedSurfaces } from "./useDockPlacement.js";
 import { createJavaSetting, describeJavaRejections } from "./javaSetting.js";
@@ -92,6 +95,13 @@ const props = withDefaults(
         anchor?: SettingsSectionAnchor | null;
         /** True when a render said this setting was missing, not merely wrong. */
         anchorMissing?: boolean;
+        /**
+         * The shell's one shared updater, per `components/update/index.ts`'s own wiring
+         * recipe: `App.vue` mounts exactly one `createUpdates()` and hands it to both the
+         * always-on banner and this settings row, so the two surfaces can never disagree
+         * about what is staged.
+         */
+        updates: UpdatesController;
     }>(),
     { anchor: null, anchorMissing: false },
 );
@@ -130,6 +140,7 @@ const worldSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const githubSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const languageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const placementSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 
 /* -------------------------------------------------------------------------- */
 /* Search                                                                     */
@@ -238,6 +249,22 @@ const sections = computed<SettingsSectionText[]>(() => {
                 ...DOCK_PLACEMENTS.map((placement) => dockPlacementLabel(t, placement)),
             ],
         },
+        // The installed and staged versions, the last check and the feed, plus the row's
+        // own words for whatever it is currently saying (checking, up to date, failed,
+        // unsupported) - the same "search what is actually on screen" rule every other
+        // section here follows, so typing a version number or "feed" finds this tab.
+        {
+            anchor: "updates",
+            title: text.updates.title,
+            description: text.updates.description,
+            values: [
+                props.updates.state.value.currentVersion,
+                props.updates.state.value.newVersion ?? "",
+                props.updates.state.value.readyVersion ?? "",
+                props.updates.state.value.feedUrl ?? "",
+                updateText(props.updates.status.value.messageKey, props.updates.status.value.vars),
+            ].filter((value) => value !== ""),
+        },
     ];
 });
 
@@ -309,7 +336,54 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return languageSection.value;
         case "surface-placement":
             return placementSection.value;
+        case "updates":
+            return updatesSection.value;
     }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Updates                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Set only around this row's own Restart press, independent of the banner's `busy` in
+ * `App.vue` - the same "disable the control you actually pressed" rule `UpdateBanner`
+ * already follows, not a second copy of its state.
+ */
+const updatesBusy = ref(false);
+
+/**
+ * Whether the ready version's banner has been put away.
+ *
+ * `UpdatesController` does not expose the dismissed version itself (`useUpdates.ts` keeps
+ * it private on purpose, so nothing outside it can drift from what `bannerFor` decided).
+ * `bannerFor` hides the banner for exactly two reasons - no ready version, or the ready
+ * version is the dismissed one - and a render in progress is not one of them (it still
+ * shows the banner, held). So once a version is genuinely ready, an invisible banner can
+ * only mean dismissed, and that is the one condition this reads back out.
+ */
+const updatesDismissed = computed(
+    () =>
+        props.updates.state.value.status === "ready" &&
+        props.updates.state.value.readyVersion !== null &&
+        !props.updates.banner.value.visible,
+);
+
+function checkForUpdate(): void {
+    void props.updates.check();
+}
+
+async function restartForSettingsUpdate(): Promise<void> {
+    updatesBusy.value = true;
+    try {
+        await props.updates.restart();
+    } finally {
+        updatesBusy.value = false;
+    }
+}
+
+function showUpdateBannerAgain(): void {
+    props.updates.showAgain();
 }
 
 /**
@@ -596,6 +670,33 @@ function onDrawer(value: boolean): void {
                         :description="copy['surface-placement'].description"
                     >
                         <SurfacePlacementRow />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    The always-reachable half of `components/update/index.ts`'s two update
+                    surfaces: the installed version, the last check, the feed, and a manual
+                    Check for updates, plus bringing back a banner this build's own row
+                    dismissed. `App.vue` mounts exactly one `createUpdates()` and hands it to
+                    this row and to `UpdateBanner` alike, so the two can never disagree about
+                    what is staged.
+                -->
+                <template #updates>
+                    <SettingsSection
+                        ref="updatesSection"
+                        anchor="updates"
+                        :title="copy.updates.title"
+                        :description="copy.updates.description"
+                    >
+                        <UpdateStatusRow
+                            :state="props.updates.state.value"
+                            :model="props.updates.status.value"
+                            :dismissed="updatesDismissed"
+                            :busy="updatesBusy"
+                            @check="checkForUpdate"
+                            @restart="restartForSettingsUpdate"
+                            @show-banner="showUpdateBannerAgain"
+                        />
                     </SettingsSection>
                 </template>
             </TabbedNavigation>

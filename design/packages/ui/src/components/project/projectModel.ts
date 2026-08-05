@@ -904,7 +904,7 @@ export function applyPreset(project: ProjectFile, preset: ProjectPreset, options
             name: entry.name,
             dimension,
             world: options.world,
-            separator: options.separator,
+            ...(options.separator === undefined ? {} : { separator: options.separator }),
         });
         mapsAdded.push(entry.id);
     }

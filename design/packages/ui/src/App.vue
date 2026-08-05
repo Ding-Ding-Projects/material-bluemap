@@ -786,6 +786,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 :open="settingsOpen"
                 :anchor="settingsAnchor"
                 :anchor-missing="settingsMissing"
+                :updates="updates"
                 @update:open="settingsOpen = $event"
             />
 

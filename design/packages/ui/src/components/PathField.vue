@@ -148,7 +148,7 @@ async function browseFile(): Promise<void> {
                 :error-messages="error ?? null"
                 class="mb-path-field__mono"
                 variant="outlined"
-                :density="density"
+                :density="density ?? 'compact'"
                 spellcheck="false"
                 autocapitalize="off"
                 autocomplete="off"
