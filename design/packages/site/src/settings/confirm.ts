@@ -68,7 +68,11 @@ function defaultGate(message: string): Promise<boolean> {
         const finish = (value: boolean): void => {
             if (settled) return;
             settled = true;
-            dialog.close();
+            // Guarded the same way `showModal` is below: every real browser implements
+            // `<dialog>.close()`, but an environment that does not (a headless test DOM
+            // without full dialog support) must still tear the element down rather than
+            // throw out from inside a promise executor.
+            if (typeof dialog.close === "function") dialog.close();
             dialog.remove();
             origin?.focus({ preventScroll: true });
             resolve(value);
