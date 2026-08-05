@@ -24,16 +24,29 @@
  * pointer.ts     the Cheap LFS v1 pointer: serialize, parse, and the bounds
  * sidecar.ts     backup.json - the facts a pointer must not carry
  * github.ts      the GitHub calls, and the append-only rule enforced by omission
- * workspace.ts   where a backup is staged while it is being made
+ * workspace.ts   where a backup and a restore are staged on disk
  * runner.ts      pack, split, publish, upload, with progress, cancel and resume
+ * restore.ts     read the pointer, fetch every part, rejoin, unpack - see below
  * catalog.ts     reading backups back out of a repository's releases
  * ipc.ts         the channel to the interface. The only file here that knows Electron
  * ```
  *
- * The split and the rejoin are `@material-bluemap/parts`, unchanged. The restore is
- * `main/download/`, unchanged: a backup restored is a release downloaded, so the surface
- * that already fetches parts, verifies each one, rejoins them and unpacks is pointed at
- * the backup release rather than duplicated.
+ * The split is `@material-bluemap/parts`, unchanged. The rejoin is too - `restore.ts`
+ * translates the Cheap LFS pointer into that package's own manifest shape rather than
+ * reimplementing per-part and whole-file verification a second time.
+ *
+ * This comment used to say the restore was `main/download/`, unchanged: "a backup restored
+ * is a release downloaded, so the surface that already fetches parts, verifies each one,
+ * rejoins them and unpacks is pointed at the backup release rather than duplicated." That
+ * was never true, and nothing before `restore.ts` existed had exercised it against a real
+ * release to find out. `main/download/` understands exactly one split format - a
+ * `<name>.parts.json` manifest beside `<name>.001`, `<name>.002`, ... - and a backup's
+ * parts are named `<archive>.<index>-<sha16>`, with no `.parts.json` ever published beside
+ * them; the Cheap LFS pointer *is* the manifest, in a shape that has to stay byte-for-byte
+ * what `desktop-material`'s own parser accepts. `main/download/`'s discovery does not
+ * recognise a Cheap LFS release as a split download at all. See `restore.ts`'s own doc
+ * comment for the full account, and `restore.test.ts` for a real `BackupRunner` upload
+ * round-tripped through the real restorer it is now pointed at instead.
  *
  * `ipc.ts` is deliberately **not** re-exported here. Keeping the one Electron-importing
  * module off this barrel is what lets everything else be imported, and tested, without an
@@ -127,11 +140,27 @@ export type {
 
 export {
     BACKUPS_DIRECTORY,
+    RESTORES_DIRECTORY,
     backupIdFor,
     backupWorkspace,
     listBackupIds,
     pruneStagedPayload,
+    restoreArchivePath,
+    restoreIdFor,
+    restoreWorkspace,
     stagedArchivePath,
     stagedPointerPath,
 } from "./workspace.js";
-export type { BackupWorkspace } from "./workspace.js";
+export type { BackupWorkspace, RestoreWorkspace } from "./workspace.js";
+
+export { BackupRestoreRunner, RestoreRefusal } from "./restore.js";
+export type {
+    BackupRestoreRunnerOptions,
+    RestoreEvent,
+    RestoreFailure,
+    RestorePhase,
+    RestoreRequest,
+    RestoreResult,
+    RestoreSummary,
+    RestoreTaskProgress,
+} from "./restore.js";
