@@ -24,6 +24,27 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "1b3a74597083f1ea260b8abe233173e4e97ea50a",
+        shortSha: "1b3a745970",
+        date: "2026-08-04T20:29:10-04:00",
+        subject: "Merge rendered profile shortcut coverage",
+        details: "",
+        category: "interface",
+        areas: ["interface"],
+        files: 1,
+        summarizes: 2,
+    },
+    {
+        sha: "9cbce505af08a45a94d713aa2bc4b54e281242c7",
+        shortSha: "9cbce505af",
+        date: "2026-08-04T20:29:06-04:00",
+        subject: "Prove profile shortcuts in the rendered menu",
+        details: "The profile test now checks the visible Open command for Enter / Space and presses both keys through the real row handler. The branch also removes its duplicate catalogue key, keeping the menu hint and the translation map in one tidy line of truth.\\n\\nProfile test 而家真係睇 rendered menu 入面嘅 Enter / Space，再用兩粒 key 撳過真正 row handler。Branch 順手清走 duplicate catalogue key，menu hint 同翻譯表終於一條線，唔再唱重複歌。",
+        category: "interface",
+        areas: ["interface"],
+        files: 2,
+    },
+    {
         sha: "7174ccc5ec9a37ca852a1f391ef1e1cfa9071287",
         shortSha: "7174ccc5ec",
         date: "2026-08-04T20:28:36-04:00",

@@ -22,6 +22,8 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Merge rendered profile shortcut coverage - [`1b3a745970`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1b3a74597083f1ea260b8abe233173e4e97ea50a) _(summary of 2 commits, also listed here)_
+- Prove profile shortcuts in the rendered menu - [`9cbce505af`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/9cbce505af08a45a94d713aa2bc4b54e281242c7)
 - Keep one profile keyboard hint in the catalogue - [`7174ccc5ec`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7174ccc5ec9a37ca852a1f391ef1e1cfa9071287)
 - Merge profile keyboard shortcuts into main - [`87c4e1204f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/87c4e1204f2cc888933cd9d98faceb87fca02bc7) _(summary of 2 commits, also listed here)_
 - Show the real profile-row opening keys - [`ac5ac795d7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ac5ac795d751ab121f4c5b75103bcd7143b06deb)
