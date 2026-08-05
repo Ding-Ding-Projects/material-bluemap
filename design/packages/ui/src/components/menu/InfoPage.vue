@@ -1,20 +1,27 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiFileDocumentOutline } from "@mdi/js";
+import { mdiCompassOutline, mdiFileDocumentOutline } from "@mdi/js";
 import { sanitizeHtml } from "@material-bluemap/viewer";
 import type { BlueMapApp } from "@material-bluemap/viewer";
 import { useBlueMap } from "./useBlueMap";
 import ChangelogViewer from "../changelog/ChangelogViewer.vue";
 import { onRevealRequested } from "../shell/revealRequests.js";
+import { tutorialCompleted } from "../tutorial/tutorialController.js";
 
 /**
  * "Browse the documentation" - this page's own reachability path into the docs browser,
  * mirroring the changelog fold immediately below it. The docs browser is a real shell tab
  * rather than a fold in this menu, so the button only asks to be taken there; `MainMenu.vue`
  * forwards the request up to the shell, which is the one place that can actually switch tabs.
+ *
+ * "Start the tour" / "Replay the tour" is the same shape: this page never opens the tour
+ * itself, it only asks. `App.vue` is what actually holds `TutorialOverlay.vue` and answers
+ * the request through `requestTutorialLaunch()` - see that file for why a doorbell rather
+ * than a direct call, and `tutorial-controller.ts`'s `tutorialCompleted()` for why the label
+ * changes rather than staying "Start" forever.
  */
-const emit = defineEmits<{ "open-docs": [] }>();
+const emit = defineEmits<{ "open-docs": []; "open-tutorial": [] }>();
 
 /**
  * The Info page: upstream renders `info.content` from the locale file straight through
@@ -34,6 +41,12 @@ const props = defineProps<{ bluemap?: BlueMapApp | null }>();
 
 const app = useBlueMap(() => props.bluemap);
 const { t } = useI18n();
+
+const tourLabel = computed(() =>
+    tutorialCompleted()
+        ? t("tutorial.launch.replay", "Replay the tour")
+        : t("tutorial.launch.start", "Take the tour"),
+);
 
 /**
  * The logo the locale markup carries, at the size and shape the page actually renders.
@@ -219,6 +232,20 @@ onMounted(() => {
         {{ t("docsViewer.openFromInfo", "Browse the documentation") }}
     </v-btn>
 
+    <!--
+        The interactive tour's own reachability path from Help/About. Same shape as the docs
+        button above: this page only asks the shell to open it, because the overlay is mounted
+        at the shell and not here.
+    -->
+    <v-btn
+        class="mb-info-page__tour-button"
+        variant="tonal"
+        :prepend-icon="mdiCompassOutline"
+        @click="emit('open-tutorial')"
+    >
+        {{ tourLabel }}
+    </v-btn>
+
     <details
         ref="changelogFold"
         class="mb-info-page__changelog"
@@ -241,6 +268,11 @@ onMounted(() => {
 }
 
 .mb-info-page__docs-button {
+    margin-block-end: 12px;
+}
+
+.mb-info-page__tour-button {
+    margin-inline-start: 8px;
     margin-block-end: 12px;
 }
 

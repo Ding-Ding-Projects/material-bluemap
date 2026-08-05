@@ -211,7 +211,11 @@ function onDrop(event: DragEvent): void {
 </script>
 
 <template>
-    <section class="mb-world-step" :aria-label="t('world.wizard.step.world', 'World')">
+    <section
+        class="mb-world-step"
+        data-tutorial-anchor="world-find"
+        :aria-label="t('world.wizard.step.world', 'World')"
+    >
         <h3 class="mb-world-step__title">{{ t("world.folder.title", "Choose a world") }}</h3>
         <p class="mb-world-step__blurb">
             {{

@@ -1030,6 +1030,7 @@ const tabCountLabel = computed(() =>
                     :roving="isRoving(tab)"
                     :panel-id="panelId"
                     :style="tabStyles[tab.id]"
+                    :data-tutorial-anchor="`tab-${tab.pageId}`"
                     compact
                     pinned
                     @activate="goTo(tab.id)"
@@ -1061,6 +1062,7 @@ const tabCountLabel = computed(() =>
                             :roving="isRoving(segment.tab)"
                             :panel-id="panelId"
                             :style="tabStyles[segment.tab.id]"
+                            :data-tutorial-anchor="`tab-${segment.tab.pageId}`"
                             @activate="goTo(segment.tab.id)"
                             @close="emit('close', segment.tab.id, strip.id)"
                             @keydown="onTabKeydown($event, segment.tab)"
@@ -1124,6 +1126,7 @@ const tabCountLabel = computed(() =>
                                     :roving="isRoving(tab)"
                                     :panel-id="panelId"
                                     :style="tabStyles[tab.id]"
+                                    :data-tutorial-anchor="`tab-${tab.pageId}`"
                                     @activate="goTo(tab.id)"
                                     @close="emit('close', tab.id, strip.id)"
                                     @keydown="onTabKeydown($event, tab)"

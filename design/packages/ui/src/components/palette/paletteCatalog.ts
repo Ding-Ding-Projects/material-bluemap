@@ -127,6 +127,8 @@ export interface PaletteShellActions {
     readonly openTabFinder?: () => void;
     /** Open the changelog viewer, expanded, wherever the shell keeps it. */
     readonly openChangelog?: () => void;
+    /** Open the interactive tour: see `components/tutorial/`. */
+    readonly openTutorial?: () => void;
 }
 
 export interface PaletteCatalogInput {
@@ -644,6 +646,26 @@ function chromeItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
             ),
             keywords: ["changelog", "release notes", "version", "what's new", "history", "updates"],
             run: () => openChangelog(),
+        });
+    }
+
+    /*
+     * Unlike the changelog above, the tour needs no viewer: it walks the make-a-map wizard,
+     * the map tab and the publish tab, none of which need a rendered map open to visit.
+     */
+    const openTutorial = actions.openTutorial;
+    if (openTutorial !== undefined) {
+        items.push({
+            kind: "command",
+            id: "chrome.tutorial",
+            group,
+            title: t("tutorial.launch.start", "Take the tour"),
+            description: t(
+                "palette.chrome.tutorial",
+                "A short guided walkthrough of finding a world, rendering it, and opening the result, with the real controls highlighted as it goes.",
+            ),
+            keywords: ["tour", "tutorial", "walkthrough", "guide", "onboarding", "getting started", "how to"],
+            run: () => openTutorial(),
         });
     }
 

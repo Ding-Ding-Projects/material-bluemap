@@ -505,6 +505,22 @@ export const PALETTE_VOICED = {
             "每一個已發佈嘅版本，入面改咗啲乜，可以按日期篩選、可以搜尋，每一項都實實在在連返去整出佢嗰個 commit。",
         ],
     },
+    "palette.chrome.tutorial": {
+        en: [
+            "A short guided walkthrough of finding a world, rendering it, and opening the result, with the real controls highlighted as it goes.",
+            "A short guided walkthrough of finding a world, rendering it, and opening the result, with the real controls highlighted as it goes.",
+            "A short guided walkthrough of finding a world, rendering it, and opening the result, highlighting the real controls the whole way through.",
+            "The guided walkthrough: finding a world, rendering it, opening the result, with the real controls lit up as it goes rather than a wall of text.",
+            "The guided walkthrough, real controls lit up the whole way: finding a world, rendering it, opening the result, no wall of text in sight.",
+        ],
+        yue: [
+            "一個簡短嘅導覽，會帶你搵世界、算圖、打開結果，沿途仲會標示出真正嘅控制項。",
+            "一個簡短嘅導覽，會帶你搵世界、算圖、打開結果，沿途仲會標示出真正嘅控制項。",
+            "一個簡短嘅導覽，帶你搵世界、算圖、打開結果，成程都會標示出真正嘅控制項。",
+            "呢個導覽：搵世界、算圖、打開結果，真正嘅控制項會沿途發光提示你，唔使睇成堆文字。",
+            "呢個導覽全程幫你標亮真正嘅控制項：搵世界、算圖、打開結果，一個字都唔使睇。",
+        ],
+    },
 
     /* ---------------------------------------------------------------- */
     /* The options editor's "everything" row and its History tab         */
@@ -1084,6 +1100,10 @@ export const PALETTE_FACTS = {
     "palette.chrome.changelog": {
         en: ["date filter", "commit"],
         yue: ["日期篩選", "commit"],
+    },
+    "palette.chrome.tutorial": {
+        en: ["guided walkthrough"],
+        yue: ["導覽"],
     },
 
     "palette.config.allDescription": {

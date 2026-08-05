@@ -86,6 +86,8 @@ const emit = defineEmits<{
     "open-tab-finder": [];
     /** Open the changelog, wherever the shell keeps it. */
     "open-changelog": [];
+    /** Open the interactive tour. */
+    "open-tutorial": [];
 }>();
 
 const { t, locale } = useI18n();
@@ -130,6 +132,7 @@ const actions: PaletteShellActions = {
     openNoticeCentre: () => emit("open-notice-centre"),
     openTabFinder: () => emit("open-tab-finder"),
     openChangelog: () => emit("open-changelog"),
+    openTutorial: () => emit("open-tutorial"),
 };
 
 /**

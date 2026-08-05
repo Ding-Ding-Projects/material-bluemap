@@ -30,8 +30,11 @@ const props = defineProps<{ bluemap?: BlueMapApp | null }>();
  * though, the docs browser is a real shell tab rather than a fold inside this menu, so the
  * fix is the ordinary one: forward the event up, the way `MarkerMenu`'s marker set already
  * flows down through this component's own `markers` slot in the other direction.
+ *
+ * The Info page's "Take the tour" button forwards the same way, for the same reason: the
+ * tour overlay is mounted at the shell, not here.
  */
-const emit = defineEmits<{ "open-docs": [] }>();
+const emit = defineEmits<{ "open-docs": []; "open-tutorial": [] }>();
 
 const app = useBlueMap(() => props.bluemap);
 provideBlueMap(app);
@@ -168,7 +171,11 @@ function updateMap(): void {
 
         <SettingsMenu v-else-if="pageId === 'settings'" />
 
-        <InfoPage v-else-if="pageId === 'info'" @open-docs="emit('open-docs')" />
+        <InfoPage
+            v-else-if="pageId === 'info'"
+            @open-docs="emit('open-docs')"
+            @open-tutorial="emit('open-tutorial')"
+        />
     </MenuSideSheet>
 </template>
 

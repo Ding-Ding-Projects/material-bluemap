@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useId, watch } from "vue";
+import { computed, nextTick, onMounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiCloudSyncOutline,
@@ -27,6 +27,14 @@ import { MarkerMenu } from "./components/markers/index.js";
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
 import { AppTitleBar } from "./components/shell/index.js";
 import { requestReveal } from "./components/shell/revealRequests.js";
+import { onDocsArticleRequested } from "./components/docs/docsLink.js";
+import {
+    TutorialOverlay,
+    markTutorialOffered,
+    requestTutorialLaunch,
+    tutorialCompleted,
+    tutorialOffered,
+} from "./components/tutorial/index.js";
 import { FirstRunSetup, WelcomeSurface } from "./components/setup/index.js";
 import { useSetupI18n } from "./components/setup/setupI18n.js";
 import { AppSettings, type SettingsSectionAnchor } from "./components/settings/index.js";
@@ -124,6 +132,16 @@ const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
 function revealPage(pageId: string): void {
     tabs.value?.revealPage(pageId);
 }
+
+/**
+ * A glossary term's "tell me more" link asking for the Docs tab specifically.
+ *
+ * `DocsPage.vue` only exists once this switch lands - `TabbedNavigation.vue` renders only the
+ * active page's slot - so the tab switch has to happen somewhere that stays mounted no matter
+ * which page is showing, which is here. `DocsPage.vue`'s own `onMounted` reads the same
+ * pending target and opens the actual article; this only gets the tab in front of it.
+ */
+onDocsArticleRequested(() => revealPage(PAGE_DOCS));
 
 /**
  * Which page is on screen, for the chrome that belongs to one of them.
@@ -345,6 +363,47 @@ function onWelcomeStart(): void {
 function onFirstRunFinished(): void {
     revealPage(PAGE_WORLD);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Offering the interactive tour, exactly once                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A single, dismissible, non-blocking invitation - never a second one.
+ *
+ * Raised on mount rather than tied to first-run finishing, because "offered" has to cover
+ * two different people: somebody on a brand-new install (first-run setup may well be showing
+ * at the same moment; this toast never blocks it and never steals its focus) and somebody who
+ * already finished first-run setup on an earlier build before this feature existed, whose
+ * next ordinary launch is the only "first time this could have been offered" they will ever
+ * have. `tutorialOffered()` is checked and `markTutorialOffered()` is called in the same
+ * breath specifically so a page that mounts this component twice - a test, a hot reload -
+ * cannot raise it twice either.
+ *
+ * `tutorialCompleted()` is also checked, for the person who reached the tour through Info,
+ * Docs or the palette before this toast ever got a chance to fire: having already taken the
+ * tour is a stronger reason not to invite them again than merely having seen the invitation.
+ */
+onMounted(() => {
+    if (tutorialOffered() || tutorialCompleted()) return;
+    markTutorialOffered();
+    raiseNotice(
+        "info",
+        t(
+            "tutorial.offer.message",
+            "New to BlueMap? There is a short interactive tour that walks through finding a world, rendering it and opening the result.",
+        ),
+        {
+            actions: [
+                {
+                    id: "start-tour",
+                    label: t("tutorial.launch.start", "Take the tour"),
+                    run: () => requestTutorialLaunch(),
+                },
+            ],
+        },
+    );
+});
 
 /* -------------------------------------------------------------------------- */
 /* Server configuration                                                       */
@@ -602,7 +661,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     whatever the opener put there, which is the root set for the
                                     Markers button and the `bm-players` set for the Players one.
                                 -->
-                                <MainMenu @open-docs="revealPage(PAGE_DOCS)">
+                                <MainMenu
+                                    @open-docs="revealPage(PAGE_DOCS)"
+                                    @open-tutorial="requestTutorialLaunch()"
+                                >
                                     <template #markers="{ page, menu }">
                                         <MarkerMenu
                                             v-if="blueMapApp"
@@ -877,6 +939,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 @open-notice-centre="requestReveal('noticeCentre')"
                 @open-tab-finder="requestReveal('tabFinder')"
                 @open-changelog="openChangelog"
+                @open-tutorial="requestTutorialLaunch()"
             />
         </v-main>
 
@@ -886,6 +949,16 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             the only one in this application - is never a child of a click-through layer.
         -->
         <FirstRunSetup @finished="onFirstRunFinished" />
+
+        <!--
+            The interactive tour: a highlighted control and a card of text beside it, never a
+            backdrop and never blocking. Mounted here for the same reason `CommandPalette` and
+            `ConfigNotifications` are - it is asked to open from three places that are nowhere
+            near each other in this tree (Info, the docs browser, the command palette row
+            above), via `requestTutorialLaunch()`, and it drives the tab strip itself through
+            `revealPage` as its steps advance.
+        -->
+        <TutorialOverlay :reveal-page="revealPage" />
 
         <!--
             The one notification corner, mounted for the same reason and in the same place:

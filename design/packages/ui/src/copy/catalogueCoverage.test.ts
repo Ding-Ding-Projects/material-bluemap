@@ -97,6 +97,7 @@ const COVERED_SURFACES = [
     "components/downloads",
     "components/eula",
     "components/github",
+    "components/glossary",
     "components/history",
     "components/menu",
     "components/pages",

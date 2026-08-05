@@ -30,6 +30,7 @@ import { CONSOLE_FACTS, CONSOLE_FIXED, CONSOLE_VOICED } from "./console.js";
 import { DOCSVIEWER_FACTS, DOCSVIEWER_FIXED, DOCSVIEWER_VOICED } from "./docsViewer.js";
 import { DOWNLOADS_FACTS, DOWNLOADS_FIXED, DOWNLOADS_VOICED } from "./downloads.js";
 import { GITHUB_FACTS, GITHUB_FIXED, GITHUB_VOICED } from "./github.js";
+import { GLOSSARY_FACTS, GLOSSARY_FIXED, GLOSSARY_VOICED } from "./glossary.js";
 import { HISTORY_FACTS, HISTORY_FIXED, HISTORY_VOICED } from "./history.js";
 import { MENU_FACTS, MENU_FIXED, MENU_VOICED } from "./menu.js";
 import { MENUSEARCH_FACTS, MENUSEARCH_FIXED, MENUSEARCH_VOICED } from "./menuSearch.js";
@@ -47,6 +48,7 @@ import { SETTINGS_FACTS, SETTINGS_FIXED, SETTINGS_VOICED } from "./settings.js";
 import { SPEED_FACTS, SPEED_FIXED, SPEED_VOICED } from "./speed.js";
 import { TABGROUPPICKER_FACTS, TABGROUPPICKER_FIXED, TABGROUPPICKER_VOICED } from "./tabGroupPicker.js";
 import { TABS_FACTS, TABS_FIXED, TABS_VOICED } from "./tabs.js";
+import { TUTORIAL_FACTS, TUTORIAL_FIXED, TUTORIAL_VOICED } from "./tutorial.js";
 import { WORLD_FACTS, WORLD_FIXED, WORLD_VOICED } from "./world.js";
 
 export const SURFACE_VOICED = {
@@ -63,6 +65,7 @@ export const SURFACE_VOICED = {
     ...DOCSVIEWER_VOICED,
     ...DOWNLOADS_VOICED,
     ...GITHUB_VOICED,
+    ...GLOSSARY_VOICED,
     ...HISTORY_VOICED,
     ...MENU_VOICED,
     ...MENUSEARCH_VOICED,
@@ -80,6 +83,7 @@ export const SURFACE_VOICED = {
     ...SPEED_VOICED,
     ...TABGROUPPICKER_VOICED,
     ...TABS_VOICED,
+    ...TUTORIAL_VOICED,
     ...WORLD_VOICED,
 } as const;
 
@@ -97,6 +101,7 @@ export const SURFACE_FIXED = {
     ...DOCSVIEWER_FIXED,
     ...DOWNLOADS_FIXED,
     ...GITHUB_FIXED,
+    ...GLOSSARY_FIXED,
     ...HISTORY_FIXED,
     ...MENU_FIXED,
     ...MENUSEARCH_FIXED,
@@ -114,6 +119,7 @@ export const SURFACE_FIXED = {
     ...SPEED_FIXED,
     ...TABGROUPPICKER_FIXED,
     ...TABS_FIXED,
+    ...TUTORIAL_FIXED,
     ...WORLD_FIXED,
 } as const;
 
@@ -131,6 +137,7 @@ export const SURFACE_FACTS = {
     ...DOCSVIEWER_FACTS,
     ...DOWNLOADS_FACTS,
     ...GITHUB_FACTS,
+    ...GLOSSARY_FACTS,
     ...HISTORY_FACTS,
     ...MENU_FACTS,
     ...MENUSEARCH_FACTS,
@@ -148,5 +155,6 @@ export const SURFACE_FACTS = {
     ...SPEED_FACTS,
     ...TABGROUPPICKER_FACTS,
     ...TABS_FACTS,
+    ...TUTORIAL_FACTS,
     ...WORLD_FACTS,
 } as const;

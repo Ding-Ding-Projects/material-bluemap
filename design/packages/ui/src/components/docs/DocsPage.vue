@@ -1,11 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiArrowLeft, mdiFileDocumentOutline } from "@mdi/js";
+import { mdiArrowLeft, mdiCompassOutline, mdiFileDocumentOutline } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardText, VList, VListItem } from "vuetify/components";
 import { renderMarkdown } from "@material-bluemap/viewer";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { tutorialCompleted } from "../tutorial/tutorialController.js";
+import { requestTutorialLaunch } from "../tutorial/tutorialLaunch.js";
 import { DOCS_ARTICLES, DOCS_ARTICLES_BY_ID, DOCS_ARTICLE_IDS } from "./docsContent.js";
+import { onDocsArticleRequested, takePendingDocsArticle } from "./docsLink.js";
 import {
     type DocsArticle,
     type DocsCategoryId,
@@ -48,6 +51,17 @@ import {
 
 const { t } = useI18n();
 
+/**
+ * The interactive tour's own reachability path from the docs browser. This page never opens
+ * the overlay itself - `requestTutorialLaunch()` is the same doorbell `InfoPage.vue`'s own
+ * button rings, and `TutorialOverlay.vue` (mounted at the shell) is what actually answers it.
+ */
+const tourLabel = computed(() =>
+    tutorialCompleted()
+        ? t("tutorial.launch.replay", "Replay the tour")
+        : t("tutorial.launch.start", "Take the tour"),
+);
+
 /* -------------------------------------------------------------------------- */
 /* Navigation                                                                  */
 /* -------------------------------------------------------------------------- */
@@ -79,6 +93,21 @@ function backToIndex(): void {
     pendingHash.value = "";
     void focusHeading();
 }
+
+/**
+ * A term's "tell me more" link, or anything else that wants this page to open a specific
+ * article: see `docsLink.ts` for why this needs both an `onMounted` read and a live watcher.
+ * The shell (`App.vue`) is what actually switches to this tab; by the time that switch lands
+ * and this component mounts, the same target this reads in `onMounted` is what `App.vue`
+ * reacted to, so the two never race.
+ */
+onMounted(() => {
+    const target = takePendingDocsArticle();
+    if (target !== null) openArticle(target.id, target.hash);
+});
+onDocsArticleRequested((target) => {
+    openArticle(target.id, target.hash);
+});
 
 /* -------------------------------------------------------------------------- */
 /* Search                                                                      */
@@ -203,6 +232,15 @@ watch([selectedArticle, renderedArticle], async () => {
                     )
                 }}
             </p>
+            <VBtn
+                class="mb-docs__tour-button"
+                variant="tonal"
+                size="small"
+                :prepend-icon="mdiCompassOutline"
+                @click="requestTutorialLaunch()"
+            >
+                {{ tourLabel }}
+            </VBtn>
         </header>
 
         <ConfigSearchField
@@ -344,6 +382,10 @@ watch([selectedArticle, renderedArticle], async () => {
     line-height: 1.45;
     margin-block: 2px;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-docs__tour-button {
+    margin-block-start: 8px;
 }
 
 .mb-docs__count {
