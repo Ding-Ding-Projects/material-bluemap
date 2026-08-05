@@ -41,7 +41,11 @@
 .mb-hero-title {
     font-family: var(--md-sys-typescale-display-small-font);
     /* Shrinks with the viewport so the longest title never pushes the page sideways. */
-    font-size: clamp(var(--md-sys-typescale-headline-medium-size), 6vw, var(--md-sys-typescale-display-small-size));
+    font-size: clamp(
+        var(--md-sys-typescale-headline-medium-size),
+        6vw,
+        var(--md-sys-typescale-display-small-size)
+    );
     font-weight: var(--md-sys-typescale-display-small-weight);
     line-height: 1.15;
     letter-spacing: var(--md-sys-typescale-display-small-tracking);
@@ -100,7 +104,8 @@
     text-align: center;
     text-decoration: none;
     overflow-wrap: anywhere;
-    transition: background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+    transition: background-color var(--md-sys-motion-duration-short4)
+        var(--md-sys-motion-easing-standard);
 }
 
 .mb-download:hover {
@@ -145,7 +150,11 @@
 
 .mb-page-title {
     font-family: var(--md-sys-typescale-headline-large-font);
-    font-size: clamp(var(--md-sys-typescale-headline-small-size), 5vw, var(--md-sys-typescale-headline-large-size));
+    font-size: clamp(
+        var(--md-sys-typescale-headline-small-size),
+        5vw,
+        var(--md-sys-typescale-headline-large-size)
+    );
     font-weight: var(--md-sys-typescale-headline-large-weight);
     line-height: 1.2;
 }
@@ -185,7 +194,11 @@
     color: var(--md-sys-color-primary);
     font-family: var(--md-sys-typescale-headline-medium-font);
     /* A long value such as a version range has to shrink rather than overflow its card. */
-    font-size: clamp(var(--md-sys-typescale-title-large-size), 3.4vw, var(--md-sys-typescale-headline-medium-size));
+    font-size: clamp(
+        var(--md-sys-typescale-title-large-size),
+        3.4vw,
+        var(--md-sys-typescale-headline-medium-size)
+    );
     font-weight: var(--md-sys-typescale-headline-medium-weight);
     line-height: 1.15;
     overflow-wrap: anywhere;
@@ -349,7 +362,11 @@
 }
 
 .mb-card-link:hover {
-    background: color-mix(in srgb, var(--md-sys-color-primary) var(--md-sys-state-hover-opacity), transparent);
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-primary) var(--md-sys-state-hover-opacity),
+        transparent
+    );
 }
 
 .mb-card-reading {
@@ -610,7 +627,11 @@
 }
 
 .mb-article-summary:hover {
-    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity), transparent);
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity),
+        transparent
+    );
 }
 
 .mb-article[open] > .mb-article-summary {
@@ -862,7 +883,11 @@
 
 .mb-callout-warning {
     border-inline-start-color: var(--md-sys-color-warning);
-    background: color-mix(in srgb, var(--md-sys-color-warning-container) 40%, var(--md-sys-color-surface));
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-warning-container) 40%,
+        var(--md-sys-color-surface)
+    );
 }
 
 .mb-callout-warning .mb-callout-tone {
@@ -902,7 +927,11 @@
 }
 
 .mb-link-list a:hover {
-    background: color-mix(in srgb, var(--md-sys-color-primary) var(--md-sys-state-hover-opacity), transparent);
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-primary) var(--md-sys-state-hover-opacity),
+        transparent
+    );
 }
 
 /* ---- Boot failure -------------------------------------------------------------------- */
@@ -1097,6 +1126,53 @@
 
 .mb-command-palette__result .mbm-result__excerpt {
     grid-column: 1 / -1;
+}
+
+/*
+ * A setting row is not a button: the whole point is that the real control sits inside it, so
+ * the row itself carries no click handler and the grid gives the control its own column
+ * instead of stacking under the text like the excerpt does above.
+ */
+.mb-command-palette__setting {
+    align-items: center;
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-3);
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+
+.mb-command-palette__setting-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-1);
+    min-width: 0;
+}
+
+.mb-command-palette__control-box {
+    display: flex;
+    align-items: center;
+    justify-content: end;
+    gap: var(--md-sys-spacing-2);
+    flex: none;
+}
+
+.mb-command-palette__control-box .md-field__select,
+.mb-command-palette__control-box .mb-input-number {
+    min-width: 9rem;
+}
+
+@media (max-width: 30rem) {
+    .mb-command-palette__setting {
+        grid-template-columns: 1fr;
+    }
+
+    .mb-command-palette__control-box {
+        justify-content: start;
+    }
+
+    .mb-command-palette__control-box .md-field__select,
+    .mb-command-palette__control-box .mb-input-number {
+        min-width: 0;
+        width: 100%;
+    }
 }
 
 .mb-date-range__panel {

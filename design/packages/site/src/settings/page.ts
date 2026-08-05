@@ -19,7 +19,7 @@ import type { FunnyLevel, LanguageMode } from "./i18n.js";
 import type { Preferences } from "../platform/Preferences.js";
 import type { ThemeController } from "../theme/ThemeController.js";
 import { THEME_MODES, DENSITIES } from "../theme/ThemeController.js";
-import type { SearchableSetting, SettingsSearchHost } from "../search/contract.js";
+import type { SearchableSetting, SettingControl, SettingsSearchHost } from "../search/contract.js";
 import { attachRegexBuilder } from "../search/attachBuilder.js";
 import { SettingsStore } from "./store.js";
 import { SETTINGS, SETTINGS_TABS } from "./schema.js";
@@ -786,6 +786,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         return SETTINGS.filter(isStoredSetting).map((definition) => {
             const tab = SETTINGS_TABS.find((candidate) => candidate.id === definition.tab);
             const group = tab?.groups.find((candidate) => candidate.id === definition.group);
+            const control = controlFor(definition.id);
             return {
                 id: definition.id,
                 label: t(definition.labelKey),
@@ -801,9 +802,58 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                     ...(definition.descriptionKey === undefined
                         ? []
                         : [searchableText(definition.descriptionKey)]),
+                    // A choice control's unselected option labels, so "how do I make it dark"
+                    // finds the "Dark" option even while "Light" is the one currently in force.
+                    ...(control !== undefined && control.kind === "choice"
+                        ? control.options.map((option) => option.label)
+                        : []),
                 ],
+                ...(control === undefined ? {} : { control }),
             };
         });
+    }
+
+    /**
+     * The live control a caller can write straight through, for the settings kinds that fit
+     * honestly in one row: a switch, a bounded number (slider and number both render as one
+     * box), and a pick from a list. Colour and font settings return `undefined` on purpose —
+     * neither reduces to a single control a caller could show without a second surface, so a
+     * caller instead reveals this setting's own tab.
+     */
+    function controlFor(id: string): SettingControl | undefined {
+        const definition = store.definition(id);
+        if (definition === undefined) return undefined;
+        switch (definition.kind) {
+            case "toggle":
+                return {
+                    kind: "toggle",
+                    value: store.getBoolean(id),
+                    set: (value) => store.set(id, value),
+                };
+            case "select":
+                return {
+                    kind: "choice",
+                    value: store.getString(id),
+                    options: definition.options.map((option) => ({
+                        id: option.value,
+                        label: t(option.labelKey),
+                    })),
+                    set: (value) => store.set(id, value),
+                };
+            case "slider":
+            case "number":
+                return {
+                    kind: "number",
+                    value: store.getNumber(id),
+                    min: definition.min,
+                    max: definition.max,
+                    step: definition.step,
+                    unit: definition.unit ?? "",
+                    set: (value) => store.set(id, value),
+                };
+            default:
+                return undefined;
+        }
     }
 
     function valueTextFor(id: string): string {

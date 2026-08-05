@@ -1002,8 +1002,14 @@ function createShellPalette(options: {
         ...options.settingsView.search.host.listSettings().map((setting) => ({
             id: `setting-${setting.id}`,
             label: setting.label,
-            description: `${setting.description} · ${setting.valueText}`,
+            // A choice control's unselected option labels ride along here too, so typing "dark"
+            // finds the theme setting even while "Light" is the one currently in force.
+            description:
+                setting.control?.kind === "choice"
+                    ? `${setting.description} · ${setting.valueText} (${setting.control.options.map((option) => option.label).join(", ")})`
+                    : `${setting.description} · ${setting.valueText}`,
             kind: "setting" as const,
+            ...(setting.control === undefined ? {} : { control: setting.control }),
             run: () => {
                 options.tabs.reveal("settings");
                 options.settingsView.revealSetting(setting.id);

@@ -131,6 +131,49 @@ export interface TabSearchHost {
     subscribe(listener: () => void): () => void;
 }
 
+/** One option of a `choice` setting control: a stable id and the label the visitor reads. */
+export interface SettingChoiceOption {
+    readonly id: string;
+    readonly label: string;
+}
+
+/**
+ * The live control a searchable setting can carry, for a caller that wants to render the real
+ * control inline (the command palette) rather than only a link to the screen it lives on.
+ *
+ * Three kinds, matching the settings this covers: a boolean, a bounded number (a slider or a
+ * number setting both render as one box), and a pick from a list. Colour and font settings
+ * carry no control here on purpose, because neither can be honestly reproduced as one row; a
+ * caller reveals the settings tab for those instead.
+ *
+ * `set` performs the write and whatever persistence that write needs, so a caller can never
+ * half-apply a change by forgetting to save it. It is the same method the settings surface
+ * itself writes through, so a value changed here and a value changed there are the same act
+ * with the same validation and the same history.
+ */
+export type SettingControl =
+    | {
+          readonly kind: "toggle";
+          readonly value: boolean;
+          readonly set: (value: boolean) => void;
+      }
+    | {
+          readonly kind: "number";
+          readonly value: number;
+          readonly min: number;
+          readonly max: number;
+          readonly step: number;
+          /** Rendered beside the box, e.g. "px". Empty when the number needs no unit. */
+          readonly unit: string;
+          readonly set: (value: number) => void;
+      }
+    | {
+          readonly kind: "choice";
+          readonly value: string;
+          readonly options: readonly SettingChoiceOption[];
+          readonly set: (id: string) => void;
+      };
+
 /** A single setting, as the settings module presents it to search. */
 export interface SearchableSetting {
     readonly id: string;
@@ -148,6 +191,11 @@ export interface SearchableSetting {
     readonly sectionLabel?: string;
     /** Extra searchable synonyms. Never rendered. */
     readonly keywords?: readonly string[];
+    /**
+     * The real control, when this setting is one a caller can safely write to inline. Absent
+     * for settings (colour, font) that need more than one row to edit honestly.
+     */
+    readonly control?: SettingControl;
 }
 
 /** Supplied by the settings module. */
