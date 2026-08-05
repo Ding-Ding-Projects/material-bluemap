@@ -10,6 +10,7 @@ import {
 } from "../bluemap.js";
 import { chunksInRegionRectangle, type WorldMeasurement } from "../world/measure.js";
 import { estimateRenderSeconds, formatDuration, type Estimate } from "./estimate.js";
+import { estimateDiskBytes, formatBytes, type DiskEstimate } from "./disk.js";
 import { DEFAULT_MERGE_GROUP_SIZE } from "../resume/mergeTree.js";
 
 /** One unit of parallel work: a rectangle of the world, rendered by one Actions job. */
@@ -47,6 +48,8 @@ export interface ShardPlan {
         bytesPerChunk: number;
     };
     estimate: Estimate;
+    /** how much free disk this plan needs, at its two disk-heaviest points */
+    disk: DiskEstimate;
     /** seconds one job is allowed to spend rendering */
     budgetSeconds: number;
     /** how many shards the estimate asked for, before any cap was applied */
@@ -387,6 +390,27 @@ export function planShards(measurement: WorldMeasurement, options: PlanOptions):
                 ".",
         );
 
+    // The busiest shard's share of the world's chunks - 1 for an unsharded plan, where the
+    // one job renders the whole map and therefore needs the whole map's tiles.
+    const largestShardChunkCount = shards.reduce((max, shard) => Math.max(max, shard.chunkCount), 0);
+    const largestShardFraction =
+        shards.length === 0 || measurement.chunkCount === 0
+            ? 1
+            : largestShardChunkCount / measurement.chunkCount;
+    const disk = estimateDiskBytes({ worldBytes: measurement.bytes, largestShardFraction });
+
+    decision.push(
+        "Needs roughly " +
+            formatBytes(disk.requiredBytes) +
+            " of free disk on a job's runner: the larger of " +
+            formatBytes(disk.fetchPeakBytes) +
+            " while the world is fetched (parts, joined archive and unpacked tree at once, worst" +
+            " case) and " +
+            formatBytes(disk.perJobBytes) +
+            " to hold the world plus the busiest shard's tiles while rendering, both with a" +
+            " safety margin.",
+    );
+
     return {
         mapId: options.mapId,
         dimension: measurement.dimension,
@@ -399,6 +423,7 @@ export function planShards(measurement: WorldMeasurement, options: PlanOptions):
             bytesPerChunk: measurement.bytesPerChunk,
         },
         estimate,
+        disk,
         budgetSeconds,
         requestedShards,
         grid,

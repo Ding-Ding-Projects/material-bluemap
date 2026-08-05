@@ -13,28 +13,54 @@
  * The token itself never crosses this boundary. The renderer learns the account name,
  * the scopes and whether it was stored; the token stays in the main process, which is
  * the only side that talks to GitHub.
+ *
+ * ## Multiple accounts, one legacy contract
+ *
+ * `GitHubAccountsController` (`accounts.ts`) is what actually backs `session` here now,
+ * not a bare `GitHubSession`. Every channel that existed before this file learned about
+ * multiple accounts - `github:status`, `github:signIn`, `github:cancelSignIn`,
+ * `github:signInWithToken`, `github:signOut`, `github:checkRepository` - is untouched
+ * below: same name, same request shape, same response shape. They all resolve to
+ * whichever account is active, which is exactly what "the signed-in account" meant before
+ * there could be more than one.
+ *
+ * Four channels are new, and only new: `github:listAccounts`, `github:removeAccount`,
+ * `github:setActiveAccount`, `github:refreshAccount`. None of them replace anything.
  */
 
 import { BrowserWindow, app, ipcMain, safeStorage } from "electron";
 import type { IpcMainInvokeEvent } from "electron";
 import { join } from "node:path";
+import { GitHubAccountsController, migrateLegacyAccount } from "./accounts.js";
+import type {
+    AccountsList,
+    GitHubSessionLike,
+    RefreshAccountResult,
+    RemoveAccountResult,
+    SetActiveAccountResult,
+} from "./accounts.js";
 import { fallbackOAuthClient, resolveClient, resolveClientSecret } from "./config.js";
 import type { FetchLike } from "./deviceFlow.js";
 import { openExternalHttps } from "./external.js";
-import { GitHubSession } from "./session.js";
 import type { GitHubAuthEvent, GitHubStatus, SignInResult, SignOutResult } from "./session.js";
-import { TokenStore } from "./storage.js";
 import type { RepositoryAccess } from "./token.js";
 
 /** Every sign-in event arrives on this channel. */
 export const GITHUB_EVENT_CHANNEL = "github:event";
 
-/** Where the encrypted credential lives, under the user's own profile. */
+/**
+ * Where the (now legacy) single credential file used to live, under the user's own
+ * profile. Only read once, to migrate a sign-in made before multi-account support
+ * existed; never written to again.
+ */
 export const CREDENTIAL_FILE_NAME = "github-credential.json";
 
+/** Where every account's files live: the registry plus one credential file each. */
+export const ACCOUNTS_DIRECTORY_NAME = "github-accounts";
+
 export interface GitHubIpcOptions {
-    /** Absolute path of the credential file. Defaults to one under `userData`. */
-    readonly file?: string | undefined;
+    /** The accounts directory. Defaults to one under `userData`. */
+    readonly directory?: string | undefined;
     /** Overridable so a test never touches the network. */
     readonly fetch?: FetchLike | undefined;
     /** Overridable so a test can watch what was broadcast. Defaults to every window. */
@@ -42,7 +68,17 @@ export interface GitHubIpcOptions {
 }
 
 export interface GitHubIpc {
-    readonly session: GitHubSession;
+    /**
+     * The legacy single-account surface, now backed by whichever account is active.
+     *
+     * Typed structurally (`GitHubSessionLike`) rather than as the concrete `GitHubSession`
+     * class, precisely so this keeps satisfying every existing caller that was handed a
+     * `GitHubSession` before - `download/token.ts`'s `SignedInSession`, `main/index.ts`'s
+     * `github.session.status()` - none of which need anything beyond these methods.
+     */
+    readonly session: GitHubSessionLike;
+    /** The same object as `session`, typed for the multi-account methods it also has. */
+    readonly accounts: GitHubAccountsController;
     dispose(): void;
 }
 
@@ -54,6 +90,10 @@ const GITHUB_CHANNELS = [
     "github:signInWithToken",
     "github:signOut",
     "github:checkRepository",
+    "github:listAccounts",
+    "github:removeAccount",
+    "github:setActiveAccount",
+    "github:refreshAccount",
 ] as const;
 
 function broadcastToWindows(event: GitHubAuthEvent): void {
@@ -64,13 +104,19 @@ function broadcastToWindows(event: GitHubAuthEvent): void {
 }
 
 export function installGitHubIpc(options: GitHubIpcOptions = {}): GitHubIpc {
-    const store = new TokenStore({
-        file: options.file ?? join(app.getPath("userData"), CREDENTIAL_FILE_NAME),
+    const directory = options.directory ?? join(app.getPath("userData"), ACCOUNTS_DIRECTORY_NAME);
+
+    // One-time, best-effort: bring a pre-multi-account sign-in forward so an update does
+    // not silently sign anybody out. See `accounts.ts` for the exact rule.
+    migrateLegacyAccount({
+        legacyFile: join(app.getPath("userData"), CREDENTIAL_FILE_NAME),
+        directory,
         safeStorage,
     });
 
-    const session = new GitHubSession({
-        store,
+    const accounts = new GitHubAccountsController({
+        directory,
+        safeStorage,
         fetch: options.fetch ?? ((url, init) => fetch(url, init)),
         sleep: (milliseconds) =>
             new Promise((resolve) => {
@@ -83,22 +129,23 @@ export function installGitHubIpc(options: GitHubIpcOptions = {}): GitHubIpc {
         onEvent: options.broadcast ?? broadcastToWindows,
     });
 
-    ipcMain.handle("github:status", (): GitHubStatus => session.status());
+    ipcMain.handle("github:status", (): GitHubStatus => accounts.status());
 
     // Deliberately not awaited anywhere else: this resolves only when the person has
-    // approved, refused, or let the code expire, which can be a quarter of an hour.
+    // approved, refused, or let the code expire, which can be a quarter of an hour. Adds
+    // the resulting account and makes it active; existing accounts are left untouched.
     ipcMain.handle(
         "github:signIn",
         async (
             _event: IpcMainInvokeEvent,
             request: { useOAuthFallback?: boolean } | undefined,
         ): Promise<SignInResult> =>
-            await session.startDeviceSignIn(
+            await accounts.startDeviceSignIn(
                 request?.useOAuthFallback === true ? { useOAuthFallback: true } : {},
             ),
     );
 
-    ipcMain.handle("github:cancelSignIn", (): boolean => session.cancelSignIn());
+    ipcMain.handle("github:cancelSignIn", (): boolean => accounts.cancelSignIn());
 
     ipcMain.handle(
         "github:signInWithToken",
@@ -114,11 +161,14 @@ export function installGitHubIpc(options: GitHubIpcOptions = {}): GitHubIpc {
                     },
                 };
             }
-            return await session.signInWithToken(token);
+            return await accounts.signInWithToken(token);
         },
     );
 
-    ipcMain.handle("github:signOut", async (): Promise<SignOutResult> => await session.signOut());
+    // Signs out the ACTIVE account. With another account stored, that account becomes
+    // active rather than leaving the app signed out; `github:status` reflects it
+    // immediately and a `signed-in` event is broadcast the same as an explicit sign-in.
+    ipcMain.handle("github:signOut", async (): Promise<SignOutResult> => await accounts.signOut());
 
     // Asked before a render, so that a GitHub App which has not been installed on the
     // repository is reported as exactly that rather than as "not found" during the job.
@@ -141,14 +191,77 @@ export function installGitHubIpc(options: GitHubIpcOptions = {}): GitHubIpc {
                     },
                 };
             }
-            return await session.checkRepository(owner, repo);
+            return await accounts.checkRepository(owner, repo);
+        },
+    );
+
+    /* -------------------------------- new, additive channels -------------------------- */
+
+    ipcMain.handle("github:listAccounts", (): AccountsList => accounts.listAccounts());
+
+    ipcMain.handle(
+        "github:removeAccount",
+        async (_event: IpcMainInvokeEvent, request: { id?: unknown } | undefined): Promise<RemoveAccountResult> => {
+            const id = typeof request?.id === "string" ? request.id : "";
+            if (id === "") {
+                return {
+                    removed: false,
+                    wasActive: false,
+                    newActiveId: accounts.activeAccountId(),
+                    revoked: false,
+                    reason: null,
+                    manageUrl: null,
+                    fallbackAccount: null,
+                };
+            }
+            return await accounts.removeAccount(id);
+        },
+    );
+
+    ipcMain.handle(
+        "github:setActiveAccount",
+        (_event: IpcMainInvokeEvent, request: { id?: unknown } | undefined): SetActiveAccountResult => {
+            const id = typeof request?.id === "string" ? request.id : "";
+            if (id === "") {
+                return {
+                    ok: false,
+                    activeId: accounts.activeAccountId(),
+                    account: null,
+                    reason: "Give an account id to switch to.",
+                };
+            }
+            return accounts.setActiveAccount(id);
+        },
+    );
+
+    ipcMain.handle(
+        "github:refreshAccount",
+        async (
+            _event: IpcMainInvokeEvent,
+            request: { id?: unknown } | undefined,
+        ): Promise<RefreshAccountResult> => {
+            const id = typeof request?.id === "string" ? request.id : "";
+            if (id === "") {
+                return {
+                    ok: false,
+                    account: null,
+                    failure: {
+                        code: "no-such-account",
+                        message: "Give an account id to refresh.",
+                        missingScopes: [],
+                        offerOAuthFallback: false,
+                    },
+                };
+            }
+            return await accounts.refreshAccount(id);
         },
     );
 
     return {
-        session,
+        session: accounts,
+        accounts,
         dispose(): void {
-            session.cancelSignIn();
+            accounts.cancelSignIn();
             for (const channel of GITHUB_CHANNELS) ipcMain.removeHandler(channel);
         },
     };

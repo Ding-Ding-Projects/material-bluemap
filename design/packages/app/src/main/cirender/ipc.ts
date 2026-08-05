@@ -45,6 +45,8 @@ import type {
 import type { CiSyncState } from "./state.js";
 import type { ProcessRunner } from "./gh.js";
 import type { CiRoute } from "./transport.js";
+import { checkCiRepositoryNameAvailability, listCiOwnerChoices, suggestCiRepositoryName } from "./setup.js";
+import type { CiOwnerChoicesAnswer, CiRepositoryNameAvailability } from "./setup.js";
 
 /** The channel every phase, log, run-state and outcome event arrives on. */
 export const CIRENDER_EVENT_CHANNEL = "cirender:event";
@@ -59,6 +61,12 @@ export const CIRENDER_CHANNELS = [
     "cirender:cancel",
     "cirender:forget",
     "cirender:active",
+    // The "What, and where" setup card's own data: who could own the repository, a name
+    // worth trying, and whether GitHub already has it. Pure additions beside the sync
+    // loop above - none of the three touches `sync`, `state.js` or a running job.
+    "cirender:owners",
+    "cirender:suggestRepoName",
+    "cirender:checkRepoName",
 ] as const;
 
 export interface CiRenderIpcOptions {
@@ -233,6 +241,51 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
     );
 
     options.ipcMain.handle("cirender:active", () => sync.activeSyncIds());
+
+    // The setup card's own three answers. Each resolves the token the same way `sync`
+    // does - per call, from whatever `options.token` reads right now - and none of them
+    // holds anything between calls.
+    options.ipcMain.handle("cirender:owners", async (): Promise<CiOwnerChoicesAnswer> => {
+        try {
+            return await listCiOwnerChoices({
+                token: options.token,
+                ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+                ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
+            });
+        } catch (error) {
+            // listCiOwnerChoices already turns its own failures into a result rather than
+            // a throw; this is a last resort for anything that got past that.
+            return { ok: false, signedIn: true, message: sentence(error) };
+        }
+    });
+
+    options.ipcMain.handle(
+        "cirender:suggestRepoName",
+        (_event: IpcMainInvokeEvent, sourceName: unknown): string =>
+            suggestCiRepositoryName(typeof sourceName === "string" ? sourceName : ""),
+    );
+
+    options.ipcMain.handle(
+        "cirender:checkRepoName",
+        async (
+            _event: IpcMainInvokeEvent,
+            request: unknown,
+        ): Promise<CiRepositoryNameAvailability> => {
+            const record =
+                typeof request === "object" && request !== null
+                    ? (request as Record<string, unknown>)
+                    : {};
+            return await checkCiRepositoryNameAvailability(
+                readText(record["owner"]) ?? "",
+                readText(record["repo"]) ?? "",
+                {
+                    token: options.token,
+                    ...(options.fetch === undefined ? {} : { fetch: options.fetch }),
+                    ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
+                },
+            );
+        },
+    );
 
     return {
         sync,

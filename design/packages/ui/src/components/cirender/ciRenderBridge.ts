@@ -42,6 +42,12 @@ export interface CiJobReport {
     readonly htmlUrl: string;
     readonly startedAt: string | null;
     readonly completedAt: string | null;
+    /**
+     * Which wave of the render this job belongs to, read by the main process from the
+     * job's own name. Null for a job that carries no wave in its name - `Build the BlueMap
+     * CLI`, `Merge group 0` - and null is the honest answer for those, never a guessed 0.
+     */
+    readonly wave: number | null;
 }
 
 export interface CiRunReport {
@@ -105,6 +111,63 @@ export interface CiSyncState {
     readonly failureCode: string | null;
     readonly failureMessage: string | null;
     readonly updatedAt: string;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Who could own it, and what it might be called                             */
+/* -------------------------------------------------------------------------- */
+
+/** One person or organisation the signed-in account could publish a render under. */
+export interface CiOwnerChoice {
+    readonly login: string;
+    readonly kind: "user" | "organization";
+}
+
+/**
+ * The signed-in login plus its organisations - a **convenience list**, never a permission
+ * guarantee. `signedIn: false` means there is nobody to ask yet, which is the "sign in"
+ * case; `signedIn: true` with `ok: false` means somebody is signed in but the list itself
+ * could not be read, which is the "try again" case. Free-text entry stays available either
+ * way, exactly as it does beside `listExistingRepositories` below.
+ */
+export type CiOwnerChoicesAnswer =
+    | { readonly ok: true; readonly login: string; readonly owners: readonly CiOwnerChoice[] }
+    | { readonly ok: false; readonly signedIn: boolean; readonly message: string };
+
+/**
+ * Whether `owner/repo` is free on GitHub, read live rather than guessed.
+ *
+ * `unknown` is the honest answer for a network failure, an odd status, or a blank owner or
+ * repo - never folded into `available`, because that is exactly the mistake that would send
+ * somebody to create a repository GitHub was about to refuse.
+ */
+export type CiRepositoryNameAvailability =
+    | { readonly status: "available"; readonly owner: string; readonly repo: string }
+    | {
+          readonly status: "taken";
+          readonly owner: string;
+          readonly repo: string;
+          readonly private: boolean;
+          readonly htmlUrl: string | null;
+      }
+    | { readonly status: "unknown"; readonly owner: string; readonly repo: string; readonly message: string };
+
+/**
+ * One repository the signed-in account could publish to, offered instead of a typed name.
+ *
+ * A structural mirror of `backup/backupBridge.ts`'s `RepositoryChoice`, restated for the
+ * same reason everything else on this file is: this render never happens without a
+ * repository that already exists (see `actions.ts` - there is no create-repository call
+ * anywhere in this feature), so the same account listing the backup surface already offers
+ * is worth reusing here rather than asking the main process to answer it twice.
+ */
+export interface CiRepositoryChoice {
+    readonly owner: string;
+    readonly name: string;
+    readonly fullName: string;
+    readonly private: boolean;
+    readonly canWrite: boolean;
+    readonly htmlUrl: string;
 }
 
 export type CiRoute = "session" | "gh";
@@ -242,7 +305,14 @@ export type CiSyncEvent =
           readonly worldFolder: string;
           readonly at: string;
       }
-    | { readonly type: "phase"; readonly syncId: string; readonly phase: CiSyncPhase; readonly at: string }
+    | {
+          readonly type: "phase";
+          readonly syncId: string;
+          readonly phase: CiSyncPhase;
+          /** Which credential is driving this sync, known from the moment it starts working. */
+          readonly route: CiRoute;
+          readonly at: string;
+      }
     | {
           readonly type: "log";
           readonly syncId: string;
@@ -251,10 +321,13 @@ export type CiSyncEvent =
           readonly at: string;
       }
     /**
-     * How far the upload has got, in bytes.
+     * How far the upload has got, in bytes - and in the pieces those bytes are made of.
      *
      * A world is measured in gigabytes and a domestic connection in hours, so a phase label
      * with no number beside it is indistinguishable from a hang for most of an afternoon.
+     * `assetsDone`/`assetsTotal`/`asset` are the main process's own count of the pieces it
+     * is moving, never derived from the byte counts - a part skipped because it is already
+     * on the release moves the asset count without moving a byte.
      */
     | {
           readonly type: "progress";
@@ -263,6 +336,10 @@ export type CiSyncEvent =
           readonly description: string;
           readonly bytesDone: number;
           readonly bytesTotal: number;
+          readonly assetsDone: number;
+          readonly assetsTotal: number;
+          /** The specific piece in flight right now, when the upload named one. */
+          readonly asset: string | null;
           readonly at: string;
       }
     | { readonly type: "run"; readonly syncId: string; readonly run: CiRunReport; readonly at: string }
@@ -315,6 +392,24 @@ export interface CiRenderBridge {
     readonly canList: boolean;
     /** True when a recorded run can be polled without starting anything. */
     readonly canCheck: boolean;
+
+    /*
+     * Everything below is optional and additive: the guided "What, and where" card degrades
+     * to free text, exactly as it always could, when a build carries none of these. None of
+     * the three required methods above depend on any of them.
+     */
+
+    /** The signed-in login and its organisations, to choose an owner from rather than type one. */
+    listCiOwners?(): Promise<CiOwnerChoicesAnswer>;
+    /** A GitHub-safe repository name suggested from a world or map name. Pure, no network. */
+    suggestCiRepoName?(sourceName: string): Promise<string>;
+    /** Whether `owner/repo` is free on GitHub, right now. */
+    checkCiRepoName?(request: {
+        readonly owner: string;
+        readonly repo: string;
+    }): Promise<CiRepositoryNameAvailability>;
+    /** The signed-in account's own repositories, to pick an existing one instead of typing it. */
+    listExistingRepositories?(): Promise<Answer<readonly CiRepositoryChoice[]>>;
 }
 
 /** The shape a preload is probed against, one method at a time. */
@@ -325,6 +420,16 @@ type Host = Partial<{
     listCiRenders: () => Promise<Answer<readonly CiSyncState[]>>;
     cancelCiRender: (syncId: string) => Promise<boolean>;
     onCiRenderEvent: (listener: (event: CiSyncEvent) => void) => () => void;
+    // The preload's real names for the four optional additions above. `listBackupRepositories`
+    // is the backup surface's own method, named for what it is there rather than for cirender
+    // - reused read-only, the way `backup:repositories` was already built to be reused.
+    ciRenderOwners: () => Promise<CiOwnerChoicesAnswer>;
+    suggestCiRepoName: (sourceName: string) => Promise<string>;
+    checkCiRepoName: (request: {
+        owner: string;
+        repo: string;
+    }) => Promise<CiRepositoryNameAvailability>;
+    listBackupRepositories: () => Promise<Answer<readonly CiRepositoryChoice[]>>;
 }>;
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -391,5 +496,23 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
         canCancel,
         canList,
         canCheck,
+
+        // Left off the object entirely rather than filled with an "unsupported" stand-in,
+        // because these four are optional on the interface: a caller checks for the method
+        // rather than for a canned refusal, and a build with none of them is exactly as
+        // capable as it was before this card existed.
+        ...(isFunction(host.ciRenderOwners) ? { listCiOwners: () => host.ciRenderOwners!() } : {}),
+        ...(isFunction(host.suggestCiRepoName)
+            ? { suggestCiRepoName: (sourceName: string) => host.suggestCiRepoName!(sourceName) }
+            : {}),
+        ...(isFunction(host.checkCiRepoName)
+            ? {
+                  checkCiRepoName: (request: { owner: string; repo: string }) =>
+                      host.checkCiRepoName!(request),
+              }
+            : {}),
+        ...(isFunction(host.listBackupRepositories)
+            ? { listExistingRepositories: () => host.listBackupRepositories!() }
+            : {}),
     };
 }

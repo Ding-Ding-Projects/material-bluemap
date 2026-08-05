@@ -162,6 +162,22 @@ function patternInput(): HTMLTextAreaElement | null {
     return patternWrap.value?.querySelector("textarea") ?? null;
 }
 
+/**
+ * Keeps ordinary typing (letters, arrows) from leaking out to the marker list's own
+ * keyboard shortcuts while the pattern or sample field has focus, without also
+ * swallowing Escape.
+ *
+ * A bare `@keydown.stop` did both, and Vuetify's overlay only closes on Escape through
+ * a window-level listener it attaches for the menu this builder lives in - `VMenu` has
+ * no handling of its own. Stopping every key here meant Escape never reached that
+ * listener, so the popover looked unresponsive to the one key every other overlay in
+ * this app answers to. Letting Escape bubble keeps that path working exactly the way it
+ * already does for a click on the close button.
+ */
+function stopUnlessEscape(event: KeyboardEvent): void {
+    if (event.key !== "Escape") event.stopPropagation();
+}
+
 /** Inserts around the current selection, so wrapping in a group or quantifier works. */
 function insert(before: string, after: string): void {
     const element = patternInput();
@@ -356,7 +372,7 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
                     autocomplete="off"
                     spellcheck="false"
                     hide-details="auto"
-                    @keydown.stop
+                    @keydown="stopUnlessEscape"
                     @update:model-value="emit('update:pattern', $event)"
                 />
             </div>
@@ -443,7 +459,7 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
                 rows="3"
                 persistent-hint
                 spellcheck="false"
-                @keydown.stop
+                @keydown="stopUnlessEscape"
                 @update:model-value="sampleEdited = true"
             />
 

@@ -18,8 +18,6 @@ import {
     VChip,
     VDivider,
     VIcon,
-    VList,
-    VListItem,
     VMenu,
     VNumberInput,
     VProgressLinear,
@@ -30,6 +28,7 @@ import ChangelogDateFilter from "../changelog/ChangelogDateFilter.vue";
 import { formatDay, type DayKey } from "../changelog/changelogDates.js";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import MenuSearchList, { type MenuSearchItem } from "../menuSearch/MenuSearchList.vue";
 import { raiseNotice } from "../../stores/notices.js";
 
 import HistoryComparison from "./HistoryComparison.vue";
@@ -162,6 +161,24 @@ const chosenActions = ref<string[]>([]);
  * beside the toggle is what keeps a collapsed row from hiding an active filter silently.
  */
 const filtersOpen = ref(false);
+
+/* -------------------------------------------------------------------------- */
+/* Export                                                                     */
+/* -------------------------------------------------------------------------- */
+
+const exportOpen = ref(false);
+
+const exportItems = computed<MenuSearchItem[]>(() => [
+    { id: "markdown", label: t("history.exportMarkdown", "Markdown file") },
+    { id: "json", label: t("history.exportJson", "JSON file") },
+    { id: "csv", label: t("history.exportCsv", "CSV file") },
+    { id: "text", label: t("history.exportPlain", "Plain text file") },
+]);
+
+function chooseExport(id: string): void {
+    exportOpen.value = false;
+    download(id as ExportFormat);
+}
 
 const revisions = computed<readonly HistoryRevision[]>(() => listing.value?.revisions ?? []);
 const facets = computed(() => actionFacets(revisions.value));
@@ -901,24 +918,28 @@ const canWrite = computed(() => host.value !== null && unavailable.value === nul
                             variant="text"
                             size="small"
                             :aria-label="t('history.exportView', 'Export what is on screen to a file')"
+                            :aria-expanded="exportOpen ? 'true' : 'false'"
+                            aria-haspopup="menu"
                         >
                             {{ t("history.export", "Export") }}
-                            <v-menu activator="parent" location="bottom end">
-                                <v-list density="compact">
-                                    <v-list-item
-                                        :title="t('history.exportMarkdown', 'Markdown file')"
-                                        @click="download('markdown')"
-                                    />
-                                    <v-list-item
-                                        :title="t('history.exportJson', 'JSON file')"
-                                        @click="download('json')"
-                                    />
-                                    <v-list-item :title="t('history.exportCsv', 'CSV file')" @click="download('csv')" />
-                                    <v-list-item
-                                        :title="t('history.exportPlain', 'Plain text file')"
-                                        @click="download('text')"
-                                    />
-                                </v-list>
+                            <v-menu
+                                v-model="exportOpen"
+                                activator="parent"
+                                :close-on-content-click="false"
+                                location="bottom end"
+                            >
+                                <!--
+                                    Rendered from `exportOpen` itself rather than only from
+                                    the menu's own visibility, so choosing a format unmounts
+                                    the search field and its query immediately rather than
+                                    waiting on the overlay's own close transition to finish.
+                                -->
+                                <MenuSearchList
+                                    v-if="exportOpen"
+                                    :items="exportItems"
+                                    :label="t('history.exportView', 'Export what is on screen to a file')"
+                                    @choose="chooseExport"
+                                />
                             </v-menu>
                         </v-btn>
 

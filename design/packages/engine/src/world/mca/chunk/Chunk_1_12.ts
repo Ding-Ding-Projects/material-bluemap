@@ -189,6 +189,10 @@ export class Chunk_1_12 extends Chunk {
         return this.generated;
     }
 
+    override isLegacy(): boolean {
+        return true;
+    }
+
     override hasLightData(): boolean {
         return this.hasLight;
     }

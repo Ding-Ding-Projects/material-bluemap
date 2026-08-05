@@ -262,6 +262,7 @@ function openMap(): void {
                         v-if="advice.detail"
                         :append-icon="detailOpen ? mdiChevronUp : mdiChevronDown"
                         :aria-expanded="detailOpen ? 'true' : 'false'"
+                        aria-controls="mb-world-run-detail"
                         variant="text"
                         size="small"
                         @click="detailOpen = !detailOpen"
@@ -270,7 +271,11 @@ function openMap(): void {
                     </v-btn>
                 </div>
 
-                <pre v-if="detailOpen && advice.detail" class="mb-world-run__pre">{{ advice.detail }}</pre>
+                <pre
+                    v-if="detailOpen && advice.detail"
+                    id="mb-world-run-detail"
+                    class="mb-world-run__pre"
+                >{{ advice.detail }}</pre>
             </template>
 
             <p v-if="engineLine" class="mb-world-run__note mb-world-run__engine">{{ engineLine }}</p>
@@ -287,6 +292,7 @@ function openMap(): void {
                 <v-btn
                     :append-icon="logOpen ? mdiChevronUp : mdiChevronDown"
                     :aria-expanded="logOpen ? 'true' : 'false'"
+                    aria-controls="mb-world-run-log"
                     variant="text"
                     size="x-small"
                     density="comfortable"
@@ -300,6 +306,7 @@ function openMap(): void {
                 </v-btn>
                 <RenderConsole
                     v-if="logOpen"
+                    id="mb-world-run-log"
                     :lines="run.log.value"
                     :dropped="run.logDropped.value"
                     :cap="LOG_LIMIT"

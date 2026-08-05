@@ -74,6 +74,10 @@ export class Block implements BlockAccess {
         return this.blockState;
     }
 
+    isLegacy(): boolean {
+        return this.getChunk().isLegacy();
+    }
+
     getLightData(): LightData {
         if (this.lightData.getSkyLight() < 0) this.getChunk().getLightData(this.x, this.y, this.z, this.lightData);
         return this.lightData;

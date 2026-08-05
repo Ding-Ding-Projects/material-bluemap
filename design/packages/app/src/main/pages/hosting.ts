@@ -1001,7 +1001,19 @@ export class PagesHost {
         this.stop(signal);
 
         /* -- stage ------------------------------------------------------ */
-        this.phase(renderId, "staging");
+        // A resumed publish that already made it past this checkpoint has a commit sitting in
+        // the working repository already; `files` below is left empty for exactly that reason,
+        // so no `git add` is ever going to run. Announcing "staging" here would be reporting a
+        // step as running that this call never performs - say plainly that it is being reused.
+        if (resumeAfterCommit) {
+            const skipped =
+                "The map's files were already staged and committed by the interrupted attempt " +
+                "this is resuming; nothing was staged again.";
+            this.log(renderId, "info", skipped);
+            notes.push(skipped);
+        } else {
+            this.phase(renderId, "staging");
+        }
         await writeFile(
             join(webRoot, PAGES_MARKER_FILE),
             `${JSON.stringify(
@@ -1095,7 +1107,9 @@ export class PagesHost {
         this.stop(signal);
 
         /* -- push ------------------------------------------------------- */
-        this.phase(renderId, "pushing");
+        // Whether this landed already is only knowable after asking GitHub, so that has to run
+        // before deciding what to announce - phase("pushing") means a push is about to happen,
+        // and a resume whose commit is already on the branch never makes one.
         const beforePush = record(
             await ghJsonOrNull(`repos/${owner}/${repo}/branches/${branch}`, {
                 runner: this.runner,
@@ -1104,7 +1118,14 @@ export class PagesHost {
         );
         const pushAlreadyLanded =
             resumeAfterCommit && text(record(beforePush?.["commit"])?.["sha"]) === commit;
-        if (!pushAlreadyLanded) {
+        if (pushAlreadyLanded) {
+            const skipped =
+                "That commit had already reached GitHub before the interrupted attempt this is " +
+                "resuming stopped; nothing was pushed again.";
+            this.log(renderId, "info", skipped);
+            notes.push(skipped);
+        } else {
+            this.phase(renderId, "pushing");
             const pushResult = await this.git(
                 webRoot,
                 gitDir,

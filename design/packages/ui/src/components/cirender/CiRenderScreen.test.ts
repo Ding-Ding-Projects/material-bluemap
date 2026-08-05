@@ -12,10 +12,11 @@
  * because advertising the upside alone is how somebody wastes an afternoon.
  */
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
+import { VSelect } from "vuetify/components";
 import CiRenderScreen from "./CiRenderScreen.vue";
 import type {
     Answer,
@@ -25,6 +26,7 @@ import type {
     CiSyncResult,
     RouteReport,
 } from "./ciRenderBridge.js";
+import type { MinecraftFolder, MinecraftWorldSummary, WorldCatalogBridge } from "../world/worldCatalog.js";
 
 beforeAll(() => {
     // jsdom has no layout engine, and Vuetify's fields and overlays observe their own
@@ -146,9 +148,53 @@ function fakeBridge(report: CiPreflight, started: CiSyncResult[] = []): CiRender
     };
 }
 
-function mountScreen(bridge: CiRenderBridge | null) {
+/**
+ * A bridge that actually forwards events, so a test can drive the mounted rows the way the
+ * main process really would - `started`, then `phase`, then `progress` and `run`.
+ */
+function eventBridge(report: CiPreflight): { bridge: CiRenderBridge; emit: (event: CiSyncEvent) => void } {
+    let listener: ((event: CiSyncEvent) => void) | null = null;
+    return {
+        emit: (event) => listener?.(event),
+        bridge: {
+            ciRenderPreflight: () => Promise.resolve({ ok: true, value: report } as Answer<CiPreflight>),
+            startCiRender: () =>
+                Promise.resolve({
+                    ok: false,
+                    syncId: "nowhere",
+                    failure: {
+                        code: "test",
+                        message: "not stubbed",
+                        detail: null,
+                        status: null,
+                        needsSignIn: false,
+                        needsEula: false,
+                        route: null,
+                        run: null,
+                        failingJob: null,
+                        logExcerpt: null,
+                    },
+                }),
+            checkCiRender: () =>
+                Promise.resolve({ ok: true, syncId: "s", outcome: "running", run: null, state: null as never }),
+            listCiRenders: () => Promise.resolve({ ok: true, value: [] }),
+            cancelCiRender: () => Promise.resolve(true),
+            onCiRenderEvent: (candidate) => {
+                listener = candidate;
+                return () => {
+                    listener = null;
+                };
+            },
+            canCancel: true,
+            canList: true,
+            canCheck: true,
+        },
+    };
+}
+
+function mountScreen(bridge: CiRenderBridge | null, extraProps: Record<string, unknown> = {}) {
     return mount(CiRenderScreen, {
-        props: { bridge, canOpenSettings: true },
+        props: { bridge, canOpenSettings: true, ...extraProps },
         global: {
             plugins: [
                 createVuetify(),
@@ -158,7 +204,71 @@ function mountScreen(bridge: CiRenderBridge | null) {
     });
 }
 
+/** A `MinecraftFolder`, filled with sane defaults so a test only has to name what it cares about. */
+function catalogFolder(overrides: Partial<MinecraftFolder> = {}): MinecraftFolder {
+    return {
+        id: "f1",
+        label: "Minecraft",
+        labelled: false,
+        chosenPath: "/mc",
+        savesPath: "/mc/saves",
+        resolution: "installation",
+        builtIn: true,
+        origin: "home",
+        state: "ok",
+        stateDetail: null,
+        mountedAt: null,
+        ...overrides,
+    };
+}
+
+/** A `MinecraftWorldSummary`, filled with sane defaults for the same reason. */
+function catalogWorld(overrides: Partial<MinecraftWorldSummary> = {}): MinecraftWorldSummary {
+    return {
+        folderId: "f1",
+        path: "/mc/saves/My World",
+        directoryName: "My World",
+        name: "My World",
+        lastPlayed: null,
+        versionName: null,
+        snapshot: null,
+        gameMode: null,
+        hardcore: null,
+        cheats: null,
+        seed: null,
+        regionFiles: {},
+        sizeBytes: null,
+        sizeComplete: true,
+        detailsError: null,
+        ...overrides,
+    };
+}
+
+function fakeCatalogBridge(
+    folders: readonly MinecraftFolder[],
+    worldsByFolder: Readonly<Record<string, readonly MinecraftWorldSummary[]>>,
+): WorldCatalogBridge {
+    return {
+        listMinecraftFolders: () => Promise.resolve(folders),
+        mountMinecraftFolder: () => Promise.resolve({ ok: false, message: "not stubbed" }),
+        unmountMinecraftFolder: () => Promise.resolve(true),
+        labelMinecraftFolder: () => Promise.resolve(true),
+        scanMinecraftFolder: (id) =>
+            Promise.resolve({
+                ok: true,
+                scan: { folderId: id, savesPath: "", worlds: worldsByFolder[id] ?? [], truncated: false },
+            }),
+    };
+}
+
 async function check(wrapper: ReturnType<typeof mountScreen>): Promise<void> {
+    // The Check button is disabled until a world folder, an owner and a repository name
+    // are all filled in - the guided card's own doing. Every test below predates that gate
+    // and only cares what happens once a check actually runs, so ordinary values go in for
+    // the three fields first.
+    await wrapper.find('[data-test="world-field"] input').setValue("/world");
+    await wrapper.find('[data-test="owner-field"] input').setValue("o");
+    await wrapper.find('[data-test="repo-field"] input').setValue("r");
     const buttons = wrapper.findAll("button");
     const trigger = buttons.find((button) => button.text().includes("Check"));
     await trigger?.trigger("click");
@@ -464,5 +574,423 @@ describe("hosting the finished map on GitHub Pages", () => {
         const text = wrapper.text();
         expect(text).toContain("/map/");
         expect(text).toContain("in parts");
+    });
+});
+
+describe("a running row shows the real numbers the main process actually sends", () => {
+    it("says nothing about the route until the first phase event, then names it", async () => {
+        const { bridge, emit } = eventBridge(preflight());
+        const wrapper = mountScreen(bridge);
+
+        emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "world",
+            worldFolder: "/w",
+            at: "2026-08-04T10:00:00Z",
+        });
+        await flushPromises();
+        expect(wrapper.find('[data-test="row-route"]').exists()).toBe(false);
+
+        emit({ type: "phase", syncId: "s", phase: "checking", route: "gh", at: "2026-08-04T10:00:01Z" });
+        await flushPromises();
+        expect(wrapper.find('[data-test="row-route"]').text()).toContain("gh command-line tool");
+    });
+
+    it("shows the upload's own item count beside the bytes, not only the bytes", async () => {
+        const { bridge, emit } = eventBridge(preflight());
+        const wrapper = mountScreen(bridge);
+
+        emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "world",
+            worldFolder: "/w",
+            at: "2026-08-04T10:00:00Z",
+        });
+        emit({ type: "phase", syncId: "s", phase: "uploading", route: "session", at: "2026-08-04T10:00:01Z" });
+        emit({
+            type: "progress",
+            syncId: "s",
+            phase: "uploading",
+            description: "Uploading part 2 of 3",
+            bytesDone: 500,
+            bytesTotal: 1000,
+            assetsDone: 1,
+            assetsTotal: 3,
+            asset: "world.zip.001",
+            at: "2026-08-04T10:00:02Z",
+        });
+        await flushPromises();
+
+        const text = wrapper.find('[data-test="transfer"]').text();
+        expect(text).toContain("Uploading part 2 of 3");
+        expect(text).toContain("1 of 3 pieces");
+    });
+
+    it("groups shards by the wave their own name says, and shows it per job too", async () => {
+        const { bridge, emit } = eventBridge(preflight());
+        const wrapper = mountScreen(bridge);
+
+        emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "world",
+            worldFolder: "/w",
+            at: "2026-08-04T10:00:00Z",
+        });
+        emit({
+            type: "run",
+            syncId: "s",
+            run: {
+                runId: 7,
+                runNumber: 1,
+                htmlUrl: "https://github.test/runs/7",
+                status: "in_progress",
+                conclusion: null,
+                createdAt: "2026-08-04T10:00:00Z",
+                updatedAt: "2026-08-04T10:00:00Z",
+                headSha: "abc",
+                jobs: [
+                    {
+                        id: 1,
+                        name: "Wave 1 shard 0",
+                        status: "completed",
+                        conclusion: "success",
+                        htmlUrl: "",
+                        startedAt: null,
+                        completedAt: null,
+                        wave: 1,
+                    },
+                    {
+                        id: 2,
+                        name: "Wave 1 shard 1",
+                        status: "in_progress",
+                        conclusion: null,
+                        htmlUrl: "",
+                        startedAt: null,
+                        completedAt: null,
+                        wave: 1,
+                    },
+                    {
+                        id: 3,
+                        name: "Wave 2 shard 0",
+                        status: "queued",
+                        conclusion: null,
+                        htmlUrl: "",
+                        startedAt: null,
+                        completedAt: null,
+                        wave: 2,
+                    },
+                ],
+            },
+            at: "2026-08-04T10:00:03Z",
+        });
+        await flushPromises();
+
+        const summary = wrapper.find('[data-test="wave-summary"]').text();
+        expect(summary).toContain("Wave 1: 1 of 2");
+        expect(summary).toContain("Wave 2: 0 of 1");
+
+        const jobWaves = wrapper.findAll('[data-test="job-wave"]').map((node) => node.text());
+        expect(jobWaves).toEqual(["Wave 1", "Wave 1", "Wave 2"]);
+    });
+});
+
+describe("the world folder: a picker of what this machine already knows about", () => {
+    it("shows worlds already found, and fills the field when one is chosen", async () => {
+        const catalogBridge = fakeCatalogBridge([catalogFolder()], {
+            f1: [catalogWorld({ path: "/mc/saves/My World", name: "My World" })],
+        });
+        const wrapper = mountScreen(fakeBridge(preflight()), { catalogBridge });
+        await flushPromises();
+
+        expect(wrapper.text()).toContain("My World");
+
+        const option = wrapper.find('[role="option"]');
+        expect(option.exists()).toBe(true);
+        await option.trigger("click");
+        await flushPromises();
+
+        expect((wrapper.find('[data-test="world-field"] input').element as HTMLInputElement).value).toBe(
+            "/mc/saves/My World",
+        );
+    });
+
+    it("says plainly when nothing was found, and how to add a folder", async () => {
+        const catalogBridge = fakeCatalogBridge([], {});
+        const wrapper = mountScreen(fakeBridge(preflight()), { catalogBridge });
+        await flushPromises();
+
+        expect(wrapper.text()).toContain("No Minecraft folder was found");
+        expect(wrapper.text()).toContain("Mount another Minecraft folder");
+    });
+
+    it("hides the browse button when the shared browse affordance is not on this build", () => {
+        const wrapper = mountScreen(fakeBridge(preflight()));
+        expect(wrapper.find('[data-test="world-browse"]').attributes("disabled")).toBeDefined();
+    });
+
+    it("fills the field from the shared browse affordance when this build carries it", async () => {
+        vi.stubGlobal("materialBluemap", { dialog: { pickFolder: () => Promise.resolve("/browsed/world") } });
+        try {
+            const wrapper = mountScreen(fakeBridge(preflight()));
+            expect(wrapper.find('[data-test="world-browse"]').attributes("disabled")).toBeUndefined();
+            await wrapper.find('[data-test="world-browse"]').trigger("click");
+            await flushPromises();
+            expect((wrapper.find('[data-test="world-field"] input').element as HTMLInputElement).value).toBe(
+                "/browsed/world",
+            );
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+});
+
+describe("the repository owner: chosen from the signed-in account, or typed", () => {
+    it("offers the sign-in action when nobody is signed in, rather than a dead end", async () => {
+        const bridgeWithOwners: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            listCiOwners: () =>
+                Promise.resolve({ ok: false, signedIn: false, message: "Nobody is signed in to GitHub." }),
+        };
+        const wrapper = mountScreen(bridgeWithOwners);
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="owner-signed-out"]').text()).toContain("Nobody is signed in");
+        const signInButton = wrapper.find('[data-test="owner-signed-out"] button');
+        expect(signInButton.exists()).toBe(true);
+        await signInButton.trigger("click");
+        expect(wrapper.emitted("signIn")).toBeTruthy();
+    });
+
+    it("offers a retry when somebody is signed in but the list itself could not be read", async () => {
+        const bridgeWithOwners: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            listCiOwners: () => Promise.resolve({ ok: false, signedIn: true, message: "GitHub answered 500." }),
+        };
+        const wrapper = mountScreen(bridgeWithOwners);
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="owner-load-failed"]').text()).toContain("500");
+        expect(wrapper.find('[data-test="owner-signed-out"]').exists()).toBe(false);
+    });
+
+    it("lists the signed-in login and every organisation to choose from", async () => {
+        const bridgeWithOwners: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            listCiOwners: () =>
+                Promise.resolve({
+                    ok: true,
+                    login: "octocat",
+                    owners: [
+                        { login: "octocat", kind: "user" },
+                        { login: "octo-org", kind: "organization" },
+                    ],
+                }),
+        };
+        const wrapper = mountScreen(bridgeWithOwners);
+        await flushPromises();
+
+        const select = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.props("label") === "Choose an owner");
+        expect(select?.props("items")).toEqual([
+            { title: "octocat (you)", value: "octocat" },
+            { title: "octo-org (organization)", value: "octo-org" },
+        ]);
+    });
+});
+
+describe("an existing repository, offered because this flow never creates one", () => {
+    it("fills owner and name when one is picked from the account's own repositories", async () => {
+        const bridgeWithRepositories: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            listExistingRepositories: () =>
+                Promise.resolve({
+                    ok: true,
+                    value: [
+                        {
+                            owner: "octocat",
+                            name: "maps",
+                            fullName: "octocat/maps",
+                            private: true,
+                            canWrite: true,
+                            htmlUrl: "https://github.test/octocat/maps",
+                        },
+                    ],
+                }),
+        };
+        const wrapper = mountScreen(bridgeWithRepositories);
+        await flushPromises();
+
+        const select = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.props("label") === "One of your repositories");
+        expect(select?.props("items")).toEqual([{ title: "octocat/maps (private)", value: "octocat/maps" }]);
+
+        await select?.vm.$emit("update:modelValue", "octocat/maps");
+        await flushPromises();
+
+        expect((wrapper.find('[data-test="owner-field"] input').element as HTMLInputElement).value).toBe(
+            "octocat",
+        );
+        expect((wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value).toBe("maps");
+    });
+});
+
+describe("the repository name: suggested once a world is chosen, checked live", () => {
+    it("fills the empty repository field with the suggestion", async () => {
+        const catalogBridge = fakeCatalogBridge([catalogFolder()], {
+            f1: [catalogWorld({ path: "/mc/saves/My World", name: "My World" })],
+        });
+        const bridgeWithSuggest: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            suggestCiRepoName: (sourceName) => Promise.resolve(sourceName.toLowerCase().replace(/\s+/g, "-")),
+        };
+        const wrapper = mountScreen(bridgeWithSuggest, { catalogBridge });
+        await flushPromises();
+
+        await wrapper.find('[role="option"]').trigger("click");
+        await flushPromises();
+
+        expect((wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value).toBe(
+            "my-world",
+        );
+    });
+
+    it("never overwrites a repository name somebody already typed", async () => {
+        const catalogBridge = fakeCatalogBridge([catalogFolder()], {
+            f1: [catalogWorld({ path: "/mc/saves/My World", name: "My World" })],
+        });
+        const bridgeWithSuggest: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            suggestCiRepoName: () => Promise.resolve("suggested-name"),
+        };
+        const wrapper = mountScreen(bridgeWithSuggest, { catalogBridge });
+        await flushPromises();
+
+        await wrapper.find('[data-test="repo-field"] input').setValue("already-typed");
+        await wrapper.find('[role="option"]').trigger("click");
+        await flushPromises();
+
+        expect((wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value).toBe(
+            "already-typed",
+        );
+    });
+
+    it("applies the suggestion for the world chosen last, not whichever round trip resolves first", async () => {
+        const catalogBridge = fakeCatalogBridge([catalogFolder()], {
+            f1: [
+                catalogWorld({ path: "/mc/saves/World A", directoryName: "World A", name: "World A" }),
+                catalogWorld({ path: "/mc/saves/World B", directoryName: "World B", name: "World B" }),
+            ],
+        });
+
+        // World A's suggestion resolves fast (5ms); World B's resolves slow (50ms). A user
+        // who chooses A then quickly chooses B - before A's round trip has returned - must
+        // end up with B's suggested name, because B is what is actually selected, not A's
+        // just because A's round trip happened to land first.
+        const bridgeWithSuggest: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            suggestCiRepoName: (sourceName) =>
+                new Promise<string>((resolve) => {
+                    const slug = sourceName.toLowerCase().replace(/\s+/g, "-");
+                    setTimeout(() => resolve(slug), sourceName === "World A" ? 5 : 50);
+                }),
+        };
+        const wrapper = mountScreen(bridgeWithSuggest, { catalogBridge });
+        await flushPromises();
+
+        const options = wrapper.findAll('[role="option"]');
+        expect(options.length).toBeGreaterThanOrEqual(2);
+
+        await options[0]!.trigger("click"); // World A, chosen first
+        await options[1]!.trigger("click"); // World B, chosen last
+
+        await new Promise((resolve) => setTimeout(resolve, 80));
+        await flushPromises();
+
+        expect((wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value).toBe(
+            "world-b",
+        );
+    });
+
+    it.each([
+        [
+            "available" as const,
+            { status: "available", owner: "o", repo: "r" },
+            "free on GitHub",
+        ],
+        [
+            "taken" as const,
+            { status: "taken", owner: "o", repo: "r", private: false, htmlUrl: null },
+            "already exists",
+        ],
+        [
+            "unknown" as const,
+            { status: "unknown", owner: "o", repo: "r", message: "offline" },
+            "Could not check",
+        ],
+    ])("says the %s verdict in plain words, after a pause rather than on every keystroke", async (_label, answer, expected) => {
+        vi.useFakeTimers();
+        try {
+            const bridgeWithCheck: CiRenderBridge = {
+                ...fakeBridge(preflight()),
+                checkCiRepoName: () => Promise.resolve(answer),
+            };
+            const wrapper = mountScreen(bridgeWithCheck);
+
+            await wrapper.find('[data-test="owner-field"] input').setValue("o");
+            await wrapper.find('[data-test="repo-field"] input').setValue("r");
+            // Nothing yet: the check is debounced rather than fired on every keystroke.
+            expect(wrapper.find('[data-test="repo-availability"]').exists()).toBe(false);
+
+            await vi.advanceTimersByTimeAsync(600);
+            await flushPromises();
+
+            expect(wrapper.find('[data-test="repo-availability"]').text()).toContain(expected);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("names the exact GitHub naming rule a typed name breaks", async () => {
+        const wrapper = mountScreen(fakeBridge(preflight()));
+        await wrapper.find('[data-test="repo-field"] input').setValue("bad name");
+        await flushPromises();
+        expect(wrapper.find('[data-test="repo-field"]').text()).toContain("letters, digits");
+    });
+});
+
+describe("the Check button names exactly which field is missing or invalid", () => {
+    it("blocks on a missing world, then owner, then repository name, one at a time", async () => {
+        const wrapper = mountScreen(fakeBridge(preflight()));
+        await flushPromises();
+        expect(wrapper.find('[data-test="check-blocked"]').text()).toContain("world folder");
+
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await flushPromises();
+        expect(wrapper.find('[data-test="check-blocked"]').text()).toContain("repository owner");
+
+        await wrapper.find('[data-test="owner-field"] input').setValue("o");
+        await flushPromises();
+        expect(wrapper.find('[data-test="check-blocked"]').text()).toContain("repository name");
+
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+        expect(wrapper.find('[data-test="check-blocked"]').exists()).toBe(false);
+    });
+
+    it("stays blocked on an invalid repository name, even once every field has something in it", async () => {
+        const wrapper = mountScreen(fakeBridge(preflight()));
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await wrapper.find('[data-test="owner-field"] input').setValue("o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("bad name");
+        await flushPromises();
+        expect(wrapper.find('[data-test="check-blocked"]').text()).toContain("letters, digits");
     });
 });

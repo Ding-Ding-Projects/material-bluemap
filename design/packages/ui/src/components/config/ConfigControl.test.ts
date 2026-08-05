@@ -25,9 +25,9 @@
  * which is why they are mounted rather than unit-tested next door.
  */
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { defineComponent, h } from "vue";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp, VCombobox } from "vuetify/components";
@@ -35,6 +35,7 @@ import type { Control, PlainValue } from "@material-bluemap/config";
 import { descriptorFor } from "@material-bluemap/config";
 import ConfigControl from "./ConfigControl.vue";
 import ColorField from "../appearance/ColorField.vue";
+import PathField from "../PathField.vue";
 
 beforeAll(() => {
     // jsdom has no layout engine, so Vuetify's own size and media observers are
@@ -64,15 +65,15 @@ function emptyI18n() {
     return createI18n({ legacy: false, locale: "none", fallbackLocale: "none", silentFallbackWarn: true, missingWarn: false, fallbackWarn: false, messages: {} });
 }
 
-function mountControl(control: Control, modelValue: PlainValue, resetValue: PlainValue = null) {
+function mountControl(control: Control, modelValue: PlainValue, resetValue: PlainValue = null, label = "Test setting") {
     const host = defineComponent({
-        setup: () => () => h(VApp, () => [h(ConfigControl, { control, modelValue, label: "Test setting", resetValue })]),
+        setup: () => () => h(VApp, () => [h(ConfigControl, { control, modelValue, label, resetValue })]),
     });
     return mount(host, { global: { plugins: [vuetify, emptyI18n()] } });
 }
 
 /** The control the schema really declares, so these tests cannot drift from it. */
-function controlFor(file: "map" | "storage-file" | "webapp", path: string): Control {
+function controlFor(file: "map" | "storage-file" | "storage-sql" | "webapp", path: string): Control {
     const field = descriptorFor(file).fields.find((candidate) => candidate.path === path);
     if (field === undefined) throw new Error(`${file}.${path} is not in the schema`);
     return field.control;
@@ -184,5 +185,66 @@ describe("a format string", () => {
 
         await chips[2]?.trigger("click");
         expect(wrapper.findComponent(ConfigControl).emitted("update:modelValue")?.[0]).toEqual(["%1$s%3$s"]);
+    });
+});
+
+describe("a path setting", () => {
+    // `world` is a directory picker with no extension filter; `driver-jar` is a file
+    // picker scoped to `.jar`. Between them every branch of the folder-or-file mapping
+    // this control hands to `PathField` gets exercised against the real schema.
+    const worldFolder = controlFor("map", "world");
+    const driverJar = controlFor("storage-sql", "driver-jar");
+
+    afterEach(() => {
+        delete (window as unknown as { materialBluemap?: unknown }).materialBluemap;
+    });
+
+    it("renders the one shared PathField, matched to the control's own folder-or-file semantic", () => {
+        const folder = mountControl(worldFolder, "/srv/world", null, "World folder").findComponent(PathField);
+        expect(folder.exists()).toBe(true);
+        expect(folder.props("semantic")).toBe("folder");
+        // The field's own label, "World folder", lowercased for "Browse for {field}" - the
+        // visible label stays title case, passed through separately.
+        expect(folder.props("field")).toBe("world folder");
+        expect(folder.props("label")).toBe("World folder");
+
+        const file = mountControl(driverJar, "", null, "Driver jar").findComponent(PathField);
+        expect(file.props("semantic")).toBe("file");
+        expect(file.props("extensions")).toEqual(["jar"]);
+    });
+
+    it("writes back exactly what PathField hands over, the same way every other control does", async () => {
+        const wrapper = mountControl(worldFolder, "", null, "World folder");
+        await wrapper.findComponent(PathField).vm.$emit("update:modelValue", "/picked/world");
+
+        expect(wrapper.findComponent(ConfigControl).emitted("update:modelValue")?.[0]).toEqual(["/picked/world"]);
+    });
+
+    it("browses through the real bridge end to end: a keyboard-operable button named for the field, writing the pick through to the model", async () => {
+        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+            dialog: {
+                pickFolder: async () => "/picked/world",
+                pickFile: async () => null,
+            },
+        };
+
+        const wrapper = mountControl(worldFolder, "", null, "World folder");
+        const button = wrapper.findAll("button").find((candidate) => candidate.attributes("aria-label") === "Browse for world folder");
+        if (button === undefined) throw new Error("no browse button named for the field");
+        expect(button.element.tagName).toBe("BUTTON");
+        expect(button.attributes("disabled")).toBeUndefined();
+
+        await button.trigger("click");
+        await flushPromises();
+
+        expect(wrapper.findComponent(ConfigControl).emitted("update:modelValue")?.[0]).toEqual(["/picked/world"]);
+    });
+
+    it("disables the button and explains why when there is no bridge, exactly as PathField documents", () => {
+        const wrapper = mountControl(worldFolder, "", null, "World folder");
+        const button = wrapper.findAll("button").find((candidate) => candidate.attributes("aria-label") === "Browse for world folder");
+        if (button === undefined) throw new Error("no browse button named for the field");
+
+        expect(button.attributes("disabled")).toBeDefined();
     });
 });

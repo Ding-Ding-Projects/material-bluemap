@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiChevronDown, mdiChevronUp } from "@mdi/js";
 import { VAlert, VBtn } from "vuetify/components";
@@ -22,6 +22,7 @@ defineProps<{ note: DockerNote }>();
 const { t } = useI18n();
 
 const detailOpen = ref(false);
+const detailId = useId();
 </script>
 
 <template>
@@ -43,6 +44,7 @@ const detailOpen = ref(false);
             <v-btn
                 :prepend-icon="detailOpen ? mdiChevronUp : mdiChevronDown"
                 :aria-expanded="detailOpen ? 'true' : 'false'"
+                :aria-controls="detailId"
                 variant="text"
                 size="small"
                 density="comfortable"
@@ -54,7 +56,7 @@ const detailOpen = ref(false);
                         : t("remote.docker.showDetail", "Show what Docker said")
                 }}
             </v-btn>
-            <pre v-if="detailOpen" class="mb-remote-docker__detail">{{ note.detail }}</pre>
+            <pre v-if="detailOpen" :id="detailId" class="mb-remote-docker__detail">{{ note.detail }}</pre>
         </template>
     </v-alert>
 </template>

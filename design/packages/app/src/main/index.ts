@@ -67,8 +67,19 @@ import { registerConfigHandlers } from "./config/index.js";
 import type { ConfigIpc } from "./config/index.js";
 import { registerHistoryHandlers } from "./history/index.js";
 import type { HistoryIpc } from "./history/index.js";
+import { registerProfilesHistoryHandlers } from "./profiles/index.js";
+import type { ProfilesHistoryIpc } from "./profiles/index.js";
+import { registerAppSettingsHistoryHandlers } from "./settings/index.js";
+import type { AppSettingsHistoryIpc } from "./settings/index.js";
 import { registerWorldHandlers } from "./world/index.js";
 import type { WorldIpc } from "./world/index.js";
+import { registerDialogHandlers } from "./dialogs/ipc.js";
+import type { DialogIpc } from "./dialogs/ipc.js";
+import { registerBedrockHandlers, BEDROCK_EVENT_CHANNEL } from "./bedrock/index.js";
+import type { BedrockIpc } from "./bedrock/index.js";
+import { registerRepairHandlers } from "./repair/index.js";
+import type { RepairIpc } from "./repair/index.js";
+import { ensureJava } from "./java/index.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -438,6 +449,31 @@ function startProjects(): ProjectIpc {
 }
 
 /**
+ * The local version history of the server-profile / maps-and-servers list and of the
+ * application's own settings.
+ *
+ * Registered the same way the config and project histories above are: once, holding nothing
+ * between calls, each repository derived on every call from a fixed location beside the
+ * application's data. `packages/ui/src/stores/profiles.ts` and the settings surfaces under
+ * `packages/ui/src/components/settings/` do not call these channels yet - see
+ * `docs/config-history.md` for the migration this is the main-process half of.
+ */
+let profilesHistoryIpc: ProfilesHistoryIpc | null = null;
+let appSettingsHistoryIpc: AppSettingsHistoryIpc | null = null;
+
+function startProfilesHistory(): ProfilesHistoryIpc {
+    if (profilesHistoryIpc !== null) return profilesHistoryIpc;
+    profilesHistoryIpc = registerProfilesHistoryHandlers(ipcMain, { dataDir: app.getPath("userData") });
+    return profilesHistoryIpc;
+}
+
+function startAppSettingsHistory(): AppSettingsHistoryIpc {
+    if (appSettingsHistoryIpc !== null) return appSettingsHistoryIpc;
+    appSettingsHistoryIpc = registerAppSettingsHistoryHandlers(ipcMain, { dataDir: app.getPath("userData") });
+    return appSettingsHistoryIpc;
+}
+
+/**
  * Keeping the application current, and reaching the folders it owns.
  *
  * The installer has emitted the pair Electron's updater reads since it was configured and
@@ -668,6 +704,84 @@ function startRemoteRendering(render: RenderIpc): RemoteIpc {
     return remoteIpc;
 }
 
+/**
+ * The one native folder/file picker every path field in the app browses through.
+ *
+ * Registered once, for the same reason everything above it is. Screen-agnostic on purpose:
+ * unlike `config:pickDirectory`/`config:pickFile`, this needs no `provideConfigHost()`
+ * ancestor, so Settings, Backup and the remote target editor can browse for a path exactly as
+ * the world and config screens already do. `BrowserWindow.fromWebContents` is resolved fresh
+ * per request rather than captured, so the picker is always modal to the window that actually
+ * asked for it.
+ */
+let dialogIpc: DialogIpc | null = null;
+
+function startPathDialogs(): DialogIpc {
+    if (dialogIpc !== null) return dialogIpc;
+    dialogIpc = registerDialogHandlers(ipcMain, {
+        dialog,
+        resolveWindow: (event) => BrowserWindow.fromWebContents(event.sender),
+    });
+    return dialogIpc;
+}
+
+/**
+ * Bedrock world conversion, via Chunker.
+ *
+ * Registered once, for the same reason everything above it is. `resolveJava` reuses this
+ * app's existing Temurin discovery rather than growing a second Java story of its own:
+ * Chunker needs Java 17 or newer, which this app's own render requirement already exceeds.
+ * Provisioning is left off here, matching `ensureJava`'s own default - asking whether a
+ * world can be converted must not be the reason two hundred megabytes leave the machine.
+ */
+let bedrockIpc: BedrockIpc | null = null;
+
+function startBedrockConversion(): BedrockIpc {
+    if (bedrockIpc !== null) return bedrockIpc;
+    bedrockIpc = registerBedrockHandlers(ipcMain, {
+        dataDir: app.getPath("userData"),
+        appVersion: app.getVersion(),
+        resolveJava: async () => {
+            try {
+                const java = await ensureJava({ dataDir: app.getPath("userData") });
+                return {
+                    ok: true,
+                    executable: java.installation.executable,
+                    version: java.installation.version.version,
+                };
+            } catch (error) {
+                return {
+                    ok: false,
+                    message: error instanceof Error ? error.message : String(error),
+                };
+            }
+        },
+        broadcast: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(BEDROCK_EVENT_CHANNEL, event);
+            }
+        },
+    });
+    return bedrockIpc;
+}
+
+/**
+ * Diagnosing why a render or the web server would not start, and repairing what can be
+ * repaired.
+ *
+ * Registered once, for the same reason everything above it is - see `repair/index.ts` for
+ * the two-halves design this hands off to. `allowAgent` is left at its default (never) here
+ * because Settings has no control for it yet: leaving the guardrailed agent pass unreachable
+ * until something can actually turn it on is the safe default, not a gap.
+ */
+let repairIpc: RepairIpc | null = null;
+
+function startRepairDiagnostics(): RepairIpc {
+    if (repairIpc !== null) return repairIpc;
+    repairIpc = registerRepairHandlers(ipcMain);
+    return repairIpc;
+}
+
 async function createWindow(): Promise<void> {
     const baseUrl = await startEmbeddedServer();
     hardenSession(baseUrl);
@@ -686,8 +800,13 @@ async function createWindow(): Promise<void> {
     startConfigEditing();
     startConfigHistory();
     startProjects();
+    startProfilesHistory();
+    startAppSettingsHistory();
     startFileAccess(render);
     startUpdates(render);
+    startPathDialogs();
+    startBedrockConversion();
+    startRepairDiagnostics();
 
     const window = new BrowserWindow({
         width: 1280,

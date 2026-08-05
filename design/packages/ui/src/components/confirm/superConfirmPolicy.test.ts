@@ -273,6 +273,17 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "closes no tab at all. Nothing here touches a clause of the document; a closed tab " +
             "is a way back in, and the viewer's own note says so.",
     },
+    "components/github/GitHubAccountsList.vue": {
+        count: 1,
+        destroys:
+            "one stored account's GitHub token, and the grant on that account when GitHub honours the revocation",
+        standing: "gap",
+        note:
+            "Issue #10: the multi-account listbox's per-row sign-out, confirmed inline in two " +
+            "steps exactly as components/github/GitHubStatusRow.vue's single-account one is, " +
+            "and not by the two-key gate either - the same standing, for the same reason, on " +
+            "the row this change adds beside it rather than a new decision about it.",
+    },
     "components/github/GitHubStatusRow.vue": {
         count: 1,
         destroys: "the stored GitHub token, and the grant on the account when GitHub honours the revocation",
@@ -290,6 +301,17 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
         note:
             "Issue #10: the sign-out primitive behind the row above. It moves behind the gate " +
             "when that row does, and is listed separately so the count cannot drift.",
+    },
+    "components/github/githubAccountsStore.ts": {
+        count: 2,
+        destroys:
+            "one stored account's GitHub token, and the grant on that account when GitHub honours the revocation",
+        standing: "gap",
+        note:
+            "Issue #10: the per-account removal primitive behind the row above (the interface " +
+            "signature and the implementation both name the same call, hence two). It moves " +
+            "behind the gate when that row does, and is listed separately so the count cannot " +
+            "drift.",
     },
     "components/history/HistoryPanel.vue": {
         count: 1,
@@ -325,6 +347,38 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "rather than a deletion. Nothing reaches the disk here: the merged text goes to the " +
             "history host, which snapshots the folder first and records the write as a new " +
             "revision that can itself be undone.",
+    },
+    "components/NoticeBulkToolbar.vue": {
+        count: 2,
+        destroys:
+            "the selected notifications' entries in this session's notification history, and off " +
+            "the corner too for any of them still showing",
+        standing: "gated",
+        gatedIn: "components/NoticeBulkToolbar.vue",
+        note:
+            "`deleteImpact(` is a read-only preview -- it counts how many of the selection are " +
+            "still in the history and changes nothing -- and is only caught because it shares " +
+            "the delete-shaped naming convention the detector watches for. `deleteSelectedHistory(` " +
+            "is the real destructive call, and it only ever runs from `runDelete()`, which is " +
+            "wired to nothing but ConfigSuperConfirm's `@confirm`. Dismiss and mark-as-read live " +
+            "beside it in this same file and destroy nothing: dismiss only clears the corner and " +
+            "leaves the history untouched, and marking as read only moves a watermark forward.",
+    },
+    "components/notifications/noticeBulk.ts": {
+        count: 2,
+        destroys:
+            "the selected notifications' entries in this session's notification history, and off " +
+            "the corner too for any of them still showing",
+        standing: "gated",
+        gatedIn: "components/NoticeBulkToolbar.vue",
+        note:
+            "`deleteImpact(` is the same read-only preview described above. `deleteSelectedHistory(` " +
+            "is declared here -- this file is the pure-logic layer the toolbar calls into, the same " +
+            "shape as `components/tabs/closePlans.ts` -- but it is never called from here; its one " +
+            "caller is `components/NoticeBulkToolbar.vue`, behind the gate. There is no local " +
+            "version history for the notification queue the way there is for a config folder, so " +
+            "the gate's own sentence is the only place 'this cannot be undone' is said, and it has " +
+            "to say so.",
     },
     "components/project/ProjectsScreen.vue": {
         count: 1,
@@ -417,14 +471,20 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
         gatedIn: "components/menu/SettingsMenu.vue",
     },
     "components/settings/dockPlacement.ts": {
-        count: 1,
-        destroys: "the remembered placement of every dockable surface, in this browser profile",
+        count: 3,
+        destroys:
+            "the remembered placement, docked thickness and floating position of every dockable " +
+            "surface, in this browser profile",
         standing: "reversible",
         note:
-            "The global reset behind the placement controls. It forgets a stored preference " +
-            "rather than any content, every surface returns to the default it shipped with, " +
-            "and the same controls write the choice again the next time one is made. Its own " +
-            "comment gives the reason it removes the key rather than writing an empty record.",
+            "The global reset behind the placement controls, now three sibling clears " +
+            "(clearDockPlacements, clearDockSizes, clearDockFloatingRects) that the panels " +
+            "feature's resetAllDockPlacements/resetAllDockGeometry call together from the same " +
+            "plain @click in SurfacePlacementRow.vue -- no gate stands in front of any of the " +
+            "three. Each forgets a stored preference rather than any content: every surface " +
+            "returns to the default it shipped with, and the same drag/resize/dock controls " +
+            "write the choice again the moment one is made. Their own comments give the reason " +
+            "each removes its key rather than writing an empty record.",
     },
     "components/setup/firstRunFlow.ts": {
         count: 3,
@@ -502,8 +562,10 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
  * fails, and a gap that was fixed and left here fails too.
  */
 const KNOWN_GAPS: readonly string[] = [
+    "components/github/GitHubAccountsList.vue",
     "components/github/GitHubStatusRow.vue",
     "components/github/githubAccount.ts",
+    "components/github/githubAccountsStore.ts",
 ];
 
 /* -------------------------------------------------------------------------- */

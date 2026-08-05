@@ -120,6 +120,30 @@ export interface CiJobReport {
     readonly htmlUrl: string;
     readonly startedAt: string | null;
     readonly completedAt: string | null;
+    /**
+     * Which wave of the render this job belongs to, read from its own name.
+     *
+     * Null for a job that carries no wave in its name - `Build the BlueMap CLI`, `Merge
+     * group 0` - and null is the honest answer for those, never a guess. Never invented for
+     * anything else either: see {@link waveOf}.
+     */
+    readonly wave: number | null;
+}
+
+/**
+ * The wave a job belongs to, parsed from the name GitHub actually sent.
+ *
+ * `render-shard-wave.yml` names every shard job `Wave <n> shard <s>`, and that reusable
+ * workflow is called from a job itself named `Wave <n>` - GitHub prefixes a job coming out
+ * of a called workflow with the calling job's own name, so the number appears at least once
+ * in the name of every real shard job either way. A job that is not part of a wave carries
+ * no such text and is reported as null rather than a 0 that would read as "wave zero".
+ */
+export function waveOf(name: string): number | null {
+    const match = /\bWave\s+(\d+)\b/i.exec(name);
+    if (match === null) return null;
+    const parsed = Number.parseInt(match[1] as string, 10);
+    return Number.isFinite(parsed) ? parsed : null;
 }
 
 /** A run exactly as GitHub describes it. Nothing here is inferred. */
@@ -189,7 +213,24 @@ export type CiSyncEvent =
           readonly worldFolder: string;
           readonly at: string;
       }
-    | { readonly type: "phase"; readonly syncId: string; readonly phase: CiSyncPhase; readonly at: string }
+    | {
+          readonly type: "phase";
+          readonly syncId: string;
+          readonly phase: CiSyncPhase;
+          /**
+           * Which credential is driving this sync, known from the moment the loop actually
+           * starts working rather than only at the end.
+           *
+           * `started` fires before the route is resolved, so it cannot carry this; `phase`
+           * is emitted on every transition from `#run` onward, by which point the route has
+           * always been chosen - see the top of `#run`. Carrying it here, rather than
+           * inventing a new event type nobody else would emit, means every phase a sync
+           * reaches already says which of the two GitHub sign-ins is in play, and a person
+           * watching a run in flight is never left guessing until it finishes or fails.
+           */
+          readonly route: CiRoute;
+          readonly at: string;
+      }
     | {
           readonly type: "log";
           readonly syncId: string;
@@ -198,12 +239,18 @@ export type CiSyncEvent =
           readonly at: string;
       }
     /**
-     * How far the upload has got, in bytes.
+     * How far the upload has got, in bytes - and in the pieces those bytes are made of.
      *
      * Here rather than on the backup channel, because the CI upload is no longer delegated
      * to the backup runner and so no longer produces `backup:event`. A world is measured in
      * gigabytes and a domestic connection in hours: a phase label with no number beside it
      * is indistinguishable from a hang for most of an afternoon.
+     *
+     * `assetsDone`/`assetsTotal`/`asset` are `upload.ts`'s own counts of the pieces it is
+     * moving - files while packing, parts while splitting, release assets while uploading -
+     * forwarded exactly as it reports them rather than derived from the byte counts. A part
+     * being skipped because it is already on the release moves the asset count without
+     * moving a single byte, and a byte-only progress bar would sit still through that.
      */
     | {
           readonly type: "progress";
@@ -212,6 +259,10 @@ export type CiSyncEvent =
           readonly description: string;
           readonly bytesDone: number;
           readonly bytesTotal: number;
+          readonly assetsDone: number;
+          readonly assetsTotal: number;
+          /** The specific piece in flight right now, when the upload named one. */
+          readonly asset: string | null;
           readonly at: string;
       }
     | { readonly type: "run"; readonly syncId: string; readonly run: CiRunReport; readonly at: string }
@@ -808,7 +859,7 @@ export class CiRenderSync {
 
         /* -- what leaves this computer, said before it does ----------------- */
 
-        this.#phase(syncId, "checking");
+        this.#phase(syncId, "checking", route);
 
         // Read by the credential that is about to publish, not by whichever one happens to
         // be signed in. Nothing is uploaded until this says whether the repository is
@@ -951,7 +1002,7 @@ export class CiRenderSync {
                 );
             }
 
-            this.#phase(syncId, "uploading");
+            this.#phase(syncId, "uploading", route);
 
             /*
              * A resumed upload, when the record says one was in flight.
@@ -995,6 +1046,12 @@ export class CiRenderSync {
                             description: event.description,
                             bytesDone: event.bytesDone,
                             bytesTotal: event.bytesTotal,
+                            // Forwarded exactly as `upload.ts` counted them - files while
+                            // packing, parts while splitting, release assets while
+                            // uploading - never re-derived from the byte counts above.
+                            assetsDone: event.assetsDone,
+                            assetsTotal: event.assetsTotal,
+                            asset: event.asset,
                             at: this.#timestamp(),
                         });
                     } else {
@@ -1119,7 +1176,7 @@ export class CiRenderSync {
         let runId = state.runId;
 
         if (runId === null) {
-            this.#phase(syncId, "dispatching");
+            this.#phase(syncId, "dispatching", route);
             const ref = await transport.readDefaultBranch(owner, repo);
             const dispatchedAt = new Date(this.#clock());
             await transport.dispatchWorkflow(owner, repo, workflowFile, ref, planned.plan.inputs);
@@ -1127,7 +1184,7 @@ export class CiRenderSync {
             state = { ...state, stage: "dispatched", dispatchedAt: dispatchedAt.toISOString(), updatedAt: this.#timestamp() };
             await this.#save(workspace.stateFile, state);
 
-            this.#phase(syncId, "waiting");
+            this.#phase(syncId, "waiting", route);
             const found = await this.#awaitRun(transport, owner, repo, workflowFile, dispatchedAt, signal);
             if (found === null) {
                 return this.#failed(
@@ -1158,7 +1215,7 @@ export class CiRenderSync {
 
         /* -- follow it, honestly -------------------------------------------- */
 
-        this.#phase(syncId, "rendering");
+        this.#phase(syncId, "rendering", route);
         let report = await this.#readRunReport(transport, owner, repo, runId);
         this.emit({ type: "run", syncId, run: report, at: this.#timestamp() });
 
@@ -1212,7 +1269,7 @@ export class CiRenderSync {
 
         /* -- collect and register -------------------------------------------- */
 
-        this.#phase(syncId, "downloading");
+        this.#phase(syncId, "downloading", route);
         const renderId = ciRenderIdFor(syncId);
         const collected = await collectRenderedMap(owner, repo, runId, {
             transport,
@@ -1250,7 +1307,7 @@ export class CiRenderSync {
             );
         }
 
-        this.#phase(syncId, "registering");
+        this.#phase(syncId, "registering", route);
         if (!collected.verified) {
             this.#log(
                 syncId,
@@ -1271,7 +1328,7 @@ export class CiRenderSync {
         };
         await this.#save(workspace.stateFile, state);
 
-        this.#phase(syncId, "finished");
+        this.#phase(syncId, "finished", route);
         const summary: CiSyncSummary = {
             syncId,
             repository: `${owner}/${repo}`,
@@ -1338,6 +1395,7 @@ export class CiRenderSync {
                 htmlUrl: job.htmlUrl,
                 startedAt: job.startedAt,
                 completedAt: job.completedAt,
+                wave: waveOf(job.name),
             })),
         };
     }
@@ -1378,8 +1436,8 @@ export class CiRenderSync {
         });
     }
 
-    #phase(syncId: string, phase: CiSyncPhase): void {
-        this.emit({ type: "phase", syncId, phase, at: this.#timestamp() });
+    #phase(syncId: string, phase: CiSyncPhase, route: CiRoute): void {
+        this.emit({ type: "phase", syncId, phase, route, at: this.#timestamp() });
     }
 
     #log(syncId: string, level: "info" | "warning" | "error", message: string): void {

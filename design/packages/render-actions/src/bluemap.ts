@@ -54,11 +54,18 @@ export const GITHUB_MATRIX_JOB_LIMIT = 256;
  * workflow has to declare its wave jobs statically, because Actions has no way to
  * generate a variable number of jobs, so this is how many it declares.
  *
- * Raising it means adding wave jobs to `.github/workflows/render-world.yml` to match.
+ * This used to be six - one doubling ago, `render-world.yml` really did hardcode
+ * `wave1`..`wave6` with nothing tying that number to this constant, so a plan needing a
+ * seventh wave failed with no route past it. `.github/workflows/render-world.yml` now
+ * declares `wave1`..`wave{RENDER_WAVE_SLOTS}` to match this value, and
+ * `design/packages/render-actions/src/resume/resume.test.ts` reads the workflow file and
+ * fails if the two ever drift apart again - so raising this constant is genuinely how you
+ * raise the ceiling, rather than a number the workflow quietly ignored.
+ *
  * Nothing here silently truncates a plan to fit: a plan that needs more waves than the
  * workflow has is reported as exactly that, with the number it needs.
  */
-export const RENDER_WAVE_SLOTS = 6;
+export const RENDER_WAVE_SLOTS = 12;
 
 /** The most shards a plan may lay out: every wave slot filled to the matrix limit. */
 export const MAX_PLANNED_SHARDS = GITHUB_MATRIX_JOB_LIMIT * RENDER_WAVE_SLOTS;

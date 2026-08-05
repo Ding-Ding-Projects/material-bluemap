@@ -28,6 +28,11 @@ import { blueMapApp } from "../../stores/bluemap.js";
  *    browser from panning or zooming the page under the thumb.
  *  - The buttons are real buttons with accessible names and a keyboard hold path, because
  *    upstream's bare `<div>`s had no role, no tabindex and no keyboard route at all.
+ *  - The cluster only reveals itself after a touch, but a touch-capable device can still have a
+ *    mouse or trackpad (2-in-1 laptops, touchscreen all-in-ones). The buttons therefore also
+ *    bind @mousedown/@mouseup/@mouseleave, reusing the same hold-while-pressed functions the
+ *    keyboard path uses, so a mouse click on a revealed button drives movement instead of doing
+ *    nothing.
  */
 const { t } = useI18n();
 
@@ -166,6 +171,9 @@ onBeforeUnmount(() => {
                 :aria-label="t('freeFlightControls.moveForward', 'Move forward')"
                 :aria-pressed="forward === 1"
                 @touchstart.passive="startForwardTouch(1, $event)"
+                @mousedown="startForwardKey(1)"
+                @mouseup="stopForwardKey"
+                @mouseleave="stopForwardKey"
                 @keydown.enter.prevent="startForwardKey(1)"
                 @keydown.space.prevent="startForwardKey(1)"
                 @keyup="stopForwardKey"
@@ -180,6 +188,9 @@ onBeforeUnmount(() => {
                 :aria-label="t('freeFlightControls.moveBackward', 'Move backward')"
                 :aria-pressed="forward === -1"
                 @touchstart.passive="startForwardTouch(-1, $event)"
+                @mousedown="startForwardKey(-1)"
+                @mouseup="stopForwardKey"
+                @mouseleave="stopForwardKey"
                 @keydown.enter.prevent="startForwardKey(-1)"
                 @keydown.space.prevent="startForwardKey(-1)"
                 @keyup="stopForwardKey"
@@ -200,6 +211,9 @@ onBeforeUnmount(() => {
                 :aria-label="t('freeFlightControls.moveUp', 'Move up')"
                 :aria-pressed="up === 1"
                 @touchstart.passive="startUpTouch(1, $event)"
+                @mousedown="startUpKey(1)"
+                @mouseup="stopUpKey"
+                @mouseleave="stopUpKey"
                 @keydown.enter.prevent="startUpKey(1)"
                 @keydown.space.prevent="startUpKey(1)"
                 @keyup="stopUpKey"
@@ -214,6 +228,9 @@ onBeforeUnmount(() => {
                 :aria-label="t('freeFlightControls.moveDown', 'Move down')"
                 :aria-pressed="up === -1"
                 @touchstart.passive="startUpTouch(-1, $event)"
+                @mousedown="startUpKey(-1)"
+                @mouseup="stopUpKey"
+                @mouseleave="stopUpKey"
                 @keydown.enter.prevent="startUpKey(-1)"
                 @keydown.space.prevent="startUpKey(-1)"
                 @keyup="stopUpKey"

@@ -225,8 +225,12 @@ export interface RuntimeBridge {
      * hand a render to a container" are two different claims, and a surface that reads
      * the first as the second offers a choice that silently renders locally instead -
      * which is worse than not offering it, because the person believes they chose.
+     *
+     * A promise, not a plain array: the real answer crosses IPC from
+     * `render:runtimeModes`, and a synchronous property here could only ever be a
+     * hand-duplicated guess taken before that answer arrives.
      */
-    readonly renderModes: readonly RuntimeMode[];
+    renderModes(): Promise<readonly RuntimeMode[]>;
     /** True when Docker's own state can be read at all. */
     readonly canProbeDocker: boolean;
 }
@@ -242,7 +246,7 @@ type Host = Partial<{
     activeRemoteRenders: () => Promise<readonly string[]>;
     dockerRuntime: () => Promise<unknown>;
     runtimeModes: () => Promise<unknown>;
-    renderRuntimeModes: () => readonly string[] | undefined;
+    renderRuntimeModes: () => Promise<unknown>;
 }>;
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -335,12 +339,12 @@ export function resolveRemoteBridge(): RemoteBridge | null {
 }
 
 /** The modes a build claims `startRender` honours, read defensively. */
-function readRenderModes(found: Host): readonly RuntimeMode[] {
+async function readRenderModes(found: Host): Promise<readonly RuntimeMode[]> {
     const read = found.renderRuntimeModes;
     if (!isFunction(read)) return ["local"];
     let answer: unknown;
     try {
-        answer = read();
+        answer = await read();
     } catch {
         return ["local"];
     }
@@ -393,7 +397,7 @@ export function resolveRuntimeBridge(): RuntimeBridge | null {
             }
             return (await probeModes()) as RuntimeModesSummary;
         },
-        renderModes: readRenderModes(found),
+        renderModes: () => readRenderModes(found),
         canProbeDocker,
     };
 }

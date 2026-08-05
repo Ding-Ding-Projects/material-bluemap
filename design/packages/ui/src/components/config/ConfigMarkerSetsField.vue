@@ -1,30 +1,39 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiClose, mdiPlus } from "@mdi/js";
+import { mdiChevronDown, mdiChevronUp, mdiClose, mdiPlus } from "@mdi/js";
 import {
     VAlert,
     VBtn,
     VCard,
     VCardText,
+    VChip,
     VExpansionPanel,
     VExpansionPanelText,
     VExpansionPanelTitle,
     VExpansionPanels,
-    VSwitch,
     VTextField,
     VTextarea,
+    VTooltip,
 } from "vuetify/components";
-import type { PlainValue } from "@material-bluemap/config";
+import { MARKER_SET_FIELDS, type FieldMeta, type PlainValue } from "@material-bluemap/config";
+import ConfigControl from "./ConfigControl.vue";
+import { docShownText, isDocLong, provenanceOf } from "./explainField.js";
 
 /**
  * The `marker-sets` block of a map config.
  *
- * A marker set's own container fields are edited as controls. The markers inside
- * it are not: their shapes belong to the markers contract rather than to the
- * config schema, and half-modelling them here would produce an editor that
- * silently dropped every field it did not know about. They are shown as
- * formatted JSON, editable as text, and written back exactly as given.
+ * A marker set's own container fields — `label`, `sorting`, `toggleable` and
+ * `default-hidden` — are rendered from `MARKER_SET_FIELDS` in
+ * `@material-bluemap/config`, the same way `ConfigMaskField.vue` renders a mask
+ * shape's fields from `MASK_SHAPES`: one `ConfigControl` per entry, plus that
+ * entry's own doc-disclosure and default-provenance line. A fifth container
+ * property added to that array reaches this editor with no change here. The
+ * markers inside a set are not modelled the same way: their shapes belong to the
+ * markers contract rather than to the config schema, and half-modelling them
+ * here would produce an editor that silently dropped every field it did not know
+ * about. They are shown as formatted JSON, editable as text, and written back
+ * exactly as given.
  *
  * That is a deliberate limit, stated where the user can see it rather than left
  * for them to discover after a save loses something.
@@ -67,6 +76,43 @@ function commit(next: Record<string, PlainValue>): void {
 function updateSet(id: string, patch: Record<string, PlainValue>): void {
     const current = asRecord((props.modelValue ?? {})[id] ?? {});
     commit({ ...(props.modelValue ?? {}), [id]: { ...current, ...patch } });
+}
+
+/** One container field's current value: what the set's own record says, or the field's default. */
+function containerFieldValue(value: PlainValue, field: FieldMeta): PlainValue {
+    const existing = asRecord(value)[field.path];
+    return existing === undefined ? (field.default as PlainValue) : existing;
+}
+
+function setContainerField(id: string, field: FieldMeta, next: PlainValue): void {
+    updateSet(id, { [field.path]: next });
+}
+
+/**
+ * Whether one marker set's own explanation of one container field is expanded.
+ *
+ * Keyed by the set's id and the field's path: every marker set shares the same
+ * four fields, so a per-field key with no set id in it would open "Sorting" on
+ * every set at once the moment one was opened.
+ */
+const docOpen = ref<Record<string, boolean>>({});
+
+function docKey(id: string, path: string): string {
+    return `${id}:${path}`;
+}
+
+function isDocOpen(id: string, path: string): boolean {
+    return docOpen.value[docKey(id, path)] ?? false;
+}
+
+function toggleDoc(id: string, path: string): void {
+    const key = docKey(id, path);
+    docOpen.value = { ...docOpen.value, [key]: !isDocOpen(id, path) };
+}
+
+/** Provenance for one container field against this marker set's own record. */
+function containerProvenance(field: FieldMeta, value: PlainValue) {
+    return provenanceOf(field, asRecord(value));
 }
 
 function removeSet(id: string): void {
@@ -167,45 +213,67 @@ function commitMarkers(id: string, raw: string): void {
                 <v-expansion-panel-text>
                     <v-card variant="flat">
                         <v-card-text class="mb-config-markers__body">
-                            <v-text-field
-                                :model-value="String(asRecord(value)['label'] ?? '')"
-                                :label="t('config.markers.label', 'Label shown in the menu')"
-                                :disabled="isDisabled"
-                                variant="outlined"
-                                density="compact"
-                                hide-details="auto"
-                                @update:model-value="(next: string) => updateSet(id, { label: next })"
-                            />
-                            <v-text-field
-                                :model-value="String(asRecord(value)['sorting'] ?? 0)"
-                                :label="t('config.markers.sorting', 'Sorting')"
-                                :disabled="isDisabled"
-                                type="number"
-                                variant="outlined"
-                                density="compact"
-                                hide-details="auto"
-                                @update:model-value="(next: string) => updateSet(id, { sorting: Number(next) || 0 })"
-                            />
-                            <v-switch
-                                :model-value="asRecord(value)['toggleable'] !== false"
-                                :label="t('config.markers.toggleable', 'Visitors can turn this set off')"
-                                :disabled="isDisabled"
-                                color="primary"
-                                density="compact"
-                                hide-details="auto"
-                                inset
-                                @update:model-value="(next: boolean | null) => updateSet(id, { toggleable: next === true })"
-                            />
-                            <v-switch
-                                :model-value="asRecord(value)['default-hidden'] === true"
-                                :label="t('config.markers.defaultHidden', 'Hidden until a visitor turns it on')"
-                                :disabled="isDisabled"
-                                color="primary"
-                                density="compact"
-                                hide-details="auto"
-                                inset
-                                @update:model-value="(next: boolean | null) => updateSet(id, { 'default-hidden': next === true })"
-                            />
+                            <template v-for="field in MARKER_SET_FIELDS" :key="field.path">
+                                <ConfigControl
+                                    :control="field.control"
+                                    :model-value="containerFieldValue(value, field)"
+                                    :label="field.label"
+                                    :disabled="isDisabled"
+                                    @update:model-value="(next: PlainValue) => setContainerField(id, field, next)"
+                                />
+                                <p class="mb-config-markers__doc">{{ docShownText(field.doc, isDocOpen(id, field.path)) }}</p>
+                                <v-btn
+                                    v-if="isDocLong(field.doc)"
+                                    :append-icon="isDocOpen(id, field.path) ? mdiChevronUp : mdiChevronDown"
+                                    :aria-expanded="isDocOpen(id, field.path) ? 'true' : 'false'"
+                                    variant="text"
+                                    size="x-small"
+                                    density="comfortable"
+                                    @click="toggleDoc(id, field.path)"
+                                >
+                                    {{
+                                        isDocOpen(id, field.path)
+                                            ? t("config.explain.less", "Show less")
+                                            : t("config.explain.more", "Show the rest of the explanation")
+                                    }}
+                                </v-btn>
+                                <v-chip v-if="field.docSource === 'authored'" size="x-small" variant="outlined">
+                                    {{ t("config.explain.authored", "Explained for this app") }}
+                                    <v-tooltip
+                                        activator="parent"
+                                        location="top"
+                                        :text="
+                                            t(
+                                                'config.explain.authoredHint',
+                                                'BlueMap has no comment for this one in any generated file, so this explanation is written from the Java class it configures rather than copied from the file.',
+                                            )
+                                        "
+                                    />
+                                </v-chip>
+                                <p class="mb-config-markers__state">
+                                    <span v-if="!containerProvenance(field, value).explicit">
+                                        {{
+                                            t(
+                                                "config.explain.inherited",
+                                                { value: containerProvenance(field, value).defaultText || t("config.explain.nothing", "nothing") },
+                                                "Not set here, so BlueMap uses {value}.",
+                                            )
+                                        }}
+                                    </span>
+                                    <span v-else-if="containerProvenance(field, value).usingDefault">
+                                        {{ t("config.explain.setToDefault", "Set here, and it matches BlueMap's default.") }}
+                                    </span>
+                                    <span v-else>
+                                        {{
+                                            t(
+                                                "config.explain.changed",
+                                                { value: containerProvenance(field, value).defaultText || t("config.explain.nothing", "nothing") },
+                                                "Set here. BlueMap's default is {value}.",
+                                            )
+                                        }}
+                                    </span>
+                                </p>
+                            </template>
 
                             <v-textarea
                                 :model-value="markersText(id, value)"
@@ -281,6 +349,24 @@ function commitMarkers(id: string, raw: string): void {
     display: flex;
     flex-direction: column;
     gap: 12px;
+}
+
+.mb-config-markers__doc {
+    font-size: 0.75rem;
+    line-height: 1.45;
+    white-space: pre-line;
+    margin-block-start: -6px;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-config-markers__state {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-block-start: -6px;
+    font-size: 0.6875rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 
 .mb-config-markers__raw textarea {

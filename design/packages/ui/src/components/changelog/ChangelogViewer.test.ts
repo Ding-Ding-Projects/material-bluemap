@@ -17,9 +17,10 @@
 
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { mount, type VueWrapper } from "@vue/test-utils";
-import { nextTick } from "vue";
+import { h, nextTick } from "vue";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
+import { VApp } from "vuetify/components";
 import ChangelogViewer from "./ChangelogViewer.vue";
 import type { ChangelogEntry, ChangelogVersion } from "./changelogModel.js";
 
@@ -42,6 +43,26 @@ beforeAll(() => {
         removeEventListener: () => {},
         dispatchEvent: () => false,
     })) as unknown as typeof globalThis.matchMedia;
+
+    // Only load-bearing for the "Copy"/"Export" menu tests below, which open a real
+    // anchored `v-menu`. Vuetify's location strategy reads `visualViewport` unguarded and
+    // asks the document what is under a point, neither of which jsdom implements.
+    Element.prototype.scrollIntoView = function scrollIntoView(): void {};
+    document.elementsFromPoint = (): Element[] => [];
+    globalThis.visualViewport = {
+        width: 1024,
+        height: 768,
+        offsetLeft: 0,
+        offsetTop: 0,
+        pageLeft: 0,
+        pageTop: 0,
+        scale: 1,
+        onresize: null,
+        onscroll: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+    } as unknown as VisualViewport;
 });
 
 const REPO = "https://github.com/Ding-Ding-Projects/material-bluemap";
@@ -129,11 +150,44 @@ async function search(wrapper: VueWrapper, text: string): Promise<void> {
     await nextTick();
 }
 
+/**
+ * Wrapped in `VApp` and attached to the document, which the "Copy" and "Export" menu tests
+ * below need: their content is a real anchored `v-menu`, teleported into the overlay
+ * container that `VApp` renders. `render()` above never opens one, so it never needed this.
+ */
+function renderAttached(): VueWrapper {
+    const i18n = createI18n({
+        legacy: false,
+        locale: "none",
+        fallbackLocale: "none",
+        silentFallbackWarn: true,
+        messages: {},
+    });
+    return mount(VApp, {
+        attachTo: document.body,
+        global: { plugins: [i18n, createVuetify()] },
+        slots: {
+            default: () => h(ChangelogViewer, { versions: VERSIONS, unreleased: UNRELEASED, repositoryUrl: REPO }),
+        },
+    });
+}
+
+/** The overlay opens and closes across several ticks: the activator, the transition and the content. */
+async function settle(): Promise<void> {
+    for (let index = 0; index < 6; index++) {
+        await nextTick();
+        await Promise.resolve();
+    }
+    await new Promise((resolve) => globalThis.setTimeout(resolve, 0));
+    await nextTick();
+}
+
 let wrapper: VueWrapper | null = null;
 
 afterEach(() => {
     wrapper?.unmount();
     wrapper = null;
+    document.body.innerHTML = "";
     delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
 });
 
@@ -306,5 +360,97 @@ describe("the changelog viewer", () => {
             .findAll('input[type="checkbox"]')
             .map((input) => input.attributes("aria-label"));
         expect(labels.some((label) => label?.includes(roboto.subject))).toBe(true);
+    });
+});
+
+/**
+ * Vuetify binds the activator's click handler from a post-flush watcher, one tick after
+ * mount. Clicking before that lands hits a button with no listener on it yet, and the
+ * menu silently does not open.
+ */
+async function openMenu(candidate: VueWrapper, label: string): Promise<void> {
+    await settle();
+    const button = candidate.findAll("button").find((row) => row.text().includes(label));
+    if (button === undefined) throw new Error(`the ${label} button was not found`);
+    await button.trigger("click");
+    await settle();
+}
+
+describe("the Copy and Export menus", () => {
+    it("both carry their own search field over the two formats", async () => {
+        wrapper = renderAttached();
+        await openMenu(wrapper, "Copy");
+
+        expect(document.querySelector(".mb-menu-search")).not.toBeNull();
+        expect(document.body.textContent).toContain("As Markdown");
+        expect(document.body.textContent).toContain("As plain text");
+    });
+
+    it("narrows the Export menu's two rows as the search is typed", async () => {
+        wrapper = renderAttached();
+        await openMenu(wrapper, "Export");
+
+        const searchInput = document.querySelector<HTMLInputElement>(".mb-menu-search input[type='text']");
+        expect(searchInput).not.toBeNull();
+        searchInput!.value = "plain text";
+        searchInput!.dispatchEvent(new Event("input", { bubbles: true }));
+        await settle();
+
+        expect(document.body.textContent).toContain("Plain text file");
+        expect(document.body.textContent).not.toContain("Markdown file");
+    });
+
+    it("shows the honest no-match state when nothing survives the filter", async () => {
+        wrapper = renderAttached();
+        await openMenu(wrapper, "Copy");
+
+        const searchInput = document.querySelector<HTMLInputElement>(".mb-menu-search input[type='text']");
+        searchInput!.value = "nothing here is named that";
+        searchInput!.dispatchEvent(new Event("input", { bubbles: true }));
+        await settle();
+
+        expect(document.body.textContent).toContain("No command here matches that");
+    });
+
+    it("copies the chosen format through the desktop shell's clipboard channel and closes", async () => {
+        const writeClipboardText = vi.fn().mockResolvedValue(undefined);
+        (globalThis as { materialBluemap?: unknown }).materialBluemap = { writeClipboardText };
+
+        wrapper = renderAttached();
+        await openMenu(wrapper, "Copy");
+
+        const item = [...document.querySelectorAll<HTMLElement>(".v-list-item")].find((row) =>
+            row.textContent?.includes("As plain text"),
+        );
+        item?.click();
+        await settle();
+
+        expect(writeClipboardText).toHaveBeenCalledTimes(1);
+        expect(document.body.textContent).not.toContain("As Markdown");
+    });
+
+    it("Escape clears a typed query before it closes the Export menu", async () => {
+        wrapper = renderAttached();
+        await openMenu(wrapper, "Export");
+
+        const searchInput = document.querySelector<HTMLInputElement>(".mb-menu-search input[type='text']");
+        searchInput!.value = "plain text";
+        searchInput!.dispatchEvent(new Event("input", { bubbles: true }));
+        await settle();
+        expect(document.body.textContent).not.toContain("Markdown file");
+
+        searchInput!.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }),
+        );
+        await settle();
+
+        expect(searchInput!.value).toBe("");
+        expect(document.body.textContent).toContain("Markdown file");
+
+        searchInput!.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        await settle();
+
+        expect(document.querySelectorAll(".mb-menu-search")).toHaveLength(0);
     });
 });

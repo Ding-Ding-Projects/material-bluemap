@@ -35,6 +35,7 @@ import { CommandPalette } from "./components/palette/index.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
 import { AppSettings } from "./components/settings/index.js";
+import { EulaSurface } from "./components/eula/index.js";
 import { appearanceTargets } from "./components/appearance/index.js";
 import { addLocalMap, profilesStore, removeProfile } from "./stores/profiles.js";
 import { notices, raiseNotice } from "./stores/notices.js";
@@ -207,7 +208,7 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("separates the shell into seven pages behind one persistent strip", () => {
+    it("separates the shell into eight pages behind one persistent strip", () => {
         shell();
 
         expect(tabLabels()).toEqual([
@@ -218,7 +219,17 @@ describe("the tab strip", () => {
             "Maps and servers",
             "Backups",
             "Publish to Pages",
+            "Docs",
         ]);
+    });
+
+    it("reaches the docs browser through its own tab", async () => {
+        shell();
+
+        tabButton("Docs").click();
+        await settle();
+
+        expect(document.querySelector(".mb-docs")).not.toBeNull();
     });
 
     it("opens on the map, which is where the map-state message lives", () => {
@@ -395,6 +406,37 @@ describe("the settings surface closing", () => {
         await settle();
 
         expect(app.findComponent(WorldScreen).props("settingsEpoch")).not.toBe(before);
+    });
+});
+
+describe("the licence viewer", () => {
+    it("reaches the docked EULA panel through its own FAB, rather than only existing in the bundle", async () => {
+        // EulaSurface's own doc comment claims a standalone route ("mount one in the shell
+        // and open it from anywhere"), but nothing ever mounted it - it was built, tested
+        // and unreachable, the same defect the tab tests above catch for other surfaces.
+        // Before the fix `findComponent(EulaSurface)` returns a wrapper that does not exist
+        // at all, because App.vue never imported the component.
+        const app = shell();
+        expect(app.findComponent(EulaSurface).exists()).toBe(true);
+        expect(app.findComponent(EulaSurface).props("open")).toBe(false);
+
+        const fab = document.querySelector<HTMLButtonElement>(
+            'button[aria-label="The Minecraft licence"]',
+        );
+        expect(fab).not.toBeNull();
+        expect(fab?.getAttribute("aria-expanded")).toBe("false");
+
+        const panel = document.querySelector<HTMLElement>('[role="dialog"].mb-eula-surface');
+        expect(panel).not.toBeNull();
+        expect(panel?.style.display).toBe("none");
+
+        fab?.click();
+        await settle();
+
+        expect(app.findComponent(EulaSurface).props("open")).toBe(true);
+        expect(fab?.getAttribute("aria-expanded")).toBe("true");
+        expect(panel?.style.display).not.toBe("none");
+        expect(panel?.textContent).toContain("The Minecraft licence");
     });
 });
 

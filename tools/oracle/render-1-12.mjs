@@ -70,110 +70,36 @@ const DEFAULTS = {
 };
 
 /**
- * The block-states a 1.12.2 world renders *wrongly* against a modern resource pack, and
- * why each one does.
+ * The block-states a 1.12.2 world used to render *wrongly* against a modern resource pack.
  *
- * This list is the finding, not a list of excuses. Every entry was established by diffing
- * the legacy render against the modern control render of the same terrain, and the check
- * below requires the divergence to be **exactly** this set: a new entry appearing is a new
- * regression, and an entry disappearing means something was fixed and this list is stale.
- * Either way the harness fails and says which.
+ * Empty now: packages/engine/src/world/mca/legacy/FlatteningRename.ts closed this gap — a
+ * flattening rename table that runs strictly between the legacy chunk reader and the
+ * resource-pack lookup, gated to the pre-flattening path only (see that file's doc comment
+ * for the full account, and design/HANDOFF.md for the original finding). This list is the
+ * regression gate for that fix: the check below still requires the divergence to be
+ * **exactly** this set, so if either of these four names ever renders wrongly again, the
+ * harness fails and says which. Do not delete the check just because the list is empty.
  *
- * The cause is the same in all four cases and it is not in the chunk reader — the reader
- * hands back precisely the block-state the numeric id means, which the unit test proves
- * block by block. It is that nothing translates a *pre-flattening block name* into a modern
- * one before the resource pack is asked for a model. Three ways that goes wrong are
- * visible here, and they are qualitatively different:
- *
- *  - a name the flattening **removed** resolves to no blockstate at all, and the block
- *    renders as nothing (`snow_layer`, and `stonebrick` where the terrain has a pillar);
- *  - a name the flattening **reused for a different block** resolves to that different
- *    block, which is worse than nothing because it renders confidently and wrongly
- *    (`grass`, `snow`);
- *  - a name that **survived but gained a property** matches no variant, because the legacy
- *    state cannot carry the property the modern blockstate keys its variants on
- *    (`podzol`, whose 1.13+ blockstate is keyed on `snowy`).
- *
- * The fix is not in this harness. Either the render is given an era-matched (1.12.2)
- * resource pack — which is what `LegacyResourcePackExtension` exists for, and what upstream
- * v0.10.3 shipped — or the reader grows a flattening rename table between the legacy
- * `BlockIdMapper` and the resource lookup. Neither is in scope here; what is in scope is
- * saying exactly which blocks are affected instead of leaving it to be discovered.
+ * The four that were here: minecraft:grass (the pre-flattening grass BLOCK collided with
+ * resourceExtensions.zip's compat entry for the modern grass TUFT and rendered as a
+ * cross-shaped plant instead of a cube), minecraft:podzol (26.2's blockstate keys on
+ * `snowy`, a property 1.12.2 never had), minecraft:snow_layer (the flattening renamed it
+ * to minecraft:snow and nothing answered to the old name), and minecraft:snow (the mirror
+ * image — 1.12.2's full snow BLOCK collided with the modern snow LAYER's name).
  */
-const KNOWN_LEGACY_RENDER_GAPS = [
-    {
-        blockState: "minecraft:grass",
-        wrote: "the 1.12.2 grass block (numeric id 2)",
-        kind: "renders as a different block",
-        detail:
-            "`resourceExtensions.zip`'s mc1_20_3 overlay defines minecraft:grass as the modern " +
-            "grass TUFT (1.20.3 renamed the tuft to short_grass and BlueMap keeps the old name " +
-            "working for older packs). A 1.12.2 grass block therefore renders as a cross-shaped " +
-            "plant instead of a cube, and the dirt underneath becomes visible through it.",
-        modernTextures: ["block/grass_block_top", "block/grass_block_side", "block/grass_block_side_overlay", "block/grass_block_snow"],
-    },
-    {
-        blockState: "minecraft:podzol",
-        wrote: "podzol (numeric id 3, meta 2)",
-        kind: "matches no variant",
-        detail:
-            "26.2's podzol blockstate keys its variants on `snowy`, a property that did not " +
-            "exist in 1.12.2 and that the legacy id table therefore cannot produce. No variant " +
-            "condition matches and the block renders as nothing.",
-        modernTextures: ["block/podzol_top", "block/podzol_side"],
-    },
-    {
-        blockState: "minecraft:snow_layer",
-        wrote: "a snow layer (numeric id 78)",
-        kind: "no blockstate at all",
-        detail:
-            "The flattening renamed snow_layer to minecraft:snow. Nothing in a modern pack " +
-            "answers to the old name, so the layer renders as nothing.",
-        modernTextures: ["block/snow"],
-    },
-    {
-        blockState: "minecraft:snow",
-        wrote: "a snow block (numeric id 80)",
-        kind: "renders as a different block",
-        detail:
-            "The mirror image of the entry above: in 1.12.2 minecraft:snow is the full snow " +
-            "BLOCK, and in a modern pack it is the snow LAYER, whose variants are keyed on " +
-            "`layers`. The legacy state carries no `layers`, so nothing matches — the two names " +
-            "swapped meaning across the flattening and both ends of the swap are broken.",
-        modernTextures: ["block/snow"],
-    },
-];
+const KNOWN_LEGACY_RENDER_GAPS = [];
 
 /**
  * Materials that both renders draw, but in wildly different quantities, and why.
  *
- * A set difference alone would miss the worst symptom of the `minecraft:grass` gap. The
- * grass block does not vanish from the legacy render — it renders as a *tuft*, whose
- * texture the modern render also uses for its real tufts, so `short_grass` is present in
- * both and the set difference says nothing. What gives it away is the quantity: 139,728
- * vertices against 1,944, because eleven thousand cubes became eleven thousand cross-shaped
- * plants. The two knock-on effects are counted here too: with the grass cubes gone the
- * ground stops occluding, so the dirt and stone underneath become visible faces.
- *
- * Anything else that diverges by more than {@link DIVERGENCE_FACTOR} is undocumented and
- * fails the run.
+ * Empty now, for the same reason as {@link KNOWN_LEGACY_RENDER_GAPS}: the flattening rename
+ * table fixed `minecraft:grass`, so the legacy render's grass blocks are cubes again and no
+ * longer inflate `short_grass` (was 139,728 vertices against the control's 1,944, a 71.9x
+ * divergence) or expose the `dirt`/`stone` beneath them (were 10.0x and 10.4x). Kept as the
+ * regression gate: anything that diverges by more than {@link DIVERGENCE_FACTOR} again and
+ * is not documented here fails the run.
  */
-const KNOWN_DIVERGENT_MATERIALS = [
-    {
-        texture: "minecraft:block/short_grass",
-        detail:
-            "every 1.12.2 grass block renders as a grass tuft (see the minecraft:grass gap), " +
-            "so this texture carries the whole ground surface instead of the scattered plants",
-    },
-    {
-        texture: "minecraft:block/dirt",
-        detail: "exposed by the grass blocks that became see-through tufts",
-    },
-    {
-        texture: "minecraft:block/stone",
-        detail: "exposed by the grass blocks that became see-through tufts",
-    },
-];
+const KNOWN_DIVERGENT_MATERIALS = [];
 
 /** how far a shared material's vertex count may differ from the control before it counts */
 const DIVERGENCE_FACTOR = 5;

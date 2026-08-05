@@ -71,6 +71,7 @@ function job(partial: Partial<CiJobReport>): CiJobReport {
         htmlUrl: "https://github.test/job/1",
         startedAt: "2026-08-03T09:14:00.000Z",
         completedAt: "2026-08-03T09:18:00.000Z",
+        wave: null,
         ...partial,
     };
 }

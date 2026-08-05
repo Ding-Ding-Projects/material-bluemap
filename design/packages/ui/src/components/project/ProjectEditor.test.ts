@@ -21,7 +21,7 @@ import type { ProjectFile } from "@material-bluemap/config";
 import ProjectEditor from "./ProjectEditor.vue";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ProjectMapsPanel from "./ProjectMapsPanel.vue";
-import { createProject, withMapAdded } from "./projectModel.js";
+import { createProject, withMapAdded, withRender } from "./projectModel.js";
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -343,6 +343,119 @@ describe("saving", () => {
         const wrapper = await editor(seeded(), { saveFailure: "the world folder is read-only" });
 
         expect(wrapper.text()).toContain("the world folder is read-only");
+        wrapper.unmount();
+    });
+});
+
+describe("the guided empty state", () => {
+    it("offers preset cards alongside Add a map, only when there truly are no maps yet", async () => {
+        const wrapper = await editor(createProject("Empty", STAMP));
+
+        expect(wrapper.text()).toContain("Or start from a preset");
+        expect(wrapper.text()).toContain("Start from BlueMap's defaults");
+        expect(wrapper.text()).toContain("Overworld, Nether and End");
+        const applyButtons = [...wrapper.element.querySelectorAll("button")].filter((button) =>
+            (button.textContent ?? "").includes("Use this preset"),
+        );
+        expect(applyButtons).toHaveLength(4);
+        wrapper.unmount();
+    });
+
+    it("does not show preset cards once the project already has a map", async () => {
+        const wrapper = await editor(seeded());
+
+        expect(wrapper.text()).not.toContain("Or start from a preset");
+        wrapper.unmount();
+    });
+
+    it("applying a preset creates its maps, which stay fully editable afterwards", async () => {
+        const wrapper = await editor(createProject("Empty", STAMP));
+
+        // PROJECT_PRESETS lists "Overworld, Nether and End" second, right after the single
+        // "Start from BlueMap's defaults" card.
+        const applyButtons = [...wrapper.element.querySelectorAll("button")].filter((button) =>
+            (button.textContent ?? "").includes("Use this preset"),
+        );
+        applyButtons[1]!.click();
+        await flushPromises();
+
+        const { project } = wrapper.props() as { project: ProjectFile };
+        expect(project.maps.map((map) => map.id).sort()).toEqual(["end", "nether", "overworld"]);
+        // Written from BlueMap's own per-dimension templates, exactly like "Add a map" does.
+        expect(project.maps.find((map) => map.id === "nether")?.config).toContain("sky-color");
+        expect(project.storages.map((storage) => storage.id)).toEqual(["file"]);
+
+        // Fully editable afterwards: the overworld map (selected first) can be renamed
+        // through the ordinary identity field, exactly as a hand-added map could be.
+        const nameField = wrapper.findAll("input").find((input) => (input.element as HTMLInputElement).value === "Overworld");
+        expect(nameField).toBeDefined();
+        await nameField!.setValue("My Overworld");
+        await flushPromises();
+
+        const after = (wrapper.props() as { project: ProjectFile }).project;
+        expect(after.maps.find((map) => map.id === "overworld")?.name).toBe("My Overworld");
+        wrapper.unmount();
+    });
+});
+
+describe("a render option's own default indicator", () => {
+    it("says a value already matches BlueMap's default, with no reset button, until something changes it", async () => {
+        const wrapper = await editor();
+
+        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("How it renders"))?.trigger("click");
+        await flushPromises();
+
+        expect(wrapper.text()).toContain("This already matches BlueMap's own default.");
+        expect(buttonNamed(wrapper, "Reset to BlueMap's default")).toBeUndefined();
+        wrapper.unmount();
+    });
+
+    it("shows what it was set to, and a working reset back to BlueMap's default, once changed", async () => {
+        const wrapper = await editor(withRender(seeded(), { force: true }));
+
+        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("How it renders"))?.trigger("click");
+        await flushPromises();
+
+        expect(wrapper.text()).toContain("Set to on. BlueMap's default is off.");
+        const reset = buttonNamed(wrapper, "Reset to BlueMap's default");
+        expect(reset).toBeDefined();
+
+        reset!.click();
+        await flushPromises();
+
+        const { project } = wrapper.props() as { project: ProjectFile };
+        expect(project.render.force).toBe(false);
+        expect(wrapper.text()).not.toContain("Reset to BlueMap's default");
+        wrapper.unmount();
+    });
+});
+
+describe("the render output folder", () => {
+    it("carries the shared browse affordance rather than a plain text box", async () => {
+        const wrapper = await editor();
+
+        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("How it renders"))?.trigger("click");
+        await flushPromises();
+
+        const browse = wrapper
+            .findAll("button")
+            .find((candidate) => candidate.attributes("aria-label") === "Browse for the render output folder");
+        expect(browse).toBeDefined();
+        expect(wrapper.find(".mb-path-field input").exists()).toBe(true);
+        wrapper.unmount();
+    });
+
+    it("writes a typed path through the same event a pick would", async () => {
+        const wrapper = await editor();
+
+        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("How it renders"))?.trigger("click");
+        await flushPromises();
+
+        await wrapper.find(".mb-path-field input").setValue("D:/rendered/out");
+        await flushPromises();
+
+        const { project } = wrapper.props() as { project: ProjectFile };
+        expect(project.render.outputFolder).toBe("D:/rendered/out");
         wrapper.unmount();
     });
 });

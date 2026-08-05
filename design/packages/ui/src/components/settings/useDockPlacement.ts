@@ -22,16 +22,32 @@
 import { computed, onBeforeUnmount, onMounted, ref, type ComputedRef, type Ref } from "vue";
 
 import {
+    clearDockFloatingRects,
     clearDockPlacements,
+    clearDockSizes,
+    readDockFloatingRects,
     readDockPlacements,
+    readDockSizes,
+    withDockFloatingRect,
+    withDockSize,
     withPlacement,
+    withoutDockFloatingRect,
+    withoutDockSizes,
     withoutPlacement,
+    writeDockFloatingRects,
     writeDockPlacements,
+    writeDockSizes,
+    type DockedEdge,
+    type DockFloatingRecord,
     type DockPlacement,
     type DockPlacementRecord,
+    type DockSizeRecord,
+    type FloatingRect,
 } from "./dockPlacement.js";
 
 const placements = ref<DockPlacementRecord>(readDockPlacements());
+const sizes = ref<DockSizeRecord>(readDockSizes());
+const floatingRects = ref<DockFloatingRecord>(readDockFloatingRects());
 
 /** One docked surface that exists right now, for the chooser and the settings list. */
 export interface DockedSurfaceInfo {
@@ -68,21 +84,90 @@ export function setDockPlacement(surfaceId: string, placement: DockPlacement): v
     writeDockPlacements(placements.value);
 }
 
-/** Puts one surface back to its own default. */
+/* -------------------------------------------------------------------------- */
+/* Size and position                                                          */
+/*                                                                             */
+/* A surface's remembered thickness (per docked edge) and floating rectangle, */
+/* on the same live-ref-plus-pure-writer shape as the placement above. Reset  */
+/* below deliberately clears these alongside the placement itself: putting a */
+/* panel "back where it started" that kept the size someone dragged it to    */
+/* would not be a reset, it would be a reset that remembered half of what it */
+/* was supposed to forget.                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** The whole size record, read-only to anything that only wants to render it. */
+export function dockSizeState(): Ref<DockSizeRecord> {
+    return sizes;
+}
+
+/** The whole floating-rectangle record, read-only to anything that only wants to render it. */
+export function dockFloatingState(): Ref<DockFloatingRecord> {
+    return floatingRects;
+}
+
+/** Re-reads both from storage, which is what a test needs between cases. */
+export function reloadDockGeometry(): void {
+    sizes.value = readDockSizes();
+    floatingRects.value = readDockFloatingRects();
+}
+
+/** The thickness a surface was last resized to on this docked edge, or null if never. */
+export function thicknessFor(surfaceId: string, edge: DockedEdge): number | null {
+    return sizes.value[surfaceId]?.[edge] ?? null;
+}
+
+export function setDockThickness(surfaceId: string, edge: DockedEdge, thickness: number): void {
+    sizes.value = withDockSize(sizes.value, surfaceId, edge, thickness);
+    writeDockSizes(sizes.value);
+}
+
+/** The rectangle a surface was last dragged or resized to while floating, or null if never. */
+export function floatingRectFor(surfaceId: string): FloatingRect | null {
+    return floatingRects.value[surfaceId] ?? null;
+}
+
+export function setDockFloatingRect(surfaceId: string, rect: FloatingRect): void {
+    floatingRects.value = withDockFloatingRect(floatingRects.value, surfaceId, rect);
+    writeDockFloatingRects(floatingRects.value);
+}
+
+/** Forgets one surface's remembered size and floating rectangle, across every edge. */
+export function resetDockGeometry(surfaceId: string): void {
+    sizes.value = withoutDockSizes(sizes.value, surfaceId);
+    writeDockSizes(sizes.value);
+    floatingRects.value = withoutDockFloatingRect(floatingRects.value, surfaceId);
+    writeDockFloatingRects(floatingRects.value);
+}
+
+/** Forgets every surface's remembered size and floating rectangle. */
+export function resetAllDockGeometry(): void {
+    sizes.value = {};
+    clearDockSizes();
+    floatingRects.value = {};
+    clearDockFloatingRects();
+}
+
+/**
+ * Puts one surface back to its own default: placement, size and floating position alike.
+ */
 export function resetDockPlacement(surfaceId: string): void {
     placements.value = withoutPlacement(placements.value, surfaceId);
     writeDockPlacements(placements.value);
+    resetDockGeometry(surfaceId);
 }
 
 /**
  * Puts every surface back to its default, including surfaces that are not open.
  *
  * The stored record is cleared rather than only the registered ids, because the whole
- * point of a global reset is the surface somebody cannot find their way back to.
+ * point of a global reset is the surface somebody cannot find their way back to. Size and
+ * floating position are cleared alongside placement for the same reason resetting one
+ * surface clears them: a "reset" that leaves a dragged-open panel dragged open is not one.
  */
 export function resetAllDockPlacements(): void {
     placements.value = {};
     clearDockPlacements();
+    resetAllDockGeometry();
 }
 
 /** How many surfaces have a stored choice, which is what the reset control reports. */

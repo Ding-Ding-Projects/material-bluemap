@@ -114,6 +114,7 @@ function scriptedBridge(
                 revoked: false,
                 reason: "This app holds no client secret, so GitHub would not confirm it.",
                 manageUrl: "https://github.com/settings/applications",
+                fallbackAccount: null,
             });
         },
         onGitHubAuthEvent: (listener) => {

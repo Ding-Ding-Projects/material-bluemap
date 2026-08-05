@@ -25,7 +25,6 @@ import { computed, ref, type ComputedRef, type Ref } from "vue";
 import {
     currentPlatform,
     defaultMapStorageDir,
-    normalizeMapStorageDir,
     readMapStorageDir,
     validateMapStorageDir,
     writeMapStorageDir,
@@ -84,14 +83,15 @@ export interface SetupBridge {
  * The half of the bridge the storage step can work without.
  *
  * `mapStorageDirectory` is the preload's own `render:storageDirectory`, and it exists
- * today. `chooseMapStorageDirectory` does not exist anywhere yet, and is declared here
- * so the step picks a real folder picker up on the day one lands rather than needing
- * to be rewritten for it.
+ * today. There used to be a `chooseMapStorageDirectory` declared here too, waiting for
+ * a folder picker that never landed; the step's browse button is `PathField.vue` now,
+ * which reaches the real `window.materialBluemap.dialog` bridge directly through
+ * `pathFieldHost.ts` rather than through this interface, so there is nothing left here
+ * for a picker to probe.
  *
- * Both are probed one at a time, and the step works with neither: it shows the
+ * Nothing here fails when `mapStorageDirectory` is absent: the step shows the
  * platform's own default with its environment token, which the main process expands
- * when a render starts. Nothing here fails when a method is absent, and nothing
- * pretends to be a folder picker that is not one.
+ * when a render starts.
  */
 export interface OptionalStorageBridge {
     /**
@@ -102,8 +102,6 @@ export interface OptionalStorageBridge {
      * or `~/...` and hope.
      */
     mapStorageDirectory?: () => Promise<{ current: string; default: string }>;
-    /** Opens the platform folder picker. Resolves null when it is cancelled. */
-    chooseMapStorageDirectory?: (current: string) => Promise<string | null>;
 }
 
 export function resolveBridge(): SetupBridge | null {
@@ -133,14 +131,11 @@ export interface FirstRunController {
     readonly platform: SetupPlatform;
     /** True when the default still carries an environment token to be expanded. */
     readonly storageIsToken: ComputedRef<boolean>;
-    /** True when the folder picker exists on this build. */
-    readonly canBrowse: boolean;
 
     start(): Promise<boolean>;
     next(): void;
     back(): void;
     answerConsent(accepted: boolean): Promise<void>;
-    browse(): Promise<void>;
     useDefaultStorage(): void;
     finish(): Promise<boolean>;
     /** Closes without completing, offered only after a completion failure. */
@@ -274,22 +269,6 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
         }
     }
 
-    async function browse(): Promise<void> {
-        const choose = storageBridge?.chooseMapStorageDirectory;
-        if (!choose || busy.value) return;
-        busy.value = true;
-        try {
-            const chosen = await choose(storageDir.value);
-            if (chosen !== null && chosen.trim().length > 0) {
-                storageDir.value = normalizeMapStorageDir(chosen, platform);
-            }
-        } catch (error) {
-            failure.value = describe(error);
-        } finally {
-            busy.value = false;
-        }
-    }
-
     function useDefaultStorage(): void {
         storageDir.value = resolvedDefault ?? defaultMapStorageDir(platform);
     }
@@ -333,12 +312,10 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
         failure,
         platform,
         storageIsToken,
-        canBrowse: typeof storageBridge?.chooseMapStorageDirectory === "function",
         start,
         next,
         back,
         answerConsent,
-        browse,
         useDefaultStorage,
         finish,
         dismissAfterFailure,

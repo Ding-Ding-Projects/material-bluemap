@@ -94,6 +94,7 @@ export {
 
 export {
     GitHubSession,
+    accountFromRecord,
     type AccessTokenResult,
     type GitHubAccount,
     type GitHubAuthEvent,
@@ -105,6 +106,21 @@ export {
 } from "./session.js";
 
 export {
+    GitHubAccountsController,
+    deriveAccountId,
+    migrateLegacyAccount,
+    type AccountSignOutResult,
+    type AccountSummary,
+    type AccountsList,
+    type GitHubAccountsControllerOptions,
+    type GitHubSessionLike,
+    type RefreshAccountResult,
+    type RemoveAccountResult,
+    type SetActiveAccountResult,
+} from "./accounts.js";
+
+export {
+    ACCOUNTS_DIRECTORY_NAME,
     CREDENTIAL_FILE_NAME,
     GITHUB_EVENT_CHANNEL,
     installGitHubIpc,

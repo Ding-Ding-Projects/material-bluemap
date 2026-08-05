@@ -155,3 +155,21 @@ describe("what the locale markup becomes", () => {
         wrapper.unmount();
     });
 });
+
+describe("reaching the docs browser", () => {
+    it("offers a button that asks to be taken to the docs browser", async () => {
+        const wrapper = await render(null);
+
+        expect(wrapper.text()).toContain("Browse the documentation");
+        wrapper.unmount();
+    });
+
+    it("emits open-docs rather than navigating itself, so the shell decides how to get there", async () => {
+        const wrapper = await render(null);
+
+        await wrapper.get(".mb-info-page__docs-button").trigger("click");
+
+        expect(wrapper.emitted("open-docs")).toHaveLength(1);
+        wrapper.unmount();
+    });
+});

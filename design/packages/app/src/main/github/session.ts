@@ -596,8 +596,15 @@ export class GitHubSession {
     }
 }
 
-/** The account as it is known from disk alone, before anything is decrypted. */
-function accountFromRecord(
+/**
+ * The account as it is known from disk alone, before anything is decrypted.
+ *
+ * Exported for `accounts.ts`, which builds the same cold-start summary for every stored
+ * account rather than only the one this class itself is holding - the multi-account
+ * registry has many `StoredCredential` records to turn into `GitHubAccount`s and this is
+ * the one place that already knows how.
+ */
+export function accountFromRecord(
     record: StoredCredential | null,
     refreshable = false,
 ): GitHubAccount | null {

@@ -704,6 +704,26 @@ export function withRender(project: ProjectFile, render: Partial<ProjectRender>)
     return { ...project, render: { ...project.render, ...render } };
 }
 
+/** Every render option {@link isRenderFieldDefault} and {@link withRenderFieldDefault} know how to reset. */
+export type RenderFieldKey = keyof ProjectRender;
+
+/**
+ * True when a render option already carries the value {@link EMPTY_RENDER} gives a brand
+ * new project - which is also exactly the value BlueMap falls back to when a render never
+ * mentions it: an empty thread count lets BlueMap choose, `force`/`fixEdges`/`metrics` are
+ * off, and no output-folder override is set. Unlike a real config file's fields, these five
+ * are project-level render options with no `FieldMeta` of their own, so this is this
+ * module's own default rather than a delegation to `@material-bluemap/config`.
+ */
+export function isRenderFieldDefault(project: ProjectFile, key: RenderFieldKey): boolean {
+    return project.render[key] === EMPTY_RENDER[key];
+}
+
+/** Puts one render option back to that same default, leaving the other four exactly as they are. */
+export function withRenderFieldDefault(project: ProjectFile, key: RenderFieldKey): ProjectFile {
+    return withRender(project, { [key]: EMPTY_RENDER[key] } as Partial<ProjectRender>);
+}
+
 /** The four whole-file settings a project may carry, and never more than these four. */
 export const SINGLETONS = ["core", "webapp", "webserver", "plugin"] as const;
 export type SingletonKind = (typeof SINGLETONS)[number];
@@ -729,6 +749,226 @@ export function withSingleton(project: ProjectFile, kind: SingletonKind, text: s
 export function openSingletonFile(project: ProjectFile, kind: SingletonKind): EditableConfigFile {
     const descriptor = descriptorFor(kind) as AnyDescriptor;
     return openConfigFile(descriptor, `${kind}.conf`, project[kind] ?? "");
+}
+
+/* -------------------------------------------------------------------------- */
+/* Presets: a first-class defaults path                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Writes one setting into a map's config text, sharing {@link writeField}'s "no known
+ * field, no change" refusal.
+ *
+ * Exported so {@link applyPreset} (and a test) can set exactly the one field a preset
+ * names, through the same schema-driven path every other edit in this module already
+ * takes, rather than growing a second way to touch a map's config text.
+ */
+export function withMapFieldSet(project: ProjectFile, id: string, path: string, value: PlainValue): ProjectFile {
+    const map = findMap(project, id);
+    if (map === undefined) return project;
+    return withMapConfig(project, id, writeField(openMapFile(map), path, value).text);
+}
+
+/** The same, for one of the four whole-project singletons. */
+export function withSingletonFieldSet(project: ProjectFile, kind: SingletonKind, path: string, value: PlainValue): ProjectFile {
+    return withSingleton(project, kind, writeField(openSingletonFile(project, kind), path, value).text);
+}
+
+/**
+ * The map id and display name a preset writes for a vanilla dimension.
+ *
+ * Not invented: this is the exact id and name `generateConfigSet` in
+ * `@material-bluemap/config`'s `generate.ts` writes for the same dimension (`maps/overworld.conf`
+ * named "Overworld", and so on for the nether and the end), so a preset-created map reads
+ * the same as the one BlueMap's own CLI would generate for a fresh config folder.
+ */
+const PRESET_MAP: Readonly<Record<string, { readonly id: string; readonly name: string }>> = {
+    "minecraft:overworld": { id: "overworld", name: "Overworld" },
+    "minecraft:the_nether": { id: "nether", name: "Nether" },
+    "minecraft:the_end": { id: "end", name: "End" },
+};
+
+const ALL_VANILLA_DIMENSIONS: readonly string[] = ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"];
+
+export type ProjectPresetId = "overworldOnly" | "allDimensions" | "webServerOff" | "fastRender";
+
+/**
+ * A preset, said plainly enough that {@link applyPreset} cannot do anything the fields
+ * below do not already say.
+ *
+ * Every field a preset can touch is a real BlueMap setting this module already knows how
+ * to write: `dimensions` goes through {@link withMapAdded}, which writes upstream's own
+ * per-dimension template (the `PRESETS` table `presetFor` reads, in `generate.ts`);
+ * `webserverEnabled` writes `webserver.conf`'s real `enabled` field
+ * (`webserverConfigSchema`); `disableHires` writes each created map's real `enable-hires`
+ * field (`mapConfigSchema`). Nothing here invents a value that is not already one of those
+ * three places.
+ */
+export interface ProjectPreset {
+    readonly id: ProjectPresetId;
+    /** Which dimensions get a map, each written from upstream's own per-dimension template. */
+    readonly dimensions: readonly string[];
+    /**
+     * When set, the value written into `webserver.conf`'s `enabled` field - but only when
+     * this project does not already carry a `webserver.conf` of its own. A preset composes;
+     * it never overwrites a choice already made.
+     */
+    readonly webserverEnabled?: boolean;
+    /** When true, every map this preset actually creates gets `enable-hires` set to false. */
+    readonly disableHires?: boolean;
+}
+
+/**
+ * The presets this editor offers, in the order the empty state shows them.
+ *
+ * Four, deliberately: a single map is the honest starting point (BlueMap itself needs one
+ * world and one map before it renders anything), all three vanilla dimensions is the next
+ * thing almost everyone wants, and the last two are that same set of three maps with the
+ * one real performance knob (`enable-hires`) and the one real on/off switch
+ * (`webserver.conf`'s `enabled`) a project can honestly offer from its own schema. No fifth
+ * axis is invented to round the count up.
+ */
+export const PROJECT_PRESETS: readonly ProjectPreset[] = [
+    { id: "overworldOnly", dimensions: ["minecraft:overworld"] },
+    { id: "allDimensions", dimensions: ALL_VANILLA_DIMENSIONS },
+    { id: "webServerOff", dimensions: ALL_VANILLA_DIMENSIONS, webserverEnabled: false },
+    { id: "fastRender", dimensions: ALL_VANILLA_DIMENSIONS, disableHires: true },
+];
+
+/**
+ * One preset by id.
+ *
+ * `PROJECT_PRESETS` always carries exactly one entry per {@link ProjectPresetId}, so the
+ * fallback below cannot actually be reached from this module's own callers; it exists so a
+ * stray id still resolves to a real preset instead of `undefined` reaching a caller that
+ * has to render one.
+ */
+export function findPreset(id: ProjectPresetId): ProjectPreset {
+    return PROJECT_PRESETS.find((preset) => preset.id === id) ?? (PROJECT_PRESETS[0] as ProjectPreset);
+}
+
+export interface ApplyPresetOptions {
+    /** The world folder every created map points at. */
+    readonly world: string;
+    /** The root a newly created file storage writes tiles into. */
+    readonly storageRoot: string;
+    readonly separator?: string;
+}
+
+/**
+ * What a preset actually did, so the caller can say so honestly rather than announcing a
+ * fixed sentence that may not match a project that already had some of this.
+ */
+export interface PresetApplication {
+    readonly project: ProjectFile;
+    /** Map ids this call actually created. */
+    readonly mapsAdded: readonly string[];
+    /** Map ids the preset would have created, but the project already had. */
+    readonly mapsSkipped: readonly string[];
+    readonly storageAdded: boolean;
+    /** True only when `webserver.conf` was actually written by this call. */
+    readonly webserverWritten: boolean;
+}
+
+/**
+ * Applies a preset: adds the maps it names (skipping any id the project already has),
+ * adds the shared `file` storage when the project has none, and writes the preset's
+ * `webserver.conf` override only when the project carries no `webserver.conf` of its own
+ * yet.
+ *
+ * Composes rather than overwrites, on purpose: nothing here calls `withMapReplaced` on an
+ * existing map, `withStorageConfig` on an existing storage, or writes a singleton the
+ * project already touched. A preset applied twice, or applied to a project somebody has
+ * already customised, changes only what was still missing - which is also what makes this
+ * safe to offer with no destructive-action gate: it never overwrites anything that was
+ * already there.
+ */
+export function applyPreset(project: ProjectFile, preset: ProjectPreset, options: ApplyPresetOptions): PresetApplication {
+    let next = project;
+
+    const storageAdded = findStorage(next, "file") === undefined;
+    if (storageAdded) {
+        next = withStorageAdded(next, "file", newStorageText("file", options.storageRoot, options.separator ?? "/"));
+    }
+
+    const mapsAdded: string[] = [];
+    const mapsSkipped: string[] = [];
+    for (const dimension of preset.dimensions) {
+        const entry = PRESET_MAP[dimension] ?? { id: previewMapId(dimension), name: dimension };
+        if (findMap(next, entry.id) !== undefined) {
+            mapsSkipped.push(entry.id);
+            continue;
+        }
+        next = withMapAdded(next, {
+            id: entry.id,
+            name: entry.name,
+            dimension,
+            world: options.world,
+            separator: options.separator,
+        });
+        mapsAdded.push(entry.id);
+    }
+
+    if (preset.disableHires === true) {
+        for (const id of mapsAdded) next = withMapFieldSet(next, id, "enable-hires", false);
+    }
+
+    const webserverWritten = preset.webserverEnabled !== undefined && next.webserver === null;
+    if (webserverWritten) {
+        next = withSingletonFieldSet(next, "webserver", "enabled", preset.webserverEnabled as PlainValue);
+    }
+
+    return { project: next, mapsAdded, mapsSkipped, storageAdded, webserverWritten };
+}
+
+/**
+ * What {@link applyPreset} actually did, as sentences a notification can show.
+ *
+ * Every branch is a real outcome rather than a fixed success line: a preset applied to a
+ * project that already has some of this says so, rather than claiming credit for work it
+ * did not do.
+ */
+export function presetApplicationLines(preset: ProjectPreset, application: PresetApplication, t: Translate): string[] {
+    const lines: string[] = [];
+
+    if (application.mapsAdded.length > 0) {
+        const names = application.mapsAdded
+            .map((id) => Object.values(PRESET_MAP).find((entry) => entry.id === id)?.name ?? id)
+            .join(", ");
+        lines.push(
+            t("project.presets.appliedMaps", { maps: application.mapsAdded.length, names }, "{maps} map(s) added: {names}."),
+        );
+    } else {
+        lines.push(
+            t(
+                "project.presets.appliedMapsNone",
+                "Every map this preset creates was already in the project, so nothing was added there.",
+            ),
+        );
+    }
+
+    lines.push(
+        application.storageAdded
+            ? t("project.presets.appliedStorage", "Added the file storage, since this project did not have one yet.")
+            : t("project.presets.appliedStorageSkipped", "The file storage already existed, so it was left as is."),
+    );
+
+    if (preset.webserverEnabled !== undefined) {
+        lines.push(
+            application.webserverWritten
+                ? t(
+                      "project.presets.appliedWebserver",
+                      { state: preset.webserverEnabled ? "on" : "off" },
+                      "Wrote webserver.conf with the web server switched {state}, since this project did not carry one of its own yet.",
+                  )
+                : t(
+                      "project.presets.appliedWebserverSkipped",
+                      "This project already carries its own webserver.conf, so it was left untouched.",
+                  ),
+        );
+    }
+
+    return lines;
 }
 
 /* -------------------------------------------------------------------------- */

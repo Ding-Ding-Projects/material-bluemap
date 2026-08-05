@@ -45,8 +45,10 @@ import type { Control, FieldMeta } from "../src/meta.js";
 import {
     ALL_DESCRIPTORS,
     HEX_COLOR_PATTERN,
+    MARKER_SET_FIELDS,
     MASK_SHAPES,
     NAMESPACED_KEY_PATTERN,
+    markerSetSchema,
     maskConfigSchema,
 } from "../src/schema/index.js";
 import { outerClassBody, nestedClassBody, parseJavaFields } from "./javaDefaults.js";
@@ -267,6 +269,7 @@ const NO_UNIT: Record<string, string> = {
     "map.lod-factor": "A ratio between one lowres level and the next, so it is dimensionless by definition.",
     "plugin.hide-below-sky-light": "Minecraft's own 0-to-15 light level, which is a level rather than a unit.",
     "plugin.hide-below-block-light": "Minecraft's own 0-to-15 light level, which is a level rather than a unit.",
+    "marker-set:sorting": "An ordering rank, exactly like map.sorting above. Lower sorts first; the number counts nothing.",
 };
 
 interface Subject {
@@ -299,6 +302,20 @@ function everyField(): Subject[] {
                 node: member === null ? null : (member._zod.def.shape?.[field.path] ?? null),
             });
         }
+    }
+
+    // A marker set's own container properties (`label`, `sorting`, `toggleable`,
+    // `default-hidden`), checked against `markerSetSchema` the same way a mask
+    // shape's fields are checked against its member of `maskConfigSchema`. Neither
+    // array is derived from the other, so this is what keeps `MARKER_SET_FIELDS`
+    // honest as `markerSetSchema` changes rather than trusting the two to agree by
+    // eye.
+    for (const field of MARKER_SET_FIELDS) {
+        subjects.push({
+            id: `marker-set:${field.path}`,
+            field,
+            node: nodeAtPath(markerSetSchema as unknown as z.ZodType, field.segments),
+        });
     }
 
     return subjects;
@@ -485,6 +502,7 @@ describe("every setting gets the control its type deserves", () => {
         expect(text.sort()).toEqual(
             [
                 "map.name",
+                "marker-set:label",
                 "storage-sql.connection-url",
                 "storage-sql.driver-class",
                 "webapp.live-data-root",

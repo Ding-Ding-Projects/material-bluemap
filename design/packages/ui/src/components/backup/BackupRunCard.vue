@@ -53,6 +53,9 @@ const { t } = useI18n();
 
 const showLog = ref(false);
 
+/** Ties the log toggle button to the log list it discloses, for assistive tech. */
+const logId = computed(() => `mb-backup-row-log-${props.row.backupId}`);
+
 const percent = computed(() => props.row.task?.percent ?? 0);
 const transfer = computed(() => transferText(props.row.task, t));
 const parts = computed(() => partsText(props.row.task, t));
@@ -262,6 +265,7 @@ const cardLabel = computed(() =>
                     size="small"
                     variant="text"
                     :aria-expanded="showLog"
+                    :aria-controls="logId"
                     @click="showLog = !showLog"
                 >
                     {{
@@ -270,7 +274,7 @@ const cardLabel = computed(() =>
                             : t("backup.row.showLog", "Show what it reported")
                     }}
                 </v-btn>
-                <ul v-if="showLog" class="mb-backup-row__log">
+                <ul v-if="showLog" :id="logId" class="mb-backup-row__log">
                     <li v-for="line in row.log" :key="line.id">{{ line.message }}</li>
                 </ul>
             </template>

@@ -207,3 +207,20 @@ export type {
     CiSyncResult,
     CiSyncSummary,
 } from "./sync.js";
+
+// The guided setup card's own data: owner choices, a name suggestion, and whether GitHub
+// already has that name. See `setup.ts` for why each of the three answers what it does.
+export {
+    CI_REPOSITORY_NAME_FALLBACK,
+    MAX_CI_REPOSITORY_NAME_LENGTH,
+    checkCiRepositoryNameAvailability,
+    listCiOwnerChoices,
+    suggestCiRepositoryName,
+} from "./setup.js";
+export type {
+    CheckCiRepositoryNameOptions,
+    CiOwnerChoice,
+    CiOwnerChoicesAnswer,
+    CiOwnerChoicesOptions,
+    CiRepositoryNameAvailability,
+} from "./setup.js";

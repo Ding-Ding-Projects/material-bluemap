@@ -1,0 +1,425 @@
+// @vitest-environment jsdom
+
+/**
+ * `TabGroupPicker.vue`, mounted: what `tabGroupPicker.test.ts` cannot prove about a plain
+ * function, which is that the rendered dialog actually offers a search field wired to the
+ * app's own regex matcher, actually renders "New group..." as a real option, actually emits
+ * the real events a host can forward straight to `assignTabToGroup`/`createGroup`, and
+ * actually moves through the list on the keyboard exactly as its own doc comment claims.
+ *
+ * Named `tabGroupPickerMount` rather than `TabGroupPicker.test.ts` because this filesystem
+ * is case-insensitive and that name collides with `tabGroupPicker.test.ts` next door, which
+ * covers the picker's pure model.
+ */
+
+import { beforeAll, describe, expect, it } from "vitest";
+import { defineComponent, h } from "vue";
+import { mount, type VueWrapper } from "@vue/test-utils";
+import { createI18n } from "vue-i18n";
+import { createVuetify } from "vuetify";
+import { VApp } from "vuetify/components";
+import TabGroupPicker from "./TabGroupPicker.vue";
+import type { TabStripState } from "./tabModel.js";
+
+beforeAll(() => {
+    // jsdom has no layout engine, so Vuetify's own size and media observers are absent and
+    // the mount throws before any assertion runs.
+    globalThis.ResizeObserver = class {
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+    } as unknown as typeof ResizeObserver;
+
+    globalThis.matchMedia = ((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+    })) as unknown as typeof globalThis.matchMedia;
+});
+
+const vuetify = createVuetify();
+
+function emptyI18n() {
+    return createI18n({
+        legacy: false,
+        locale: "none",
+        fallbackLocale: "none",
+        silentFallbackWarn: true,
+        missingWarn: false,
+        fallbackWarn: false,
+        messages: {},
+    });
+}
+
+const STRIP: TabStripState = {
+    id: "s1",
+    label: "Main",
+    windowId: "w1",
+    windowLabel: "Material BlueMap",
+    tabs: [],
+    pinnedOrder: [],
+    slots: [],
+    activeTabId: null,
+    groups: [
+        { id: "g1", name: "Research", color: "primary", collapsed: false, tabIds: ["a", "b"], appearance: null },
+        { id: "g2", name: "Reference", color: "secondary", collapsed: false, tabIds: ["c"], appearance: null },
+    ],
+};
+
+function mountPicker(
+    strip: TabStripState = STRIP,
+    excludeGroupId: string | null = null,
+): VueWrapper {
+    const host = defineComponent({
+        setup: () =>
+            () =>
+                h(VApp, () => [h(TabGroupPicker, { strip, excludeGroupId, tabLabel: "Settings" })]),
+    });
+    return mount(host, { global: { plugins: [vuetify, emptyI18n()] } });
+}
+
+function picker(wrapper: VueWrapper) {
+    return wrapper.findComponent(TabGroupPicker);
+}
+
+function searchInput(wrapper: VueWrapper) {
+    return wrapper.find('input[type="text"]');
+}
+
+describe("the group list", () => {
+    it("renders every group as a row, and New group... after them", () => {
+        const wrapper = mountPicker();
+        const options = wrapper.findAll('[role="option"]');
+        expect(options).toHaveLength(3);
+        expect(options[0]?.text()).toContain("Research");
+        expect(options[1]?.text()).toContain("Reference");
+        expect(options[2]?.text()).toContain("New group...");
+    });
+
+    it("excludes the tab's own current group", () => {
+        const wrapper = mountPicker(STRIP, "g2");
+        const options = wrapper.findAll('[role="option"]');
+        expect(options).toHaveLength(2);
+        expect(options[0]?.text()).toContain("Research");
+        expect(options[0]?.text()).not.toContain("Reference");
+    });
+
+    it("shows the honest empty state, and still offers New group..., when the strip has no groups", () => {
+        const wrapper = mountPicker({ ...STRIP, groups: [] });
+        expect(wrapper.text()).toContain("There are no groups yet");
+        const options = wrapper.findAll('[role="option"]');
+        expect(options).toHaveLength(1);
+        expect(options[0]?.text()).toContain("New group...");
+    });
+});
+
+describe("searching the picker", () => {
+    it("narrows to groups whose name matches, in plain text", async () => {
+        const wrapper = mountPicker();
+        await searchInput(wrapper).setValue("Res");
+        const options = wrapper.findAll('[role="option"]');
+        // Research, then New group... -- Reference is filtered out, New group... never is.
+        expect(options).toHaveLength(2);
+        expect(options[0]?.text()).toContain("Research");
+        expect(options[1]?.text()).toContain("New group...");
+    });
+
+    it("shows the no-match empty state when a plain search finds no group", async () => {
+        const wrapper = mountPicker();
+        await searchInput(wrapper).setValue("zzz");
+        expect(wrapper.text()).toContain("No group's name matches that search");
+        const options = wrapper.findAll('[role="option"]');
+        expect(options).toHaveLength(1);
+        expect(options[0]?.text()).toContain("New group...");
+    });
+
+    it("narrows by a regular expression once regex mode is on", async () => {
+        const wrapper = mountPicker();
+        const toggle = wrapper.find('[aria-label*="regular expression"]');
+        expect(toggle.exists()).toBe(true);
+        await toggle.trigger("click");
+        await searchInput(wrapper).setValue("^Ref");
+        const options = wrapper.findAll('[role="option"]');
+        expect(options).toHaveLength(2);
+        expect(options[0]?.text()).toContain("Reference");
+        expect(options[1]?.text()).toContain("New group...");
+    });
+});
+
+describe("choosing an entry", () => {
+    it("emits assign with the chosen group's id on click", async () => {
+        const wrapper = mountPicker();
+        const options = wrapper.findAll('[role="option"]');
+        await options[1]?.trigger("click"); // Reference
+        expect(picker(wrapper).emitted("assign")).toEqual([["g2"]]);
+    });
+
+    it("emits new-group on the New group... row, without an assign alongside it", async () => {
+        const wrapper = mountPicker();
+        const options = wrapper.findAll('[role="option"]');
+        await options[2]?.trigger("click"); // New group...
+        expect(picker(wrapper).emitted("new-group")).toHaveLength(1);
+        expect(picker(wrapper).emitted("assign")).toBeUndefined();
+    });
+
+    it("emits cancel from the Cancel button", async () => {
+        const wrapper = mountPicker();
+        const buttons = wrapper.findAll("button").filter((btn) => btn.text().includes("Cancel"));
+        expect(buttons).toHaveLength(1);
+        await buttons[0]?.trigger("click");
+        expect(picker(wrapper).emitted("cancel")).toHaveLength(1);
+    });
+});
+
+describe("the keyboard", () => {
+    it("moves the active option down and up with the arrow keys, wrapping at both ends", async () => {
+        const wrapper = mountPicker();
+        const root = wrapper.find('[role="dialog"]');
+        const options = () => wrapper.findAll('[role="option"]');
+
+        await root.trigger("keydown", { key: "ArrowDown" });
+        expect(options()[0]?.attributes("aria-selected")).toBe("true");
+
+        await root.trigger("keydown", { key: "ArrowUp" });
+        // Wrapped past the first entry, landing on New group... at the end.
+        expect(options()[2]?.attributes("aria-selected")).toBe("true");
+    });
+
+    it("commits the active entry on Enter", async () => {
+        const wrapper = mountPicker();
+        const root = wrapper.find('[role="dialog"]');
+        await root.trigger("keydown", { key: "ArrowDown" }); // Research
+        await root.trigger("keydown", { key: "Enter" });
+        expect(picker(wrapper).emitted("assign")).toEqual([["g1"]]);
+    });
+
+    it("does nothing on Enter before anything is active", async () => {
+        const wrapper = mountPicker();
+        const root = wrapper.find('[role="dialog"]');
+        await root.trigger("keydown", { key: "Enter" });
+        expect(picker(wrapper).emitted("assign")).toBeUndefined();
+        expect(picker(wrapper).emitted("new-group")).toBeUndefined();
+    });
+
+    it("cancels on Escape", async () => {
+        const wrapper = mountPicker();
+        const root = wrapper.find('[role="dialog"]');
+        await root.trigger("keydown", { key: "Escape" });
+        expect(picker(wrapper).emitted("cancel")).toHaveLength(1);
+    });
+});
+
+describe("the dialog's own surface", () => {
+    /**
+     * This suite's `vitest.config.ts` does not enable `test.css`, so a mounted component's
+     * `<style>` block is never actually injected into `document.head` under jsdom here --
+     * `getComputedStyle` and `document.styleSheets` both come back empty regardless of what
+     * `TabGroupPicker.vue` declares, which would make either approach pass or fail for
+     * reasons unrelated to this component's own stylesheet. A `?raw` import sidesteps CSS
+     * processing entirely (it is Vite's plain-text asset loader, unaffected by the `css`
+     * option) and reads the exact rule this fix landed in, the same way a reviewer would.
+     */
+    async function rootRuleText(): Promise<string> {
+        const source = (await import("./TabGroupPicker.vue?raw")).default as string;
+        const match = /\.mb-tab-group-picker\s*\{[^}]*\}/.exec(source);
+        return match?.[0] ?? "";
+    }
+
+    it("paints a background, border and elevation behind its rows, matching AppearanceEditor.vue", async () => {
+        // TabStrip.vue opens this picker inside the same scrim-less, click-through
+        // `v-menu` (`:open-on-click="false" :close-on-content-click="false" :scrim="false"`)
+        // used for AppearanceEditor.vue, which paints nothing behind whatever it opens.
+        // Regression for the picker rendering its rows, search field and empty-state text
+        // directly over the tab strip with no surface of its own.
+        const cssText = await rootRuleText();
+
+        expect(cssText).not.toBe("");
+        expect(cssText).toContain("background");
+        expect(cssText).toContain("border");
+        expect(cssText).toContain("box-shadow");
+    });
+});
+
+describe("focus", () => {
+    it("exposes focus(), which focuses the search field's own input", async () => {
+        // jsdom only tracks `document.activeElement` for elements actually connected to the
+        // live document, so this one test (and only this one) mounts attached rather than
+        // detached the way every other test here does.
+        const host = defineComponent({
+            setup: () =>
+                () =>
+                    h(VApp, () => [h(TabGroupPicker, { strip: STRIP, excludeGroupId: null, tabLabel: "Settings" })]),
+        });
+        const wrapper = mount(host, { global: { plugins: [vuetify, emptyI18n()] }, attachTo: document.body });
+        try {
+            const vm = picker(wrapper).vm as unknown as { focus: () => void };
+            vm.focus();
+            await wrapper.vm.$nextTick();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            expect(document.activeElement).toBe(searchInput(wrapper).element);
+        } finally {
+            wrapper.unmount();
+        }
+    });
+});
+
+/**
+ * `document.activeElement` is only tracked for elements genuinely connected to the live
+ * document, and Vuetify's own overlay plumbing needs a real application root to teleport
+ * into -- both reasons `NoticeBulkToolbar.test.ts` and the `focus` suite above already mount
+ * attached rather than detached. Every test below does the same for the same two reasons.
+ */
+function mountAttached(strip: TabStripState = STRIP, excludeGroupId: string | null = null): VueWrapper {
+    const host = defineComponent({
+        setup: () => () => h(VApp, () => [h(TabGroupPicker, { strip, excludeGroupId, tabLabel: "Settings" })]),
+    });
+    return mount(host, { global: { plugins: [vuetify, emptyI18n()] }, attachTo: document.body });
+}
+
+function cancelButton(wrapper: VueWrapper): HTMLElement {
+    const button = wrapper.findAll("button").find((candidate) => candidate.text().includes("Cancel"));
+    if (button === undefined) throw new Error("Cancel button not found");
+    return button.element as HTMLElement;
+}
+
+async function settle(): Promise<void> {
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+describe("Tab, with the regex builder closed", () => {
+    it("wraps between the search field and the Cancel button at the dialog's own edges", async () => {
+        const wrapper = mountAttached();
+        try {
+            const root = wrapper.find('[role="dialog"]');
+            const input = searchInput(wrapper).element as HTMLElement;
+            const cancel = cancelButton(wrapper);
+
+            input.focus();
+            expect(document.activeElement).toBe(input);
+
+            await root.trigger("keydown", { key: "Tab", shiftKey: true });
+            expect(document.activeElement).toBe(cancel);
+
+            await root.trigger("keydown", { key: "Tab" });
+            expect(document.activeElement).toBe(input);
+        } finally {
+            wrapper.unmount();
+        }
+    });
+});
+
+describe("Tab, with the teleported regex builder open", () => {
+    /**
+     * Regression for the confirmed bug: `focusableElements()`/`trapTab()` computed the trap
+     * only from `rootRef.value.querySelectorAll(...)`, but `ConfigSearchField.vue`'s ".*"
+     * button opens `ConfigRegexBuilder.vue` inside a `v-menu` that Vuetify teleports straight
+     * to `document.body`, entirely outside `rootRef`'s own subtree. A keydown fired while
+     * focus sits inside that teleported popover therefore never reached the dialog's own
+     * `@keydown` binding at all -- Tab silently did nothing there, and the dialog's own
+     * documented contract ("Tab and Shift+Tab wrap ... rather than escaping onto the tab
+     * strip behind the picker") went unenforced for exactly the one surface most likely to
+     * be open when a user is actually using the keyboard in this dialog.
+     *
+     * This suite focuses a *middle* element of the popover rather than its first or last, so
+     * neither this component's own (previously nonexistent) handling nor Vuetify's own
+     * `v-menu` boundary-close behaviour can incidentally paper over the defect: a middle
+     * press has nothing to redirect it unless something is actually listening.
+     */
+    async function openBuilder(wrapper: VueWrapper): Promise<HTMLElement> {
+        const builderButton = wrapper.find('[aria-label="Open the regex builder"]');
+        expect(builderButton.exists()).toBe(true);
+        await builderButton.trigger("click");
+        await settle();
+        const builder = document.querySelector<HTMLElement>(".mb-config-regex");
+        expect(builder).not.toBeNull();
+        return builder as HTMLElement;
+    }
+
+    function builderFocusable(builder: HTMLElement): HTMLElement[] {
+        return [...builder.querySelectorAll<HTMLElement>('input, button, [tabindex]:not([tabindex="-1"])')].filter(
+            (element) => !element.hasAttribute("disabled"),
+        );
+    }
+
+    it("steps Tab through the popover's own controls instead of leaving the keydown unhandled", async () => {
+        // A stand-in for "the tab strip behind the picker" / "the rest of the page": a real,
+        // independently focusable element sitting in ordinary document order, so an escape
+        // has somewhere concrete to land that this assertion can catch.
+        const decoy = document.createElement("button");
+        decoy.textContent = "outside the dialog";
+        document.body.appendChild(decoy);
+
+        const wrapper = mountAttached();
+        try {
+            const builder = await openBuilder(wrapper);
+            const focusable = builderFocusable(builder);
+            // At least the pattern textarea, several token buttons, the sample textarea and
+            // the two copy buttons -- comfortably more than enough for a genuine middle.
+            expect(focusable.length).toBeGreaterThan(4);
+            const middleIndex = Math.floor(focusable.length / 2);
+            const target = focusable[middleIndex] as HTMLElement;
+
+            target.focus();
+            expect(document.activeElement).toBe(target);
+
+            const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+            target.dispatchEvent(event);
+            await wrapper.vm.$nextTick();
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(document.activeElement).toBe(focusable[middleIndex + 1]);
+            expect(document.activeElement).not.toBe(decoy);
+        } finally {
+            wrapper.unmount();
+            decoy.remove();
+        }
+    });
+
+    it("wraps Shift+Tab from the popover's own first control back to the \".*\" button that opened it", async () => {
+        const wrapper = mountAttached();
+        try {
+            const builder = await openBuilder(wrapper);
+            const focusable = builderFocusable(builder);
+            const first = focusable[0] as HTMLElement;
+            const builderButton = wrapper.find('[aria-label="Open the regex builder"]').element as HTMLElement;
+
+            first.focus();
+            expect(document.activeElement).toBe(first);
+
+            const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true });
+            first.dispatchEvent(event);
+            await wrapper.vm.$nextTick();
+
+            expect(event.defaultPrevented).toBe(true);
+            expect(document.activeElement).toBe(builderButton);
+        } finally {
+            wrapper.unmount();
+        }
+    });
+
+    it("steps forward from the search field's own \".*\" button into the popover rather than jumping past it to Cancel", async () => {
+        const wrapper = mountAttached();
+        try {
+            const builder = await openBuilder(wrapper);
+            const focusable = builderFocusable(builder);
+            const builderButton = wrapper.find('[aria-label="Open the regex builder"]').element as HTMLElement;
+
+            builderButton.focus();
+            expect(document.activeElement).toBe(builderButton);
+
+            const root = wrapper.find('[role="dialog"]');
+            await root.trigger("keydown", { key: "Tab" });
+
+            expect(document.activeElement).toBe(focusable[0]);
+        } finally {
+            wrapper.unmount();
+        }
+    });
+});

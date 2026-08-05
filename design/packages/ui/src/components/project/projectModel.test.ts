@@ -15,17 +15,23 @@
 
 import { describe, expect, it } from "vitest";
 import { parseProjectFile, serializeProjectFile, type ProjectFile } from "@material-bluemap/config";
-import { fieldValue, openConfigFile } from "../config/configModel.js";
+import { fieldValue, isExplicit, openConfigFile } from "../config/configModel.js";
 import {
+    PROJECT_PRESETS,
+    applyPreset,
     createProject,
     exportProjects,
     findMap,
+    findPreset,
+    findStorage,
+    isRenderFieldDefault,
     mapDescriptor,
     mapIdProblem,
     mapIds,
     openMapFile,
     openSingletonFile,
     orderedMaps,
+    presetApplicationLines,
     previewMapId,
     projectDetailLine,
     projectFromWizard,
@@ -42,12 +48,15 @@ import {
     withMapAdded,
     withMapConfig,
     withMapEnabled,
+    withMapFieldSet,
     withMapIdentity,
     withMapMoved,
     withMapRemoved,
     withName,
     withRender,
+    withRenderFieldDefault,
     withSingleton,
+    withSingletonFieldSet,
     withStorageAdded,
     withStorageRemoved,
     withStorageType,
@@ -611,5 +620,258 @@ describe("syncing a config that was never generated", () => {
         expect(named).toBeDefined();
         expect(fieldValue(file, named!)).toBe("Sparse");
         expect(text).toContain("minecraft:the_end");
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Presets                                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** One setting out of a singleton's config text, which is what BlueMap would actually read. */
+function singletonSetting(project: ProjectFile, kind: "core" | "webapp" | "webserver" | "plugin", path: string): unknown {
+    const file = openSingletonFile(project, kind);
+    const field = file.descriptor.fields.find((candidate) => candidate.path === path);
+    if (field === undefined) throw new Error(`no field ${path}`);
+    return fieldValue(file, field);
+}
+
+const EMPTY = createProject("Empty", STAMP);
+
+describe("the four presets, said plainly", () => {
+    it("carries exactly one entry per id", () => {
+        expect(PROJECT_PRESETS.map((preset) => preset.id).sort()).toEqual(
+            ["allDimensions", "fastRender", "overworldOnly", "webServerOff"].sort(),
+        );
+    });
+
+    it("resolves a preset by id, and falls back to a real preset rather than undefined", () => {
+        expect(findPreset("allDimensions").dimensions).toHaveLength(3);
+        expect(findPreset("does-not-exist" as never)).toEqual(PROJECT_PRESETS[0]);
+    });
+});
+
+describe("applying the single-overworld preset", () => {
+    it("adds exactly one map and the shared file storage, nothing else", () => {
+        const application = applyPreset(EMPTY, findPreset("overworldOnly"), { world: WORLD, storageRoot: "C:/renders" });
+
+        expect(application.mapsAdded).toEqual(["overworld"]);
+        expect(application.mapsSkipped).toEqual([]);
+        expect(application.storageAdded).toBe(true);
+        expect(application.webserverWritten).toBe(false);
+        expect(application.project.maps.map((map) => map.id)).toEqual(["overworld"]);
+        expect(application.project.storages.map((storage) => storage.id)).toEqual(["file"]);
+        // Written from the real template, exactly like "Add a map" does - not a blank file.
+        expect(settingIn(application.project, "overworld", "name")).toBe("Overworld");
+        expect(settingIn(application.project, "overworld", "dimension")).toBe("minecraft:overworld");
+        // Nothing invented: no singleton was touched by this preset.
+        expect(application.project.webserver).toBeNull();
+        expect(application.project.core).toBeNull();
+    });
+});
+
+describe("applying the all-dimensions preset", () => {
+    it("adds all three maps, named and sorted the way BlueMap's own CLI would generate them", () => {
+        const application = applyPreset(EMPTY, findPreset("allDimensions"), { world: WORLD, storageRoot: "C:/renders" });
+
+        expect(application.mapsAdded.sort()).toEqual(["end", "nether", "overworld"]);
+        expect(findMap(application.project, "overworld")?.name).toBe("Overworld");
+        expect(findMap(application.project, "nether")?.name).toBe("Nether");
+        expect(findMap(application.project, "end")?.name).toBe("End");
+        // Each dimension keeps the real per-dimension preset colours `withMapAdded` already uses.
+        expect(settingIn(application.project, "nether", "ambient-light")).toBe(0.6);
+        expect(settingIn(application.project, "overworld", "ambient-light")).toBe(0.1);
+    });
+
+    it("skips a map id the project already has, rather than overwriting it", () => {
+        const withCustomOverworld = withMapConfig(
+            withMapAdded(EMPTY, { id: "overworld", name: "Custom", dimension: "minecraft:overworld", world: WORLD }),
+            "overworld",
+            'name: "Hand Edited"\nsky-color: "#ff00ff"\n',
+        );
+
+        const application = applyPreset(withCustomOverworld, findPreset("allDimensions"), {
+            world: WORLD,
+            storageRoot: "C:/renders",
+        });
+
+        expect(application.mapsAdded.sort()).toEqual(["end", "nether"]);
+        expect(application.mapsSkipped).toEqual(["overworld"]);
+        // The hand-edited map is untouched: applying a preset composes, it never overwrites.
+        expect(findMap(application.project, "overworld")?.config).toBe('name: "Hand Edited"\nsky-color: "#ff00ff"\n');
+    });
+
+    it("leaves an already-present file storage exactly as it was", () => {
+        const withCustomStorage = withStorageAdded(EMPTY, "file", "storage-type: file\nroot: \"D:/custom\"\n");
+
+        const application = applyPreset(withCustomStorage, findPreset("allDimensions"), {
+            world: WORLD,
+            storageRoot: "C:/renders",
+        });
+
+        expect(application.storageAdded).toBe(false);
+        expect(findStorage(application.project, "file")?.config).toBe('storage-type: file\nroot: "D:/custom"\n');
+    });
+});
+
+describe("applying the web-server-off preset", () => {
+    it("writes webserver.conf with enabled set to false, and nothing else in it", () => {
+        const application = applyPreset(EMPTY, findPreset("webServerOff"), { world: WORLD, storageRoot: "C:/renders" });
+
+        expect(application.webserverWritten).toBe(true);
+        expect(application.project.webserver).not.toBeNull();
+        expect(singletonSetting(application.project, "webserver", "enabled")).toBe(false);
+        // Every other webserver setting is still absent, so BlueMap's own default applies to
+        // all of them - this preset touches exactly the one field it declares.
+        const file = openSingletonFile(application.project, "webserver");
+        const enabledField = file.descriptor.fields.find((field) => field.path === "enabled")!;
+        const portField = file.descriptor.fields.find((field) => field.path === "port")!;
+        const webrootField = file.descriptor.fields.find((field) => field.path === "webroot")!;
+        expect(isExplicit(file, enabledField)).toBe(true);
+        expect(isExplicit(file, portField)).toBe(false);
+        expect(isExplicit(file, webrootField)).toBe(false);
+    });
+
+    it("leaves an already-present webserver.conf untouched", () => {
+        const withCustomWebserver = withSingleton(EMPTY, "webserver", "port: 9999\n");
+
+        const application = applyPreset(withCustomWebserver, findPreset("webServerOff"), {
+            world: WORLD,
+            storageRoot: "C:/renders",
+        });
+
+        expect(application.webserverWritten).toBe(false);
+        expect(application.project.webserver).toBe("port: 9999\n");
+    });
+});
+
+describe("applying the faster-renders preset", () => {
+    it("switches off the hires layer on every map it creates", () => {
+        const application = applyPreset(EMPTY, findPreset("fastRender"), { world: WORLD, storageRoot: "C:/renders" });
+
+        for (const id of application.mapsAdded) {
+            expect(settingIn(application.project, id, "enable-hires")).toBe(false);
+        }
+    });
+
+    it("does not touch enable-hires on a map the preset only skipped", () => {
+        const withCustomOverworld = withMapConfig(
+            withMapAdded(EMPTY, { id: "overworld", name: "Custom", dimension: "minecraft:overworld", world: WORLD }),
+            "overworld",
+            'name: "Custom"\nenable-hires: true\n',
+        );
+
+        const application = applyPreset(withCustomOverworld, findPreset("fastRender"), {
+            world: WORLD,
+            storageRoot: "C:/renders",
+        });
+
+        expect(application.mapsSkipped).toContain("overworld");
+        expect(settingIn(application.project, "overworld", "enable-hires")).toBe(true);
+    });
+});
+
+describe("presetApplicationLines, saying what actually happened", () => {
+    it("names the maps it added", () => {
+        const preset = findPreset("overworldOnly");
+        const application = applyPreset(EMPTY, preset, { world: WORLD, storageRoot: "C:/renders" });
+        const lines = presetApplicationLines(preset, application, t);
+
+        expect(lines.join(" ")).toContain("1");
+        expect(lines.join(" ")).toContain("Overworld");
+        expect(lines.join(" ")).toContain("Added the file storage");
+    });
+
+    it("says plainly when nothing was added, rather than claiming credit for work it did not do", () => {
+        const preset = findPreset("overworldOnly");
+        const already = applyPreset(EMPTY, preset, { world: WORLD, storageRoot: "C:/renders" }).project;
+        const application = applyPreset(already, preset, { world: WORLD, storageRoot: "C:/renders" });
+        const lines = presetApplicationLines(preset, application, t);
+
+        expect(lines.join(" ")).toContain("already in the project");
+        expect(lines.join(" ")).toContain("already existed");
+    });
+
+    it("mentions the web server only for a preset that actually touches it", () => {
+        const preset = findPreset("overworldOnly");
+        const application = applyPreset(EMPTY, preset, { world: WORLD, storageRoot: "C:/renders" });
+        const lines = presetApplicationLines(preset, application, t);
+
+        expect(lines.some((line) => line.includes("webserver.conf"))).toBe(false);
+    });
+
+    it("says the web server was left untouched when the project already had its own", () => {
+        const withCustomWebserver = withSingleton(EMPTY, "webserver", "port: 9999\n");
+        const preset = findPreset("webServerOff");
+        const application = applyPreset(withCustomWebserver, preset, { world: WORLD, storageRoot: "C:/renders" });
+        const lines = presetApplicationLines(preset, application, t);
+
+        expect(lines.join(" ")).toContain("already carries its own webserver.conf");
+    });
+});
+
+describe("withMapFieldSet and withSingletonFieldSet, the primitives a preset composes from", () => {
+    it("writes exactly one field into a map's config, through the schema", () => {
+        const project = withMapFieldSet(seeded(), "overworld", "enable-hires", false);
+        expect(settingIn(project, "overworld", "enable-hires")).toBe(false);
+        // Everything else the template already wrote is untouched.
+        expect(settingIn(project, "overworld", "name")).toBe("Overworld");
+    });
+
+    it("does nothing to a map id that is not there", () => {
+        expect(withMapFieldSet(seeded(), "does-not-exist", "enable-hires", false)).toEqual(seeded());
+    });
+
+    it("writes exactly one field into a singleton, starting from an absent file", () => {
+        const project = withSingletonFieldSet(seeded(), "webserver", "enabled", false);
+        expect(project.webserver).not.toBeNull();
+        expect(singletonSetting(project, "webserver", "enabled")).toBe(false);
+    });
+
+    it("refuses an unknown field, the same way writeField already does everywhere else", () => {
+        expect(withMapFieldSet(seeded(), "overworld", "not-a-real-field", true)).toEqual(seeded());
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The render tab's own default indicator                                    */
+/* -------------------------------------------------------------------------- */
+
+describe("a render option's own default", () => {
+    it("starts at the default a fresh project already carries", () => {
+        expect(isRenderFieldDefault(seeded(), "threads")).toBe(true);
+        expect(isRenderFieldDefault(seeded(), "force")).toBe(true);
+        expect(isRenderFieldDefault(seeded(), "fixEdges")).toBe(true);
+        expect(isRenderFieldDefault(seeded(), "metrics")).toBe(true);
+        expect(isRenderFieldDefault(seeded(), "outputFolder")).toBe(true);
+    });
+
+    it("says false the moment one is changed, and true again after it is put back", () => {
+        const changed = withRender(seeded(), { force: true, threads: 4 });
+        expect(isRenderFieldDefault(changed, "force")).toBe(false);
+        expect(isRenderFieldDefault(changed, "threads")).toBe(false);
+        // The other three were never touched.
+        expect(isRenderFieldDefault(changed, "fixEdges")).toBe(true);
+
+        const reset = withRenderFieldDefault(changed, "force");
+        expect(isRenderFieldDefault(reset, "force")).toBe(true);
+        // Resetting one leaves the other, still-changed one alone.
+        expect(isRenderFieldDefault(reset, "threads")).toBe(false);
+        expect(reset.render.threads).toBe(4);
+    });
+
+    it("resets outputFolder and threads back to null, and the three switches back to false", () => {
+        const changed = withRender(seeded(), {
+            threads: 8,
+            force: true,
+            fixEdges: true,
+            metrics: true,
+            outputFolder: "D:/renders",
+        });
+
+        expect(withRenderFieldDefault(changed, "threads").render.threads).toBeNull();
+        expect(withRenderFieldDefault(changed, "outputFolder").render.outputFolder).toBeNull();
+        expect(withRenderFieldDefault(changed, "force").render.force).toBe(false);
+        expect(withRenderFieldDefault(changed, "fixEdges").render.fixEdges).toBe(false);
+        expect(withRenderFieldDefault(changed, "metrics").render.metrics).toBe(false);
     });
 });

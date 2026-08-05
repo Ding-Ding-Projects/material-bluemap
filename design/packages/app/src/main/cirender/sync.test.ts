@@ -432,7 +432,95 @@ describe("an unchanged world is not uploaded again", () => {
     });
 });
 
+describe("the live events carry the route and the upload's own item counts", () => {
+    it("tags every phase with the credential actually driving it", async () => {
+        const github = uploadRoutes(releaseRoute(baseRoutes(new RecordingGitHub())))
+            .on("GET", "/actions/workflows/render-world.yml/runs", {
+                status: 200,
+                json: { workflow_runs: [runJson({ id: 7, status: "queued" })] },
+            })
+            .on("GET", /\/actions\/runs\/7$/, { status: 200, json: runJson({ id: 7, status: "queued" }) })
+            .on("GET", "/actions/runs/7/jobs", { status: 200, json: { jobs: [] } });
+        await seedUploadedState();
+        await writeFile(join(world, "region", "r.0.1.mca"), "a new region nobody had rendered");
+        const events: CiSyncEvent[] = [];
+        const sync = makeSync({ github, backup: fakeBackup(true), events });
+
+        const result = await sync.sync(request({ follow: false }));
+
+        expect(result.ok).toBe(true);
+        const phases = events.filter(
+            (event): event is Extract<CiSyncEvent, { type: "phase" }> => event.type === "phase",
+        );
+        // Every phase this sync reaches - checking, uploading, dispatching, waiting - is
+        // tagged, not only the ones after the upload finishes.
+        expect(phases.length).toBeGreaterThan(1);
+        expect(phases.every((event) => event.route === "session")).toBe(true);
+    });
+
+    it("forwards the upload's own count of its pieces, not just the bytes moved", async () => {
+        const github = uploadRoutes(releaseRoute(baseRoutes(new RecordingGitHub())))
+            .on("GET", "/actions/workflows/render-world.yml/runs", {
+                status: 200,
+                json: { workflow_runs: [runJson({ id: 7, status: "queued" })] },
+            })
+            .on("GET", /\/actions\/runs\/7$/, { status: 200, json: runJson({ id: 7, status: "queued" }) })
+            .on("GET", "/actions/runs/7/jobs", { status: 200, json: { jobs: [] } });
+        await seedUploadedState();
+        await writeFile(join(world, "region", "r.0.1.mca"), "a new region nobody had rendered");
+        const events: CiSyncEvent[] = [];
+        const sync = makeSync({ github, backup: fakeBackup(true), events });
+
+        const result = await sync.sync(request({ follow: false }));
+
+        expect(result.ok).toBe(true);
+        const progress = events.filter(
+            (event): event is Extract<CiSyncEvent, { type: "progress" }> => event.type === "progress",
+        );
+        expect(progress.length).toBeGreaterThan(0);
+        // Uploading the archive, the sidecar and the pointer is three pieces, and the count
+        // this reports is `upload.ts`'s own - never re-derived from the byte totals, which
+        // would say nothing about a part skipped because it was already on the release.
+        expect(progress.some((event) => event.assetsTotal >= 3)).toBe(true);
+        expect(progress.every((event) => event.assetsDone <= event.assetsTotal)).toBe(true);
+        // The asset actually being moved is named, not left implicit in the description.
+        expect(progress.some((event) => event.asset !== null)).toBe(true);
+    });
+});
+
 describe("a run that is still going is reported as still going", () => {
+    it("says which wave a job belongs to, read from its own name", async () => {
+        const github = releaseRoute(baseRoutes(new RecordingGitHub()))
+            .on("GET", "/actions/workflows/render-world.yml/runs", {
+                status: 200,
+                json: { workflow_runs: [runJson({ id: 7, status: "in_progress" })] },
+            })
+            .on("GET", /\/actions\/runs\/7$/, { status: 200, json: runJson({ id: 7, status: "in_progress" }) })
+            .on("GET", "/actions/runs/7/jobs", {
+                status: 200,
+                json: {
+                    jobs: [
+                        jobJson({ id: 41, name: "Build the BlueMap CLI", status: "completed", conclusion: "success" }),
+                        jobJson({ id: 42, name: "Wave 1 shard 0", status: "in_progress" }),
+                        // GitHub prefixes a job from a called reusable workflow with the
+                        // calling job's own name, which is also `Wave <n>` here.
+                        jobJson({ id: 43, name: "Wave 1 / Wave 1 shard 1", status: "queued" }),
+                        jobJson({ id: 44, name: "Wave 2 shard 0", status: "queued" }),
+                        jobJson({ id: 45, name: "Merge group 0", status: "queued" }),
+                    ],
+                },
+            });
+        await seedUploadedState();
+        const sync = makeSync({ github, backup: fakeBackup(true) });
+
+        const result = await sync.sync(request({ follow: false }));
+
+        expect(result.ok).toBe(true);
+        if (!result.ok || result.outcome !== "running") throw new Error("expected a running outcome");
+        // A job with no wave in its own name is null, never a guessed 0.
+        expect(result.run?.jobs.map((job) => job.wave)).toEqual([null, 1, 1, 2, null]);
+    });
+
     it("answers with the real per-job states and no conclusion", async () => {
         const github = releaseRoute(baseRoutes(new RecordingGitHub()))
             .on("GET", "/actions/workflows/render-world.yml/runs", {

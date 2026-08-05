@@ -16,6 +16,7 @@ import {
     VSelect,
     VTextField,
 } from "vuetify/components";
+import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import BackupRunCard from "./BackupRunCard.vue";
@@ -102,6 +103,13 @@ const sourceFailure = ref<string | null>(null);
 const inspecting = ref(false);
 
 const offered = computed(() => props.sources.filter((candidate) => candidate.kind === kind.value));
+
+/**
+ * What `PathField` calls this path in "Browse for {field}" / "Choose {field}", mirrored
+ * from which kind of thing is being backed up so the dialog and the accessible name both
+ * name the right folder rather than a generic one.
+ */
+const folderField = computed(() => (kind.value === "world" ? "world folder" : "render folder"));
 
 async function inspect(): Promise<void> {
     source.value = null;
@@ -396,20 +404,16 @@ defineExpose({ backups, kind, folder, owner, repo, source, inspect, check });
                     />
 
                     <div class="mb-backup__row">
-                        <v-text-field
+                        <PathField
                             v-model="folder"
+                            :field="folderField"
+                            semantic="folder"
                             :label="t('backup.folder', 'Folder')"
                             :placeholder="
                                 kind === 'world'
                                     ? t('backup.folderHintWorld', 'the folder holding level.dat')
                                     : t('backup.folderHintRender', 'the render folder under your maps folder')
                             "
-                            variant="outlined"
-                            density="compact"
-                            spellcheck="false"
-                            autocapitalize="off"
-                            autocomplete="off"
-                            hide-details="auto"
                             @keydown.enter="inspect"
                         />
                         <v-btn
@@ -856,6 +860,13 @@ defineExpose({ backups, kind, folder, owner, repo, source, inspect, check });
 }
 
 .mb-backup__row > .v-input {
+    flex: 1 1 180px;
+    min-inline-size: 0;
+}
+
+/* `PathField.vue` renders its own wrapper div rather than a bare `.v-input`, so it needs
+   the same flex-basis spelled out again to keep wrapping the way the plain text field did. */
+.mb-backup__row > .mb-path-field {
     flex: 1 1 180px;
     min-inline-size: 0;
 }

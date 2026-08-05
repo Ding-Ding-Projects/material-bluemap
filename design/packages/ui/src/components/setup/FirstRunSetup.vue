@@ -143,10 +143,8 @@ function onStorageInput(value: string): void {
                         :model-value="flow.storageDir.value"
                         :platform="flow.platform"
                         :problem="flow.storageProblem.value"
-                        :can-browse="flow.canBrowse"
                         :busy="flow.busy.value"
                         @update:model-value="onStorageInput"
-                        @browse="flow.browse"
                         @use-default="flow.useDefaultStorage"
                     />
                 </div>

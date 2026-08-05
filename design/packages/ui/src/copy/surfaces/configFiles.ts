@@ -1541,8 +1541,6 @@ export const CONFIGFILES_FIXED = {
     "config.maps.fileName": { en: "File name", yue: "檔案名" },
     "config.maps.displayName": { en: "Name shown in the web app", yue: "網頁應用度顯示嘅名" },
     "config.maps.world": { en: "World folder", yue: "世界資料夾" },
-    "config.maps.browse": { en: "Browse", yue: "瀏覽" },
-    "config.maps.pickWorld": { en: "Choose the world folder", yue: "揀個世界資料夾" },
     "config.maps.dimension": { en: "Dimension", yue: "維度" },
     "config.maps.dimensionType": { en: "Dimension type", yue: "維度類型" },
     "config.maps.sorting": { en: "Sorting", yue: "排序" },
@@ -1575,11 +1573,6 @@ export const CONFIGFILES_FIXED = {
     "config.storages.type": { en: "Storage type", yue: "儲存空間類型" },
     "config.storages.fileName": { en: "File name", yue: "檔案名" },
     "config.storages.root": { en: "Folder for rendered tiles", yue: "放算好圖磚嘅資料夾" },
-    "config.storages.browse": { en: "Browse", yue: "瀏覽" },
-    "config.storages.pickRoot": {
-        en: "Choose the folder for rendered tiles",
-        yue: "揀個資料夾放算好嘅圖磚",
-    },
     "config.storages.test": { en: "Test the connection", yue: "測試連線" },
     "config.storages.testingNow": { en: "Connecting", yue: "連緊" },
     "config.storages.testing": { en: "Testing a database connection", yue: "測試緊資料庫連線" },
@@ -1602,16 +1595,6 @@ export const CONFIGFILES_FIXED = {
     /* ---------------------------------------------------------------- */
 
     "config.markers.count": { en: "{n} markers", yue: "{n} 個標記" },
-    "config.markers.label": { en: "Label shown in the menu", yue: "選單度顯示嘅標籤" },
-    "config.markers.sorting": { en: "Sorting", yue: "排序" },
-    "config.markers.toggleable": {
-        en: "Visitors can turn this set off",
-        yue: "訪客可以熄咗呢一組",
-    },
-    "config.markers.defaultHidden": {
-        en: "Hidden until a visitor turns it on",
-        yue: "預設隱藏，訪客開咗先見到",
-    },
     "config.markers.raw": { en: "Markers, as written in the file", yue: "標記，照檔案入面原文" },
     "config.markers.removeSet": { en: "Remove this marker set", yue: "移除呢個標記組" },
     "config.markers.newId": { en: "New marker set id", yue: "新標記組 id" },

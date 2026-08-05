@@ -251,6 +251,28 @@ describe("the search bar over the settings you changed", () => {
     });
 });
 
+describe("the 'Show the map config this produces' disclosure", () => {
+    it("points its aria-controls at the id of the region it reveals", async () => {
+        const wrapper = render();
+        await settle();
+
+        const toggle = wrapper.get(".mb-world-review__head button");
+        expect(toggle.attributes("aria-expanded")).toBe("false");
+
+        const controlsId = toggle.attributes("aria-controls");
+        expect(controlsId).toBeTruthy();
+
+        await toggle.trigger("click");
+        await settle();
+
+        expect(toggle.attributes("aria-expanded")).toBe("true");
+        expect(wrapper.find(`#${controlsId}`).exists()).toBe(true);
+        expect(wrapper.get(`#${controlsId}`).text()).toContain("maps: {}");
+
+        wrapper.unmount();
+    });
+});
+
 describe("the builder, opened from this field", () => {
     it("applies its pattern across both lists, and turns regex on by doing so", async () => {
         const wrapper = render();

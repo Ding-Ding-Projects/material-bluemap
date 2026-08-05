@@ -89,6 +89,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Every panel that docks to an edge remembers its own position: floating, or docked to the left, right, top or bottom. Each one is changed from its own title bar. This is where all of them are put back at once.",
             ),
         },
+        "updates": {
+            title: t("settings.updates.title", "Updates"),
+            description: t(
+                "settings.updates.description",
+                "Whether this build is up to date, when it last checked, and where updates come from. Check for updates by hand from here, and bring back an update banner you dismissed.",
+            ),
+        },
     };
 }
 

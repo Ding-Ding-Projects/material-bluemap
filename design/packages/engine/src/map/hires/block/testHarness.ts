@@ -47,6 +47,13 @@ export interface TestBlock {
 export class TestWorldData {
     private readonly blocks = new Map<string, TestBlock>();
 
+    /**
+     * Port-only test flag, no upstream analog: mirrors {@link Chunk#isLegacy} for the
+     * hand-built test world, so the `flattenLegacyBlockState` gate can be driven by
+     * {@link harness} without a real pre-flattening chunk.
+     */
+    legacy = false;
+
     static key(x: number, y: number, z: number): string {
         return `${x},${y},${z}`;
     }
@@ -93,6 +100,10 @@ export class TestBlockAccess implements BlockAccess {
 
     getBlockState(): BlockState {
         return this.world.get(this.x, this.y, this.z)?.state ?? BlockState.AIR;
+    }
+
+    isLegacy(): boolean {
+        return this.world.legacy;
     }
 
     getLightData(): LightData {
@@ -270,6 +281,10 @@ export class TestChunk extends Chunk {
 
     override isGenerated(): boolean {
         return true;
+    }
+
+    override isLegacy(): boolean {
+        return this.world.legacy;
     }
 
     override getBlockState(x: number, y: number, z: number): BlockState {

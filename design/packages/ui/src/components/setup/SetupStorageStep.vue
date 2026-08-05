@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { VBtn, VTextField } from "vuetify/components";
-import { mdiFolderOpen } from "@mdi/js";
+import { VBtn } from "vuetify/components";
+import PathField from "../PathField.vue";
 import SetupText from "./SetupText.vue";
 import { useSetupI18n } from "./setupI18n.js";
 import {
@@ -22,21 +22,23 @@ import {
  * because that is the real value the main process expands when a render starts, and the
  * hint underneath names the exact token on screen rather than describing it vaguely.
  *
- * When the preload grows a folder picker, `canBrowse` turns true and a Choose folder
- * button appears beside the field. Until then there is no button pretending to be one:
- * a control that looks operable and does nothing is worse than a control that is absent.
+ * The browse button is `PathField.vue`, the same shared affordance every path field in
+ * the app now adopts. It used to be gated on `canBrowse`, a prop that stayed false
+ * forever because it watched `chooseMapStorageDirectory`, a preload method nobody ever
+ * implemented; `PathField` reaches the real `window.materialBluemap.dialog` bridge
+ * instead, so the button now genuinely works in the desktop app and disables itself
+ * with an honest explanation everywhere else. There is no `canBrowse` prop and no
+ * `browse` event left to wire: `PathField` decides for itself whether a bridge exists.
  */
 const props = defineProps<{
     modelValue: string;
     platform: SetupPlatform;
     problem: MapStorageProblem;
-    canBrowse: boolean;
     busy: boolean;
 }>();
 
 const emit = defineEmits<{
     "update:modelValue": [value: string];
-    browse: [];
     useDefault: [];
 }>();
 
@@ -61,32 +63,18 @@ const errorMessage = computed(() => {
         <SetupText text-key="storage.lead" class="mb-setup-step__lead" />
 
         <div class="mb-setup-storage">
-            <v-text-field
+            <PathField
                 :model-value="modelValue"
+                field="the map storage folder"
                 :label="i18n.t('storage.fieldLabel')"
-                :error-messages="errorMessage"
+                semantic="folder"
                 :disabled="busy"
-                :hint="isDefault ? i18n.t('storage.defaultLabel') : ''"
-                persistent-hint
-                variant="outlined"
+                :error="errorMessage"
                 density="comfortable"
-                spellcheck="false"
-                autocapitalize="off"
-                autocomplete="off"
                 class="mb-setup-storage__field"
                 @update:model-value="(value: string) => emit('update:modelValue', value)"
             />
             <div class="mb-setup-storage__actions">
-                <v-btn
-                    v-if="canBrowse"
-                    :prepend-icon="mdiFolderOpen"
-                    :disabled="busy"
-                    variant="tonal"
-                    class="mb-setup-storage__button"
-                    @click="emit('browse')"
-                >
-                    {{ i18n.t("action.browse") }}
-                </v-btn>
                 <v-btn
                     :disabled="busy || isDefault"
                     variant="text"
@@ -97,6 +85,12 @@ const errorMessage = computed(() => {
                 </v-btn>
             </div>
         </div>
+
+        <SetupText
+            v-if="isDefault"
+            text-key="storage.defaultLabel"
+            class="mb-setup-storage__hint"
+        />
 
         <SetupText
             v-if="showTokenHint"
@@ -132,5 +126,11 @@ const errorMessage = computed(() => {
 
 .mb-setup-storage__button {
     min-height: 40px;
+}
+
+.mb-setup-storage__hint {
+    margin-block-start: -4px;
+    font-size: 0.75rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

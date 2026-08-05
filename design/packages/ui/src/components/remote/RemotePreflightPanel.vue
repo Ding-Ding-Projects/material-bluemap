@@ -146,6 +146,7 @@ function toggleDetail(stage: string): void {
                         <template v-if="row.detail">
                             <v-btn
                                 :aria-expanded="openDetail === row.stage ? 'true' : 'false'"
+                                :aria-controls="`mb-remote-preflight-detail-${row.stage}`"
                                 variant="text"
                                 size="x-small"
                                 density="comfortable"
@@ -157,7 +158,11 @@ function toggleDetail(stage: string): void {
                                         : t("remote.preflight.showDetail", "Show the detail")
                                 }}
                             </v-btn>
-                            <pre v-if="openDetail === row.stage" class="mb-remote-preflight__detail">{{ row.detail }}</pre>
+                            <pre
+                                v-if="openDetail === row.stage"
+                                :id="`mb-remote-preflight-detail-${row.stage}`"
+                                class="mb-remote-preflight__detail"
+                            >{{ row.detail }}</pre>
                         </template>
                     </div>
                 </li>

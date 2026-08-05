@@ -17,6 +17,13 @@ export interface BlockAccess {
     getBiome(): Biome;
     getBlockEntity(): BlockEntity | null;
 
+    /**
+     * Port-only, no upstream analog: `true` when this position's chunk is pre-flattening
+     * (see {@link Chunk#isLegacy}). Consulted by `BlockStateModelRenderer` to gate
+     * `flattenLegacyBlockState`.
+     */
+    isLegacy(): boolean;
+
     hasOceanFloorY(): boolean;
     getOceanFloorY(): number;
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiCloudSyncOutline, mdiOpenInNew, mdiRefresh } from "@mdi/js";
+import { mdiCloudSyncOutline, mdiFolderSearchOutline, mdiOpenInNew, mdiRefresh } from "@mdi/js";
 import {
     VAlert,
     VBtn,
@@ -12,11 +12,26 @@ import {
     VChip,
     VProgressCircular,
     VProgressLinear,
+    VSelect,
     VTextField,
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
-import { createCiRenders, formatBytes, jobTone, phaseLabel, runLabel, uploadLine } from "./ciRenders.js";
+import MinecraftWorldList from "../world/MinecraftWorldList.vue";
+import { resolveWorldCatalogBridge } from "../world/worldCatalog.js";
+import type { WorldCatalogBridge } from "../world/worldCatalog.js";
+import {
+    createCiRenders,
+    formatBytes,
+    jobTone,
+    phaseLabel,
+    repoNameProblem,
+    routeLabel,
+    runLabel,
+    uploadLine,
+    waveSummaries,
+    worldFolderName,
+} from "./ciRenders.js";
 import type { CiRow } from "./ciRenders.js";
 import { resolveCiRenderBridge } from "./ciRenderBridge.js";
 import type { CiJobReport, CiRenderBridge, CiPreflight } from "./ciRenderBridge.js";
@@ -63,6 +78,12 @@ const props = withDefaults(
         bridge?: CiRenderBridge | null | undefined;
         /** Worlds this machine already knows about, offered beside the folder field. */
         worlds?: readonly { folder: string; label: string }[] | undefined;
+        /**
+         * The world catalog's own bridge, handed down for tests exactly the way
+         * `WorldFolderStep.vue` accepts one. Left out, `undefined` means probe the Electron
+         * bridge itself; an explicit `null` means there is deliberately none.
+         */
+        catalogBridge?: WorldCatalogBridge | null | undefined;
         /** True when the shell can open settings at a row. */
         canOpenSettings?: boolean | undefined;
     }>(),
@@ -90,6 +111,228 @@ const owner = ref("");
 const repo = ref("");
 const acknowledgeUpload = ref(false);
 const acknowledgePublic = ref(false);
+
+/* -------------------------------------------------------------------------- */
+/* The world folder: a picker of what this machine already knows about,       */
+/* a browse button, and free text that all three keep in step with each other */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The world catalog's own bridge, probed exactly as `WorldFolderStep.vue` probes it: left
+ * undefined it probes the Electron preload itself, and a build with none of it simply shows
+ * no list, leaving the field, the browse button and typing it by hand untouched.
+ */
+const worldCatalogBridge = computed<WorldCatalogBridge | null>(() =>
+    props.catalogBridge === undefined ? resolveWorldCatalogBridge() : props.catalogBridge,
+);
+
+/**
+ * The shared folder-browse affordance, probed by hand rather than through `useConfigHost()`.
+ *
+ * This screen is not nested under `provideConfigHost()` the way the config editor is, and
+ * `window.materialBluemap.dialog` asks nothing of its caller beyond existing - it is the
+ * same "screen-agnostic path field" surface Settings and the remote target editor already
+ * reach through. A build carrying none of it simply hides the Browse button; typing the
+ * path, or choosing it from the list below, both still work.
+ */
+const dialogPickFolder = computed<((options: { title: string; startIn?: string }) => Promise<string | null>) | null>(
+    () => {
+        const host = (
+            globalThis as {
+                materialBluemap?: { dialog?: { pickFolder?: (options: { title: string; startIn?: string }) => Promise<string | null> } };
+            }
+        ).materialBluemap;
+        const pick = host?.dialog?.pickFolder;
+        return typeof pick === "function" ? pick : null;
+    },
+);
+
+/**
+ * Why the Browse button is dead on this build, or null when it works.
+ *
+ * The same discipline `checkBlockedBecause` and `blockedBecause` hold their buttons to:
+ * a disabled control in this card always says why, sighted or via a screen reader, rather
+ * than a button that simply does nothing when clicked.
+ */
+const browseUnavailableBecause = computed<string | null>(() => {
+    if (dialogPickFolder.value !== null) return null;
+    return t(
+        "cirender.field.world.browseUnavailable",
+        "This build cannot open a folder picker. Type the world's path above, or choose it from the list below.",
+    );
+});
+
+async function browseWorldFolder(): Promise<void> {
+    const pick = dialogPickFolder.value;
+    if (pick === null) return;
+    const chosen = await pick({
+        title: t("cirender.field.world.browsePrompt", "Choose the world folder, the one that contains level.dat"),
+        ...(worldFolder.value.trim() === "" ? {} : { startIn: worldFolder.value.trim() }),
+    });
+    if (chosen === null) return;
+    worldFolder.value = chosen;
+    void applySuggestedRepoName(chosen);
+}
+
+/** A world picked from the list. Filled in exactly like a typed or browsed one. */
+function chooseWorld(folder: string): void {
+    worldFolder.value = folder;
+    void applySuggestedRepoName(folder);
+}
+
+/**
+ * Fills the repository name from the world's own folder name, once - never overwriting
+ * something already typed.
+ *
+ * Checked again after the suggestion arrives, not only before asking for it: a person can
+ * type a name into the field during the round trip, and that keystroke must win. The world
+ * folder is checked too, not just the repo field: choosing world A and then world B before
+ * A's round trip has returned leaves two requests in flight, and A's slower-or-faster return
+ * must not overwrite the field with a name for a world that is no longer chosen.
+ */
+async function applySuggestedRepoName(folder: string): Promise<void> {
+    if (repo.value.trim() !== "") return;
+    const name = worldFolderName(folder);
+    if (name === "") return;
+    const suggestion = await renders.suggestRepoName(name);
+    if (suggestion !== null && repo.value.trim() === "" && worldFolder.value === folder) repo.value = suggestion;
+}
+
+/* -------------------------------------------------------------------------- */
+/* The repository owner: the signed-in account and its organisations          */
+/* -------------------------------------------------------------------------- */
+
+const ownerItems = computed(() => {
+    const answer = renders.owners.value;
+    if (answer === null || !answer.ok) return [];
+    return answer.owners.map((choice) => ({
+        title:
+            choice.kind === "organization"
+                ? t("cirender.owner.asOrg", { login: choice.login }, "{login} (organization)")
+                : t("cirender.owner.asYou", { login: choice.login }, "{login} (you)"),
+        value: choice.login,
+    }));
+});
+
+function chooseOwner(value: unknown): void {
+    if (typeof value === "string") owner.value = value;
+}
+
+/** Nobody is signed in at all - the "sign in" case, not the "try again" one. */
+const ownerSignedOut = computed(() => {
+    const answer = renders.owners.value;
+    return answer !== null && !answer.ok && !answer.signedIn;
+});
+
+/** Somebody is signed in, but the list itself could not be read - "try again" applies here. */
+const ownerLoadFailed = computed(() => {
+    const answer = renders.owners.value;
+    return answer !== null && !answer.ok && answer.signedIn;
+});
+
+const ownerFailureMessage = computed(() => {
+    const answer = renders.owners.value;
+    return answer !== null && !answer.ok ? answer.message : "";
+});
+
+/* -------------------------------------------------------------------------- */
+/* The repository name: an existing repository picked, or a name checked live */
+/* -------------------------------------------------------------------------- */
+
+const repositoryItems = computed(() =>
+    renders.repositories.value.map((repository) => ({
+        title: repository.private
+            ? t("cirender.repo.itemPrivate", { name: repository.fullName }, "{name} (private)")
+            : t("cirender.repo.itemPublic", { name: repository.fullName }, "{name} (PUBLIC)"),
+        value: repository.fullName,
+    })),
+);
+
+function chooseRepository(value: unknown): void {
+    if (typeof value !== "string") return;
+    const [chosenOwner, chosenRepo] = value.split("/");
+    if (chosenOwner === undefined || chosenRepo === undefined) return;
+    owner.value = chosenOwner;
+    repo.value = chosenRepo;
+}
+
+/** Which of GitHub's naming rules `repo` breaks, or null when it is fine or still empty. */
+const repoProblem = computed(() => repoNameProblem(repo.value, t));
+
+let nameCheckTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Checks the typed name against GitHub, on a delay.
+ *
+ * A network call on every keystroke would ask GitHub about "w", "wo", "wor" and every
+ * letter after - debounced here so it asks about the name somebody actually meant to type,
+ * once they have paused rather than mid-keystroke. Any stale verdict is dropped the instant
+ * either field changes, so a "taken" from the previous name is never shown beside a new one.
+ */
+watch([owner, repo], ([nextOwner, nextRepo]) => {
+    renders.clearNameAvailability();
+    if (nameCheckTimer !== null) clearTimeout(nameCheckTimer);
+    const trimmedOwner = nextOwner.trim();
+    const trimmedRepo = nextRepo.trim();
+    if (trimmedOwner === "" || trimmedRepo === "" || repoProblem.value !== null) return;
+    nameCheckTimer = setTimeout(() => {
+        void renders.checkRepoName(trimmedOwner, trimmedRepo);
+    }, 600);
+});
+
+const repoAvailabilityTone = computed<"success" | "warning" | "muted">(() => {
+    const availability = renders.nameAvailability.value;
+    if (availability === null) return "muted";
+    if (availability.status === "available") return "success";
+    if (availability.status === "taken") return "warning";
+    return "muted";
+});
+
+const repoAvailabilityText = computed<string>(() => {
+    const availability = renders.nameAvailability.value;
+    if (availability === null) return "";
+    if (availability.status === "available") {
+        return t(
+            "cirender.repo.available",
+            { owner: availability.owner, repo: availability.repo },
+            "{owner}/{repo} is free on GitHub.",
+        );
+    }
+    if (availability.status === "taken") {
+        return t(
+            "cirender.repo.taken",
+            { owner: availability.owner, repo: availability.repo },
+            "{owner}/{repo} already exists on GitHub.",
+        );
+    }
+    return t(
+        "cirender.repo.unknown",
+        { owner: availability.owner, repo: availability.repo, message: availability.message },
+        "Could not check whether that name is free: {message}",
+    );
+});
+
+/**
+ * Why the Check button will not go yet, in the order somebody fills the card in.
+ *
+ * The same discipline `blockedBecause` below holds the Render button to: one sentence,
+ * naming exactly which field is missing or invalid, rather than a button that simply went
+ * grey.
+ */
+const checkBlockedBecause = computed<string | null>(() => {
+    if (!renders.available) return null;
+    if (worldFolder.value.trim() === "") {
+        return t("cirender.checkBlocked.world", "Choose a world folder before checking.");
+    }
+    if (owner.value.trim() === "") {
+        return t("cirender.checkBlocked.owner", "Choose or type a repository owner before checking.");
+    }
+    if (repo.value.trim() === "") {
+        return t("cirender.checkBlocked.repo", "Choose or type a repository name before checking.");
+    }
+    if (repoProblem.value !== null) return repoProblem.value;
+    return null;
+});
 
 /**
  * Whether the finished map is published to the repository's Pages site as well as
@@ -255,11 +498,30 @@ function jobSample(row: CiRow): string {
     return (row.run?.jobs ?? []).map((job) => job.name).join("\n");
 }
 
+/**
+ * The waves this row's jobs actually named, in the order first seen.
+ *
+ * Filters out the `wave: null` bucket - jobs the workflow does not shard, like `Build the
+ * BlueMap CLI` - so the summary only lists real waves rather than a row for "no wave" that
+ * would read as one more wave.
+ */
+function waves(row: CiRow): readonly { wave: number; done: number; total: number }[] {
+    return waveSummaries(row.run?.jobs ?? []).flatMap((summary) =>
+        summary.wave === null ? [] : [{ wave: summary.wave, done: summary.done, total: summary.total }],
+    );
+}
+
 onMounted(() => {
     void renders.loadKnown();
+    if (renders.canListOwners) void renders.loadOwners();
+    if (renders.canListRepositories) void renders.loadRepositories();
+    // A world already prefilled from `props.worlds` is a world chosen too, so the name
+    // suggestion applies to it exactly as it would to one picked or browsed after mount.
+    if (worldFolder.value.trim() !== "") void applySuggestedRepoName(worldFolder.value);
 });
 
 onBeforeUnmount(() => {
+    if (nameCheckTimer !== null) clearTimeout(nameCheckTimer);
     renders.dispose();
 });
 </script>
@@ -296,31 +558,201 @@ onBeforeUnmount(() => {
             <VCard class="mb-4">
                 <VCardTitle>{{ t("cirender.where.title", "What, and where") }}</VCardTitle>
                 <VCardText>
-                    <VTextField
-                        v-model="worldFolder"
-                        :label="t('cirender.field.world', 'World folder')"
+                    <!--
+                        The world folder: a text field kept in step with a picker of what
+                        this machine already knows about and a browse button, exactly the
+                        three routes `WorldFolderStep.vue` offers for the same choice. None
+                        of the three is the "real" one; they all write the same ref.
+                    -->
+                    <div class="d-flex ga-2 flex-wrap align-start">
+                        <VTextField
+                            v-model="worldFolder"
+                            :label="t('cirender.field.world', 'World folder')"
+                            :hint="t('cirender.field.world.help', 'Pick a world below, browse for one, or type its full path.')"
+                            persistent-hint
+                            density="compact"
+                            data-test="world-field"
+                            class="flex-grow-1"
+                            style="min-width: 220px"
+                        />
+                        <VBtn
+                            :prepend-icon="mdiFolderSearchOutline"
+                            :disabled="dialogPickFolder === null"
+                            :title="browseUnavailableBecause ?? undefined"
+                            :aria-label="
+                                browseUnavailableBecause !== null
+                                    ? t(
+                                          'cirender.field.world.browseUnavailableLabel',
+                                          { reason: browseUnavailableBecause },
+                                          'Browse: {reason}',
+                                      )
+                                    : undefined
+                            "
+                            variant="tonal"
+                            data-test="world-browse"
+                            @click="browseWorldFolder"
+                        >
+                            {{ t("cirender.field.world.browse", "Browse") }}
+                        </VBtn>
+                    </div>
+                    <p
+                        v-if="browseUnavailableBecause !== null"
+                        class="text-medium-emphasis mt-1"
+                        data-test="world-browse-unavailable"
+                    >
+                        {{ browseUnavailableBecause }}
+                    </p>
+
+                    <MinecraftWorldList :model-value="worldFolder" :bridge="worldCatalogBridge" @choose="chooseWorld" />
+
+                    <!--
+                        The repository owner: signed out points at the sign-in row that
+                        already exists rather than opening a second one; signed in but
+                        unreadable offers a retry; either way the free-text field beneath
+                        keeps working on its own.
+                    -->
+                    <VAlert
+                        v-if="ownerSignedOut"
+                        type="info"
+                        variant="tonal"
                         density="compact"
+                        class="mt-4 mb-2"
+                        data-test="owner-signed-out"
+                    >
+                        {{
+                            t(
+                                "cirender.owner.signedOut",
+                                "Nobody is signed in to GitHub, so there is no list of accounts to choose from. Sign in from Settings, or type the owner directly below.",
+                            )
+                        }}
+                        <VBtn
+                            v-if="props.canOpenSettings"
+                            size="small"
+                            variant="text"
+                            class="mt-1"
+                            @click="emit('signIn')"
+                        >
+                            {{ t("cirender.signIn", "Open the GitHub sign-in") }}
+                        </VBtn>
+                    </VAlert>
+                    <VAlert
+                        v-else-if="ownerLoadFailed"
+                        type="warning"
+                        variant="tonal"
+                        density="compact"
+                        class="mt-4 mb-2"
+                        data-test="owner-load-failed"
+                    >
+                        {{ ownerFailureMessage }}
+                        <VBtn size="small" variant="text" class="mt-1" @click="renders.loadOwners()">
+                            {{ t("cirender.owner.retry", "Try again") }}
+                        </VBtn>
+                    </VAlert>
+
+                    <VSelect
+                        v-if="ownerItems.length > 0"
+                        :items="ownerItems"
+                        :label="t('cirender.owner.pick', 'Choose an owner')"
+                        variant="outlined"
+                        density="compact"
+                        hide-details="auto"
+                        class="mb-2"
+                        data-test="owner-select"
+                        @update:model-value="chooseOwner"
                     />
-                    <div class="d-flex ga-2">
+
+                    <VSelect
+                        v-if="repositoryItems.length > 0"
+                        :items="repositoryItems"
+                        :label="t('cirender.repo.pick', 'One of your repositories')"
+                        variant="outlined"
+                        density="compact"
+                        hide-details="auto"
+                        class="mb-2"
+                        data-test="repository-select"
+                        @update:model-value="chooseRepository"
+                    />
+                    <p
+                        v-else-if="renders.loadingRepositories.value"
+                        class="text-medium-emphasis mb-2"
+                        data-test="repositories-loading"
+                    >
+                        {{ t("cirender.repo.loadingRepositories", "Reading your repositories...") }}
+                    </p>
+                    <VAlert
+                        v-else-if="renders.repositoriesFailure.value !== null"
+                        type="warning"
+                        variant="tonal"
+                        density="compact"
+                        class="mb-2"
+                        data-test="repositories-failure"
+                    >
+                        {{ renders.repositoriesFailure.value }}
+                    </VAlert>
+
+                    <div class="d-flex ga-2 flex-wrap">
                         <VTextField
                             v-model="owner"
                             :label="t('cirender.field.owner', 'Repository owner')"
+                            :hint="t('cirender.field.owner.help', 'Pick an account above, or type any owner you have write access to.')"
+                            persistent-hint
                             density="compact"
+                            data-test="owner-field"
+                            class="flex-grow-1"
+                            style="min-width: 200px"
                         />
                         <VTextField
                             v-model="repo"
                             :label="t('cirender.field.repo', 'Repository name')"
+                            :hint="
+                                repoProblem ??
+                                t(
+                                    'cirender.field.repo.help',
+                                    'A name is suggested once you choose a world. It stays yours to change before checking.',
+                                )
+                            "
+                            :error="repoProblem !== null"
+                            persistent-hint
                             density="compact"
+                            data-test="repo-field"
+                            class="flex-grow-1"
+                            style="min-width: 200px"
                         />
                     </div>
+
+                    <p
+                        v-if="renders.checkingName.value"
+                        class="text-medium-emphasis mt-1"
+                        data-test="repo-availability"
+                    >
+                        {{ t("cirender.repo.checking", "Checking whether that name is free...") }}
+                    </p>
+                    <p
+                        v-else-if="renders.nameAvailability.value !== null"
+                        class="mt-1"
+                        :class="{
+                            'text-success': repoAvailabilityTone === 'success',
+                            'text-warning': repoAvailabilityTone === 'warning',
+                            'text-medium-emphasis': repoAvailabilityTone === 'muted',
+                        }"
+                        data-test="repo-availability"
+                    >
+                        {{ repoAvailabilityText }}
+                    </p>
+
                     <VBtn
                         :prepend-icon="mdiRefresh"
+                        :disabled="checkBlockedBecause !== null"
                         :loading="renders.checking.value"
                         variant="tonal"
+                        class="mt-3"
                         @click="check"
                     >
                         {{ t("cirender.check", "Check before anything is sent") }}
                     </VBtn>
+                    <p v-if="checkBlockedBecause !== null" class="text-medium-emphasis mt-2" data-test="check-blocked">
+                        {{ checkBlockedBecause }}
+                    </p>
                     <VAlert
                         v-if="renders.preflightFailure.value !== null"
                         type="error"
@@ -549,9 +981,19 @@ onBeforeUnmount(() => {
                     <p>{{ phaseLabel(row.phase, t) }}</p>
 
                     <!--
-                        The upload's own byte count. A world is gigabytes and a domestic
-                        connection is hours, so a phase label with no number beside it is
-                        indistinguishable from a hang for most of an afternoon.
+                        Which credential is actually driving this sync. Null for the moment
+                        between `started` and the first `phase` event - the route genuinely
+                        is not known yet, so nothing is shown rather than a placeholder.
+                    -->
+                    <p v-if="row.route !== null" class="text-medium-emphasis" data-test="row-route">
+                        {{ routeLabel(row.route, t) }}
+                    </p>
+
+                    <!--
+                        The upload's own byte count, and the pieces those bytes are made of.
+                        A world is gigabytes and a domestic connection is hours, so a phase
+                        label with no number beside it is indistinguishable from a hang for
+                        most of an afternoon.
                     -->
                     <template v-if="row.transfer !== null">
                         <VProgressLinear
@@ -571,10 +1013,37 @@ onBeforeUnmount(() => {
                                     "{done} of {total}",
                                 )
                             }}
+                            <template v-if="row.transfer.assetsTotal > 0">
+                                —
+                                {{
+                                    t(
+                                        "cirender.transfer.items",
+                                        { done: row.transfer.assetsDone, total: row.transfer.assetsTotal },
+                                        "{done} of {total} pieces",
+                                    )
+                                }}
+                            </template>
                         </p>
                     </template>
 
                     <p data-test="run-label">{{ runLabel(row.run, t) }}</p>
+
+                    <!--
+                        Which wave each shard is in, summed per wave. The workflow runs
+                        shards in sequential waves of at most 256; this is the one real
+                        proportion available inside a wave still in progress.
+                    -->
+                    <ul v-if="waves(row).length > 0" class="ci-waves" data-test="wave-summary">
+                        <li v-for="w in waves(row)" :key="w.wave">
+                            {{
+                                t(
+                                    "cirender.wave.summary",
+                                    { wave: w.wave, done: w.done, total: w.total },
+                                    "Wave {wave}: {done} of {total}",
+                                )
+                            }}
+                        </li>
+                    </ul>
 
                     <VBtn
                         v-if="row.run !== null"
@@ -599,6 +1068,9 @@ onBeforeUnmount(() => {
                             <li v-for="job in visibleJobs(row)" :key="job.id" data-test="job">
                                 <VChip size="x-small" :color="jobTone(job)">{{ job.status }}</VChip>
                                 <span class="ml-2">{{ job.name }}</span>
+                                <span v-if="job.wave !== null" class="ml-2 text-medium-emphasis" data-test="job-wave">
+                                    {{ t("cirender.job.wave", { wave: job.wave }, "Wave {wave}") }}
+                                </span>
                                 <span v-if="job.conclusion !== null" class="ml-2 text-medium-emphasis">
                                     {{ job.conclusion }}
                                 </span>
@@ -669,10 +1141,16 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-.ci-jobs {
+.ci-jobs,
+.ci-waves {
     list-style: none;
     padding: 0;
     margin: 0.5rem 0 0;
+}
+
+.ci-waves li {
+    font-size: 0.8125rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .ci-log {

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiClose, mdiCompareHorizontal, mdiContentCopy, mdiDownload, mdiSwapHorizontal } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText, VIcon, VList, VListItem, VMenu, VProgressCircular } from "vuetify/components";
+import { VAlert, VBtn, VCard, VCardText, VIcon, VMenu, VProgressCircular } from "vuetify/components";
 
+import MenuSearchList, { type MenuSearchItem } from "../menuSearch/MenuSearchList.vue";
 import HistoryReadableDiff from "./HistoryReadableDiff.vue";
 import type { HistoryComparisonFile, HistoryRevision } from "./historyHost.js";
 
@@ -67,6 +68,32 @@ function when(revision: HistoryRevision | null): string {
     const date = new Date(revision.at);
     if (Number.isNaN(date.getTime())) return revision.at;
     return new Intl.DateTimeFormat(localeTag.value, { dateStyle: "medium", timeStyle: "short" }).format(date);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Export                                                                     */
+/* -------------------------------------------------------------------------- */
+
+const exportOpen = ref(false);
+
+type ExportFormat = "markdown" | "json" | "csv" | "text";
+
+/**
+ * A search field over four rows reads as overkill until the fifth format arrives -- which is
+ * exactly why the menu carries the project's own filterable list rather than a bare
+ * `v-list`: every context menu in this application gets one, this one included, so a reader
+ * who has met the tab menu's filter already knows how this one works too.
+ */
+const exportItems = computed<MenuSearchItem[]>(() => [
+    { id: "markdown", label: t("history.exportMarkdown", "Markdown file") },
+    { id: "json", label: t("history.exportJson", "JSON file") },
+    { id: "csv", label: t("history.exportCsv", "CSV file") },
+    { id: "text", label: t("history.exportPlain", "Plain text file") },
+]);
+
+function chooseExport(id: string): void {
+    exportOpen.value = false;
+    emit("download", id as ExportFormat);
 }
 
 const ready = computed(() => props.from !== null && props.to !== null);
@@ -137,28 +164,29 @@ const title = computed(() => {
                     variant="text"
                     size="small"
                     :aria-label="t('history.compare.exportLong', 'Export this comparison to a file')"
+                    :aria-expanded="exportOpen ? 'true' : 'false'"
+                    aria-haspopup="menu"
                     :disabled="isBusy"
                 >
                     {{ t("history.compare.export", "Export") }}
-                    <v-menu activator="parent" location="bottom end">
-                        <v-list density="compact">
-                            <v-list-item
-                                :title="t('history.exportMarkdown', 'Markdown file')"
-                                @click="emit('download', 'markdown')"
-                            />
-                            <v-list-item
-                                :title="t('history.exportJson', 'JSON file')"
-                                @click="emit('download', 'json')"
-                            />
-                            <v-list-item
-                                :title="t('history.exportCsv', 'CSV file')"
-                                @click="emit('download', 'csv')"
-                            />
-                            <v-list-item
-                                :title="t('history.exportPlain', 'Plain text file')"
-                                @click="emit('download', 'text')"
-                            />
-                        </v-list>
+                    <v-menu
+                        v-model="exportOpen"
+                        activator="parent"
+                        :close-on-content-click="false"
+                        location="bottom end"
+                    >
+                        <!--
+                            Rendered from `exportOpen` itself rather than only from the
+                            menu's own visibility, so choosing a format unmounts the search
+                            field and its query immediately rather than waiting on the
+                            overlay's own close transition to finish.
+                        -->
+                        <MenuSearchList
+                            v-if="exportOpen"
+                            :items="exportItems"
+                            :label="t('history.compare.exportLong', 'Export this comparison to a file')"
+                            @choose="chooseExport"
+                        />
                     </v-menu>
                 </v-btn>
 

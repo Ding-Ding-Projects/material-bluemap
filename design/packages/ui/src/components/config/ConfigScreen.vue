@@ -29,6 +29,7 @@ import ConfigFileForm from "./ConfigFileForm.vue";
 import ConfigSearchField from "./ConfigSearchField.vue";
 import MapsScreen from "./MapsScreen.vue";
 import RunScreen from "./RunScreen.vue";
+import SpeedControl from "./SpeedControl.vue";
 import StoragesScreen from "./StoragesScreen.vue";
 import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import { clearFieldValue, fieldValue, replaceText, setFieldValue } from "./configModel.js";
@@ -682,15 +683,29 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                 class="mb-config-screen__tabs"
             >
                 <template #core>
-                    <ConfigFileForm
-                        v-if="coreEntry"
-                        :file="coreEntry.file"
-                        :highlight-path="highlightPath"
-                        @set="(field, value) => editSingleton('core', field, value)"
-                        @clear="(field) => clearSingleton('core', field)"
-                        @consent="emit('consent')"
-                        @update:text="(text) => rawSingleton('core', text)"
-                    />
+                    <template v-if="coreEntry">
+                        <!--
+                          The novice "Speed" dial, above the raw settings it drives.
+                          `SpeedControl` writes through the very same `set` event
+                          `ConfigFileForm`'s own fields use, so `render-thread-count`
+                          and `render-thread-priority` below (the second one behind
+                          Advanced) stay the single source of truth and this stays in
+                          sync with them, never the other way round.
+                        -->
+                        <SpeedControl
+                            :file="coreEntry.file"
+                            :disabled="coreEntry.file.readOnly"
+                            @set="(field, value) => editSingleton('core', field, value)"
+                        />
+                        <ConfigFileForm
+                            :file="coreEntry.file"
+                            :highlight-path="highlightPath"
+                            @set="(field, value) => editSingleton('core', field, value)"
+                            @clear="(field) => clearSingleton('core', field)"
+                            @consent="emit('consent')"
+                            @update:text="(text) => rawSingleton('core', text)"
+                        />
+                    </template>
                     <p v-else class="mb-config-screen__note">{{ t("config.shell.missingCore", "This folder has no core.conf.") }}</p>
                 </template>
 

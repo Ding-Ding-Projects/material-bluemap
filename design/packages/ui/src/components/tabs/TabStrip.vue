@@ -44,6 +44,7 @@ import { onRevealRequested } from "../shell/revealRequests.js";
 import TabButton from "./TabButton.vue";
 import TabFinder from "./TabFinder.vue";
 import TabGroupMenu from "./TabGroupMenu.vue";
+import TabGroupPicker from "./TabGroupPicker.vue";
 import TabMenuList from "./TabMenuList.vue";
 import TabPlanConfirm from "./TabPlanConfirm.vue";
 import { planCloseOthers, planCloseToEdge, type TabClosePlan } from "./closePlans.js";
@@ -119,6 +120,19 @@ import type { GroupHit, TabHit } from "./tabSearch.js";
  * mirroring `AppearanceTarget`'s own convention exactly, so the gesture means the
  * same thing everywhere in this application. The editor is anchored to the tab
  * or group element, not to the pointer, and closing it returns focus there.
+ *
+ * The whole strip is itself wrapped in its own `AppearanceTarget` (`app.tabBar`, in
+ * `App.vue`) for right-clicks on strip chrome that is neither a tab nor a group -
+ * empty space, the pinned-region divider. That wrapper listens for the identical
+ * `contextmenu` and `ContextMenu`/`Shift+F10`/`Ctrl+Shift+F10` gestures on its own
+ * root element, so every one of `onTabContextMenu`, `onTabKeydown`,
+ * `onGroupContextMenu` and `onGroupKeydown` above calls `event.stopPropagation()`
+ * the moment it decides a tab or group owns the gesture. Without that stop, the
+ * native event keeps bubbling past this component after being handled here and
+ * fires the wrapper's handler too, opening a second, independent menu or editor
+ * stacked at the same anchor point - two `v-menu` overlays neither one closes for
+ * the other. The stop is what keeps "right-click a tab" and "right-click the bare
+ * strip" from ever answering to the same handler.
  */
 const props = defineProps<{
     strip: TabStripState;
@@ -410,6 +424,13 @@ function onTabKeydown(event: KeyboardEvent, tab: TabRecord): void {
         emit("close", tab.id, props.strip.id);
     } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
         event.preventDefault();
+        // This tab now owns the whole gesture, so the native event must not go on to
+        // bubble into the `app.tabBar` `AppearanceTarget` wrapping the entire strip:
+        // that wrapper binds this exact same chord, and an unstopped event reaching it
+        // would open its own independent menu or editor on top of this one, anchored at
+        // the same point. See `onTabContextMenu` below for the pointer-driven twin of
+        // this stop.
+        event.stopPropagation();
         // Ctrl+Shift+F10 goes straight to the appearance editor, mirroring the mouse's
         // Shift+right-click exactly and `AppearanceTarget`'s own keyboard convention.
         if (event.ctrlKey) openTabAppearanceEditor(tab);
@@ -456,14 +477,42 @@ const tabMenuTarget = ref<HTMLElement | [number, number] | undefined>(undefined)
 const tabMenuPlan = ref<"others" | "toStart" | "toEnd" | null>(null);
 
 function openTabMenuAt(tab: TabRecord, target: HTMLElement | [number, number]): void {
+    // Overlay exclusivity: a plain right-click while the appearance editor or the group
+    // picker is still open on this (or another) tab must not stack the ordinary menu on
+    // top of it -- both are `:scrim="false"` anchored overlays, so nothing else closes
+    // them implicitly. Same reasoning as the two `openTab*` functions below.
+    tabAppearanceOpen.value = false;
+    tabGroupPickerOpen.value = false;
     tabMenuTab.value = tab;
     tabMenuTarget.value = target;
     tabMenuPlan.value = null;
     tabMenuOpen.value = true;
 }
 
+/**
+ * Closes the tab-management menu and puts focus back on the tab it belonged to,
+ * whichever way the menu closed: a command chosen, Escape, or a click outside it.
+ * The one function every closing path below goes through, so "focus returns to
+ * the originating tab" is true of all of them rather than of whichever path
+ * happened to remember it.
+ */
+function closeTabMenu(): void {
+    tabMenuOpen.value = false;
+    tabMenuPlan.value = null;
+    const tab = tabMenuTab.value;
+    void nextTick(() => {
+        if (tab !== null) document.getElementById(tabDomId(tab.id))?.focus();
+    });
+}
+
 function onTabContextMenu(event: MouseEvent, tab: TabRecord): void {
     event.preventDefault();
+    // This tab is the whole story for this right-click: stop the native event before it
+    // can bubble up into the `app.tabBar` `AppearanceTarget` wrapping the entire strip.
+    // That wrapper has its own `@contextmenu` listener, and without this the same click
+    // opened both this tab's menu AND the whole-bar editor's menu, stacked at the same
+    // point - the exact collision this stop exists to kill.
+    event.stopPropagation();
     // Shift+right-click is the direct route to the appearance editor, exactly as it is on
     // every other `AppearanceTarget` in the app: no menu, straight to the editor.
     if (event.shiftKey) {
@@ -484,6 +533,8 @@ const tabAppearanceTarget = ref<HTMLElement | undefined>(undefined);
 /** Anchored to the tab element itself, never to the pointer, so it behaves like the keyboard path. */
 function openTabAppearanceEditor(tab: TabRecord): void {
     tabMenuOpen.value = false;
+    // Overlay exclusivity: don't let the group picker keep showing underneath.
+    tabGroupPickerOpen.value = false;
     tabAppearanceTab.value = tab;
     tabAppearanceTarget.value = document.getElementById(tabDomId(tab.id)) ?? undefined;
     tabAppearanceOpen.value = true;
@@ -496,6 +547,61 @@ function closeTabAppearanceEditor(): void {
         if (tab !== null) document.getElementById(tabDomId(tab.id))?.focus();
     });
 }
+
+/* -------------------------------------------------------------------------- */
+/* The "Move this tab into group..." picker                                   */
+/* -------------------------------------------------------------------------- */
+
+const tabGroupPickerOpen = ref(false);
+const tabGroupPickerTab = ref<TabRecord | null>(null);
+const tabGroupPickerTarget = ref<HTMLElement | undefined>(undefined);
+const tabGroupPickerRef = ref<InstanceType<typeof TabGroupPicker> | null>(null);
+
+/**
+ * Anchored to the tab element itself, exactly like the appearance editor above, so the
+ * picker never covers the tab it is moving and closing it always has somewhere real to
+ * return focus to.
+ */
+function openTabGroupPicker(tab: TabRecord): void {
+    tabMenuOpen.value = false;
+    // Overlay exclusivity: don't let the appearance editor keep showing underneath.
+    tabAppearanceOpen.value = false;
+    tabGroupPickerTab.value = tab;
+    tabGroupPickerTarget.value = document.getElementById(tabDomId(tab.id)) ?? undefined;
+    tabGroupPickerOpen.value = true;
+    void nextTick(() => tabGroupPickerRef.value?.focus());
+}
+
+function closeTabGroupPicker(): void {
+    tabGroupPickerOpen.value = false;
+    const tab = tabGroupPickerTab.value;
+    void nextTick(() => {
+        if (tab !== null) document.getElementById(tabDomId(tab.id))?.focus();
+    });
+}
+
+function onTabGroupPickerAssign(groupId: string): void {
+    const tab = tabGroupPickerTab.value;
+    closeTabGroupPicker();
+    if (tab !== null) emit("assign", tab.id, groupId, props.strip.id);
+}
+
+function onTabGroupPickerNewGroup(): void {
+    const tab = tabGroupPickerTab.value;
+    closeTabGroupPicker();
+    // Reuses the strip's existing `new-group` event verbatim -- the same one the old
+    // "Put this tab in a new group" menu item emitted -- so the host's `createGroup` call
+    // is not forked for this picker.
+    if (tab !== null) emit("new-group", tab.id);
+}
+
+/** The picker's own tab's current group, computed independently of `tabMenuTab` so it
+ *  stays correct even though the menu closes the instant the picker opens. */
+const tabGroupPickerExcludeGroupId = computed(() => {
+    const tab = tabGroupPickerTab.value;
+    if (tab === null) return null;
+    return props.strip.groups.find((group) => group.tabIds.includes(tab.id))?.id ?? null;
+});
 
 const menuTabIsPinned = computed(() =>
     tabMenuTab.value === null ? false : props.strip.pinnedOrder.includes(tabMenuTab.value.id),
@@ -565,8 +671,11 @@ const tabMenuItems = computed<readonly TabMenuItem[]>(() => {
             danger: true,
         },
         {
-            id: "new-group",
-            label: t("tabs.action.newGroup", "Put this tab in a new group"),
+            // Opens the group picker rather than growing one menu item per existing group
+            // (that used to be `new-group` plus one `assign:${group.id}` per group). The
+            // picker's own "New group..." row covers what the old `new-group` item did.
+            id: "assign-picker",
+            label: t("tabGroupPicker.menuEntry", "Move this tab into group..."),
             icon: mdiTabPlus,
             shortcut: null,
             danger: false,
@@ -600,17 +709,6 @@ const tabMenuItems = computed<readonly TabMenuItem[]>(() => {
         });
     }
 
-    for (const group of props.strip.groups) {
-        if (group.id === menuTabGroup.value?.id) continue;
-        items.push({
-            id: `assign:${group.id}`,
-            label: t("tabs.action.moveToGroup", { group: group.name }, "Move this tab into {group}"),
-            icon: mdiTabPlus,
-            shortcut: null,
-            danger: false,
-        });
-    }
-
     return items;
 });
 
@@ -633,21 +731,23 @@ function onTabMenuChoose(id: string): void {
     }
     if (id === "reset-appearance") {
         resetTabAppearance(tab.id);
-        tabMenuOpen.value = false;
+        closeTabMenu();
+        return;
+    }
+    if (id === "assign-picker") {
+        // Same reasoning as "appearance" above: opens its own anchored surface rather than
+        // closing back to nothing.
+        openTabGroupPicker(tab);
         return;
     }
 
-    tabMenuOpen.value = false;
+    closeTabMenu();
     if (id === "close") emit("close", tab.id, props.strip.id);
     else if (id === "left") emit("move-tab", tab.id, -1);
     else if (id === "right") emit("move-tab", tab.id, 1);
     else if (id === "pin") emit("pin", tab.id, props.strip.id);
     else if (id === "unpin") emit("unpin", tab.id, props.strip.id);
-    else if (id === "new-group") emit("new-group", tab.id);
     else if (id === "ungroup") emit("assign", tab.id, null, props.strip.id);
-    else if (id.startsWith("assign:")) {
-        emit("assign", tab.id, id.slice("assign:".length), props.strip.id);
-    }
 }
 
 const planTitle = computed(() => {
@@ -666,8 +766,7 @@ function buildMenuPlan(includePinned: boolean): TabClosePlan {
 }
 
 function onPlanApplied(plan: TabClosePlan, options: { closeUnsaved: boolean; keepEmptyGroups: boolean }): void {
-    tabMenuOpen.value = false;
-    tabMenuPlan.value = null;
+    closeTabMenu();
     emit("apply", plan, options);
 }
 
@@ -689,8 +788,24 @@ function openGroupMenu(groupId: string, target: HTMLElement | [number, number]):
     groupMenuOpen.value = true;
 }
 
+/**
+ * Closes the group-management menu and puts focus back on the group header it
+ * belonged to, whichever way the menu closed - mirrors {@link closeTabMenu}
+ * exactly, for the same reason: one function every closing path goes through.
+ */
+function closeGroupMenu(): void {
+    groupMenuOpen.value = false;
+    const groupId = groupMenuId.value;
+    void nextTick(() => {
+        if (groupId !== null) document.getElementById(groupDomId(groupId))?.focus();
+    });
+}
+
 function onGroupContextMenu(event: MouseEvent, groupId: string): void {
     event.preventDefault();
+    // Same reasoning as `onTabContextMenu`: the group header owns this right-click, so it
+    // must not also reach the `app.tabBar` wrapper around the whole strip.
+    event.stopPropagation();
     if (event.shiftKey) {
         openGroupAppearanceEditor(groupId);
         return;
@@ -708,6 +823,9 @@ function onGroupKeydown(event: KeyboardEvent, groupId: string, collapsed: boolea
     }
     if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
         event.preventDefault();
+        // Same stop as `onTabKeydown`: this header owns the chord, so the wrapper around
+        // the whole strip must never see it too.
+        event.stopPropagation();
         if (event.ctrlKey) openGroupAppearanceEditor(groupId);
         else openGroupMenu(groupId, event.currentTarget as HTMLElement);
     } else if (event.key === "Enter" || event.key === " ") {
@@ -1067,13 +1185,19 @@ const tabCountLabel = computed(() =>
             </v-btn>
         </div>
 
-        <!-- One menu for whichever tab was right-clicked, anchored at the pointer. -->
+        <!--
+            One menu for whichever tab was right-clicked, anchored at the pointer.
+            The explicit close handler covers Escape and an outside click, the two
+            routes that close the menu without going through `closeTabMenu` itself,
+            so focus still returns to the tab whichever way this closes.
+        -->
         <v-menu
             v-model="tabMenuOpen"
             :target="tabMenuTarget"
             :close-on-content-click="false"
             location="bottom start"
             offset="4"
+            @update:model-value="(value: boolean) => !value && closeTabMenu()"
         >
             <div class="mb-tabs-strip__sheet">
                 <TabPlanConfirm
@@ -1094,13 +1218,17 @@ const tabCountLabel = computed(() =>
             </div>
         </v-menu>
 
-        <!-- And one for whichever group's header was opened. -->
+        <!--
+            And one for whichever group's header was opened. Same explicit close
+            handler, for the same reason as the tab menu above.
+        -->
         <v-menu
             v-model="groupMenuOpen"
             :target="groupMenuTarget"
             :close-on-content-click="false"
             location="bottom start"
             offset="4"
+            @update:model-value="(value: boolean) => !value && closeGroupMenu()"
         >
             <div class="mb-tabs-strip__sheet">
                 <TabGroupMenu
@@ -1112,7 +1240,7 @@ const tabCountLabel = computed(() =>
                     @set-collapsed="emit('set-group-collapsed', groupMenuGroup.id, $event)"
                     @move="emit('move-group', groupMenuGroup.id, $event)"
                     @remove="
-                        groupMenuOpen = false;
+                        closeGroupMenu();
                         emit('remove-group', groupMenuGroup.id);
                     "
                     @edit-appearance="openGroupAppearanceEditor(groupMenuGroup.id)"
@@ -1124,7 +1252,7 @@ const tabCountLabel = computed(() =>
                     @close="emit('close', $event.tabId, $event.stripId)"
                     @apply="
                         (plan, options) => {
-                            groupMenuOpen = false;
+                            closeGroupMenu();
                             emit('apply', plan, options);
                         }
                     "
@@ -1152,6 +1280,33 @@ const tabCountLabel = computed(() =>
                 v-if="tabAppearanceTab !== null"
                 :target-id="tabAppearanceId(tabAppearanceTab.id)"
                 :target-label="tabAppearanceTab.label"
+            />
+        </v-menu>
+
+        <!--
+            "Move this tab into group...", anchored to the tab exactly like the appearance
+            editor above rather than to wherever the menu happened to open, so it never
+            covers the tab it is about to move.
+        -->
+        <v-menu
+            v-model="tabGroupPickerOpen"
+            :target="tabGroupPickerTarget"
+            :open-on-click="false"
+            :close-on-content-click="false"
+            :scrim="false"
+            location="end top"
+            offset="12"
+            @update:model-value="(value: boolean) => !value && closeTabGroupPicker()"
+        >
+            <TabGroupPicker
+                v-if="tabGroupPickerTab !== null"
+                ref="tabGroupPickerRef"
+                :strip="strip"
+                :exclude-group-id="tabGroupPickerExcludeGroupId"
+                :tab-label="tabGroupPickerTab.label"
+                @assign="onTabGroupPickerAssign"
+                @new-group="onTabGroupPickerNewGroup"
+                @cancel="closeTabGroupPicker"
             />
         </v-menu>
 

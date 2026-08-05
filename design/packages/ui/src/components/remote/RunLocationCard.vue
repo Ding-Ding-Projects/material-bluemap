@@ -23,6 +23,7 @@ import {
     type RemoteBridge,
     type RemoteTarget,
     type RuntimeBridge,
+    type RuntimeMode,
 } from "./remoteBridge.js";
 import {
     loadTargets,
@@ -124,6 +125,24 @@ async function probeDocker(): Promise<void> {
     }
 }
 
+/* -- the render channels this build actually honours ----------------------- */
+
+// "Local only" until the real answer crosses IPC. Never "docker": offering the choice
+// before the build has actually said it honours it is the exact failure this bridge
+// method exists to prevent.
+const renderModes = ref<readonly RuntimeMode[]>(["local"]);
+
+async function loadRenderModes(): Promise<void> {
+    if (runtime === null) return;
+    try {
+        renderModes.value = await runtime.renderModes();
+    } catch {
+        // A bridge that threw answered nothing, not "docker is fine". Stay on the safe
+        // default rather than guessing.
+        renderModes.value = ["local"];
+    }
+}
+
 /* -- machines -------------------------------------------------------------- */
 
 const targets = ref<readonly RemoteTarget[]>([]);
@@ -208,7 +227,7 @@ const places = computed<readonly RunPlace[]>(() =>
     runPlaces(
         {
             canRenderLocally: props.canRenderLocally,
-            canRenderInDocker: runtime?.renderModes.includes("docker") === true,
+            canRenderInDocker: renderModes.value.includes("docker"),
             docker: dockerNote.value,
             canRenderRemotely: remote !== null,
             hasTarget: selected.value !== null,
@@ -238,6 +257,7 @@ function pick(value: unknown): void {
 onMounted(() => {
     targets.value = loadTargets(storage);
     void probeDocker();
+    void loadRenderModes();
 });
 
 // A different machine has not been checked, whatever the last one proved. Carrying a
@@ -255,7 +275,19 @@ watch(targets, () => {
     else emit("update:target", selected.value);
 });
 
-defineExpose({ places, dockerNote, report, decision, targets, selectedId, check, trust, probeDocker });
+defineExpose({
+    places,
+    dockerNote,
+    renderModes,
+    report,
+    decision,
+    targets,
+    selectedId,
+    check,
+    trust,
+    probeDocker,
+    loadRenderModes,
+});
 </script>
 
 <template>

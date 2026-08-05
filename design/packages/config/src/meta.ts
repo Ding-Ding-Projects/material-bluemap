@@ -281,6 +281,22 @@ export interface FieldMeta {
     readonly consentGated?: boolean;
     /** True when the value is a credential and must never be logged or exported. */
     readonly secret?: boolean;
+    /**
+     * Where {@link doc} came from, for auditability.
+     *
+     * Absent (or `"upstream"`) means the text is upstream BlueMap's own template
+     * comment, lifted verbatim — the default, and true of every field in
+     * `schema/core.ts`, `webapp.ts`, `webserver.ts`, `plugin.ts`, `map.ts` and
+     * `storage.ts`. `"authored"` marks a field whose doc was written for this app
+     * because upstream's template has no per-field comment to lift: BlueMap's
+     * `map.conf` carries exactly one comment for the whole `render-mask` block and
+     * one for the whole `marker-sets` block, not one per shape field or per marker
+     * set property. Those authored explanations are still accurate — written from
+     * the Java class and its own Javadoc rather than invented — but they are not a
+     * quotation, and this flag is what lets the GUI say so rather than implying
+     * every explanation in the app is upstream's own words.
+     */
+    readonly docSource?: "upstream" | "authored";
 }
 
 /** The seven configuration files BlueMap reads. */

@@ -26,9 +26,13 @@ export { resolveCiRenderBridge } from "./ciRenderBridge.js";
 export type {
     Answer,
     CiJobReport,
+    CiOwnerChoice,
+    CiOwnerChoicesAnswer,
     CiPreflight,
     CiRenderBridge,
     CiRenderPlan,
+    CiRepositoryChoice,
+    CiRepositoryNameAvailability,
     CiRoute,
     CiRunReport,
     CiRunStatus,
@@ -51,7 +55,11 @@ export {
     formatBytes,
     jobTone,
     phaseLabel,
+    repoNameProblem,
+    routeLabel,
     runLabel,
     uploadLine,
+    waveSummaries,
+    worldFolderName,
 } from "./ciRenders.js";
-export type { CiLogLine, CiRenders, CiRow, CiRowState } from "./ciRenders.js";
+export type { CiLogLine, CiRenders, CiRow, CiRowState, CiTransferProgress, CiWaveSummary } from "./ciRenders.js";

@@ -2,6 +2,19 @@ import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 
+/** The pnpm workspace root, `design/`, which is what Vite would allow on its own. */
+const workspaceRoot = fileURLToPath(new URL("../../", import.meta.url));
+
+/**
+ * `docs/*.md` at the top of the repository, bundled into the in-app docs browser by
+ * `src/components/docs/docsContent.ts` via `import.meta.glob`. It sits above the workspace
+ * root, where the dev server's file-serving allow-list stops by default, so it is named here
+ * exactly as `packages/site/vite.config.ts` names `docs/screenshots` for the same reason.
+ * The production build is unaffected either way; this is what keeps `pnpm dev` able to read
+ * the articles.
+ */
+const docsDirectory = fileURLToPath(new URL("../../../docs", import.meta.url));
+
 export default defineConfig({
     plugins: [vue()],
     base: "./",
@@ -25,6 +38,11 @@ export default defineConfig({
         sourcemap: true,
     },
     server: {
+        fs: {
+            // Setting `allow` replaces the default rather than adding to it, so the
+            // workspace root is restated alongside the one directory being opened.
+            allow: [workspaceRoot, docsDirectory],
+        },
         proxy: {
             // Dev-mode: forward remote-profile traffic to the public demo, mirroring the
             // embedded server's /remote/{profile} mount (upstream used the same trick).

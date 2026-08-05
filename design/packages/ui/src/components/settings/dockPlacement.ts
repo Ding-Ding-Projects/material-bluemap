@@ -167,6 +167,196 @@ export function clearDockPlacements(storage: DockStorage | null = defaultStorage
 }
 
 /* -------------------------------------------------------------------------- */
+/* Size and position, remembered                                              */
+/*                                                                             */
+/* Two sibling records, in the same shape as the placement record above: a    */
+/* version, a `surfaces` map, and unknown or malformed entries dropped one at */
+/* a time rather than the whole file refused. Kept apart from                 */
+/* `DockPlacementRecord` deliberately - that type is read by                  */
+/* `SurfacePlacementRow.vue` and the settings search today, and widening its  */
+/* value would touch every one of those call sites for a feature they do not */
+/* need to know about. A surface's docked thickness is kept per edge, because */
+/* the width somebody chose for a right dock is not a sensible default for    */
+/* the same surface docked to the top a moment later.                        */
+/* -------------------------------------------------------------------------- */
+
+const SIZE_STORAGE_KEY = "material-bluemap-dock-size";
+
+/** Bumped when the stored shape changes in a way an older reader cannot repair. */
+export const DOCK_SIZE_STORAGE_VERSION = 1;
+
+/** Every surface's remembered thickness, per docked edge it has been resized at. */
+export type DockSizeRecord = Readonly<Record<string, Readonly<Partial<Record<DockedEdge, number>>>>>;
+
+function isPositiveFiniteNumber(value: unknown): value is number {
+    return typeof value === "number" && Number.isFinite(value) && value > 0;
+}
+
+/** The stored sizes, or an empty record. Unknown surfaces and edges are dropped one at a time. */
+export function readDockSizes(storage: DockStorage | null = defaultStorage()): DockSizeRecord {
+    if (storage === null) return {};
+    try {
+        const raw = storage.getItem(SIZE_STORAGE_KEY);
+        if (raw === null) return {};
+        const parsed: unknown = JSON.parse(raw);
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+        const record = parsed as Record<string, unknown>;
+        if (record["version"] !== DOCK_SIZE_STORAGE_VERSION) return {};
+        const surfaces = record["surfaces"];
+        if (typeof surfaces !== "object" || surfaces === null || Array.isArray(surfaces)) return {};
+
+        const found: Record<string, Partial<Record<DockedEdge, number>>> = {};
+        for (const [id, value] of Object.entries(surfaces as Record<string, unknown>)) {
+            if (id.length === 0 || typeof value !== "object" || value === null || Array.isArray(value)) continue;
+            const edges: Partial<Record<DockedEdge, number>> = {};
+            for (const [edge, thickness] of Object.entries(value as Record<string, unknown>)) {
+                if (isDockPlacement(edge) && isDockedEdge(edge) && isPositiveFiniteNumber(thickness)) {
+                    edges[edge] = thickness;
+                }
+            }
+            if (Object.keys(edges).length > 0) found[id] = edges;
+        }
+        return found;
+    } catch {
+        return {};
+    }
+}
+
+/** Writes the record, silently doing nothing where storage refuses. */
+export function writeDockSizes(sizes: DockSizeRecord, storage: DockStorage | null = defaultStorage()): void {
+    if (storage === null) return;
+    try {
+        storage.setItem(SIZE_STORAGE_KEY, JSON.stringify({ version: DOCK_SIZE_STORAGE_VERSION, surfaces: { ...sizes } }));
+    } catch {
+        // Private mode or a full quota. A remembered panel size is not worth a toast.
+    }
+}
+
+/** The record with one surface's one edge set. Pure, so the state module has one place that writes. */
+export function withDockSize(
+    sizes: DockSizeRecord,
+    surfaceId: string,
+    edge: DockedEdge,
+    thickness: number,
+): DockSizeRecord {
+    const existing = sizes[surfaceId] ?? {};
+    return { ...sizes, [surfaceId]: { ...existing, [edge]: thickness } };
+}
+
+/** The record with every remembered size for one surface removed, across all its edges. */
+export function withoutDockSizes(sizes: DockSizeRecord, surfaceId: string): DockSizeRecord {
+    const next = { ...sizes };
+    delete next[surfaceId];
+    return next;
+}
+
+/** Clears every surface's remembered size. */
+export function clearDockSizes(storage: DockStorage | null = defaultStorage()): void {
+    if (storage === null) return;
+    try {
+        storage.removeItem(SIZE_STORAGE_KEY);
+    } catch {
+        // As above.
+    }
+}
+
+const FLOATING_STORAGE_KEY = "material-bluemap-dock-floating";
+
+/** Bumped when the stored shape changes in a way an older reader cannot repair. */
+export const DOCK_FLOATING_STORAGE_VERSION = 1;
+
+/** A floating panel's remembered position and size, in CSS pixels. */
+export interface FloatingRect {
+    readonly top: number;
+    readonly left: number;
+    readonly width: number;
+    readonly height: number;
+}
+
+function isFloatingRect(value: unknown): value is FloatingRect {
+    if (typeof value !== "object" || value === null) return false;
+    const rect = value as Record<string, unknown>;
+    return (
+        isPositiveFiniteNumber(rect["width"]) &&
+        isPositiveFiniteNumber(rect["height"]) &&
+        typeof rect["top"] === "number" &&
+        Number.isFinite(rect["top"]) &&
+        typeof rect["left"] === "number" &&
+        Number.isFinite(rect["left"])
+    );
+}
+
+/** Every surface's remembered floating position and size, keyed by surface id. */
+export type DockFloatingRecord = Readonly<Record<string, FloatingRect>>;
+
+/** The stored floating rectangles, or an empty record. Unknown entries are dropped one at a time. */
+export function readDockFloatingRects(storage: DockStorage | null = defaultStorage()): DockFloatingRecord {
+    if (storage === null) return {};
+    try {
+        const raw = storage.getItem(FLOATING_STORAGE_KEY);
+        if (raw === null) return {};
+        const parsed: unknown = JSON.parse(raw);
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+        const record = parsed as Record<string, unknown>;
+        if (record["version"] !== DOCK_FLOATING_STORAGE_VERSION) return {};
+        const surfaces = record["surfaces"];
+        if (typeof surfaces !== "object" || surfaces === null || Array.isArray(surfaces)) return {};
+
+        const found: Record<string, FloatingRect> = {};
+        for (const [id, value] of Object.entries(surfaces as Record<string, unknown>)) {
+            if (id.length > 0 && isFloatingRect(value)) {
+                found[id] = { top: value.top, left: value.left, width: value.width, height: value.height };
+            }
+        }
+        return found;
+    } catch {
+        return {};
+    }
+}
+
+/** Writes the record, silently doing nothing where storage refuses. */
+export function writeDockFloatingRects(
+    rects: DockFloatingRecord,
+    storage: DockStorage | null = defaultStorage(),
+): void {
+    if (storage === null) return;
+    try {
+        storage.setItem(
+            FLOATING_STORAGE_KEY,
+            JSON.stringify({ version: DOCK_FLOATING_STORAGE_VERSION, surfaces: { ...rects } }),
+        );
+    } catch {
+        // Private mode or a full quota. A remembered panel position is not worth a toast.
+    }
+}
+
+/** The record with one surface's rectangle set. */
+export function withDockFloatingRect(
+    rects: DockFloatingRecord,
+    surfaceId: string,
+    rect: FloatingRect,
+): DockFloatingRecord {
+    return { ...rects, [surfaceId]: rect };
+}
+
+/** The record with one surface's rectangle removed, which is that surface's own reset. */
+export function withoutDockFloatingRect(rects: DockFloatingRecord, surfaceId: string): DockFloatingRecord {
+    const next = { ...rects };
+    delete next[surfaceId];
+    return next;
+}
+
+/** Clears every surface's remembered floating rectangle. */
+export function clearDockFloatingRects(storage: DockStorage | null = defaultStorage()): void {
+    if (storage === null) return;
+    try {
+        storage.removeItem(FLOATING_STORAGE_KEY);
+    } catch {
+        // As above.
+    }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Geometry                                                                   */
 /* -------------------------------------------------------------------------- */
 
@@ -185,8 +375,17 @@ export interface Size {
 /** Below this, a docked panel is too narrow to hold a search field and a heading. */
 export const MINIMUM_THICKNESS = 240;
 
+/** Below this, a floating panel is too small to hold its own title bar and a heading. */
+export const MINIMUM_FLOATING_SIZE = 240;
+
 /** Space kept between a floating panel and the edges of the window. */
 export const FLOATING_MARGIN = 16;
+
+/** How far one arrow-key press moves or resizes a panel, in CSS pixels. */
+export const KEYBOARD_STEP = 16;
+
+/** How far one arrow-key press moves or resizes a panel while Shift is held. */
+export const KEYBOARD_STEP_LARGE = 64;
 
 export interface DockRequest {
     readonly placement: DockPlacement;
@@ -198,6 +397,20 @@ export interface DockRequest {
     readonly preferredThickness: number;
     /** How big a floating panel would like to be. */
     readonly preferredSize: Size;
+    /**
+     * The thickness the user resized this docked edge to, on an earlier visit. Takes
+     * priority over `preferredThickness` when present; still passes through the same
+     * opener-clearance and minimum-width checks as the preferred value, so a stored size
+     * from a wider window is never trusted blindly on a narrower one.
+     */
+    readonly storedThickness?: number | null;
+    /**
+     * The position and size the user last dragged or resized this floating panel to.
+     * Takes priority over `preferredSize` and the computed corner when present; still
+     * clamped fully inside the viewport, so a rectangle stored from a larger window can
+     * never place the panel somewhere this window cannot reach.
+     */
+    readonly storedFloatingRect?: FloatingRect | null;
 }
 
 export interface DockLayout {
@@ -290,6 +503,58 @@ export function floatingOffset(
 }
 
 /**
+ * The most a docked panel on `edge` may measure, and the least that is still usable.
+ *
+ * Shared between {@link resolveDockLayout} (which decides whether that range holds
+ * anything usable at all, falling back to floating when it does not) and a resize
+ * handle's own live dragging, which only ever needs to know where to stop.
+ */
+export function thicknessBounds(
+    edge: DockedEdge,
+    viewport: Size,
+    opener: Rect | null,
+): { readonly min: number; readonly max: number } {
+    const axisExtent = dockAxis(edge) === "horizontal" ? viewport.width : viewport.height;
+    const max = Math.max(0, Math.min(axisExtent, thicknessClearingOpener(edge, opener, viewport)));
+    return { min: Math.min(MINIMUM_THICKNESS, max), max };
+}
+
+/**
+ * A requested docked thickness, kept inside what {@link thicknessBounds} allows.
+ *
+ * Used while a splitter is being dragged or stepped by keyboard: unlike
+ * {@link resolveDockLayout}, this never falls back to floating - a resize gesture that
+ * has already committed to an edge stays on that edge, at whatever the nearest usable
+ * thickness is, rather than the panel jumping to a different placement mid-drag.
+ */
+export function clampThickness(thickness: number, edge: DockedEdge, viewport: Size, opener: Rect | null): number {
+    const { min, max } = thicknessBounds(edge, viewport, opener);
+    return clamp(thickness, Math.min(min, max), max);
+}
+
+/**
+ * A requested floating rectangle, kept fully inside the viewport.
+ *
+ * This is the one guarantee a draggable, resizable floating panel has to keep: it can
+ * never end up somewhere the user cannot reach it from, because "reach" here means
+ * "inside the window", and every corner and every edge handle routes its result through
+ * this function before the position is ever painted or stored.
+ */
+export function clampFloatingRect(rect: FloatingRect, viewport: Size): FloatingRect {
+    const maxWidth = Math.max(0, viewport.width - FLOATING_MARGIN * 2);
+    const maxHeight = Math.max(0, viewport.height - FLOATING_MARGIN * 2);
+    const width = clamp(rect.width, Math.min(MINIMUM_FLOATING_SIZE, maxWidth), maxWidth);
+    const height = clamp(rect.height, Math.min(MINIMUM_FLOATING_SIZE, maxHeight), maxHeight);
+
+    const maxLeft = Math.max(FLOATING_MARGIN, viewport.width - width - FLOATING_MARGIN);
+    const maxTop = Math.max(FLOATING_MARGIN, viewport.height - height - FLOATING_MARGIN);
+    const left = clamp(rect.left, FLOATING_MARGIN, maxLeft);
+    const top = clamp(rect.top, FLOATING_MARGIN, maxTop);
+
+    return { top, left, width, height };
+}
+
+/**
  * The layout a surface should render, given what the user chose and what will fit.
  *
  * The returned `placement` is what actually happens and `requested` is what the user
@@ -301,6 +566,18 @@ export function resolveDockLayout(request: DockRequest): DockLayout {
     const { viewport, opener } = request;
 
     if (request.placement === "floating") {
+        if (request.storedFloatingRect != null) {
+            const rect = clampFloatingRect(request.storedFloatingRect, viewport);
+            return {
+                placement: "floating",
+                requested: "floating",
+                thickness: 0,
+                offset: { top: rect.top, left: rect.left },
+                size: { width: rect.width, height: rect.height },
+                shrunkToClearOpener: false,
+                fellBackToFloating: false,
+            };
+        }
         const size = {
             width: clamp(request.preferredSize.width, 0, Math.max(0, viewport.width - FLOATING_MARGIN * 2)),
             height: clamp(request.preferredSize.height, 0, Math.max(0, viewport.height - FLOATING_MARGIN * 2)),
@@ -319,13 +596,25 @@ export function resolveDockLayout(request: DockRequest): DockLayout {
     const edge = request.placement;
     const axisExtent = dockAxis(edge) === "horizontal" ? viewport.width : viewport.height;
     const clearance = thicknessClearingOpener(edge, opener, viewport);
-    const wanted = Math.min(request.preferredThickness, axisExtent);
+    const wanted = Math.min(request.storedThickness ?? request.preferredThickness, axisExtent);
     const allowed = Math.min(wanted, clearance);
 
     if (allowed < Math.min(MINIMUM_THICKNESS, axisExtent)) {
         // The opener is too close to this edge for a usable panel. Falling back is stated
         // rather than done quietly, because the user picked an edge and is entitled to
         // know why they are looking at something else.
+        if (request.storedFloatingRect != null) {
+            const rect = clampFloatingRect(request.storedFloatingRect, viewport);
+            return {
+                placement: "floating",
+                requested: edge,
+                thickness: 0,
+                offset: { top: rect.top, left: rect.left },
+                size: { width: rect.width, height: rect.height },
+                shrunkToClearOpener: false,
+                fellBackToFloating: true,
+            };
+        }
         const size = {
             width: clamp(request.preferredSize.width, 0, Math.max(0, viewport.width - FLOATING_MARGIN * 2)),
             height: clamp(request.preferredSize.height, 0, Math.max(0, viewport.height - FLOATING_MARGIN * 2)),

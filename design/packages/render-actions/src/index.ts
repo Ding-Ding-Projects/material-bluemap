@@ -56,6 +56,16 @@ export {
     type EstimateInputs,
 } from "./plan/estimate.js";
 export {
+    DISK_SAFETY_FACTOR,
+    estimateDiskBytes,
+    FETCH_PEAK_MULTIPLIER,
+    formatBytes,
+    RENDER_DATA_MARGIN_BYTES,
+    TILE_OUTPUT_RATIO,
+    type DiskEstimate,
+    type DiskEstimateInputs,
+} from "./plan/disk.js";
+export {
     alignedCuts,
     chooseGrid,
     planShards,

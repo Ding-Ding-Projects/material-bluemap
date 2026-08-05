@@ -6,7 +6,9 @@ import {
     mdiCloudUploadOutline,
     mdiCog,
     mdiFileCogOutline,
+    mdiFileDocumentOutline,
     mdiFolderMultipleOutline,
+    mdiGavel,
     mdiMapOutline,
     mdiMapPlus,
     mdiServerNetwork,
@@ -25,7 +27,9 @@ import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
 import { AppTitleBar } from "./components/shell/index.js";
 import { requestReveal } from "./components/shell/revealRequests.js";
 import { FirstRunSetup } from "./components/setup/index.js";
+import { useSetupI18n } from "./components/setup/setupI18n.js";
 import { AppSettings, type SettingsAnchor } from "./components/settings/index.js";
+import { EulaSurface } from "./components/eula/index.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
 import { CiRenderScreen } from "./components/cirender/index.js";
@@ -35,6 +39,7 @@ import { AppearanceTarget } from "./components/appearance/index.js";
 import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
 import PagesScreen from "./components/pages/PagesScreen.vue";
+import { DocsPage } from "./components/docs/index.js";
 import { UpdateBanner, createUpdates } from "./components/update/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
@@ -42,6 +47,7 @@ import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js
 import { notices, raiseNotice } from "./stores/notices.js";
 
 const { t } = useI18n();
+const setupI18n = useSetupI18n();
 
 /**
  * The menu components resolve the running app through this injection key (their port of
@@ -79,6 +85,7 @@ const PAGE_CIRENDER = "cirender";
 const PAGE_SERVERS = "servers";
 const PAGE_BACKUPS = "backups";
 const PAGE_PAGES = "pages";
+const PAGE_DOCS = "docs";
 
 const pages = computed<TabPage[]>(() => [
     { id: PAGE_MAP, label: t("tabs.page.map", "Map"), icon: mdiMapOutline },
@@ -96,6 +103,11 @@ const pages = computed<TabPage[]>(() => [
     { id: PAGE_SERVERS, label: t("tabs.page.servers", "Maps and servers"), icon: mdiServerNetwork },
     { id: PAGE_BACKUPS, label: t("tabs.page.backups", "Backups"), icon: mdiCloudUploadOutline },
     { id: PAGE_PAGES, label: t("tabs.page.pages", "Publish to Pages"), icon: mdiWeb },
+    // Full-text, in-app documentation, bundled with no network needed to read it. Its own
+    // tab rather than only the Info page fold the changelog uses, because unlike the
+    // changelog this is a browsable, searchable set of 25-odd articles that deserves the
+    // same reach as every other destination in the strip.
+    { id: PAGE_DOCS, label: t("tabs.page.docs", "Docs"), icon: mdiFileDocumentOutline },
 ]);
 
 const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
@@ -277,6 +289,18 @@ function openSettings(anchor: SettingsAnchor | null = null, missing = false): vo
 function revealSetting(target: SettingsTarget): void {
     openSettings(target.anchor, target.missing);
 }
+
+/* -------------------------------------------------------------------------- */
+/* Licence viewer                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The standalone docked licence panel, alongside its two embedded copies (the first-run
+ * licence step and the consent settings row). `EulaSurface` documents itself as "mount one
+ * in the shell and open it from anywhere" - this is that mount, and the FAB beside Settings
+ * is the "anywhere".
+ */
+const eulaOpen = ref(false);
 
 /* -------------------------------------------------------------------------- */
 /* Server configuration                                                       */
@@ -534,7 +558,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     whatever the opener put there, which is the root set for the
                                     Markers button and the `bm-players` set for the Players one.
                                 -->
-                                <MainMenu>
+                                <MainMenu @open-docs="revealPage(PAGE_DOCS)">
                                     <template #markers="{ page, menu }">
                                         <MarkerMenu
                                             v-if="blueMapApp"
@@ -652,6 +676,17 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                 </div>
                             </div>
                         </template>
+
+                        <!--
+                            Every article under docs/, bundled at build time and rendered
+                            through the app's one shared Markdown renderer. Its own scroll
+                            container for the same reason every other tall page here has one.
+                        -->
+                        <template #docs>
+                            <div class="mb-world-host mb-interactive">
+                                <DocsPage />
+                            </div>
+                        </template>
                     </TabbedNavigation>
                 </AppearanceTarget>
             </div>
@@ -720,6 +755,22 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         />
                     </template>
                 </v-tooltip>
+
+                <v-tooltip :text="setupI18n.t('eula.viewerTitle')" location="end">
+                    <template #activator="{ props: tooltipProps }">
+                        <v-btn
+                            v-bind="tooltipProps"
+                            class="mb-shell-fab mb-interactive"
+                            :icon="mdiGavel"
+                            color="surface"
+                            variant="flat"
+                            elevation="3"
+                            :aria-label="setupI18n.t('eula.viewerTitle')"
+                            :aria-expanded="eulaOpen"
+                            @click="eulaOpen = !eulaOpen"
+                        />
+                    </template>
+                </v-tooltip>
             </div>
 
             <AppSettings
@@ -728,6 +779,13 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 :anchor-missing="settingsMissing"
                 @update:open="settingsOpen = $event"
             />
+
+            <!--
+                The standalone route `EulaSurface`'s own doc comment describes: a docked panel
+                the user can place, opened from the FAB above rather than only reachable
+                through the first-run step or the consent settings row.
+            -->
+            <EulaSurface :open="eulaOpen" @update:open="eulaOpen = $event" />
 
             <!--
                 Every destination emits back here rather than opening anything itself, so

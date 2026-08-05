@@ -11,7 +11,7 @@
  * which is the question it exists to pre-empt.
  */
 
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
@@ -62,6 +62,14 @@ beforeAll(() => {
         removeEventListener: () => {},
         dispatchEvent: () => false,
     } as unknown as VisualViewport;
+});
+
+// `PathField.vue` (the folder's browse button, wired in below) feature-detects its dialog
+// bridge off `window.materialBluemap.dialog` exactly the way the running preload exposes
+// it, so the browse tests stub that global rather than passing a bridge as a prop. This
+// undoes the stub after every test so one test's dialog never leaks into the next.
+afterEach(() => {
+    vi.unstubAllGlobals();
 });
 
 /**
@@ -155,6 +163,7 @@ function fakeBridge(overrides: Partial<BackupBridge> = {}): BackupBridge {
 }
 
 interface Exposed {
+    kind: "world" | "render";
     folder: string;
     owner: string;
     repo: string;
@@ -382,6 +391,97 @@ describe("reading a folder", () => {
 
         expect(wrapper.text()).toContain("region/link.mca");
         expect(wrapper.text()).toContain("It is a link.");
+    });
+});
+
+describe("browsing for the folder to back up", () => {
+    // Before this, the folder box had a v-btn styled and iconed exactly like a working
+    // Browse button (mdiFolderSearchOutline, the same icon WorldFolderStep's real one
+    // uses) that in fact only re-read whatever was already typed. `PathField.vue` is the
+    // real picker; these assert it is actually wired in rather than merely imported.
+    it("writes the picked folder through to the model, titling the dialog for the chosen kind", async () => {
+        const pickFolder = vi.fn(() => Promise.resolve("C:/saves/Overworld"));
+        vi.stubGlobal("materialBluemap", { dialog: { pickFolder, pickFile: () => Promise.resolve(null) } });
+
+        const wrapper = mountScreen(fakeBridge());
+        await settle(wrapper);
+
+        const browse = wrapper
+            .findAll("button")
+            .find((button) => button.attributes("aria-label") === "Browse for world folder");
+        expect(browse).toBeDefined();
+
+        await browse?.trigger("click");
+        await settle(wrapper);
+
+        expect(pickFolder).toHaveBeenCalledWith({ title: "Choose world folder" });
+        expect(exposed(wrapper).folder).toBe("C:/saves/Overworld");
+    });
+
+    it("names the render folder, not the world folder, once that kind is chosen", async () => {
+        const pickFolder = vi.fn(() => Promise.resolve("C:/maps/render-1"));
+        vi.stubGlobal("materialBluemap", { dialog: { pickFolder, pickFile: () => Promise.resolve(null) } });
+
+        const wrapper = mountScreen(fakeBridge());
+        await settle(wrapper);
+        exposed(wrapper).kind = "render";
+        await settle(wrapper);
+
+        const browse = wrapper
+            .findAll("button")
+            .find((button) => button.attributes("aria-label") === "Browse for render folder");
+        expect(browse).toBeDefined();
+
+        await browse?.trigger("click");
+        await settle(wrapper);
+
+        expect(pickFolder).toHaveBeenCalledWith({ title: "Choose render folder" });
+        expect(exposed(wrapper).folder).toBe("C:/maps/render-1");
+    });
+
+    it("changes nothing on a cancelled pick", async () => {
+        vi.stubGlobal("materialBluemap", {
+            dialog: { pickFolder: () => Promise.resolve(null), pickFile: () => Promise.resolve(null) },
+        });
+
+        const wrapper = mountScreen(fakeBridge());
+        await settle(wrapper);
+        exposed(wrapper).folder = "C:/keep/me";
+        await settle(wrapper);
+
+        const browse = wrapper
+            .findAll("button")
+            .find((button) => button.attributes("aria-label") === "Browse for world folder");
+        await browse?.trigger("click");
+        await settle(wrapper);
+
+        expect(exposed(wrapper).folder).toBe("C:/keep/me");
+    });
+
+    it("disables the browse button and explains why in a build with no dialog bridge", async () => {
+        const wrapper = mountScreen(fakeBridge());
+        await settle(wrapper);
+
+        const browse = wrapper
+            .findAll("button")
+            .find((button) => button.attributes("aria-label") === "Browse for world folder");
+        expect(browse).toBeDefined();
+        expect(browse?.attributes("disabled")).toBeDefined();
+    });
+
+    it("still reads the folder on Enter, now that the field lives inside PathField", async () => {
+        const wrapper = mountScreen(fakeBridge());
+        await settle(wrapper);
+        exposed(wrapper).folder = "C:/saves/Overworld";
+        await wrapper.vm.$nextTick();
+
+        // The listener moved from the `<v-text-field>` itself onto `PathField.vue`'s own
+        // wrapper, relying on the native keydown bubbling from the input inside it up to
+        // that wrapper - this is what proves that still works rather than assuming it.
+        await wrapper.find(".mb-path-field input").trigger("keydown.enter");
+        await settle(wrapper);
+
+        expect(wrapper.text()).toContain("4821 files");
     });
 });
 

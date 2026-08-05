@@ -39,6 +39,9 @@ class TestBlockAccess implements BlockAccess {
     getBlockState(): BlockState {
         return BlockState.AIR;
     }
+    isLegacy(): boolean {
+        return false;
+    }
     getLightData(): LightData {
         return this.lightData;
     }

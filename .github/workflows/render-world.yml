@@ -13,12 +13,20 @@ name: Render world
 # the one before it. Nothing is truncated to fit. Every shard caches its own render
 # state and writes a completion marker, so re-dispatching this workflow skips the shards
 # that are already done and renders only the rest: a run that dies in wave 7 costs wave
-# 7 and not the six before it. See docs/resumable-renders.md.
+# 7 and not the waves before it. See docs/resumable-renders.md.
 #
 # When the merged map is too large for one runner's disk, the merge becomes a tree: each
 # group of shards merges its own share, hires tiles are final at that point because they
 # are disjoint across the whole plan, and only the lowres layers travel to a final job
 # that composites them. The map then ships as parts, and the run summary says so.
+#
+# The plan step also estimates how much free disk a job needs - fetching a split-archive
+# world can briefly hold three copies of it at once, and a shard's render holds the world
+# plus its own share of the tiles. That estimate is checked against this runner's real,
+# measured free disk (never the published spec, which this project has already caught
+# understating a real runner by a wide margin) before any wave is dispatched, so a world
+# too large for the runners it would run on fails here with the numbers rather than partway
+# through a render. See design/packages/render-actions/src/plan/disk.ts.
 #
 # Mojang's EULA: this workflow accepts it on behalf of the repository owner, who has
 # already accepted it in the desktop application. BlueMap downloads a Minecraft client
@@ -170,6 +178,7 @@ jobs:
       group-count: ${{ steps.plan.outputs.group-count }}
       group-ids: ${{ steps.plan.outputs.group-ids }}
       single-group: ${{ steps.plan.outputs.single-group }}
+      required-disk-bytes: ${{ steps.plan.outputs.required-disk-bytes }}
       wave1-shards: ${{ steps.plan.outputs.wave1-shards }}
       wave1-needed: ${{ steps.plan.outputs.wave1-needed }}
       wave2-shards: ${{ steps.plan.outputs.wave2-shards }}
@@ -182,6 +191,18 @@ jobs:
       wave5-needed: ${{ steps.plan.outputs.wave5-needed }}
       wave6-shards: ${{ steps.plan.outputs.wave6-shards }}
       wave6-needed: ${{ steps.plan.outputs.wave6-needed }}
+      wave7-shards: ${{ steps.plan.outputs.wave7-shards }}
+      wave7-needed: ${{ steps.plan.outputs.wave7-needed }}
+      wave8-shards: ${{ steps.plan.outputs.wave8-shards }}
+      wave8-needed: ${{ steps.plan.outputs.wave8-needed }}
+      wave9-shards: ${{ steps.plan.outputs.wave9-shards }}
+      wave9-needed: ${{ steps.plan.outputs.wave9-needed }}
+      wave10-shards: ${{ steps.plan.outputs.wave10-shards }}
+      wave10-needed: ${{ steps.plan.outputs.wave10-needed }}
+      wave11-shards: ${{ steps.plan.outputs.wave11-shards }}
+      wave11-needed: ${{ steps.plan.outputs.wave11-needed }}
+      wave12-shards: ${{ steps.plan.outputs.wave12-shards }}
+      wave12-needed: ${{ steps.plan.outputs.wave12-needed }}
     steps:
       - uses: actions/checkout@v4
 
@@ -431,6 +452,33 @@ jobs:
             --github-output "$GITHUB_OUTPUT" \
             --summary "$GITHUB_STEP_SUMMARY"
 
+      # Checked here, once, before any wave is dispatched or the (possibly large) world
+      # artifact is uploaded - failing at the plan step with the exact numbers, rather than
+      # a shard runner dying mid-render with a bare "no space left on device".
+      #
+      # `df` on THIS runner, not the published runner spec: this project has already caught
+      # that spec understating a real runner's free disk by a wide margin (see
+      # docs/world-sources.md), so trusting it here would make this check reject worlds a
+      # real runner could actually hold. ubuntu-latest runners are provisioned from the same
+      # image, so this runner's disk - measured right after the same world fetch a shard
+      # runner would also do - stands in for what the wave jobs this same run dispatches
+      # will have.
+      - name: Check the runner has enough free disk for this plan
+        shell: bash
+        env:
+          REQUIRED_BYTES: ${{ steps.plan.outputs.required-disk-bytes }}
+        run: |
+          set -euo pipefail
+          free_bytes=$(df --output=avail -B1 . | tail -n1 | tr -d '[:space:]')
+          required_gib=$(( (REQUIRED_BYTES + 1073741823) / 1073741824 ))
+          free_gib=$(( free_bytes / 1073741824 ))
+          echo "Required (estimate, with safety margin): ~${required_gib} GiB free"
+          echo "Free on this runner right now:            ~${free_gib} GiB free"
+          if [ "$free_bytes" -lt "$REQUIRED_BYTES" ]; then
+            echo "::error::Not enough disk for this render: the plan needs roughly ${required_gib} GiB free on a job's runner (fetching the world, and separately a shard rendering it, each with a safety margin), and this runner has only ~${free_gib} GiB free. This runner shares its image with the wave jobs this run would dispatch, so they would very likely fail the same way partway through. Render fewer dimensions per run, trim the world, or dispatch this workflow on a runner with more disk."
+            exit 1
+          fi
+
       # The world is uploaded once here rather than re-fetched by every shard, so a
       # thirty-way split does not download the same archive thirty times from someone
       # else's server.
@@ -455,10 +503,17 @@ jobs:
   #
   # One job per shard, each rendering its own slice into its own storage, so nothing is
   # shared and nothing can race. A matrix holds at most 256 of them, so a plan needing
-  # more is split into waves that run one after another. Six wave jobs are declared
-  # because Actions cannot generate a variable number of jobs; a plan needing more than
-  # six waves fails in the plan step, with the number it needs, rather than silently
-  # rendering part of the world.
+  # more is split into waves that run one after another. RENDER_WAVE_SLOTS wave jobs are
+  # declared - twelve, right now - because Actions cannot generate a variable number of
+  # jobs; a plan needing more waves than that fails in the plan step, with the number it
+  # needs, rather than silently rendering part of the world.
+  #
+  # This count is not a number chosen once and left to drift: it exists as
+  # `RENDER_WAVE_SLOTS` in design/packages/render-actions/src/bluemap.ts, and
+  # design/packages/render-actions/src/resume/resume.test.ts reads this very file and
+  # fails if the declared wave jobs and that constant ever disagree. Raising the ceiling
+  # means raising `RENDER_WAVE_SLOTS` and adding the matching `waveN` blocks here; the test
+  # is what keeps that a requirement rather than a suggestion.
   #
   # Each wave is skipped when the plan has no shards for it, and each waits for the one
   # before it. The body is in render-shard-wave.yml, including the caching and the
@@ -536,6 +591,78 @@ jobs:
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
+  wave7:
+    name: Wave 7
+    needs: [cli, plan, wave6]
+    if: needs.plan.outputs.wave7-needed == 'true'
+    uses: ./.github/workflows/render-shard-wave.yml
+    with:
+      wave: 7
+      shards: ${{ needs.plan.outputs.wave7-shards }}
+      map-id: ${{ inputs.map-id }}
+      map-name: ${{ inputs.map-name }}
+      accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
+
+  wave8:
+    name: Wave 8
+    needs: [cli, plan, wave7]
+    if: needs.plan.outputs.wave8-needed == 'true'
+    uses: ./.github/workflows/render-shard-wave.yml
+    with:
+      wave: 8
+      shards: ${{ needs.plan.outputs.wave8-shards }}
+      map-id: ${{ inputs.map-id }}
+      map-name: ${{ inputs.map-name }}
+      accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
+
+  wave9:
+    name: Wave 9
+    needs: [cli, plan, wave8]
+    if: needs.plan.outputs.wave9-needed == 'true'
+    uses: ./.github/workflows/render-shard-wave.yml
+    with:
+      wave: 9
+      shards: ${{ needs.plan.outputs.wave9-shards }}
+      map-id: ${{ inputs.map-id }}
+      map-name: ${{ inputs.map-name }}
+      accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
+
+  wave10:
+    name: Wave 10
+    needs: [cli, plan, wave9]
+    if: needs.plan.outputs.wave10-needed == 'true'
+    uses: ./.github/workflows/render-shard-wave.yml
+    with:
+      wave: 10
+      shards: ${{ needs.plan.outputs.wave10-shards }}
+      map-id: ${{ inputs.map-id }}
+      map-name: ${{ inputs.map-name }}
+      accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
+
+  wave11:
+    name: Wave 11
+    needs: [cli, plan, wave10]
+    if: needs.plan.outputs.wave11-needed == 'true'
+    uses: ./.github/workflows/render-shard-wave.yml
+    with:
+      wave: 11
+      shards: ${{ needs.plan.outputs.wave11-shards }}
+      map-id: ${{ inputs.map-id }}
+      map-name: ${{ inputs.map-name }}
+      accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
+
+  wave12:
+    name: Wave 12
+    needs: [cli, plan, wave11]
+    if: needs.plan.outputs.wave12-needed == 'true'
+    uses: ./.github/workflows/render-shard-wave.yml
+    with:
+      wave: 12
+      shards: ${{ needs.plan.outputs.wave12-shards }}
+      map-id: ${{ inputs.map-id }}
+      map-name: ${{ inputs.map-name }}
+      accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
+
   # ---------------------------------------------------------------------------------
   # Put the shards back together and prove nothing was lost, duplicated or corrupted.
   #
@@ -549,7 +676,7 @@ jobs:
   # ---------------------------------------------------------------------------------
   merge:
     name: Merge group ${{ matrix.group }}
-    needs: [plan, wave1, wave2, wave3, wave4, wave5, wave6]
+    needs: [plan, wave1, wave2, wave3, wave4, wave5, wave6, wave7, wave8, wave9, wave10, wave11, wave12]
     # `always()` because most runs skip most wave jobs, and a skipped `needs` would
     # otherwise skip this too. The wave results are checked explicitly instead, so a
     # failed wave still stops the merge rather than publishing a map with a hole in it.
@@ -561,7 +688,13 @@ jobs:
         && needs.wave3.result != 'failure' && needs.wave3.result != 'cancelled'
         && needs.wave4.result != 'failure' && needs.wave4.result != 'cancelled'
         && needs.wave5.result != 'failure' && needs.wave5.result != 'cancelled'
-        && needs.wave6.result != 'failure' && needs.wave6.result != 'cancelled' }}
+        && needs.wave6.result != 'failure' && needs.wave6.result != 'cancelled'
+        && needs.wave7.result != 'failure' && needs.wave7.result != 'cancelled'
+        && needs.wave8.result != 'failure' && needs.wave8.result != 'cancelled'
+        && needs.wave9.result != 'failure' && needs.wave9.result != 'cancelled'
+        && needs.wave10.result != 'failure' && needs.wave10.result != 'cancelled'
+        && needs.wave11.result != 'failure' && needs.wave11.result != 'cancelled'
+        && needs.wave12.result != 'failure' && needs.wave12.result != 'cancelled' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

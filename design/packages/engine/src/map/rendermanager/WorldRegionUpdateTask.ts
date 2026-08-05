@@ -133,6 +133,13 @@ export class WorldRegionUpdateTask implements MapRenderTask {
     async run(): Promise<WorldRegionUpdateResult> {
         await this.#init();
 
+        // upstream: `if (tileRenderCount + tileDeleteCount == 0) completed = true;`, read by
+        // `doWork` before it ever claims a tile. A region with nothing to do must produce
+        // the same silence here: no tile touched, no chunk hashes written, no region
+        // timestamp written. Returning before the loop (and before `#complete`) is what
+        // makes that true - see the note on `#nothingToDo` in `#init` above.
+        if (this.#nothingToDo) return { rendered: 0, deleted: 0, unchanged: 0 };
+
         let rendered = 0;
         let deleted = 0;
         let unchanged = 0;
@@ -226,8 +233,8 @@ export class WorldRegionUpdateTask implements MapRenderTask {
         // what that skips: `doWork` returns before processing a single tile, so
         // `complete()` never runs and neither the chunk hashes nor the region timestamp
         // are written. That is upstream's behaviour and it is consistent — nothing
-        // changed, so there is nothing new to record. Only the sliced `doWork` path
-        // observes this; `run` predates it and still walks and completes unconditionally.
+        // changed, so there is nothing new to record. `run` honours the same flag, right
+        // after this method returns (see the note there).
         this.#nothingToDo = renderCount + deleteCount === 0;
         this.#initialised = true;
     }

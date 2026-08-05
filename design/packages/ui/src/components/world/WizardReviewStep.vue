@@ -332,6 +332,7 @@ async function copyConfig(): Promise<void> {
                 <v-btn
                     :prepend-icon="configOpen ? mdiChevronUp : mdiChevronDown"
                     :aria-expanded="configOpen ? 'true' : 'false'"
+                    aria-controls="mb-world-review-config"
                     variant="text"
                     size="small"
                     density="comfortable"
@@ -347,7 +348,7 @@ async function copyConfig(): Promise<void> {
                     {{ t("world.review.copy", "Copy") }}
                 </v-btn>
             </v-card-title>
-            <v-card-text v-if="configOpen">
+            <v-card-text v-if="configOpen" id="mb-world-review-config">
                 <pre class="mb-world-review__pre">{{ configText }}</pre>
             </v-card-text>
         </v-card>

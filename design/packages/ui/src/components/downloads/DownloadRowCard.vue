@@ -105,6 +105,17 @@ const advice = computed(() => {
 const resumable = computed(() => canResume(props.row));
 
 /**
+ * Ids for the two disclosures below, so `aria-expanded` on each toggle has an
+ * `aria-controls` to point at.
+ *
+ * `downloadId` is already a slug plus a short hex digest (see `downloadIdFor` in the main
+ * process), so it is safe to drop straight into an id attribute without escaping, and it
+ * keeps the two ids unique across every row on screen at once.
+ */
+const detailPanelId = computed(() => `mb-download-row-detail-${row.value.downloadId}`);
+const logPanelId = computed(() => `mb-download-row-log-${row.value.downloadId}`);
+
+/**
  * What the button that starts it again honestly says.
  *
  * A cancelled or interrupted download has bytes on disk and every part is checksummed on
@@ -304,6 +315,7 @@ const noResumeReason = computed(() =>
                         v-if="advice.detail"
                         :append-icon="detailOpen ? mdiChevronUp : mdiChevronDown"
                         :aria-expanded="detailOpen ? 'true' : 'false'"
+                        :aria-controls="detailPanelId"
                         variant="text"
                         size="small"
                         @click="detailOpen = !detailOpen"
@@ -316,7 +328,11 @@ const noResumeReason = computed(() =>
                     </v-btn>
                 </div>
 
-                <pre v-if="detailOpen && advice.detail" class="mb-download-row__pre">{{ advice.detail }}</pre>
+                <pre
+                    v-if="detailOpen && advice.detail"
+                    :id="detailPanelId"
+                    class="mb-download-row__pre"
+                >{{ advice.detail }}</pre>
             </template>
 
             <div v-if="!running && (resumable || noResumeReason)" class="mb-download-row__actions">
@@ -338,6 +354,7 @@ const noResumeReason = computed(() =>
                 <v-btn
                     :append-icon="logOpen ? mdiChevronUp : mdiChevronDown"
                     :aria-expanded="logOpen ? 'true' : 'false'"
+                    :aria-controls="logPanelId"
                     variant="text"
                     size="x-small"
                     density="comfortable"
@@ -349,7 +366,7 @@ const noResumeReason = computed(() =>
                             : t("downloads.row.showLog", { n: row.log.length }, "Show what it reported ({n} lines)")
                     }}
                 </v-btn>
-                <pre v-if="logOpen" class="mb-download-row__pre">{{
+                <pre v-if="logOpen" :id="logPanelId" class="mb-download-row__pre">{{
                     row.log.map((line) => line.message).join("\n")
                 }}</pre>
             </div>

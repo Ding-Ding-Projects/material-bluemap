@@ -19,21 +19,27 @@ import {
     VTextField,
 } from "vuetify/components";
 import type { FieldMeta, PlainValue, ProjectFile } from "@material-bluemap/config";
+import PathField from "../PathField.vue";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { clearFieldValue, replaceText, setFieldValue } from "../config/configModel.js";
+import { valueToText } from "../config/fieldValue.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import ProjectMapsPanel from "./ProjectMapsPanel.vue";
 import ProjectStoragesPanel from "./ProjectStoragesPanel.vue";
 import {
+    EMPTY_RENDER,
     SINGLETONS,
+    isRenderFieldDefault,
     openSingletonFile,
     orderedMaps,
     renderProblems,
     withName,
     withRender,
+    withRenderFieldDefault,
     withSingleton,
+    type RenderFieldKey,
     type SingletonKind,
 } from "./projectModel.js";
 
@@ -299,6 +305,34 @@ const runSummary = computed(() =>
 
 const runSample = computed(() => runRows.value.map((row) => `${row.label} ${row.hint}`).join("\n"));
 
+/**
+ * The lightweight default indicator these five render options never had.
+ *
+ * Every real config setting shown elsewhere in this editor - a map's fields, a storage's
+ * fields, the four whole-file singletons - already goes through `../config/ConfigField.vue`,
+ * which has carried a "this is BlueMap's own default" line and a one-click reset since
+ * before this task. These five (`threads`, `force`, `fixEdges`, `metrics`, `outputFolder`)
+ * are project-level render options with no `FieldMeta` behind them, so they never got that
+ * for free; this is that same idea, applied here.
+ */
+function fieldDefaultText(key: RenderFieldKey, value: PlainValue | null): string {
+    if (isRenderFieldDefault(props.project, key)) {
+        return t("project.fieldDefault.atDefault", "This already matches BlueMap's own default.");
+    }
+    const nothing = t("config.field.nothing", "nothing");
+    const shown = valueToText(value ?? undefined) || nothing;
+    const defaultShown = valueToText((EMPTY_RENDER[key] as PlainValue) ?? undefined) || nothing;
+    return t(
+        "project.fieldDefault.changed",
+        { value: shown, default: defaultShown },
+        "Set to {value}. BlueMap's default is {default}.",
+    );
+}
+
+function resetRenderField(key: RenderFieldKey): void {
+    emit("update:project", withRenderFieldDefault(props.project, key));
+}
+
 function setThreads(value: string): void {
     const trimmed = value.trim();
     if (trimmed === "") {
@@ -421,6 +455,7 @@ function setOutputFolder(value: string): void {
                     :project="project"
                     :world="world"
                     :separator="separatorValue"
+                    :default-root="defaultRootValue"
                     :selected-id="selectedMap"
                     @update:project="(value) => emit('update:project', value)"
                     @update:selected-id="(value) => (selectedMap = value)"
@@ -467,6 +502,18 @@ function setOutputFolder(value: string): void {
                         class="mt-3"
                         @update:model-value="setThreads"
                     />
+                    <div v-if="showsRun('threads')" class="mb-project-editor__fieldDefault">
+                        <span>{{ fieldDefaultText("threads", project.render.threads) }}</span>
+                        <v-btn
+                            v-if="!isRenderFieldDefault(project, 'threads')"
+                            variant="text"
+                            size="x-small"
+                            density="comfortable"
+                            @click="resetRenderField('threads')"
+                        >
+                            {{ t("project.fieldDefault.reset", "Reset to BlueMap's default") }}
+                        </v-btn>
+                    </div>
 
                     <v-switch
                         v-if="showsRun('force')"
@@ -479,6 +526,18 @@ function setOutputFolder(value: string): void {
                         inset
                         @update:model-value="(value: boolean | null) => emit('update:project', withRender(project, { force: value === true }))"
                     />
+                    <div v-if="showsRun('force')" class="mb-project-editor__fieldDefault">
+                        <span>{{ fieldDefaultText("force", project.render.force) }}</span>
+                        <v-btn
+                            v-if="!isRenderFieldDefault(project, 'force')"
+                            variant="text"
+                            size="x-small"
+                            density="comfortable"
+                            @click="resetRenderField('force')"
+                        >
+                            {{ t("project.fieldDefault.reset", "Reset to BlueMap's default") }}
+                        </v-btn>
+                    </div>
 
                     <v-switch
                         v-if="showsRun('fixEdges')"
@@ -491,6 +550,18 @@ function setOutputFolder(value: string): void {
                         inset
                         @update:model-value="(value: boolean | null) => emit('update:project', withRender(project, { fixEdges: value === true }))"
                     />
+                    <div v-if="showsRun('fixEdges')" class="mb-project-editor__fieldDefault">
+                        <span>{{ fieldDefaultText("fixEdges", project.render.fixEdges) }}</span>
+                        <v-btn
+                            v-if="!isRenderFieldDefault(project, 'fixEdges')"
+                            variant="text"
+                            size="x-small"
+                            density="comfortable"
+                            @click="resetRenderField('fixEdges')"
+                        >
+                            {{ t("project.fieldDefault.reset", "Reset to BlueMap's default") }}
+                        </v-btn>
+                    </div>
 
                     <v-switch
                         v-if="showsRun('metrics')"
@@ -503,19 +574,48 @@ function setOutputFolder(value: string): void {
                         inset
                         @update:model-value="(value: boolean | null) => emit('update:project', withRender(project, { metrics: value === true }))"
                     />
+                    <div v-if="showsRun('metrics')" class="mb-project-editor__fieldDefault">
+                        <span>{{ fieldDefaultText("metrics", project.render.metrics) }}</span>
+                        <v-btn
+                            v-if="!isRenderFieldDefault(project, 'metrics')"
+                            variant="text"
+                            size="x-small"
+                            density="comfortable"
+                            @click="resetRenderField('metrics')"
+                        >
+                            {{ t("project.fieldDefault.reset", "Reset to BlueMap's default") }}
+                        </v-btn>
+                    </div>
 
-                    <v-text-field
+                    <PathField
                         v-if="showsRun('outputFolder')"
                         :model-value="project.render.outputFolder ?? ''"
+                        field="the render output folder"
+                        semantic="folder"
                         :label="t('project.render.outputFolder', 'Where the rendered map is written')"
-                        :hint="t('project.render.outputFolderHint', 'Left empty, the app writes into the folder chosen during setup. This is the one absolute path a project carries, because the output belongs outside the world the file lives in.')"
-                        persistent-hint
-                        variant="outlined"
-                        density="compact"
-                        spellcheck="false"
                         class="mt-3"
                         @update:model-value="setOutputFolder"
                     />
+                    <p v-if="showsRun('outputFolder')" class="mb-project-editor__note">
+                        {{
+                            t(
+                                "project.render.outputFolderHint",
+                                "Left empty, the app writes into the folder chosen during setup. This is the one absolute path a project carries, because the output belongs outside the world the file lives in.",
+                            )
+                        }}
+                    </p>
+                    <div v-if="showsRun('outputFolder')" class="mb-project-editor__fieldDefault">
+                        <span>{{ fieldDefaultText("outputFolder", project.render.outputFolder) }}</span>
+                        <v-btn
+                            v-if="!isRenderFieldDefault(project, 'outputFolder')"
+                            variant="text"
+                            size="x-small"
+                            density="comfortable"
+                            @click="resetRenderField('outputFolder')"
+                        >
+                            {{ t("project.fieldDefault.reset", "Reset to BlueMap's default") }}
+                        </v-btn>
+                    </div>
 
                     <p v-if="visibleRunRows.length === 0" class="mb-project-editor__note">
                         {{ t("project.render.noMatches", "Nothing on this tab matches. The other tabs may still have results.") }}
@@ -603,5 +703,15 @@ function setOutputFolder(value: string): void {
     flex-direction: column;
     gap: 8px;
     max-inline-size: 720px;
+}
+
+.mb-project-editor__fieldDefault {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-block-start: -4px;
+    font-size: 0.6875rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 </style>

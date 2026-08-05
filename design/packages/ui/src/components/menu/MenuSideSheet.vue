@@ -103,8 +103,19 @@ const { t } = useI18n();
 
 <style>
 .mb-side-sheet.v-navigation-drawer {
-    /* Above the floating control bar, below Vuetify's overlay stack (menus, dialogs). */
-    z-index: 1500 !important;
+    /*
+     * Above the floating control bar and above DockedSurface.vue's `.mb-docked` (z-index
+     * 1500), below Vuetify's overlay stack (menus, dialogs).
+     *
+     * A docked surface (e.g. Settings) can be persisted by the user to the left edge, the
+     * same edge this temporary drawer opens on, and nothing closes one when the other
+     * opens. A tied z-index left whichever painted last on top by accident, so this is
+     * pinned explicitly above the docked panel's band: while the main menu is open it
+     * fully covers and out-stacks a same-edge docked surface, rather than the two
+     * colliding at an accident of paint order. Coordinate any change to either value with
+     * the other file.
+     */
+    z-index: 1600 !important;
     max-width: 100vw;
     pointer-events: auto;
 }

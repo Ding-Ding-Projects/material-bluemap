@@ -1,11 +1,20 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import { mdiFileDocumentOutline } from "@mdi/js";
 import { sanitizeHtml } from "@material-bluemap/viewer";
 import type { BlueMapApp } from "@material-bluemap/viewer";
 import { useBlueMap } from "./useBlueMap";
 import ChangelogViewer from "../changelog/ChangelogViewer.vue";
 import { onRevealRequested } from "../shell/revealRequests.js";
+
+/**
+ * "Browse the documentation" - this page's own reachability path into the docs browser,
+ * mirroring the changelog fold immediately below it. The docs browser is a real shell tab
+ * rather than a fold in this menu, so the button only asks to be taken there; `MainMenu.vue`
+ * forwards the request up to the shell, which is the one place that can actually switch tabs.
+ */
+const emit = defineEmits<{ "open-docs": [] }>();
 
 /**
  * The Info page: upstream renders `info.content` from the locale file straight through
@@ -200,6 +209,16 @@ onMounted(() => {
         demand, the page says what it says and the history arrives when it is asked for.
     -->
     <v-divider class="mb-info-page__rule" />
+
+    <v-btn
+        class="mb-info-page__docs-button"
+        variant="tonal"
+        :prepend-icon="mdiFileDocumentOutline"
+        @click="emit('open-docs')"
+    >
+        {{ t("docsViewer.openFromInfo", "Browse the documentation") }}
+    </v-btn>
+
     <details
         ref="changelogFold"
         class="mb-info-page__changelog"
@@ -219,6 +238,10 @@ onMounted(() => {
 
 .mb-info-page__rule {
     margin: 1rem 0;
+}
+
+.mb-info-page__docs-button {
+    margin-block-end: 12px;
 }
 
 .mb-info-page__changelog > summary {

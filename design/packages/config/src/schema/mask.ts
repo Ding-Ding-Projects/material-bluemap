@@ -23,7 +23,7 @@ export const MASK_TYPE_OPTIONS: readonly SelectOption[] = [
     { value: "blur", label: "Blur", description: "Softens the edge of the masks nested inside it." },
 ];
 
-const boxMaskSchema = z.object({
+export const boxMaskSchema = z.object({
     type: z.literal("bluemap:box"),
     subtract: hoconBoolean().default(false),
     "min-x": hoconInt().default(JAVA_INT_MIN),
@@ -34,7 +34,7 @@ const boxMaskSchema = z.object({
     "max-z": hoconInt().default(JAVA_INT_MAX),
 });
 
-const circleMaskSchema = z.object({
+export const circleMaskSchema = z.object({
     type: z.literal("bluemap:circle"),
     subtract: hoconBoolean().default(false),
     "center-x": hoconNumber().default(0),
@@ -44,7 +44,7 @@ const circleMaskSchema = z.object({
     "max-y": hoconInt().default(JAVA_INT_MAX),
 });
 
-const ellipseMaskSchema = z.object({
+export const ellipseMaskSchema = z.object({
     type: z.literal("bluemap:ellipse"),
     subtract: hoconBoolean().default(false),
     "center-x": hoconNumber().default(0),
@@ -55,7 +55,7 @@ const ellipseMaskSchema = z.object({
     "max-y": hoconInt().default(JAVA_INT_MAX),
 });
 
-const polygonMaskSchema = z.object({
+export const polygonMaskSchema = z.object({
     type: z.literal("bluemap:polygon"),
     subtract: hoconBoolean().default(false),
     "min-y": hoconInt().default(JAVA_INT_MIN),
@@ -92,7 +92,7 @@ function normaliseMaskType(value: unknown): unknown {
  */
 const nestedMasks: z.ZodType<MaskConfig[]> = z.lazy(() => z.array(maskConfigSchema));
 
-const blurMaskSchema = z.object({
+export const blurMaskSchema = z.object({
     type: z.literal("bluemap:blur"),
     subtract: hoconBoolean().default(false),
     size: hoconInt().default(5),
@@ -155,6 +155,9 @@ function maskField(
         invalidationNote:
             "Changing the render mask does not force a full re-render: BlueMap updates the map and deletes tiles that fall outside the new limits. Run 'fix-edges' afterwards if edges look wrong.",
         advanced: false,
+        // Upstream's `map.conf` carries exactly one comment for the whole render-mask
+        // block, not one per shape field, so none of these are a lifted quotation.
+        docSource: "authored",
         ...extra,
     };
 }
@@ -234,7 +237,12 @@ export const MASK_SHAPES: readonly MaskShapeMeta[] = [
                 "shape",
                 "shape",
                 "Outline",
-                "The points of the outline, each { x, z }. At least 3 are needed. Upstream's field has no initialiser, so a polygon mask without a shape is rejected when the config loads.",
+                [
+                    "The points of the outline, each { x, z }. At least 3 are needed.",
+                    "Upstream's field has no initialiser, so a polygon mask without a shape is rejected when the config loads.",
+                    "Points are read in the order given and the outline is closed automatically between the last point and the first, so there is no need to repeat the first point at the end.",
+                    "This only limits X and Z; pair it with min-y/max-y on this same shape to also limit height.",
+                ].join("\n"),
                 { kind: "list", itemLabel: "Point", unique: false, item: { kind: "vector", integer: false, axes: [{ key: "x", label: "X" }, { key: "z", label: "Z" }] } },
                 [],
                 { advisory: { min: 3, note: "BlueMap needs at least 3 points for a valid shape." } },

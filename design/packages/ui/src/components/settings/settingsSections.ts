@@ -58,16 +58,23 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * not stop for the want of a funny level, so nothing on the bridge could honestly point at
  * it.
  *
- * Where the panels sit is last, and is a setting about this surface as much as about any
+ * Where the panels sit is next, and is a setting about this surface as much as about any
  * other: every docked panel remembers its own placement, and the one control that resets
  * all of them at once has to live somewhere a person can find it when they have moved a
  * panel somewhere they now regret. That is what this section is.
+ *
+ * Updates is last for the same reason GitHub sign-in and language-and-tone are not
+ * anchors: no render stops for the want of an update, so nothing in the bridge's
+ * `SettingsTarget` could honestly point at it. It is the one place the installed version,
+ * the last check, the feed and a manual "Check for updates" are always reachable rather
+ * than only appearing as a banner when there happens to be one to show.
  */
 export const SETTINGS_SECTIONS = [
     ...SETTINGS_ANCHORS,
     "github-account",
     "language-and-tone",
     "surface-placement",
+    "updates",
 ] as const;
 
 /** A section this surface renders, whether or not a render can send somebody to it. */

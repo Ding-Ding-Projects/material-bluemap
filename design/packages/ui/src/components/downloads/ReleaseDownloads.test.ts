@@ -305,8 +305,55 @@ describe("a download, on screen", () => {
         expect(wrapper.text()).toContain("A file that is corrupt and looks complete is worse than no file");
         // The evidence is there, behind a disclosure, rather than pasted into the sentence.
         expect(wrapper.text()).not.toContain("does not match the manifest");
-        await button(wrapper, "Show what the app reported").trigger("click");
+
+        // A screen reader announces aria-expanded on its own; without aria-controls it has
+        // no region to say it is expanding. The button must name the id of the pre it
+        // reveals, and that id has to actually exist once the disclosure is open.
+        const detailToggle = button(wrapper, "Show what the app reported");
+        const detailPanelId = detailToggle.attributes("aria-controls");
+        expect(detailPanelId).toBeTruthy();
+        expect(wrapper.find(`#${detailPanelId}`).exists()).toBe(false);
+
+        await detailToggle.trigger("click");
         expect(wrapper.text()).toContain("Part 3 of 3 (test-world-seed-1739.zip.003) does not match the manifest");
+        expect(button(wrapper, "Hide the detail").attributes("aria-controls")).toBe(detailPanelId);
+        const detailPanel = wrapper.find(`#${detailPanelId}`);
+        expect(detailPanel.exists()).toBe(true);
+        expect(detailPanel.element.tagName).toBe("PRE");
+        expect(detailPanel.text()).toContain("does not match the manifest");
+
+        wrapper.unmount();
+    });
+
+    it("names the log region its toggle claims to expand", async () => {
+        const fake = fakeBridge();
+        const wrapper = render(fake.bridge);
+        await flushPromises();
+
+        fake.emit(STARTED);
+        fake.emit({
+            type: "log",
+            downloadId: DOWNLOAD_ID,
+            level: "info",
+            message: "Resolved release v1.4.0 from Ding-Ding-Projects/material-bluemap",
+            at: "t2",
+        });
+        await nextTick();
+
+        const logToggle = button(wrapper, "Show what it reported");
+        const logPanelId = logToggle.attributes("aria-controls");
+        expect(logPanelId).toBeTruthy();
+        // Collapsed by default, so the region the button claims to control does not exist
+        // yet on the page - which is exactly what makes the missing pairing invisible to a
+        // sighted reviewer clicking through, and exactly what a screen reader cannot skip.
+        expect(wrapper.find(`#${logPanelId}`).exists()).toBe(false);
+
+        await logToggle.trigger("click");
+        expect(button(wrapper, "Hide what it reported").attributes("aria-controls")).toBe(logPanelId);
+        const logPanel = wrapper.find(`#${logPanelId}`);
+        expect(logPanel.exists()).toBe(true);
+        expect(logPanel.element.tagName).toBe("PRE");
+        expect(logPanel.text()).toContain("Resolved release v1.4.0 from Ding-Ding-Projects/material-bluemap");
 
         wrapper.unmount();
     });

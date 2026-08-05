@@ -63,7 +63,7 @@ import { APP_VOICED, appCopyKeys } from "./appCopy.js";
  * is not a way to fix a failure: it is a statement that the screen went back to speaking
  * English at people who did not choose English.
  *
- * Four surfaces are deliberately absent because their copy is genuinely unfinished, and
+ * Two surfaces are deliberately absent because their copy is genuinely unfinished, and
  * naming them here is the honest alternative to a guard that quietly asserts less than it
  * appears to:
  *
@@ -72,10 +72,16 @@ import { APP_VOICED, appCopyKeys } from "./appCopy.js";
  *                        the form controls and field rows. The file-management half (the
  *                        maps and storages it writes, the config-folder shell, the render
  *                        controls, the apply gates) is still on English fallbacks.
- *   components/project   five destructive notes only, see `surfaces/project.ts`.
- *   components/world     not started. The whole "Make a map" wizard.
- *   components/palette   not started, and left alone on purpose while the command palette
- *                        itself was being reworked; its key set was moving underneath.
+ *   components/project   `surfaces/project.ts` now covers every literal call site in all
+ *                        five `.vue` files (`ProjectEditor.vue`, `ProjectList.vue`,
+ *                        `ProjectMapsPanel.vue`, `ProjectStoragesPanel.vue`,
+ *                        `ProjectsScreen.vue`). What is left is `projectModel.ts`'s five
+ *                        `project.row.*` keys -- not a component, still unvoiced -- so this
+ *                        stays off the list until those land too.
+ *
+ * `components/world` (the whole "Make a map" wizard, all ten `.vue` files plus the four
+ * helper modules that own `world.*` call sites of their own) and `components/palette` (the
+ * command palette, all 81 of its own keys) are both fully covered now and appear below.
  *
  * The bottom `describe` block prints the exact remaining count per surface on every run, so
  * the size of that gap is a number somebody reads rather than a claim in a comment.
@@ -97,12 +103,18 @@ const COVERED_SURFACES = [
     "components/history",
     "components/menu",
     "components/pages",
+    "components/palette",
     "components/remote",
     "components/settings",
     "components/tabs",
+    "components/world",
     "components/notifications",
     "components/progress",
     "components/shell",
+    // The shared native browse affordance every path field in the app adopts. Its own
+    // strings live in `surfaces/pathField.ts`, registered into `SURFACE_VOICED`/
+    // `SURFACE_FIXED` alongside the rest.
+    "components/PathField.vue",
 ] as const;
 
 /**

@@ -2,11 +2,12 @@
 import { computed, onMounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiDownload, mdiOpenInNew, mdiRefresh } from "@mdi/js";
-import { VAlert, VBtn, VIcon, VList, VListItem, VMenu, VProgressLinear } from "vuetify/components";
+import { VAlert, VBtn, VIcon, VMenu, VProgressLinear } from "vuetify/components";
 
 import AppearanceTarget from "../appearance/AppearanceTarget.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
+import MenuSearchList, { type MenuSearchItem } from "../menuSearch/MenuSearchList.vue";
 import SetupText from "../setup/SetupText.vue";
 import { useSetupI18n } from "../setup/setupI18n.js";
 import TabStrip from "../tabs/TabStrip.vue";
@@ -302,6 +303,46 @@ function download(scope: "section" | "all", format: EulaExportFormat): void {
     raiseNotice("success", i18n.t("eula.exported", { name }));
 }
 
+/**
+ * The six rows of the "Export" menu, as a filterable list rather than a bare `v-list`.
+ *
+ * `disabled` reads straight off `activeSection`, exactly as the six `v-list-item`s used
+ * to: a row scoped to "this section" makes no sense with no section open, and filtering the
+ * list never changes that -- a disabled row can still be found by search, it just still
+ * cannot be chosen.
+ */
+const exportItems = computed<MenuSearchItem[]>(() => [
+    { id: "section-markdown", label: i18n.t("eula.exportSectionMarkdown"), disabled: activeSection.value === null },
+    { id: "section-text", label: i18n.t("eula.exportSectionText"), disabled: activeSection.value === null },
+    { id: "all-markdown", label: i18n.t("eula.exportAllMarkdown") },
+    { id: "all-text", label: i18n.t("eula.exportAllText") },
+    { id: "copy-section", label: i18n.t("eula.copySection"), disabled: activeSection.value === null },
+    { id: "copy-all", label: i18n.t("eula.copyAll") },
+]);
+
+function chooseExport(id: string): void {
+    switch (id) {
+        case "section-markdown":
+            download("section", "markdown");
+            break;
+        case "section-text":
+            download("section", "text");
+            break;
+        case "all-markdown":
+            download("all", "markdown");
+            break;
+        case "all-text":
+            download("all", "text");
+            break;
+        case "copy-section":
+            void copy("section");
+            break;
+        case "copy-all":
+            void copy("all");
+            break;
+    }
+}
+
 /** The app's own clipboard channel first, the browser's second, a failure said out loud. */
 async function copy(scope: "section" | "all"): Promise<void> {
     exportOpen.value = false;
@@ -504,32 +545,18 @@ defineExpose({ sections, activeSection, state: eula.state });
                     offset="4"
                 >
                     <div class="mb-eula__menu" role="none">
-                        <v-list density="compact" :aria-label="i18n.t('eula.export')">
-                            <v-list-item
-                                :disabled="activeSection === null"
-                                :title="i18n.t('eula.exportSectionMarkdown')"
-                                @click="download('section', 'markdown')"
-                            />
-                            <v-list-item
-                                :disabled="activeSection === null"
-                                :title="i18n.t('eula.exportSectionText')"
-                                @click="download('section', 'text')"
-                            />
-                            <v-list-item
-                                :title="i18n.t('eula.exportAllMarkdown')"
-                                @click="download('all', 'markdown')"
-                            />
-                            <v-list-item
-                                :title="i18n.t('eula.exportAllText')"
-                                @click="download('all', 'text')"
-                            />
-                            <v-list-item
-                                :disabled="activeSection === null"
-                                :title="i18n.t('eula.copySection')"
-                                @click="copy('section')"
-                            />
-                            <v-list-item :title="i18n.t('eula.copyAll')" @click="copy('all')" />
-                        </v-list>
+                        <!--
+                            Gated on `exportOpen` itself, not only on the menu's own
+                            visibility, so choosing a row unmounts the search field and its
+                            query the moment it is chosen rather than waiting on the
+                            overlay's own close transition to finish.
+                        -->
+                        <MenuSearchList
+                            v-if="exportOpen"
+                            :items="exportItems"
+                            :label="i18n.t('eula.export')"
+                            @choose="chooseExport"
+                        />
                     </div>
                 </v-menu>
             </v-btn>

@@ -152,6 +152,7 @@ function scripted(status: GitHubStatusReadout = SIGNED_OUT): {
                     revoked: false,
                     reason: "This app holds no client secret, so GitHub would not confirm it.",
                     manageUrl: "https://github.com/settings/applications",
+                    fallbackAccount: null,
                 });
             },
             onGitHubAuthEvent: (listener) => {
@@ -525,5 +526,130 @@ describe("the signed-in account", () => {
         expect(
             document.querySelector<HTMLAnchorElement>(".mb-github__link")?.href,
         ).toBe("https://github.com/settings/applications");
+    });
+
+    it("reports the fallback account instead of a self-contradicting 'signed out' message when another account is stored", async () => {
+        // The legacy single-account channel now falls back to another stored account
+        // rather than always leaving nobody signed in (see `accounts.ts#signOut`), so
+        // this fake mirrors the main process exactly: it emits the fallback account's own
+        // `signed-in` event before its `githubSignOut()` call resolves.
+        const FALLBACK_ACCOUNT: GitHubAccountReadout = {
+            ...ACCOUNT,
+            login: "monalisa",
+            name: "Mona Lisa",
+        };
+        const listeners: ((event: GitHubAuthEventReadout) => void)[] = [];
+        let current: GitHubStatusReadout = { ...SIGNED_OUT, signedIn: true, account: ACCOUNT };
+        const emit = (event: GitHubAuthEventReadout): void => {
+            for (const listener of [...listeners]) listener(event);
+        };
+        const bridge: GitHubBridge = {
+            githubStatus: () => Promise.resolve(current),
+            // `state.supported` requires at least one sign-in route; unused by this test
+            // otherwise, so it never resolves.
+            githubSignInWithToken: () => new Promise(() => {}),
+            githubSignOut: () => {
+                current = { ...SIGNED_OUT, signedIn: true, account: FALLBACK_ACCOUNT };
+                emit({ type: "signed-in", account: FALLBACK_ACCOUNT });
+                return Promise.resolve({
+                    signedOut: true,
+                    revoked: true,
+                    reason: null,
+                    manageUrl: null,
+                    fallbackAccount: FALLBACK_ACCOUNT,
+                });
+            },
+            onGitHubAuthEvent: (listener) => {
+                listeners.push(listener);
+                return () => {
+                    const index = listeners.indexOf(listener);
+                    if (index >= 0) listeners.splice(index, 1);
+                };
+            },
+        };
+        const state = createGitHubAccount({ bridge });
+        mountRow(state);
+        await state.load();
+        await settle();
+
+        await wrapper?.find("button.mb-github-status__signout").trigger("click");
+        await settle();
+        await wrapper?.find("button.mb-github-status__confirmSignout").trigger("click");
+        await settle();
+
+        // Still signed in - as the fallback account - so the "Signed in" card is drawn.
+        expect(state.signedIn.value).toBe(true);
+        expect(document.querySelector(".mb-github-status")).not.toBeNull();
+        expect(document.body.textContent).toContain("monalisa");
+
+        // The report beside it says exactly that, rather than "Signed out" beside a card
+        // that is simultaneously saying somebody is signed in.
+        const report = document.querySelector(".mb-github__signOutReport")?.textContent ?? "";
+        expect(report).toContain("monalisa");
+        expect(report).toContain("now the active account");
+        expect(report).not.toContain("Signed out");
+        expect(report).not.toContain("works nowhere any more");
+    });
+});
+
+describe('closing "Add account" mid-flight', () => {
+    afterEach(() => {
+        delete (globalThis as { materialBluemap?: GitHubBridge }).materialBluemap;
+    });
+
+    it("cancels the in-flight device sign-in instead of only hiding its Cancel button", async () => {
+        // `GitHubAccountRow` resolves its own accounts-list bridge from the global preload
+        // rather than from the `account` prop, so the multi-account surface only mounts
+        // when that global is set - every other test in this file leaves it unset on
+        // purpose to exercise the single-account fallback.
+        const script = scripted({ ...SIGNED_OUT, signedIn: true, account: ACCOUNT });
+        const bridge: GitHubBridge = {
+            ...script.bridge,
+            githubListAccounts: () =>
+                Promise.resolve({
+                    accounts: [{ ...ACCOUNT, id: "u1", active: true }],
+                    activeId: "u1",
+                }),
+        };
+        (globalThis as { materialBluemap?: GitHubBridge }).materialBluemap = bridge;
+
+        const state = createGitHubAccount({ bridge });
+        mountRow(state);
+        await state.load();
+        await settle();
+
+        const addButton = document.querySelector<HTMLElement>(".mb-accounts__add");
+        expect(addButton?.textContent).toContain("Add account");
+        addButton?.click();
+        await settle();
+
+        await wrapper?.find(".mb-github-flow__start").trigger("click");
+        await settle();
+
+        script.emit({
+            type: "code",
+            userCode: "WDJB-MJHT",
+            verificationUri: "https://github.com/login/device",
+            verificationUriComplete: null,
+            expiresAt: "2026-08-03T09:29:00.000Z",
+            expiresInSeconds: 900,
+            intervalSeconds: 5,
+            browserOpened: true,
+        });
+        await settle();
+
+        expect(state.phase.value).toBe("waiting");
+        expect(document.querySelector(".mb-github-flow__code")).not.toBeNull();
+
+        // "Close" is the only control this surface offers at this point - the device
+        // flow's own Cancel button is inside the panel this click is about to hide.
+        const closeButton = document.querySelector<HTMLElement>(".mb-accounts__add");
+        expect(closeButton?.textContent).toContain("Close");
+        closeButton?.click();
+        await settle();
+
+        expect(script.calls).toContain("cancel");
+        expect(state.phase.value).toBe("idle");
+        expect(document.querySelector(".mb-github-flow__code")).toBeNull();
     });
 });

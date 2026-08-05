@@ -30,6 +30,7 @@ export { default as ConfigSearchField } from "./ConfigSearchField.vue";
 export { default as ConfigSuperConfirm } from "./ConfigSuperConfirm.vue";
 export { default as MapsScreen } from "./MapsScreen.vue";
 export { default as RunScreen } from "./RunScreen.vue";
+export { default as SpeedControl } from "./SpeedControl.vue";
 export { default as StoragesScreen } from "./StoragesScreen.vue";
 
 export {
@@ -154,6 +155,9 @@ export {
 
 export { FLAG_BINDINGS, FLAG_GROUPS, flagSearchText, flagValue, flagsInGroup, withFlagValue } from "./cliRun.js";
 export type { FlagValue } from "./cliRun.js";
+
+export { DEFAULT_SPEED_LEVEL, SPEED_LEVELS, speedLevelByNumber, speedLevelFor } from "./speedLevels.js";
+export type { SpeedLevel } from "./speedLevels.js";
 
 export {
     HISTORY_LIMIT,

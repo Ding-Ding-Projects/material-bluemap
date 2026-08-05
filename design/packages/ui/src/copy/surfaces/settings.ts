@@ -641,7 +641,6 @@ export const SETTINGS_FIXED = {
 
     /* The storage row. */
     "settings.storage.field": { en: "Folder for rendered maps", yue: "算好嘅地圖放邊個資料夾" },
-    "settings.storage.browse": { en: "Choose folder", yue: "揀資料夾" },
     "settings.storage.useDefault": { en: "Use the default", yue: "用預設嗰個" },
     "settings.storage.revert": { en: "Undo the change", yue: "還原改動" },
     "settings.storage.save": { en: "Save this folder", yue: "儲存呢個資料夾" },

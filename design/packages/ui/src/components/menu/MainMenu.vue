@@ -23,6 +23,16 @@ import { provideBlueMap, useBlueMap, useBlueMapTheme } from "./useBlueMap";
  */
 const props = defineProps<{ bluemap?: BlueMapApp | null }>();
 
+/**
+ * The Info page's "Browse the documentation" button lives two components below the shell,
+ * exactly where the changelog fold does - and for the same reason `revealRequests.ts` exists
+ * for the changelog, this cannot call the shell's `revealPage` directly. Unlike the changelog,
+ * though, the docs browser is a real shell tab rather than a fold inside this menu, so the
+ * fix is the ordinary one: forward the event up, the way `MarkerMenu`'s marker set already
+ * flows down through this component's own `markers` slot in the other direction.
+ */
+const emit = defineEmits<{ "open-docs": [] }>();
+
 const app = useBlueMap(() => props.bluemap);
 provideBlueMap(app);
 useBlueMapTheme(app);
@@ -143,7 +153,7 @@ function updateMap(): void {
 
         <SettingsMenu v-else-if="pageId === 'settings'" />
 
-        <InfoPage v-else-if="pageId === 'info'" />
+        <InfoPage v-else-if="pageId === 'info'" @open-docs="emit('open-docs')" />
     </MenuSideSheet>
 </template>
 

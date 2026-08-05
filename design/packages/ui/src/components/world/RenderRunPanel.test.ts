@@ -308,6 +308,63 @@ describe("what the panel says, rendered", () => {
         wrapper.unmount();
         run.dispose();
     });
+
+    /**
+     * Both disclosure toggles set `aria-expanded`, which by itself only tells a screen
+     * reader that *something* changed. Without `aria-controls` naming the revealed
+     * region's id, there is no programmatic way to jump there - the same gap this
+     * project already closes for its other disclosures (ChangelogViewer's dates panel,
+     * HistoryPanel's filters).
+     */
+    it("points each disclosure's aria-controls at the id of the region it reveals", async () => {
+        const fake = fakeBridge();
+        const run = createRenderRun(fake.bridge);
+        run.settle({
+            ok: false,
+            renderId: "world-abc",
+            failure: {
+                code: "engine-crash",
+                message: "The engine exited unexpectedly.",
+                settings: null,
+                detail: "Stack trace: something, somewhere, exploded.",
+                exitCode: 1,
+            },
+        });
+        fake.emit({ type: "log", renderId: "world-abc", level: "info", message: "one", at: "t" });
+
+        const wrapper = render(run);
+
+        const detailToggle = wrapper.findAll("button").find((candidate) => candidate.text().includes("Show what the engine reported"));
+        const logToggle = wrapper.findAll("button").find((candidate) => candidate.text().includes("Show the console"));
+        expect(detailToggle).toBeDefined();
+        expect(logToggle).toBeDefined();
+
+        const detailControls = detailToggle?.attributes("aria-controls");
+        const logControls = logToggle?.attributes("aria-controls");
+        expect(detailControls).toBeTruthy();
+        expect(logControls).toBeTruthy();
+        // Two different disclosures must not be wired to the same region.
+        expect(detailControls).not.toBe(logControls);
+
+        // Neither region exists yet - both start collapsed - so there is nothing for
+        // aria-controls to point at, which is fine as long as the ids appear the
+        // moment the regions do.
+        expect(wrapper.find(`#${detailControls}`).exists()).toBe(false);
+        expect(wrapper.find(`#${logControls}`).exists()).toBe(false);
+
+        await detailToggle?.trigger("click");
+        await logToggle?.trigger("click");
+
+        const detailRegion = wrapper.find(`#${detailControls}`);
+        const logRegion = wrapper.find(`#${logControls}`);
+        expect(detailRegion.exists()).toBe(true);
+        expect(logRegion.exists()).toBe(true);
+        expect(detailRegion.text()).toContain("Stack trace: something, somewhere, exploded.");
+        expect(logRegion.classes()).toContain("mb-console");
+
+        wrapper.unmount();
+        run.dispose();
+    });
 });
 
 /**

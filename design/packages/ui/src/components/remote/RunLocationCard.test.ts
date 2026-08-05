@@ -125,7 +125,7 @@ function runtimeBridge(
     return {
         dockerRuntime: async () => dockerSummary(status),
         runtimeModes: async () => ({ preferred: "local", modes: [], dockerImage: "eclipse-temurin:25-jre" }),
-        renderModes,
+        renderModes: async () => renderModes,
         canProbeDocker: true,
     };
 }

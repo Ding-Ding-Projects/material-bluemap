@@ -1,8 +1,10 @@
+import { readFileSync } from "node:fs";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { GITHUB_MATRIX_JOB_LIMIT, MAX_PLANNED_SHARDS } from "../bluemap.js";
+import { GITHUB_MATRIX_JOB_LIMIT, MAX_PLANNED_SHARDS, RENDER_WAVE_SLOTS } from "../bluemap.js";
 import type { ShardPlan } from "../plan/plan.js";
 import {
     countHiresTiles,
@@ -65,6 +67,14 @@ function plan(overrides: Partial<ShardPlan> = {}): ShardPlan {
             complexityFactor: 1,
             calibrated: false,
         } as ShardPlan["estimate"],
+        disk: {
+            worldBytes: 16_288_776,
+            fetchPeakBytes: 52_124_083,
+            shardTileBytes: 20_360_970,
+            perJobBytes: 38_798_921,
+            requiredBytes: 62_548_899,
+            largestShardFraction: 2000 / 3969,
+        },
         budgetSeconds: 14_400,
         requestedShards: 2,
         grid: { x: 2, z: 1 },
@@ -348,6 +358,49 @@ describe("waves", () => {
         expect(summary).toContain("3 sequential waves");
         expect(summary).toContain("Nothing is dropped");
         expect(summary).toContain("completion marker");
+    });
+});
+
+/**
+ * `render-world.yml` cannot generate a variable number of jobs, so it declares its wave
+ * jobs statically - `wave1`..`wave{RENDER_WAVE_SLOTS}` - and that count has to agree with
+ * this constant by hand. This is the thing that keeps "hand" honest: read the real
+ * workflow file and fail if it and `RENDER_WAVE_SLOTS` ever drift apart, which is exactly
+ * the failure mode issue #39 reported (a workflow silently declaring fewer waves than the
+ * code thought it could dispatch).
+ */
+describe("the workflow's wave jobs stay in sync with RENDER_WAVE_SLOTS", () => {
+    const workflowPath = fileURLToPath(
+        new URL("../../../../../.github/workflows/render-world.yml", import.meta.url),
+    );
+    const workflow = readFileSync(workflowPath, "utf8");
+    const expectedSlots = Array.from({ length: RENDER_WAVE_SLOTS }, (_, index) => index + 1);
+
+    it("declares exactly one job per wave slot, numbered from 1 without gaps", () => {
+        const declaredJobs = [...workflow.matchAll(/^ {2}wave(\d+):\s*$/gm)].map((match) =>
+            Number(match[1]),
+        );
+        expect(declaredJobs).toEqual(expectedSlots);
+    });
+
+    it("declares a matching wave-shards and wave-needed output for every slot, and no more", () => {
+        const shardSlots = new Set(
+            [...workflow.matchAll(/wave(\d+)-shards:/g)].map((match) => Number(match[1])),
+        );
+        const neededSlots = new Set(
+            [...workflow.matchAll(/wave(\d+)-needed:/g)].map((match) => Number(match[1])),
+        );
+        expect(shardSlots).toEqual(new Set(expectedSlots));
+        expect(neededSlots).toEqual(new Set(expectedSlots));
+    });
+
+    it("waits on every declared wave before merging, in order and with none skipped", () => {
+        const match = /needs: \[plan, (wave1(?:, wave\d+)*)\]/.exec(workflow);
+        expect(match).not.toBeNull();
+        const waveNumbers = match![1]!
+            .split(",")
+            .map((token) => Number(token.trim().replace("wave", "")));
+        expect(waveNumbers).toEqual(expectedSlots);
     });
 });
 

@@ -30,11 +30,14 @@ import { GITHUB_FACTS, GITHUB_FIXED, GITHUB_VOICED } from "./github.js";
 import { HISTORY_FACTS, HISTORY_FIXED, HISTORY_VOICED } from "./history.js";
 import { MENU_FACTS, MENU_FIXED, MENU_VOICED } from "./menu.js";
 import { PAGES_FACTS, PAGES_FIXED, PAGES_VOICED } from "./pages.js";
+import { PALETTE_FACTS, PALETTE_FIXED, PALETTE_VOICED } from "./palette.js";
+import { PATHFIELD_FACTS, PATHFIELD_FIXED, PATHFIELD_VOICED } from "./pathField.js";
 import { PROFILES_FACTS, PROFILES_FIXED, PROFILES_VOICED } from "./profiles.js";
 import { PROJECT_FACTS, PROJECT_FIXED, PROJECT_VOICED } from "./project.js";
 import { REMOTE_FACTS, REMOTE_FIXED, REMOTE_VOICED } from "./remote.js";
 import { SETTINGS_FACTS, SETTINGS_FIXED, SETTINGS_VOICED } from "./settings.js";
 import { TABS_FACTS, TABS_FIXED, TABS_VOICED } from "./tabs.js";
+import { WORLD_FACTS, WORLD_FIXED, WORLD_VOICED } from "./world.js";
 
 export const SURFACE_VOICED = {
     ...CHROME_VOICED,
@@ -50,11 +53,14 @@ export const SURFACE_VOICED = {
     ...HISTORY_VOICED,
     ...MENU_VOICED,
     ...PAGES_VOICED,
+    ...PALETTE_VOICED,
+    ...PATHFIELD_VOICED,
     ...PROFILES_VOICED,
     ...PROJECT_VOICED,
     ...REMOTE_VOICED,
     ...SETTINGS_VOICED,
     ...TABS_VOICED,
+    ...WORLD_VOICED,
 } as const;
 
 export const SURFACE_FIXED = {
@@ -71,11 +77,14 @@ export const SURFACE_FIXED = {
     ...HISTORY_FIXED,
     ...MENU_FIXED,
     ...PAGES_FIXED,
+    ...PALETTE_FIXED,
+    ...PATHFIELD_FIXED,
     ...PROFILES_FIXED,
     ...PROJECT_FIXED,
     ...REMOTE_FIXED,
     ...SETTINGS_FIXED,
     ...TABS_FIXED,
+    ...WORLD_FIXED,
 } as const;
 
 export const SURFACE_FACTS = {
@@ -92,9 +101,12 @@ export const SURFACE_FACTS = {
     ...HISTORY_FACTS,
     ...MENU_FACTS,
     ...PAGES_FACTS,
+    ...PALETTE_FACTS,
+    ...PATHFIELD_FACTS,
     ...PROFILES_FACTS,
     ...PROJECT_FACTS,
     ...REMOTE_FACTS,
     ...SETTINGS_FACTS,
     ...TABS_FACTS,
+    ...WORLD_FACTS,
 } as const;

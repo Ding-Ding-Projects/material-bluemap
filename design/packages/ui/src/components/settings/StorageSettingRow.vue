@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { VAlert, VBtn, VTextField } from "vuetify/components";
-import { mdiFolderOpen } from "@mdi/js";
+import { VAlert, VBtn } from "vuetify/components";
+import PathField from "../PathField.vue";
 import {
     expandsAtRenderTime,
     mapStorageExample,
@@ -20,11 +20,16 @@ import type { MapStorageSetting } from "./mapStorageSetting.js";
  * and refuses again in the handler, because a keyboard submit walks straight past a
  * disabled button.
  *
- * Buttons that cannot work are absent rather than inert. **Choose folder** appears only
- * when the preload exposes a picker; today it does not, so there is no button pretending
- * to open one. Where the main process can be asked, the absolute folder it resolved is
- * shown underneath, because `%APPDATA%\...` is the value and the expanded path is the
- * place, and somebody looking for their tiles needs the second.
+ * The browse button is the shared `PathField` affordance rather than a row-local one.
+ * `props.setting.canBrowse` (backed by `settingsBridge.ts`'s `chooseMapStorageDirectory`)
+ * never turns true in the shipped app - nothing on the real preload implements that
+ * method - so a row-local "Choose folder" button gated on it never rendered.
+ * `PathField.vue` probes `window.materialBluemap.dialog` instead, which the desktop
+ * app's dialog bridge does implement, so the button now actually opens a folder picker
+ * rather than staying permanently absent. Where the main process can be asked, the
+ * absolute folder it resolved is shown underneath, because `%APPDATA%\...` is the value
+ * and the expanded path is the place, and somebody looking for their tiles needs the
+ * second.
  */
 const props = defineProps<{
     setting: MapStorageSetting;
@@ -40,6 +45,11 @@ const value = computed<string>({
         props.setting.value.value = next;
     },
 });
+
+/** The lowercase phrase `PathField` reads into "Browse for {field}" / "Choose {field}". */
+const fieldName = computed(() =>
+    t("settings.storage.field", "Folder for rendered maps").toLowerCase(),
+);
 
 const errorMessage = computed(() => {
     const problem = props.setting.problem.value;
@@ -74,10 +84,6 @@ const canSave = computed(
 function onSave(): void {
     void props.setting.save();
 }
-
-function onBrowse(): void {
-    void props.setting.browse();
-}
 </script>
 
 <template>
@@ -99,34 +105,21 @@ function onBrowse(): void {
         </v-alert>
 
         <div class="mb-storage-setting__row">
-            <v-text-field
-                v-model="value"
-                :label="t('settings.storage.field', 'Folder for rendered maps')"
-                :error-messages="errorMessage"
-                :disabled="props.setting.busy.value"
-                :hint="
-                    props.setting.isDefault.value
-                        ? t('settings.storage.isDefault', 'This is the default folder.')
-                        : ''
-                "
-                persistent-hint
-                variant="outlined"
-                density="comfortable"
-                spellcheck="false"
-                autocapitalize="off"
-                autocomplete="off"
-                class="mb-storage-setting__field"
-            />
-            <div class="mb-storage-setting__actions">
-                <v-btn
-                    v-if="props.setting.canBrowse"
-                    :prepend-icon="mdiFolderOpen"
+            <div class="mb-storage-setting__field">
+                <PathField
+                    v-model="value"
+                    :field="fieldName"
+                    :label="t('settings.storage.field', 'Folder for rendered maps')"
+                    semantic="folder"
                     :disabled="props.setting.busy.value"
-                    variant="tonal"
-                    @click="onBrowse"
-                >
-                    {{ t("settings.storage.browse", "Choose folder") }}
-                </v-btn>
+                    :error="errorMessage"
+                    density="comfortable"
+                />
+                <p v-if="props.setting.isDefault.value" class="mb-storage-setting__note">
+                    {{ t("settings.storage.isDefault", "This is the default folder.") }}
+                </p>
+            </div>
+            <div class="mb-storage-setting__actions">
                 <v-btn
                     :disabled="props.setting.busy.value || props.setting.isDefault.value"
                     variant="text"
@@ -240,6 +233,9 @@ function onBrowse(): void {
        200% display scale, where the button cluster wraps underneath it. */
     flex: 1 1 18rem;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
 .mb-storage-setting__actions {

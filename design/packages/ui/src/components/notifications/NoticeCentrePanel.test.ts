@@ -311,3 +311,118 @@ describe("what a screen reader is told", () => {
         expect(view.emitted("close")).toHaveLength(1);
     });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Bulk selection and bulk actions, wired end to end                          */
+/* -------------------------------------------------------------------------- */
+
+/** The row checkboxes, in the order the list renders them (newest first). */
+function checkboxes(view: VueWrapper<Host>): HTMLInputElement[] {
+    return view.findAll("input[type='checkbox']").map((input) => input.element as HTMLInputElement);
+}
+
+function buttonByText(view: VueWrapper<Host>, text: string) {
+    return view.findAll("button").find((button) => button.text().includes(text));
+}
+
+describe("selecting rows", () => {
+    it("a plain click toggles just that row, leaving the rest alone", async () => {
+        fillHistory();
+        const view = open();
+        await nextTick();
+
+        await checkboxes(view)[1]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await nextTick();
+
+        const boxes = checkboxes(view);
+        expect(boxes[1]?.checked).toBe(true);
+        expect(boxes[0]?.checked).toBe(false);
+        expect(boxes[2]?.checked).toBe(false);
+        expect(boxes[3]?.checked).toBe(false);
+    });
+
+    it("a shift-click extends a range from the last plain pick, in the order shown", async () => {
+        fillHistory();
+        const view = open();
+        await nextTick();
+
+        // Plain-pick the first row, then shift-click the third: rows 0, 1 and 2 should end
+        // up picked, and the fourth left alone.
+        await checkboxes(view)[0]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await nextTick();
+        await checkboxes(view)[2]?.dispatchEvent(
+            new MouseEvent("click", { bubbles: true, shiftKey: true }),
+        );
+        await nextTick();
+
+        const boxes = checkboxes(view);
+        expect(boxes.map((box) => box.checked)).toEqual([true, true, true, false]);
+    });
+
+    it("announces the live count as the selection changes", async () => {
+        fillHistory();
+        const view = open();
+        await nextTick();
+
+        await checkboxes(view)[0]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await nextTick();
+
+        const status = view.find("[role='status']");
+        expect(status.exists()).toBe(true);
+        expect(view.text()).toContain("1 selected");
+    });
+});
+
+describe("select all composes with the active search, honestly", () => {
+    it("selecting all shown, after a search, picks only what the search matched", async () => {
+        fillHistory();
+        const view = open();
+        await type(view, "overworld");
+
+        expect(buttonByText(view, "Select all 1 shown")).toBeDefined();
+        await buttonByText(view, "Select all 1 shown")?.trigger("click");
+        await nextTick();
+
+        expect(view.text()).toContain("1 selected");
+
+        // Widening the search back out does not silently grow the picked set: only the one
+        // notice the narrower search matched stays selected.
+        await type(view, "");
+        expect(view.text()).toContain("1 selected");
+    });
+
+    it("selecting all in history ignores the active search and picks everything", async () => {
+        fillHistory();
+        const view = open();
+        await type(view, "overworld");
+
+        await buttonByText(view, "Select all 4 in history")?.trigger("click");
+        await nextTick();
+
+        expect(view.text()).toContain("4 selected");
+    });
+});
+
+describe("bulk dismiss, wired through the whole panel", () => {
+    it("clears the selected notices off the corner and leaves the history untouched", async () => {
+        // These start live rather than dismissed, unlike fillHistory()'s own set, so there
+        // is something in `state.live` for a bulk dismiss to actually clear.
+        notify(state, "info", "one");
+        notify(state, "warning", "two");
+        notify(state, "error", "three");
+        const view = open();
+        await nextTick();
+
+        await checkboxes(view)[0]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await checkboxes(view)[1]?.dispatchEvent(
+            new MouseEvent("click", { bubbles: true, shiftKey: true }),
+        );
+        await nextTick();
+
+        await buttonByText(view, "Dismiss 2 selected")?.trigger("click");
+        await nextTick();
+
+        expect(state.live.map((notice) => notice.message)).toEqual(["one"]);
+        expect(state.history).toHaveLength(3);
+    });
+});

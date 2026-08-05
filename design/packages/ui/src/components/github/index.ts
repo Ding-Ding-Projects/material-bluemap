@@ -12,6 +12,7 @@
  */
 
 export { default as GitHubAccountRow } from "./GitHubAccountRow.vue";
+export { default as GitHubAccountsList } from "./GitHubAccountsList.vue";
 export { default as GitHubStatusRow } from "./GitHubStatusRow.vue";
 export { default as GitHubDeviceFlowPanel } from "./GitHubDeviceFlowPanel.vue";
 export { default as GitHubTokenForm } from "./GitHubTokenForm.vue";
@@ -31,9 +32,20 @@ export type {
     GitHubAccountState,
 } from "./githubAccount.js";
 
+export { accountSearchText, createGitHubAccountsList } from "./githubAccountsStore.js";
+export type {
+    GitHubAccountsListOptions,
+    GitHubAccountsListState,
+    RemovalReport,
+} from "./githubAccountsStore.js";
+
 export {
     canCancelSignIn,
+    canListGitHubAccounts,
     canReadGitHubStatus,
+    canRefreshGitHubAccount,
+    canRemoveGitHubAccount,
+    canSetActiveGitHubAccount,
     canSignInToGitHub,
     canSignInWithToken,
     canSignOut,
@@ -43,10 +55,15 @@ export {
 } from "./githubBridge.js";
 export type {
     GitHubAccountReadout,
+    GitHubAccountSummaryReadout,
+    GitHubAccountsListReadout,
     GitHubAuthEventReadout,
     GitHubBridge,
     GitHubFailureReadout,
+    GitHubRefreshAccountReadout,
+    GitHubRemoveAccountReadout,
     GitHubRepositoryAccessReadout,
+    GitHubSetActiveAccountReadout,
     GitHubSignInOutcome,
     GitHubSignOutReadout,
     GitHubStatusReadout,

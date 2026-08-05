@@ -2,9 +2,12 @@
 
 **This is for computers that cannot render a big world themselves.** Rendering is hours of
 CPU and gigabytes of disk; on a thin laptop that is an afternoon of the fan at full speed
-and, on some machines, a render that never finishes. A GitHub standard runner has 4 vCPU,
-around 14 GB of free disk and nothing else to do, and this workflow will use as many of
-them in parallel as the world needs. Your machine uploads the world and then waits.
+and, on some machines, a render that never finishes. A GitHub standard runner has 4 vCPU
+and nothing else to do, and this workflow will use as many of them in parallel as the world
+needs. Its free disk is not assumed from the published spec — the plan job measures it live
+with `df` and checks it against the render's own estimate before dispatching anything; see
+[Disk: measured, not assumed](#disk-measured-not-assumed) below. Your machine uploads the
+world and then waits.
 
 No Java, no BlueMap and no local rendering: start the **Render world** workflow, wait, and
 download the map as an artifact. The desktop app can drive the whole loop for you — see
@@ -23,7 +26,7 @@ Advertising the upside alone is how somebody wastes an afternoon, so:
   render spends one runner-minute per runner per minute — a 30-way split burns thirty
   times the wall-clock time.
 - **A very large world can still exceed a job's budget.** Six hours is the hard limit per
-  job; the plan splits to stay under it, and a world that needs more shards than the six
+  job; the plan splits to stay under it, and a world that needs more shards than the twelve
   declared waves can hold fails in the plan step rather than rendering part of itself.
 - **There is an upload ceiling.** A world whose archive would pass a release asset's 2 GiB
   limit cannot be sent as one asset, which is what the `release-asset` source reads.
@@ -42,6 +45,7 @@ quietly incorrect.
 - [Doing it from the app](#doing-it-from-the-app)
 - [Mojang's EULA](#mojangs-eula)
 - [How the split is decided](#how-the-split-is-decided)
+- [Disk: measured, not assumed](#disk-measured-not-assumed)
 - [Why shard edges land on block 32k+2](#why-shard-edges-land-on-block-32k2)
 - [Texture ordinals: the trap, and the evidence](#texture-ordinals-the-trap-and-the-evidence)
 - [The lowres layers, which are not a union](#the-lowres-layers-which-are-not-a-union)
@@ -295,8 +299,8 @@ that is therefore rendered in **sequential waves** of at most 256, each wave a m
 waits for the one before it. Nothing is truncated and no shard is silently enlarged to fit:
 600 shards become three waves of 256, 256 and 88.
 
-The workflow declares six wave jobs, so 1,536 shards. A plan needing more fails in the plan
-step with the number it needs rather than rendering part of the world. Every wave is
+The workflow declares twelve wave jobs, so 3,072 shards. A plan needing more fails in the
+plan step with the number it needs rather than rendering part of the world. Every wave is
 independently resumable, so a run that dies in wave 7 costs that wave and not the six
 before it. [resumable-renders.md](resumable-renders.md) has the arithmetic, the caching and
 the completion markers that make it work.
@@ -313,6 +317,36 @@ instead of the budget:
 If those shards would exceed the six-hour job limit, raise `max-jobs` so more shards are
 planned across more waves, or raise `budget-minutes` so the arithmetic is honest and split
 the render by dimension.
+
+### Disk: measured, not assumed
+
+A GitHub standard runner's published spec has already been caught understating its real
+free disk by a wide margin — see [world-sources.md](world-sources.md), where a runner
+documented as having roughly 14 GB free actually reported 87 GB free before anything was
+cleaned up. The plan step no longer trusts that published number for anything.
+
+Instead, `design/packages/render-actions/src/plan/disk.ts` estimates how much free disk the
+render needs at its two disk-heaviest points, and the workflow checks that estimate against
+what the runner actually has:
+
+- **Fetching a split-archive world** briefly needs room for three copies of the world at
+  once — the downloaded parts, the archive they are joined into, and the tree it is
+  unpacked to. The module's `FETCH_PEAK_MULTIPLIER` (3.2×) comes from a real measurement:
+  rendering the 6.6 GB Andyville world through this workflow peaked around 21 GB above
+  baseline while holding all three.
+- **One shard's job** needs the world plus its own share of the rendered tiles, at the
+  measured density of roughly 2.5× the world's size for the full map (`TILE_OUTPUT_RATIO`),
+  scaled down by that shard's fraction of the world's chunks, plus a fixed margin for the
+  Minecraft client jar, its extracted resources and BlueMap's runtime data.
+
+The larger of those two figures, with a 1.2× safety margin (`DISK_SAFETY_FACTOR`), is what
+gets checked. The plan job's **Check the runner has enough free disk for this plan** step
+runs `df --output=avail -B1 .` on the runner it is actually executing on — not the
+published spec — and compares the result to that required figure. It runs once, before any
+wave is dispatched and before the (possibly large) world artifact is uploaded, so an
+undersized runner fails here with the exact numbers and a named reason, instead of a shard
+runner dying mid-render with a bare "no space left on device". Render fewer dimensions per
+run, trim the world, or dispatch on a runner with more disk to clear it.
 
 ## Why shard edges land on block 32k+2
 
@@ -617,8 +651,13 @@ world: it exercised no mods, no custom resource pack, and one flat generated ter
 ## Limits and things this does not do
 
 - **The world travels as an artifact.** It is fetched once and uploaded, so a thirty-way
-  split does not download the same archive thirty times. Artifact storage and the
-  runner's ~14 GB of free disk are the practical ceiling on world size.
+  split does not download the same archive thirty times. Artifact storage and the runner's
+  measured free disk are the practical ceiling on world size — not a published figure. The
+  plan job estimates what the render needs (see
+  [Disk: measured, not assumed](#disk-measured-not-assumed)) and checks it against `df` on
+  the runner it is actually running on, before any wave is dispatched. A world too large
+  fails there, by name, rather than a shard runner dying mid-render with no space left on
+  device.
 - **Six hours per job.** The workflow sets a 350-minute timeout and the render step a
   300-minute one. A shard that exceeds it does not lose its work: its render state is
   cached and a re-dispatched run carries it on. Lower `budget-minutes` so more shards are

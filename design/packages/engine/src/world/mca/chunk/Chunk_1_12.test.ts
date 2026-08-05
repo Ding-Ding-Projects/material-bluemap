@@ -246,6 +246,13 @@ describe("Chunk_1_12", () => {
         expect(ungenerated.isGenerated()).toBe(false);
     });
 
+    it("reports itself as a legacy (pre-flattening) chunk", () => {
+        // consulted by BlockStateModelRenderer to gate flattenLegacyBlockState — see
+        // FlatteningRename.ts
+        const chunk = new Chunk_1_12(WORLD, makeData([]));
+        expect(chunk.isLegacy()).toBe(true);
+    });
+
     it("exposes the Level.HeightMap as world-surface heights (z*16+x order)", () => {
         const heightMap = new Int32Array(256);
         heightMap[(5 << 4) | 2] = 64;

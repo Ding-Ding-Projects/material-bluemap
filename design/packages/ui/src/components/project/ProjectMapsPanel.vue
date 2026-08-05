@@ -32,11 +32,14 @@ import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { clearFieldValue, replaceText, setFieldValue } from "../config/configModel.js";
 import {
+    PROJECT_PRESETS,
+    applyPreset,
     findMap,
     mapIdProblem,
     mapIds,
     openMapFile,
     orderedMaps,
+    presetApplicationLines,
     previewMapId,
     storageIds,
     withMapAdded,
@@ -45,6 +48,7 @@ import {
     withMapIdentity,
     withMapMoved,
     withMapRemoved,
+    type ProjectPreset,
 } from "./projectModel.js";
 
 /**
@@ -80,8 +84,10 @@ const props = withDefaults(
         highlightPath?: string | null;
         /** The platform separator, so generated paths read the way the platform writes them. */
         separator?: string;
+        /** Where the app writes renders, used as the root of a preset's file storage. */
+        defaultRoot?: string;
     }>(),
-    { selectedId: null, highlightPath: null, separator: "/" },
+    { selectedId: null, highlightPath: null, separator: "/", defaultRoot: "" },
 );
 
 const emit = defineEmits<{
@@ -353,6 +359,74 @@ function confirmCreate(): void {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Presets: the guided empty state                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Preset cards, shown only alongside the true empty state - `maps.length === 0`, not
+ * `listed.length === 0`, so a search that happens to match nothing does not surface a set
+ * of cards that would create maps the search was trying to find, not add.
+ *
+ * Every preset composes with the ordinary "Add a map" flow above rather than replacing it:
+ * `applyPreset` never overwrites a map, storage or singleton this project already has, so
+ * pressing one of these is safe even after somebody has already added maps by hand.
+ */
+/**
+ * Written as a literal `t("<key>", fallback)` per case, on purpose, rather than a lookup
+ * table keyed by `preset.id`: a dynamic key is invisible to `catalogueCoverage.test.ts`'s
+ * (and this task's own `presets.test.ts`) static scan for real call sites, so a table here
+ * would look wired while translating nothing anywhere that actually checks.
+ */
+function presetTitle(preset: ProjectPreset): string {
+    switch (preset.id) {
+        case "overworldOnly":
+            return t("project.presets.overworldOnly.title", "Start from BlueMap's defaults");
+        case "allDimensions":
+            return t("project.presets.allDimensions.title", "Overworld, Nether and End");
+        case "webServerOff":
+            return t("project.presets.webServerOff.title", "All three dimensions, no web server");
+        case "fastRender":
+            return t("project.presets.fastRender.title", "All three dimensions, faster renders");
+    }
+}
+
+function presetDescription(preset: ProjectPreset): string {
+    switch (preset.id) {
+        case "overworldOnly":
+            return t(
+                "project.presets.overworldOnly.description",
+                "Creates one map, the Overworld, written from BlueMap's own template, plus a file storage for its tiles. Every value stays editable afterwards.",
+            );
+        case "allDimensions":
+            return t(
+                "project.presets.allDimensions.description",
+                "Creates three maps, Overworld, Nether and End, each written from BlueMap's own per-dimension template, sharing one file storage.",
+            );
+        case "webServerOff":
+            return t(
+                "project.presets.webServerOff.description",
+                "The same three maps as Overworld, Nether and End, plus a webserver.conf that explicitly switches the built-in web server off, for a render-only setup.",
+            );
+        case "fastRender":
+            return t(
+                "project.presets.fastRender.description",
+                "The same three maps, Overworld, Nether and End, each with its hires layer switched off (enable-hires set to false), which speeds up rendering and shrinks the files, at the cost of close-up 3D detail.",
+            );
+    }
+}
+
+function usePreset(preset: ProjectPreset): void {
+    const application = applyPreset(props.project, preset, {
+        world: props.world,
+        storageRoot: props.defaultRoot,
+        separator: props.separator,
+    });
+    emit("update:project", application.project);
+    emit("update:selectedId", application.mapsAdded[0] ?? maps.value[0]?.id ?? null);
+    emit("notify", presetApplicationLines(preset, application, t).join(" "));
+}
+
+/* -------------------------------------------------------------------------- */
 /* Removing one                                                               */
 /* -------------------------------------------------------------------------- */
 
@@ -429,6 +503,39 @@ function confirmRemoval(): void {
             <v-btn :prepend-icon="mdiMapPlus" color="primary" variant="tonal" block class="mt-2" @click="openCreate">
                 {{ t("project.maps.new", "Add a map") }}
             </v-btn>
+
+            <!--
+                The guided empty state. Shown only when the project truly has no maps yet -
+                not merely when a search matches none - so nobody is offered a preset that
+                would create the very map their search failed to find. Every card composes
+                with "Add a map" above rather than replacing it: applying one never overwrites
+                a map, storage or singleton the project already has, so there is no gate here.
+            -->
+            <template v-if="maps.length === 0">
+                <p class="mb-project-maps__presetsHeading">{{ t("project.presets.heading", "Or start from a preset") }}</p>
+                <div
+                    class="mb-project-maps__presets"
+                    role="list"
+                    :aria-label="t('project.presets.heading', 'Or start from a preset')"
+                >
+                    <v-card
+                        v-for="preset in PROJECT_PRESETS"
+                        :key="preset.id"
+                        variant="outlined"
+                        role="listitem"
+                        class="mb-project-maps__preset"
+                    >
+                        <v-card-title class="mb-project-maps__presetTitle">{{ presetTitle(preset) }}</v-card-title>
+                        <v-card-text class="mb-project-maps__presetDesc">{{ presetDescription(preset) }}</v-card-text>
+                        <v-card-actions>
+                            <v-btn variant="tonal" color="primary" size="small" block @click="usePreset(preset)">
+                                {{ t("project.presets.apply", "Use this preset") }}
+                            </v-btn>
+                        </v-card-actions>
+                    </v-card>
+                </div>
+            </template>
+
             <!--
                 Adding a map is a form somebody completes or cancels, so it needs their
                 attention - but it does not need the rest of the application taken away
@@ -726,6 +833,40 @@ function confirmRemoval(): void {
 }
 
 .mb-project-maps__note {
+    font-size: 0.75rem;
+    line-height: 1.45;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    text-wrap: pretty;
+}
+
+.mb-project-maps__presetsHeading {
+    margin-block-start: 16px;
+    margin-block-end: 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.mb-project-maps__presets {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mb-project-maps__preset {
+    border-radius: 12px;
+}
+
+.mb-project-maps__presetTitle {
+    font-size: 0.875rem;
+    line-height: 1.35;
+    white-space: normal;
+}
+
+.mb-project-maps__presetDesc {
+    padding-block-start: 0;
     font-size: 0.75rem;
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));

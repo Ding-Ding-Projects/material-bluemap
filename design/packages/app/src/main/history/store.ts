@@ -62,6 +62,23 @@ export const HISTORY_DIRECTORY = "config-history";
  */
 export const PROJECT_HISTORY_DIRECTORY = "project-history";
 
+/**
+ * The directory holding the history of the server-profile / maps-and-servers list.
+ *
+ * Its own family for the same reason project histories are: a repository is a *complete*
+ * mirror, so sharing a root with config or project histories would have an unrelated save in
+ * either of those record the profile list's disappearance, and vice versa. See
+ * `profiles/history.ts` for the binding.
+ */
+export const PROFILES_HISTORY_DIRECTORY = "profiles-history";
+
+/**
+ * The directory holding the history of the application's own settings.
+ *
+ * Its own family for the same reason. See `settings/history.ts` for the binding.
+ */
+export const APP_SETTINGS_HISTORY_DIRECTORY = "app-settings-history";
+
 /** The mapping file's name inside that directory. */
 export const INDEX_FILE = "projects.json";
 

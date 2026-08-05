@@ -11,7 +11,7 @@
  */
 
 import { z } from "zod";
-import type { FieldMeta, GroupMeta, LegacyKey } from "../meta.js";
+import type { Control, FieldMeta, GroupMeta, LegacyKey } from "../meta.js";
 import { MAP_TEMPLATE } from "../templates/sources.js";
 import {
     BLUEMAP_NAMESPACE,
@@ -41,13 +41,89 @@ import { combinedMaskSchema } from "./mask.js";
  * config schema's, and half-modelling them here would produce an editor that
  * silently drops fields it did not know about.
  */
-const markerSetSchema = z.looseObject({
+export const markerSetSchema = z.looseObject({
     label: hoconString().default(""),
     toggleable: hoconBoolean().default(true),
     "default-hidden": hoconBoolean().default(false),
     sorting: hoconInt().default(0),
     markers: z.record(z.string(), z.unknown()).default({}),
 });
+
+const MARKER_SET_GROUP = "markers";
+
+function markerSetField(path: string, javaField: string, label: string, doc: string, control: Control, defaultValue: unknown): FieldMeta {
+    return {
+        path,
+        key: path,
+        segments: [path],
+        javaField,
+        label,
+        doc,
+        group: MARKER_SET_GROUP,
+        control,
+        default: defaultValue,
+        commentedOutInTemplate: false,
+        hidden: false,
+        invalidatesTiles: false,
+        advanced: false,
+        // Upstream's `map.conf` carries one comment for the whole `marker-sets` block
+        // and none for `label`, `sorting`, `toggleable` or `default-hidden` individually,
+        // so these are written from `MarkerSet`'s own Javadoc and constructors
+        // (`api/src/main/java/de/bluecolored/bluemap/api/markers/MarkerSet.java`)
+        // rather than a template comment that does not exist.
+        docSource: "authored",
+    };
+}
+
+/**
+ * The four container properties of one entry in a map's `marker-sets` block.
+ *
+ * `ConfigMarkerSetsField.vue` renders these from this array rather than as
+ * hand-written controls, so a fifth property added here reaches the editor with
+ * no change to that component. The markers inside a set are deliberately not
+ * modelled: their shapes are the markers API's contract, not the config schema's,
+ * and half-modelling them would produce an editor that silently dropped a field
+ * it did not recognise.
+ */
+export const MARKER_SET_FIELDS: readonly FieldMeta[] = [
+    markerSetField(
+        "label",
+        "label",
+        "Label shown in the menu",
+        "The name of this marker set as it appears in the web app's marker menu, and the text on its toggle button when the set is toggleable. BlueMap's MarkerSet rejects a null label, so an empty label is legal but a missing one is not.",
+        { kind: "text" },
+        "",
+    ),
+    markerSetField(
+        "sorting",
+        "sorting",
+        "Sorting",
+        "Where this marker set falls in the web app's menu: a lower value sorts earlier. If two marker sets share a sorting value, BlueMap orders them arbitrarily between themselves.",
+        integerControl({ step: 1 }),
+        0,
+    ),
+    markerSetField(
+        "toggleable",
+        "toggleable",
+        "Visitors can turn this set off",
+        [
+            "Whether the web app shows a toggle button for this marker set at all.",
+            "A set that is not toggleable is always shown to visitors and cannot be hidden from the menu.",
+            "This is the switch `default-hidden` needs: a set that starts hidden but is not toggleable would show no way to ever turn it on.",
+            "You can change this at any time.",
+        ].join("\n"),
+        SWITCH,
+        true,
+    ),
+    markerSetField(
+        "default-hidden",
+        "defaultHidden",
+        "Hidden until a visitor turns it on",
+        "The starting state of this marker set's toggle button: true hides its markers until a visitor turns the set on. Only meaningful while the set is toggleable; a set that is not toggleable ignores this and stays shown.",
+        SWITCH,
+        false,
+    ),
+];
 
 export const mapConfigSchema = z.object({
     loader: namespacedKey().default("bluemap:anvil"),

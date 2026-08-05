@@ -13,6 +13,7 @@ import {
     VTextField,
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import PathField from "../PathField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import type { RemoteBridge, RemoteDisclosure, RemoteTarget } from "./remoteBridge.js";
 import {
@@ -368,25 +369,24 @@ defineExpose({ draft, patch, startNew, checkAndSave, editing });
                     />
                 </div>
 
-                <v-text-field
-                    :model-value="draft.identityFile"
-                    :label="t('remote.targets.field.identity', 'Private key file (leave empty to use your SSH agent)')"
-                    :placeholder="t('remote.targets.field.identityHint', 'C:\\Users\\you\\.ssh\\id_ed25519')"
-                    :hint="
-                        t(
-                            'remote.targets.field.identityNote',
-                            'A path, never the key itself. This application records where the file is; ssh reads it, and nothing here ever opens it, copies it or sends it. There is no password field anywhere in this feature, and the SSH client is told to refuse one even if the host offers it.',
-                        )
-                    "
-                    persistent-hint
-                    variant="outlined"
-                    density="compact"
-                    spellcheck="false"
-                    autocapitalize="off"
-                    autocomplete="off"
-                    class="mb-remote-targets__wide"
-                    @update:model-value="(value: string) => patch({ identityFile: value })"
-                />
+                <div class="mb-remote-targets__wide">
+                    <PathField
+                        :model-value="draft.identityFile"
+                        field="the SSH identity file"
+                        semantic="file"
+                        :label="t('remote.targets.field.identity', 'Private key file (leave empty to use your SSH agent)')"
+                        :placeholder="t('remote.targets.field.identityHint', 'C:\\Users\\you\\.ssh\\id_ed25519')"
+                        @update:model-value="(value: string) => patch({ identityFile: value })"
+                    />
+                    <p class="mb-remote-targets__fieldHint">
+                        {{
+                            t(
+                                'remote.targets.field.identityNote',
+                                'A path, never the key itself. This application records where the file is; ssh reads it, and nothing here ever opens it, copies it or sends it. There is no password field anywhere in this feature, and the SSH client is told to refuse one even if the host offers it.',
+                            )
+                        }}
+                    </p>
+                </div>
 
                 <div class="mb-remote-targets__grid">
                     <v-text-field
@@ -598,6 +598,21 @@ defineExpose({ draft, patch, startNew, checkAndSave, editing });
 
 .mb-remote-targets__wide {
     margin-block-end: 8px;
+}
+
+/*
+ * `PathField.vue` has no `hint` prop of its own - it is a control, not a labelled field - so
+ * the identity file's explanation (no password anywhere in this feature, the key is never
+ * opened) is rendered as an ordinary paragraph right under it, matching where Vuetify's own
+ * `persistent-hint` would have put the same words.
+ */
+.mb-remote-targets__fieldHint {
+    margin: 4px 0 0;
+    padding-inline-start: 16px;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    text-wrap: pretty;
 }
 
 .mb-remote-targets__formActions {

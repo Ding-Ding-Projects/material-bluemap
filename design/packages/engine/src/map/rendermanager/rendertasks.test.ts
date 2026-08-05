@@ -832,6 +832,30 @@ describe("WorldRegionUpdateTask as a RenderTask", () => {
         expect(second.hasMoreWork()).toBe(false);
     });
 
+    it("run() finishes a no-op region without writing chunk hashes or a region timestamp", async () => {
+        const map = await createMap("overworld", fakeWorld());
+        await drain(new WorldRegionUpdateTask(map, new Vector2i(0, 0)));
+        expect(renderCalls).toHaveLength(REGION_TILE_COUNT);
+
+        // second pass, driven through `run()` instead of `doWork()`: every tile is
+        // RENDERED and every chunk hash matches, so `#init` sets `#nothingToDo` before a
+        // single tile is touched. Upstream's `doWork` (and this port's) never calls
+        // `complete()` in that case, so neither the chunk hashes nor the region timestamp
+        // are (re)written - `run` has to agree, or a second render of an unchanged world
+        // rewrites state upstream would have left untouched.
+        renderCalls.length = 0;
+        const chunkHashesSet = vi.spyOn(map.getMapChunkState(), "set");
+        const regionStateSet = vi.spyOn(map.getMapRegionState(), "set");
+
+        const second = new WorldRegionUpdateTask(map, new Vector2i(0, 0));
+        const result = await second.run();
+
+        expect(result).toEqual({ rendered: 0, deleted: 0, unchanged: 0 });
+        expect(renderCalls).toHaveLength(0);
+        expect(chunkHashesSet).not.toHaveBeenCalled();
+        expect(regionStateSet).not.toHaveBeenCalled();
+    });
+
     it("FORCE_ALL re-renders a region that would otherwise have nothing to do", async () => {
         const map = await createMap("overworld", fakeWorld());
         await drain(new WorldRegionUpdateTask(map, new Vector2i(0, 0)));

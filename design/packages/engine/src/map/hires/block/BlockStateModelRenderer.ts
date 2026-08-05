@@ -4,6 +4,7 @@ import type { ResourcePack } from "../../../resources/pack/resourcepack/Resource
 import type { Variant } from "../../../resources/pack/resourcepack/blockstate/Variant.js";
 import { BlockState } from "../../../world/BlockState.js";
 import type { BlockNeighborhood } from "../../../world/block/BlockNeighborhood.js";
+import { flattenLegacyBlockState } from "../../../world/mca/legacy/FlatteningRename.js";
 import type { TextureGallery } from "../../TextureGallery.js";
 import type { RenderSettings } from "../RenderSettings.js";
 import type { TileModelView } from "../TileModelView.js";
@@ -116,12 +117,23 @@ export class BlockStateModelRenderer {
     ): void {
         const modelStart = tileModel.getStart();
 
-        const stateResource = this.resourcePack.getBlockState(blockState);
+        /*
+         * Port-only, no upstream analog: a pre-flattening (1.12.2) chunk hands back the
+         * exact pre-flattening block name (Chunk_1_12 / BlockIdMapper are correct about
+         * that — see FlatteningRename.ts), so only *here*, right before the resource pack
+         * is consulted, is that name translated to its modern equivalent. Gated on
+         * `block.isLegacy()` so a modern block-state — which can legitimately use some of
+         * these exact names for a different, already-correct block (a real 1.13-1.20.2
+         * chunk's `minecraft:grass` really does mean the grass tuft) — is never touched.
+         */
+        const lookupState = block.isLegacy() ? flattenLegacyBlockState(blockState) : blockState;
+
+        const stateResource = this.resourcePack.getBlockState(lookupState);
         if (stateResource == null) return;
 
         let blockColorOpacity = 0;
         this.variants.length = 0;
-        stateResource.forEach(blockState, block.getX(), block.getY(), block.getZ(), (variant) =>
+        stateResource.forEach(lookupState, block.getX(), block.getY(), block.getZ(), (variant) =>
             this.variants.push(variant),
         );
 

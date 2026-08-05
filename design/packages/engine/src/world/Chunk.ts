@@ -15,6 +15,16 @@ export abstract class Chunk {
         return false;
     }
 
+    /**
+     * Port-only, no upstream analog: `true` for a pre-flattening (1.12.2 and older,
+     * `DataVersion` < 1451) chunk. Consulted by {@link BlockStateModelRenderer} to decide
+     * whether {@link flattenLegacyBlockState} may run — see FlatteningRename.ts's doc
+     * comment for why that gate matters.
+     */
+    isLegacy(): boolean {
+        return false;
+    }
+
     hasLightData(): boolean {
         return false;
     }

@@ -7,6 +7,7 @@ import type { BlockProperties } from "../BlockProperties.js";
 import { BlockState } from "../BlockState.js";
 import type { DimensionType } from "../DimensionType.js";
 import type { LightData } from "../LightData.js";
+import { flattenLegacyBlockState } from "../mca/legacy/FlatteningRename.js";
 import type { BlockAccess } from "./BlockAccess.js";
 
 export class ExtendedBlock implements BlockAccess {
@@ -114,6 +115,10 @@ export class ExtendedBlock implements BlockAccess {
         return this.blockAccess.getBlockState();
     }
 
+    isLegacy(): boolean {
+        return this.blockAccess.isLegacy();
+    }
+
     getLightData(): LightData {
         const ld = this.blockAccess.getLightData();
         if (this.renderSettings.isRenderEdges() && !this.isInsideRenderBounds())
@@ -153,7 +158,20 @@ export class ExtendedBlock implements BlockAccess {
     getProperties(): BlockProperties {
         let properties = this.properties;
         if (properties === null) {
-            properties = this.resourcePack.getBlockProperties(this.getBlockState());
+            /*
+             * Port-only, no upstream analog: BlockProperties (culling/occluding/...) is
+             * derived from the resource-pack's model for this block-state — see
+             * ResourcePack#getBlockProperties, which itself calls getBlockState — so it
+             * needs the exact same pre-flattening-name translation BlockStateModelRenderer
+             * applies before its own resource-pack lookup. Skipping this left a legacy
+             * grass block resolving the right MODEL (once the renderer's own lookup was
+             * fixed) but still deriving its occlusion from the un-renamed "minecraft:grass"
+             * — the modern tuft, which does not occlude — so neighbors kept drawing their
+             * hidden faces through it.
+             */
+            const blockState = this.getBlockState();
+            const lookupState = this.isLegacy() ? flattenLegacyBlockState(blockState) : blockState;
+            properties = this.resourcePack.getBlockProperties(lookupState);
             this.properties = properties;
         }
         return properties as BlockProperties;

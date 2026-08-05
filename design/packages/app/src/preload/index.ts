@@ -3,7 +3,9 @@ import type { IpcRendererEvent } from "electron";
 import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
 import type { EulaLoadResult } from "../main/eula/index.js";
 import type {
+    CiOwnerChoicesAnswer,
     CiPreflight,
+    CiRepositoryNameAvailability,
     CiSyncEvent,
     CiSyncRequest,
     CiSyncResult,
@@ -529,6 +531,32 @@ export interface ConfigPickFileOptions {
     startIn?: string;
 }
 
+/**
+ * The screen-agnostic folder/file picker every path field browses through.
+ *
+ * A namespace of its own rather than an extension of `ConfigBridge`, because it is reached
+ * from screens that never sit under `provideConfigHost()` - Settings, Backup, the remote
+ * target editor - and `configHost.ts` refuses a half-wired bridge outright. This one asks
+ * nothing of its caller beyond `window.materialBluemap.dialog` existing.
+ */
+export interface DialogPickFolderOptions {
+    title: string;
+    /** Where the picker opens. Ignored unless it names a folder that really exists. */
+    startIn?: string;
+}
+
+export interface DialogPickFileOptions {
+    title: string;
+    /** Extensions without the dot, e.g. `["jar"]`. Omitted or empty means every file. */
+    extensions?: string[];
+    startIn?: string;
+}
+
+export interface DialogBridge {
+    pickFolder(options: DialogPickFolderOptions): Promise<string | null>;
+    pickFile(options: DialogPickFileOptions): Promise<string | null>;
+}
+
 /** What the storages screen collects, mirroring `sqlStorageConfigSchema`. */
 export interface SqlProbeRequest {
     connectionUrl: string;
@@ -973,6 +1001,13 @@ export interface GitHubSignOutResult {
     revoked: boolean;
     reason: string | null;
     manageUrl: string | null;
+    /**
+     * Who this fell back to when another account was stored, or null when the sign-out was
+     * complete. The legacy single-account channel now falls back rather than always leaving
+     * nobody signed in, so a screen that ignores this can report "signed out" beside a
+     * still-live account.
+     */
+    fallbackAccount: GitHubAccount | null;
 }
 
 export interface GitHubStatus {
@@ -1014,6 +1049,52 @@ export type GitHubAuthEvent =
     | { type: "failed"; failure: GitHubFailure }
     | { type: "cancelled" }
     | { type: "signed-out" };
+
+/**
+ * One stored account, as the multi-account list shows it - every {@link GitHubAccount}
+ * fact, plus an id to act on and whether it is the one every single-account channel above
+ * currently resolves to.
+ */
+export interface GitHubAccountSummary extends GitHubAccount {
+    id: string;
+    active: boolean;
+}
+
+export interface GitHubAccountsList {
+    accounts: GitHubAccountSummary[];
+    activeId: string | null;
+}
+
+/**
+ * What removing one stored account actually did.
+ *
+ * `fallbackAccount` names exactly which account is active afterwards, or is null when
+ * nobody else was stored - the honest answer to "who is signed in now", not an assumption
+ * that removing the active account always means signing out completely.
+ */
+export interface GitHubRemoveAccountResult {
+    removed: boolean;
+    wasActive: boolean;
+    newActiveId: string | null;
+    revoked: boolean;
+    reason: string | null;
+    manageUrl: string | null;
+    fallbackAccount: GitHubAccount | null;
+}
+
+export interface GitHubSetActiveAccountResult {
+    ok: boolean;
+    activeId: string | null;
+    account: GitHubAccount | null;
+    reason: string | null;
+}
+
+/** Never carries the token itself - that never crosses IPC, refreshed or not. */
+export interface GitHubRefreshAccountResult {
+    ok: boolean;
+    account: GitHubAccount | null;
+    failure: GitHubFailure | null;
+}
 
 export /**
  * The backup types come from the main process itself rather than being restated here, so
@@ -1362,6 +1443,22 @@ interface MaterialBlueMapBridge {
     onGitHubAuthEvent(listener: (event: GitHubAuthEvent) => void): () => void;
 
     /**
+     * Every account this computer has stored, richest first. Additive: a build with no
+     * multi-account support simply lacks this method, and the section falls back to the
+     * single-account facts above.
+     */
+    githubListAccounts(): Promise<GitHubAccountsList>;
+
+    /** Removes one specific account's stored token, active or not. */
+    githubRemoveAccount(id: string): Promise<GitHubRemoveAccountResult>;
+
+    /** Switches which stored account every single-account channel above resolves to. */
+    githubSetActiveAccount(id: string): Promise<GitHubSetActiveAccountResult>;
+
+    /** Renews one specific account's token ahead of its own expiry. */
+    githubRefreshAccount(id: string): Promise<GitHubRefreshAccountResult>;
+
+    /**
      * Reading and writing a BlueMap config folder, for the options screen.
      *
      * A namespace rather than seven more methods on the bridge, because the editor
@@ -1373,6 +1470,15 @@ interface MaterialBlueMapBridge {
      * edited in another program is what Reload shows.
      */
     config: ConfigBridge;
+
+    /**
+     * The screen-agnostic folder/file picker, for any path field in the app.
+     *
+     * Unlike `config`, this namespace needs no `provideConfigHost()` ancestor: it is reached
+     * straight from `window.materialBluemap.dialog`, so Settings, Backup and the remote
+     * target editor can browse for a path exactly as the world and config screens already do.
+     */
+    dialog: DialogBridge;
 
     /**
      * The local version history of a config folder, for the history panel.
@@ -1474,6 +1580,13 @@ interface MaterialBlueMapBridge {
     cancelCiRender(syncId: string): Promise<boolean>;
     onCiRenderEvent(listener: (event: CiSyncEvent) => void): () => void;
 
+    /** The signed-in login plus every organisation, for the setup card's owner field. */
+    ciRenderOwners(): Promise<CiOwnerChoicesAnswer>;
+    /** A world or map name, sanitized to a name GitHub's own rules will accept. Pure; no network. */
+    suggestCiRepoName(sourceName: string): Promise<string>;
+    /** Whether `owner/repo` is free. `"unknown"` rather than a guess when it could not be told. */
+    checkCiRepoName(request: { owner: string; repo: string }): Promise<CiRepositoryNameAvailability>;
+
     /* ---- Hosting a rendered map on GitHub Pages -------------------------- */
 
     /** Renders on this computer with a web root worth publishing. */
@@ -1526,8 +1639,12 @@ interface MaterialBlueMapBridge {
      * A claim about the build, not the machine. `runtimeModes()` says whether Docker is
      * running right now; this says whether choosing it would do anything at all. Reading
      * the first as the second offers a choice that renders locally anyway.
+     *
+     * Asked over IPC rather than answered here: the real list lives in the main process's
+     * `render:runtimeModes` handler, and a literal here would be a second place that answer
+     * could drift from the first.
      */
-    renderRuntimeModes(): readonly ("local" | "docker")[];
+    renderRuntimeModes(): Promise<readonly ("local" | "docker")[]>;
 
     revealPath(path: string): Promise<RevealResult>;
     /** Those folders, read fresh, so a storage directory somebody moved is the one allowed. */
@@ -1665,6 +1782,11 @@ const bridge: MaterialBlueMapBridge = {
         };
     },
 
+    githubListAccounts: () => ipcRenderer.invoke("github:listAccounts"),
+    githubRemoveAccount: (id) => ipcRenderer.invoke("github:removeAccount", { id }),
+    githubSetActiveAccount: (id) => ipcRenderer.invoke("github:setActiveAccount", { id }),
+    githubRefreshAccount: (id) => ipcRenderer.invoke("github:refreshAccount", { id }),
+
     config: {
         readFolder: (folder) => ipcRenderer.invoke("config:readFolder", folder),
         writeFiles: (folder, files) => ipcRenderer.invoke("config:writeFiles", folder, files),
@@ -1680,6 +1802,11 @@ const bridge: MaterialBlueMapBridge = {
         // paths, never to resolve one - every real path is joined in the main process,
         // where the separator is the platform's own.
         pathSeparator: process.platform === "win32" ? "\\" : "/",
+    },
+
+    dialog: {
+        pickFolder: (options) => ipcRenderer.invoke("dialog:pickFolder", options),
+        pickFile: (options) => ipcRenderer.invoke("dialog:pickFile", options),
     },
 
     dockerRuntime: () => ipcRenderer.invoke("runtime:docker"),
@@ -1716,6 +1843,10 @@ const bridge: MaterialBlueMapBridge = {
         };
     },
 
+    ciRenderOwners: () => ipcRenderer.invoke("cirender:owners"),
+    suggestCiRepoName: (sourceName) => ipcRenderer.invoke("cirender:suggestRepoName", sourceName),
+    checkCiRepoName: (request) => ipcRenderer.invoke("cirender:checkRepoName", request),
+
     pagesRenders: () => ipcRenderer.invoke("pages:renders"),
     pagesOwners: () => ipcRenderer.invoke("pages:owners"),
     pagesPreflight: (request) => ipcRenderer.invoke("pages:preflight", request),
@@ -1745,7 +1876,7 @@ const bridge: MaterialBlueMapBridge = {
         };
     },
 
-    renderRuntimeModes: () => ["local", "docker"] as const,
+    renderRuntimeModes: () => ipcRenderer.invoke("render:runtimeModes"),
 
     revealPath: (path) => ipcRenderer.invoke("files:reveal", path),
     revealRoots: () => ipcRenderer.invoke("files:revealRoots"),

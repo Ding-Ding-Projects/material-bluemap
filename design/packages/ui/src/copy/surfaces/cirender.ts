@@ -579,6 +579,206 @@ export const CIRENDER_VOICED = {
             "GitHub 冇為呢個 artifact 公佈過 checksum，即係根本冇嘢好對。佢個 SHA-256 只係記錄咗，唔算驗證過，兩個詞唔可以當同一個用。",
         ],
     },
+    /* ---------------------------------------------------------------- */
+    /* The guided "What, and where" card: nobody has to know what to type */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * Signed out is not a dead end: it says so, and it points at the sign-in row that
+     * already exists rather than inventing a second one. That clause survives every level.
+     */
+    "cirender.owner.signedOut": {
+        en: [
+            "Nobody is signed in to GitHub, so there is no list of accounts to choose from. Sign in from Settings, or type the owner directly below.",
+            "Nobody is signed in to GitHub, so there is no list of accounts to choose from. Sign in from Settings, or type the owner directly below.",
+            "Nobody is signed in to GitHub, so there is no list of accounts to choose from yet. Sign in from Settings, or type the owner directly below.",
+            "Nobody is signed in to GitHub, so this cannot list your accounts. Sign in from Settings, or just type the owner directly below.",
+            "Nobody is signed in to GitHub, so there is no account list to offer, only a blank where one should be. Sign in from Settings, or type the owner directly below - the field never minded either way.",
+        ],
+        yue: [
+            "冇人登入咗 GitHub，所以冇帳戶清單俾你揀。可以喺設定入面登入，或者直接喺下面打個擁有者。",
+            "冇人登入咗 GitHub，所以冇帳戶清單俾你揀。可以喺設定入面登入，或者直接喺下面打個擁有者。",
+            "冇人登入咗 GitHub，所以暫時冇帳戶清單俾你揀。可以喺設定入面登入，或者直接喺下面打個擁有者。",
+            "冇人登入咗 GitHub，所以呢度列唔到你嘅帳戶。喺設定入面登入啦，又或者直接喺下面打個擁有者。",
+            "冇人登入咗 GitHub，所以連個帳戶清單都冇得列，得返一格空白。喺設定入面登入，又或者直接喺下面打個擁有者－呢個欄從來都唔介意邊種。",
+        ],
+    },
+
+    /*
+     * The three GitHub naming-rule refusals. Each one names the exact rule broken, because
+     * "invalid name" alone sends somebody back to guess which character was the problem.
+     */
+    "cirender.repo.invalid.chars": {
+        en: [
+            "Repository names may only use letters, digits, dots, hyphens and underscores.",
+            "Repository names may only use letters, digits, dots, hyphens and underscores.",
+            "Repository names may only use letters, digits, dots, hyphens and underscores - nothing else.",
+            "GitHub only accepts letters, digits, dots, hyphens and underscores in a repository name. Everything else gets refused.",
+            "GitHub is fussy about this one: letters, digits, dots, hyphens and underscores only. Spaces, slashes and emoji all get shown the door.",
+        ],
+        yue: [
+            "倉庫名淨係可以用英文字母、數字、句號、連字號同底線。",
+            "倉庫名淨係可以用英文字母、數字、句號、連字號同底線。",
+            "倉庫名淨係可以用英文字母、數字、句號、連字號同底線，第啲一律唔得。",
+            "GitHub 淨係收英文字母、數字、句號、連字號同底線做倉庫名，第啲字符一律拒收。",
+            "GitHub 呢方面幾揀擇：淨係要英文字母、數字、句號、連字號同底線。空格、斜線、表情符號，全部企喺門口入唔到嚟。",
+        ],
+    },
+    "cirender.repo.invalid.dots": {
+        en: [
+            'A repository name cannot be just "." or "..".',
+            'A repository name cannot be just "." or "..".',
+            'A repository name cannot be just "." or "..", on their own.',
+            'GitHub refuses a repository name that is only "." or "..". Add something else to it.',
+            'A repository named only "." or ".." is the one GitHub always refuses, no matter how politely it is asked. Add something else to it.',
+        ],
+        yue: [
+            "倉庫名唔可以淨係得「.」或者「..」。",
+            "倉庫名唔可以淨係得「.」或者「..」。",
+            "倉庫名唔可以齋係「.」或者「..」呢啲。",
+            "GitHub 唔收淨係「.」或者「..」嘅倉庫名，加多啲字先得。",
+            "淨係「.」或者「..」嘅倉庫名，GitHub 點求都唔收，加多啲其他字先得。",
+        ],
+    },
+    "cirender.repo.invalid.gitSuffix": {
+        en: [
+            'A repository name cannot end in ".git".',
+            'A repository name cannot end in ".git".',
+            'A repository name cannot end in ".git" - GitHub adds that itself.',
+            'GitHub refuses a repository name ending in ".git", because it adds that suffix itself when cloning.',
+            'Ending a repository name in ".git" is redundant twice over: GitHub refuses it, and it would have added that suffix for you anyway.',
+        ],
+        yue: [
+            "倉庫名唔可以以「.git」結尾。",
+            "倉庫名唔可以以「.git」結尾。",
+            "倉庫名唔可以以「.git」結尾－呢個位 GitHub 自己會加。",
+            "GitHub 唔收以「.git」結尾嘅倉庫名，因為 clone 嘅時候佢自己會加返呢個尾巴。",
+            "倉庫名以「.git」結尾係多此一舉：GitHub 唔收，而且本身 clone 嗰陣佢都會自動幫你加返。",
+        ],
+    },
+    "cirender.repo.invalid.long": {
+        en: [
+            "A repository name cannot be longer than 100 characters.",
+            "A repository name cannot be longer than 100 characters.",
+            "A repository name cannot be longer than 100 characters - GitHub's own limit.",
+            "GitHub caps a repository name at 100 characters, so this one needs trimming down.",
+            "100 characters is GitHub's hard ceiling for a repository name, and this one is standing on tiptoe past it. Trim it down.",
+        ],
+        yue: [
+            "倉庫名唔可以長過 100 個字。",
+            "倉庫名唔可以長過 100 個字。",
+            "倉庫名唔可以長過 100 個字－呢個係 GitHub 自己嘅上限。",
+            "GitHub 規定倉庫名最多 100 個字，呢個要剪短啲先得。",
+            "100 個字係 GitHub 定死嘅上限，呢個名踮起腳都仲係超咗，要剪短少少。",
+        ],
+    },
+
+    /*
+     * The live availability read. "recorded rather than verified" above kept two claims
+     * apart; this keeps three apart, because guessing `available` from a failed check is
+     * how somebody loses the minute they spent typing a name that was never actually free.
+     */
+    "cirender.repo.available": {
+        en: [
+            "{owner}/{repo} is free on GitHub.",
+            "{owner}/{repo} is free on GitHub.",
+            "{owner}/{repo} is free on GitHub, as far as this check could tell.",
+            "{owner}/{repo} came back free on GitHub. Nobody else has claimed it.",
+            "{owner}/{repo} is free on GitHub and clear for the taking - go ahead and put your name on it.",
+        ],
+        yue: [
+            "{owner}/{repo} 喺 GitHub 度未有人用。",
+            "{owner}/{repo} 喺 GitHub 度未有人用。",
+            "就呢次檢查嚟講，{owner}/{repo} 喺 GitHub 度未有人用。",
+            "{owner}/{repo} 查完出嚟係未有人用，仲有排得閒。",
+            "{owner}/{repo} 喺 GitHub 度乾乾淨淨未有人用－可以放心攞嚟做你嘅。",
+        ],
+    },
+    "cirender.repo.taken": {
+        en: [
+            "{owner}/{repo} already exists on GitHub.",
+            "{owner}/{repo} already exists on GitHub.",
+            "{owner}/{repo} already exists on GitHub. Pick a different name, or use that repository on purpose.",
+            "{owner}/{repo} already exists on GitHub as a repository, so this name will need to change unless that one is the point.",
+            "{owner}/{repo} already exists on GitHub and is spoken for. Either that was the plan all along, or this name needs a rethink.",
+        ],
+        yue: [
+            "{owner}/{repo} 喺 GitHub 度已經有咗。",
+            "{owner}/{repo} 喺 GitHub 度已經有咗。",
+            "{owner}/{repo} 喺 GitHub 度已經有咗。換個名，定係想用返嗰個倉庫都得。",
+            "{owner}/{repo} 喺 GitHub 度已經有咗，係嗰度嘅一個倉庫，如果唔係有心用返嗰個，就要改個名。",
+            "{owner}/{repo} 喺 GitHub 度已經有咗，早就俾人攞咗。除非本身就係想用嗰個，唔係就要諗過個名。",
+        ],
+    },
+    "cirender.repo.unknown": {
+        en: [
+            "Could not check whether that name is free: {message}",
+            "Could not check whether that name is free: {message}",
+            "Could not check whether that name is free this time: {message}",
+            "Could not check whether that name is free this time: {message}. Nothing else about it can be said yet.",
+            "Could not check whether that name is free this time: {message}. GitHub was not talking - try the check again in a moment.",
+        ],
+        yue: [
+            "查唔到呢個名係咪得閒：{message}",
+            "查唔到呢個名係咪得閒：{message}",
+            "呢個名係咪得閒，今次查唔到：{message}",
+            "今次查唔到呢個名係咪得閒：{message}，其他嘢都未講得。",
+            "今次查唔到呢個名係咪得閒：{message}。GitHub 呢次唔出聲，過陣再檢查多次啦。",
+        ],
+    },
+
+    /*
+     * The Check button, disabled and named exactly which field is missing - the same
+     * discipline `blocked.*` above already holds the Render button to.
+     */
+    "cirender.checkBlocked.world": {
+        en: [
+            "Choose a world folder before checking.",
+            "Choose a world folder before checking.",
+            "Choose a world folder before checking the repository.",
+            "Choose a world folder before checking - there is nothing to check the repository against yet.",
+            "Choose a world folder before checking - the repository check has nothing to compare against otherwise.",
+        ],
+        yue: [
+            "請先揀個世界資料夾，先至可以檢查。",
+            "請先揀個世界資料夾，先至可以檢查。",
+            "請先揀個世界資料夾，先至可以檢查個倉庫。",
+            "請先揀個世界資料夾，先至可以檢查－而家都未有嘢可以用嚟同個倉庫對比。",
+            "請先揀個世界資料夾，先至可以檢查－唔係嘅話，個倉庫檢查根本冇嘢好對比。",
+        ],
+    },
+    "cirender.checkBlocked.owner": {
+        en: [
+            "Choose or type a repository owner before checking.",
+            "Choose or type a repository owner before checking.",
+            "Choose or type a repository owner before checking the repository.",
+            "Choose a repository owner from the list, or type one, before checking.",
+            "Pick a repository owner from the list, or type one in, before checking - the check has nowhere to look without it.",
+        ],
+        yue: [
+            "請先揀或者打一個倉庫擁有者，先至可以檢查。",
+            "請先揀或者打一個倉庫擁有者，先至可以檢查。",
+            "請先揀或者打一個倉庫擁有者，先至可以檢查個倉庫。",
+            "喺清單度揀個倉庫擁有者，或者自己打一個，先至可以檢查。",
+            "喺清單度揀個倉庫擁有者，又或者自己打返一個，先至可以檢查－冇呢樣嘢，檢查根本唔知去邊度睇。",
+        ],
+    },
+    "cirender.checkBlocked.repo": {
+        en: [
+            "Choose or type a repository name before checking.",
+            "Choose or type a repository name before checking.",
+            "Choose or type a repository name before checking the repository.",
+            "Choose a repository name from the list, or type one, before checking.",
+            "Pick a repository name from the list, or type one, before checking - the check has nothing to look up without it.",
+        ],
+        yue: [
+            "請先揀或者打一個倉庫名，先至可以檢查。",
+            "請先揀或者打一個倉庫名，先至可以檢查。",
+            "請先揀或者打一個倉庫名，先至可以檢查個倉庫。",
+            "喺清單度揀個倉庫名，或者自己打一個，先至可以檢查。",
+            "喺清單度揀個倉庫名，又或者自己打返一個，先至可以檢查－冇呢樣嘢，檢查都唔知查邊個。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const CIRENDER_FIXED = {
@@ -640,8 +840,78 @@ export const CIRENDER_FIXED = {
 
     /* The live run: transfer counter, job search, and the job that went wrong. */
     "cirender.transfer.bytes": { en: "{done} of {total}", yue: "{total} 入面嘅 {done}" },
+    // The upload's own piece count (files while packing, parts while splitting, release
+    // assets while uploading), shown beside the byte count once there is more than one piece.
+    "cirender.transfer.items": {
+        en: "{done} of {total} pieces",
+        yue: "{total} 件入面嘅 {done} 件",
+    },
     "cirender.jobs.search": { en: "Search jobs", yue: "搜尋工作" },
     "cirender.failingJob": { en: "The job that failed: {job}", yue: "失敗咗嗰個工作：{job}" },
+
+    /*
+     * The workflow runs shards in sequential waves; these three say which wave a job or a
+     * shard group belongs to. `job.wave` labels one job's row, `wave.summary` totals a whole
+     * wave's shards while it is still in progress.
+     */
+    "cirender.job.wave": { en: "Wave {wave}", yue: "第 {wave} 波" },
+    "cirender.wave.summary": {
+        en: "Wave {wave}: {done} of {total}",
+        yue: "第 {wave} 波：{total} 入面嘅 {done}",
+    },
+
+    /* Which GitHub credential is driving this row: the app's own sign-in, or gh. */
+    "cirender.row.route.gh": {
+        en: "Using the gh command-line tool",
+        yue: "用緊 gh 命令列工具",
+    },
+    "cirender.row.route.session": {
+        en: "Using this application's GitHub sign-in",
+        yue: "用緊呢個程式自己嘅 GitHub 登入",
+    },
+
+    /* Helper text under each field of the guided "What, and where" card. */
+    "cirender.field.world.help": {
+        en: "Pick a world below, browse for one, or type its full path.",
+        yue: "喺下面揀個世界、瀏覽揾一個，或者直接打成個路徑。",
+    },
+    "cirender.field.world.browse": { en: "Browse", yue: "瀏覽" },
+    "cirender.field.world.browsePrompt": {
+        en: "Choose the world folder, the one that contains level.dat",
+        yue: "揀個世界資料夾，即係入面有 level.dat 嗰個",
+    },
+    "cirender.field.world.browseUnavailable": {
+        en: "This build cannot open a folder picker. Type the world's path above, or choose it from the list below.",
+        yue: "呢個版本開唔到資料夾選擇器。喺上面打世界嘅路徑，或者喺下面個列表度揀一個。",
+    },
+    "cirender.field.world.browseUnavailableLabel": {
+        en: "Browse: {reason}",
+        yue: "瀏覽：{reason}",
+    },
+    "cirender.field.owner.help": {
+        en: "Pick an account above, or type any owner you have write access to.",
+        yue: "喺上面揀個帳戶，或者打任何一個你有寫入權限嘅擁有者。",
+    },
+    "cirender.field.repo.help": {
+        en: "A name is suggested once you choose a world. It stays yours to change before checking.",
+        yue: "揀咗個世界之後會有個建議名。檢查之前你隨時可以自己改。",
+    },
+
+    /* The owner picker: its two item shapes, and the two ways it can come up short. */
+    "cirender.owner.pick": { en: "Choose an owner", yue: "揀個擁有者" },
+    "cirender.owner.asYou": { en: "{login} (you)", yue: "{login}（你）" },
+    "cirender.owner.asOrg": { en: "{login} (organization)", yue: "{login}（機構）" },
+    "cirender.owner.retry": { en: "Try again", yue: "再試一次" },
+
+    /* The repository picker, and the availability check's own transient state. */
+    "cirender.repo.pick": { en: "One of your repositories", yue: "你其中一個倉庫" },
+    "cirender.repo.itemPrivate": { en: "{name} (private)", yue: "{name}（私人）" },
+    "cirender.repo.itemPublic": { en: "{name} (PUBLIC)", yue: "{name}（公開）" },
+    "cirender.repo.checking": { en: "Checking whether that name is free...", yue: "檢查緊呢個名係咪得閒..." },
+    "cirender.repo.loadingRepositories": {
+        en: "Reading your repositories...",
+        yue: "讀緊你嘅倉庫...",
+    },
 } as const satisfies Record<string, FixedString>;
 
 export const CIRENDER_FACTS = {
@@ -778,6 +1048,57 @@ export const CIRENDER_FACTS = {
     "cirender.recorded": {
         en: ["no checksum", "SHA-256", "recorded rather than verified"],
         yue: ["checksum", "SHA-256", "記錄咗", "唔算驗證過"],
+    },
+
+    // The remedy - Settings, or free text - is the point, not merely "nobody signed in".
+    "cirender.owner.signedOut": {
+        en: ["Nobody is signed in", "Sign in from Settings", "type the owner directly"],
+        yue: ["冇人登入", "設定入面登入", "直接", "打個擁有者"],
+    },
+
+    // Each rule names exactly what is broken, so the fix is obvious rather than guessed.
+    "cirender.repo.invalid.chars": {
+        en: ["letters, digits, dots, hyphens and underscores"],
+        yue: ["英文字母", "數字", "句號", "連字號", "底線"],
+    },
+    "cirender.repo.invalid.dots": {
+        en: ['"."', '".."'],
+        yue: ["「.」", "「..」"],
+    },
+    "cirender.repo.invalid.gitSuffix": {
+        en: ['".git"'],
+        yue: ["「.git」"],
+    },
+    "cirender.repo.invalid.long": {
+        en: ["100 characters"],
+        yue: ["100 個字"],
+    },
+
+    // {owner} and {repo} are what makes the claim checkable against the real name typed.
+    "cirender.repo.available": {
+        en: ["{owner}", "{repo}", "free on GitHub"],
+        yue: ["{owner}", "{repo}", "未有人用"],
+    },
+    "cirender.repo.taken": {
+        en: ["{owner}", "{repo}", "already exists"],
+        yue: ["{owner}", "{repo}", "已經有咗"],
+    },
+    "cirender.repo.unknown": {
+        en: ["{message}", "Could not check"],
+        yue: ["{message}", "查唔到"],
+    },
+
+    "cirender.checkBlocked.world": {
+        en: ["Choose a world folder", "before checking"],
+        yue: ["揀個世界資料夾", "先至可以檢查"],
+    },
+    "cirender.checkBlocked.owner": {
+        en: ["repository owner", "before checking"],
+        yue: ["倉庫擁有者", "先至可以檢查"],
+    },
+    "cirender.checkBlocked.repo": {
+        en: ["repository name", "before checking"],
+        yue: ["倉庫名", "先至可以檢查"],
     },
 } as const satisfies Record<
     keyof typeof CIRENDER_VOICED,

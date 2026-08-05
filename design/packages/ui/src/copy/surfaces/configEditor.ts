@@ -108,22 +108,6 @@ export const CONFIGEDITOR_VOICED = {
             "呢個係檔案入面寫嘅嘢，一隻字都冇改。呢個唔係本程式識得嘅值，但唔使驚：好可能係 mod、datapack 或者你自己嘅設定提供緊，本程式又未見過世上每一個 mod。",
         ],
     },
-    "config.control.pickerUnavailable": {
-        en: [
-            "Browsing for a path needs the desktop app. You can still type or paste one here.",
-            "Browsing for a path needs the desktop app. You can still type or paste one here.",
-            "Browsing for a path needs the desktop app. You can still type or paste one in here.",
-            "Browsing for a path needs the desktop app, which this is not. You can still type or paste one in here.",
-            "Browsing for a path needs the desktop app, and a browser is not allowed to go rummaging through your disk. You can still type or paste one in here.",
-        ],
-        yue: [
-            "要揀路徑就要用桌面版程式。你仍然可以喺呢度打字或者貼一個入嚟。",
-            "要揀路徑就要用桌面版程式。你仍然可以喺呢度打字或者貼一個入嚟。",
-            "要揀路徑就要用桌面版程式。不過你仍然可以喺呢度打或者貼一個入嚟。",
-            "要揀路徑就要用桌面版程式，而呢度唔係。不過你仍然可以喺呢度打或者貼一個入嚟。",
-            "要揀路徑就要用桌面版程式，瀏覽器係唔准周圍揭你部機隻碟嘅。不過你仍然可以喺呢度打或者貼一個入嚟。",
-        ],
-    },
     /* `#7dabff` is the shape of the answer, so it is an identifier and stays put. */
     "config.control.notAColor": {
         en: [
@@ -897,8 +881,6 @@ export const CONFIGEDITOR_FIXED = {
     /* One control's own affordances. */
     "config.control.noLimit": { en: "No limit", yue: "冇限制" },
     "config.control.removeLimit": { en: "Remove this limit", yue: "拎走呢個限制" },
-    "config.control.browseFolder": { en: "Choose a folder", yue: "揀個資料夾" },
-    "config.control.browseFile": { en: "Choose a file", yue: "揀個檔案" },
 
     /*
      * The badges above a field row. `config.field.secret` marks a setting whose value is
@@ -1057,10 +1039,6 @@ export const CONFIGEDITOR_FACTS = {
     "config.control.unlistedValue": {
         en: ["not a value this app knows about", "mod", "datapack"],
         yue: ["唔係本程式識得嘅值", "mod", "datapack"],
-    },
-    "config.control.pickerUnavailable": {
-        en: ["desktop app", "type or paste"],
-        yue: ["桌面版", "貼"],
     },
     "config.control.notAColor": { en: ["hex colour", "#7dabff"], yue: ["hex 顏色", "#7dabff"] },
     "config.control.sentinel": {

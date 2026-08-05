@@ -82,6 +82,14 @@ export interface GitHubSignOutReadout {
     readonly revoked: boolean;
     readonly reason: string | null;
     readonly manageUrl: string | null;
+    /**
+     * Who this fell back to when another account was stored, or null when the sign-out was
+     * complete. The legacy single-account channel now falls back to another stored account
+     * rather than always leaving nobody signed in, so a screen that ignores this can end up
+     * reporting "signed out" beside a still-live "signed in" card for the account it fell
+     * back to. Mirrors {@link GitHubRemoveAccountReadout.fallbackAccount}.
+     */
+    readonly fallbackAccount: GitHubAccountReadout | null;
 }
 
 export interface GitHubStatusReadout {
@@ -139,12 +147,67 @@ export type GitHubRepositoryAccessReadout =
       };
 
 /**
+ * One stored account, as the multi-account list shows it - the same facts
+ * {@link GitHubAccountReadout} carries, plus the two a list needs that a single "who is
+ * signed in" readout never had to: an id to act on, and whether this is the one every
+ * legacy single-account channel currently resolves to.
+ */
+export interface GitHubAccountSummaryReadout extends GitHubAccountReadout {
+    readonly id: string;
+    readonly active: boolean;
+}
+
+export interface GitHubAccountsListReadout {
+    readonly accounts: readonly GitHubAccountSummaryReadout[];
+    readonly activeId: string | null;
+}
+
+/**
+ * What removing one stored account actually did.
+ *
+ * `fallbackAccount` is the honest answer to "which account is now active", not a guess:
+ * null means genuinely signed out, and a value names exactly who this fell back to. A
+ * screen that removed the active account and said nothing about what replaced it would be
+ * lying by omission about the very question somebody just asked.
+ */
+export interface GitHubRemoveAccountReadout {
+    readonly removed: boolean;
+    readonly wasActive: boolean;
+    readonly newActiveId: string | null;
+    readonly revoked: boolean;
+    readonly reason: string | null;
+    readonly manageUrl: string | null;
+    readonly fallbackAccount: GitHubAccountReadout | null;
+}
+
+export interface GitHubSetActiveAccountReadout {
+    readonly ok: boolean;
+    readonly activeId: string | null;
+    readonly account: GitHubAccountReadout | null;
+    readonly reason: string | null;
+}
+
+/** Never carries the token itself - that never crosses IPC, refreshed or not. */
+export interface GitHubRefreshAccountReadout {
+    readonly ok: boolean;
+    readonly account: GitHubAccountReadout | null;
+    readonly failure: GitHubFailureReadout | null;
+}
+
+/**
  * The preload's GitHub namespace, every method optional.
  *
  * `githubCheckRepository` is declared and deliberately unused by this surface: it belongs
  * to the render path, which asks it before starting a job so that a repository a GitHub
  * App was never installed on is reported as exactly that rather than as "not found". It is
  * named here so the namespace this file mirrors is the whole namespace.
+ *
+ * The four `github*Account*` methods are additive, on top of the single-account contract
+ * above rather than instead of it: `githubSignIn`/`githubSignInWithToken` still work
+ * exactly as documented and, on a build that has them, now add an account and make it
+ * active rather than replacing "the" one. A build whose preload predates multi-account
+ * support simply has none of these four, and the section falls back to the single-account
+ * facts it always showed.
  */
 export interface GitHubBridge {
     githubStatus?: () => Promise<GitHubStatusReadout>;
@@ -163,6 +226,15 @@ export interface GitHubBridge {
      * to be typed rather than a Copy button that does nothing.
      */
     writeClipboardText?: (text: string) => Promise<void>;
+
+    /** Every account this computer has stored, richest first. */
+    githubListAccounts?: () => Promise<GitHubAccountsListReadout>;
+    /** Removes one specific account's stored token, active or not. */
+    githubRemoveAccount?: (id: string) => Promise<GitHubRemoveAccountReadout>;
+    /** Switches which stored account every single-account channel resolves to. */
+    githubSetActiveAccount?: (id: string) => Promise<GitHubSetActiveAccountReadout>;
+    /** Renews one specific account's token ahead of its own expiry. */
+    githubRefreshAccount?: (id: string) => Promise<GitHubRefreshAccountReadout>;
 }
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -220,4 +292,24 @@ export function canWriteClipboard(bridge: GitHubBridge | null): boolean {
  */
 export function canSignInToGitHub(bridge: GitHubBridge | null): boolean {
     return canStartDeviceSignIn(bridge) || canSignInWithToken(bridge);
+}
+
+/** True when every stored account can be listed. This is what turns on the accounts list. */
+export function canListGitHubAccounts(bridge: GitHubBridge | null): boolean {
+    return isFunction(bridge?.githubListAccounts);
+}
+
+/** True when one specific account, active or not, can be removed. */
+export function canRemoveGitHubAccount(bridge: GitHubBridge | null): boolean {
+    return isFunction(bridge?.githubRemoveAccount);
+}
+
+/** True when which account is active can be switched. */
+export function canSetActiveGitHubAccount(bridge: GitHubBridge | null): boolean {
+    return isFunction(bridge?.githubSetActiveAccount);
+}
+
+/** True when one specific account's token can be refreshed on demand. */
+export function canRefreshGitHubAccount(bridge: GitHubBridge | null): boolean {
+    return isFunction(bridge?.githubRefreshAccount);
 }

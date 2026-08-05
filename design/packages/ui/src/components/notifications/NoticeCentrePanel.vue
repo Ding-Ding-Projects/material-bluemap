@@ -22,6 +22,9 @@ import {
     formatNoticesAsMarkdown,
     noticeSampleText,
 } from "./noticeCentre.js";
+import { noticeSummary, rangeSelection, toggleSelection, type SelectionSet } from "./noticeBulk.js";
+import NoticeSelectCheckbox from "../NoticeSelectCheckbox.vue";
+import NoticeBulkToolbar from "../NoticeBulkToolbar.vue";
 
 /**
  * The notification centre: everything this session has reported, still readable.
@@ -62,6 +65,18 @@ const selectedLevels = ref<NoticeLevel[]>([]);
 
 const copied = ref(false);
 
+/**
+ * Bulk selection: which ids are picked, and the last plain-clicked id a shift-click extends
+ * a range from. Both stay local to the open panel rather than in `NoticeState` itself, the
+ * same way `query`, `regex` and `selectedLevels` above do - a picked set is a property of
+ * this review, not of the notice queue the whole app shares. `NoticeBulkToolbar.vue` owns
+ * every bulk action that reads or changes it; this component owns only the per-row toggle,
+ * because that is the one part of the selection contract that has to live beside the rows
+ * themselves.
+ */
+const selected = ref<Set<number>>(new Set());
+const anchorId = ref<number | null>(null);
+
 const counts = computed(() => countByLevel(props.state.history));
 
 const matcher = computed(() => createSettingMatcher(query.value, regex.value, flags.value));
@@ -69,6 +84,25 @@ const matcher = computed(() => createSettingMatcher(query.value, regex.value, fl
 const visible = computed(() =>
     filterNotices(props.state.history, { levels: selectedLevels.value, matcher: matcher.value }),
 );
+
+/** Display order, for a shift-click range: only what is actually on screen right now. */
+const visibleOrder = computed(() => visible.value.map((notice) => notice.id));
+
+/**
+ * One row's checkbox, clicked or Space-activated. A plain pick toggles that id alone and
+ * becomes the next range's anchor; a shift-pick extends the range from whatever the last
+ * plain pick was, per `noticeBulk.ts::rangeSelection`.
+ */
+function onPick(id: number, shiftKey: boolean): void {
+    selected.value = shiftKey
+        ? rangeSelection(visibleOrder.value, selected.value, anchorId.value, id)
+        : toggleSelection(selected.value, id);
+    if (!shiftKey) anchorId.value = id;
+}
+
+function onSelectedChange(next: SelectionSet): void {
+    selected.value = new Set(next);
+}
 
 const sample = computed(() => noticeSampleText(props.state.history));
 
@@ -199,6 +233,16 @@ async function copyVisible(): Promise<void> {
 
         <v-divider />
 
+        <template v-if="state.history.length > 0">
+            <NoticeBulkToolbar
+                :state="state"
+                :visible="visible"
+                :selected="selected"
+                @update:selected="onSelectedChange"
+            />
+            <v-divider />
+        </template>
+
         <!--
             A plain list rather than `<v-list>`: every row carries a heading, a disclosure and
             up to three buttons, and a list component that decides its own roles and its own
@@ -214,6 +258,11 @@ async function copyVisible(): Promise<void> {
         <ul v-else class="mb-notice-centre__list">
             <li v-for="notice in visible" :key="notice.id" class="mb-notice-centre__item">
                 <div class="mb-notice-centre__row">
+                    <NoticeSelectCheckbox
+                        :checked="selected.has(notice.id)"
+                        :summary="noticeSummary(notice)"
+                        @pick="onPick(notice.id, $event)"
+                    />
                     <v-icon :icon="LEVEL_ICONS[notice.level]" :color="notice.level" size="small" aria-hidden="true" />
                     <div class="mb-notice-centre__text">
                         <p class="mb-notice-centre__meta">

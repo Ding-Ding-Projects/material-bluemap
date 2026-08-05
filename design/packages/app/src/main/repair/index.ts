@@ -95,3 +95,15 @@ export {
     type RepairResult,
     type WriteText,
 } from "./pass.js";
+
+export {
+    MAX_REMEMBERED_FAILURES,
+    REPAIR_CHANNELS,
+    registerRepairHandlers,
+    scopeFromEvidence,
+    type DiagnoseAnswer,
+    type FailureSummary,
+    type RepairAnswer,
+    type RepairIpc,
+    type RepairIpcOptions,
+} from "./ipc.js";

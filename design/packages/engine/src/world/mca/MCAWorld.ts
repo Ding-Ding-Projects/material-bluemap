@@ -408,6 +408,12 @@ class LegacyExtendedChunk extends Chunk {
         return this.delegate.isGenerated();
     }
 
+    // this view only ever wraps a Chunk_1_12 (see MCAWorld#extendChunk), so it is always
+    // the pre-flattening path flatten-on-render depends on
+    override isLegacy(): boolean {
+        return true;
+    }
+
     override hasLightData(): boolean {
         return this.delegate.hasLightData();
     }

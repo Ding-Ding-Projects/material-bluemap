@@ -637,6 +637,74 @@ describe("publishing", () => {
         expect((await publisher.readRecord(RENDER))?.stage).toBe("finished");
     });
 
+    it("counts every real git add and push call across a crash and resume, and reports the skipped stages as skipped rather than as running", async () => {
+        await renderAMap();
+        const runner = machine();
+        readyToRepublish(runner);
+        const events: string[] = [];
+        const infoLogs: string[] = [];
+        const publisher = new PagesHost({
+            storageDir: () => storage,
+            workRoot: () => work,
+            runner,
+            probe: () => Promise.resolve(200),
+            sleep: () => Promise.resolve(),
+            pollAttempts: 2,
+            pollIntervalMs: 0,
+            onEvent: (event) => {
+                events.push(event.type === "phase" ? `phase:${event.phase}` : event.type);
+                if (event.type === "log" && event.level === "info") infoLogs.push(event.message);
+            },
+        });
+        const request = {
+            renderId: RENDER,
+            owner: "octocat",
+            repo: "maps",
+            acknowledgePublish: true,
+        } as const;
+
+        // The first, uninterrupted publish really does add and push - the baseline this test
+        // holds the resumed run against.
+        expect((await publisher.publish(request)).ok).toBe(true);
+        expect(runner.calls.filter((call) => call.args.includes("add")).length).toBeGreaterThan(0);
+        expect(runner.calls.filter((call) => call.args.includes("push")).length).toBe(1);
+        expect(events).toContain("phase:staging");
+        expect(events).toContain("phase:pushing");
+
+        // Simulate the crash this issue is about: the application died right after the durable
+        // "pushing" checkpoint was written, with the real commit from the finished publish
+        // already recorded. `resume()` reuses that checkpoint's saved record rather than the
+        // one this run just wrote, exactly as an application restart would.
+        const path = join(work, RENDER, "publish.json");
+        const saved = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+        saved["stage"] = "pushing";
+        await writeFile(path, `${JSON.stringify(saved)}\n`, "utf8");
+
+        const before = runner.calls.length;
+        events.length = 0;
+        infoLogs.length = 0;
+        const resumed = await publisher.resume(RENDER);
+        expect(resumed.ok).toBe(true);
+
+        // The proof the issue asked for: an exact count of real invocations, not a boolean.
+        const resumedCalls = runner.calls.slice(before);
+        const resumedAddCalls = resumedCalls.filter((call) => call.args.includes("add"));
+        const resumedPushCalls = resumedCalls.filter((call) => call.args.includes("push"));
+        expect(resumedAddCalls).toHaveLength(0);
+        expect(resumedPushCalls).toHaveLength(0);
+
+        // The stages that did no real work are never announced as running...
+        expect(events).not.toContain("phase:staging");
+        expect(events).not.toContain("phase:pushing");
+        // ...and are instead reported as the skip they actually are.
+        expect(infoLogs.some((message) => /staged and committed/.test(message))).toBe(true);
+        expect(infoLogs.some((message) => /already reached GitHub/.test(message))).toBe(true);
+
+        const report = resumed.ok ? resumed.report : null;
+        expect(report?.notes.some((note) => /staged and committed/.test(note))).toBe(true);
+        expect(report?.notes.some((note) => /already reached GitHub/.test(note))).toBe(true);
+    });
+
     it("refreshes the recorded Pages status and probes the saved URL again", async () => {
         await renderAMap();
         const runner = machine();

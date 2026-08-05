@@ -316,3 +316,89 @@ describe("listing what this computer remembers", () => {
         expect(answer.value).toEqual([]);
     });
 });
+
+describe("the setup card's own three channels", () => {
+    it("cirender:owners answers the login and orgs when signed in", async () => {
+        const github = new RecordingGitHub()
+            .on("GET", /\/user$/, { status: 200, json: { login: OWNER } })
+            .on("GET", /\/user\/orgs/, { status: 200, json: [{ login: "the-nether-guild" }] });
+        const { ipcMain } = install({ github });
+
+        const answer = (await (ipcMain.handlers.get("cirender:owners") as Handler)(noEvent)) as {
+            ok: true;
+            login: string;
+            owners: { login: string; kind: string }[];
+        };
+
+        expect(answer).toEqual({
+            ok: true,
+            login: OWNER,
+            owners: [
+                { login: OWNER, kind: "user" },
+                { login: "the-nether-guild", kind: "organization" },
+            ],
+        });
+    });
+
+    it("cirender:owners answers signedIn: false without calling GitHub, not a throw", async () => {
+        const github = new RecordingGitHub();
+        const { ipcMain } = install({ token: null, github });
+
+        const answer = (await (ipcMain.handlers.get("cirender:owners") as Handler)(noEvent)) as {
+            ok: false;
+            signedIn: boolean;
+        };
+
+        expect(answer.ok).toBe(false);
+        expect(answer.signedIn).toBe(false);
+        expect(github.calls).toHaveLength(0);
+    });
+
+    it("cirender:suggestRepoName sanitizes without touching the network", async () => {
+        const github = new RecordingGitHub();
+        const { ipcMain } = install({ github });
+
+        const answer = await (ipcMain.handlers.get("cirender:suggestRepoName") as Handler)(
+            noEvent,
+            "My Overworld!!",
+        );
+
+        expect(answer).toBe("My-Overworld");
+        expect(github.calls).toHaveLength(0);
+    });
+
+    it("cirender:checkRepoName reports taken, available and unknown honestly", async () => {
+        const github = new RecordingGitHub()
+            .on("GET", /\/repos\/o\/taken$/, {
+                status: 200,
+                json: repositoryJson({ owner: OWNER, repo: "taken", isPrivate: false }),
+            })
+            .on("GET", /\/repos\/o\/free$/, { status: 404, json: { message: "Not Found" } })
+            .on("GET", /\/repos\/o\/rate-limited$/, { status: 403, json: { message: "rate limited" } });
+        const { ipcMain } = install({ github });
+        const handler = ipcMain.handlers.get("cirender:checkRepoName") as Handler;
+
+        const taken = (await handler(noEvent, { owner: OWNER, repo: "taken" })) as { status: string };
+        const free = (await handler(noEvent, { owner: OWNER, repo: "free" })) as { status: string };
+        const unknown = (await handler(noEvent, { owner: OWNER, repo: "rate-limited" })) as {
+            status: string;
+        };
+
+        expect(taken.status).toBe("taken");
+        expect(free.status).toBe("available");
+        expect(unknown.status).toBe("unknown");
+    });
+
+    it("cirender:checkRepoName never guesses available for a blank name", async () => {
+        const github = new RecordingGitHub();
+        const { ipcMain } = install({ github });
+
+        const answer = (await (ipcMain.handlers.get("cirender:checkRepoName") as Handler)(noEvent, {
+            owner: "",
+            repo: "",
+        })) as { status: string };
+
+        expect(answer.status).toBe("unknown");
+        expect(github.calls).toHaveLength(0);
+    });
+});

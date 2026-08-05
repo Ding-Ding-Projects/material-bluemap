@@ -58,6 +58,21 @@ function closeBuilder(): void {
     builderOpen.value = false;
     onBuilderToggle(false);
 }
+
+/**
+ * Keeps typing here from also driving the WASD/arrow camera controls, without also
+ * swallowing Escape.
+ *
+ * `@keydown.stop` used to be unconditional, which stopped every keydown at this input -
+ * including Escape, before it could bubble to the enclosing `MenuSideSheet`'s
+ * `@keydown.esc="emit('back')"`. That made Escape a dead key while this field was focused:
+ * it neither cleared the query nor closed the side sheet. Escape is not a camera key, so it
+ * is explicitly let through.
+ */
+function onFieldKeydown(event: KeyboardEvent): void {
+    if (event.key === "Escape") return;
+    event.stopPropagation();
+}
 </script>
 
 <template>
@@ -76,7 +91,7 @@ function closeBuilder(): void {
             autocapitalize="off"
             autocomplete="off"
             spellcheck="false"
-            @keydown.stop
+            @keydown="onFieldKeydown"
             @update:model-value="onInput"
         >
             <template #append-inner>

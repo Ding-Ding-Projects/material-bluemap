@@ -370,6 +370,10 @@ describe("MCAWorld legacy block-state extensions (1.12 chunks)", () => {
         // wrapped in the extension-view (and the view is cached)
         expect(chunk).not.toBe(legacyChunk);
         expect(world.getChunk(0, 0)).toBe(chunk);
+        // both the wrapper and the raw Chunk_1_12 it wraps report the legacy path —
+        // consulted by BlockStateModelRenderer to gate flattenLegacyBlockState
+        expect(chunk.isLegacy()).toBe(true);
+        expect(legacyChunk.isLegacy()).toBe(true);
 
         // snow above -> snowy=true; no snow above -> snowy=false
         expect(chunk.getBlockState(0, 0, 0).getProperties().get("snowy")).toBe("true");
@@ -396,6 +400,7 @@ describe("MCAWorld legacy block-state extensions (1.12 chunks)", () => {
             }
         })();
         expect(world.getExtendedBlockState(modernChunk, 0, 0, 0)).toBe(grass);
+        expect(modernChunk.isLegacy()).toBe(false);
     });
 
     it("does not wrap modern chunks", async () => {
@@ -403,6 +408,7 @@ describe("MCAWorld legacy block-state extensions (1.12 chunks)", () => {
         const world = await worldWithChunks(new Map([["0,0", modernChunk]]));
 
         expect(world.getChunk(0, 0)).toBe(modernChunk);
+        expect(world.getChunk(0, 0).isLegacy()).toBe(false);
     });
 
     it("resolves neighbor block-states across chunk-borders (raw)", async () => {

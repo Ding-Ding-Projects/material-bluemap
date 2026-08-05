@@ -20,6 +20,7 @@ import { mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
+import AppearanceTarget from "../appearance/AppearanceTarget.vue";
 import { appearanceTargets } from "../appearance/index.js";
 import TabbedNavigation from "./TabbedNavigation.vue";
 import type { TabPage } from "./tabModel.js";
@@ -48,6 +49,12 @@ beforeAll(() => {
     })) as unknown as typeof globalThis.matchMedia;
 
     Element.prototype.scrollIntoView = function scrollIntoView(): void {};
+
+    // Vuetify's reposition scroll strategy asks the document what is under a point, which
+    // jsdom does not implement at all. Without this the overlay throws asynchronously, after
+    // the assertion that opened it has already passed - see AppearanceTarget.test.ts, which
+    // hit the same gap first.
+    document.elementsFromPoint = (): Element[] => [];
 
     Object.defineProperty(globalThis, "visualViewport", {
         configurable: true,
@@ -329,6 +336,315 @@ describe("the tab and group appearance editors", () => {
         await nextTick();
 
         expect(document.body.textContent).toContain("Appearance of Renders");
+    });
+});
+
+/**
+ * `TabStrip.vue` opens the ordinary tab menu, the tab's own appearance editor and the
+ * "Move this tab into group..." picker as three separate anchored, non-modal overlays
+ * (`:scrim="false"` `v-menu`s), each closing the *tab menu* when it opens - but until now
+ * the appearance editor and the group picker never closed each other, and the tab menu
+ * never closed either of them. Because a `contextmenu` event does not trigger Vuetify's
+ * click-outside auto-close, nothing implicitly closed the sibling overlay either, so a
+ * second right-click on the same tab could stack any pair of these three on top of one
+ * another. These tests reproduce every pairing and assert exactly one overlay survives.
+ */
+describe("overlay exclusivity: the tab menu, the appearance editor and the group picker", () => {
+    /** Finds a `TabMenuList` row by its exact visible label and clicks it. */
+    function clickMenuItem(label: string): void {
+        const row = [...document.querySelectorAll(".mb-tabs-menu__label")]
+            .find((candidate) => candidate.textContent === label)
+            ?.closest(".v-list-item");
+        expect(row).toBeTruthy();
+        row?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    }
+
+    /**
+     * Counts only instances of `selector` sitting inside a genuinely open `v-overlay`.
+     * "Closed is `.v-overlay--active` gone, not the DOM node gone" (see the Escape tests
+     * in the `app.tabBar` suite above): under jsdom the exit transition has no real CSS
+     * duration to finish against, so a just-closed overlay's inert content node can still
+     * be mounted a tick later even though it has genuinely closed. Scoping to the active
+     * overlay is what makes "closed" and "still in the DOM" distinguishable here.
+     */
+    function activeCount(selector: string): number {
+        return document.querySelectorAll(`.v-overlay--active ${selector}`).length;
+    }
+
+    it("closes the group picker when Shift+right-click opens the appearance editor on the same tab", async () => {
+        const view = open();
+        await nextTick();
+
+        // Open the picker via the ordinary menu's "Move this tab into group..." row.
+        await tabs(view)[0]?.trigger("contextmenu");
+        await nextTick();
+        clickMenuItem("Move this tab into group...");
+        await nextTick();
+        expect(activeCount(".mb-tab-group-picker")).toBe(1);
+
+        // Shift+right-click the SAME tab: the direct route to the appearance editor.
+        await tabs(view)[0]?.trigger("contextmenu", { shiftKey: true });
+        await nextTick();
+
+        expect(activeCount(".mb-appearance-editor")).toBe(1);
+        // The picker this opened on top of must not still be showing underneath it.
+        expect(activeCount(".mb-tab-group-picker")).toBe(0);
+    });
+
+    it("closes the appearance editor when the menu's group picker opens on the same tab", async () => {
+        const view = open();
+        await nextTick();
+
+        await tabs(view)[0]?.trigger("contextmenu", { shiftKey: true });
+        await nextTick();
+        expect(activeCount(".mb-appearance-editor")).toBe(1);
+
+        await tabs(view)[0]?.trigger("contextmenu");
+        await nextTick();
+        clickMenuItem("Move this tab into group...");
+        await nextTick();
+
+        expect(activeCount(".mb-tab-group-picker")).toBe(1);
+        // The appearance editor this opened on top of must not still be showing underneath it.
+        expect(activeCount(".mb-appearance-editor")).toBe(0);
+    });
+
+    it("closes the group picker when a plain right-click reopens the ordinary tab menu on the same tab", async () => {
+        const view = open();
+        await nextTick();
+
+        await tabs(view)[0]?.trigger("contextmenu");
+        await nextTick();
+        clickMenuItem("Move this tab into group...");
+        await nextTick();
+        expect(activeCount(".mb-tab-group-picker")).toBe(1);
+
+        await tabs(view)[0]?.trigger("contextmenu");
+        await nextTick();
+
+        expect(activeCount(".mb-tabs-menu")).toBe(1);
+        // The picker this reopened on top of must not still be showing underneath it.
+        expect(activeCount(".mb-tab-group-picker")).toBe(0);
+    });
+});
+
+/**
+ * The user's words were "shift right click for appearance so it doesnt collide" -
+ * `App.vue` wraps the whole strip in its own `<AppearanceTarget id="app.tabBar" ...>`,
+ * and that wrapper binds the identical `contextmenu` and `ContextMenu`/`Shift+F10`/
+ * `Ctrl+Shift+F10` gestures on its own root element. Before the stop-propagation fix in
+ * `TabStrip.vue`, a right-click that started on an actual tab bubbled past the strip
+ * unimpeded and fired the wrapper's handler too, so the same click opened two independent
+ * `v-menu` overlays stacked at the same point - or, on Shift+right-click, opened both the
+ * tab's own editor and the wrapper's editor.
+ *
+ * These tests reproduce that exact structure - a real `AppearanceTarget` around a real
+ * `TabbedNavigation`, mirroring `App.vue`'s `app.tabBar` wrapping - without touching
+ * `App.vue` itself, so they exercise the same collision the bug report describes.
+ */
+describe("the app.tabBar wrapper around the whole strip does not collide with a tab's own menu", () => {
+    const WrappedHost = defineComponent({
+        setup() {
+            return () =>
+                h(VApp, null, {
+                    default: () => [
+                        h(
+                            AppearanceTarget,
+                            { id: "app.tabBar", label: "Tab bar", as: "div" },
+                            {
+                                default: () =>
+                                    h(
+                                        TabbedNavigation,
+                                        { pages: PAGES, windowLabel: "Material BlueMap", stripLabel: "Main" },
+                                        {
+                                            map: () => h("p", { class: "page-map" }, "the map"),
+                                            world: () => h("p", { class: "page-world" }, "the wizard"),
+                                            servers: () => h("p", { class: "page-servers" }, "the servers"),
+                                        },
+                                    ),
+                            },
+                        ),
+                    ],
+                });
+        },
+    });
+
+    let wrapped: VueWrapper<InstanceType<typeof WrappedHost>> | null = null;
+
+    function openWrapped(): VueWrapper<InstanceType<typeof WrappedHost>> {
+        wrapped = mount(WrappedHost, { global: { plugins: [vuetify, i18n] }, attachTo: document.body });
+        return wrapped;
+    }
+
+    afterEach(() => {
+        wrapped?.unmount();
+        wrapped = null;
+        document.body.innerHTML = "";
+    });
+
+    /** The shortcut `<kbd>` on the one menu row whose visible label matches, not the first row with any shortcut. */
+    function shortcutFor(label: string): string | null | undefined {
+        const row = [...document.querySelectorAll(".mb-tabs-menu__label")]
+            .find((candidate) => candidate.textContent === label)
+            ?.closest(".v-list-item");
+        return row?.querySelector(".mb-tabs-menu__keys")?.textContent;
+    }
+
+    it("registers both the tab and the wrapper as separate appearance targets", async () => {
+        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        openWrapped();
+        await nextTick();
+
+        const ids = appearanceTargets().value.map((entry) => entry.id);
+        expect(ids).toContain("app.tabBar");
+        expect(ids).toContain("tab.t-map");
+    });
+
+    it("opens exactly one menu on an ordinary right-click on a tab, with the working shortcut shown", async () => {
+        const view = openWrapped();
+        await nextTick();
+
+        const tabEl = view.findAll('[role="tab"]')[0];
+        await tabEl?.trigger("contextmenu");
+        await nextTick();
+
+        // The tab's own menu, and only it: the wrapper's independent menu never opens.
+        expect(document.querySelectorAll(".mb-tabs-menu")).toHaveLength(1);
+        expect(document.querySelectorAll(".mb-appearance-target__menu")).toHaveLength(0);
+
+        expect(document.body.textContent).toContain("Edit tab appearance...");
+        // The displayed shortcut comes from the same registration `onTabKeydown` binds on
+        // this very tab, per the menu-shortcut rule: never one that only fires elsewhere.
+        expect(shortcutFor("Edit tab appearance...")).toBe("Ctrl+Shift+F10");
+    });
+
+    it("opens the tab's own editor directly on Shift+right-click, never the wrapper's editor too", async () => {
+        const view = openWrapped();
+        await nextTick();
+
+        const tabEl = view.findAll('[role="tab"]')[0];
+        await tabEl?.trigger("contextmenu", { shiftKey: true });
+        await nextTick();
+
+        // Straight to the editor: no menu in between, for either surface.
+        expect(document.querySelectorAll(".mb-tabs-menu")).toHaveLength(0);
+        expect(document.querySelectorAll(".mb-appearance-target__menu")).toHaveLength(0);
+
+        expect(document.querySelectorAll(".mb-appearance-editor")).toHaveLength(1);
+        expect(document.body.textContent).toContain("Appearance of Map");
+        expect(document.body.textContent).not.toContain("Appearance of Tab bar");
+    });
+
+    it("opens the tab's own editor directly on Ctrl+Shift+F10, never the wrapper's editor too", async () => {
+        const view = openWrapped();
+        await nextTick();
+
+        const tabEl = view.findAll('[role="tab"]')[0];
+        await tabEl?.trigger("keydown", { key: "F10", shiftKey: true, ctrlKey: true });
+        await nextTick();
+
+        expect(document.querySelectorAll(".mb-appearance-editor")).toHaveLength(1);
+        expect(document.body.textContent).toContain("Appearance of Map");
+        expect(document.body.textContent).not.toContain("Appearance of Tab bar");
+    });
+
+    it("returns focus to the tab when its own menu closes on Escape", async () => {
+        const view = openWrapped();
+        await nextTick();
+
+        const tabEl = view.findAll('[role="tab"]')[0];
+        const domId = tabEl?.attributes("id");
+        await tabEl?.trigger("contextmenu");
+        await nextTick();
+        expect(document.querySelectorAll(".mb-tabs-menu")).toHaveLength(1);
+
+        // Two dispatches, matching AppearanceTarget.test.ts's own proven route: Vuetify's
+        // overlay stack learns which overlay is "top" (and so allowed to act on Escape) from
+        // a `setTimeout`-debounced recompute, so the first Escape can land before that settles
+        // and only the second is guaranteed to be seen.
+        tabEl?.element.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        await nextTick();
+        await nextTick();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await nextTick();
+
+        // Closed is `.v-overlay--active` gone, not the DOM node gone: under jsdom the exit
+        // transition has no real CSS duration to finish against, so Vuetify can leave the
+        // inert content node mounted a tick longer even once it has genuinely closed.
+        expect(document.querySelectorAll(".v-overlay--active")).toHaveLength(0);
+        expect(document.activeElement?.id).toBe(domId);
+    });
+
+    it("returns focus to the tab when its own editor closes on Escape", async () => {
+        const view = openWrapped();
+        await nextTick();
+
+        const tabEl = view.findAll('[role="tab"]')[0];
+        const domId = tabEl?.attributes("id");
+        await tabEl?.trigger("contextmenu", { shiftKey: true });
+        await nextTick();
+        expect(document.querySelectorAll(".mb-appearance-editor")).toHaveLength(1);
+
+        // Two dispatches, matching AppearanceTarget.test.ts's own proven route - see the
+        // comment on the menu's own Escape test above for why one alone is not reliable.
+        tabEl?.element.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        await nextTick();
+        await nextTick();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await nextTick();
+
+        // Closed is `.v-overlay--active` gone, not the DOM node gone - see the comment on
+        // the menu's own Escape test above for why.
+        expect(document.querySelectorAll(".v-overlay--active")).toHaveLength(0);
+        expect(document.activeElement?.id).toBe(domId);
+    });
+
+    it("still opens the wrapper's own menu for a right-click that is not on a tab or group", async () => {
+        const view = openWrapped();
+        await nextTick();
+
+        // The wrapper's `.mb-appearance-target` root: genuine strip chrome, not a tab or a
+        // group header, is exactly the case `TabStrip.vue`'s own docs say the wrapper still
+        // owns - so this must keep working after the stop-propagation fix.
+        const target = view.find(".mb-appearance-target");
+        expect(target.exists()).toBe(true);
+
+        target.element.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+        await nextTick();
+
+        expect(document.body.textContent).toContain("Edit appearance...");
+    });
+
+    it("group header: opens exactly one menu on right-click, with the working shortcut shown", async () => {
+        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        const view = openWrapped();
+        await nextTick();
+
+        const header = view.find('[aria-expanded="false"]');
+        await header.trigger("contextmenu");
+        await nextTick();
+
+        expect(document.querySelectorAll(".mb-tabs-menu")).toHaveLength(1);
+        expect(document.querySelectorAll(".mb-appearance-target__menu")).toHaveLength(0);
+        expect(document.body.textContent).toContain("Edit group appearance...");
+        expect(shortcutFor("Edit group appearance...")).toBe("Ctrl+Shift+F10");
+    });
+
+    it("group header: opens the group's own editor directly on Shift+right-click, never the wrapper's too", async () => {
+        cells.set("material-bluemap-tabs", SAVED_LAYOUT);
+        const view = openWrapped();
+        await nextTick();
+
+        const header = view.find('[aria-expanded="false"]');
+        await header.trigger("contextmenu", { shiftKey: true });
+        await nextTick();
+
+        expect(document.querySelectorAll(".mb-tabs-menu")).toHaveLength(0);
+        expect(document.querySelectorAll(".mb-appearance-editor")).toHaveLength(1);
+        expect(document.body.textContent).toContain("Appearance of Renders");
+        expect(document.body.textContent).not.toContain("Appearance of Tab bar");
     });
 });
 

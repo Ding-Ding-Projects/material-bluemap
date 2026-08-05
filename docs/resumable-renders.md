@@ -312,18 +312,20 @@ That synchronisation is also what makes a failure cheap. Each shard caches its o
 and marks its own completion, so a re-dispatched run skips every shard that is already done.
 A run that dies in wave 7 costs wave 7, not the six waves before it.
 
-The workflow declares **six** wave jobs, because Actions cannot generate a variable number
-of jobs. That is 1,536 shards. A plan needing more fails in the plan step, saying how many
-waves it needs and what to change, rather than rendering part of the world and calling it
-finished. Raising the ceiling means adding wave jobs to `render-world.yml` and raising
+The workflow declares **twelve** wave jobs, because Actions cannot generate a variable
+number of jobs. That is 3,072 shards. A plan needing more fails in the plan step, saying how
+many waves it needs and what to change, rather than rendering part of the world and calling
+it finished. Raising the ceiling means adding wave jobs to `render-world.yml` and raising
 `RENDER_WAVE_SLOTS` to match.
 
 ### Merging a map too large for one runner
 
 At the density measured on the reference world - 961 hires tiles covering a million square
 blocks in about 47 MB - a 20 GB world renders to something on the order of 40 to 50 GB of
-tiles. A GitHub standard runner has roughly 14 GB of free disk. One job cannot download
-every shard and write a merged copy beside them; it cannot download every shard at all.
+tiles. A runner's free disk is measured, not assumed from the published spec — see
+[Disk: measured, not assumed](render-in-actions.md#disk-measured-not-assumed) — and even a
+generously measured runner cannot hold that much: one job cannot download every shard and
+write a merged copy beside them; it cannot download every shard at all.
 
 So the merge is a tree, and its last level is small:
 
@@ -439,7 +441,7 @@ Both workflows parse as YAML.
   make it silent.
 - **A dismissed offer is dismissed permanently** for that render, until it is rendered
   again.
-- **Six waves, so 1,536 shards.** More needs wave jobs added to the workflow.
+- **Twelve waves, so 3,072 shards.** More needs wave jobs added to the workflow.
 - **A multi-group render does not publish to Pages** and does not produce one artifact.
 - **Cache eviction costs a shard.** GitHub evicts caches by age and by a repository-wide
   size limit, so a run re-dispatched long after the one before it may find nothing to

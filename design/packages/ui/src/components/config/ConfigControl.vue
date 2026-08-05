@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiFolderOpenOutline, mdiFileOutline, mdiInfinity } from "@mdi/js";
+import { mdiInfinity } from "@mdi/js";
 import {
     VBtn,
     VChip,
@@ -15,6 +15,7 @@ import {
 } from "vuetify/components";
 import { formatKey, type Control, type PlainValue, type SelectOption } from "@material-bluemap/config";
 import ColorField from "../appearance/ColorField.vue";
+import PathField from "../PathField.vue";
 import { formatHex } from "../appearance/colorFormat.js";
 import { parseColor } from "../appearance/colorParse.js";
 import {
@@ -27,7 +28,6 @@ import {
     normalizeHexColor,
     parseNumberInput,
 } from "./fieldValue.js";
-import { useConfigHost } from "./configHost.js";
 
 /**
  * One control, with no label, documentation or reset affordance around it.
@@ -69,7 +69,6 @@ const props = withDefaults(
 const emit = defineEmits<{ "update:modelValue": [value: PlainValue] }>();
 
 const { t } = useI18n();
-const host = useConfigHost();
 
 const localError = ref<string | null>(null);
 
@@ -274,25 +273,24 @@ const selectItems = computed<SelectItem[]>(() => {
     return items;
 });
 
-async function pickPath(): Promise<void> {
-    if (props.control.kind !== "path" || host === null) return;
+/**
+ * `PathField.vue` wants a lowercase phrase for "Browse for {field}" / "Choose {field}"; the
+ * schema's own field label is the same words in the title case the visible field label keeps,
+ * so the two are derived from one string rather than maintained separately.
+ */
+const pathFieldName = computed(() => props.label.toLowerCase());
 
-    const chosen =
-        props.control.select === "directory"
-            ? await host.pickDirectory({ title: props.label })
-            : await host.pickFile(
-                  props.control.extensions === undefined
-                      ? { title: props.label }
-                      : { title: props.label, extensions: props.control.extensions },
-              );
-
-    if (chosen !== null) emit("update:modelValue", chosen);
-}
-
-const pickerReason = computed(() =>
-    host === null
-        ? t("config.control.pickerUnavailable", "Browsing for a path needs the desktop app. You can still type or paste one here.")
-        : "",
+/**
+ * `PathField`'s `extensions` as an attribute bag rather than a direct binding, the same reason
+ * {@link numberAttrs} exists: a control with no extension filter has to leave the prop absent,
+ * not present and `undefined` - `exactOptionalPropertyTypes` and a template binding of
+ * `T | undefined` do not agree, which is exactly what the removed `pickPath` used to route
+ * around with its own conditional spread.
+ */
+const pathExtensionsAttrs = computed<{ extensions?: readonly string[] }>(() =>
+    props.control.kind === "path" && props.control.extensions !== undefined
+        ? { extensions: props.control.extensions }
+        : {},
 );
 
 // ---- colour ----------------------------------------------------------------
@@ -515,45 +513,17 @@ const boundDirection = computed<"min" | "max">(() => (props.label.toLowerCase().
     />
 
     <!-- path -->
-    <div v-else-if="control.kind === 'path'" class="mb-config-control__path">
-        <v-text-field
-            v-model="textValue"
-            :label="label"
-            :disabled="isDisabled"
-            :error-messages="errorText"
-            class="mb-config-control__mono"
-            variant="outlined"
-            :density="densityValue"
-            spellcheck="false"
-            autocapitalize="off"
-            autocomplete="off"
-            hide-details="auto"
-        />
-        <v-btn
-            :icon="control.select === 'directory' ? mdiFolderOpenOutline : mdiFileOutline"
-            :aria-label="
-                control.select === 'directory'
-                    ? t('config.control.browseFolder', 'Choose a folder')
-                    : t('config.control.browseFile', 'Choose a file')
-            "
-            :disabled="disabled || host === null"
-            variant="tonal"
-            size="small"
-            @click="pickPath"
-        >
-            <v-tooltip
-                activator="parent"
-                location="top"
-                :text="
-                    host === null
-                        ? pickerReason
-                        : control.select === 'directory'
-                          ? t('config.control.browseFolder', 'Choose a folder')
-                          : t('config.control.browseFile', 'Choose a file')
-                "
-            />
-        </v-btn>
-    </div>
+    <PathField
+        v-else-if="control.kind === 'path'"
+        v-model="textValue"
+        v-bind="pathExtensionsAttrs"
+        :field="pathFieldName"
+        :label="label"
+        :semantic="control.select === 'directory' ? 'folder' : 'file'"
+        :disabled="isDisabled"
+        :error="errorText"
+        :density="densityValue"
+    />
 
     <!-- colour: the same infinite picker every other colour in the app opens -->
     <div v-else-if="control.kind === 'color'" class="mb-config-control__color">
@@ -682,20 +652,11 @@ const boundDirection = computed<"min" | "max">(() => (props.label.toLowerCase().
 </template>
 
 <style>
-.mb-config-control__number,
-.mb-config-control__path {
+.mb-config-control__number {
     display: flex;
     align-items: flex-start;
     gap: 8px;
-}
-
-.mb-config-control__number {
     flex-wrap: wrap;
-}
-
-.mb-config-control__path .v-text-field {
-    flex: 1 1 220px;
-    min-width: 0;
 }
 
 /* The colour field lays itself out; this only stacks its note underneath. */

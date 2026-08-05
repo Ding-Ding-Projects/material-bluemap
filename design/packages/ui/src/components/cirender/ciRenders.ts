@@ -21,8 +21,12 @@ import type { ComputedRef, Ref } from "vue";
 import { formatBytes } from "../downloads/downloads.js";
 import type {
     CiJobReport,
+    CiOwnerChoicesAnswer,
     CiPreflight,
     CiRenderBridge,
+    CiRepositoryChoice,
+    CiRepositoryNameAvailability,
+    CiRoute,
     CiRunReport,
     CiSyncEvent,
     CiSyncFailure,
@@ -59,6 +63,17 @@ export interface CiTransferProgress {
     readonly bytesTotal: number;
     /** 0 to 100. An estimate of the transfer only; the byte counts beside it are exact. */
     readonly percent: number;
+    /**
+     * How many of the upload's own pieces - files while packing, parts while splitting,
+     * release assets while uploading - are done, out of how many there are.
+     *
+     * The main process's own count, forwarded rather than derived from the bytes above: a
+     * part skipped because it is already on the release moves this without moving a byte.
+     */
+    readonly assetsDone: number;
+    readonly assetsTotal: number;
+    /** The specific piece in flight right now, when the upload named one. */
+    readonly asset: string | null;
 }
 
 export interface CiRow {
@@ -68,6 +83,15 @@ export interface CiRow {
     readonly worldFolder: string;
     readonly state: CiRowState;
     readonly phase: CiSyncPhase | null;
+    /**
+     * Which credential is actually driving this sync.
+     *
+     * Null until the first `phase` event arrives - `started` fires before the route is
+     * resolved, so for a moment there genuinely is no answer yet, and null says that rather
+     * than guessing. Once a phase has arrived this stays set for the rest of the row's life,
+     * including a resumed sync loaded from `loadKnown()` before any live event has landed.
+     */
+    readonly route: CiRoute | null;
     /** Null until the upload says something, and cleared once the run is in flight. */
     readonly transfer: CiTransferProgress | null;
     readonly run: CiRunReport | null;
@@ -98,6 +122,7 @@ function blankRow(syncId: string): CiRow {
         worldFolder: "",
         state: "running",
         phase: null,
+        route: null,
         transfer: null,
         run: null,
         summary: null,
@@ -178,6 +203,57 @@ export function jobTone(job: CiJobReport): "success" | "error" | "warning" | "in
 }
 
 /**
+ * Which of the two GitHub credentials is actually driving this row, in words.
+ *
+ * Null before the first `phase` event has arrived, and this returns the empty string for
+ * that rather than a placeholder - the caller decides whether to show anything at all, and
+ * "" never reads as a sentence that says nothing was found.
+ */
+export function routeLabel(route: CiRoute | null, t: T): string {
+    if (route === null) return "";
+    return route === "gh"
+        ? t("cirender.row.route.gh", "Using the gh command-line tool")
+        : t("cirender.row.route.session", "Using this application's GitHub sign-in");
+}
+
+/** One wave's shards, counted. `wave` is null for the bucket of jobs with no wave in their name. */
+export interface CiWaveSummary {
+    readonly wave: number | null;
+    readonly done: number;
+    readonly total: number;
+}
+
+/**
+ * Jobs bucketed by {@link CiJobReport.wave}, in the order a wave was first seen.
+ *
+ * A summary rather than a percentage: GitHub reports nothing from inside a shard, so "3 of
+ * 5 finished" is the whole of what this route can honestly say about a wave in progress.
+ */
+export function waveSummaries(jobs: readonly CiJobReport[]): readonly CiWaveSummary[] {
+    const order: (number | null)[] = [];
+    const buckets = new Map<number | null, CiJobReport[]>();
+    for (const job of jobs) {
+        const key = job.wave;
+        let bucket = buckets.get(key);
+        if (bucket === undefined) {
+            bucket = [];
+            buckets.set(key, bucket);
+            order.push(key);
+        }
+        bucket.push(job);
+    }
+    return order.map((wave) => {
+        const members = buckets.get(wave) ?? [];
+        return { wave, done: members.filter(jobFinished).length, total: members.length };
+    });
+}
+
+/** True for a job GitHub has called `completed`, whatever it concluded. */
+function jobFinished(job: CiJobReport): boolean {
+    return job.status === "completed";
+}
+
+/**
  * The one line that says whether a re-sync would send anything.
  *
  * Worth its own function because it is the sentence that decides whether somebody starts
@@ -198,6 +274,59 @@ export function uploadLine(preflight: CiPreflight | null, t: T): string {
         { size: formatBytes(preflight.estimatedArchiveBytes, t) },
         "About {size} will be uploaded to GitHub before anything is rendered.",
     );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Naming a repository: the last segment of a folder, and GitHub's own rules  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The folder's own name, from a full path - what a repository name is suggested from once a
+ * world is chosen.
+ *
+ * Trailing separators are dropped first so a folder chosen with one still names itself
+ * rather than the empty string, and both slash styles are recognised because a folder can
+ * arrive here by a Windows browse dialog, a POSIX drop target, or hand-typed text on either.
+ */
+export function worldFolderName(path: string): string {
+    const trimmed = path.trim().replace(/[\\/]+$/, "");
+    if (trimmed === "") return "";
+    const parts = trimmed.split(/[\\/]/);
+    return parts[parts.length - 1] ?? "";
+}
+
+const REPOSITORY_NAME_PATTERN = /^[A-Za-z0-9._-]+$/;
+
+/**
+ * Why `repo` is not a name GitHub will accept, in the reader's own words - or null when it
+ * is fine, or empty, since an empty field is a separate "this is required" message rather
+ * than an invalid one.
+ *
+ * Checked here rather than only server-side, because the suggestion at
+ * `suggestCiRepositoryName` in the main process is a *sanitizer* and this is the matching
+ * *validator*: somebody who edits the suggestion, or never used it, still gets told what is
+ * wrong before pressing a button that would otherwise fail with GitHub's own, less specific
+ * refusal.
+ */
+export function repoNameProblem(repo: string, t: T): string | null {
+    const trimmed = repo.trim();
+    if (trimmed === "") return null;
+    if (trimmed === "." || trimmed === "..") {
+        return t("cirender.repo.invalid.dots", 'A repository name cannot be just "." or "..".');
+    }
+    if (/\.git$/i.test(trimmed)) {
+        return t("cirender.repo.invalid.gitSuffix", 'A repository name cannot end in ".git".');
+    }
+    if (trimmed.length > 100) {
+        return t("cirender.repo.invalid.long", "A repository name cannot be longer than 100 characters.");
+    }
+    if (!REPOSITORY_NAME_PATTERN.test(trimmed)) {
+        return t(
+            "cirender.repo.invalid.chars",
+            "Repository names may only use letters, digits, dots, hyphens and underscores.",
+        );
+    }
+    return null;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -227,11 +356,36 @@ export interface CiRenders {
     readonly startFailure: Ref<CiSyncFailure | null>;
     readonly starting: Ref<boolean>;
 
+    /*
+     * What the "What, and where" card needs so nobody has to know what to type: who could
+     * own the repository, whether a suggested name is free, and which repositories already
+     * exist to pick from instead of typing a new one. Each is independently optional - a
+     * build missing one of the four bridge methods below simply reports `false` for the
+     * matching `canX` flag and the field falls back to free text, exactly as it always could.
+     */
+    readonly owners: Ref<CiOwnerChoicesAnswer | null>;
+    readonly loadingOwners: Ref<boolean>;
+    readonly repositories: Ref<readonly CiRepositoryChoice[]>;
+    readonly loadingRepositories: Ref<boolean>;
+    readonly repositoriesFailure: Ref<string | null>;
+    readonly nameAvailability: Ref<CiRepositoryNameAvailability | null>;
+    readonly checkingName: Ref<boolean>;
+    readonly canListOwners: boolean;
+    readonly canSuggestRepoName: boolean;
+    readonly canCheckRepoName: boolean;
+    readonly canListRepositories: boolean;
+
     check(request: CiSyncRequest): Promise<CiPreflight | null>;
     start(request: CiSyncRequest): Promise<CiSyncResult | null>;
     poll(syncId: string): Promise<CiSyncResult | null>;
     stop(syncId: string): Promise<boolean>;
     loadKnown(): Promise<void>;
+    loadOwners(): Promise<void>;
+    loadRepositories(): Promise<void>;
+    suggestRepoName(sourceName: string): Promise<string | null>;
+    checkRepoName(owner: string, repo: string): Promise<void>;
+    /** Drops whatever the last check said, for a field that just changed underneath it. */
+    clearNameAvailability(): void;
     dispose(): void;
 }
 
@@ -249,7 +403,19 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
     const startFailure = ref<CiSyncFailure | null>(null);
     const starting = ref(false);
 
+    const owners = ref<CiOwnerChoicesAnswer | null>(null);
+    const loadingOwners = ref(false);
+    const repositories = ref<readonly CiRepositoryChoice[]>([]);
+    const loadingRepositories = ref(false);
+    const repositoriesFailure = ref<string | null>(null);
+    const nameAvailability = ref<CiRepositoryNameAvailability | null>(null);
+    const checkingName = ref(false);
+
     let nextLogId = 1;
+    // Bumped on every checkRepoName/clearNameAvailability call so a slow, out-of-order
+    // availability answer can tell it has been superseded and drop itself instead of
+    // overwriting a newer check's result. See checkRepoName below.
+    let nameCheckToken = 0;
 
     const rows = computed<readonly CiRow[]>(() =>
         Object.values(byId.value).sort((left, right) => {
@@ -296,6 +462,9 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                     worldFolder: event.worldFolder,
                     state: "running",
                     phase: null,
+                    // Not known yet: `started` fires before the route is resolved, and the
+                    // next `phase` event is what says which credential actually drove it.
+                    route: null,
                     transfer: null,
                     run: null,
                     summary: null,
@@ -314,6 +483,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 put({
                     ...row,
                     phase: event.phase,
+                    route: event.route,
                     transfer: event.phase === "uploading" ? row.transfer : null,
                     live: true,
                 });
@@ -332,6 +502,9 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                             event.bytesTotal <= 0
                                 ? 0
                                 : Math.min(100, (event.bytesDone / event.bytesTotal) * 100),
+                        assetsDone: event.assetsDone,
+                        assetsTotal: event.assetsTotal,
+                        asset: event.asset,
                     },
                     live: true,
                 });
@@ -344,6 +517,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                     ...row,
                     state: "rendered",
                     phase: "finished",
+                    route: event.summary.route,
                     summary: event.summary,
                     repository: event.summary.repository,
                     mapId: event.summary.mapId,
@@ -358,6 +532,10 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 put({
                     ...row,
                     state: "failed",
+                    // A failure this early can genuinely predate any phase - "no route" and
+                    // "read-only" both fail before a credential is settled - so this keeps
+                    // whatever the row already knew rather than overwriting it with null.
+                    route: event.failure.route ?? row.route,
                     failure: event.failure,
                     // A failure that carries the run keeps it on screen: "which job, and
                     // what did its log say" is the whole of what a person needs next.
@@ -389,6 +567,18 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
         knownFailure,
         startFailure,
         starting,
+
+        owners,
+        loadingOwners,
+        repositories,
+        loadingRepositories,
+        repositoriesFailure,
+        nameAvailability,
+        checkingName,
+        canListOwners: bridge?.listCiOwners !== undefined,
+        canSuggestRepoName: bridge?.suggestCiRepoName !== undefined,
+        canCheckRepoName: bridge?.checkCiRepoName !== undefined,
+        canListRepositories: bridge?.listExistingRepositories !== undefined,
 
         async check(request: CiSyncRequest): Promise<CiPreflight | null> {
             if (bridge === null) return null;
@@ -475,6 +665,68 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
             } catch (error) {
                 knownFailure.value = describe(error);
             }
+        },
+
+        async loadOwners(): Promise<void> {
+            if (bridge?.listCiOwners === undefined) return;
+            loadingOwners.value = true;
+            try {
+                owners.value = await bridge.listCiOwners();
+            } catch (error) {
+                owners.value = { ok: false, signedIn: true, message: describe(error) };
+            } finally {
+                loadingOwners.value = false;
+            }
+        },
+
+        async loadRepositories(): Promise<void> {
+            if (bridge?.listExistingRepositories === undefined) return;
+            loadingRepositories.value = true;
+            repositoriesFailure.value = null;
+            try {
+                const answer = await bridge.listExistingRepositories();
+                if (answer.ok) repositories.value = answer.value;
+                else repositoriesFailure.value = answer.message;
+            } catch (error) {
+                repositoriesFailure.value = describe(error);
+            } finally {
+                loadingRepositories.value = false;
+            }
+        },
+
+        async suggestRepoName(sourceName: string): Promise<string | null> {
+            if (bridge?.suggestCiRepoName === undefined) return null;
+            try {
+                return await bridge.suggestCiRepoName(sourceName);
+            } catch {
+                // A suggestion that failed to arrive is simply no suggestion. The field
+                // stays exactly as empty as it was; nothing here is worth reporting as an
+                // error over a name somebody was always free to type themselves.
+                return null;
+            }
+        },
+
+        async checkRepoName(owner: string, repo: string): Promise<void> {
+            if (bridge?.checkCiRepoName === undefined) return;
+            // Claim this round before awaiting anything, so a later call - or a clear -
+            // fired while this one is still in flight can tell it has been superseded.
+            const token = ++nameCheckToken;
+            checkingName.value = true;
+            try {
+                const answer = await bridge.checkCiRepoName({ owner, repo });
+                if (token !== nameCheckToken) return; // A newer check (or a clear) already won.
+                nameAvailability.value = answer;
+            } catch (error) {
+                if (token !== nameCheckToken) return;
+                nameAvailability.value = { status: "unknown", owner, repo, message: describe(error) };
+            } finally {
+                if (token === nameCheckToken) checkingName.value = false;
+            }
+        },
+
+        clearNameAvailability(): void {
+            nameCheckToken++;
+            nameAvailability.value = null;
         },
 
         dispose(): void {

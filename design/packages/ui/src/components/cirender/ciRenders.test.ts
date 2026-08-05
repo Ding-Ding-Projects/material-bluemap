@@ -9,11 +9,24 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { createCiRenders, jobTone, phaseLabel, runLabel, uploadLine } from "./ciRenders.js";
+import {
+    createCiRenders,
+    jobTone,
+    phaseLabel,
+    repoNameProblem,
+    routeLabel,
+    runLabel,
+    uploadLine,
+    waveSummaries,
+    worldFolderName,
+} from "./ciRenders.js";
 import type {
     CiJobReport,
+    CiOwnerChoicesAnswer,
     CiPreflight,
     CiRenderBridge,
+    CiRepositoryChoice,
+    CiRepositoryNameAvailability,
     CiRunReport,
     CiSyncEvent,
     CiSyncResult,
@@ -36,6 +49,7 @@ function job(overrides: Partial<CiJobReport> = {}): CiJobReport {
         htmlUrl: "https://github.test/job/1",
         startedAt: null,
         completedAt: null,
+        wave: null,
         ...overrides,
     };
 }
@@ -312,7 +326,7 @@ describe("rows follow the events", () => {
         const { bridge: host, emit } = bridge();
         const renders = createCiRenders(host);
 
-        emit({ type: "phase", syncId: "s", phase: "uploading", at: "2026-08-04T10:00:00Z" });
+        emit({ type: "phase", syncId: "s", phase: "uploading", route: "session", at: "2026-08-04T10:00:00Z" });
         emit({
             type: "progress",
             syncId: "s",
@@ -320,17 +334,65 @@ describe("rows follow the events", () => {
             description: "Uploading part 1 of 1",
             bytesDone: 250,
             bytesTotal: 1000,
+            assetsDone: 0,
+            assetsTotal: 3,
+            asset: "world.zip",
             at: "2026-08-04T10:00:01Z",
         });
 
         expect(renders.rows.value[0]?.transfer?.percent).toBe(25);
         expect(renders.rows.value[0]?.transfer?.description).toBe("Uploading part 1 of 1");
+        // The upload's own count of its pieces, not derived from the bytes above.
+        expect(renders.rows.value[0]?.transfer?.assetsDone).toBe(0);
+        expect(renders.rows.value[0]?.transfer?.assetsTotal).toBe(3);
+        expect(renders.rows.value[0]?.transfer?.asset).toBe("world.zip");
 
         // A finished upload's bar left beside "GitHub is rendering" would read as a render
         // that is nearly done rather than one that has only just started.
-        emit({ type: "phase", syncId: "s", phase: "rendering", at: "2026-08-04T10:05:00Z" });
+        emit({ type: "phase", syncId: "s", phase: "rendering", route: "session", at: "2026-08-04T10:05:00Z" });
         expect(renders.rows.value[0]?.transfer).toBeNull();
         renders.dispose();
+    });
+
+    it("says which credential is driving a row, live - not only after it ends", () => {
+        const { bridge: host, emit } = bridge();
+        const renders = createCiRenders(host);
+
+        emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "world",
+            worldFolder: "/w",
+            at: "2026-08-04T10:00:00Z",
+        });
+        // Genuinely unknown for a moment: `started` fires before the route is resolved.
+        expect(renders.rows.value[0]?.route).toBeNull();
+
+        emit({ type: "phase", syncId: "s", phase: "checking", route: "gh", at: "2026-08-04T10:00:01Z" });
+        expect(renders.rows.value[0]?.route).toBe("gh");
+        expect(routeLabel(renders.rows.value[0]?.route ?? null, t)).toContain("gh command-line tool");
+
+        emit({ type: "phase", syncId: "s", phase: "rendering", route: "gh", at: "2026-08-04T10:05:00Z" });
+        expect(renders.rows.value[0]?.route).toBe("gh");
+        renders.dispose();
+    });
+
+    it("keeps whichever wave each shard says it belongs to, in the summary", () => {
+        const jobs: CiJobReport[] = [
+            job({ id: 1, name: "Wave 1 shard 0", status: "completed", conclusion: "success", wave: 1 }),
+            job({ id: 2, name: "Wave 1 shard 1", status: "in_progress", wave: 1 }),
+            job({ id: 3, name: "Wave 2 shard 0", status: "queued", wave: 2 }),
+            job({ id: 4, name: "Merge group 0", status: "queued", wave: null }),
+        ];
+
+        const summaries = waveSummaries(jobs);
+
+        expect(summaries).toEqual([
+            { wave: 1, done: 1, total: 2 },
+            { wave: 2, done: 0, total: 1 },
+            { wave: null, done: 0, total: 1 },
+        ]);
     });
 
     it("reports nothing at all when this build has no bridge", () => {
@@ -338,6 +400,257 @@ describe("rows follow the events", () => {
         expect(renders.available).toBe(false);
         expect(renders.canCancel).toBe(false);
         expect(renders.rows.value).toHaveLength(0);
+        renders.dispose();
+    });
+});
+
+describe("worldFolderName: what a repository name is suggested from", () => {
+    it("takes the last segment of a path, either separator", () => {
+        expect(worldFolderName("C:\\Users\\a\\Saves\\My World")).toBe("My World");
+        expect(worldFolderName("/home/a/saves/my-world")).toBe("my-world");
+    });
+
+    it("drops a trailing separator rather than returning nothing", () => {
+        expect(worldFolderName("/home/a/saves/my-world/")).toBe("my-world");
+    });
+
+    it("is the empty string for nothing at all", () => {
+        expect(worldFolderName("")).toBe("");
+        expect(worldFolderName("   ")).toBe("");
+    });
+});
+
+describe("repoNameProblem: GitHub's own naming rules, said before GitHub says them", () => {
+    it("is null for an empty field - that is a different message entirely", () => {
+        expect(repoNameProblem("", t)).toBeNull();
+    });
+
+    it("is null for an ordinary name", () => {
+        expect(repoNameProblem("my-world-map", t)).toBeNull();
+    });
+
+    it("names the exact rule broken, rather than a generic refusal", () => {
+        expect(repoNameProblem("my world", t)).toContain("letters, digits");
+        expect(repoNameProblem(".", t)).toContain('"."');
+        expect(repoNameProblem("map.git", t)).toContain(".git");
+        expect(repoNameProblem("a".repeat(101), t)).toContain("100 characters");
+    });
+});
+
+describe("who could own it: the signed-in login and its organisations", () => {
+    it("reports nobody signed in as the sign-in case, not the try-again case", async () => {
+        const answer: CiOwnerChoicesAnswer = { ok: false, signedIn: false, message: "Nobody is signed in." };
+        const { bridge: host } = bridge({ listCiOwners: () => Promise.resolve(answer) });
+        const renders = createCiRenders(host);
+        expect(renders.canListOwners).toBe(true);
+        await renders.loadOwners();
+        expect(renders.owners.value).toEqual(answer);
+        renders.dispose();
+    });
+
+    it("tells signed-in-but-unreadable apart from not-signed-in, so the button offered differs", async () => {
+        const answer: CiOwnerChoicesAnswer = { ok: false, signedIn: true, message: "GitHub answered 500." };
+        const { bridge: host } = bridge({ listCiOwners: () => Promise.resolve(answer) });
+        const renders = createCiRenders(host);
+        await renders.loadOwners();
+        expect(renders.owners.value).toEqual(answer);
+        renders.dispose();
+    });
+
+    it("lists the login first, then every organisation", async () => {
+        const answer: CiOwnerChoicesAnswer = {
+            ok: true,
+            login: "octocat",
+            owners: [
+                { login: "octocat", kind: "user" },
+                { login: "octo-org", kind: "organization" },
+            ],
+        };
+        const { bridge: host } = bridge({ listCiOwners: () => Promise.resolve(answer) });
+        const renders = createCiRenders(host);
+        await renders.loadOwners();
+        expect(renders.owners.value).toEqual(answer);
+        renders.dispose();
+    });
+
+    it("reports the capability as false, and does nothing, when the build has none of it", async () => {
+        const { bridge: host } = bridge();
+        const renders = createCiRenders(host);
+        expect(renders.canListOwners).toBe(false);
+        await renders.loadOwners();
+        expect(renders.owners.value).toBeNull();
+        renders.dispose();
+    });
+});
+
+describe("suggesting and checking a repository name", () => {
+    it("returns the main process's own suggestion", async () => {
+        const { bridge: host } = bridge({ suggestCiRepoName: () => Promise.resolve("my-world") });
+        const renders = createCiRenders(host);
+        expect(await renders.suggestRepoName("My World")).toBe("my-world");
+        renders.dispose();
+    });
+
+    it("returns null rather than throwing, when the build cannot suggest one", async () => {
+        const { bridge: host } = bridge();
+        const renders = createCiRenders(host);
+        expect(renders.canSuggestRepoName).toBe(false);
+        expect(await renders.suggestRepoName("My World")).toBeNull();
+        renders.dispose();
+    });
+
+    it.each([
+        ["available" as const, { status: "available", owner: "o", repo: "r" } as CiRepositoryNameAvailability],
+        [
+            "taken" as const,
+            {
+                status: "taken",
+                owner: "o",
+                repo: "r",
+                private: false,
+                htmlUrl: "https://github.test/o/r",
+            } as CiRepositoryNameAvailability,
+        ],
+        [
+            "unknown" as const,
+            { status: "unknown", owner: "o", repo: "r", message: "offline" } as CiRepositoryNameAvailability,
+        ],
+    ])("carries the %s verdict through untouched, never rounding it to another one", async (_label, answer) => {
+        const { bridge: host } = bridge({ checkCiRepoName: () => Promise.resolve(answer) });
+        const renders = createCiRenders(host);
+        expect(renders.canCheckRepoName).toBe(true);
+        await renders.checkRepoName("o", "r");
+        expect(renders.nameAvailability.value).toEqual(answer);
+        expect(renders.checkingName.value).toBe(false);
+        renders.dispose();
+    });
+
+    it("clears whatever the last check said, for a field that just changed underneath it", async () => {
+        const { bridge: host } = bridge({
+            checkCiRepoName: () => Promise.resolve({ status: "available", owner: "o", repo: "r" }),
+        });
+        const renders = createCiRenders(host);
+        await renders.checkRepoName("o", "r");
+        expect(renders.nameAvailability.value).not.toBeNull();
+        renders.clearNameAvailability();
+        expect(renders.nameAvailability.value).toBeNull();
+        renders.dispose();
+    });
+
+    it("never lets a slow, superseded check overwrite a newer one that answered first", async () => {
+        // Two in-flight checks, resolved out of fire order: "foo" was asked about first but
+        // its network answer lands second, exactly like a laggy request racing a quick one.
+        // Whichever finished last used to win outright; the field the user is actually
+        // looking at ("foobar") must win instead, regardless of arrival order.
+        let resolveFoo: ((value: CiRepositoryNameAvailability) => void) | null = null;
+        let resolveFoobar: ((value: CiRepositoryNameAvailability) => void) | null = null;
+        const { bridge: host } = bridge({
+            checkCiRepoName: ({ repo }) =>
+                new Promise<CiRepositoryNameAvailability>((resolve) => {
+                    if (repo === "foo") resolveFoo = resolve;
+                    else resolveFoobar = resolve;
+                }),
+        });
+        const renders = createCiRenders(host);
+
+        const stale = renders.checkRepoName("o", "foo");
+        const fresh = renders.checkRepoName("o", "foobar");
+
+        // The fresher request (for what the field now holds) answers first...
+        resolveFoobar?.({ status: "available", owner: "o", repo: "foobar" });
+        await fresh;
+        expect(renders.nameAvailability.value).toEqual({ status: "available", owner: "o", repo: "foobar" });
+
+        // ...and the older, slower one answers after it. It must not clobber the fresher
+        // verdict the user is already looking at.
+        resolveFoo?.({ status: "taken", owner: "o", repo: "foo", private: false, htmlUrl: null });
+        await stale;
+        expect(renders.nameAvailability.value).toEqual({ status: "available", owner: "o", repo: "foobar" });
+        expect(renders.checkingName.value).toBe(false);
+        renders.dispose();
+    });
+
+    it("a superseded check that fails late does not overwrite the fresh verdict either", async () => {
+        let rejectFoo: ((error: Error) => void) | null = null;
+        let resolveFoobar: ((value: CiRepositoryNameAvailability) => void) | null = null;
+        const { bridge: host } = bridge({
+            checkCiRepoName: ({ repo }) =>
+                repo === "foo"
+                    ? new Promise<CiRepositoryNameAvailability>((_resolve, reject) => {
+                          rejectFoo = reject;
+                      })
+                    : new Promise<CiRepositoryNameAvailability>((resolve) => {
+                          resolveFoobar = resolve;
+                      }),
+        });
+        const renders = createCiRenders(host);
+
+        const stale = renders.checkRepoName("o", "foo");
+        const fresh = renders.checkRepoName("o", "foobar");
+
+        resolveFoobar?.({ status: "available", owner: "o", repo: "foobar" });
+        await fresh;
+        expect(renders.nameAvailability.value).toEqual({ status: "available", owner: "o", repo: "foobar" });
+
+        rejectFoo?.(new Error("network blip"));
+        await stale;
+        expect(renders.nameAvailability.value).toEqual({ status: "available", owner: "o", repo: "foobar" });
+        expect(renders.checkingName.value).toBe(false);
+        renders.dispose();
+    });
+
+    it("a clear that lands while a check is still in flight keeps the field cleared", async () => {
+        let resolveCheck: ((value: CiRepositoryNameAvailability) => void) | null = null;
+        const { bridge: host } = bridge({
+            checkCiRepoName: () =>
+                new Promise<CiRepositoryNameAvailability>((resolve) => {
+                    resolveCheck = resolve;
+                }),
+        });
+        const renders = createCiRenders(host);
+
+        const inFlight = renders.checkRepoName("o", "r");
+        renders.clearNameAvailability();
+        expect(renders.nameAvailability.value).toBeNull();
+
+        resolveCheck?.({ status: "available", owner: "o", repo: "r" });
+        await inFlight;
+
+        expect(renders.nameAvailability.value).toBeNull();
+        renders.dispose();
+    });
+});
+
+describe("an existing repository, picked instead of typed", () => {
+    it("lists what the build already knows about", async () => {
+        const repositories: readonly CiRepositoryChoice[] = [
+            {
+                owner: "o",
+                name: "r",
+                fullName: "o/r",
+                private: true,
+                canWrite: true,
+                htmlUrl: "https://github.test/o/r",
+            },
+        ];
+        const { bridge: host } = bridge({
+            listExistingRepositories: () => Promise.resolve({ ok: true, value: repositories }),
+        });
+        const renders = createCiRenders(host);
+        expect(renders.canListRepositories).toBe(true);
+        await renders.loadRepositories();
+        expect(renders.repositories.value).toEqual(repositories);
+        renders.dispose();
+    });
+
+    it("reports the failure message rather than an empty list that reads as 'none'", async () => {
+        const { bridge: host } = bridge({
+            listExistingRepositories: () => Promise.resolve({ ok: false, message: "offline" }),
+        });
+        const renders = createCiRenders(host);
+        await renders.loadRepositories();
+        expect(renders.repositories.value).toEqual([]);
+        expect(renders.repositoriesFailure.value).toBe("offline");
         renders.dispose();
     });
 });

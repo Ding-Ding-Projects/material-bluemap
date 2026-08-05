@@ -26,6 +26,7 @@ import StoragesScreen from "./StoragesScreen.vue";
 import ConfigListField from "./ConfigListField.vue";
 import ConfigFileForm from "./ConfigFileForm.vue";
 import ConfigSuperConfirm from "./ConfigSuperConfirm.vue";
+import PathField from "../PathField.vue";
 import { addStorage, loadWorkspace, type ConfigWorkspace } from "./configWorkspace.js";
 
 beforeAll(() => {
@@ -47,6 +48,17 @@ beforeAll(() => {
         removeEventListener: () => {},
         dispatchEvent: () => false,
     })) as unknown as typeof globalThis.matchMedia;
+
+    // The create dialogs below now carry `PathField`'s own tooltip, and jsdom has no Visual
+    // Viewport API at all - not even as an undefined property - so Vuetify's overlay location
+    // strategy throws a bare `ReferenceError` reading it the moment the dialog's transition
+    // touches the tooltip's effect scope. Existing tests never hit this: nothing here opened an
+    // overlay with a tooltip attached to a real document before.
+    (globalThis as unknown as { visualViewport: VisualViewport }).visualViewport = {
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+    } as unknown as VisualViewport;
 });
 
 const OPTIONS = {
@@ -197,6 +209,60 @@ describe("the storages screen names what it is talking about", () => {
         const chip = host.find(".mb-config-storages__actions").text();
         expect(chip).toContain("Used by ");
         for (const map of ["overworld", "nether", "end"]) expect(chip).toContain(map);
+    });
+});
+
+describe("the create dialogs wire the shared browse affordance", () => {
+    /**
+     * Both "New map" and "New storage" ask for a folder before there is a config file to
+     * hang a `ConfigControl` off, which is why they carry their own `PathField` rather than
+     * going through the field-editing machinery `ConfigControl.test.ts` covers. Proving the
+     * write-through here, the same way `ColorField`'s is proved above, is what stops a
+     * shared-component swap from quietly losing the model wiring.
+     */
+    it("the maps screen's world folder writes through what browsing hands back", async () => {
+        // No map selected, so the editor pane stays empty and the create dialog's PathField
+        // is the only one in the tree - a selected map's own "World folder" setting is a
+        // PathField too, by way of ConfigControl, and would otherwise be indistinguishable
+        // from this one: both are semantic "folder" and both name themselves "world folder".
+        const host = mountIn(MapsScreen, { workspace: savedWorkspace(), selectedKey: null, highlightPath: null });
+        await settle();
+
+        const newMap = host.findAll("button").find((button) => button.text().includes("New map"));
+        if (newMap === undefined) throw new Error('no "New map" button');
+        await newMap.trigger("click");
+        await settle();
+
+        const field = host.findComponent(PathField);
+        expect(field.exists()).toBe(true);
+        expect(field.props("semantic")).toBe("folder");
+        expect(field.props("field")).toBe("world folder");
+
+        await field.vm.$emit("update:modelValue", "/picked/world");
+        await settle();
+
+        expect(host.findComponent(PathField).props("modelValue")).toBe("/picked/world");
+    });
+
+    it("the storages screen's tile folder writes through what browsing hands back", async () => {
+        // Same reasoning as the maps screen above: no storage selected, so the create
+        // dialog's PathField is the only one in the tree.
+        const host = mountIn(StoragesScreen, { workspace: savedWorkspace(), selectedKey: null, highlightPath: null });
+        await settle();
+
+        const newStorage = host.findAll("button").find((button) => button.text().includes("New storage"));
+        if (newStorage === undefined) throw new Error('no "New storage" button');
+        await newStorage.trigger("click");
+        await settle();
+
+        const field = host.findComponent(PathField);
+        expect(field.exists()).toBe(true);
+        expect(field.props("semantic")).toBe("folder");
+
+        await field.vm.$emit("update:modelValue", "/picked/tiles");
+        await settle();
+
+        expect(host.findComponent(PathField).props("modelValue")).toBe("/picked/tiles");
     });
 });
 

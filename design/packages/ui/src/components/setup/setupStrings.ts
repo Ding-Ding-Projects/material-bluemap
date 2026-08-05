@@ -199,7 +199,6 @@ export const FIXED = {
     "action.decline": { en: "Decline", yue: "拒絕" },
     "action.finish": { en: "Finish setup", yue: "完成設定" },
     "action.openEula": { en: "Read the Minecraft EULA", yue: "睇 Minecraft EULA" },
-    "action.browse": { en: "Choose folder", yue: "揀資料夾" },
     "action.useDefault": { en: "Use the default", yue: "用預設位置" },
     "action.change": { en: "Change this answer", yue: "更改呢個答案" },
     "action.withdraw": { en: "Withdraw consent", yue: "收回同意" },

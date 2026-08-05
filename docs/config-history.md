@@ -6,6 +6,13 @@ chose — and every save records a complete snapshot of the folder as it actuall
 included. Nothing is synced, pushed or shared: the history is local, and there is no channel
 through which a remote could even be configured.
 
+The same machinery — `design/packages/app/src/main/history/` — also backs a world's project file
+(`design/packages/app/src/main/project/history.ts`), and, as of this document, the server-profile /
+maps-and-servers list and the application's own settings. Everything below through "Failure modes"
+describes the config-folder history specifically; [Beyond config folders](#beyond-config-folders-profiles-and-application-settings)
+below describes the other three and, for the profile list and the settings, what still has to
+change before saving one of them in the running app actually produces a revision.
+
 ## Behaviour
 
 - **Where it lives.** `<Electron userData>/config-history/<folder-slug>-<hash16>/`, one real git
@@ -155,6 +162,98 @@ Retention is the one knob: **trim to the newest N revisions** from the panel. Tr
 operation that deletes anything, so it sits behind the super-confirmation gate (two keys and the
 slider) and refuses to discard everything — a retention setting cannot empty a history.
 
+## Beyond config folders: profiles and application settings
+
+Issue #35 asked for the same append-only history to cover three more things: the server-profile /
+maps-and-servers list, the application's own settings, and — per the issue's own reading of its
+third item — the maps-and-servers list is the profile list seen from the interface, not a second
+store. So this is two new histories, not three, each with its own repository family beside the
+existing `config-history/` and `project-history/` ones:
+
+| Covered by this change | Where the main-process module lives | Repository family |
+|---|---|---|
+| Server profiles / the maps-and-servers list | `design/packages/app/src/main/profiles/` | `<userData>/profiles-history/` |
+| Application settings | `design/packages/app/src/main/settings/` | `<userData>/app-settings-history/` |
+
+Both are built on exactly the machinery above — `snapshotProject`, `restoreRevision`,
+`HistorySource`, the isolated git configuration, `rememberProject` — the same way
+`project/history.ts` binds a world's project file to it. Nothing about the append-only contract is
+weaker here: a restore snapshots what is on disk first, writes the old file back, and records the
+restore itself as a new revision; a failed history write never fails the save that triggered it,
+because the git runner returns failures as values and the IPC handlers resolve rather than reject.
+
+### Why this needed a decision before any code, and which one was made
+
+The existing history is a **main-process** feature: it runs git against files on disk. The server
+profile list and the application's settings are **renderer** state today, persisted straight to the
+browser's `localStorage` by `design/packages/ui/src/stores/profiles.ts` and by several independent
+stores under `design/packages/ui/src/components/settings/` and `design/packages/ui/src/components/`
+(`appearanceStore.ts`, `dockPlacement.ts`, `palettePrefs.ts`, `menuPrefs.ts`, `setupPrefs.ts`,
+`tabStorage.ts`, `eulaStorage.ts`, `remoteTargets.ts` among them) — none of which the main process
+can see, and therefore none of which it could keep a history of without a decision.
+
+The issue named two options: move the data into the main process (a JSON file the existing history
+machinery can snapshot, with a one-way migration for what is already in `localStorage`), or have the
+renderer hand every new state to the main process to be snapshotted while `localStorage` stays the
+live copy. The second option means two sources of truth that can drift; the first is the better fit
+with everything else this feature already does, so **Option A** is what was built: a real JSON file
+per store, in a real directory beside the application's data, read and written by the main process
+and mirrored into its own history repository exactly the way a config folder is.
+
+- `profiles/store.ts` — `<userData>/profiles-store/profiles.json` is the live copy of the profile
+  list (id, name, url, whether remote customisations are trusted, and a locally rendered map's data
+  root). Reading a missing or malformed file degrades to the empty state, the same tolerance
+  `history/store.ts`'s own mapping file gets; writing goes through a temporary file and a rename, so
+  a crash mid-write cannot leave a half-written list.
+- `settings/store.ts` — `<userData>/app-settings-store/settings.json` holds a `values` bag keyed by
+  whatever name a settings surface gives its own preferences. This layer deliberately does not know
+  what any individual setting means: typing every one of today's dozen `localStorage`-backed
+  preferences here, in one pass, would make this file the thing every settings surface has to agree
+  with before any of them could migrate, and there are more of those surfaces than there was time to
+  move in this change. A changed key is named by its key in the revision label — "Changed appearance,
+  dockPlacement" — which is less pretty than a hand-written sentence and honest about what this layer
+  actually knows, the same restraint `history/describe.ts` shows a config file it does not model.
+
+Each gets its own describer (`profiles/describe.ts`, `settings/describe.ts`) so a revision names what
+changed rather than saying "Updated": a profile added, edited or deleted by name, which profile
+became active, or which setting keys were added, changed or removed — never a bare "Changed
+profiles.json", which is what diffing the raw file would produce for every single edit.
+
+### What is genuinely wired, and what still needs the renderer's half
+
+**The main-process side is complete and tested**: `profilesHistory:read` / `:save` / `:list` /
+`:restore` and `settingsHistory:read` / `:save` / `:list` / `:restore` are registered on every
+launch (`packages/app/src/main/index.ts`), backed by real git repositories, with the full
+append-only contract proven the same way `history/ipc.test.ts` proves it for config folders — a save
+records exactly one revision, an unchanged save records nothing, a restore is itself a new revision,
+undoing a restore is another restore, a machine with no git is an honest state rather than a lost
+save, and a git that fails mid-commit leaves the file on disk exactly as it was written.
+
+**What is not yet done, and is the reason "done" in the issue's checklist is only partly true today:**
+`design/packages/ui/src/stores/profiles.ts` still reads and writes only `localStorage`, and none of
+the settings surfaces call the new `settingsHistory:*` channels either. Saving a profile or changing
+a setting in the running app does not yet produce a history revision, because nothing on the
+renderer side asks the main process to record one. The exact wiring still needed:
+
+1. Expose the four `profilesHistory:*` and four `settingsHistory:*` channels on the preload bridge
+   (`packages/app/src/preload/index.ts`), the same way `history:*` and `project:*` already are.
+2. Have `profiles.ts`'s persistence watcher call `profilesHistory:save` with the current
+   `ProfilesState` after every mutation — fire-and-forget, exactly like the config editor's own save
+   calling `history:snapshot` — in addition to (or, once the migration is proven, instead of) writing
+   `localStorage`. The equivalent call for settings belongs wherever each settings surface currently
+   calls `localStorage.setItem`.
+3. Read `profilesHistory:read` / `settingsHistory:read` at startup as the source of truth once the
+   migration is trusted, with the existing `localStorage` value kept as a fallback and a one-time,
+   idempotent copy into the new store — safe to run twice, because writing the same state twice
+   records nothing the second time.
+4. Surface both histories in the existing History tab (`design/packages/ui/src/components/history/`)
+   alongside the config-folder and project histories already there, reusing its date filter, action
+   filter, search and export rather than building a second panel.
+
+None of this changes the promise the main-process half already keeps: once a caller does hand it a
+state to save, the history it keeps is real, local, append-only, and never blocks or fails the save
+it is recording.
+
 ## Failure modes
 
 - **A failed history write never fails the save.** This is structural, not conventional: the git
@@ -211,6 +310,17 @@ fallback for a shell that predates the newer channels (`HistoryPanel.test.ts`).
 The trim gate is declared in the super-confirmation inventory (`superConfirmPolicy.test.ts`), so a
 new destructive call cannot slip past unnoticed; the setting merge's in-memory key removal is
 declared there too, as a `buffer` transform that never reaches the disk by itself.
+
+`design/packages/app/src/main/profiles/ipc.test.ts` and
+`design/packages/app/src/main/settings/ipc.test.ts` run the same append-only contract against the
+two new histories, mirrored from `project/ipc.test.ts`'s structure: exactly one revision per save,
+each with an honest label naming the profile or setting that moved; nothing recorded when a save
+changed nothing; no `.git` inside either live store, with the repository kept in its own family
+beside `config-history/` and `project-history/`; a save on a machine with no git still writes the
+file and reports the history failure separately; a git that fails mid-commit leaves the save intact;
+and a restore recorded as a new revision, provably undoable in turn. Neither module introduces a new
+destructive call site in `packages/ui` — both expose read, save, list and restore only, with no
+trim — so the super-confirmation inventory needed no change for this work.
 
 ## Suggested next
 

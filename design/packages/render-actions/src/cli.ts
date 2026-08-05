@@ -6,6 +6,7 @@ import { mergeShardMaps, MergeError, type MergeReport } from "./merge/mergeMap.j
 import { verifyMerge } from "./merge/verify.js";
 import { prepareStaticHost } from "./pages/staticHost.js";
 import { formatDuration } from "./plan/estimate.js";
+import { formatBytes } from "./plan/disk.js";
 import { planShards, validatePlanAlignment, type ShardPlan } from "./plan/plan.js";
 import { measureWorld } from "./world/measure.js";
 import { locateWorld, WorldValidationError } from "./world/validate.js";
@@ -344,6 +345,7 @@ async function commandPlan(args: Args): Promise<number> {
         ["group-count", String(tree.groups.length)],
         ["single-group", tree.singleGroup ? "true" : "false"],
         ["group-ids", JSON.stringify(tree.groups.map((group) => group.index))],
+        ["required-disk-bytes", String(Math.ceil(plan.disk.requiredBytes))],
     ];
     for (let slot = 1; slot <= WAVE_SLOTS; slot++) {
         const wave = waves.find((candidate) => candidate.index === slot);
@@ -413,6 +415,7 @@ function planSummary(
         "| Merge groups | " + tree.groups.length + " |",
         "| Estimated rendering | " + formatDuration(plan.estimate.seconds) + " |",
         "| Per-job budget | " + formatDuration(plan.budgetSeconds) + " |",
+        "| Required disk (estimate) | " + formatBytes(plan.disk.requiredBytes) + " |",
         "",
         ...describeWaves(waves, {
             budgetSeconds: plan.budgetSeconds,

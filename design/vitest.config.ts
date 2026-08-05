@@ -17,6 +17,15 @@ const workspaceRoot = fileURLToPath(new URL(".", import.meta.url));
  */
 const committedScreenshots = fileURLToPath(new URL("../docs/screenshots", import.meta.url));
 
+/**
+ * `docs/*.md`, one level above the workspace root for the same reason `committedScreenshots`
+ * is: `packages/ui/src/components/docs/docsContent.ts` bundles the articles with
+ * `import.meta.glob`, and `docsContent.test.ts` proves that bundle complete by reading the same
+ * directory again with `node:fs`. Both need the dev-server-style file allow-list opened for
+ * `docs/` itself, not only for the screenshots inside it.
+ */
+const committedDocs = fileURLToPath(new URL("../docs", import.meta.url));
+
 export default defineConfig({
     /**
      * Single-file components, so a test can mount one.
@@ -38,7 +47,7 @@ export default defineConfig({
         fs: {
             // Setting `allow` replaces the default rather than adding to it, so the
             // workspace root has to be restated here or every package stops resolving.
-            allow: [workspaceRoot, committedScreenshots],
+            allow: [workspaceRoot, committedScreenshots, committedDocs],
         },
     },
     test: {

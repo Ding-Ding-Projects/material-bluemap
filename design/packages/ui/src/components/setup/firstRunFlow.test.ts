@@ -330,36 +330,12 @@ describe("the map folder default", () => {
         expect(flow.storageDir.value).toBe(defaultMapStorageDir("linux"));
     });
 
-    it("offers no folder picker when the bridge has none", () => {
-        const flow = controller(fakeBridge());
-        expect(flow.canBrowse).toBe(false);
-    });
-
-    it("uses the folder picker when the bridge grows one", async () => {
-        const bridge = fakeBridge();
-        const flow = createFirstRunController({
-            bridge,
-            storageBridge: {
-                chooseMapStorageDirectory: () => Promise.resolve("/picked/maps/"),
-            },
-            platform: "linux",
-        });
-        expect(flow.canBrowse).toBe(true);
-        await flow.browse();
-        expect(flow.storageDir.value).toBe("/picked/maps");
-    });
-
-    it("keeps the current answer when the picker is cancelled", async () => {
-        const bridge = fakeBridge();
-        const flow = createFirstRunController({
-            bridge,
-            storageBridge: { chooseMapStorageDirectory: () => Promise.resolve(null) },
-            platform: "linux",
-        });
-        flow.storageDir.value = "/srv/maps";
-        await flow.browse();
-        expect(flow.storageDir.value).toBe("/srv/maps");
-    });
+    // There used to be a folder-picker test trio here, exercising `flow.canBrowse` and
+    // `flow.browse()` against a `chooseMapStorageDirectory` bridge method that no build
+    // ever implemented. The storage step's browse button is `PathField.vue` now, which
+    // reaches the real `window.materialBluemap.dialog` bridge directly and is exercised
+    // by `PathField.test.ts` and `SetupStorageStep.test.ts`; there is nothing left in
+    // this flow for a picker to gate.
 
     it("prefers a real resolved default over the token form when one is offered", async () => {
         const bridge = fakeBridge();

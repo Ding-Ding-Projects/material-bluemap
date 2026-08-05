@@ -92,6 +92,14 @@ appearing twice, so the same world never shows up under two names.
 > `webUtils.getPathForFile`, which only works in the preload. That is why the bridge carries
 > `pathForDroppedFile` rather than the renderer reading the path itself.
 
+The browse button here is not specific to this wizard. Every field in the application that
+names a folder or a file on this computer - a storage's tile folder, a config file's log
+path, a remote render target's SSH key, a backup's source folder - offers the same button,
+behaving the same way: it writes into the field exactly as typing would, a cancelled dialog
+changes nothing, and it is shown disabled with an explanation rather than hidden when there
+is no desktop app to open a native dialog with. See [Browsing for a folder or a
+file](./path-field.md) for the full list of where it appears and how it behaves.
+
 ## Honest states
 
 Every one of these is a real state with its own copy, not a spinner that never resolves:
@@ -132,5 +140,7 @@ a fake `fs`, because a fake would decide the very questions worth asking.
 ## Related
 
 - [regex-builder.md](regex-builder.md) - the builder this list's search uses
+- [path-field.md](path-field.md) - the same browse button, wired into every other folder
+  and file field in the application
 - [legacy-1-12-worlds.md](legacy-1-12-worlds.md) - what a 1.12.2 world can and cannot do
 - [large-worlds.md](large-worlds.md) - getting a world that is not on this machine yet

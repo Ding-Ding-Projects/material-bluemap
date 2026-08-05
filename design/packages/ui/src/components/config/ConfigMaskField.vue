@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiArrowDown, mdiArrowUp, mdiClose, mdiPlus, mdiVectorDifference } from "@mdi/js";
-import { VBtn, VCard, VCardText, VChip, VDivider, VSelect, VSwitch } from "vuetify/components";
+import { mdiArrowDown, mdiArrowUp, mdiChevronDown, mdiChevronUp, mdiClose, mdiPlus, mdiVectorDifference } from "@mdi/js";
+import { VBtn, VCard, VCardText, VChip, VDivider, VSelect, VSwitch, VTooltip } from "vuetify/components";
 import { MASK_SHAPES, MASK_TYPE_OPTIONS, type FieldMeta, type PlainValue } from "@material-bluemap/config";
 import ConfigControl from "./ConfigControl.vue";
 import ConfigListField from "./ConfigListField.vue";
+import { docShownText, isDocLong, provenanceOf } from "./explainField.js";
 
 /**
  * The render mask: an ordered list of shapes, each either adding to or
@@ -153,6 +154,34 @@ function nestedMasks(row: ShapeRow): PlainValue[] {
     return Array.isArray(value) ? value : [];
 }
 
+/**
+ * Whether one row's own field explanation is expanded.
+ *
+ * Keyed by the row's index and the field's path rather than by the field alone:
+ * every row of the same shape shares the same fields, so a per-field key with no
+ * row in it would open "Minimum X" on every box at once the moment one was
+ * opened.
+ */
+const docOpen = ref<Record<string, boolean>>({});
+
+function docKey(rowIndex: number, path: string): string {
+    return `${rowIndex}:${path}`;
+}
+
+function isDocOpen(rowIndex: number, path: string): boolean {
+    return docOpen.value[docKey(rowIndex, path)] ?? false;
+}
+
+function toggleDoc(rowIndex: number, path: string): void {
+    const key = docKey(rowIndex, path);
+    docOpen.value = { ...docOpen.value, [key]: !isDocOpen(rowIndex, path) };
+}
+
+/** Provenance for one field against the shape's own record, not a whole config file. */
+function maskProvenance(row: ShapeRow, field: FieldMeta) {
+    return provenanceOf(field, row.record);
+}
+
 function shapeSummary(row: ShapeRow): string {
     const name = row.shape?.label ?? row.typeKey;
     // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n compiles the
@@ -270,9 +299,66 @@ function shapeSummary(row: ShapeRow): string {
                                         :disabled="isDisabled"
                                         @update:model-value="(value: PlainValue) => setField(row.index, field, value)"
                                     />
-
-                                    <p class="mb-config-mask__doc">{{ field.doc }}</p>
                                 </template>
+
+                                <!--
+                                  The explanation and provenance line apply to every field of
+                                  the shape, `subtract` included: its own switch is above, but
+                                  it gets the same doc and the same "did this file set it"
+                                  answer as every other setting here.
+                                -->
+                                <p class="mb-config-mask__doc">{{ docShownText(field.doc, isDocOpen(row.index, field.path)) }}</p>
+                                <v-btn
+                                    v-if="isDocLong(field.doc)"
+                                    :append-icon="isDocOpen(row.index, field.path) ? mdiChevronUp : mdiChevronDown"
+                                    :aria-expanded="isDocOpen(row.index, field.path) ? 'true' : 'false'"
+                                    variant="text"
+                                    size="x-small"
+                                    density="comfortable"
+                                    @click="toggleDoc(row.index, field.path)"
+                                >
+                                    {{
+                                        isDocOpen(row.index, field.path)
+                                            ? t("config.explain.less", "Show less")
+                                            : t("config.explain.more", "Show the rest of the explanation")
+                                    }}
+                                </v-btn>
+                                <v-chip v-if="field.docSource === 'authored'" size="x-small" variant="outlined">
+                                    {{ t("config.explain.authored", "Explained for this app") }}
+                                    <v-tooltip
+                                        activator="parent"
+                                        location="top"
+                                        :text="
+                                            t(
+                                                'config.explain.authoredHint',
+                                                'BlueMap has no comment for this one in any generated file, so this explanation is written from the Java class it configures rather than copied from the file.',
+                                            )
+                                        "
+                                    />
+                                </v-chip>
+                                <p class="mb-config-mask__state">
+                                    <span v-if="!maskProvenance(row, field).explicit">
+                                        {{
+                                            t(
+                                                "config.explain.inherited",
+                                                { value: maskProvenance(row, field).defaultText || t("config.explain.nothing", "nothing") },
+                                                "Not set here, so BlueMap uses {value}.",
+                                            )
+                                        }}
+                                    </span>
+                                    <span v-else-if="maskProvenance(row, field).usingDefault">
+                                        {{ t("config.explain.setToDefault", "Set here, and it matches BlueMap's default.") }}
+                                    </span>
+                                    <span v-else>
+                                        {{
+                                            t(
+                                                "config.explain.changed",
+                                                { value: maskProvenance(row, field).defaultText || t("config.explain.nothing", "nothing") },
+                                                "Set here. BlueMap's default is {value}.",
+                                            )
+                                        }}
+                                    </span>
+                                </p>
                             </template>
                         </template>
                         <p v-else class="mb-config-mask__doc" role="alert">
@@ -345,5 +431,15 @@ function shapeSummary(row: ShapeRow): string {
     white-space: pre-line;
     margin-block: 4px 0;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-config-mask__state {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-block: 4px 0;
+    font-size: 0.6875rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 </style>

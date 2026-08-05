@@ -8,9 +8,10 @@ import {
     mdiContentCopy,
     mdiDownload,
 } from "@mdi/js";
-import { VBtn, VChip, VDivider, VList, VListItem, VMenu } from "vuetify/components";
+import { VBtn, VChip, VDivider, VMenu } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
+import MenuSearchList, { type MenuSearchItem } from "../menuSearch/MenuSearchList.vue";
 import ChangelogDateFilter from "./ChangelogDateFilter.vue";
 import ChangelogEntryRow from "./ChangelogEntryRow.vue";
 import { CHANGELOG_REPOSITORY_URL, CHANGELOG_UNRELEASED, CHANGELOG_VERSIONS } from "./changelogData.js";
@@ -260,6 +261,29 @@ const noChangesLine = computed(() =>
 
 const notice = ref("");
 
+const copyMenuOpen = ref(false);
+const exportMenuOpen = ref(false);
+
+const copyItems = computed<MenuSearchItem[]>(() => [
+    { id: "markdown", label: t("changelog.copyMarkdown", "As Markdown") },
+    { id: "text", label: t("changelog.copyText", "As plain text") },
+]);
+
+const exportFormatItems = computed<MenuSearchItem[]>(() => [
+    { id: "markdown", label: t("changelog.exportMarkdown", "Markdown file") },
+    { id: "text", label: t("changelog.exportText", "Plain text file") },
+]);
+
+function chooseCopy(id: string): void {
+    copyMenuOpen.value = false;
+    void copy(id as "markdown" | "text");
+}
+
+function chooseExportFormat(id: string): void {
+    exportMenuOpen.value = false;
+    download(id as "markdown" | "text");
+}
+
 /**
  * The line every export opens with, stating exactly which slice of the changelog it holds.
  *
@@ -420,30 +444,55 @@ function dayLabel(iso: string): string {
                 <v-btn
                     :prepend-icon="mdiContentCopy"
                     :aria-label="t('changelog.copyView', 'Copy what is on screen')"
+                    :aria-expanded="copyMenuOpen ? 'true' : 'false'"
+                    aria-haspopup="menu"
                     variant="text"
                     size="small"
                 >
                     {{ t("changelog.copy", "Copy") }}
-                    <v-menu activator="parent" location="bottom end" offset="8">
-                        <v-list density="compact">
-                            <v-list-item :title="t('changelog.copyMarkdown', 'As Markdown')" @click="() => void copy('markdown')" />
-                            <v-list-item :title="t('changelog.copyText', 'As plain text')" @click="() => void copy('text')" />
-                        </v-list>
+                    <v-menu
+                        v-model="copyMenuOpen"
+                        activator="parent"
+                        :close-on-content-click="false"
+                        location="bottom end"
+                        offset="8"
+                    >
+                        <!--
+                            Gated on `copyMenuOpen` itself so choosing a format unmounts the
+                            search field and its query immediately, rather than waiting on
+                            the overlay's own close transition to finish.
+                        -->
+                        <MenuSearchList
+                            v-if="copyMenuOpen"
+                            :items="copyItems"
+                            :label="t('changelog.copy', 'Copy')"
+                            @choose="chooseCopy"
+                        />
                     </v-menu>
                 </v-btn>
 
                 <v-btn
                     :prepend-icon="mdiDownload"
                     :aria-label="t('changelog.exportView', 'Export what is on screen to a file')"
+                    :aria-expanded="exportMenuOpen ? 'true' : 'false'"
+                    aria-haspopup="menu"
                     variant="text"
                     size="small"
                 >
                     {{ t("changelog.export", "Export") }}
-                    <v-menu activator="parent" location="bottom end" offset="8">
-                        <v-list density="compact">
-                            <v-list-item :title="t('changelog.exportMarkdown', 'Markdown file')" @click="download('markdown')" />
-                            <v-list-item :title="t('changelog.exportText', 'Plain text file')" @click="download('text')" />
-                        </v-list>
+                    <v-menu
+                        v-model="exportMenuOpen"
+                        activator="parent"
+                        :close-on-content-click="false"
+                        location="bottom end"
+                        offset="8"
+                    >
+                        <MenuSearchList
+                            v-if="exportMenuOpen"
+                            :items="exportFormatItems"
+                            :label="t('changelog.export', 'Export')"
+                            @choose="chooseExportFormat"
+                        />
                     </v-menu>
                 </v-btn>
 

@@ -301,3 +301,33 @@ describe("not buying speed with the map itself", () => {
         expect(plan.decision.join(" ")).not.toContain("one complete map");
     });
 });
+
+describe("the plan's disk estimate", () => {
+    it("gives an unsharded plan the whole map's worth of tiles, not a shard's fraction", () => {
+        const plan = planShards(denseWorld(2), { mapId: "world", budgetSeconds: 4 * 3600, ...layout });
+        expect(plan.shards).toHaveLength(1);
+        expect(plan.disk.largestShardFraction).toBe(1);
+        expect(plan.disk.worldBytes).toBe(plan.world.bytes);
+    });
+
+    it("shrinks the busiest shard's tile share as a world is split into more even shards", () => {
+        const big = denseWorld(40);
+        const plan = planShards(big, { mapId: "world", budgetSeconds: 60, maxJobs: 256, ...layout });
+        expect(plan.shards.length).toBeGreaterThan(1);
+        expect(plan.disk.largestShardFraction).toBeLessThan(1);
+        expect(plan.disk.largestShardFraction).toBeGreaterThan(0);
+    });
+
+    it("requires at least the world's own size, whatever the shard split", () => {
+        const big = denseWorld(40);
+        const plan = planShards(big, { mapId: "world", budgetSeconds: 60, maxJobs: 256, ...layout });
+        expect(plan.disk.requiredBytes).toBeGreaterThanOrEqual(plan.world.bytes);
+    });
+
+    it("explains the disk arithmetic in the decision, the way the time estimate is explained", () => {
+        const plan = planShards(denseWorld(24), { mapId: "world", budgetSeconds: 20 * 60, ...layout });
+        const decision = plan.decision.join(" ");
+        expect(decision).toContain("free disk");
+        expect(decision).toContain("world is fetched");
+    });
+});

@@ -22,6 +22,7 @@ import { DIMENSION_OPTIONS, DIMENSION_TYPE_OPTIONS, type FieldMeta, type MapPres
 import ConfigFileForm from "./ConfigFileForm.vue";
 import ConfigSearchField from "./ConfigSearchField.vue";
 import ConfigSuperConfirm from "./ConfigSuperConfirm.vue";
+import PathField from "../PathField.vue";
 import { clearFieldValue, fieldValue, replaceText, setFieldValue } from "./configModel.js";
 import {
     addMap,
@@ -36,7 +37,6 @@ import {
     workspaceIssues,
     type ConfigWorkspace,
 } from "./configWorkspace.js";
-import { useConfigHost } from "./configHost.js";
 import { createSettingMatcher } from "./regexEngine.js";
 
 /**
@@ -58,7 +58,6 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
-const host = useConfigHost();
 
 const query = ref("");
 const regexMode = ref(false);
@@ -185,12 +184,6 @@ watch(createDimension, (value) => {
     createPreset.value = value === "minecraft:the_nether" ? "nether" : value === "minecraft:the_end" ? "end" : "overworld";
     createSorting.value = value === "minecraft:the_nether" ? 100 : value === "minecraft:the_end" ? 200 : 0;
 });
-
-async function pickWorld(): Promise<void> {
-    if (host === null) return;
-    const chosen = await host.pickDirectory({ title: t("config.maps.pickWorld", "Choose the world folder") });
-    if (chosen !== null) createWorld.value = chosen;
-}
 
 function confirmCreate(): void {
     if (createProblem.value !== null) return;
@@ -431,19 +424,13 @@ const storageOptions = computed(() => storageIds(props.workspace));
                         density="compact"
                         hide-details="auto"
                     />
-                    <div class="mb-config-maps__world">
-                        <v-text-field
-                            v-model="createWorld"
-                            :label="t('config.maps.world', 'World folder')"
-                            variant="outlined"
-                            density="compact"
-                            spellcheck="false"
-                            hide-details="auto"
-                        />
-                        <v-btn :disabled="host === null" variant="tonal" size="small" @click="pickWorld">
-                            {{ t("config.maps.browse", "Browse") }}
-                        </v-btn>
-                    </div>
+                    <PathField
+                        v-model="createWorld"
+                        field="world folder"
+                        semantic="folder"
+                        :label="t('config.maps.world', 'World folder')"
+                        density="compact"
+                    />
                     <v-select
                         v-model="createDimension"
                         :items="dimensionItems"
@@ -570,16 +557,5 @@ const storageOptions = computed(() => storageIds(props.workspace));
     display: flex;
     flex-direction: column;
     gap: 12px;
-}
-
-.mb-config-maps__world {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-}
-
-.mb-config-maps__world .v-text-field {
-    flex: 1 1 auto;
-    min-width: 0;
 }
 </style>

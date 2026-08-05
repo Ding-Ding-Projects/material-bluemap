@@ -440,6 +440,56 @@ describe("BlockStateModelRenderer", () => {
         expect(faceCount(h.tileModel)).toBe(0);
         expect(color.a).toBe(0);
     });
+
+    describe("the pre-flattening rename gate", () => {
+        // proves the constraint FlatteningRename.ts documents at its top: the rename only
+        // ever engages for a block that came from a pre-flattening (legacy) chunk, and a
+        // block-state that could mean something else entirely on a modern chunk (a real
+        // 1.13-1.20.2 world's own `minecraft:grass` means the grass tuft) is never touched.
+
+        it("renames a legacy grass block to grass_block before the resource-pack lookup", () => {
+            // as SnowyExtension would have already left it by the time the renderer sees it
+            const grass = new BlockState(Key.minecraft("grass"), new Map([["snowy", "true"]]));
+            const world = new TestWorldData().set(0, 0, 0, { state: grass });
+            world.legacy = true;
+
+            const h = harness(world, {
+                models: stoneModels(),
+                textures: stoneTextures(),
+                // only the modern name has a blockstate; the raw legacy name does not
+                blockStates: new Map([["minecraft:grass_block", singleVariantState(stoneVariant())]]),
+            });
+            const renderer = new BlockStateModelRenderer(h.resourcePack, h.gallery, h.renderSettings);
+            h.block.set(0, 0, 0);
+
+            renderer.render(h.block, h.view, new Color());
+            expect(faceCount(h.tileModel)).toBe(12);
+        });
+
+        it("leaves a non-legacy block-state named minecraft:grass exactly as it is", () => {
+            // a real 1.13-1.20.2 chunk's own "minecraft:grass" already means the tuft;
+            // renaming it to grass_block here would draw the wrong block
+            const grass = new BlockState(Key.minecraft("grass"));
+            const world = new TestWorldData().set(0, 0, 0, { state: grass });
+            // world.legacy stays false (the default) — a modern chunk
+
+            const h = harness(world, {
+                models: stoneModels(),
+                textures: stoneTextures(),
+                blockStates: new Map([
+                    ["minecraft:grass", singleVariantState(stoneVariant())],
+                    // present in the pack, but must NOT be what a modern "grass" resolves to
+                    ["minecraft:grass_block", singleVariantState()],
+                ]),
+            });
+            const renderer = new BlockStateModelRenderer(h.resourcePack, h.gallery, h.renderSettings);
+            h.block.set(0, 0, 0);
+
+            renderer.render(h.block, h.view, new Color());
+            // the stone-shaped variant from "minecraft:grass", not the empty grass_block one
+            expect(faceCount(h.tileModel)).toBe(12);
+        });
+    });
 });
 
 describe("MissingModelRenderer", () => {

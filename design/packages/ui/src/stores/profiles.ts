@@ -35,7 +35,8 @@ interface ProfilesState {
     activeId: string | null;
 }
 
-const STORAGE_KEY = "material-bluemap-profiles";
+/** Exported so a test can point a stand-in `localStorage` at the same key this store writes. */
+export const STORAGE_KEY = "material-bluemap-profiles";
 
 function load(): ProfilesState {
     try {
@@ -84,7 +85,14 @@ function syncToBridge(): void {
 watch(
     () => JSON.stringify(profilesStore),
     (value) => {
-        localStorage.setItem(STORAGE_KEY, value);
+        try {
+            localStorage.setItem(STORAGE_KEY, value);
+        } catch {
+            // Private mode or a full quota. The reactive state this watcher fired from
+            // already holds the change - only the persisted copy is lost - so a profile
+            // add/remove/rename stays usable for the rest of the session instead of
+            // throwing inside this watcher and taking the mutation down with it.
+        }
         syncToBridge();
     },
 );

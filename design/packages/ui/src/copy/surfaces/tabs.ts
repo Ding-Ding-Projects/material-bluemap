@@ -562,8 +562,6 @@ export const TABS_FIXED = {
     "tabs.action.unpin": { en: "Unpin {label}", yue: "解除釘住 {label}" },
     "tabs.action.pinThis": { en: "Pin this tab", yue: "釘住呢個分頁" },
     "tabs.action.unpinThis": { en: "Unpin this tab", yue: "解除釘住呢個分頁" },
-    "tabs.action.newGroup": { en: "Put this tab in a new group", yue: "將呢個分頁放入一個新群組" },
-    "tabs.action.moveToGroup": { en: "Move this tab into {group}", yue: "將呢個分頁移入 {group}" },
     "tabs.action.ungroup": {
         en: "Take {label} out of its group",
         yue: "將 {label} 由佢所屬嘅群組拎返出嚟",

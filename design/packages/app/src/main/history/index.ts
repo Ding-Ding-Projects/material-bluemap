@@ -57,9 +57,11 @@ export {
 } from "./describe.js";
 
 export {
+    APP_SETTINGS_HISTORY_DIRECTORY,
     HISTORY_DIRECTORY,
     INDEX_FILE,
     INDEX_VERSION,
+    PROFILES_HISTORY_DIRECTORY,
     PROJECT_HISTORY_DIRECTORY,
     emptyIndex,
     folderSlug,
