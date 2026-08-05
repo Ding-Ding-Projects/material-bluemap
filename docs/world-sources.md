@@ -82,9 +82,21 @@ layers away from anything that would point at the download.
 
 ## Using one in the desktop application
 
-The map wizard's world step carries the affordance for this. Point it at a repository, press the
-button, and the release is read; the split is invisible, presented as the one download it really is
-with a chip saying how many pieces it arrives in and where its digests come from.
+> [!WARNING]
+> **This section describes `main/worldsource/`, which is fully built and tested (see
+> Verification below) but is not yet reachable from the desktop app's own UI.** The map
+> wizard's world step's release downloader (`ReleaseDownloads.vue`) still only calls
+> `download:discover`/`download:start`, which understand this project's own
+> `<name>.parts.json` manifest but not the checksum-list layout most third-party releases
+> actually use. Nothing in `design/packages/ui` calls `worldsource:parse`,
+> `worldsource:discover`, `worldsource:fetch`, `worldsource:cancel` or `worldsource:active` -
+> the five channels `main/worldsource/ipc.ts` registers and the preload exposes. A repository
+> field alone does not prove this: the *existing* downloader also takes an owner and a repo,
+> for this project's own manifest-shaped releases, and would show a checksum-list split as a
+> pile of unfetchable individual parts rather than the one world it really is. The rest of
+> this section describes the intended, tested behaviour of `main/worldsource/` in isolation,
+> not what pressing a button in the shipped app does today. Using it from GitHub Actions
+> (below) does not depend on the desktop app and is unaffected by this gap.
 
 Under the hood, `main/worldsource/` is deliberately thin. Everything already solved is reused:
 
