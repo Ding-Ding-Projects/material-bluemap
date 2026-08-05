@@ -64,6 +64,14 @@ export const WORLD_SOURCE_SSH_CHANNELS = [
     "worldsource:ssh:active",
 ] as const;
 
+/**
+ * Where `SshWorldSourceEvent` is broadcast - a channel of this feature's own, not the
+ * download channel. See `sshFetcher.ts`'s doc comment for why the two shapes do not fit
+ * together: a directory copy over `scp` or `rsync` has no parts, joining or extracting phase
+ * to report, and forcing this into the download shape would mean phases that are always empty.
+ */
+export const WORLD_SOURCE_SSH_EVENT_CHANNEL = "worldsource:ssh:event";
+
 export type SshValidateAnswer =
     | { readonly ok: true; readonly target: RemoteTarget; readonly summary: string }
     | { readonly ok: false; readonly message: string };

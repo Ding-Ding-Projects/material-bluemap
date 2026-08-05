@@ -107,6 +107,7 @@ export {
 
 export {
     WORLD_SOURCE_SSH_CHANNELS,
+    WORLD_SOURCE_SSH_EVENT_CHANNEL,
     registerSshWorldSourceHandlers,
     type SshDetectAnswer,
     type SshFetchAnswer,

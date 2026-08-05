@@ -44,10 +44,16 @@ import {
 } from "./runtime/index.js";
 import { registerRuntimeHandlers } from "./runtime/ipc.js";
 import { containerAccessFor } from "./remote/index.js";
-import { registerWorldSourceHandlers } from "./worldsource/index.js";
-import type { WorldSourceIpc } from "./worldsource/index.js";
+import {
+    registerWorldSourceHandlers,
+    registerSshWorldSourceHandlers,
+    WORLD_SOURCE_SSH_EVENT_CHANNEL,
+} from "./worldsource/index.js";
+import type { WorldSourceIpc, WorldSourceSshIpc } from "./worldsource/index.js";
 import { RemoteRenderOrchestrator, registerRemoteHandlers } from "./remote/index.js";
 import type { RemoteIpc } from "./remote/index.js";
+import { RemoteHostingOrchestrator, REMOTE_HOSTING_EVENT_CHANNEL, registerRemoteHostingHandlers } from "./remote/index.js";
+import type { RemoteHostingIpc } from "./remote/index.js";
 import { DOWNLOAD_EVENT_CHANNEL } from "./download/ipc.js";
 import { RENDER_EVENT_CHANNEL } from "./render/ipc.js";
 import { installCiRenderIpc } from "./cirender/ipc.js";
@@ -658,6 +664,32 @@ function startWorldSources(render: RenderIpc, downloads: DownloadIpc, github: Gi
 }
 
 /**
+ * A world that already lives on a machine the person owns, read over SSH rather than
+ * zipped up and carried here first.
+ *
+ * The same `known_hosts` the remote-render side writes, so a host key trusted for one is
+ * trusted for the other rather than asking twice for the same machine. Progress and the
+ * final result are broadcast on `WORLD_SOURCE_SSH_EVENT_CHANNEL`, a channel of this
+ * feature's own - see `worldsource/sshFetcher.ts` for why it does not share the download
+ * channel the GitHub world source uses.
+ */
+let sshWorldSourceIpc: WorldSourceSshIpc | null = null;
+
+function startSshWorldSources(): WorldSourceSshIpc {
+    if (sshWorldSourceIpc !== null) return sshWorldSourceIpc;
+    sshWorldSourceIpc = registerSshWorldSourceHandlers(ipcMain, {
+        knownHostsFile: join(app.getPath("userData"), "known_hosts"),
+        userKnownHostsFile: join(homedir(), ".ssh", "known_hosts"),
+        onEvent: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(WORLD_SOURCE_SSH_EVENT_CHANNEL, event);
+            }
+        },
+    });
+    return sshWorldSourceIpc;
+}
+
+/**
  * Handing a render to a Linux machine over SSH.
  *
  * Reports on the RENDER channel for the same reason: a remote render appears in the same
@@ -668,6 +700,16 @@ function startWorldSources(render: RenderIpc, downloads: DownloadIpc, github: Gi
  * their SSH depends on.
  */
 let remoteIpc: RemoteIpc | null = null;
+
+/**
+ * Putting an already-rendered map on a Linux server the person owns, over SSH, in Docker,
+ * and leaving it running.
+ *
+ * A sibling of `remoteIpc` above rather than a mode of it: a render finishes and stops on
+ * its own, a hosted map is meant to keep answering after this application closes. See
+ * `remote/hosting.ts`'s own top comment for the shape of that difference.
+ */
+let remoteHostingIpc: RemoteHostingIpc | null = null;
 
 /**
  * The record that lets a container outlive the application that started it.
@@ -739,6 +781,37 @@ function startRemoteRendering(render: RenderIpc): RemoteIpc {
     });
     remoteIpc = registerRemoteHandlers(ipcMain, { orchestrator, knownHostsFile });
     return remoteIpc;
+}
+
+/**
+ * Hosting an already-rendered map on the person's own Linux server, over the same SSH
+ * machinery a remote render uses.
+ *
+ * The engine is resolved the same way a remote render resolves it - the JRE and jar this
+ * build ships - because hosting sends the same two things a render does: the world (the
+ * engine builds a real map on every start, `-w` included) and the engine that reads it.
+ */
+function startRemoteHosting(render: RenderIpc): RemoteHostingIpc {
+    if (remoteHostingIpc !== null) return remoteHostingIpc;
+    const knownHostsFile = join(app.getPath("userData"), "known_hosts");
+    const orchestrator = new RemoteHostingOrchestrator({
+        storageDir: () => render.storageDirectory(),
+        workRoot: () => join(app.getPath("userData"), "remote-hosting"),
+        resolveEngine: upstreamJavaEngine({
+            dataDir: app.getPath("userData"),
+            resourcesPath: app.isPackaged ? process.resourcesPath : null,
+        }),
+        onEvent: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(REMOTE_HOSTING_EVENT_CHANNEL, event);
+            }
+        },
+        knownHostsFile,
+        userKnownHostsFile: join(homedir(), ".ssh", "known_hosts"),
+    });
+    remoteHostingIpc = registerRemoteHostingHandlers(ipcMain, { orchestrator });
+    app.on("will-quit", () => remoteHostingIpc?.dispose());
+    return remoteHostingIpc;
 }
 
 /**
@@ -830,8 +903,10 @@ async function createWindow(): Promise<void> {
     startCiRenders(render, github, startBackups(render, github));
     startPagesHosting(render);
     startWorldSources(render, downloads, github);
+    startSshWorldSources();
     startRuntime(render);
     startRemoteRendering(render);
+    startRemoteHosting(render);
     startWorldInspection();
     startJavaDiscovery();
     startConfigEditing();
