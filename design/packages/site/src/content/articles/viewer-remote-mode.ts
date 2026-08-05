@@ -9,7 +9,7 @@ export const viewerRemoteMode: Article = {
     category: "application",
     status: "shipped",
     statusNote:
-        "The viewer port and the remote proxy are on the default branch with tests, and remote mode was checked against a public BlueMap server. Rendering a local world is a separate feature that already exists, driven by upstream's own Java engine (decision D17, see the java-render-path article): it is built and unit tested, but it has not run in CI or been proven end to end through the app the way remote mode has.",
+        "The viewer port and the remote proxy are on the default branch with tests, and remote mode was checked against a public BlueMap server. Rendering a local world is a separate feature that already exists, driven by upstream's own Java engine (decision D17, see the java-render-path article): a real render of that kind already runs in CI on every push, and the app's own orchestration of it - JVM discovery, the config writer, the runner and provenance - has separately been driven end to end by a real JVM through the exact production code the app wires in, not only invoked as java -jar from a shell script. That second proof is opt-in, run by hand rather than as a standing part of CI.",
 
     sections: [
         {

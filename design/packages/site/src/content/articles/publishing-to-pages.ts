@@ -7,9 +7,9 @@ export const publishingToPages: Article = {
     summary:
         "Turning a map only this computer can open into a real address anybody can: the compressed-tile flag the whole thing rests on, the marker that stops it replacing somebody else's site, and why GitHub saying built is not the same as the address answering.",
     category: "application",
-    status: "ported-unverified",
+    status: "shipped",
     statusNote:
-        "The screen and its main-process half are on the default branch and covered by 67 tests against a fake process runner, and the static-host preparation underneath is proved against a real published Pages site. The desktop publish sequence itself has not yet been run end to end against a real GitHub account.",
+        "The desktop publish sequence has run end to end against a real GitHub account, twice (issue #44, closed): a full publish through the app's own real hosting.ts, no fake process runner, against a newly created public repository, verified live afterward with a fresh 200 fetch and a screenshot of real terrain rendering from the published address; the private-repository 403/422 failure path driven for real by flipping a repository private and reading the same enablePages() failure the UI would show; and a real 839.4 MB, 20,632-file map staged and published in 423.8 seconds, independently re-verified live. The screen and its main-process half carry 71 tests against a fake process runner for the cases a working GitHub account cannot produce on demand, and the static-host preparation underneath is separately proved against a real published Pages site.",
     sections: [
         {
             id: "behaviour",
@@ -117,13 +117,21 @@ export const publishingToPages: Article = {
                 {
                     kind: "paragraph",
                     content:
-                        "What has not been proved is the desktop sequence itself: gh repo create, the orphan push, enabling Pages, polling and fetching have never been run end to end against a real GitHub account from the application. Every step is unit tested against a fake process runner, deliberately, because the cases worth testing are the ones a working machine cannot produce. Until a real run happens, this is implemented and unproven rather than verified.",
+                        "The desktop sequence itself is now proved for real, not only against a fake process runner: gh repo create, the orphan push, enabling Pages, polling and fetching all ran against a newly created public repository, through the application's own real hosting.ts, and the published address answered 200 on an independent re-fetch afterward. A separate run flipped a repository private and drove the same real publish() against it to confirm the 403/422 failure path reports the true paid-plan cause rather than an unexplained permission error, then reverted the repository to public and live. A third run staged and published a real 839.4 MB, 20,632-file map (99s to add, 75s to commit, 146s to push, 97s waiting for Pages to build; 423.8s total), and that map was independently re-verified live afterward too.",
                 },
                 {
                     kind: "code",
                     language: "text",
                     code: "pnpm exec vitest run packages/app/src/main/pages packages/ui/src/components/pages --silent",
-                    caption: "Focused publishing verification",
+                    caption: "Focused publishing verification (71 tests, 4 files)",
+                },
+                {
+                    kind: "callout",
+                    tone: "note",
+                    title: "Proven against real github.com, three ways",
+                    content: [
+                        "Every step this article's own callouts used to mark unproven has now run for real, once each, on a throwaway public repository kept as evidence (issue #44, closed): a normal publish, verified live and screenshotted; the private-repository failure path, driven for real rather than only inferred from GitHub's documentation; and a real map at a scale two orders of magnitude past anything in the unit tests, published and re-verified live. What that does not cover is a second machine, a second GitHub account, or a Pages build slower than what these three runs happened to see, none of which the sequence has ever needed to handle differently.",
+                    ],
                 },
             ],
         },

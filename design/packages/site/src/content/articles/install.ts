@@ -21,7 +21,7 @@ export const install: Article = {
                     tone: "warning",
                     title: "Know what you are installing",
                     content:
-                        "This installs the viewer, which browses a BlueMap server somebody else is running, and the local render path, which renders your own world using upstream BlueMap's Java engine as a child process and needs a Java runtime the app will fetch if the machine has none. That path has been driven end to end by hand on one Windows machine; it has not run in CI, on macOS or on Linux. The TypeScript renderer this project is porting is not what renders here yet.",
+                        "This installs the viewer, which browses a BlueMap server somebody else is running, and the local render path, which renders your own world using upstream BlueMap's Java engine as a child process and needs a Java runtime the app will fetch if the machine has none. A real render of that kind already runs in CI on every push, and the app's own orchestration of it has separately been driven end to end by hand and by a real JVM. The one thing still missing is the packaged Windows installer's own copy of that path exercised inside CI itself; this project packages for Windows only, so nothing here is exercised on macOS or on Linux either way. The TypeScript renderer this project is porting is not what renders here yet.",
                 },
                 {
                     kind: "paragraph",

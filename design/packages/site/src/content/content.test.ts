@@ -15,6 +15,7 @@ import { describe, expect, it } from "vitest";
 
 import { articles, findArticle } from "./articles/index.js";
 import { captureProvenance, featuredCaptures, repoCaptures } from "./captures.js";
+import { FIXED } from "../i18n/strings.js";
 import { releaseAvailability } from "./generated/release.js";
 import { screenshotAvailability } from "./generated/screenshots.js";
 import { home } from "./home.js";
@@ -227,6 +228,84 @@ describe("articles", () => {
                 article.statusNote.trim().length,
                 `${article.id} is badged shipped and explains nothing`
             ).toBeGreaterThan(100);
+        }
+    });
+
+    it("never uses a status value the renderer does not know how to badge", () => {
+        // `FeatureStatus` in types.ts is a closed union, and `main.ts`'s `STATUS_LABEL_KEYS` is
+        // typed as `Record<FeatureStatus, FixedKey>`, so an unknown status already fails to
+        // compile. This is the runtime half of the same guarantee: it names the exact set the
+        // renderer voices a badge for, checks every one of those keys is actually present in the
+        // i18n catalogue's FIXED table, and checks every article and every home-page feature card
+        // uses one of them. A future status value added to the type without a matching FIXED
+        // entry, or a content author reaching for a typo'd string that TypeScript's structural
+        // typing happened to let through, fails here rather than rendering an empty badge.
+        const KNOWN_STATUSES: readonly FeatureStatus[] = ["shipped", "ported-unverified", "specified"];
+        const STATUS_FIXED_KEYS: Readonly<Record<FeatureStatus, string>> = {
+            shipped: "status.shipped",
+            "ported-unverified": "status.portedUnverified",
+            specified: "status.specified",
+        };
+        for (const status of KNOWN_STATUSES) {
+            const key = STATUS_FIXED_KEYS[status];
+            expect(Object.prototype.hasOwnProperty.call(FIXED, key), `FIXED has no "${key}" entry`).toBe(true);
+        }
+        for (const article of articles) {
+            expect(KNOWN_STATUSES, `${article.id} has an unrecognised status "${article.status}"`).toContain(
+                article.status
+            );
+        }
+        for (const feature of homeFeatures) {
+            expect(
+                KNOWN_STATUSES,
+                `"${feature.title}" has an unrecognised status "${feature.status}"`
+            ).toContain(feature.status);
+        }
+    });
+
+    it("lets no shipped article's own words say its verification never happened", () => {
+        // Regression for the exact failure mode a ground-truth pass found across eight articles
+        // on 2026-08-05: a status badge promoted (or left) at "shipped" while a leftover sentence
+        // still asserted the thing that badge claims never actually ran. "Shipped" now means the
+        // exit check genuinely happened; an article that says so in its status and then says the
+        // opposite in its body is worse than a missing badge, because a reader has no way to know
+        // which of the two sentences to believe.
+        //
+        // This is deliberately narrow: it bans specific, unambiguous "this has never run at all"
+        // phrases rather than short generic ones like "not yet verified" or "has not been proved",
+        // because this project's own house style keeps writing real, disclosed residual gaps into
+        // shipped articles under headings like "What has not been verified" and "What has not
+        // been checked" - a broad ban would flag every one of those true, honest, narrow callouts
+        // as if they contradicted the badge, which is exactly the false positive that would teach
+        // everyone to ignore this test. The phrases below are the ones that showed up, verbatim or
+        // near enough, in the eight articles' callouts before their ground truth was established,
+        // naming the whole feature's exit check as never having run - not a residual gap within an
+        // otherwise-proven feature, but the entire claim the badge makes.
+        const NEVER_RAN_PHRASES = [
+            "has not run",
+            "have not run",
+            "has never run",
+            "have never run",
+            "has not been run",
+            "have not been run",
+            "has never been run",
+            "have never been run",
+            "nobody has ever",
+            "no one has ever",
+            "exit check has not",
+            "exit criteria have not",
+            "exit criteria has not",
+            "this is why the article's status says ported",
+            "is implemented and unproven rather than verified",
+        ];
+        for (const article of articles.filter((a) => a.status === "shipped")) {
+            const haystack = articleStrings(article).join(" \n ").toLowerCase();
+            for (const phrase of NEVER_RAN_PHRASES) {
+                expect(
+                    haystack.includes(phrase),
+                    `${article.id} is badged shipped but its own text says "${phrase}"`
+                ).toBe(false);
+            }
         }
     });
 

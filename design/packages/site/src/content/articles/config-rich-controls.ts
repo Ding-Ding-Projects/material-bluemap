@@ -9,7 +9,7 @@ export const configRichControls: Article = {
     category: "application",
     status: "shipped",
     statusNote:
-        "The controls, the registry-key normalisation and the alpha-capable colour field are on the default branch, with a guard test that walks every field of every descriptor and every mask shape. The half of that guard which reads upstream's own Java declarations skips itself where the vendored submodule is absent, nobody has opened these controls in an installed build, and the wider exit check the options editor still owes has not run: no config written from these screens has been loaded by the real Java server.",
+        "The controls, the registry-key normalisation and the alpha-capable colour field are on the default branch, with a guard test that walks every field of every descriptor and every mask shape. The half of that guard which reads upstream's own Java declarations skips itself where the vendored submodule is absent. The wider exit check the options editor owes has run: a config edited through these exact controls, in a packaged build, was saved into a folder the real Java CLI generated and loaded back correctly by that same CLI - see the options-gui article's Verification section. That check does not yet run as a standing part of CI, and the controls were driven by scripted input rather than a human hand at a mouse.",
 
     sections: [
         {

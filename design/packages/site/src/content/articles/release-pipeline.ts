@@ -240,7 +240,7 @@ export const releasePipeline: Article = {
         },
         {
             articleId: "resource-packs",
-            reason: "An example of code that ships behind a green suite while its own exit criteria are still open.",
+            reason: "A phase whose exit criteria stayed open behind a green suite for a while, and what closing them for real, with a bug found and fixed along the way, actually looked like.",
         },
     ],
 

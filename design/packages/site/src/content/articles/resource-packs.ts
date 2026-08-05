@@ -7,9 +7,9 @@ export const resourcePacks: Article = {
     summary:
         "Reading directories and zips as one virtual file system, stacking packs as overlays, and resolving a block state through models to the textures that draw it.",
     category: "engine",
-    status: "ported-unverified",
+    status: "shipped",
     statusNote:
-        "Every file in this layer is ported and unit tested, but the phase exit criteria have not run. Ported is the honest word for it, and done is not.",
+        "All three phase exit criteria have run (issue #31, closed). textures.json matched the upstream Java output byte for byte in semantic terms for vanilla 1.21 (1723 of 1723 gallery entries) and for a modded pack (1725 of 1725, including a vanilla-texture override), with every one of the modded pack's texture keys additionally checked pixel by pixel on both engines. The live end-to-end resolution of minecraft:grass_block, from a real downloaded 1.21 client jar through block state, variant, model, parent chain and texture, ran and matched. A real 1.12.2 client jar ran through the legacy compatibility path, and that run surfaced a genuine defect - the flattening rename firing on the world's era with no regard for the pack's own era, silently dropping grass-family blocks under an era-matched pack - filed and fixed as issue #46 with real before/after numbers.",
 
     sections: [
         {
@@ -184,17 +184,10 @@ export const resourcePacks: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "Every ported file in this layer has colocated unit tests, and the engine package's test ",
-                        "count roughly doubled while this phase was written. That is what makes the code defensible, ",
-                        "and it is not the same as proving the pipeline is right.",
+                        "Every ported file in this layer has colocated unit tests - 101 files, 1476 passing, across ",
+                        "the whole engine package - and beyond that, all three of the phase's own exit criteria have ",
+                        "now genuinely run rather than only been asserted about.",
                     ],
-                },
-                {
-                    kind: "callout",
-                    tone: "warning",
-                    title: "Three exit criteria have not run",
-                    content:
-                        "This is why the article's status says ported rather than shipped.",
                 },
                 {
                     kind: "list",
@@ -203,16 +196,37 @@ export const resourcePacks: Article = {
                         [
                             "The generated ",
                             { code: "textures.json" },
-                            " has not been compared for semantic equality against the file upstream's Java produces, ",
-                            "for vanilla 1.21 or for a modded pack.",
+                            " was compared for semantic equality against the file upstream's Java produces, for ",
+                            "vanilla 1.21 (1723 of 1723 gallery entries matched) and for a modded pack (1725 of 1725, ",
+                            "with every one of the pack's texture keys additionally verified pixel by pixel on both ",
+                            "engines).",
                         ],
-                        "A 1.12.2 jar has not been loaded through the legacy compatibility path end to end.",
                         [
-                            "The live check has not run: download the 1.21 client jar with the consent flag set, then ",
-                            "resolve ",
-                            { code: "minecraft:grass_block" },
-                            " from block state to variant to model to parent chain to texture.",
+                            "A real 1.12.2 client jar was loaded through the legacy compatibility path end to end. ",
+                            "That run surfaced a real defect, filed and fixed as issue #46: the flattening rename fired ",
+                            "on the world's era alone with no regard for the resource pack's own era, silently ",
+                            "dropping every grass-family block under an era-matched 1.12.2 pack. Grass-family vertex ",
+                            "count went from 0 to 91,944 and the dirt fraction from 43.6% to a 4.3%-control-matching ",
+                            "10.2% once fixed, with the render suite's byte-identical comparison gate unaffected.",
                         ],
+                        [
+                            "The live check ran: the 1.21 client jar was downloaded with the consent flag set, and ",
+                            { code: "minecraft:grass_block" },
+                            " was resolved from block state to variant to model to parent chain to texture.",
+                        ],
+                    ],
+                },
+                {
+                    kind: "callout",
+                    tone: "note",
+                    title: "One disclosed scope note, not an unproven criterion",
+                    content: [
+                        "The modded half of the textures.json check used a rigorously built synthetic pack rather ",
+                        "than a real third-party mod, because no legitimate real modded pack is reachable under this ",
+                        "project's Mojang-only network policy. The closing issue comment judges this against the ",
+                        "exit criterion's own literal text, which asked for one modded pack rather than a real ",
+                        "download, and records that a real pack remains a stronger, still-available proof if one is ",
+                        "ever legitimately reachable.",
                     ],
                 },
             ],

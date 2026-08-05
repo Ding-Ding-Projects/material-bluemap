@@ -249,11 +249,13 @@ export const home: HomeContent = {
             runsToday: false,
             body: [
                 "The tile model, the block and entity renderers, the byte-exact tile writer, the ",
-                "level-of-detail cascade and the masks are written and unit tested. It takes over only when ",
-                "its decompressed tile bytes are identical to the Java engine's and its lowres images match ",
-                "pixel for pixel on every fixture world. That comparison has not run. Nothing switches ",
-                "silently, and the application says which engine produced a map. The handover and its ",
-                "gate are described in the same article the card beside this one opens.",
+                "level-of-detail cascade and the masks are written and unit tested. The gate it had to pass ",
+                "to take over is closed: decompressed hires tile bytes identical to the Java engine's and ",
+                "lowres images matching pixel for pixel, on every fixture world. Passing that gate did not ",
+                "itself switch the product over; the Java engine stays the standing default until that ",
+                "switch is separately made and verified. Nothing switches silently, and the application ",
+                "says which engine produced a map. The handover and its gate are described in the same ",
+                "article the card beside this one opens.",
             ],
             articleId: "java-render-path",
             linkLabel: "Read: the gate the mesher has to pass",
@@ -604,9 +606,9 @@ export const home: HomeContent = {
                 {
                     title: "Resource packs, atlases and textures",
                     body: "Directories and zips are mounted as one virtual file system, overlays are applied in reverse order, block states resolve to models to parent chains to textures, and the texture gallery is written out for the viewer.",
-                    status: "ported-unverified",
+                    status: "shipped",
                     statusNote:
-                        "Every file is ported and unit tested. The three exit criteria have not run, so ported is the honest word and done is not: they are listed in the roadmap.",
+                        "Every file is ported and unit tested, and all three phase exit criteria have run (issue #31, closed): textures.json parity passes for vanilla and a modded pack, live end-to-end resolution passes, and a real 1.12.2 jar ran the legacy path, surfacing and fixing a real defect (issue #46) along the way.",
                     articleId: "resource-packs",
                 },
             ],
@@ -663,7 +665,7 @@ export const home: HomeContent = {
     },
 
     notYet: [
-        "Rendering a local world in TypeScript. The mesher is written and unit tested, and the parity comparison that would let it take over has not run.",
+        "Rendering a local world in TypeScript by default. The mesher is written and unit tested, and the parity gate against the Java engine has closed: byte-identical hires tiles and pixel-identical lowres tiles on every fixture world. Passing that gate did not itself switch the product over; the Java engine stays the standing default until that separate switch decision is made and verified on its own (decision D17's 2026-08-05 amendment).",
         "The standalone headless server, its full HTTP routes and event stream, and its Docker image.",
         "The Docker hosting GUI for managing BlueMap server containers.",
         "SQL storages, the marker editor, the JavaScript addon system, static export and the three.js upgrade. The options editor models an SQL storage and writes one, and its connection test says plainly that this build carries no database client to open a connection with rather than reporting a success nobody observed.",
@@ -701,8 +703,8 @@ export const home: HomeContent = {
         {
             phase: "C",
             scope: "Resource-pack pipeline: virtual file system, block states, models, atlases, textures, legacy compatibility, the Mojang downloader",
-            status: "in-progress",
-            note: "Every file is ported and unit tested. The phase exit criteria have not run, so the honest word is ported, not done.",
+            status: "done",
+            note: "All three exit criteria have run (issue #31, closed): textures.json parity passes for vanilla (1723 of 1723) and for a modded pack (1725 of 1725, pixel-verified on both engines); live end-to-end resolution passes; a real 1.12.2 jar ran through the legacy path, and the era-matched render defect it surfaced is fixed and closed (issue #46).",
         },
         {
             phase: "J",
@@ -713,8 +715,8 @@ export const home: HomeContent = {
         {
             phase: "D",
             scope: "Hires mesher, byte-exact tile writer, lowres level-of-detail cascade, render state, file storage, masks",
-            status: "in-progress",
-            note: "Written and unit tested. It no longer blocks the product; it is now the handover gate, and the parity comparison against the Java engine has not run.",
+            status: "done",
+            note: "The gate is closed: a generated 1000x1000 world rendered identically on both engines, 961 of 961 hires tiles byte for byte and 24 of 24 lowres tiles pixel for pixel, with a second fixture on a different seed reporting the same. Passing the gate did not itself switch the product over; D17's amendment keeps the Java engine as the standing default until that switch is separately made and verified.",
         },
         {
             phase: "E",
@@ -726,7 +728,7 @@ export const home: HomeContent = {
             phase: "F",
             scope: "Full options GUI: every setting, the map wizard, storage editors, config import",
             status: "in-progress",
-            note: "Unblocked early by the Java render path, because it writes BlueMap's own configuration and invokes the renderer rather than needing the TypeScript render manager. The editor now opens from the application and edits a real folder; the exit check against the upstream Java server has not run.",
+            note: "Unblocked early by the Java render path, because it writes BlueMap's own configuration and invokes the renderer rather than needing the TypeScript render manager. The editor now opens from the application and edits a real folder, and the exit check against the upstream Java server has now run: a config edited by hand through a packaged build and saved into a folder the real Java CLI generated was loaded by that same CLI and read back correctly. It has not yet run as a standing part of CI.",
         },
         { phase: "G", scope: "Docker hosting GUI for managing BlueMap server containers", status: "pending" },
         {
