@@ -22,6 +22,61 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Give the progress panel real tile-count honesty, real upload bytes, wave truth, and its route (#38) - [`d4f83fa540`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d4f83fa540d4782762974ccbc18f762340e58489)
+- Bridge and mount automatic repair diagnostics - [`6981bf9ca4`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6981bf9ca4f19896aef88872d32ccfb23ad4f66b)
+- Register the last unwired copy surfaces and fix a genuine tab-group-picker search leak - [`f8e828318b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f8e828318befff17f9fdae4d340feb23fef874cd)
+- Bridge and mount Bedrock world detection and conversion - [`bb94e7b39c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/bb94e7b39c40e0275400c3111c299ea841f27b6d)
+- Fix the History capture's stale Vuetify selectors, and settle #36 as format conformance - [`2a1405b9cb`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2a1405b9cbd60bb07bf79466835d7e628f7dc5d0)
+- Bridge and mount browse/restore for the profile-list and settings histories - [`a66e34a13a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a66e34a13a48f53e07164bdeecf66ea2c84325c6)
+- Fix the notification bulk-delete gate's completion hold and surface hidden previews - [`b87c91deb6`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b87c91deb6f15b3da68bb434a78b236b2c7f4803)
+- Name the reason Go Fullscreen is disabled instead of leaving it blank - [`343285f5ac`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/343285f5acaef63496547efb232144fd8e8cdaec)
+- Fix the typecheck errors the parse-crash fix had been hiding all along - [`e551d934d8`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e551d934d883e5bed291ec1b8e185ee10ba09c9b)
+- Fix the vue-tsc parse crash that was flunking every CI run since the sweep - [`d92b71c5ef`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d92b71c5ef2ff4c65bf1642ac016aacd6acddd7d)
+- Fix CI-render sign-in wiring and add ARIA live regions - [`0ca1d645bd`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0ca1d645bdb559a32bb8ff32ef7015492a3ac091)
+- Give the wizard's downloads disclosure an aria-controls target - [`033bd8f916`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/033bd8f9165fbba9b336be22612fd66ba38f83ea)
+- Make the save dialog's Escape and outside-click honour the in-flight guard - [`5e3104fe76`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5e3104fe768becdae434bf8e7e388c89d0b7f4db)
+- Let Escape reach the settings regex builder's popover - [`dc8f2fe89e`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/dc8f2fe89e2e5df16280feba9749131cc7741232)
+- Fix: small UI and config cleanup, align paths, fix test expectations - [`649869166c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/649869166cf58a84d1643d238dea2eda222ca41e)
+- Auto commit 2026-08-05 04:37:15.299Z - [`78a87fbf39`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/78a87fbf39542ba9e4da99f470876a0183334efb)
+
+### Rendering and world data
+
+- storage/sql: cover render-state grids and the always-uncompressed markers/players - [`250e7e700a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/250e7e700a6d2326d037ebf4bff76ab08bc1be52)
+- storage: dialect resolution, driver-adapter and byte-fidelity tests; ROADMAP + deviations - [`b32f423b26`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b32f423b2687711f734fc2447fec132c5e194e33)
+- storage: port upstream's SQL storage (sql.js/mysql2/pg, pure JS, no native modules) - [`0bc90c2c25`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0bc90c2c25dbc17dcf8c83f18cf9a75261b943b4)
+- RenderManager: expose saveRenderTaskQueue / loadRenderTaskQueue (#30) - [`8f61600f44`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8f61600f44a1819bfc4f0c8e124c4754fe572866)
+- Port SerializableRenderTask and the per-task Serialized forms (#30) - [`a5e5cf7ab7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a5e5cf7ab7e92b4cf123caea8f14ffe9fd03b478)
+- Drop yauzl-promise from engine's ZipFileSystem: esbuild cannot bundle its native crc32 addon - [`e976ee9f6c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e976ee9f6c196d7bfe89499b558ef242ed040116)
+
+### Server, CLI and configuration
+
+- Make the vendor cross-checks loud, and stop grading a stale config build - [`da1f5057fe`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/da1f5057fe563990ca4f27bdebf627de493f21cb)
+- cli: a real Dockerfile, actually built and run, plus the end-to-end proof - [`cbc135cbe7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cbc135cbe79f6f0adad8fbbe69d1a03c2a37a8a6)
+- cli: build the real standalone server CLI, reusing the config package's own flag model - [`53e647469a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/53e647469aec343f30190895de520deb82bbdda6)
+- test+docs: prove the head-of-queue race is safe, drop #40 from ROADMAP's gap list - [`d9486357ae`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d9486357aea445c51a5cec0263d81583e2f662b5)
+- server: bridge region-file watch events to real WorldRegionUpdateTask scheduling (#40) - [`50e4b1abe8`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/50e4b1abe8a79c50d8b67651e1a633e8c98b4f67)
+- server: drive the real RenderManager from a map-update request - [`19103df5a9`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/19103df5a9a481550726432eab9069c49263dc63)
+- server: live/sse, live/players.json, live/markers.json with honest empty stubs - [`00261d4af0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/00261d4af0cc63b0d3f7a06757a258268d15f1f3)
+- server: port MapStorageRequestHandler for real tiles/settings/textures/assets over HTTP - [`d78bbbce53`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d78bbbce534a102ef3a7d37a4961714b4c634e6f)
+
+### Build, release and tooling
+
+- Record the server package's two deviations, and prove RenderDriver on a real generated world - [`2b86de90ca`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2b86de90ca8c9ff357e187d805c952d803ad9e4b)
+
+### Documentation
+
+- docs: catch HANDOFF and ROADMAP up with the 2026-08-05 multi-agent pass - [`0047b713d2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0047b713d2ceef83e4e5704c5e09b3452af0e218)
+- docs: refresh ROADMAP.md's Phase E entries for #41 and #29 - [`6a019e4e85`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6a019e4e85daedf58db11c93c90bbbe58b40f8e0)
+- Add real captures of the five screens issue #34 asked for - [`dbbfa60d67`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/dbbfa60d671b67f7ed7dc10b954fb430c363a2a4)
+- Refresh 34 documentation screenshots from a live capture of the current build - [`186b5d7c9d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/186b5d7c9da76c636d8d148dffc45a0c5b4f71a9)
+
+## 0.1.0-build.300 - 2026-08-04
+
+Tagged at [`00dafe826a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/00dafe826a6bdac8d531f686db9e84fbf281bd84).
+
+### Interface
+
+- Turn CI green: fix a self-flagging comment, a leaky test, a category gap - [`00dafe826a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/00dafe826a6bdac8d531f686db9e84fbf281bd84)
 - Prove profile shortcuts in the rendered menu - [`9cbce505af`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/9cbce505af08a45a94d713aa2bc4b54e281242c7)
 - Show the real profile-row opening keys - [`ac5ac795d7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ac5ac795d751ab121f4c5b75103bcd7143b06deb)
 - Prove profile shortcuts in the rendered menu - [`2b8595b9ea`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2b8595b9ead3c687a30b5926a1024cace0c3408b)
