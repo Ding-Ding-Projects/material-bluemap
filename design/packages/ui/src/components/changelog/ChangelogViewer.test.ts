@@ -132,6 +132,8 @@ const UNRELEASED: ChangelogEntry[] = [
 function render(): VueWrapper {
     const i18n = createI18n({
         legacy: false,
+        missingWarn: false,
+        fallbackWarn: false,
         locale: "none",
         fallbackLocale: "none",
         silentFallbackWarn: true,
@@ -158,6 +160,8 @@ async function search(wrapper: VueWrapper, text: string): Promise<void> {
 function renderAttached(): VueWrapper {
     const i18n = createI18n({
         legacy: false,
+        missingWarn: false,
+        fallbackWarn: false,
         locale: "none",
         fallbackLocale: "none",
         silentFallbackWarn: true,

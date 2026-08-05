@@ -77,7 +77,7 @@ afterEach(() => {
  * back. That is the state a build without translations stays in, and the state this
  * surface is nearly always rendered in, so it is the one worth asserting against.
  */
-const i18n = createI18n({ legacy: false, locale: "none", fallbackLocale: "none", messages: {} });
+const i18n = createI18n({ legacy: false, missingWarn: false, fallbackWarn: false, locale: "none", fallbackLocale: "none", messages: {} });
 const vuetify = createVuetify();
 
 function mountScreen(bridge: BackupBridge | null, props: Record<string, unknown> = {}) {

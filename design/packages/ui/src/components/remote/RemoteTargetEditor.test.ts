@@ -68,7 +68,7 @@ beforeAll(() => {
 const vuetify = createVuetify();
 
 function i18n() {
-    return createI18n({ legacy: false, locale: "none", fallbackLocale: "none", messages: {} });
+    return createI18n({ legacy: false, missingWarn: false, fallbackWarn: false, locale: "none", fallbackLocale: "none", messages: {} });
 }
 
 function mountEditor() {

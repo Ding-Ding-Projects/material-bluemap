@@ -81,7 +81,7 @@ beforeEach(() => {
 const vuetify = createVuetify({ components, directives });
 
 function i18n() {
-    return createI18n({ legacy: false, locale: "none", fallbackLocale: "none", silentFallbackWarn: true, messages: {} });
+    return createI18n({ legacy: false, missingWarn: false, fallbackWarn: false, locale: "none", fallbackLocale: "none", silentFallbackWarn: true, messages: {} });
 }
 
 const STAMP = { now: "2026-08-04T09:00:00+01:00", id: "p1", appVersion: null };

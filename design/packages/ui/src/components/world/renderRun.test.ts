@@ -613,6 +613,8 @@ describe("wording", () => {
     it("keeps the number in a duration when vue-i18n is the one rendering it", () => {
         const i18n = createI18n({
             legacy: false,
+            missingWarn: false,
+            fallbackWarn: false,
             locale: "none",
             fallbackLocale: "none",
             silentFallbackWarn: true,

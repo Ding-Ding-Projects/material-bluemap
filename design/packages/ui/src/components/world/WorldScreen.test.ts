@@ -81,7 +81,7 @@ const vuetify = createVuetify({ components, directives });
 
 /** The real i18n, built the way `i18n.ts` builds it: no messages, every key falling back. */
 function i18n() {
-    return createI18n({ legacy: false, locale: "none", fallbackLocale: "none", silentFallbackWarn: true, messages: {} });
+    return createI18n({ legacy: false, missingWarn: false, fallbackWarn: false, locale: "none", fallbackLocale: "none", silentFallbackWarn: true, messages: {} });
 }
 
 /** The sentence the review step shows while consent is missing. */

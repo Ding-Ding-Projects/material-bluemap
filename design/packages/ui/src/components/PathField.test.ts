@@ -40,6 +40,8 @@ const vuetify = createVuetify();
 function i18n() {
     return createI18n({
         legacy: false,
+        missingWarn: false,
+        fallbackWarn: false,
         locale: "none",
         fallbackLocale: "none",
         silentFallbackWarn: true,

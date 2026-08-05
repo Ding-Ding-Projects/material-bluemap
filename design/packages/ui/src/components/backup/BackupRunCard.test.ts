@@ -36,7 +36,7 @@ beforeAll(() => {
     })) as unknown as typeof globalThis.matchMedia;
 });
 
-const i18n = createI18n({ legacy: false, locale: "none", fallbackLocale: "none", messages: {} });
+const i18n = createI18n({ legacy: false, missingWarn: false, fallbackWarn: false, locale: "none", fallbackLocale: "none", messages: {} });
 const vuetify = createVuetify();
 
 const row: BackupRow = {

@@ -231,6 +231,8 @@ describe("stepping through", () => {
 
         const i18n = createI18n({
             legacy: false,
+            missingWarn: false,
+            fallbackWarn: false,
             locale: "none",
             fallbackLocale: "none",
             silentFallbackWarn: true,

@@ -74,7 +74,7 @@ beforeAll(() => {
 });
 
 /** The real i18n, built as `i18n.ts` builds it: no messages, every key on its fallback. */
-const i18n = createI18n({ legacy: false, locale: "none", fallbackLocale: "none", messages: {} });
+const i18n = createI18n({ legacy: false, missingWarn: false, fallbackWarn: false, locale: "none", fallbackLocale: "none", messages: {} });
 const vuetify = createVuetify();
 
 const target: RemoteTarget = {

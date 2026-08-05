@@ -17,7 +17,7 @@ import { createVuetify } from "vuetify";
 import DockerStateNote from "./DockerStateNote.vue";
 import type { DockerNote } from "./dockerStates.js";
 
-const i18n = createI18n({ legacy: false, locale: "none", fallbackLocale: "none", messages: {} });
+const i18n = createI18n({ legacy: false, missingWarn: false, fallbackWarn: false, locale: "none", fallbackLocale: "none", messages: {} });
 const vuetify = createVuetify();
 
 const note: DockerNote = {

@@ -301,6 +301,8 @@ describe("wording", () => {
     it("keeps the percentage and the task when vue-i18n is the one rendering it", () => {
         const i18n = createI18n({
             legacy: false,
+            missingWarn: false,
+            fallbackWarn: false,
             locale: "none",
             fallbackLocale: "none",
             silentFallbackWarn: true,

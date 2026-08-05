@@ -191,6 +191,8 @@ let wrapper: VueWrapper | null = null;
 function render(host: HistoryHost | null): VueWrapper {
     const i18n = createI18n({
         legacy: false,
+        missingWarn: false,
+        fallbackWarn: false,
         locale: "none",
         fallbackLocale: "none",
         silentFallbackWarn: true,

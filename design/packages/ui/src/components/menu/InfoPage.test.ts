@@ -40,6 +40,8 @@ const CONTENT =
 function i18n(content: string | null = CONTENT) {
     return createI18n({
         legacy: false,
+        missingWarn: false,
+        fallbackWarn: false,
         locale: content === null ? "none" : "en",
         fallbackLocale: "none",
         silentFallbackWarn: true,
