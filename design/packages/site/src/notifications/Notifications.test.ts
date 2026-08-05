@@ -121,6 +121,37 @@ describe("Notifications", () => {
         expect(host.querySelectorAll(".notification")).toHaveLength(0);
     });
 
+    it("removeMany forgets only the named records, keeping the rest of the history", () => {
+        const notifications = new Notifications(makeI18n(), host);
+        const first = notifications.notify({ severity: "info", title: { text: "One" } });
+        const second = notifications.notify({ severity: "info", title: { text: "Two" } });
+        notifications.notify({ severity: "info", title: { text: "Three" } });
+        notifications.removeMany([first, second]);
+        const left = notifications.list();
+        expect(left).toHaveLength(1);
+        expect(left[0]?.title).toEqual({ text: "Three" });
+    });
+
+    it("removeMany does nothing for an empty selection, and never throws on an unknown id", () => {
+        const notifications = new Notifications(makeI18n(), host);
+        notifications.notify({ severity: "info", title: { text: "Stays" } });
+        notifications.removeMany([]);
+        expect(notifications.list()).toHaveLength(1);
+        expect(() => notifications.removeMany(["not-a-real-id"])).not.toThrow();
+        expect(notifications.list()).toHaveLength(1);
+    });
+
+    it("removeMany notifies subscribers, the same as clearAll does", () => {
+        const notifications = new Notifications(makeI18n(), host);
+        const id = notifications.notify({ severity: "info", title: { text: "Watched" } });
+        let notified = 0;
+        notifications.subscribe(() => {
+            notified += 1;
+        });
+        notifications.removeMany([id]);
+        expect(notified).toBeGreaterThan(0);
+    });
+
     it("renders an honest empty state in the notification centre with nothing raised", () => {
         const notifications = new Notifications(makeI18n(), host);
         const centre = document.createElement("div");

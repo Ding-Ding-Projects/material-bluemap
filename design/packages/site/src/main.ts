@@ -970,6 +970,32 @@ function boot(): void {
                     get: (record) => (record.body === null ? "" : i18n.text(record.body)),
                 },
             ];
+
+            /** One `- {ISO date} [{severity}] {title}` Markdown bullet, shared by both exports. */
+            const notificationLine = (record: NotificationRecord): string =>
+                `- ${record.at.toISOString()} [${record.severity}] ${i18n.text(record.title)}${record.body === null ? "" : ` — ${i18n.text(record.body)}`}`;
+
+            const downloadMarkdown = (lines: readonly string[], filename: string): void => {
+                const blob = new Blob(
+                    [`# ${i18n.t("site.notificationTitle")}\n\n${lines.join("\n")}\n`],
+                    { type: "text/markdown;charset=utf-8" },
+                );
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = filename;
+                link.click();
+                URL.revokeObjectURL(url);
+            };
+
+            /**
+             * Bulk selection over the history, honestly scoped to what the active search
+             * filter currently shows -- `selectAll` picks up exactly `search.currentResults()`,
+             * never a record the filter is hiding, so "select all shown" never silently
+             * selects something the visitor cannot see on screen.
+             */
+            const selected = new Set<string>();
+
             const search = createSearchSurface({
                 fieldId: "notifications.history",
                 labelText: i18n.t("site.searchNotifications"),
@@ -982,6 +1008,21 @@ function boot(): void {
                 subscribe: (listener) => notifications.subscribe(listener),
                 renderResult: ({ item }) => {
                     const row = el("article", "notification-centre__item");
+
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.className = "mb-select-checkbox";
+                    checkbox.checked = selected.has(item.id);
+                    i18n.bindAttr(checkbox, "aria-label", "site.selectNotification", {
+                        title: i18n.text(item.title),
+                    });
+                    checkbox.addEventListener("change", () => {
+                        if (checkbox.checked) selected.add(item.id);
+                        else selected.delete(item.id);
+                        updateSelectionToolbar();
+                    });
+                    row.append(checkbox);
+
                     const heading = el("h2", "notification-centre__title", i18n.text(item.title));
                     const time = el(
                         "time",
@@ -996,6 +1037,108 @@ function boot(): void {
                 },
             });
             view.appendChild(search.element);
+
+            /* ---- Selection toolbar: acts on the chosen subset, not the whole history ---- */
+            const selectionBar = el("div", "mb-changelog-actions mb-selection-bar");
+            const selectAllButton = el("button", "md-button md-button--text");
+            selectAllButton.type = "button";
+            i18n.bindText(selectAllButton, "site.selectAllShown");
+            const invertButton = el("button", "md-button md-button--text");
+            invertButton.type = "button";
+            i18n.bindText(invertButton, "site.invertSelection");
+            const clearSelectionButton = el("button", "md-button md-button--text");
+            clearSelectionButton.type = "button";
+            i18n.bindText(clearSelectionButton, "site.clearSelection");
+            const deleteSelectedButton = el("button", "md-button md-button--outlined");
+            deleteSelectedButton.type = "button";
+            i18n.bindText(deleteSelectedButton, "site.deleteSelected");
+            const exportSelectedButton = el("button", "md-button md-button--outlined");
+            exportSelectedButton.type = "button";
+            i18n.bindText(exportSelectedButton, "site.exportSelected");
+            const selectionCount = el("p", "mb-help mb-selection-count");
+            selectionCount.setAttribute("role", "status");
+            selectionCount.setAttribute("aria-live", "polite");
+
+            function updateSelectionToolbar(): void {
+                const shown = search.currentResults();
+                // A selected id that the active filter no longer shows stays selected (the
+                // visitor's choice survives a query edit), but it cannot be re-shown by
+                // "select all shown", so the count below counts only the shown subset that
+                // is actually selected, matching what a bulk action against "selected" would
+                // really cover.
+                const shownSelected = shown.filter((result) => selected.has(result.item.id)).length;
+                i18n.bindText(selectionCount, "site.notificationSelectionCount", {
+                    selected: shownSelected,
+                    shown: shown.length,
+                });
+                const hasSelection = selected.size > 0;
+                deleteSelectedButton.disabled = !hasSelection;
+                exportSelectedButton.disabled = !hasSelection;
+                clearSelectionButton.disabled = !hasSelection;
+                selectAllButton.disabled = shown.length === 0;
+                invertButton.disabled = shown.length === 0;
+                // Each row's own checkbox already reads `selected.has(item.id)` at build time
+                // (see `renderResult` above), so a `search.refresh()` after a bulk selection
+                // change is what keeps the DOM in step -- there is nothing left to sync here.
+            }
+
+            selectAllButton.addEventListener("click", () => {
+                for (const result of search.currentResults()) selected.add(result.item.id);
+                search.refresh();
+                updateSelectionToolbar();
+            });
+            invertButton.addEventListener("click", () => {
+                for (const result of search.currentResults()) {
+                    if (selected.has(result.item.id)) selected.delete(result.item.id);
+                    else selected.add(result.item.id);
+                }
+                search.refresh();
+                updateSelectionToolbar();
+            });
+            clearSelectionButton.addEventListener("click", () => {
+                selected.clear();
+                search.refresh();
+                updateSelectionToolbar();
+            });
+
+            const status = el("p", "mb-help");
+            status.setAttribute("role", "status");
+            status.setAttribute("aria-live", "polite");
+
+            deleteSelectedButton.addEventListener("click", async () => {
+                const ids = [...selected];
+                if (ids.length === 0) return;
+                const confirmed = await confirmDestructive(
+                    i18n.t("site.deleteSelectedConfirm", { count: ids.length }),
+                );
+                if (!confirmed) return;
+                notifications.removeMany(ids);
+                selected.clear();
+                i18n.bindText(status, "site.selectionDeleted");
+                updateSelectionToolbar();
+            });
+            exportSelectedButton.addEventListener("click", () => {
+                const byId = new Map(notifications.list().map((record) => [record.id, record]));
+                const lines = [...selected]
+                    .map((id) => byId.get(id))
+                    .filter((record): record is NotificationRecord => record !== undefined)
+                    .map(notificationLine);
+                if (lines.length === 0) return;
+                downloadMarkdown(lines, "material-bluemap-notifications-selected.md");
+                i18n.bindText(status, "site.selectionExported");
+            });
+
+            selectionBar.append(
+                selectAllButton,
+                invertButton,
+                clearSelectionButton,
+                deleteSelectedButton,
+                exportSelectedButton,
+                selectionCount,
+            );
+            view.appendChild(selectionBar);
+
+            /* ---- Whole-history actions: unchanged, act on every record regardless of selection or filter ---- */
             const actions = el("div", "mb-changelog-actions");
             const clearButton = el("button", "md-button md-button--outlined");
             clearButton.type = "button";
@@ -1003,9 +1146,6 @@ function boot(): void {
             const exportButton = el("button", "md-button md-button--outlined");
             exportButton.type = "button";
             i18n.bindText(exportButton, "site.exportNotifications");
-            const status = el("p", "mb-help");
-            status.setAttribute("role", "status");
-            status.setAttribute("aria-live", "polite");
             clearButton.addEventListener("click", async () => {
                 const confirmed = await confirmDestructive(
                     i18n.t("site.clearNotificationsConfirm", {
@@ -1014,32 +1154,31 @@ function boot(): void {
                 );
                 if (!confirmed) return;
                 notifications.clearAll();
+                selected.clear();
                 i18n.bindText(status, "site.notificationsCleared");
+                updateSelectionToolbar();
             });
             exportButton.addEventListener("click", () => {
-                const lines = notifications
-                    .list()
-                    .map(
-                        (record) =>
-                            `- ${record.at.toISOString()} [${record.severity}] ${i18n.text(record.title)}${record.body === null ? "" : ` — ${i18n.text(record.body)}`}`,
-                    );
-                const blob = new Blob(
-                    [`# ${i18n.t("site.notificationTitle")}\n\n${lines.join("\n")}\n`],
-                    { type: "text/markdown;charset=utf-8" },
+                downloadMarkdown(
+                    notifications.list().map(notificationLine),
+                    "material-bluemap-notifications.md",
                 );
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = "material-bluemap-notifications.md";
-                link.click();
-                URL.revokeObjectURL(url);
                 i18n.bindText(status, "site.notificationsExported");
             });
             actions.append(clearButton, exportButton, status);
             view.appendChild(actions);
+
+            updateSelectionToolbar();
+            const unsubscribeSelectionSync = search.field.model.subscribe(() => updateSelectionToolbar());
+            const unsubscribeNotifications = notifications.subscribe(() => updateSelectionToolbar());
+
             host.replaceChildren(view);
             decoratePage(host, "notifications", appearance);
-            return () => search.destroy();
+            return () => {
+                unsubscribeSelectionSync();
+                unsubscribeNotifications();
+                search.destroy();
+            };
         },
     });
 

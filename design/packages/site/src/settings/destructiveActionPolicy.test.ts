@@ -171,19 +171,29 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "in its own right below.",
     },
     "main.ts": {
-        count: 1,
-        destroys: "every notification this session raised, from the notifications tab's clear button",
-        standing: "gated",
-        gatedIn: "main.ts",
-    },
-    "notifications/Notifications.ts": {
-        count: 1,
-        destroys: "every notification this session raised, through the store every notifier shares",
+        count: 2,
+        destroys:
+            "every notification this session raised, from the notifications tab's clear button, or " +
+            "only the bulk-selected subset of them from the same tab's delete-selected button",
         standing: "gated",
         gatedIn: "main.ts",
         note:
-            "The store's own method, not a call to the gate: `clearAll` empties the live toasts and " +
-            "the history the moment it runs. Its one caller is main.ts's notifications tab, gated.",
+            "Both calls -- the whole-history clear button and the new bulk-selection delete-selected " +
+            "button -- run inside this file's own `await confirmDestructive(...)` block and only " +
+            "mutate the notification store once that promise resolves true.",
+    },
+    "notifications/Notifications.ts": {
+        count: 2,
+        destroys:
+            "every notification this session raised, or only a chosen subset of them, through the " +
+            "store every notifier shares",
+        standing: "gated",
+        gatedIn: "main.ts",
+        note:
+            "Two of the store's own methods, not calls to the gate: `clearAll` empties the live " +
+            "toasts and the whole history the moment it runs, and `removeMany` forgets only the " +
+            "history records named by id, leaving any of their toasts still on screen to dismiss " +
+            "themselves. Both have their one caller in main.ts's notifications tab, gated.",
     },
     "platform/Preferences.ts": {
         count: 4,

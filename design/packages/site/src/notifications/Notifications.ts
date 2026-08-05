@@ -171,6 +171,20 @@ export class Notifications {
     }
 
     /**
+     * Forgets a chosen subset of the session's history, keeping everything else -- the
+     * bulk-selection counterpart to the whole-history sweep `clearAll` above does. A live
+     * toast for one of these ids is left on screen (it will dismiss itself, or the visitor
+     * dismisses it); only the history record is forgotten, matching what `dismiss` does for
+     * one at a time.
+     */
+    removeMany(ids: readonly string[]): void {
+        if (ids.length === 0) return;
+        const doomed = new Set(ids);
+        this.history = this.history.filter((record) => !doomed.has(record.id));
+        this.emit();
+    }
+
+    /**
      * Render the notification centre into a container. The centre is how a dismissed
      * notification stays reviewable, so it lists everything raised this session including
      * toasts that have already expired.
