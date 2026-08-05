@@ -38,6 +38,34 @@ import type { FixedString, VoicedString } from "../../components/setup/setupStri
 
 export const CIRENDER_VOICED = {
     /* ---------------------------------------------------------------- */
+    /* The empty list, before this screen has ever been used             */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * The one sentence on this whole screen that says why anyone would want a render on
+     * somebody else's computer at all, rather than the "Make a map" tab's local one. The
+     * button's own label is quoted rather than paraphrased, in the language actually on
+     * screen -- the English string quotes the English label, the Cantonese string quotes
+     * the Cantonese one -- so the words in the sentence match the words on the button.
+     */
+    "cirender.list.empty": {
+        en: [
+            'This lists renders sent to GitHub\'s own computers instead of yours, useful for a big world or a computer you would rather not tie up for hours. Nothing has been sent yet; fill in the form above and press "Render on GitHub" to start one.',
+            'This lists renders sent to GitHub\'s own computers instead of yours, useful for a big world or a computer you would rather not tie up for hours. Nothing has been sent yet; fill in the form above and press "Render on GitHub" to start one.',
+            'This lists renders sent to GitHub\'s own computers instead of yours, useful for a big world or a computer you would rather not tie up for hours. Nothing has been sent yet, so fill in the form above and press "Render on GitHub" to start one.',
+            'This lists renders handed off to GitHub\'s own computers instead of yours, worth it for a big world or a computer you cannot spare for hours. Nothing has been sent yet, so fill in the form above and press "Render on GitHub".',
+            'This lists renders handed off to GitHub\'s own computers instead of yours, worth it for a big world or a computer you would rather not chain to a desk for hours. Nothing has been sent yet, so fill in the form above and press "Render on GitHub", and let somebody else\'s computer do the sweating.',
+        ],
+        yue: [
+            "呢度會列出送咗去 GitHub 自己部機、而唔係喺你部機算嘅 render，啱晒個世界好大又或者唔想部機俾霸幾個鐘嘅時候用。而家仲未送過任何一個；喺上面填好張表，撳「喺 GitHub 度算圖」就開始。",
+            "呢度會列出送咗去 GitHub 自己部機、而唔係喺你部機算嘅 render，啱晒個世界好大又或者唔想部機俾霸幾個鐘嘅時候用。而家仲未送過任何一個；喺上面填好張表，撳「喺 GitHub 度算圖」就開始。",
+            "呢度會列出送咗去 GitHub 自己部機、而唔係喺你部機算嘅 render，啱晒個世界好大又或者唔想部機俾霸幾個鐘嘅時候用。而家仲未送過任何一個，喺上面填好張表，撳「喺 GitHub 度算圖」就得。",
+            "呢度會列出送咗去 GitHub 自己部機算嘅 render，唔係喺你部機度算，啱晒個世界大到誇張，又或者唔捨得部機俾人霸幾個鐘。而家仲未送過任何一個，喺上面填好張表，撳返個「喺 GitHub 度算圖」掣。",
+            "呢度會列出送咗去 GitHub 自己部機算嘅 render，唔係喺你部機度算，啱晒個世界大到癲，又或者唔捨得部機成日俾人綁住做苦力。而家仲未送過任何一個，喺上面填好張表，撳返個「喺 GitHub 度算圖」掣，等第二部機幫你捱義氣。",
+        ],
+    },
+
+    /* ---------------------------------------------------------------- */
     /* What the check found: what will be sent, and how much of it       */
     /* ---------------------------------------------------------------- */
 
@@ -961,6 +989,11 @@ export const CIRENDER_FIXED = {
 } as const satisfies Record<string, FixedString>;
 
 export const CIRENDER_FACTS = {
+    // What this list is for, and the exact label of the button that fills it.
+    "cirender.list.empty": {
+        en: ["GitHub's own computers", "Render on GitHub"],
+        yue: ["GitHub 自己部機", "喺 GitHub 度算圖"],
+    },
     // The asset name is what lets somebody confirm the "nothing to send" claim themselves.
     "cirender.upload.none": {
         en: ["{asset}", "not changed", "nothing will be sent"],

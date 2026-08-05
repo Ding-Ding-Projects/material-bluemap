@@ -272,7 +272,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <div class="mb-pages-screen">
+    <div class="mb-pages-screen" data-tutorial-anchor="pages-publish">
         <VCard variant="tonal" class="mb-4">
             <VCardTitle>{{ t("pages.title", "Put a map on the internet") }}</VCardTitle>
             <VCardText>
@@ -329,7 +329,7 @@ onBeforeUnmount(() => {
                         {{
                             t(
                                 "pages.renders.empty",
-                                "There is nothing rendered on this computer yet. Make a map first, then come back.",
+                                "This is the list of maps rendered on this computer, so one can be chosen to publish. There is nothing rendered here yet. Make a map first, then come back.",
                             )
                         }}
                     </p>
@@ -627,10 +627,24 @@ onBeforeUnmount(() => {
                 </VCardText>
             </VCard>
 
-            <!-- Sites this computer knows it published, so one can be found and taken down. -->
-            <VCard v-if="pages.published.value.length > 0" class="mb-3">
+            <!--
+                Sites this computer knows it published, so one can be found and taken down.
+                Shown even when empty, unlike a card that vanishes until the first publish:
+                a beginner who scrolls this far has no way to learn there is a "manage what
+                I already published" surface at all if it only exists once something is on
+                it.
+            -->
+            <VCard class="mb-3">
                 <VCardTitle>{{ t("pages.hosted.title", "Maps this computer has published") }}</VCardTitle>
                 <VCardText>
+                    <p v-if="pages.published.value.length === 0" class="text-medium-emphasis" data-test="hosted-empty">
+                        {{
+                            t(
+                                "pages.hosted.empty",
+                                "Nothing has been published from this computer yet. Once a map above is pushed to GitHub Pages, it appears here with its address, so it can be reopened or taken down.",
+                            )
+                        }}
+                    </p>
                     <div
                         v-for="site in pages.published.value"
                         :key="`${site.owner}/${site.repo}/${site.branch}`"

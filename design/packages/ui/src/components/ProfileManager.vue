@@ -581,11 +581,26 @@ function whatRemovalCosts(profile: ServerProfile): string[] {
             </div>
 
             <!--
+                Two different reasons to be empty, so only one message is ever shown: a
+                genuinely empty list has never had a map or a server, and needs to say what
+                either one is before "add" means anything; a filtered list still has both,
+                just hidden behind a query.
+            -->
+            <p v-if="profilesStore.profiles.length === 0" class="mb-profiles__empty" role="status">
+                {{
+                    t(
+                        "servers.empty",
+                        "Nothing is here yet. A map rendered on this computer is added automatically once it finishes; add a remote BlueMap server's address below to view one hosted elsewhere.",
+                    )
+                }}
+            </p>
+
+            <!--
                 An honest empty result keeps the field on screen, because the way out of it
                 is to clear the search rather than to look for a list that is not there.
             -->
             <p
-                v-if="profilesStore.profiles.length > 0 && visible.length === 0"
+                v-else-if="visible.length === 0"
                 class="mb-profiles__empty"
                 role="status"
             >

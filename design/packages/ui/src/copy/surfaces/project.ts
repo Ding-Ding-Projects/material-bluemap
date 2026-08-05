@@ -432,20 +432,26 @@ export const PROJECT_VOICED = {
             "呢個操作會由世界資料夾徹底清走 {name} 嘅 project 檔案。喺呢度冇得復原，呢個畫面上邊都冇復原掣。",
         ],
     },
+    /*
+     * The tab a beginner exploring the strip left-to-right is likely to open before ever
+     * learning what "Make a map" does, so it has to teach what a project is for -- a
+     * world's maps and settings, remembered so a repeat render needs no re-asking -- before
+     * pointing at the guide or the New project button as the two ways out of empty.
+     */
     "project.list.emptyScanned": {
         en: [
-            "None of the {scanned} worlds this computer knows about carries a project yet. Make a map with the guide, or start a project here and add maps to it.",
-            "None of the {scanned} worlds this computer knows about carries a project yet. Make a map with the guide, or start a project here and add maps to it.",
-            "None of the {scanned} worlds this computer knows about carries a project yet. Make a map with the guide, or start a project here and add maps to it.",
-            "Not one of the {scanned} worlds this computer knows about carries a project yet. Make a map with the guide, or start a project right here and add maps to it.",
-            "Not a single one of the {scanned} worlds this computer knows about carries a project yet, which is a very tidy kind of empty. Make a map with the guide, or start a project right here and add maps to it yourself.",
+            "A project remembers a world's maps and settings, so a repeat render needs no re-asking. None of the {scanned} worlds this computer knows about carries one yet. Make a map with the guide, or press New project above and add maps to it.",
+            "A project remembers a world's maps and settings, so a repeat render needs no re-asking. None of the {scanned} worlds this computer knows about carries one yet. Make a map with the guide, or press New project above and add maps to it.",
+            "A project remembers a world's maps and settings, so a repeat render needs no re-asking, and none of the {scanned} worlds this computer knows about carries one yet. Make a map with the guide, or press New project above and add maps to it.",
+            "A project remembers a world's maps and settings so a repeat render never has to ask twice, and not one of the {scanned} worlds this computer knows about carries one yet. Make a map with the guide, or press New project above and add maps to it yourself.",
+            "A project remembers a world's maps and settings so a repeat render never has to ask twice, and not a single one of the {scanned} worlds this computer knows about carries one yet, which is a very tidy kind of empty. Make a map with the guide, or press New project above and add maps to it yourself.",
         ],
         yue: [
-            "呢部電腦知道嘅 {scanned} 個世界之中，仲未有一個帶住 project。用引導整一張地圖，或者喺呢度開始一個 project 再加地圖入去。",
-            "呢部電腦知道嘅 {scanned} 個世界之中，仲未有一個帶住 project。用引導整一張地圖，或者喺呢度開始一個 project 再加地圖入去。",
-            "呢部電腦知道嘅 {scanned} 個世界之中，仲未有一個帶住 project。可以用引導整一張地圖，又或者喺呢度開始一個 project，再加地圖入去。",
-            "呢部電腦知道嘅 {scanned} 個世界，一個都未帶住 project。用引導整張地圖，或者直接喺呢度開個 project，自己加地圖入去。",
-            "呢部電腦知道嘅 {scanned} 個世界，連一個都未帶住 project，空得幾乾淨。用引導整張地圖，又或者直接喺呢度開個 project，自己動手加地圖入去。",
+            "Project 會記住一個世界嘅地圖同設定，等你再算圖嗰陣唔使再問一次。呢部電腦知道嘅 {scanned} 個世界之中，仲未有一個帶住 project。用引導整一張地圖，或者撳上面嘅「新增 project」，自己加地圖入去。",
+            "Project 會記住一個世界嘅地圖同設定，等你再算圖嗰陣唔使再問一次。呢部電腦知道嘅 {scanned} 個世界之中，仲未有一個帶住 project。用引導整一張地圖，或者撳上面嘅「新增 project」，自己加地圖入去。",
+            "Project 會記住一個世界嘅地圖同設定，等你再算圖嗰陣唔使再問一次，而呢部電腦知道嘅 {scanned} 個世界之中，仲未有一個帶住 project。用引導整一張地圖，或者撳上面嘅「新增 project」，自己加地圖入去。",
+            "Project 會記住一個世界嘅地圖同設定，等你下次算圖唔使再畀佢問多次，而呢部電腦知道嘅 {scanned} 個世界，一個都未帶住 project。用引導整張地圖，或者撳上面嘅「新增 project」，自己加地圖入去。",
+            "Project 會記住一個世界嘅地圖同設定，等你下次算圖唔使再畀佢問多次，而呢部電腦知道嘅 {scanned} 個世界，連一個都未帶住 project，空得幾乾淨。用引導整張地圖，或者撳上面嘅「新增 project」，自己動手加地圖入去。",
         ],
     },
     "project.list.noMatch": {
@@ -614,20 +620,27 @@ export const PROJECT_VOICED = {
             "地圖 {id} 正式加入咗呢個 project，由 BlueMap 自己個範本新鮮出爐，每項設定一出場就已經解釋到明明白白，好似有個貼心說明書。喺 project 儲存之前，磁碟度都仲係乜都未有，未使咁緊張。",
         ],
     },
+    /*
+     * The guided empty state a beginner is as likely to land on as the wizard: it has to
+     * teach what a map even is before "add one" means anything. Two facts are pinned rather
+     * than one -- that there are no maps yet, and that a map is one dimension of the world --
+     * because the second is the whole reason "add one" is the obvious next step rather than
+     * a mystery button.
+     */
     "project.maps.none": {
         en: [
-            "This project has no maps yet. Add one to say what should be rendered.",
-            "This project has no maps yet. Add one to say what should be rendered.",
-            "This project has no maps yet. Add one to say what should be rendered.",
-            "This project has no maps yet, not a single one. Add one to say what should actually be rendered.",
-            "This project has no maps yet, not even a tiny one. Add one and finally tell it what deserves to be rendered.",
+            "A map renders one dimension of this world with its own look and settings. This project has no maps yet, so add one below to say what gets rendered.",
+            "A map renders one dimension of this world with its own look and settings. This project has no maps yet, so add one below to say what gets rendered.",
+            "A map renders one dimension of this world with its own look and settings, and this project has no maps yet, not a single one. Add one below to say what gets rendered.",
+            "A map is one dimension of this world, rendered with its own look and settings, and this project has no maps yet, not even one. Add a map below and finally say what gets rendered.",
+            "A map is one dimension of this world, rendered with its own look and settings, and this project has no maps yet, not even a tiny one. Add a map below and finally tell it what deserves to be rendered.",
         ],
         yue: [
-            "呢個 project 仲冇地圖。加一張，話俾佢知要算咩圖。",
-            "呢個 project 仲冇地圖。加一張，話俾佢知要算咩圖。",
-            "呢個 project 仲冇地圖。加一張，話俾佢知要算咩圖先得。",
-            "呢個 project 仲冇地圖，一張都冇。加一張，正式話俾佢知要算咩圖。",
-            "呢個 project 淨返空氣，仲冇地圖，一張都冇。加一張啦，終於可以話俾佢知要算咩圖。",
+            "一張地圖代表呢個世界嘅一個維度，有自己嘅畫面同設定。呢個 project 而家未有地圖，喺下面加一張，話俾佢知要算咩。",
+            "一張地圖代表呢個世界嘅一個維度，有自己嘅畫面同設定。呢個 project 而家未有地圖，喺下面加一張，話俾佢知要算咩。",
+            "一張地圖代表呢個世界嘅一個維度，有自己嘅畫面同設定，而呢個 project 而家未有地圖，一張都冇。喺下面加一張，話俾佢知要算咩。",
+            "一張地圖即係呢個世界嘅一個維度，連埋自己嘅畫面同設定嗰種。呢個 project 而家未有地圖，一張都未有。喺下面加一張，正式話俾佢知要算咩。",
+            "一張地圖即係呢個世界嘅一個維度，連埋自己嘅畫面同設定嗰種。呢個 project 而家未有地圖，淨返一片空氣。喺下面加一張，終於可以話俾佢知要算咩。",
         ],
     },
     "project.maps.noMatch": {
@@ -892,20 +905,26 @@ export const PROJECT_VOICED = {
             "儲存空間 {id} 已經俾人請走，唔喺呢個 project 入面，仲要係永久嗰種。",
         ],
     },
+    /*
+     * "Storage" is jargon this project cannot avoid saying, so the first clause defines it
+     * in beginner terms -- where rendered tiles are written -- before the sentence gets to
+     * what happens without one. That definition is pinned alongside the two facts the
+     * original already protected: no storage of its own, and the fallback folder.
+     */
     "project.storages.none": {
         en: [
-            "This project names no storage of its own, so its maps write into the folder the app renders into. Add one to send them somewhere else.",
-            "This project names no storage of its own, so its maps write into the folder the app renders into. Add one to send them somewhere else.",
-            "This project names no storage of its own, so its maps write into the folder the app renders into. Add one to send them somewhere else.",
-            "This project names no storage of its own yet, so its maps write into the folder the app renders into by default. Add one to send them somewhere else.",
-            "This project names no storage of its own yet, so its maps default to writing into the folder the app renders into. Add one and finally send them somewhere else.",
+            "A storage is where rendered tiles are written, a folder on disk or a database. This project names no storage of its own, so its maps write into the folder the app renders into. Add one below to send them somewhere else.",
+            "A storage is where rendered tiles are written, a folder on disk or a database. This project names no storage of its own, so its maps write into the folder the app renders into. Add one below to send them somewhere else.",
+            "A storage is where rendered tiles are written, a folder on disk or a database. This project names no storage of its own, so its maps write into the folder the app renders into. Add one below to send them somewhere else.",
+            "A storage is where rendered tiles are written, a folder on disk or a database, and this project names no storage of its own yet, so its maps write into the folder the app renders into by default. Add one below to send them somewhere else.",
+            "A storage is where rendered tiles are written, a folder on disk or a database, and this project names no storage of its own yet, so its maps default to writing into the folder the app renders into. Add one below and finally send them somewhere else.",
         ],
         yue: [
-            "呢個 project 未有自己嘅儲存空間，所以佢啲地圖會寫入程式算圖嘅資料夾。加一個，就可以送去第度。",
-            "呢個 project 未有自己嘅儲存空間，所以佢啲地圖會寫入程式算圖嘅資料夾。加一個，就可以送去第度。",
-            "呢個 project 仲未有自己嘅儲存空間，所以佢啲地圖會寫入程式算圖嘅資料夾。加一個，就可以送去第度。",
-            "呢個 project 仲未有自己嘅儲存空間，佢啲地圖預設就會寫入程式算圖嘅資料夾。加一個，正式送去第度。",
-            "呢個 project 仲未有自己嘅儲存空間，佢啲地圖預設就會乖乖寫入程式算圖嘅資料夾。加一個，終於可以送去第度。",
+            "儲存空間即係算好嘅圖磚寫落嘅地方，可以係磁碟上面嘅一個資料夾，又或者一個資料庫。呢個 project 未有自己嘅儲存空間，所以佢啲地圖會寫入程式算圖嘅資料夾。喺下面加一個，就可以送去第度。",
+            "儲存空間即係算好嘅圖磚寫落嘅地方，可以係磁碟上面嘅一個資料夾，又或者一個資料庫。呢個 project 未有自己嘅儲存空間，所以佢啲地圖會寫入程式算圖嘅資料夾。喺下面加一個，就可以送去第度。",
+            "儲存空間即係算好嘅圖磚寫落嘅地方，可以係磁碟上面嘅一個資料夾，又或者一個資料庫。呢個 project 仲未有自己嘅儲存空間，所以佢啲地圖會寫入程式算圖嘅資料夾。喺下面加一個，就可以送去第度。",
+            "儲存空間即係算好嘅圖磚寫落嘅地方，可以係磁碟上面嘅一個資料夾，又或者一個資料庫，而呢個 project 仲未有自己嘅儲存空間，佢啲地圖預設就會寫入程式算圖嘅資料夾。喺下面加一個，正式送去第度。",
+            "儲存空間即係算好嘅圖磚寫落嘅地方，可以係磁碟上面嘅一個資料夾，又或者一個資料庫，而呢個 project 仲未有自己嘅儲存空間，佢啲地圖預設就會乖乖寫入程式算圖嘅資料夾。喺下面加一個，終於可以送去第度。",
         ],
     },
     "project.storages.noMatch": {
@@ -1260,6 +1279,12 @@ export const PROJECT_FIXED = {
     "project.editor.tab.maps": { en: "Maps ({maps})", yue: "地圖（{maps}）" },
     "project.editor.tab.storages": { en: "Storages ({storages})", yue: "儲存空間（{storages}）" },
     "project.editor.tab.render": { en: "How it renders", yue: "點樣算圖" },
+    /*
+     * The tab that browses and restores this project file's own version history. `project:save`
+     * already records one revision per save; this is the tab that lets somebody actually see and
+     * use that record, via `SimpleHistoryList`, which carries its own copy for the list itself.
+     */
+    "project.editor.tab.history": { en: "History", yue: "版本記錄" },
     "project.render.threads": { en: "Render threads", yue: "算圖執行緒" },
     "project.render.force": { en: "Draw everything again", yue: "全部重新畫" },
     "project.render.fixEdges": { en: "Redraw the edges too", yue: "連邊緣都重畫" },
@@ -1544,7 +1569,10 @@ export const PROJECT_FACTS = {
         yue: ["{to}", "{from}", "移動或者刪除"],
     },
     "project.maps.added": { en: ["{id}", "on disk", "saved"], yue: ["{id}", "磁碟", "儲存"] },
-    "project.maps.none": { en: ["no maps", "rendered"], yue: ["冇地圖", "算"] },
+    "project.maps.none": {
+        en: ["no maps yet", "one dimension"],
+        yue: ["未有地圖", "一個維度"],
+    },
     "project.maps.noMatch": { en: ["No map matches", "search"], yue: ["符合", "搜尋"] },
     "project.maps.idPreviewEmpty": {
         en: ["Type a name", "the id appears here"],
@@ -1606,8 +1634,8 @@ export const PROJECT_FACTS = {
         yue: ["{id}", "唔喺呢個 project 入面"],
     },
     "project.storages.none": {
-        en: ["no storage", "folder the app renders into", "Add one"],
-        yue: ["儲存空間", "算圖嘅資料夾", "加一個"],
+        en: ["where rendered tiles are written", "no storage", "folder the app renders into", "Add one"],
+        yue: ["圖磚寫落嘅地方", "儲存空間", "算圖嘅資料夾", "加一個"],
     },
     "project.storages.noMatch": { en: ["No storage matches", "search"], yue: ["符合", "搜尋"] },
     "project.storages.newNote": { en: ["template", "never in this file"], yue: ["範本", "唔會擺喺呢個檔案"] },

@@ -287,7 +287,7 @@ function confirmRemoval(): void {
                     storages.length === 0
                         ? t(
                               "project.storages.none",
-                              "This project names no storage of its own, so its maps write into the folder the app renders into. Add one to send them somewhere else.",
+                              "A storage is where rendered tiles are written, a folder on disk or a database. This project names no storage of its own, so its maps write into the folder the app renders into. Add one below to send them somewhere else.",
                           )
                         : t("project.storages.noMatch", "No storage matches that search.")
                 }}

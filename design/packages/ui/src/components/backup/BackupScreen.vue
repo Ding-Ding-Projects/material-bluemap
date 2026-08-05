@@ -704,7 +704,7 @@ defineExpose({ backups, kind, folder, owner, repo, source, inspect, check });
                     {{
                         t(
                             "backup.listings.none",
-                            "There are no backups in this repository yet. Releases it holds for other reasons are left alone; only a release carrying a backup.json is one of these.",
+                            'A backup packs a world or a rendered map and pushes it to a GitHub release, so it survives even if this computer does not. Releases it holds for other reasons are left alone; only a release carrying a backup.json is one of these. There are none here yet, so use "Back this up" above to make the first one.',
                         )
                     }}
                 </p>

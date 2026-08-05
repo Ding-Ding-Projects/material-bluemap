@@ -49,6 +49,30 @@ export const PROFILES_VOICED = {
         ],
     },
     /*
+     * The genuinely empty list, before anything has ever joined it. This is the first
+     * screen a newcomer clicking "Maps and servers" left-to-right across the tab strip is
+     * likely to meet, so it has to say what the two kinds of entry are -- a local render,
+     * a remote address -- rather than assuming the reader already knows what a "server" in
+     * this list means. "Added automatically" is pinned because it is the fact that keeps
+     * someone from hunting for an "add my render" button that does not exist.
+     */
+    "servers.empty": {
+        en: [
+            "Nothing is here yet. A map rendered on this computer is added automatically once it finishes; add a remote BlueMap server's address below to view one hosted elsewhere.",
+            "Nothing is here yet. A map rendered on this computer is added automatically once it finishes; add a remote BlueMap server's address below to view one hosted elsewhere.",
+            "Nothing is here yet. A map rendered on this computer is added automatically once it finishes; add a remote BlueMap server's address below to join it too.",
+            "Nothing here yet, not a map or a server. A finished render on this computer is added automatically; add a remote BlueMap server's address below if you would rather view one hosted elsewhere.",
+            "Nothing here yet, not a single map or server. A finished render on this computer is added automatically, no ceremony required; add a remote BlueMap server's address below if you would rather peek at one hosted somewhere else.",
+        ],
+        yue: [
+            "呢度而家乜都未有。喺呢部電腦算好嘅地圖，一算完就會自動加入呢個清單；想睇第二部機嘅地圖，可以喺下面加個遠端 BlueMap 伺服器嘅網址。",
+            "呢度而家乜都未有。喺呢部電腦算好嘅地圖，一算完就會自動加入呢個清單；想睇第二部機嘅地圖，可以喺下面加個遠端 BlueMap 伺服器嘅網址。",
+            "呢度而家乜都未有。喺呢部電腦算好嘅地圖，一算完就會自動加入呢個清單；喺下面加個遠端 BlueMap 伺服器嘅網址，都一樣加得入嚟。",
+            "呢度而家乜都未有，一張地圖、一個伺服器都冇。喺呢部電腦算好嘅地圖會自動加入嚟；想睇第二度嘅地圖，就喺下面加個遠端 BlueMap 伺服器嘅網址。",
+            "呢度而家乜都未有，一張地圖、一個伺服器都冇，得返一片空白。喺呢部電腦算好嘅地圖會自動加入嚟，唔使你郁手；想偷睇第二度嘅地圖，就喺下面加個遠端 BlueMap 伺服器嘅網址。",
+        ],
+    },
+    /*
      * An empty search result and an empty list look identical, and only one of them is
      * alarming. Every level says the query is what is hiding the rows and that clearing it
      * brings them back.
@@ -221,6 +245,11 @@ export const PROFILES_FIXED = {
 
 export const PROFILES_FACTS = {
     "servers.searchSummary": { en: ["{shown}", "{total}"], yue: ["{shown}", "{total}"] },
+    // That a local render needs no manual step, and where a remote one is added.
+    "servers.empty": {
+        en: ["added automatically", "server's address below"],
+        yue: ["會自動加入", "伺服器嘅網址"],
+    },
     // That the rows are filtered rather than deleted, and that clearing the query undoes it.
     "servers.noMatch": {
         en: ["whole list", "nothing was removed"],

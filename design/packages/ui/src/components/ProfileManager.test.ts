@@ -381,6 +381,20 @@ describe("opening a map", () => {
 /* The search                                                                 */
 /* -------------------------------------------------------------------------- */
 
+describe("the empty list, before a map or a server has ever joined it", () => {
+    it("explains what the two kinds of entry are, rather than showing an unmatched-search message", async () => {
+        profilesStore.profiles.splice(0, profilesStore.profiles.length);
+        mountManager();
+        await settle();
+
+        const text = manager().text();
+        expect(text).toContain("added automatically");
+        expect(text).toContain("server's address below");
+        expect(text).not.toContain("Nothing here matches that search");
+        expect(options()).toHaveLength(0);
+    });
+});
+
 describe("the search", () => {
     it("matches on the name", async () => {
         mountManager();

@@ -770,7 +770,7 @@ function askToForget(world: string): void {
                     t(
                         "project.list.emptyScanned",
                         { scanned },
-                        "None of the {scanned} worlds this computer knows about carries a project yet. Make a map with the guide, or start a project here and add maps to it.",
+                        "A project remembers a world's maps and settings, so a repeat render needs no re-asking. None of the {scanned} worlds this computer knows about carries one yet. Make a map with the guide, or press New project above and add maps to it.",
                     )
                 }}
             </p>

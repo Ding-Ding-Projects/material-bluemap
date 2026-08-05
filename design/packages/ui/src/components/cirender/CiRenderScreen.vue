@@ -1184,6 +1184,21 @@ onBeforeUnmount(() => {
                 </VBtn>
             </VAlert>
 
+            <!--
+                This screen otherwise offers only a form, with nothing telling a first-time
+                visitor what sending a render to GitHub buys them over the "Make a map" tab's
+                local render. Shown only before the first sync of this session or a resumed
+                one is known, so it never sits above a real row pretending the list is empty.
+            -->
+            <p v-if="renders.rows.value.length === 0" class="text-medium-emphasis mb-3" data-test="no-runs">
+                {{
+                    t(
+                        "cirender.list.empty",
+                        'This lists renders sent to GitHub\'s own computers instead of yours, useful for a big world or a computer you would rather not tie up for hours. Nothing has been sent yet; fill in the form above and press "Render on GitHub" to start one.',
+                    )
+                }}
+            </p>
+
             <VCard v-for="row in renders.rows.value" :key="row.syncId" class="mb-3" data-test="row">
                 <VCardTitle class="d-flex align-center ga-2">
                     <span>{{ row.repository || row.syncId }}</span>

@@ -255,7 +255,9 @@ describe("the render list", () => {
 
         const empty = mountScreen(fakeBridge({ renders: [] }).bridge);
         await flushPromises();
-        expect(empty.find('[data-test="no-renders"]').text()).toContain("Make a map first");
+        const emptyText = empty.find('[data-test="no-renders"]').text();
+        expect(emptyText).toContain("chosen to publish");
+        expect(emptyText).toContain("Make a map first");
     });
 
     it("is searched through the shared field, which is what carries the regex builder", async () => {
@@ -372,6 +374,17 @@ describe("gh, as three remedies rather than one dead end", () => {
 });
 
 describe("a published site", () => {
+    it("explains the list and stays visible, even before anything has been published", async () => {
+        const wrapper = mountScreen(fakeBridge().bridge);
+        await flushPromises();
+
+        const empty = wrapper.find('[data-test="hosted-empty"]');
+        expect(empty.exists()).toBe(true);
+        expect(empty.text()).toContain("pushed to GitHub Pages");
+        expect(empty.text()).toContain("reopened or taken down");
+        expect(wrapper.find('[data-test="hosted"]').exists()).toBe(false);
+    });
+
     it("is listed with its address, and with actions that really act", async () => {
         const wrapper = mountScreen(fakeBridge({ hosted: [HOSTED] }).bridge);
         await flushPromises();

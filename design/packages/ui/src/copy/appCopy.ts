@@ -753,20 +753,49 @@ export const APP_VOICED = {
             "{size}，攤喺 {files} 個檔案度，而家全部都係人哋幫你擺緊。",
         ],
     },
+    /*
+     * The radio list a beginner meets before ever choosing a repository: it needs to say
+     * what fills it in (a rendered map) and why (so one can be picked to publish) before
+     * "there is nothing here" reads as a next step rather than a wall. "Make a map first"
+     * is pinned verbatim because it is the one phrase that names the actual escape route.
+     */
     "pages.renders.empty": {
         en: [
-            "There is nothing rendered on this computer yet. Make a map first, then come back.",
-            "There is nothing rendered on this computer yet. Make a map first, then come back.",
-            "Nothing has been rendered on this computer yet. Make a map first, then come back here.",
-            "Nothing has been rendered on this computer yet, so there is nothing to publish. Make a map first, then come back.",
-            "Nothing has been rendered on this computer yet, so there is precisely nothing to publish. Go and make a map, then come back and we will talk.",
+            "This is the list of maps rendered on this computer, so one can be chosen to publish. There is nothing rendered here yet. Make a map first, then come back.",
+            "This is the list of maps rendered on this computer, so one can be chosen to publish. There is nothing rendered here yet. Make a map first, then come back.",
+            "This is the list of maps rendered on this computer, so one can be chosen to publish, and there is nothing rendered here yet. Make a map first, then come back here.",
+            "This lists the maps rendered on this computer, so one of them can be published, and there is nothing rendered here yet. Make a map first, then come back.",
+            "This lists the maps rendered on this computer, so one of them can be published, and there is nothing rendered here yet, not so much as a single tile. Make a map first, then come back and we will talk it over.",
         ],
         yue: [
-            "呢部電腦仲未算過任何地圖。請先整一張圖，再返嚟。",
-            "呢部電腦仲未算過任何地圖。請先整一張圖，再返嚟。",
-            "呢部電腦到而家都未算過地圖。不如先去整一張，再返嚟呢度。",
-            "呢部電腦到而家都未算過地圖，所以冇嘢好發佈。先去整一張圖，再返嚟。",
-            "呢部電腦到而家一張圖都未算過，所以真係一啲嘢都冇得發佈。去整張圖先，返嚟先再傾。",
+            "呢度會列出喺呢部電腦算好嘅地圖，等你揀一張出嚟發佈。而家仲未算過任何地圖。請先整一張圖，再返嚟。",
+            "呢度會列出喺呢部電腦算好嘅地圖，等你揀一張出嚟發佈。而家仲未算過任何地圖。請先整一張圖，再返嚟。",
+            "呢度會列出喺呢部電腦算好嘅地圖，等你揀一張出嚟發佈，而家仲未算過任何地圖。請先整一張圖，再返嚟呢度。",
+            "呢度會列出喺呢部電腦算好嘅地圖，等你揀一張出嚟發佈，而家仲未算過任何地圖。請先整一張圖，再返嚟。",
+            "呢度會列出喺呢部電腦算好嘅地圖，等你揀一張出嚟發佈，而家仲未算過任何地圖，一嚿圖磚都未有。請先整一張圖，再返嚟慢慢傾。",
+        ],
+    },
+    /*
+     * The card that lists sites this computer already published, always on screen now
+     * rather than only after the first publish -- see `PagesScreen.vue` for why an
+     * always-hidden-until-nonempty card teaches nothing. Both halves of what the card is
+     * for are pinned: a published map lands here on its own, and it can be reopened or
+     * taken down from here.
+     */
+    "pages.hosted.empty": {
+        en: [
+            "Nothing has been published from this computer yet. Once a map above is pushed to GitHub Pages, it appears here with its address, so it can be reopened or taken down.",
+            "Nothing has been published from this computer yet. Once a map above is pushed to GitHub Pages, it appears here with its address, so it can be reopened or taken down.",
+            "Nothing has been published from this computer yet. Once a map above is pushed to GitHub Pages, it appears here with its address, ready to be reopened or taken down.",
+            "Nothing published from this computer yet, not one map. Once a map above is pushed to GitHub Pages, it turns up here with its address, ready to be reopened or taken down.",
+            "Nothing published from this computer yet, not one map, not one byte. Once a map above is pushed to GitHub Pages, it turns up here with its address, all set to be reopened or taken down whenever you like.",
+        ],
+        yue: [
+            "呢部電腦而家仲未發佈過任何地圖。上面嗰張圖一推咗上 GitHub Pages，就會喺呢度出現埋佢個網址，可以隨時打開返或者落架。",
+            "呢部電腦而家仲未發佈過任何地圖。上面嗰張圖一推咗上 GitHub Pages，就會喺呢度出現埋佢個網址，可以隨時打開返或者落架。",
+            "呢部電腦而家仲未發佈過任何地圖。上面嗰張圖一推咗上 GitHub Pages，就會喺呢度出現埋佢個網址，隨時可以打開返或者落架。",
+            "呢部電腦而家仲未發佈過任何地圖，一張都未有。上面嗰張圖一推咗上 GitHub Pages，就會喺呢度冒出嚟，帶埋個網址，隨時可以打開返或者落架。",
+            "呢部電腦而家仲未發佈過任何地圖，一張都未有，一個位元組都未上網。上面嗰張圖一推咗上 GitHub Pages，就會喺呢度彈出嚟，帶埋個網址，隨時任你打開返或者落架。",
         ],
     },
     "pages.ack": {
@@ -1156,7 +1185,14 @@ export const FACTS = {
     },
     "pages.size": { en: ["{size}", "{files}"], yue: ["{size}", "{files}"] },
     "pages.published.size": { en: ["{size}", "{files}"], yue: ["{size}", "{files}"] },
-    "pages.renders.empty": { en: ["rendered"], yue: ["算"] },
+    "pages.renders.empty": {
+        en: ["nothing rendered here yet", "Make a map first"],
+        yue: ["未算過任何地圖", "請先整一張圖"],
+    },
+    "pages.hosted.empty": {
+        en: ["pushed to GitHub Pages", "reopened or taken down"],
+        yue: ["推咗上 GitHub Pages", "打開返或者落架"],
+    },
     "pages.ack": { en: ["whole map", "replace"], yue: ["成張地圖", "取代"] },
     "pages.blocked.acknowledge": { en: ["publish", "branch"], yue: ["發佈", "分支"] },
     "pages.oversized": { en: ["{path}", "100 MB"], yue: ["{path}", "100 MB"] },

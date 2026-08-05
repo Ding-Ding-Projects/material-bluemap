@@ -489,20 +489,26 @@ export const BACKUP_VOICED = {
      * is named at every level, along with the promise that the other releases were left
      * alone rather than examined and rejected.
      */
+    /*
+     * The reason to make one at all, ahead of the fact this project already pinned about
+     * which releases it leaves alone. A newcomer landing here has not yet decided a backup
+     * is worth having, so "what" and "why" now come before "here is a rule about how it is
+     * detected".
+     */
     "backup.listings.none": {
         en: [
-            "There are no backups in this repository yet. Releases it holds for other reasons are left alone; only a release carrying a backup.json is one of these.",
-            "There are no backups in this repository yet. Releases it holds for other reasons are left alone; only a release carrying a backup.json is one of these.",
-            "There are no backups in this repository yet. Releases it holds for other reasons are left alone; only a release carrying a backup.json counts as one of these.",
-            "No backups in this repository yet. Releases it holds for other reasons are left alone entirely; only a release carrying a backup.json counts as one of these.",
-            "No backups in this repository yet. Whatever releases it holds for other reasons are left alone entirely, untouched and unbothered; only a release carrying a backup.json counts as one of these.",
+            'A backup packs a world or a rendered map and pushes it to a GitHub release, so it survives even if this computer does not. Releases it holds for other reasons are left alone; only a release carrying a backup.json is one of these. There are none here yet, so use "Back this up" above to make the first one.',
+            'A backup packs a world or a rendered map and pushes it to a GitHub release, so it survives even if this computer does not. Releases it holds for other reasons are left alone; only a release carrying a backup.json is one of these. There are none here yet, so use "Back this up" above to make the first one.',
+            'A backup packs a world or a rendered map and pushes it to a GitHub release, so it is not lost if this computer is. Releases it holds for other reasons are left alone; only a release carrying a backup.json counts as one of these. There are none here yet, so use "Back this up" above to make the first one.',
+            'A backup packs a world or a rendered map and pushes it up to a GitHub release, so losing this computer does not mean losing them too. Releases it holds for other reasons are left alone entirely; only a release carrying a backup.json counts as one of these. Nothing here yet, so hit "Back this up" above and start the collection.',
+            'A backup packs a world or a rendered map and pushes it up to a GitHub release, so this computer is free to explode without taking either of them with it. Whatever releases it holds for other reasons are left alone entirely, untouched and unbothered; only a release carrying a backup.json counts as one of these. Nothing here yet, so hit "Back this up" above and start the collection.',
         ],
         yue: [
-            "呢個儲存庫入面暫時仲未有備份。佢因為其他原因而擺住嘅 release 一律唔會郁；只有帶住 backup.json 嘅 release 先算係呢類嘢。",
-            "呢個儲存庫入面暫時仲未有備份。佢因為其他原因而擺住嘅 release 一律唔會郁；只有帶住 backup.json 嘅 release 先算係呢類嘢。",
-            "呢個儲存庫入面暫時仲未有備份。佢因為其他原因而擺住嘅 release 一律唔會郁；只有帶住 backup.json 嘅 release 先至算係呢類嘢。",
-            "呢個儲存庫入面暫時仲未有備份。佢因為其他原因而擺住嘅 release 完全唔會郁；只有帶住 backup.json 嘅 release 先至算係呢類嘢。",
-            "呢個儲存庫入面暫時仲未有備份。佢因為其他原因而擺住嘅 release 完全唔會郁，唔會掂亦都唔會嘈到佢哋；只有帶住 backup.json 嘅 release 先至算係呢類嘢。",
+            "備份即係將世界或者算好嘅地圖打包，推上一個 GitHub release，即使呢部電腦有咩事都唔會一齊冇咗。呢個儲存庫入面因為其他原因而擺住嘅 release 一律唔會郁；只有帶住 backup.json 嘅 release 先算係呢類嘢。呢度而家一個備份都未有，上面撳「備份呢個」整第一個。",
+            "備份即係將世界或者算好嘅地圖打包，推上一個 GitHub release，即使呢部電腦有咩事都唔會一齊冇咗。呢個儲存庫入面因為其他原因而擺住嘅 release 一律唔會郁；只有帶住 backup.json 嘅 release 先算係呢類嘢。呢度而家一個備份都未有，上面撳「備份呢個」整第一個。",
+            "備份即係將世界或者算好嘅地圖打包，推上一個 GitHub release，就算呢部電腦有咩冬瓜豆腐都唔會一齊冧。呢個儲存庫入面因為其他原因而擺住嘅 release 一律唔會郁；只有帶住 backup.json 嘅 release 先至算係呢類嘢。呢度而家一個備份都未有，喺上面撳「備份呢個」整返第一個。",
+            "備份即係將世界或者算好嘅地圖打包，推上一個 GitHub release，即使呢部電腦冧咗都唔會累埋佢哋。佢因為其他原因而擺住嘅 release 完全唔會郁；只有帶住 backup.json 嘅 release 先至算係呢類嘢。呢度而家一個備份都未有，喺上面撳「備份呢個」，開始儲第一個。",
+            "備份即係將世界或者算好嘅地圖打包，推上一個 GitHub release，就算呢部電腦炸咗都唔會拉埋佢哋落水。佢因為其他原因而擺住嘅 release 完全唔會郁，唔會掂亦都唔會嘈到佢哋；只有帶住 backup.json 嘅 release 先至算係呢類嘢。呢度而家一個備份都未有，喺上面撳「備份呢個」，開始儲返第一個。",
         ],
     },
     "backup.listings.noMatch": {

@@ -380,6 +380,18 @@ describe("the pitch and its price are both on the page", () => {
     });
 });
 
+describe("the list of past and running renders, before any have happened", () => {
+    it("explains what the list is for instead of just being blank", () => {
+        const wrapper = mountScreen(fakeBridge(preflight()));
+        expect(wrapper.find('[data-test="row"]').exists()).toBe(false);
+
+        const empty = wrapper.find('[data-test="no-runs"]');
+        expect(empty.exists()).toBe(true);
+        expect(empty.text()).toContain("GitHub's own computers");
+        expect(empty.text()).toContain("Render on GitHub");
+    });
+});
+
 describe("consent", () => {
     it("will not start against a public repository until the box is ticked", async () => {
         // The world is already uploaded, so the public acknowledgement is the only thing

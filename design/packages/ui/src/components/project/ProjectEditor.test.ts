@@ -11,7 +11,7 @@
  * render says why instead of offering a button that would draw nothing.
  */
 
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
@@ -295,6 +295,9 @@ describe("starting the render", () => {
         const wrapper = await editor(createProject("Empty", STAMP));
 
         expect(wrapper.text()).toContain("no maps yet");
+        // The empty state teaches what a map is before it says to add one, not just that
+        // there is not one yet.
+        expect(wrapper.text()).toContain("one dimension");
         expect(buttonNamed(wrapper, "Render this project")?.disabled).toBe(true);
         wrapper.unmount();
     });
@@ -478,6 +481,62 @@ describe("the render tab", () => {
 
         expect(wrapper.text()).toContain("Render threads");
         expect(wrapper.text()).not.toContain("Redraw the edges too");
+        wrapper.unmount();
+    });
+});
+
+/**
+ * Reachability guard: `project:save` has recorded one revision per save since the project
+ * layer landed (its own doc comment promises exactly that), and `main/project/ipc.ts`
+ * registers `project:history`/`project:restore` beside it - but nothing in this package ever
+ * mounted a panel that reads either one back. This is the test that fails the moment the
+ * History tab, or its wiring to those two channels, is removed or silently disconnected
+ * again: it does not merely check that "History" appears in a tab strip, it proves the tab's
+ * content really calls `project.history` with this project's own world folder, which is what
+ * a `SimpleHistoryList` stub or a tab with an empty body would still fail.
+ */
+describe("the history tab", () => {
+    const originalBridge = (globalThis as { materialBluemap?: unknown }).materialBluemap;
+
+    afterEach(() => {
+        (globalThis as { materialBluemap?: unknown }).materialBluemap = originalBridge;
+    });
+
+    it("calls project:history for this project's own world the moment it is opened", async () => {
+        const history = vi.fn().mockResolvedValue({
+            available: true,
+            reason: null,
+            worldFolder: WORLD,
+            repository: "C:/app-data/project-history/abc123",
+            revisions: [],
+            remotes: [],
+        });
+        const restore = vi.fn();
+        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+            project: { history, restore },
+        };
+
+        const wrapper = await editor();
+
+        expect(history).not.toHaveBeenCalled();
+
+        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("History"))?.trigger("click");
+        await flushPromises();
+
+        expect(history).toHaveBeenCalledWith(WORLD, undefined);
+        expect(wrapper.text()).toContain("C:/app-data/project-history/abc123");
+        wrapper.unmount();
+    });
+
+    it("names the missing shell rather than offering a Restore button that would throw", async () => {
+        (globalThis as { materialBluemap?: unknown }).materialBluemap = undefined;
+
+        const wrapper = await editor();
+
+        await wrapper.findAll('[role="tab"]').find((tab) => tab.text().includes("History"))?.trigger("click");
+        await flushPromises();
+
+        expect(wrapper.text()).toContain("no version history");
         wrapper.unmount();
     });
 });

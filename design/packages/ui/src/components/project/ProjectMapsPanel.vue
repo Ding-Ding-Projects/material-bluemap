@@ -495,7 +495,10 @@ function confirmRemoval(): void {
             <p v-if="listed.length === 0" class="mb-project-maps__note">
                 {{
                     maps.length === 0
-                        ? t("project.maps.none", "This project has no maps yet. Add one to say what should be rendered.")
+                        ? t(
+                              "project.maps.none",
+                              "A map renders one dimension of this world with its own look and settings. This project has no maps yet, so add one below to say what gets rendered.",
+                          )
                         : t("project.maps.noMatch", "No map matches that search.")
                 }}
             </p>
