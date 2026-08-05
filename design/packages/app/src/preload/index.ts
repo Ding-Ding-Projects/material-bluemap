@@ -23,6 +23,7 @@ import type {
     PagesStopResult,
     PagesTarget,
 } from "../main/pages/index.js";
+import type { RemoteHostEvent } from "../main/remote/index.js";
 import type {
     MapStorageDefaultReadout,
     RenderMemoryReadout,
@@ -1778,6 +1779,38 @@ interface MaterialBlueMapBridge {
     cancelRemoteRender(renderId: string): Promise<boolean>;
     activeRemoteRenders(): Promise<readonly string[]>;
 
+    /* ---- Hosting an already-rendered map on that same kind of machine ------ */
+
+    /**
+     * Publishes (or republishes - it is the same call) an already-rendered map to a Linux
+     * server, over SSH, in a detached Docker container. Progress arrives on its own event
+     * channel; see `RemoteHostingScreen.vue`.
+     */
+    startRemoteHosting(request: unknown): Promise<unknown>;
+    /** Every map this build remembers hosting, newest first. */
+    remoteHostingRecords(): Promise<readonly unknown[]>;
+    remoteHostingRecord(hostingId: string): Promise<unknown>;
+    /** Re-checks whether a hosted map still answers, without transferring anything. */
+    refreshRemoteHosting(hostingId: string): Promise<unknown>;
+    /**
+     * Stops hosting: the container is torn down and, unless the target keeps its files, the
+     * remote copy of the world is removed too. The interface puts this behind its own
+     * super-confirmation gate before ever calling it.
+     */
+    stopRemoteHosting(hostingId: string): Promise<unknown>;
+    /** Progress and log lines for a hosting run in progress. */
+    onRemoteHostingEvent(listener: (event: RemoteHostEvent) => void): () => void;
+    /**
+     * Lists one folder on the target, for the Explorer-style remote browser.
+     *
+     * Detects a Linux or a Windows remote and lists it the way that remote actually
+     * understands, and reads the same "does this look like a Minecraft world" signal
+     * `inspectWorldFolder` reads locally, in the same round trip as the listing. Never
+     * rejects: a bad path, a refused permission or a dead connection is an answer the
+     * browser renders.
+     */
+    browseRemoteDirectory(target: unknown, path: string): Promise<unknown>;
+
     ciRenderPreflight(request: CiSyncRequest): Promise<{ ok: true; value: CiPreflight } | { ok: false; message: string }>;
     startCiRender(request: CiSyncRequest): Promise<CiSyncResult>;
     /** Polls a recorded run without starting anything. Resuming and starting are one call. */
@@ -2062,6 +2095,19 @@ const bridge: MaterialBlueMapBridge = {
     startRemoteRender: (request) => ipcRenderer.invoke("remote:render", request),
     cancelRemoteRender: (renderId) => ipcRenderer.invoke("remote:cancel", renderId),
     activeRemoteRenders: () => ipcRenderer.invoke("remote:active"),
+    startRemoteHosting: (request) => ipcRenderer.invoke("hosting:start", request),
+    remoteHostingRecords: () => ipcRenderer.invoke("hosting:records"),
+    remoteHostingRecord: (hostingId) => ipcRenderer.invoke("hosting:record", hostingId),
+    refreshRemoteHosting: (hostingId) => ipcRenderer.invoke("hosting:refresh", hostingId),
+    stopRemoteHosting: (hostingId) => ipcRenderer.invoke("hosting:stop", hostingId),
+    onRemoteHostingEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: RemoteHostEvent): void => listener(payload);
+        ipcRenderer.on("hosting:event", forward);
+        return () => {
+            ipcRenderer.off("hosting:event", forward);
+        };
+    },
+    browseRemoteDirectory: (target, path) => ipcRenderer.invoke("remote:browse", target, path),
 
     ciRenderPreflight: (request) => ipcRenderer.invoke("cirender:preflight", request),
     startCiRender: (request) => ipcRenderer.invoke("cirender:start", request),
