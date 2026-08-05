@@ -28,6 +28,9 @@ import type {
     CiRepositoryNameAvailability,
     CiRoute,
     CiRunReport,
+    CiScheduleCadence,
+    CiScheduleStatus,
+    CiScheduleWriteResult,
     CiSyncEvent,
     CiSyncFailure,
     CiSyncPhase,
@@ -377,6 +380,18 @@ export interface CiRenders {
     readonly canCheckRepoName: boolean;
     readonly canListRepositories: boolean;
 
+    /**
+     * Scheduled re-rendering: on or off, its cadence, and what
+     * `.github/workflows/scheduled-render.yml` last found. See docs/scheduled-render.md.
+     * `canManageSchedule` is false on a build without the two bridge methods, exactly like
+     * the four `canX` flags above - the settings section simply does not offer it then.
+     */
+    readonly schedule: Ref<CiScheduleStatus | null>;
+    readonly loadingSchedule: Ref<boolean>;
+    readonly scheduleFailure: Ref<string | null>;
+    readonly savingSchedule: Ref<boolean>;
+    readonly canManageSchedule: boolean;
+
     check(request: CiSyncRequest): Promise<CiPreflight | null>;
     start(request: CiSyncRequest): Promise<CiSyncResult | null>;
     poll(syncId: string): Promise<CiSyncResult | null>;
@@ -405,6 +420,22 @@ export interface CiRenders {
     checkRepoName(owner: string, repo: string): Promise<void>;
     /** Drops whatever the last check said, for a field that just changed underneath it. */
     clearNameAvailability(): void;
+    /** Reads the current schedule status for one repository. */
+    loadSchedule(owner: string, repo: string, accountId?: string): Promise<void>;
+    /**
+     * Turns scheduled re-rendering on (with a cadence) or off, for one recorded sync, then
+     * re-reads the status so the screen shows exactly what was just written rather than an
+     * optimistic guess. Returns the write result, so the caller can show a refusal - most
+     * often "this world has never been uploaded" - beside the control that failed.
+     */
+    saveSchedule(
+        syncId: string,
+        owner: string,
+        repo: string,
+        enabled: boolean,
+        cadence: CiScheduleCadence,
+        accountId?: string,
+    ): Promise<CiScheduleWriteResult | null>;
     /**
      * Drops whatever the last "Check before anything is sent" report said.
      *
@@ -441,6 +472,11 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
     const repositoriesFailure = ref<string | null>(null);
     const nameAvailability = ref<CiRepositoryNameAvailability | null>(null);
     const checkingName = ref(false);
+
+    const schedule = ref<CiScheduleStatus | null>(null);
+    const loadingSchedule = ref(false);
+    const scheduleFailure = ref<string | null>(null);
+    const savingSchedule = ref(false);
 
     let nextLogId = 1;
     // Bumped on every checkRepoName/clearNameAvailability call so a slow, out-of-order
@@ -582,6 +618,52 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
         }
     }
 
+    async function loadSchedule(owner: string, repo: string, accountId?: string): Promise<void> {
+        if (bridge?.ciRenderScheduleRead === undefined) return;
+        loadingSchedule.value = true;
+        scheduleFailure.value = null;
+        try {
+            const answer = await bridge.ciRenderScheduleRead(owner, repo, accountId);
+            if (answer.ok) schedule.value = answer.value;
+            else scheduleFailure.value = answer.message;
+        } catch (error) {
+            scheduleFailure.value = describe(error);
+        } finally {
+            loadingSchedule.value = false;
+        }
+    }
+
+    async function saveSchedule(
+        syncId: string,
+        owner: string,
+        repo: string,
+        enabled: boolean,
+        cadence: CiScheduleCadence,
+        accountId?: string,
+    ): Promise<CiScheduleWriteResult | null> {
+        if (bridge?.ciRenderScheduleWrite === undefined) return null;
+        savingSchedule.value = true;
+        scheduleFailure.value = null;
+        try {
+            const answer = await bridge.ciRenderScheduleWrite(syncId, enabled, cadence, accountId);
+            if (!answer.ok) {
+                scheduleFailure.value = answer.message;
+                return null;
+            }
+            // Re-read rather than optimistically setting `schedule.value` from what was just
+            // sent: the workflow's own last-check fields are untouched by this write, and a
+            // screen that invented them locally would show a check that never happened the
+            // moment scheduling is turned on.
+            if (answer.value.ok) await loadSchedule(owner, repo, accountId);
+            return answer.value;
+        } catch (error) {
+            scheduleFailure.value = describe(error);
+            return null;
+        } finally {
+            savingSchedule.value = false;
+        }
+    }
+
     const unsubscribe = bridge === null ? null : bridge.onCiRenderEvent(handle);
 
     return {
@@ -611,6 +693,12 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
         canSuggestRepoName: bridge?.suggestCiRepoName !== undefined,
         canCheckRepoName: bridge?.checkCiRepoName !== undefined,
         canListRepositories: bridge?.listExistingRepositories !== undefined,
+
+        schedule,
+        loadingSchedule,
+        scheduleFailure,
+        savingSchedule,
+        canManageSchedule: bridge?.ciRenderScheduleRead !== undefined && bridge?.ciRenderScheduleWrite !== undefined,
 
         async check(request: CiSyncRequest): Promise<CiPreflight | null> {
             if (bridge === null) return null;
@@ -768,6 +856,9 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
             nameCheckToken++;
             nameAvailability.value = null;
         },
+
+        loadSchedule,
+        saveSchedule,
 
         clearPreflight(): void {
             preflight.value = null;

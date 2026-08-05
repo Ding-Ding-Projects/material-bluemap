@@ -28,6 +28,7 @@ import type {
     CiRepositoryChoice,
     CiRepositoryNameAvailability,
     CiRunReport,
+    CiScheduleStatus,
     CiSyncEvent,
     CiSyncResult,
 } from "./ciRenderBridge.js";
@@ -793,6 +794,119 @@ describe("an existing repository, picked instead of typed", () => {
         await renders.loadRepositories();
         expect(renders.repositories.value).toEqual([]);
         expect(renders.repositoriesFailure.value).toBe("offline");
+        renders.dispose();
+    });
+});
+
+describe("scheduled re-rendering", () => {
+    function status(overrides: Partial<CiScheduleStatus> = {}): CiScheduleStatus {
+        return {
+            enabled: false,
+            cadence: null,
+            lastCheckAt: null,
+            lastCheckResult: null,
+            lastCheckReason: null,
+            lastRenderAt: null,
+            nextCheckAt: null,
+            checksPerMonth: null,
+            costDescription: null,
+            ...overrides,
+        };
+    }
+
+    it("canManageSchedule is false without both bridge methods, and neither call is offered", () => {
+        const { bridge: host } = bridge();
+        const renders = createCiRenders(host);
+        expect(renders.canManageSchedule).toBe(false);
+        renders.dispose();
+    });
+
+    it("canManageSchedule is true only when both read and write are present", () => {
+        const { bridge: readOnly } = bridge({
+            ciRenderScheduleRead: () => Promise.resolve({ ok: true, value: status() }),
+        });
+        expect(createCiRenders(readOnly).canManageSchedule).toBe(false);
+
+        const { bridge: both } = bridge({
+            ciRenderScheduleRead: () => Promise.resolve({ ok: true, value: status() }),
+            ciRenderScheduleWrite: () => Promise.resolve({ ok: true, value: { ok: true } }),
+        });
+        expect(createCiRenders(both).canManageSchedule).toBe(true);
+    });
+
+    it("loadSchedule reads the status into schedule.value", async () => {
+        const { bridge: host } = bridge({
+            ciRenderScheduleRead: (owner, repo) =>
+                Promise.resolve({
+                    ok: true,
+                    value: status({ enabled: true, cadence: "daily", lastCheckResult: "unchanged" }),
+                }),
+        });
+        const renders = createCiRenders(host);
+        await renders.loadSchedule("o", "r");
+        expect(renders.schedule.value?.enabled).toBe(true);
+        expect(renders.schedule.value?.cadence).toBe("daily");
+        expect(renders.scheduleFailure.value).toBeNull();
+        renders.dispose();
+    });
+
+    it("loadSchedule reports a failure message rather than leaving a stale status silently", async () => {
+        const { bridge: host } = bridge({
+            ciRenderScheduleRead: () => Promise.resolve({ ok: false, message: "not signed in" }),
+        });
+        const renders = createCiRenders(host);
+        await renders.loadSchedule("o", "r");
+        expect(renders.scheduleFailure.value).toBe("not signed in");
+        expect(renders.schedule.value).toBeNull();
+        renders.dispose();
+    });
+
+    it("saveSchedule re-reads the status on success, rather than inventing one locally", async () => {
+        let reads = 0;
+        const { bridge: host } = bridge({
+            ciRenderScheduleRead: () => {
+                reads++;
+                return Promise.resolve({ ok: true, value: status({ enabled: true, cadence: "weekly" }) });
+            },
+            ciRenderScheduleWrite: () => Promise.resolve({ ok: true, value: { ok: true } }),
+        });
+        const renders = createCiRenders(host);
+        const result = await renders.saveSchedule("sync-1", "o", "r", true, "weekly");
+        expect(result).toEqual({ ok: true });
+        expect(reads).toBe(1);
+        expect(renders.schedule.value?.cadence).toBe("weekly");
+        renders.dispose();
+    });
+
+    it("saveSchedule surfaces a refusal (world never uploaded) without re-reading", async () => {
+        let reads = 0;
+        const { bridge: host } = bridge({
+            ciRenderScheduleRead: () => {
+                reads++;
+                return Promise.resolve({ ok: true, value: status() });
+            },
+            ciRenderScheduleWrite: () =>
+                Promise.resolve({
+                    ok: true,
+                    value: { ok: false, failure: { code: "not-uploaded-yet", message: "sync it first" } },
+                }),
+        });
+        const renders = createCiRenders(host);
+        const result = await renders.saveSchedule("sync-1", "o", "r", true, "daily");
+        expect(result?.ok).toBe(false);
+        expect(reads).toBe(0);
+        renders.dispose();
+    });
+
+    it("saveSchedule reports the transport message when the write channel itself fails", async () => {
+        const { bridge: host } = bridge({
+            ciRenderScheduleRead: () => Promise.resolve({ ok: true, value: status() }),
+            ciRenderScheduleWrite: () => Promise.resolve({ ok: false, message: "no route" }),
+        });
+        const renders = createCiRenders(host);
+        const result = await renders.saveSchedule("sync-1", "o", "r", true, "daily");
+        expect(result).toBeNull();
+        expect(renders.scheduleFailure.value).toBe("no route");
         renders.dispose();
     });
 });
