@@ -86,17 +86,43 @@ Ported on 2026-08-04, in `packages/engine/src/map/rendermanager/`:
 Not ported, and so keeping this phase open:
 
 - **Watch-driven re-render.** `WatchService` and `MCAWorldRegionWatchService` exist in the
-  engine, but nothing joins a file-system event to a render task.
-- **The full HTTP routes and server-sent events.** `packages/server` is still four files: a
-  static handler, an HTTP server, the remote proxy and the index.
-- **The standalone server CLI and its Dockerfile.** `packages/cli` is a stub with no tests.
+  engine, but nothing joins a file-system event to a render task (issue #40).
+- **The standalone server CLI and its Dockerfile.** `packages/cli` is a stub with no tests
+  (issue #42).
 
-Not proven, and worth stating plainly:
+Ported on 2026-08-05 (issue #41), in `packages/server/`:
 
-- **Nothing outside `packages/engine` calls the render manager.** It is exported from
-  `packages/engine/src/index.ts` and consumed only by its own tests. Local rendering still
-  goes through upstream's Java engine per D17. This is the project's recurring
-  "built, tested, unreachable" shape, named here rather than discovered later.
+- **The full HTTP routes and server-sent events.** `packages/server` was four files: a
+  static handler, an HTTP server, the remote proxy and the index. Three commits added a
+  fifth and sixth handler and a live-data layer alongside them, extending rather than
+  rewriting the four: `MapStorageHandler.ts` (`d78bbbc`) ports
+  `MapStorageRequestHandler.java`'s tile/settings/textures/assets routes and its exact
+  gzip-negotiation rules against a real `MapStorage`; `SseConnectionManager.ts` and
+  `LiveDataBroadcaster.ts` (`00261d4`) port `SseConnection`/`SseConnectionManager`/
+  `LiveDataSupplierBroadcaster.java` — real Server-Sent Events, confirmed from the Java
+  rather than assumed, since `MapRequestHandler.java` is the only upstream web file
+  mentioning `text/event-stream`. `live/players.json` and `live/markers.json` answer with
+  upstream's own empty shape (`{"players":[]}`, `{}`) rather than 404ing, honest stubs since
+  local live-player tracking is still Phase I. Not yet done: `design/docs/deviations.md`
+  has no formal entry yet for this phase's two intentional additions (the
+  `/maps/{id}/update` trigger below, and the `res.flushHeaders()` fix the new SSE tests
+  caught — Node buffers response headers until the first write, and nothing forced a flush
+  on connect).
+
+Not proven, made less true on 2026-08-05 (issue #29, landed with #41 above):
+
+- **Something outside `packages/engine` now calls the render manager.**
+  `packages/server/src/render/RenderDriver.ts` (`19103df`) constructs a real
+  `MapUpdateTask` (via upstream's own `MapUpdatePreparationTask.updateMap`) and schedules it
+  on a real `RenderManager`, exercised by a test that is not mocked at any layer
+  `packages/engine`'s own `rendertasks.test.ts` leaves mocked — it drives a real
+  `HiresModelManager` and reads real tiles back from a real `FileMapStorage`. What that test
+  does **not** do: render a `packages/worldgen`-generated world through a real resource
+  pack, which is what issue #29's own "done" checklist asks for — it uses a structural fake
+  `World` and a bare `ResourcePack`, honest about proving the wiring rather than proving
+  real terrain renders real geometry. Local rendering still goes through upstream's Java
+  engine per D17; the desktop app was not switched over to this driver, on purpose — that
+  is a separate, explicit piece of work.
 - **One known difference from upstream remains in `WorldRegionUpdateTask`**: `run()` calls
   `complete()` even for a region with nothing to do, writing chunk hashes upstream would not.
   That is observable only on an incremental re-render, which is why a first-render oracle
