@@ -70,7 +70,30 @@ importers:
         specifier: ^0.25.12
         version: 0.25.12
 
-  packages/cli: {}
+  packages/cli:
+    dependencies:
+      '@material-bluemap/config':
+        specifier: workspace:*
+        version: link:../config
+      '@material-bluemap/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@material-bluemap/server':
+        specifier: workspace:*
+        version: link:../server
+      '@material-bluemap/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@material-bluemap/worldgen':
+        specifier: workspace:*
+        version: link:../worldgen
+      '@types/pngjs':
+        specifier: ^6.0.5
+        version: 6.0.5
+      pngjs:
+        specifier: ^7.0.0
+        version: 7.0.0
 
   packages/config:
     dependencies:
