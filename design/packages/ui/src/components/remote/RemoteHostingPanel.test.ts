@@ -103,13 +103,13 @@ const RECORD: RemoteHostingRecord = {
 
 function fakeBridge(overrides: Partial<RemoteHostingBridge> = {}): RemoteHostingBridge {
     return {
-        startRemoteHosting: vi.fn(() => Promise.resolve({ ok: true, hostingId: "overworld-abc", record: RECORD })),
+        startRemoteHosting: vi.fn(() => Promise.resolve({ ok: true as const, hostingId: "overworld-abc", record: RECORD })),
         remoteHostingRecords: vi.fn(() => Promise.resolve([])),
         remoteHostingRecord: vi.fn(() => Promise.resolve(null)),
         refreshRemoteHosting: vi.fn(() => Promise.resolve(null)),
         stopRemoteHosting: vi.fn(() =>
             Promise.resolve({
-                ok: true,
+                ok: true as const,
                 report: { hostingId: "overworld-abc", target: "renderer@render.example:22", containerRemoved: true, filesRemoved: true, notes: [] },
             }),
         ),
@@ -210,11 +210,31 @@ describe("publishing", () => {
         const publish = w.findAll("button").find((btn) => btn.text().includes("Publish"));
         expect(publish?.attributes("disabled")).toBeDefined();
     });
+
+    it("shows the failure message and offers no Stop hosting control when the bridge reports a failure", async () => {
+        const bridge = fakeBridge({
+            startRemoteHosting: vi.fn(() =>
+                Promise.resolve({
+                    ok: false as const,
+                    hostingId: "overworld-abc",
+                    failure: { code: "ssh-refused", message: "That server refused the SSH connection.", detail: null },
+                }),
+            ),
+        });
+        const w = mountPanel({ bridge });
+        await settle();
+
+        const publish = w.findAll("button").find((btn) => btn.text().includes("Publish"));
+        await publish?.trigger("click");
+        await settle();
+
+        expect(w.text()).toContain("That server refused the SSH connection.");
+        expect(w.findAll("button").some((btn) => btn.text().includes("Stop hosting"))).toBe(false);
+    });
 });
 
 describe("stopping", () => {
-    async function publishedPanel(): Promise<{ wrapper: VueWrapper; bridge: RemoteHostingBridge }> {
-        const bridge = fakeBridge();
+    async function publishedPanel(bridge: RemoteHostingBridge = fakeBridge()): Promise<{ wrapper: VueWrapper; bridge: RemoteHostingBridge }> {
         const w = mountPanel({ bridge });
         await settle();
         const publish = w.findAll("button").find((btn) => btn.text().includes("Publish"));
@@ -248,5 +268,28 @@ describe("stopping", () => {
         const body = document.body.textContent ?? "";
         expect(body).toContain("unless the target keeps its files");
         expect(body).toContain("removes the uploaded world");
+    });
+
+    it("shows the failure message when the bridge reports a failure while stopping", async () => {
+        const bridge = fakeBridge({
+            stopRemoteHosting: vi.fn(() =>
+                Promise.resolve({
+                    ok: false as const,
+                    failure: { code: "docker-refused", message: "The container on that server would not stop.", detail: null },
+                }),
+            ),
+        });
+        const { wrapper: w } = await publishedPanel(bridge);
+
+        // Calls the exposed `removeHosting()` directly, the way `ConfigSuperConfirm`'s own
+        // `@confirm` does once both keys and the slider have genuinely completed. The two
+        // tests above already cover that a single click cannot reach it and that the gate
+        // names the right consequences; this one is about the failure arm of the call
+        // itself, which nothing else here exercises.
+        const panel = w.findComponent(RemoteHostingPanel);
+        await (panel.vm as unknown as { removeHosting: () => Promise<void> }).removeHosting();
+        await settle();
+
+        expect(w.text()).toContain("The container on that server would not stop.");
     });
 });
