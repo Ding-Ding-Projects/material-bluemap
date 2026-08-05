@@ -20,8 +20,55 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Rendering and world data
+
+- Fix #47: mirror BlueMap's own map-id sanitiser instead of guessing at the hyphen - [`1dfe8a1f60`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1dfe8a1f607ac443ee15c24e8659d0a4303dd2a4)
+
+## 0.1.0-build.364 - 2026-08-05
+
+Tagged at [`a1f8172402`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a1f81724026d5d86b3f74eaef0e909cc7410a596).
+
 ### Interface
 
+- Fix MarkerMenu.test.ts's flaky filters-open assertion: give it its own localStorage - [`a1f8172402`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a1f81724026d5d86b3f74eaef0e909cc7410a596)
+- Add the missing test for MarkerMenu's settings-history mirror - [`2a06e1979f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2a06e1979f49938a43d6229126178a53bb931d63)
+
+### Build, release and tooling
+
+- Close issue #32: SQL storage proven cross-compatible with upstream's Java engine - [`b2c8261649`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b2c8261649b684454b47108e1617b62732d7d0b9)
+
+### Documentation
+
+- Record issue #39's real two-wave dispatch: df numbers, not arithmetic anymore - [`e4e62dba88`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e4e62dba88572575d2864a7c516b9fcf8cfe6593)
+
+## 0.1.0-build.358 - 2026-08-05
+
+Tagged at [`321e0cf634`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/321e0cf634c245fa9db7eceb46527bfc0a066f3b).
+
+### Build, release and tooling
+
+- Close issue #31: modded textures.json parity, proven offline - [`321e0cf634`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/321e0cf634c245fa9db7eceb46527bfc0a066f3b)
+
+## 0.1.0-build.357 - 2026-08-05
+
+Tagged at [`cfab9a1f73`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cfab9a1f736ac96ef3429386a4ab03efc1cf7979).
+
+### Interface
+
+- Fix four more stores: mirror settings history even with no local storage - [`cfab9a1f73`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cfab9a1f736ac96ef3429386a4ab03efc1cf7979)
+
+## 0.1.0-build.356 - 2026-08-05
+
+Tagged at [`e569e47831`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e569e478313b21fd84e5e789a76965f0fda56598).
+
+### Interface
+
+- Fix writeEulaStrip: mirror the EULA tab layout even with no localStorage at all - [`e569e47831`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e569e478313b21fd84e5e789a76965f0fda56598)
+- Finish wiring every localStorage settings store into the history mirror - [`cd0a78d2c1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cd0a78d2c101061341cadcc488c1449ed5c6a3f7)
+- Chore: sync appearance store, palette prefs, remote targets, setup i18n, tabs storage, update model, settings dock placement, eula storage, marker menu, appSettingsHistorySync - [`20613ead77`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/20613ead7775d54bb522b6300ae97393dfef4766)
+- CI: silence pointless vue-i18n warning flood that was tripping vitest's RPC timeout - [`e77f11ac22`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e77f11ac22350a73dbb5f8aca747073e62624118)
+- Wire the two staged history/repair channels into their real mutation and failure sites - [`cae7ee86f3`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cae7ee86f30d8f29c12e7503e79737b5e365ae93)
+- Fix palette Debug-row test collision and the CLI e2e webapp-bundle gap - [`49160ef0c7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/49160ef0c75e289428a41ad88c7021f6950ff28c)
 - Find the real bug behind a test left honestly red: TabGroupPicker's own trap was fine - [`711e534b7a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/711e534b7a583c93dac99e71411263c25b6adbef)
 - Give the progress panel real tile-count honesty, real upload bytes, wave truth, and its route (#38) - [`d4f83fa540`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d4f83fa540d4782762974ccbc18f762340e58489)
 - Bridge and mount automatic repair diagnostics - [`6981bf9ca4`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6981bf9ca4f19896aef88872d32ccfb23ad4f66b)
@@ -42,6 +89,9 @@ full message for the in-app changelog viewer.
 
 ### Rendering and world data
 
+- Prove SQL storage against real MySQL/MariaDB/PostgreSQL servers (issue #32) - [`926ae2b5be`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/926ae2b5be36a987bc07ce327b3642a44c5ff4a5)
+- Gate the flattening rename on both world AND pack era, not world alone (#46) - [`1642a29371`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1642a293718066fd59702b7775599fa7c06e5493)
+- Prove Phase C check 2: a real 1.12.2 jar through the legacy compat path, and a genuine finding (issue #31) - [`965af52d6c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/965af52d6c2aaa9c4211148f1cd3e204792269cd)
 - storage/sql: cover render-state grids and the always-uncompressed markers/players - [`250e7e700a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/250e7e700a6d2326d037ebf4bff76ab08bc1be52)
 - storage: dialect resolution, driver-adapter and byte-fidelity tests; ROADMAP + deviations - [`b32f423b26`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b32f423b2687711f734fc2447fec132c5e194e33)
 - storage: port upstream's SQL storage (sql.js/mysql2/pg, pure JS, no native modules) - [`0bc90c2c25`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0bc90c2c25dbc17dcf8c83f18cf9a75261b943b4)
@@ -60,12 +110,21 @@ full message for the in-app changelog viewer.
 - server: live/sse, live/players.json, live/markers.json with honest empty stubs - [`00261d4af0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/00261d4af0cc63b0d3f7a06757a258268d15f1f3)
 - server: port MapStorageRequestHandler for real tiles/settings/textures/assets over HTTP - [`d78bbbce53`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d78bbbce534a102ef3a7d37a4961714b4c634e6f)
 
+### Desktop shell
+
+- Revert "Remove WebServer": that gap now belongs to a dedicated session - [`2e37bcb69e`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2e37bcb69e7801bd69f5a5e4313ab2938c3e24ba)
+- Remove WebServer: nothing ever asked the engine to run one twice - [`07bab3e294`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/07bab3e294f86207135df65b4d677d44c8e0bff6)
+
 ### Build, release and tooling
 
+- CI: retry vitest's own RPC-heartbeat flake only, and fix a real dynamic-require crash the fix will now expose - [`3791655e07`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/3791655e079bcd8dbf901bd3029cf1fe7cd83773)
+- Fetch the vendored BlueMap submodule in CI, and let its absence fail loud - [`cb87a9fce0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cb87a9fce0256c979e877e56abd114670b10dbb9)
+- Prove Phase C check 1: textures.json is semantically identical, java vs port (issue #31) - [`6ec9beac2d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6ec9beac2dd4fff32474dd79030260e7fef0b400)
 - Record the server package's two deviations, and prove RenderDriver on a real generated world - [`2b86de90ca`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2b86de90ca8c9ff357e187d805c952d803ad9e4b)
 
 ### Documentation
 
+- Record Phase C's exit-check disposition: 2 pass, 1 finds a real defect (issue #31) - [`9b3613f9c0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/9b3613f9c016138be7063e00ba5d22e3c1c42520)
 - docs: catch HANDOFF and ROADMAP up with the 2026-08-05 multi-agent pass - [`0047b713d2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0047b713d2ceef83e4e5704c5e09b3452af0e218)
 - docs: refresh ROADMAP.md's Phase E entries for #41 and #29 - [`6a019e4e85`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6a019e4e85daedf58db11c93c90bbbe58b40f8e0)
 - Add real captures of the five screens issue #34 asked for - [`dbbfa60d67`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/dbbfa60d671b67f7ed7dc10b954fb430c363a2a4)
