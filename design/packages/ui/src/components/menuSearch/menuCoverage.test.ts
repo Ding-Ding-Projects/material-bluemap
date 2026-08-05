@@ -125,6 +125,15 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
         status: "has-search",
     },
     {
+        file: "glossary/GlossaryTerm.vue",
+        builtVia: "v-menu",
+        menu: "The in-place glossary term popover (one definition and a 'Read more' link).",
+        status: "not-applicable",
+        reason:
+            "A single-term definition popover, not a filterable command list: one paragraph " +
+            "of prose and one 'Read more in the glossary' link, nothing to search.",
+    },
+    {
         file: "history/HistoryComparison.vue",
         builtVia: "v-menu",
         menu: "The two-revision comparison's 'Export' format picker.",
