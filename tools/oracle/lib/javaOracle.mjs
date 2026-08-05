@@ -183,6 +183,16 @@ export async function writeReferenceConfig({
 /**
  * Renders the world with the Java CLI, or reuses a cached reference render.
  *
+ * @param {object} options
+ * @param {string} [options.minecraftVersion] — pins the Minecraft version the CLI's `-v`
+ *   / `--mc-version` flag resolves resources against (upstream:
+ *   `BlueMapCLI.java` `-v`, which flows into `BlueMapConfigManager` and from there into
+ *   `MinecraftVersion.load` exactly like the TypeScript port's own `MinecraftVersion.load`
+ *   id parameter). Omitted, upstream defaults to "the latest compatible version" — which is
+ *   fine for the Phase D render gate (both engines just need to agree on *a* jar) but wrong
+ *   for a parity check that has to name the version it tested, so callers that care pass
+ *   this explicitly. Folded into the cache stamp so a run with a pinned version never
+ *   silently reuses a reference rendered against a different one, and vice versa.
  * @returns {Promise<{mapDirectory: string, dataDirectory: string, cached: boolean, jar: string,
  *                    tileCount: number}>}
  */
@@ -197,6 +207,7 @@ export async function renderReference({
     acceptDownload,
     renderThreadCount,
     refresh,
+    minecraftVersion,
 }) {
     const dataDirectory = join(workDirectory, "bluemap-data");
     const referenceRoot = join(workDirectory, "reference");
@@ -222,6 +233,7 @@ export async function renderReference({
         jar: jar.split(/[\\/]/).pop(),
         world: worldDirectory,
         configHash: sha256(written.configText),
+        minecraftVersion: minecraftVersion ?? null,
     };
 
     if (!refresh && (await exists(stampFile))) {
@@ -231,6 +243,7 @@ export async function renderReference({
                 previous.jar === stamp.jar &&
                 previous.world === stamp.world &&
                 previous.configHash === stamp.configHash &&
+                (previous.minecraftVersion ?? null) === stamp.minecraftVersion &&
                 (await isDirectory(written.mapDirectory))
             ) {
                 const tiles = (await listFiles(written.mapDirectory)).length;
@@ -251,12 +264,17 @@ export async function renderReference({
     await rm(join(referenceRoot, "web"), { recursive: true, force: true });
     await mkdir(storageRoot, { recursive: true });
 
-    log(`[oracle] rendering the reference with upstream's java engine — this takes a while`);
+    log(
+        `[oracle] rendering the reference with upstream's java engine` +
+            (minecraftVersion ? ` (pinned to Minecraft ${minecraftVersion})` : "") +
+            ` — this takes a while`,
+    );
     // The CLI resolves storage roots against the WORKING DIRECTORY. Every path in the
     // config is absolute, and the cwd is pinned here as well, so it cannot matter.
+    const versionArgs = minecraftVersion ? ["-v", minecraftVersion] : [];
     const result = await run(
         "java",
-        ["-jar", jar, "-c", written.configDirectory, "-r", "-g"],
+        ["-jar", jar, "-c", written.configDirectory, "-r", "-g", ...versionArgs],
         { cwd: referenceRoot },
     );
     if (result.code !== 0) throw new Error(`the java reference render exited ${result.code}`);

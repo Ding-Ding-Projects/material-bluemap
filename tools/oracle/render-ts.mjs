@@ -96,6 +96,18 @@ function parseArgs(argv) {
  * {mc1_15, mc1_17, mc1_20_3, beds, signs}: different chest, banner, bed and sign models,
  * a different set of used textures, and therefore a different gallery.
  *
+ * `resource_major`/`data_major` is not the only spelling a real `version.json` uses.
+ * Upstream's own `PackVersions` class declares `resource_major` with the alternate name
+ * `resource` (`@SerializedName(value = "resource_major", alternate = "resource")`, mirrored
+ * faithfully in the port at `packages/engine/src/resources/MinecraftVersion.ts`'s
+ * `PackVersions.Adapter`) — older client jars write the short form. Minecraft 1.21's own
+ * `version.json`, for instance, has `"pack_version": {"resource": 34, "data": 48}` with no
+ * `_major` key at all, which this function used to skip as "no pack_version here" and then
+ * fail the whole render with "no version.json in any resource root" even though the file
+ * was right there and perfectly readable — found running `tools/oracle/textures-parity.mjs`
+ * against a real 1.21 jar (issue #31), where the modern-jar-only gate had never exercised
+ * this path. `data_minor`/`resource_minor` default to 0 either way, matching upstream.
+ *
  * @returns {Promise<{resource: [number, number], data: [number, number]} | null>}
  */
 async function readPackVersions(roots) {
@@ -104,8 +116,8 @@ async function readPackVersions(roots) {
             const file = root.resolve("version.json");
             if (!(await file.isRegularFile())) continue;
             const packVersion = JSON.parse(await file.readText())?.pack_version;
-            const resourceMajor = packVersion?.resource_major;
-            const dataMajor = packVersion?.data_major;
+            const resourceMajor = packVersion?.resource_major ?? packVersion?.resource;
+            const dataMajor = packVersion?.data_major ?? packVersion?.data;
             if (typeof resourceMajor !== "number" || typeof dataMajor !== "number") continue;
             return {
                 resource: [resourceMajor, packVersion.resource_minor ?? 0],
@@ -235,11 +247,19 @@ async function render(engine, options) {
     const resourceRoots = [];
     for (const extra of (options["resource-pack"] ?? "").split(";").filter(Boolean)) {
         const path = resolve(extra);
-        const fileSystem = path.endsWith(".zip")
-            ? await ZipFileSystem.openFile(path)
-            : new DirFileSystem(path);
-        if (typeof fileSystem.getRootDirectories === "function")
+        if (path.endsWith(".zip")) {
+            const fileSystem = await ZipFileSystem.openFile(path);
             resourceRoots.push(...fileSystem.getRootDirectories());
+        } else {
+            // `DirFileSystem` exposes a single `getRoot()`, not the plural
+            // `getRootDirectories()` `ZipFileSystem` has — checking for the plural method
+            // and skipping otherwise silently dropped every directory-shaped --resource-pack
+            // entry (found running tools/oracle/render-1-12-era-matched.mjs against issue
+            // #31's synthetic legacy-manifest directory: the pack.mcmeta it wrote never
+            // reached the engine, and the error was the unrelated-looking "no version.json
+            // in any resource root" a few lines down, not a clue pointing back here).
+            resourceRoots.push(new DirFileSystem(path).getRoot());
+        }
     }
     if (options["resource-extensions"] !== undefined) {
         const fileSystem = await ZipFileSystem.openFile(resolve(options["resource-extensions"]));
