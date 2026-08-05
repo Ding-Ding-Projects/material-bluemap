@@ -349,6 +349,13 @@ export const CHROME_FIXED = {
     "config.title": { en: "Server configuration", yue: "伺服器設定" },
     "appearance.target.app.titleBar": { en: "The window title bar", yue: "視窗標題列" },
     "appearance.target.app.tabBar": { en: "The tab bar", yue: "分頁列" },
+    /*
+     * The map viewer's own control bar, named here rather than in a controlbar module
+     * because it is the only key on that whole strip this catalogue is allowed to answer:
+     * every other string there -- maps.title, markers.tooltip, compass.tooltip and the rest
+     * -- belongs to upstream's viewer locales. See the header note above.
+     */
+    "appearance.target.controlbar.bar": { en: "The map control bar", yue: "地圖控制列" },
 
     /* The custom title bar's window buttons. */
     "window.minimize": { en: "Minimize", yue: "縮到最細" },

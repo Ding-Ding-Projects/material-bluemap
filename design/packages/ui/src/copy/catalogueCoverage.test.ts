@@ -62,6 +62,23 @@ import { APP_VOICED, appCopyKeys } from "./appCopy.js";
  * here is one change, and the second half is the half that keeps it true. Removing an entry
  * is not a way to fix a failure: it is a statement that the screen went back to speaking
  * English at people who did not choose English.
+ *
+ * Four surfaces are deliberately absent because their copy is genuinely unfinished, and
+ * naming them here is the honest alternative to a guard that quietly asserts less than it
+ * appears to:
+ *
+ *   components/config    partly written. `surfaces/configEditor.ts` covers the editing
+ *                        machinery -- the regex builder, the search bars, secret masking,
+ *                        the form controls and field rows. The file-management half (the
+ *                        maps and storages it writes, the config-folder shell, the render
+ *                        controls, the apply gates) is still on English fallbacks.
+ *   components/project   five destructive notes only, see `surfaces/project.ts`.
+ *   components/world     not started. The whole "Make a map" wizard.
+ *   components/palette   not started, and left alone on purpose while the command palette
+ *                        itself was being reworked; its key set was moving underneath.
+ *
+ * The bottom `describe` block prints the exact remaining count per surface on every run, so
+ * the size of that gap is a number somebody reads rather than a claim in a comment.
  */
 const COVERED_SURFACES = [
     "App.vue",
@@ -70,7 +87,9 @@ const COVERED_SURFACES = [
     "components/backup",
     "components/changelog",
     "components/cirender",
+    "components/config",
     "components/console",
+    "components/controlbar",
     "components/controls",
     "components/downloads",
     "components/eula",
@@ -104,6 +123,10 @@ const LABEL_ONLY_SURFACES = new Set<string>([
     "components/shell",
     // Zoom in/out and the free-flight movement buttons.
     "components/controls",
+    // The map viewer's control bar. Sixteen of its seventeen keys are upstream's, and the
+    // one that is ours names the bar for the appearance editor. There is no prose here to
+    // voice, and there will not be while the strip stays upstream's.
+    "components/controlbar",
 ]);
 
 /* -------------------------------------------------------------------------- */

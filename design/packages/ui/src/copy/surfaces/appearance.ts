@@ -846,7 +846,10 @@ export const APPEARANCE_FACTS = {
         en: ["Not set", "follows whatever is above it"],
         yue: ["未設定", "上一層"],
     },
-    "appearance.color.field.open": { en: ["Edit", "{label}", "{value}"], yue: ["編輯", "{label}", "{value}"] },
+    "appearance.color.field.open": {
+        en: ["Edit", "{label}", "{value}"],
+        yue: ["編輯", "{label}", "{value}"],
+    },
     "appearance.color.field.clearHint": {
         en: ["Clear this colour", "follow"],
         yue: ["清除呢隻顏色", "上一層"],
@@ -855,10 +858,18 @@ export const APPEARANCE_FACTS = {
     // The write space, and the reason it was chosen. A level that keeps only "outside sRGB"
     // reads as a complaint instead of an explanation.
     "appearance.color.clipWarning": {
-        en: ["outside sRGB", "{notation}", "nothing is lost", "cannot hold it would change the colour"],
+        en: [
+            "outside sRGB",
+            "{notation}",
+            "nothing is lost",
+            "cannot hold it would change the colour",
+        ],
         yue: ["sRGB", "{notation}", "載唔起", "變樣"],
     },
-    "appearance.color.notationChanged": { en: ["{notation}", "Saved as"], yue: ["{notation}", "儲存"] },
+    "appearance.color.notationChanged": {
+        en: ["{notation}", "Saved as"],
+        yue: ["{notation}", "儲存"],
+    },
     // The three examples are real parser input, not decoration.
     "appearance.color.anyHint": {
         en: ["#1e88e5", "oklch(0.6 0.15 250)", "rebeccapurple"],
@@ -877,7 +888,10 @@ export const APPEARANCE_FACTS = {
         en: ["this notation", "colour itself does not change"],
         yue: ["表示法", "顏色本身唔會變"],
     },
-    "appearance.color.noRows": { en: ["No notation", "matches that search"], yue: ["表示法", "符合呢個搜尋"] },
+    "appearance.color.noRows": {
+        en: ["No notation", "matches that search"],
+        yue: ["表示法", "符合呢個搜尋"],
+    },
 
     // The measured ratio, the WCAG verdict, and the text size it was graded at. All three or
     // the reading cannot be acted on.
@@ -922,7 +936,10 @@ export const APPEARANCE_FACTS = {
         en: ["{shown}", "{total}", "fonts"],
         yue: ["{shown}", "{total}", "字體"],
     },
-    "appearance.type.noFont": { en: ["No font", "matches that search"], yue: ["字體", "符合呢個搜尋"] },
+    "appearance.type.noFont": {
+        en: ["No font", "matches that search"],
+        yue: ["字體", "符合呢個搜尋"],
+    },
     "appearance.type.boldHint": { en: ["Bold", "at least 700"], yue: ["粗體", "最少 700"] },
     // Both halves: why the list is long, and what a face without the axis does with it.
     "appearance.type.axesHint": {
@@ -949,7 +966,10 @@ export const APPEARANCE_FACTS = {
         yue: ["所有外觀覆寫", "已儲存嘅預設會保留"],
     },
 
-    "appearance.menu.noMatch": { en: ["No command", "matches that search"], yue: ["冇指令", "符合呢個搜尋"] },
+    "appearance.menu.noMatch": {
+        en: ["No command", "matches that search"],
+        yue: ["冇指令", "符合呢個搜尋"],
+    },
 } as const satisfies Record<
     keyof typeof APPEARANCE_VOICED,
     { en: readonly string[]; yue: readonly string[] }

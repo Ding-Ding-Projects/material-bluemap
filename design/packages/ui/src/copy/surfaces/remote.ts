@@ -1230,7 +1230,10 @@ export const REMOTE_FIXED = {
         en: "Work directory on that machine",
         yue: "嗰部機上面嘅work directory",
     },
-    "remote.targets.field.image": { en: "Container image (optional)", yue: "Container image（可以唔填）" },
+    "remote.targets.field.image": {
+        en: "Container image (optional)",
+        yue: "Container image（可以唔填）",
+    },
     "remote.targets.field.imageHint": { en: "the stock JRE image", yue: "預設嗰個 JRE image" },
     /*
      * The checkbox label. FIXED because it labels a control; the consequence of ticking it,
@@ -1241,7 +1244,10 @@ export const REMOTE_FIXED = {
         en: "Leave the uploaded world on that machine afterwards",
         yue: "算完之後，將upload咗嘅世界留喺嗰部機",
     },
-    "remote.targets.save": { en: "Check this machine and keep it", yue: "check下呢部機，然後記低佢" },
+    "remote.targets.save": {
+        en: "Check this machine and keep it",
+        yue: "check下呢部機，然後記低佢",
+    },
     "remote.targets.cancel": { en: "Cancel", yue: "取消" },
 
     /* What a render would send, listed before it sends anything. */
@@ -1346,7 +1352,11 @@ export const REMOTE_FACTS = {
         yue: ["呢個build", "Docker 喺唔喺度"],
     },
     "remote.docker.unprobed.explanation": {
-        en: ["Nothing has been asked of Docker", "limit of the build", "not a statement about your machine"],
+        en: [
+            "Nothing has been asked of Docker",
+            "limit of the build",
+            "not a statement about your machine",
+        ],
         yue: ["冇問過 Docker", "build嘅限制", "唔係講你部機"],
     },
     "remote.docker.unprobed.next": {
@@ -1421,7 +1431,12 @@ export const REMOTE_FACTS = {
 
     "remote.preflight.room": { en: ["{dir}", "{free}"], yue: ["{dir}", "{free}"] },
     "remote.preflight.blurb": {
-        en: ["in this order", "first failure", "Nothing is uploaded until all four have passed", "no Docker"],
+        en: [
+            "in this order",
+            "first failure",
+            "Nothing is uploaded until all four have passed",
+            "no Docker",
+        ],
         yue: ["按呢個次序", "第一個唔過就", "四個全部過晒之前唔會upload任何嘢", "冇 Docker"],
     },
     // Passing the checks is not the same as having sent anything, and this is the last
@@ -1444,7 +1459,12 @@ export const REMOTE_FACTS = {
     },
 
     "remote.targets.empty": {
-        en: ["No machine has been set up yet", "SSH agent", "path to a key file", "never asks for a password"],
+        en: [
+            "No machine has been set up yet",
+            "SSH agent",
+            "path to a key file",
+            "never asks for a password",
+        ],
         yue: ["仲未設定過任何機", "SSH agent", "key file嘅路徑", "唔會問你攞密碼"],
     },
     "remote.targets.noMatch": {
@@ -1454,7 +1474,11 @@ export const REMOTE_FACTS = {
     // The key file is a path and nothing else, and there is no password field anywhere in
     // this feature. Both clauses are what somebody decides on, so both are pinned.
     "remote.targets.field.identityNote": {
-        en: ["A path, never the key itself", "ever opens it, copies it or sends it", "no password field"],
+        en: [
+            "A path, never the key itself",
+            "ever opens it, copies it or sends it",
+            "no password field",
+        ],
         yue: ["唔係條key本身", "唔會開佢、唔會copy佢、唔會send佢", "冇密碼欄"],
     },
     "remote.targets.field.workDirHint": {
@@ -1478,11 +1502,20 @@ export const REMOTE_FACTS = {
 
     // Docker is not a speed setting; without these two the paragraph sells the wrong thing.
     "remote.blurb": {
-        en: ["same cores and the same disk", "renders slower", "isolation", "uploading the world first"],
+        en: [
+            "same cores and the same disk",
+            "renders slower",
+            "isolation",
+            "uploading the world first",
+        ],
         yue: ["同樣嘅核心同埋同一隻碟", "算得慢", "隔離", "先upload成個世界"],
     },
     "remote.fellBack": {
-        en: ["cannot take a render right now", "on this computer instead", "beside the choice above"],
+        en: [
+            "cannot take a render right now",
+            "on this computer instead",
+            "beside the choice above",
+        ],
         yue: ["接唔到算圖", "喺呢部電腦度行", "上面嗰個選項隔籬"],
     },
     "remote.unsupported": {
@@ -1503,7 +1536,12 @@ export const REMOTE_FACTS = {
     },
 
     "remote.place.local.summary": {
-        en: ["ordinary program", "Java this application found or installed", "Fastest of the three", "your disk"],
+        en: [
+            "ordinary program",
+            "Java this application found or installed",
+            "Fastest of the three",
+            "your disk",
+        ],
         yue: ["普通程式", "本程式搵到或者裝咗嗰個 Java", "三個之中最快", "你隻碟"],
     },
     "remote.place.local.unsupported": {
@@ -1511,11 +1549,21 @@ export const REMOTE_FACTS = {
         yue: ["開唔到算圖", "桌面程式", "瀏覽器分頁"],
     },
     "remote.place.docker.summary": {
-        en: ["read-only", "world folder", "output folder", "does not get you more processors", "renders slower"],
+        en: [
+            "read-only",
+            "world folder",
+            "output folder",
+            "does not get you more processors",
+            "renders slower",
+        ],
         yue: ["唯讀", "世界資料夾", "輸出資料夾", "唔會多咗處理器", "算得慢"],
     },
     "remote.place.docker.unsupported": {
-        en: ["render locally instead", "Docker's state is still reported below", "remote host does use a container"],
+        en: [
+            "render locally instead",
+            "Docker's state is still reported below",
+            "remote host does use a container",
+        ],
         yue: ["變咗喺本機行", "Docker 嘅狀態下面照報", "遠端主機算圖嗰邊，係真係會用container"],
     },
     "remote.place.docker.unchecked": {

@@ -3,6 +3,19 @@
  * removing a map removes its configuration while leaving already-rendered tiles behind,
  * and removing a storage leaves its tiles behind while maps may still point at it.
  * Every level keeps those facts intact while allowing the surrounding voice to change.
+ *
+ * ## This module is a beachhead, not a finished surface
+ *
+ * The Projects screen renders about a hundred and eighty keys and five of them are here:
+ * the ones where an unvoiced string would have been actively dangerous rather than merely
+ * English. Everything else on that screen -- the project list, the create/open/forget flow,
+ * the editor's own tabs, the render controls -- still falls through to its English fallback.
+ *
+ * That is why `components/project` is absent from `COVERED_SURFACES` in
+ * `catalogueCoverage.test.ts`, and it must stay absent until the rest of the screen is
+ * written. Adding it now would make the guard assert something untrue about a surface whose
+ * copy is 3% done. When the rest lands, add the keys here and the surface there in the same
+ * change.
  */
 
 import type { FixedString, VoicedString } from "../../components/setup/setupStrings.js";
@@ -113,4 +126,7 @@ export const PROJECT_FACTS = {
         en: ["NOT deleted", "space"],
         yue: ["唔會刪除", "空間"],
     },
-} as const satisfies Record<keyof typeof PROJECT_VOICED, { en: readonly string[]; yue: readonly string[] }>;
+} as const satisfies Record<
+    keyof typeof PROJECT_VOICED,
+    { en: readonly string[]; yue: readonly string[] }
+>;

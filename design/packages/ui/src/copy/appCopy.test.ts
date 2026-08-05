@@ -256,7 +256,9 @@ describe("the catalogue answers the call sites it claims to answer", () => {
             const a = sorted(expected);
             const b = sorted(mine);
             if (a.join() !== b.join()) {
-                wrong.push(`${key}: call site passes [${a.join(", ")}], catalogue has [${b.join(", ")}]`);
+                wrong.push(
+                    `${key}: call site passes [${a.join(", ")}], catalogue has [${b.join(", ")}]`,
+                );
             }
         }
         expect(
@@ -298,8 +300,7 @@ describe("no level stops saying what the message is for", () => {
     it("names a fact for every voiced key, so nothing is quietly exempt", () => {
         const unguarded = appVoicedKeys().filter((key: AppCopyKey) => {
             const entry = FACTS[key as keyof typeof FACTS] as
-                | { en: readonly string[]; yue: readonly string[] }
-                | undefined;
+                { en: readonly string[]; yue: readonly string[] } | undefined;
             return entry === undefined || entry.en.length === 0 || entry.yue.length === 0;
         });
         expect(unguarded).toEqual([]);

@@ -591,7 +591,10 @@ export const CIRENDER_FIXED = {
         en: "Checking the world and the repository",
         yue: "檢查緊個世界同個倉庫",
     },
-    "cirender.phase.uploading": { en: "Uploading the world to GitHub", yue: "上載緊個世界去 GitHub" },
+    "cirender.phase.uploading": {
+        en: "Uploading the world to GitHub",
+        yue: "上載緊個世界去 GitHub",
+    },
     "cirender.phase.dispatching": { en: "Starting the workflow", yue: "開緊個 workflow" },
     "cirender.phase.waiting": {
         en: "Waiting for GitHub to create the run",
@@ -699,7 +702,12 @@ export const CIRENDER_FACTS = {
     },
 
     "cirender.pitch": {
-        en: ["uploads the world", "GitHub's runners", "parallel jobs", "opens exactly like a local one"],
+        en: [
+            "uploads the world",
+            "GitHub's runners",
+            "parallel jobs",
+            "opens exactly like a local one",
+        ],
         yue: ["上載", "runner", "平行工作", "一模一樣"],
     },
     // Each caveat is a number or a limit somebody plans around. None of them may go.
@@ -742,7 +750,10 @@ export const CIRENDER_FACTS = {
         en: ["whole world folder", "GitHub"],
         yue: ["成個世界資料夾", "GitHub"],
     },
-    "cirender.ack.public": { en: ["PUBLIC", "download the world"], yue: ["PUBLIC", "下載呢個世界"] },
+    "cirender.ack.public": {
+        en: ["PUBLIC", "download the world"],
+        yue: ["PUBLIC", "下載呢個世界"],
+    },
     "cirender.force": { en: ["Upload again", "unchanged"], yue: ["上載多次", "冇改過"] },
 
     "cirender.pages.publish": {
@@ -759,7 +770,10 @@ export const CIRENDER_FACTS = {
         yue: ["分件", "唔可以用呢個方法host", "仲下載得到"],
     },
 
-    "cirender.done": { en: ["{map}", "map list", "rendered on GitHub"], yue: ["{map}", "地圖清單", "GitHub"] },
+    "cirender.done": {
+        en: ["{map}", "map list", "rendered on GitHub"],
+        yue: ["{map}", "地圖清單", "GitHub"],
+    },
     // "recorded" and "verified" are different claims, and the distinction is the message.
     "cirender.recorded": {
         en: ["no checksum", "SHA-256", "recorded rather than verified"],

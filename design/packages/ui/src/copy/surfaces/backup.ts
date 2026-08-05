@@ -790,7 +790,10 @@ export const BACKUP_FACTS = {
     },
     // Unverifiable and resumable. No level may round either half up or down.
     "backup.listings.incompleteDetail": {
-        en: ["nothing to verify a restore against", "carries this one on rather than starting over"],
+        en: [
+            "nothing to verify a restore against",
+            "carries this one on rather than starting over",
+        ],
         yue: ["冇嘢可以核對", "接住呢個做落去"],
     },
     "backup.listings.appendOnly": {

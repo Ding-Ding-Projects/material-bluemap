@@ -611,7 +611,10 @@ export const SETTINGS_FIXED = {
     "dock.chooser.list": { en: "Placement", yue: "位置" },
     "dock.chooser.reset": { en: "Reset", yue: "重設" },
     "dock.reset.one": { en: "Put {title} back where it started", yue: "將 {title} 放返原本個位" },
-    "dock.reset.all": { en: "Put every panel back where it started", yue: "將每個面板放返原本個位" },
+    "dock.reset.all": {
+        en: "Put every panel back where it started",
+        yue: "將每個面板放返原本個位",
+    },
     "dock.close": { en: "Close {title}", yue: "閂咗 {title}" },
     "dock.body": { en: "{title} contents", yue: "{title} 嘅內容" },
 
@@ -711,7 +714,11 @@ export const SETTINGS_FACTS = {
         yue: ["私人 repository", "release asset", "唔登入"],
     },
     "settings.github.signedOut": {
-        en: ["Not signed in", "Nothing is stored on this computer", "public repositories still work"],
+        en: [
+            "Not signed in",
+            "Nothing is stored on this computer",
+            "public repositories still work",
+        ],
         yue: ["未登入", "冇儲低任何嘢", "公開 repository"],
     },
     "settings.github.unsupported": {
@@ -754,7 +761,12 @@ export const SETTINGS_FACTS = {
         yue: ["世界資料夾", "呢度冇單一個可以設定", "地圖精靈", "World"],
     },
     "settings.worldFolder.where": {
-        en: ["Set up another map", "configuration editor", "a different map", "there rather than here"],
+        en: [
+            "Set up another map",
+            "configuration editor",
+            "a different map",
+            "there rather than here",
+        ],
         yue: ["Set up another map", "設定編輯器", "另一張地圖", "唔係喺呢度問"],
     },
     "settings.worldFolder.missingHint": {

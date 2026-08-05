@@ -609,7 +609,10 @@ export const DOWNLOADS_FIXED = {
     "downloads.row.use": { en: "Use this folder", yue: "用呢個資料夾" },
     "downloads.row.hideDetail": { en: "Hide the detail", yue: "收埋啲細節" },
     "downloads.row.showDetail": { en: "Show what the app reported", yue: "睇吓程式報咗啲乜" },
-    "downloads.row.resumeOne": { en: "Start downloading {asset} again", yue: "重新開始下載 {asset}" },
+    "downloads.row.resumeOne": {
+        en: "Start downloading {asset} again",
+        yue: "重新開始下載 {asset}",
+    },
     "downloads.row.hideLog": { en: "Hide what it reported", yue: "收埋佢報過嘅嘢" },
     "downloads.row.showLog": {
         en: "Show what it reported ({n} lines)",
@@ -783,7 +786,12 @@ export const DOWNLOADS_FACTS = {
         yue: ["Minecraft", "2 GB", "1.7 GB", "checksum", "由停低嗰個位元組繼續"],
     },
     "downloads.unsupported": {
-        en: ["cannot download releases", "desktop app", "checksums", "nowhere to write a world of this size"],
+        en: [
+            "cannot download releases",
+            "desktop app",
+            "checksums",
+            "nowhere to write a world of this size",
+        ],
         yue: ["下載唔到 release", "桌面程式", "checksum", "寫得落"],
     },
     "downloads.reading": { en: ["Reading the release"], yue: ["讀緊個 release"] },

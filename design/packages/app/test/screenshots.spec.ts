@@ -490,6 +490,27 @@ async function openMenuPage(label: string, waits: string): Promise<void> {
 }
 
 /**
+ * Makes sure the options editor is not painted over the window before a step that needs
+ * the tab strip, a shell button, or the side sheet menu underneath it.
+ *
+ * The editor's own test closes it by pressing Escape with its host region focused, and an
+ * earlier step inside that same test timing out can leave focus somewhere else entirely -
+ * which leaves `.mb-config-screen` open, covering the tab strip and everything under it,
+ * for every test that runs after it. That is a fact about how a previous step's cleanup
+ * can fail, not about the surface a later step means to capture, so closing it here first
+ * is what keeps a capture from being reported as an unopenable surface when the real
+ * problem was a screen left open by something else.
+ */
+async function ensureOptionsEditorClosed(): Promise<void> {
+    if (!(await visible(".mb-config-screen"))) return;
+    await page
+        .locator('[role="region"][aria-label="Server configuration"]')
+        .press("Escape")
+        .catch(() => undefined);
+    await page.waitForTimeout(700);
+}
+
+/**
  * Closes the side sheet if it is open.
  *
  * Escape is not enough on its own: the sheet treats it as Back, so from a page two deep
@@ -1514,6 +1535,7 @@ test("captures the notification corner and its history", async () => {
 
 test("captures the command palette", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
+    await ensureOptionsEditorClosed();
 
     await attempt("Command palette", async () => {
         await openPalette();
@@ -1541,6 +1563,7 @@ test("captures the command palette", async () => {
 
 test("captures the tab strip, its context menu, the tab finder and the bulk-close preview", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
+    await ensureOptionsEditorClosed();
 
     // `.mb-shell-tabs` scopes every one of these to the shell's own tab bar. Settings
     // carries its own `TabbedNavigation` too (the settings surface is tabbed per the
@@ -1627,6 +1650,7 @@ test("captures the tab strip, its context menu, the tab finder and the bulk-clos
 
 test("captures the appearance editor, its context menu, typography and the infinite colour picker", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
+    await ensureOptionsEditorClosed();
 
     await attempt("Appearance editor context menu", async () => {
         // A tab, not a row in some other list: every tab is its own appearance target
@@ -1729,6 +1753,7 @@ test("captures the appearance editor, its context menu, typography and the infin
 
 test("captures the changelog viewer", async () => {
     test.setTimeout(SURFACE_TIMEOUT);
+    await ensureOptionsEditorClosed();
 
     await attempt("Changelog viewer", async () => {
         await openMenuPage("Info", ".mb-info-page, .mb-info-page__empty");

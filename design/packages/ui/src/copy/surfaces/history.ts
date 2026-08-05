@@ -956,7 +956,10 @@ export const HISTORY_FIXED = {
     "history.title": { en: "Version history", yue: "版本記錄" },
     "history.reload": { en: "Read this folder's history again", yue: "再讀一次呢個資料夾嘅記錄" },
     "history.search": { en: "Search this history", yue: "搜尋呢份記錄" },
-    "history.searchHint": { en: "A map name, a label, a revision", yue: "地圖名、標籤，或者一個版本" },
+    "history.searchHint": {
+        en: "A map name, a label, a revision",
+        yue: "地圖名、標籤，或者一個版本",
+    },
     "history.snapshot": { en: "Record now", yue: "即刻記錄" },
     "history.snapshotTaken": { en: "Recorded: {label}", yue: "已記錄：{label}" },
     "history.copy": { en: "Copy", yue: "複製" },
@@ -988,19 +991,28 @@ export const HISTORY_FIXED = {
         yue: "{revisions} 個版本，{files} 個檔案",
     },
     "history.timeline.undated": { en: "Revisions with no readable date", yue: "冇可讀日期嘅版本" },
-    "history.timeline.holdsCurrent": { en: "Includes what is on disk now", yue: "包括而家喺磁碟上嗰個" },
+    "history.timeline.holdsCurrent": {
+        en: "Includes what is on disk now",
+        yue: "包括而家喺磁碟上嗰個",
+    },
 
     /* Headings written into an exported file. */
     "history.exportTitle": { en: "BlueMap config history", yue: "BlueMap 設定記錄" },
     "history.exportFolder": { en: "Config folder: {folder}", yue: "設定資料夾：{folder}" },
-    "history.exportRepository": { en: "History repository: {repository}", yue: "記錄儲存庫：{repository}" },
+    "history.exportRepository": {
+        en: "History repository: {repository}",
+        yue: "記錄儲存庫：{repository}",
+    },
     "history.compare.exportTitle": {
         en: "What changed between two revisions",
         yue: "兩個版本之間改咗啲乜",
     },
 
     /* The comparison surface. */
-    "history.compare.title": { en: "What changed between {a} and {b}", yue: "{a} 同 {b} 之間改咗啲乜" },
+    "history.compare.title": {
+        en: "What changed between {a} and {b}",
+        yue: "{a} 同 {b} 之間改咗啲乜",
+    },
     "history.compare.older": { en: "A, the older", yue: "A，較舊嗰個" },
     "history.compare.newer": { en: "B, the newer", yue: "B，較新嗰個" },
     "history.compare.noneYet": { en: "not chosen yet", yue: "仲未揀" },
@@ -1010,7 +1022,10 @@ export const HISTORY_FIXED = {
         yue: "將呢個比較複製到剪貼簿",
     },
     "history.compare.copy": { en: "Copy", yue: "複製" },
-    "history.compare.exportLong": { en: "Export this comparison to a file", yue: "將呢個比較匯出做檔案" },
+    "history.compare.exportLong": {
+        en: "Export this comparison to a file",
+        yue: "將呢個比較匯出做檔案",
+    },
     "history.compare.export": { en: "Export", yue: "匯出" },
     "history.compare.close": { en: "Stop comparing", yue: "唔比較住" },
 
@@ -1056,7 +1071,10 @@ export const HISTORY_FIXED = {
     "history.row.labelField": { en: "Label for this revision", yue: "呢個版本嘅標籤" },
     "history.row.labelSave": { en: "Save label", yue: "儲存標籤" },
     "history.row.labelCancel": { en: "Cancel", yue: "取消" },
-    "history.row.hideChanges": { en: "Hide what this revision changed", yue: "收埋呢個版本改咗嘅嘢" },
+    "history.row.hideChanges": {
+        en: "Hide what this revision changed",
+        yue: "收埋呢個版本改咗嘅嘢",
+    },
     "history.row.showChanges": { en: "Show what this revision changed", yue: "睇呢個版本改咗啲乜" },
     "history.row.relabel": { en: "Change this revision's label", yue: "改呢個版本嘅標籤" },
     "history.row.label": { en: "Give this revision a label", yue: "俾呢個版本改個標籤" },
@@ -1072,7 +1090,10 @@ export const HISTORY_FIXED = {
     /* Trimming. */
     "history.keep": { en: "Revisions to keep", yue: "保留幾多個版本" },
     "history.trimTitle": { en: "Remove older revisions", yue: "移除較舊嘅版本" },
-    "history.trimConfirm": { en: "Slide to remove the older revisions", yue: "拉動嚟移除較舊嘅版本" },
+    "history.trimConfirm": {
+        en: "Slide to remove the older revisions",
+        yue: "拉動嚟移除較舊嘅版本",
+    },
     "history.trimNothing": { en: "Nothing to remove", yue: "冇嘢要移除" },
     "history.trim": { en: "Remove {drop} older revisions", yue: "移除 {drop} 個較舊嘅版本" },
 } as const satisfies Record<string, FixedString>;
@@ -1179,7 +1200,10 @@ export const HISTORY_FACTS = {
         en: ["{label}", "config folder", "saved first", "can be undone"],
         yue: ["{label}", "設定資料夾", "儲存低", "可以復原"],
     },
-    "history.row.noFiles": { en: ["revision", "no file changes"], yue: ["版本", "冇記錄到任何檔案改動"] },
+    "history.row.noFiles": {
+        en: ["revision", "no file changes"],
+        yue: ["版本", "冇記錄到任何檔案改動"],
+    },
     "history.row.loadingDiff": { en: ["Reading", "changed"], yue: ["讀緊", "改咗"] },
 
     "history.restoreSkipped": {
@@ -1206,7 +1230,10 @@ export const HISTORY_FACTS = {
         en: ["stays on this machine", "nowhere to send"],
         yue: ["留喺呢部機", "冇地方可以送"],
     },
-    "history.remote": { en: ["{remotes}", "remote", "never sends"], yue: ["{remotes}", "remote", "唔會送"] },
+    "history.remote": {
+        en: ["{remotes}", "remote", "never sends"],
+        yue: ["{remotes}", "remote", "唔會送"],
+    },
     "history.gitVersion": { en: ["Git {version}"], yue: ["Git {version}"] },
 } as const satisfies Record<
     keyof typeof HISTORY_VOICED,

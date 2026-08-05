@@ -564,7 +564,10 @@ export const GITHUB_FIXED = {
         en: "Review this app's access on GitHub",
         yue: "喺 GitHub 度檢視呢個程式嘅存取權",
     },
-    "settings.github.orToken": { en: "Or sign in with a token instead", yue: "或者改用 token 登入" },
+    "settings.github.orToken": {
+        en: "Or sign in with a token instead",
+        yue: "或者改用 token 登入",
+    },
 
     /* The device flow, in the order the panel walks through it. */
     "settings.github.start": { en: "Sign in with a browser", yue: "用瀏覽器登入" },
@@ -640,7 +643,11 @@ export const GITHUB_FACTS = {
     },
     // ... versus gone from here, with the grant possibly still standing on the account.
     "settings.github.notRevoked": {
-        en: ["deleted from this computer", "did not confirm", "may still be listed on your account"],
+        en: [
+            "deleted from this computer",
+            "did not confirm",
+            "may still be listed on your account",
+        ],
         yue: ["呢部電腦刪走", "冇確認撤銷", "可能仲喺你個帳戶"],
     },
     "settings.github.confirmBody": {
@@ -689,7 +696,10 @@ export const GITHUB_FACTS = {
     },
 
     // Four endings, four different next moves, so none of them may borrow another's words.
-    "settings.github.denied": { en: ["refused on the GitHub page"], yue: ["GitHub 嗰版", "拒絕咗"] },
+    "settings.github.denied": {
+        en: ["refused on the GitHub page"],
+        yue: ["GitHub 嗰版", "拒絕咗"],
+    },
     "settings.github.deniedNote": {
         en: ["Nothing was stored", "nothing changed", "new code"],
         yue: ["冇儲低任何嘢", "冇改動過任何嘢", "新 code"],
@@ -725,7 +735,11 @@ export const GITHUB_FACTS = {
     },
 
     "settings.github.tokenExplain": {
-        en: ["personal access token", "browser sign-in", "checked with GitHub before it is accepted"],
+        en: [
+            "personal access token",
+            "browser sign-in",
+            "checked with GitHub before it is accepted",
+        ],
         yue: ["personal access token", "瀏覽器登入", "同 GitHub 核對過先接受"],
     },
     "settings.github.tokenPage": { en: ["token", "github.com"], yue: ["token", "github.com"] },

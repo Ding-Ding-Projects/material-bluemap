@@ -163,7 +163,10 @@ export const MENU_FIXED = {
     /* Product name and version number, both identifiers, so the string is the same either
      * side of the language switch. */
     "info.appVersion": { en: "Material BlueMap {version}", yue: "Material BlueMap {version}" },
-    "info.changelog": { en: "Changelog, every released version", yue: "更新日誌，每一個已發佈版本" },
+    "info.changelog": {
+        en: "Changelog, every released version",
+        yue: "更新日誌，每一個已發佈版本",
+    },
 
     /* The search bar shared by the maps menu and the settings menu. */
     "search.button": { en: "Search", yue: "搜尋" },

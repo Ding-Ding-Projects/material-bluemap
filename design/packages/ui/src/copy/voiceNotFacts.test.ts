@@ -209,8 +209,10 @@ describe.each(REPRESENTATIVES)("$what", (subject: Representative) => {
         // Three distinct wordings out of five. Levels 1 and 2 are allowed to match, and
         // often should: there is one way to write a professional sentence, and inventing a
         // difference to satisfy a counter would make the copy worse.
-        expect(new Set(rendered).size, `only ${new Set(rendered).size} distinct wordings`)
-            .toBeGreaterThanOrEqual(3);
+        expect(
+            new Set(rendered).size,
+            `only ${new Set(rendered).size} distinct wordings`,
+        ).toBeGreaterThanOrEqual(3);
     });
 });
 
@@ -268,6 +270,21 @@ describe("the English level and the Cantonese level do not touch each other", ()
 /* -------------------------------------------------------------------------- */
 
 describe("a key the catalogue does not carry", () => {
+    /*
+     * The key here is deliberately synthetic. This assertion used to name a real one,
+     * `config.maps.storagesAvailable`, which was true right up until somebody voiced the
+     * config screen and then failed for the best possible reason: the catalogue had grown
+     * over it. A test whose subject is "a key that is missing" cannot use a key anybody
+     * might reasonably add, or it goes red every time the work it is meant to support
+     * succeeds -- and the obvious repair, swapping in whichever key is still missing today,
+     * just resets the same trap for the next person.
+     *
+     * `absent.` is a namespace no surface uses and none will, so the property under test
+     * stays the property under test: a key with nothing on the other side of the call falls
+     * through to the English string in the third argument, with its named arguments
+     * interpolated, even in Cantonese mode. That is what makes the catalogue safe to grow
+     * one surface at a time instead of all at once.
+     */
     it("still renders its English fallback, with its arguments interpolated", () => {
         setLanguageMode("yue");
         const i18n = freshI18n();
@@ -275,7 +292,7 @@ describe("a key the catalogue does not carry", () => {
 
         expect(
             i18n.global.t(
-                "config.maps.storagesAvailable",
+                "absent.surface.storagesAvailable",
                 { list: "file-tiles, sql" },
                 "Storages available: {list}",
             ),
