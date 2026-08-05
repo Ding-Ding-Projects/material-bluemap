@@ -92,36 +92,29 @@ contents name container paths (`/worlds/overworld`, `/bluemap/web`), and mounts 
 are this machine's — creating `/bluemap/web/maps` on a Windows host silently produces
 `C:\bluemap\web\maps`, and a render then reports an empty output folder nobody can find.
 
-## Serving a rendered map (and the web server that does not run)
+## The web server
 
-A render's output is a static web root the moment the engine exits, so this app never keeps a
-second engine process alive to serve it. `LocalMapHandler` (`main/render/LocalMapHandler.ts`) is
-mounted on the app's own embedded HTTP server at `/local/{renderId}/...` for every render this app
-produces, **local or Docker** — the same `mount()` call in `render/orchestrator.ts` runs either
-way. Reading the tiles directly off disk needs no port to publish out of a container and no probe
-to prove a bind succeeded, because there is no second process whose binding could fail.
+For the web-server role the engine is started with upstream's `-w`, and `webserver.conf` is
+written with `enabled: true` and a port. The two modes differ in exactly one setting and one
+argument:
 
-`main/runtime/plan.ts` still knows how to plan a launch for upstream's *own* `-w` web server —
-`RuntimeRole: "web-server"` starts the engine with `-w`, writes `webserver.conf` with
-`enabled: true` and a port, and (for Docker) publishes `-p 127.0.0.1:<hostPort>:<containerPort>`
-exactly as a render's other container arguments are built. That machinery was originally paired
-with a `WebServer` class that opened a TCP connection to prove the URL was actually listening
-before reporting it, on the theory that upstream logs `Starting webserver …` before it binds and
-only reports a bind failure afterward, so neither the log line nor a still-running process is
-evidence on its own.
+- **Local**: the engine binds `127.0.0.1:<port>`. The URL is `http://127.0.0.1:<port>/`.
+- **Docker**: the engine binds `0.0.0.0:<containerPort>` *inside the container*, and the port is
+  published with `-p 127.0.0.1:<hostPort>:<containerPort>`. The URL is
+  `http://127.0.0.1:<hostPort>/`.
 
-**That class was removed** (`runtime/webserver.ts`, decision D19 in `design/docs/decisions.md`):
-nothing in this app ever planned a launch with `role: "web-server"`, because `LocalMapHandler`
-already does the one job it existed for. The launch-planning code for that role is left in place,
-typed and tested, in case a future feature genuinely needs upstream's own live server running
-rather than a static read of what it already wrote — the day that happens is the day a class like
-it earns a caller again.
+Binding `0.0.0.0` inside a container is not a wider exposure than binding loopback locally,
+because the publish rule is what decides who can reach it, and it publishes to this machine's
+loopback only. Binding `127.0.0.1` *inside* the container would be the container's own loopback
+— unreachable from the host even with the port published, which is the most common way a
+containerised server "starts fine" and answers nothing.
 
-Binding `0.0.0.0` inside a container is not a wider exposure than binding loopback locally, for
-what it is worth to a launch that is never planned today: the publish rule is what decides who can
-reach it, and it would publish to this machine's loopback only. Binding `127.0.0.1` *inside* the
-container would be the container's own loopback — unreachable from the host even with the port
-published, which is the most common way a containerised server "starts fine" and answers nothing.
+**A URL is only reported after it has been connected to.** Upstream logs `Starting webserver …`
+before it binds and reports a bind failure afterwards, so neither the log line nor a
+still-running process is evidence. The app opens a TCP connection to the address a person would
+type, from this machine, and reports the URL only once that succeeds. The three other outcomes —
+the process exited first, the port never answered, there was no port to publish — are reported
+as themselves, with the engine's own exit code and last words.
 
 ## Cancelling
 
@@ -250,7 +243,7 @@ worse than losing a render is telling somebody it is on their disk when it is no
 
 ## Verification
 
-`design/packages/app/src/main/runtime/` carries 119 tests, none of which need Docker installed:
+`design/packages/app/src/main/runtime/` carries 126 tests, none of which need Docker installed:
 
 - `docker.test.ts` — every state of the probe, including both platforms' wordings for an
   unreachable daemon, a permission refusal, output that is not the JSON it asked for, and a
@@ -266,6 +259,8 @@ worse than losing a render is telling somebody it is on their disk when it is no
   for a local run, and that a failed stop never leaves the caller waiting.
 - `config.test.ts` — container paths written into the files while the files are written here, and
   that the engine's own directories are never created on this machine.
+- `webserver.test.ts` — that a URL is reported only after a successful connection, that the
+  container case probes the published host port, and the three ways a start can honestly fail.
 - `handoff.test.ts` — a record round-trips everything a reattach needs; a truncated, version-bumped
   or name-less one reads as **absent** rather than as a guess; a remote record whose host will not
   parse is refused rather than degraded to a local one, so `docker stop` is never sent to this
@@ -283,11 +278,6 @@ worse than losing a render is telling somebody it is on their disk when it is no
   container with no record named rather than stopped.
 - `ipc.test.ts` — the channels, the honest per-mode availability, that no handler rejects, and that
   a build with no reattacher still answers the container channels rather than not having them.
-
-The actual serving path — local or Docker — is covered separately in
-`design/packages/app/src/main/render/LocalMapHandler.test.ts`: mounting and unmounting a render,
-serving `settings.json` and everything under `maps/`, the `.prbm`/`.prbm.gz` compression fallback,
-a missing tile answering 204 rather than 404, and path traversal refused.
 
 ## Suggested articles
 
