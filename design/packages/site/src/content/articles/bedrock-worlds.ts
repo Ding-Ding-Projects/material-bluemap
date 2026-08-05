@@ -30,7 +30,7 @@ export const bedrockWorlds: Article = {
                 {
                     kind: "table",
                     caption: "What tells the two editions apart",
-                    columns: ["", "Java Edition", "Bedrock Edition"],
+                    columns: [" ", "Java Edition", "Bedrock Edition"],
                     rows: [
                         ["Chunk storage", [{ code: "region/*.mca" }, " (Anvil)"], [{ code: "db/" }, " (a LevelDB database)"]],
                         ["level.dat", "big-endian NBT, gzip", "little-endian NBT behind an 8-byte header"],

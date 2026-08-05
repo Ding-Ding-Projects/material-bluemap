@@ -484,6 +484,35 @@ describe("committed captures", () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* release-downloads                                                         */
+/* -------------------------------------------------------------------------- */
+
+describe("release-downloads article", () => {
+    // docs/world-sources.md documents a distinct, real module -- main/worldsource/ -- that
+    // fetches a world from any public GitHub repository's release and understands two
+    // split layouts (this project's own parts manifest, and the far more common plain
+    // SHA256SUMS listing). Before this article cited that module and mentioned that
+    // capability, a reader here would learn a narrower feature than what actually shipped.
+    const article = findArticle("release-downloads");
+
+    it("exists", () => {
+        expect(article).toBeDefined();
+    });
+
+    it("cites the worldsource module and its doc among its sources", () => {
+        const labels = article!.sources.map((source) => source.label);
+        expect(labels).toContain("packages/app/src/main/worldsource");
+        expect(labels).toContain("docs/world-sources.md");
+    });
+
+    it("mentions fetching from any public GitHub repository and both split layouts", () => {
+        const haystack = articleStrings(article!).join(" ").toLowerCase();
+        expect(haystack).toContain("any public github repository");
+        expect(haystack).toContain("sha256sums");
+    });
+});
+
+/* -------------------------------------------------------------------------- */
 /* install                                                                    */
 /* -------------------------------------------------------------------------- */
 

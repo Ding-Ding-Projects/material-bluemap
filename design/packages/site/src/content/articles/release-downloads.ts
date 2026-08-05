@@ -1,5 +1,5 @@
 import type { Article } from "../types.js";
-import { LARGE_WORLDS_DOC_URL, ROADMAP_URL, repoFile } from "../links.js";
+import { LARGE_WORLDS_DOC_URL, ROADMAP_URL, WORLD_SOURCES_DOC_URL, repoFile } from "../links.js";
 
 export const releaseDownloads: Article = {
     id: "release-downloads",
@@ -35,6 +35,27 @@ export const releaseDownloads: Article = {
                         "beside them. None of that is the reader's problem here: the panel presents a split ",
                         "asset as the single file it really is, with a chip saying how many parts it arrives ",
                         "in, and the main process does the rest.",
+                    ],
+                },
+                {
+                    kind: "paragraph",
+                    content: [
+                        "The world does not have to be this project's own, either. Pasting a link to ",
+                        { em: "any public GitHub repository" },
+                        ", or one particular release of one with its tag and all, resolves to an owner ",
+                        "and a name the same way a hand-typed one does, and the release behind it is read ",
+                        "the same way. ",
+                        "Two different split layouts are understood: this project's own parts manifest, and ",
+                        "the far more common shape a plain ",
+                        { code: "sha256sum" },
+                        " listing produces, ",
+                        { code: "world.zip.part.0000" },
+                        " beside a ",
+                        { code: "SHA256SUMS" },
+                        " file with no manifest at all. Fetching, verifying and joining that second layout is ",
+                        "genuinely new work, described in ",
+                        { link: "docs/world-sources.md", href: WORLD_SOURCES_DOC_URL, external: true },
+                        "; everything else it needed already existed here and is reused rather than duplicated.",
                     ],
                 },
                 {
@@ -104,7 +125,7 @@ export const releaseDownloads: Article = {
                         {
                             term: "Which release",
                             description:
-                                "Owner, repository and tag, all editable. This project's own releases are the default because they are what carry the worlds and the maps, and a blank tag means whatever the latest release is. A fork, a mirror or somebody's private repository of their own worlds is exactly the case a hard-coded repository would refuse to serve.",
+                                "Owner, repository and tag, all editable, or a single pasted link to a repository or a tagged release that is parsed into the same three fields. This project's own releases are the default because they are what carry the worlds and the maps, and a blank tag means whatever the latest release is. A fork, a mirror or somebody's private repository of their own worlds is exactly the case a hard-coded repository would refuse to serve, and neither owner nor repository is assumed to be this project's own.",
                         },
                         {
                             term: "Where it lands",
@@ -285,5 +306,10 @@ export const releaseDownloads: Article = {
         },
         { label: "packages/parts", href: repoFile("design/packages/parts") },
         { label: "docs/large-worlds.md", href: LARGE_WORLDS_DOC_URL },
+        {
+            label: "packages/app/src/main/worldsource",
+            href: repoFile("design/packages/app/src/main/worldsource"),
+        },
+        { label: "docs/world-sources.md", href: WORLD_SOURCES_DOC_URL },
     ],
 };
