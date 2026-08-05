@@ -18,7 +18,7 @@ import { createVuetify } from "vuetify";
 import { VApp, VSlider, VSwitch } from "vuetify/components";
 import NoticeBulkToolbar from "./NoticeBulkToolbar.vue";
 import { createNoticeState, notify, type Notice, type NoticeState } from "./config/notifications.js";
-import { GATE_TRAVEL_END } from "./confirm/superConfirmGate.js";
+import { GATE_COMPLETION_HOLD_MS, GATE_TRAVEL_END } from "./confirm/superConfirmGate.js";
 import { filterNotices } from "./notifications/noticeCentre.js";
 import { createSettingMatcher } from "./config/regexEngine.js";
 
@@ -258,6 +258,18 @@ describe("dismiss", () => {
 
         expect(view.text()).toContain("1 of the selection were not currently showing");
     });
+
+    it("shows its own honest-preview sentence on screen, not only inside a hover tooltip", async () => {
+        // Regression: the sentence used to live only inside a `v-tooltip`, which Vuetify does
+        // not mount until the activator is hovered or focused - a fact nobody deciding
+        // whether to press the button could actually read just by looking at the panel.
+        const state = fiveState();
+        const view = mountToolbar(state, state.history, new Set([1, 3]));
+        await settle();
+
+        expect(view.text()).toContain("This clears 2 notifications from the corner");
+        expect(view.text()).toContain("still in the history");
+    });
 });
 
 describe("mark as read", () => {
@@ -341,6 +353,16 @@ describe("export", () => {
 
         expect(view.text()).toContain("Could not reach the clipboard.");
     });
+
+    it("shows its own honest-preview sentence on screen, not only inside a hover tooltip", async () => {
+        // Regression, the same as dismiss's own sibling test above: the sentence used to live
+        // only inside a `v-tooltip`, unreachable by simply reading the panel.
+        const state = fiveState();
+        const view = mountToolbar(state, state.history, new Set([1]));
+        await settle();
+
+        expect(view.text()).toContain("This writes 1 notifications, exactly the ones that match your current filter");
+    });
 });
 
 describe("delete: behind the gate, not a plain click", () => {
@@ -397,23 +419,64 @@ describe("delete: behind the gate, not a plain click", () => {
         expect(state.history).toHaveLength(5);
     });
 
-    it("deletes only once both keys are turned and the slider has gone all the way", async () => {
-        const state = fiveState();
-        const view = mountToolbar(state, state.history, new Set([1, 3]));
-        await openGate(view);
-        await settle();
+    it("deletes only once both keys are turned and the slider has gone all the way, and its own completion hold has elapsed", async () => {
+        vi.useFakeTimers();
+        try {
+            const state = fiveState();
+            const view = mountToolbar(state, state.history, new Set([1, 3]));
+            await openGate(view);
+            await settle();
 
-        await view.findAllComponents(VSwitch)[0]?.setValue(true);
-        await view.findAllComponents(VSwitch)[1]?.setValue(true);
-        await settle();
-        await slideToEnd(view);
-        await settle();
+            await view.findAllComponents(VSwitch)[0]?.setValue(true);
+            await view.findAllComponents(VSwitch)[1]?.setValue(true);
+            await settle();
+            await slideToEnd(view);
 
-        expect(state.history.map((notice) => notice.id).sort((a, b) => a - b)).toEqual([2, 4, 5]);
-        expect(view.text()).toContain("Done. 2 changed.");
+            vi.advanceTimersByTime(GATE_COMPLETION_HOLD_MS + 10);
+            await settle();
 
-        const emitted = view.emitted("update:selected") as [Set<number>][];
-        expect(emitted.at(-1)?.[0].size).toBe(0);
+            expect(state.history.map((notice) => notice.id).sort((a, b) => a - b)).toEqual([2, 4, 5]);
+            expect(view.text()).toContain("Done. 2 changed.");
+
+            const emitted = view.emitted("update:selected") as [Set<number>][];
+            expect(emitted.at(-1)?.[0].size).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("holds the gate's own completion state before deleting anything, rather than tearing it down the instant it authorizes", async () => {
+        // Regression for the delete gate unmounting itself mid-hold: `ConfigSuperConfirm`
+        // authorizes the moment the slider reaches the end and then holds its "Authorized."
+        // state on screen for GATE_COMPLETION_HOLD_MS before closing. Deleting immediately -
+        // the previous behaviour - cleared the very history and selection this button's own
+        // `v-if="deleteImp.changingCount > 0"` depends on in that same tick, tearing the
+        // still-open gate out of the DOM before a frame of "Authorized." could be seen.
+        vi.useFakeTimers();
+        try {
+            const state = fiveState();
+            const view = mountToolbar(state, state.history, new Set([1, 3]));
+            await openGate(view);
+            await settle();
+
+            await view.findAllComponents(VSwitch)[0]?.setValue(true);
+            await view.findAllComponents(VSwitch)[1]?.setValue(true);
+            await settle();
+            await slideToEnd(view);
+
+            // The gate has just authorized, but its own documented hold has not elapsed yet:
+            // nothing should be deleted, and the gate's completion state should still be the
+            // thing actually on screen.
+            expect(state.history).toHaveLength(5);
+            expect(bodyText()).toContain("Authorized");
+
+            vi.advanceTimersByTime(GATE_COMPLETION_HOLD_MS + 10);
+            await settle();
+
+            expect(state.history).toHaveLength(3);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 
     it("offers no delete button at all with an empty selection", () => {
@@ -424,12 +487,12 @@ describe("delete: behind the gate, not a plain click", () => {
 });
 
 describe("focus survives the button that removed itself", () => {
-    // Dismiss, mark-as-read and clear all empty the selection as part of running, which pulls
-    // their own triggering button (or, for dismiss/mark-as-read, the whole `hasSelection`
-    // block it lives in) out of the DOM on the very next render. A component with no focus
-    // handling of its own leaves that focus on `document.body`, stranding a keyboard or
-    // screen-reader user; these prove focus instead lands on the toolbar's always-rendered
-    // live-region status paragraph.
+    // Dismiss, mark-as-read, clear and delete all empty the selection as part of running,
+    // which pulls their own triggering button (or, for dismiss/mark-as-read, the whole
+    // `hasSelection` block it lives in) out of the DOM on the very next render. A component
+    // with no focus handling of its own leaves that focus on `document.body`, stranding a
+    // keyboard or screen-reader user; these prove focus instead lands on the toolbar's
+    // always-rendered live-region status paragraph.
 
     it("dismiss moves focus to the status region instead of stranding it on body", async () => {
         const state = fiveState();
@@ -480,5 +543,40 @@ describe("focus survives the button that removed itself", () => {
 
         expect(document.activeElement).not.toBe(document.body);
         expect(document.activeElement).toBe(view.find("[role='status']").element);
+    });
+
+    it("delete moves focus to the status region after its own completion hold, instead of stranding it on body", async () => {
+        // Delete has one more step than the other three: its own gate's `returnFocusTo`
+        // targets the "Delete N selected" button, and that button is itself gone by the
+        // time the deferred delete actually runs (see `runDelete`'s own comment). This is
+        // what proves focus still lands somewhere real rather than on `<body>` regardless.
+        vi.useFakeTimers();
+        try {
+            const state = fiveState();
+            const view = mountReactiveToolbar(state, state.history, new Set([1, 3]));
+            await settle();
+
+            const openButton = buttonByText(view, "Delete");
+            (openButton?.element as HTMLElement).focus();
+            expect(document.activeElement).toBe(openButton?.element);
+
+            await openButton?.trigger("click");
+            await settle();
+
+            await view.findAllComponents(VSwitch)[0]?.setValue(true);
+            await view.findAllComponents(VSwitch)[1]?.setValue(true);
+            await settle();
+            view.findComponent(VSlider).vm.$emit("update:modelValue", GATE_TRAVEL_END);
+            await settle();
+
+            vi.advanceTimersByTime(GATE_COMPLETION_HOLD_MS + 10);
+            await settle();
+            await settle();
+
+            expect(document.activeElement).not.toBe(document.body);
+            expect(document.activeElement).toBe(view.find("[role='status']").element);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiCheckAll,
@@ -13,6 +13,7 @@ import {
 } from "@mdi/js";
 import { VBtn, VDivider } from "vuetify/components";
 import ConfigSuperConfirm from "./config/ConfigSuperConfirm.vue";
+import { GATE_COMPLETION_HOLD_MS } from "./confirm/superConfirmGate.js";
 import { formatNoticesAsMarkdown } from "./notifications/noticeCentre.js";
 import {
     bulkDismiss,
@@ -72,18 +73,21 @@ const { t } = useI18n();
 const status = ref("");
 
 /**
- * Dismiss, mark-as-read and clear all remove their own triggering button from the DOM on the
- * very next render - each of them empties the selection, and `dismissImpact`/`readImpact`
- * both recompute off state these same actions just changed, so the `v-if` guarding the
- * clicked button (or the whole `hasSelection` block it lives in) closes right under the
- * pointer. Left alone, the browser drops focus to `<body>` the instant that happens, stranding
- * a keyboard or screen-reader user with no way back into the toolbar without starting over
- * from the top of the document.
+ * Dismiss, mark-as-read, clear and delete all remove their own triggering button from the DOM
+ * on the very next render - each of them empties the selection, and
+ * `dismissImpact`/`readImpact`/`deleteImpact` all recompute off state these same actions just
+ * changed, so the `v-if` guarding the clicked button (or the whole `hasSelection` block it
+ * lives in) closes right under the pointer. Left alone, the browser drops focus to `<body>`
+ * the instant that happens, stranding a keyboard or screen-reader user with no way back into
+ * the toolbar without starting over from the top of the document.
  *
  * The status paragraph below is the one element in this toolbar that is never conditionally
  * rendered - it is also the live region that just announced what happened - so it is where
  * focus lands instead. `tabindex="-1"` on it makes that a legal, if unusual, focus target
  * without adding it to the normal tab order.
+ *
+ * Delete needs one more thing the other three do not: see `runDelete`'s own comment for why
+ * its act is deferred rather than immediate.
  */
 const statusRegion = ref<HTMLElement | null>(null);
 
@@ -119,6 +123,34 @@ const deleteAction = computed(() =>
     ),
 );
 
+/**
+ * Dismiss's own reassurance, rendered as a permanently visible sentence under the button row
+ * rather than only living in `notificationsBulk.ts`'s catalogue entry: the one fact a reader
+ * needs before clearing several notices at once is that dismiss is not delete, and a fact
+ * that only appeared inside a hover tooltip - reachable by mouse hover or an explicit
+ * keyboard focus, never by simply reading the panel - was not actually doing its job. Shown
+ * the same way `deleteAction` already is inside the gate, and `markReadExplain` already is in
+ * the exclusion list below.
+ */
+const dismissAction = computed(() =>
+    t(
+        "noticeBulk.dismissExplain",
+        { count: String(dismissImp.value.changingCount) },
+        "This clears {count} notifications from the corner. Each one is still in the history and can be shown again.",
+    ),
+);
+
+/** Export's own promise -- exactly the filtered set, never quietly widened -- shown the same
+ *  permanently visible way as `dismissAction`, and shared by both format buttons since the
+ *  promise itself does not change between JSON and Markdown. */
+const exportAction = computed(() =>
+    t(
+        "noticeBulk.exportExplain",
+        { count: String(exportImp.value.changingCount) },
+        "This writes {count} notifications, exactly the ones that match your current filter.",
+    ),
+);
+
 function selectAllVisible(): void {
     emit("update:selected", selectExactly(visibleIds.value));
 }
@@ -143,11 +175,47 @@ function runDismiss(): void {
     focusStatusRegion();
 }
 
+/**
+ * The delete gate's own completion timer, mirrored here so the act it guards does not run
+ * before the gate has finished showing that it ran. Cleared on unmount so a panel closed
+ * mid-hold cannot call back into state nobody is looking at any more.
+ */
+let deleteTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Deleting is deferred past `ConfigSuperConfirm`'s own documented completion hold, unlike
+ * dismiss and mark-as-read above, which act at once.
+ *
+ * `ConfigSuperConfirm` authorizes synchronously the moment the slider reaches the end, but
+ * then holds its "Authorized." status, checkmark and flash animation on screen for
+ * `GATE_COMPLETION_HOLD_MS` before closing itself and returning focus to its own activator -
+ * that hold, and that focus return, are the two things `superConfirmPolicy.test.ts` requires
+ * every gate to keep. This button's own `<ConfigSuperConfirm v-if="deleteImp.changingCount >
+ * 0">` depends on the very history entries and selection the delete removes, so running
+ * `deleteSelectedHistory` immediately - the previous behaviour - cleared them in the same
+ * tick the gate authorized: `deleteImp.changingCount` fell to zero before Vue had rendered a
+ * single frame of "Authorized.", the `v-if` tore the still-open gate out of the DOM, and the
+ * gate's own `returnFocusTo` fired into a button that no longer existed.
+ *
+ * Waiting the same `GATE_COMPLETION_HOLD_MS` the gate itself waits lets that hold actually
+ * play out before anything unmounts it, and `focusStatusRegion()` below - not the gate's own
+ * `returnFocusTo` - is what recovers focus afterwards, because by the time this runs the
+ * button the gate would have refocused is itself gone.
+ */
 function runDelete(): void {
-    const changed = deleteSelectedHistory(props.state, props.selected);
-    status.value = t("noticeBulk.actionDone", { count: String(changed) }, "Done. {count} changed.");
-    emit("update:selected", emptySelection());
+    if (deleteTimer !== null) clearTimeout(deleteTimer);
+    deleteTimer = setTimeout(() => {
+        deleteTimer = null;
+        const changed = deleteSelectedHistory(props.state, props.selected);
+        status.value = t("noticeBulk.actionDone", { count: String(changed) }, "Done. {count} changed.");
+        emit("update:selected", emptySelection());
+        focusStatusRegion();
+    }, GATE_COMPLETION_HOLD_MS);
 }
+
+onBeforeUnmount(() => {
+    if (deleteTimer !== null) clearTimeout(deleteTimer);
+});
 
 function runMarkRead(): void {
     const changed = markSelectedAsRead(props.state, props.selected);
@@ -301,6 +369,20 @@ async function exportSelected(format: "json" | "markdown"): Promise<void> {
                 </ConfigSuperConfirm>
             </div>
 
+            <!--
+                Dismiss's and export's own honest-preview sentences, permanently on screen
+                rather than living only inside a hover tooltip - a tooltip is not reachable by
+                simply reading the panel, and the fact each one states (dismiss is reversible,
+                export matches the active filter) is exactly the kind of thing somebody
+                deciding whether to press the button needs to already be able to see.
+            -->
+            <p v-if="dismissImp.changingCount > 0" class="mb-notice-bulk__preview" data-test="dismiss-preview">
+                {{ dismissAction }}
+            </p>
+            <p v-if="exportImp.changingCount > 0" class="mb-notice-bulk__preview" data-test="export-preview">
+                {{ exportAction }}
+            </p>
+
             <ul
                 v-if="
                     dismissImp.excludedCount > 0 ||
@@ -381,6 +463,13 @@ async function exportSelected(format: "json" | "markdown"): Promise<void> {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+.mb-notice-bulk__preview {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-notice-bulk__excluded {

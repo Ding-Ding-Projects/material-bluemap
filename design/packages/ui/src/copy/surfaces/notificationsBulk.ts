@@ -80,6 +80,16 @@ export const NOTIFICATIONSBULK_FIXED = {
         en: "{excluded} of the selection do not match the active filter, so export left them out",
         yue: "揀咗但同而家篩選唔啱嘅 {excluded} 個，匯出呢個操作冇包埋佢哋",
     },
+    /**
+     * Mark-as-read's exclusion note: the rest of the selection has aged out of the bounded
+     * history entirely, the same "no longer exists" fact `excludedDelete` states for delete.
+     * `NoticeBulkToolbar.vue` already called this key before it was registered here; this is
+     * that registration, not a new sentence.
+     */
+    "noticeBulk.excludedMarkRead": {
+        en: "{excluded} of the selection no longer exist in the history, so marking as read left them alone",
+        yue: "揀咗但已經唔喺歷史入面嘅 {excluded} 個，標記做已讀呢個操作冇郁過佢哋",
+    },
     /** The live-region status after dismiss, delete or mark-as-read actually runs. */
     "noticeBulk.actionDone": { en: "Done. {count} changed.", yue: "搞掂。改咗 {count} 個。" },
     /** The live-region status after a bulk export writes to the clipboard. */
