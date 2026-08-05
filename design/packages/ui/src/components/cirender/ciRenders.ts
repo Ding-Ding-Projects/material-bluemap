@@ -650,11 +650,18 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 scheduleFailure.value = answer.message;
                 return null;
             }
+            // A refusal the write channel itself carried through successfully - most often
+            // "this world has never been uploaded" - is still something to show, not a
+            // silent no-op. Surfaced the same way the channel-level failure above is.
+            if (!answer.value.ok) {
+                scheduleFailure.value = answer.value.failure.message;
+                return answer.value;
+            }
             // Re-read rather than optimistically setting `schedule.value` from what was just
             // sent: the workflow's own last-check fields are untouched by this write, and a
             // screen that invented them locally would show a check that never happened the
             // moment scheduling is turned on.
-            if (answer.value.ok) await loadSchedule(owner, repo, accountId);
+            await loadSchedule(owner, repo, accountId);
             return answer.value;
         } catch (error) {
             scheduleFailure.value = describe(error);

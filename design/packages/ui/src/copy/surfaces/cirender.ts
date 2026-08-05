@@ -830,6 +830,105 @@ export const CIRENDER_VOICED = {
             "喺清單度揀個倉庫名，又或者自己打返一個，先至可以檢查－冇呢樣嘢，檢查都唔知查邊個。",
         ],
     },
+
+    /* ---------------------------------------------------------------- */
+    /* Scheduled re-rendering: checking on a cadence, rendering only     */
+    /* when something actually changed. See docs/scheduled-render.md.   */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * The section's own explanation, read once when somebody opens it. The cost claim is
+     * deliberately about *frequency*, never a made-up runner-minute figure - `{count}` is
+     * the exact monthly check count `describeCadenceCost` computes, and every level keeps
+     * that number rather than rounding it away for a punchier sentence.
+     */
+    "cirender.schedule.help": {
+        en: [
+            "Checks this world for changes about {count} times a month, and only starts a render when it actually finds one. A check reads a small amount of metadata, never the world itself, so it costs very little however often it runs.",
+            "Checks this world for changes about {count} times a month, and only starts a render when it actually finds one. A check reads a small amount of metadata, never the world itself, so it costs very little however often it runs.",
+            "Checks this world for changes about {count} times a month, and only starts a render when it actually finds one. A check reads a small amount of metadata rather than the world itself, so checking costs very little whatever the cadence.",
+            "Checks about {count} times a month, and only spends real GitHub Actions minutes when a real change turns up. A check reads a little metadata, never the world itself, so the cadence barely moves the cost.",
+            "Checks about {count} times a month and only bothers GitHub's runners when a real change actually turns up, since a check itself reads a scrap of metadata, never downloads the world, so dialling the cadence up costs you almost nothing but a few extra glances.",
+        ],
+        yue: [
+            "呢個世界大約每個月 check {count} 次，搵到真係有改過先至會開始 render。check 淨係讀一小撮 metadata，唔會掂個世界本身，所以就算 check 得幾密都幾乎唔使錢。",
+            "呢個世界大約每個月 check {count} 次，搵到真係有改過先至會開始 render。check 淨係讀一小撮 metadata，唔會掂個世界本身，所以就算 check 得幾密都幾乎唔使錢。",
+            "呢個世界大約每個月 check {count} 次，搵到真係有改過先至會開始 render。check 淨係讀一小撮 metadata，唔會掂個世界本身，所以密啲 check 都好平。",
+            "大約每個月 check {count} 次，搵到真係有嘢改過先會真金白銀去洗 GitHub Actions 嘅分鐘數。check 本身淨係讀返少少 metadata，唔會落去載個世界，所以 check 得密唔密，成本都冇乜分別。",
+            "大約每個月 check {count} 次，搵到真係有嘢改過先至會勞煩 GitHub 啲 runner 出手，畢竟 check 本身就淨係睇少少 metadata，一格都唔會落去 load 個世界，所以你想 check 幾密都得，唔多過幾眼咁大把嘢。",
+        ],
+    },
+
+    /*
+     * One check's own outcome, shown beside "Last checked". Never guesses in either
+     * direction: "unknown" states plainly that nothing comparable was available. Each
+     * level keeps one exact phrase - what {@link CIRENDER_FACTS} pins below - so the fact
+     * itself never moves even while the sentence around it gets more playful.
+     */
+    "cirender.schedule.result.changed": {
+        en: [
+            "the world had changed, so a render was started",
+            "the world had changed, so a render was started",
+            "the world had genuinely changed, so a render was started",
+            "something had genuinely changed, so a render was started",
+            "something had absolutely, unmistakably changed, so a render was started - no dawdling",
+        ],
+        yue: [
+            "個世界改過，所以 render 已經開始咗",
+            "個世界改過，所以 render 已經開始咗",
+            "個世界真係改過，所以 render 已經開始咗",
+            "真係有嘢改過，所以 render 已經開始咗",
+            "真係實實在在改過，一格都走唔甩，所以 render 已經開始咗，仲即刻嗰種",
+        ],
+    },
+    "cirender.schedule.result.unchanged": {
+        en: [
+            "the world had not changed, so nothing was rendered",
+            "the world had not changed, so nothing was rendered",
+            "the world had not changed at all, so nothing was rendered",
+            "nothing had genuinely changed, so nothing was rendered",
+            "not one block had changed, so nothing was rendered, and GitHub's runners went back to sleep",
+        ],
+        yue: [
+            "個世界冇改過，所以乜都冇 render",
+            "個世界冇改過，所以乜都冇 render",
+            "個世界完全冇改過，所以乜都冇 render",
+            "真係乜都冇改過，所以乜都冇 render",
+            "一格都冇改過，所以乜都冇 render，GitHub 啲 runner 繼續瞓覺",
+        ],
+    },
+    "cirender.schedule.result.unknown": {
+        en: [
+            "a change could not be cheaply told for this world's source",
+            "a change could not be cheaply told for this world's source",
+            "a change could not be cheaply told for this world's source, so nothing was rendered",
+            "a change could not be cheaply told for this world's source, so nothing was rendered on a guess",
+            "a change could not be cheaply told for this world's source, however hard it squinted, so nothing was rendered on a guess",
+        ],
+        yue: [
+            "呢個世界嘅 source 冇得平價check有冇改過",
+            "呢個世界嘅 source 冇得平價check有冇改過",
+            "呢個世界嘅 source 冇得平價check有冇改過，所以乜都冇 render",
+            "呢個世界嘅 source 冇得平價check有冇改過，所以唔會靠估去 render",
+            "呢個世界嘅 source 冇得平價check有冇改過，眯埋眼都睇唔出，所以唔會靠估去 render",
+        ],
+    },
+    "cirender.schedule.result.error": {
+        en: [
+            "the configured world could not be found by the last check",
+            "the configured world could not be found by the last check",
+            "the configured world could not be found by the last check, so nothing was rendered",
+            "the configured world could not be found by the last check, so nothing was rendered",
+            "the configured world could not be found by the last check, which went looking and came back with nothing, so nothing was rendered",
+        ],
+        yue: [
+            "上次 check 搵唔到已配置嘅個世界",
+            "上次 check 搵唔到已配置嘅個世界",
+            "上次 check 搵唔到已配置嘅個世界，所以乜都冇 render",
+            "上次 check 搵唔到已配置嘅個世界，所以乜都冇 render",
+            "上次 check 搵唔到已配置嘅個世界，去搵完一場空手而回，所以乜都冇 render",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const CIRENDER_FIXED = {
@@ -986,6 +1085,23 @@ export const CIRENDER_FIXED = {
         en: "Reading your repositories...",
         yue: "讀緊你嘅倉庫...",
     },
+
+    /* Scheduled re-rendering: the section title, its toggle, the cadence choices, and the
+     * status readout. Short factual labels, like every other field name on this screen. */
+    "cirender.schedule.title": { en: "Scheduled re-rendering", yue: "排程算圖" },
+    "cirender.schedule.enable": { en: "Check automatically", yue: "自動檢查" },
+    "cirender.schedule.cadence": { en: "How often", yue: "幾密" },
+    "cirender.schedule.cadence.hourly": { en: "Every hour", yue: "每個鐘" },
+    "cirender.schedule.cadence.sixHourly": { en: "Every 6 hours", yue: "每 6 個鐘" },
+    "cirender.schedule.cadence.daily": { en: "Every day", yue: "每日" },
+    "cirender.schedule.cadence.weekly": { en: "Every week", yue: "每星期" },
+    "cirender.schedule.lastCheck": { en: "Last checked", yue: "上次檢查" },
+    "cirender.schedule.lastCheck.never": { en: "Never yet", yue: "仲未check過" },
+    "cirender.schedule.nextCheck": { en: "Next check", yue: "下次檢查" },
+    "cirender.schedule.lastRender": { en: "Last render started", yue: "上次開始算圖" },
+    "cirender.schedule.reason": { en: "Why: {reason}", yue: "原因：{reason}" },
+    "cirender.schedule.loading": { en: "Reading the schedule...", yue: "讀緊排程..." },
+    "cirender.schedule.saving": { en: "Saving...", yue: "儲緊..." },
 } as const satisfies Record<string, FixedString>;
 
 export const CIRENDER_FACTS = {
@@ -1184,6 +1300,27 @@ export const CIRENDER_FACTS = {
     "cirender.checkBlocked.repo": {
         en: ["repository name", "before checking"],
         yue: ["倉庫名", "先至可以檢查"],
+    },
+
+    "cirender.schedule.help": {
+        en: ["{count}", "metadata"],
+        yue: ["{count}", "metadata"],
+    },
+    "cirender.schedule.result.changed": {
+        en: ["a render was started"],
+        yue: ["render 已經開始咗"],
+    },
+    "cirender.schedule.result.unchanged": {
+        en: ["nothing was rendered"],
+        yue: ["乜都冇 render"],
+    },
+    "cirender.schedule.result.unknown": {
+        en: ["a change could not be cheaply told for this world's source"],
+        yue: ["呢個世界嘅 source 冇得平價check有冇改過"],
+    },
+    "cirender.schedule.result.error": {
+        en: ["the configured world could not be found by the last check"],
+        yue: ["上次 check 搵唔到已配置嘅個世界"],
     },
 } as const satisfies Record<
     keyof typeof CIRENDER_VOICED,

@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiCloudSyncOutline, mdiFolderSearchOutline, mdiOpenInNew, mdiRefresh } from "@mdi/js";
+import {
+    mdiCalendarSyncOutline,
+    mdiCloudSyncOutline,
+    mdiFolderSearchOutline,
+    mdiOpenInNew,
+    mdiRefresh,
+} from "@mdi/js";
 import {
     VAlert,
     VBtn,
@@ -13,6 +19,7 @@ import {
     VProgressCircular,
     VProgressLinear,
     VSelect,
+    VSwitch,
     VTextField,
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
@@ -36,7 +43,13 @@ import {
 } from "./ciRenders.js";
 import type { CiRow } from "./ciRenders.js";
 import { resolveCiRenderBridge } from "./ciRenderBridge.js";
-import type { CiJobReport, CiRenderBridge, CiPreflight } from "./ciRenderBridge.js";
+import type {
+    CiJobReport,
+    CiRenderBridge,
+    CiPreflight,
+    CiScheduleCadence,
+    CiScheduleCheckResultName,
+} from "./ciRenderBridge.js";
 
 /**
  * Having GitHub's runners render a world this computer cannot.
@@ -615,6 +628,84 @@ function visibleJobs(row: CiRow): readonly CiJobReport[] {
 
 function jobSample(row: CiRow): string {
     return (row.run?.jobs ?? []).map((job) => job.name).join("\n");
+}
+
+/* -- scheduled re-rendering: on or off, a cadence, and the last check ------- */
+
+/**
+ * The four cadences this screen offers, and nothing else - never a cron expression.
+ * `CiScheduleCadence` names the same four in `render-actions`'s `cadence.ts`, which
+ * `.github/workflows/scheduled-render.yml` reads; this array exists only to drive the
+ * `<VSelect>` below without hard-coding the four strings a second place.
+ */
+const SCHEDULE_CADENCES: readonly CiScheduleCadence[] = ["hourly", "sixHourly", "daily", "weekly"];
+
+function cadenceLabel(cadence: CiScheduleCadence): string {
+    switch (cadence) {
+        case "hourly":
+            return t("cirender.schedule.cadence.hourly", "Every hour");
+        case "sixHourly":
+            return t("cirender.schedule.cadence.sixHourly", "Every 6 hours");
+        case "daily":
+            return t("cirender.schedule.cadence.daily", "Every day");
+        case "weekly":
+            return t("cirender.schedule.cadence.weekly", "Every week");
+    }
+}
+
+/** Only one row's schedule panel is open at a time, an accordion rather than N copies. */
+const scheduleOpenSyncId = ref<string | null>(null);
+const scheduleCadenceDraft = ref<CiScheduleCadence>("daily");
+
+function scheduleOwnerRepo(row: CiRow): { owner: string; repo: string } | null {
+    const slash = row.repository.indexOf("/");
+    if (slash <= 0 || slash === row.repository.length - 1) return null;
+    return { owner: row.repository.slice(0, slash), repo: row.repository.slice(slash + 1) };
+}
+
+async function toggleSchedule(row: CiRow): Promise<void> {
+    if (scheduleOpenSyncId.value === row.syncId) {
+        scheduleOpenSyncId.value = null;
+        return;
+    }
+    scheduleOpenSyncId.value = row.syncId;
+    const target = scheduleOwnerRepo(row);
+    if (target === null) return;
+    await renders.loadSchedule(target.owner, target.repo, effectiveAccountId.value);
+    const cadence = renders.schedule.value?.cadence;
+    if (cadence !== null && cadence !== undefined) scheduleCadenceDraft.value = cadence;
+}
+
+async function saveScheduleFor(row: CiRow, enabled: boolean): Promise<void> {
+    const target = scheduleOwnerRepo(row);
+    if (target === null) return;
+    await renders.saveSchedule(
+        row.syncId,
+        target.owner,
+        target.repo,
+        enabled,
+        scheduleCadenceDraft.value,
+        effectiveAccountId.value,
+    );
+}
+
+function scheduleResultText(result: CiScheduleCheckResultName): string {
+    switch (result) {
+        case "changed":
+            return t("cirender.schedule.result.changed", "the world had changed, so a render was started");
+        case "unchanged":
+            return t("cirender.schedule.result.unchanged", "the world had not changed, so nothing was rendered");
+        case "unknown":
+            return t(
+                "cirender.schedule.result.unknown",
+                "a change could not be cheaply told for this world's source",
+            );
+        case "error":
+            return t(
+                "cirender.schedule.result.error",
+                "the configured world could not be found by the last check",
+            );
+    }
 }
 
 /**
@@ -1362,6 +1453,115 @@ onBeforeUnmount(() => {
                     >
                         {{ t("cirender.stop", "Stop watching") }}
                     </VBtn>
+
+                    <!--
+                        Scheduled re-rendering: on or off, one of the four honest cadences,
+                        and the workflow's own last check - never a free-typed cron
+                        expression. See docs/scheduled-render.md. Absent entirely on a build
+                        without both bridge methods, exactly like the guided owner/repository
+                        pickers above degrade when their own bridge methods are missing.
+                    -->
+                    <div v-if="renders.canManageSchedule" class="mt-3" data-test="schedule">
+                        <VBtn
+                            size="small"
+                            variant="text"
+                            :prepend-icon="mdiCalendarSyncOutline"
+                            data-test="schedule-toggle"
+                            @click="toggleSchedule(row)"
+                        >
+                            {{ t("cirender.schedule.title", "Scheduled re-rendering") }}
+                        </VBtn>
+
+                        <VCard v-if="scheduleOpenSyncId === row.syncId" variant="tonal" class="mt-2 pa-3">
+                            <p v-if="renders.loadingSchedule.value" data-test="schedule-loading">
+                                {{ t("cirender.schedule.loading", "Reading the schedule...") }}
+                            </p>
+                            <template v-else-if="renders.schedule.value !== null">
+                                <p
+                                    v-if="renders.savingSchedule.value"
+                                    class="text-medium-emphasis"
+                                    data-test="schedule-saving"
+                                >
+                                    {{ t("cirender.schedule.saving", "Saving...") }}
+                                </p>
+
+                                <VSwitch
+                                    :model-value="renders.schedule.value.enabled"
+                                    :label="t('cirender.schedule.enable', 'Check automatically')"
+                                    :loading="renders.savingSchedule.value"
+                                    density="compact"
+                                    data-test="schedule-enable"
+                                    @update:model-value="(value: boolean | null) => saveScheduleFor(row, value === true)"
+                                />
+
+                                <VSelect
+                                    v-model="scheduleCadenceDraft"
+                                    :items="SCHEDULE_CADENCES.map((c) => ({ title: cadenceLabel(c), value: c }))"
+                                    :label="t('cirender.schedule.cadence', 'How often')"
+                                    :disabled="!renders.schedule.value.enabled"
+                                    density="compact"
+                                    data-test="schedule-cadence"
+                                    @update:model-value="saveScheduleFor(row, true)"
+                                />
+
+                                <p class="text-medium-emphasis" data-test="schedule-help">
+                                    {{
+                                        t(
+                                            "cirender.schedule.help",
+                                            { count: renders.schedule.value.checksPerMonth ?? 0 },
+                                            "Checks this world for changes about {count} times a month, and only starts a render when it actually finds one.",
+                                        )
+                                    }}
+                                </p>
+
+                                <p data-test="schedule-lastCheck">
+                                    {{ t("cirender.schedule.lastCheck", "Last checked") }}:
+                                    {{
+                                        renders.schedule.value.lastCheckAt ??
+                                        t("cirender.schedule.lastCheck.never", "Never yet")
+                                    }}
+                                    <template v-if="renders.schedule.value.lastCheckResult !== null">
+                                        - {{ scheduleResultText(renders.schedule.value.lastCheckResult) }}
+                                    </template>
+                                </p>
+                                <p
+                                    v-if="renders.schedule.value.lastCheckReason !== null"
+                                    class="text-medium-emphasis"
+                                    data-test="schedule-reason"
+                                >
+                                    {{
+                                        t(
+                                            "cirender.schedule.reason",
+                                            { reason: renders.schedule.value.lastCheckReason },
+                                            "Why: {reason}",
+                                        )
+                                    }}
+                                </p>
+                                <p v-if="renders.schedule.value.nextCheckAt !== null" data-test="schedule-nextCheck">
+                                    {{ t("cirender.schedule.nextCheck", "Next check") }}:
+                                    {{ renders.schedule.value.nextCheckAt }}
+                                </p>
+                                <p v-if="renders.schedule.value.lastRenderAt !== null" data-test="schedule-lastRender">
+                                    {{ t("cirender.schedule.lastRender", "Last render started") }}:
+                                    {{ renders.schedule.value.lastRenderAt }}
+                                </p>
+                            </template>
+
+                            <VAlert
+                                v-if="
+                                    renders.scheduleFailure.value !== null &&
+                                    renders.scheduleFailure.value.length > 0
+                                "
+                                type="warning"
+                                variant="tonal"
+                                density="compact"
+                                class="mt-2"
+                                data-test="schedule-failure"
+                            >
+                                {{ renders.scheduleFailure.value }}
+                            </VAlert>
+                        </VCard>
+                    </div>
                 </VCardText>
             </VCard>
         </template>

@@ -23,6 +23,8 @@ import type {
     CiPreflight,
     CiRenderBridge,
     CiRepositoryNameAvailability,
+    CiScheduleStatus,
+    CiScheduleWriteResult,
     CiSyncEvent,
     CiSyncRequest,
     CiSyncResult,
@@ -1361,5 +1363,145 @@ describe("what is already running, elsewhere", () => {
         const rows = wrapper.findAll('[data-test="row"]');
         expect(rows).toHaveLength(1);
         expect(rows[0]?.text()).toContain("elsewhere");
+    });
+});
+
+describe("scheduled re-rendering, on a row that knows its own repository", () => {
+    async function rowWithRepository() {
+        const { bridge: base, emit } = eventBridge(preflight());
+        const bridge: CiRenderBridge = {
+            ...base,
+            ciRenderScheduleRead: vi.fn(() =>
+                Promise.resolve({
+                    ok: true,
+                    value: {
+                        enabled: true,
+                        cadence: "daily",
+                        lastCheckAt: "2026-08-05T00:00:00Z",
+                        lastCheckResult: "unchanged",
+                        lastCheckReason: "GitHub reports the same asset digest as last time.",
+                        lastRenderAt: null,
+                        nextCheckAt: "2026-08-06T00:00:00.000Z",
+                        checksPerMonth: 30,
+                        costDescription: "Checks about 30 times a month.",
+                    },
+                } as Answer<CiScheduleStatus>),
+            ),
+            ciRenderScheduleWrite: vi.fn(() =>
+                Promise.resolve({ ok: true, value: { ok: true } } as Answer<CiScheduleWriteResult>),
+            ),
+        };
+        const wrapper = mountScreen(bridge);
+        emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "world",
+            worldFolder: "/w",
+            at: "2026-08-04T10:00:00Z",
+        });
+        await flushPromises();
+        return { wrapper, bridge };
+    }
+
+    it("does not offer the section at all without both bridge methods", async () => {
+        const { bridge, emit } = eventBridge(preflight());
+        const wrapper = mountScreen(bridge);
+        emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "world",
+            worldFolder: "/w",
+            at: "2026-08-04T10:00:00Z",
+        });
+        await flushPromises();
+        expect(wrapper.find('[data-test="schedule"]').exists()).toBe(false);
+    });
+
+    it("reads the status only once the section is opened, not eagerly on mount", async () => {
+        const { wrapper, bridge } = await rowWithRepository();
+        expect(bridge.ciRenderScheduleRead).not.toHaveBeenCalled();
+
+        await wrapper.find('[data-test="schedule-toggle"]').trigger("click");
+        await flushPromises();
+        expect(bridge.ciRenderScheduleRead).toHaveBeenCalledWith("o", "r", undefined);
+        expect(wrapper.find('[data-test="schedule-enable"]').exists()).toBe(true);
+        expect(wrapper.text()).toContain("2026-08-05T00:00:00Z");
+        expect(wrapper.text()).toContain("2026-08-06T00:00:00.000Z");
+    });
+
+    it("closes again on a second click, the same accordion toggle every other row has", async () => {
+        const { wrapper } = await rowWithRepository();
+        const toggle = wrapper.find('[data-test="schedule-toggle"]');
+        await toggle.trigger("click");
+        await flushPromises();
+        expect(wrapper.find('[data-test="schedule-enable"]').exists()).toBe(true);
+
+        await toggle.trigger("click");
+        await flushPromises();
+        expect(wrapper.find('[data-test="schedule-enable"]').exists()).toBe(false);
+    });
+
+    it("shows the last check's reason and result text, never fabricated", async () => {
+        const { wrapper } = await rowWithRepository();
+        await wrapper.find('[data-test="schedule-toggle"]').trigger("click");
+        await flushPromises();
+        expect(wrapper.find('[data-test="schedule-reason"]').text()).toContain(
+            "GitHub reports the same asset digest as last time.",
+        );
+        expect(wrapper.find('[data-test="schedule-lastCheck"]').text()).toContain("not changed");
+    });
+
+    it("surfaces a write refusal - a world that was never uploaded - without pretending it saved", async () => {
+        const { bridge: base, emit } = eventBridge(preflight());
+        const bridge: CiRenderBridge = {
+            ...base,
+            ciRenderScheduleRead: () =>
+                Promise.resolve({
+                    ok: true,
+                    value: {
+                        enabled: false,
+                        cadence: null,
+                        lastCheckAt: null,
+                        lastCheckResult: null,
+                        lastCheckReason: null,
+                        lastRenderAt: null,
+                        nextCheckAt: null,
+                        checksPerMonth: null,
+                        costDescription: null,
+                    },
+                }),
+            ciRenderScheduleWrite: () =>
+                Promise.resolve({
+                    ok: true,
+                    value: {
+                        ok: false,
+                        failure: {
+                            code: "not-uploaded-yet",
+                            message: "This world has never been synced to GitHub.",
+                        },
+                    },
+                }),
+        };
+        const wrapper = mountScreen(bridge);
+        emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "world",
+            worldFolder: "/w",
+            at: "2026-08-04T10:00:00Z",
+        });
+        await flushPromises();
+
+        await wrapper.find('[data-test="schedule-toggle"]').trigger("click");
+        await flushPromises();
+        await wrapper.find('[data-test="schedule-enable"] input').setValue(true);
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="schedule-failure"]').text()).toContain(
+            "This world has never been synced to GitHub.",
+        );
     });
 });
