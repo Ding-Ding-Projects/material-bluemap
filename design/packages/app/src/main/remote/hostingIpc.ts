@@ -27,6 +27,9 @@ import {
 } from "./hosting.js";
 import { validateTarget, type PartialRemoteTarget } from "./target.js";
 
+/** Progress events for a hosting run, broadcast to every window - the same shape `render`'s channel uses. */
+export const REMOTE_HOSTING_EVENT_CHANNEL = "hosting:event";
+
 export const REMOTE_HOSTING_CHANNELS = [
     "hosting:start",
     "hosting:records",

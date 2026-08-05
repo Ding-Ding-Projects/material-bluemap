@@ -227,6 +227,7 @@ export {
 
 export {
     REMOTE_HOSTING_CHANNELS,
+    REMOTE_HOSTING_EVENT_CHANNEL,
     registerRemoteHostingHandlers,
     type RemoteHostingIpc,
     type RemoteHostingIpcOptions,
