@@ -76,3 +76,38 @@ Since D17 puts a real JVM in the product, those adapters are no longer inert: th
 produces the renderer produces them, and a user running a Minecraft server can take the plugin
 for their platform from the same release. What was excluded as unusable is now a shipping
 artifact.
+
+## D19 — `runtime/webserver.ts`'s `WebServer` removed: `LocalMapHandler` is the one serving path
+
+**Decided 2026-08-05.**
+
+`main/runtime/webserver.ts` exported a `WebServer` class that started the upstream engine a
+second time with `-w` (upstream's own live web server, `RuntimeRole: "web-server"` in
+`runtime/plan.ts`) and refused to report its URL until a real TCP connection proved it was
+listening. It was thorough and well tested (7 tests, `docker-and-local.md` documented it at
+length), and it had zero callers anywhere in the app: not the local render path, not the Docker
+render path, not the remote-render path, not the IPC layer. A repository-wide search for
+`RuntimeRole: "web-server"` and `new WebServer(` outside its own test found nothing.
+
+**Why that is correct, not an oversight.** D10 already settled how a rendered map is served:
+"one ported HTTP server everywhere; Electron loads `http://127.0.0.1:<random>`... same server
+backs `cli -w`." That server is `@material-bluemap/server`'s `HttpServer`, and `main/index.ts`
+mounts `LocalMapHandler` on it at `/local/{renderId}/...` for every render this app produces,
+local or Docker — `render/orchestrator.ts` calls `LocalMapHandler.setMount` from the one `mount()`
+method both paths share. A locally rendered map is a static web root the moment the engine exits;
+reading it directly costs nothing and needs no second JVM kept alive, no second port to publish
+out of a container, and no probe to prove it bound. `WebServer` duplicated that role with more
+machinery for the same outcome, which is why nothing ever called it.
+
+**What is kept, and what is gone.** `WebServer`, `webserver.ts` and `webserver.test.ts` are
+deleted, along with their re-export from `runtime/index.ts`. `RuntimeRole`'s `"web-server"` value,
+`EngineLaunch.url`/`hostPort`, `DockerPublish`, `EngineWebServerSettings` and `RepairSubject`'s
+`"web-server"` value all stay in `runtime/plan.ts`, `runtime/config.ts` and `repair/evidence.ts` —
+they are typed, tested plumbing that `planLocalLaunch`/`planDockerLaunch` still accept, and
+removing a type union member ripples through files this decision does not need to touch. They are
+simply never reached by a `role: "render"` call, which is the only role any orchestrator plans.
+
+**If a live upstream web server is ever wanted** — for a feature `LocalMapHandler` genuinely
+cannot do, such as proxying upstream's own live player-position endpoint — the launch shape is
+already there in `plan.ts` and the day it is needed is the day a class like `WebServer` earns a
+caller again. Until then a class with no caller does not get to sit in the tree unexplained.

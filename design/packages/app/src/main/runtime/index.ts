@@ -9,7 +9,7 @@
  * ```ts
  * import {
  *     containerName, planDockerLaunch, planLocalLaunch, probeDocker,
- *     writeEngineConfig, EngineProcess, WebServer,
+ *     writeEngineConfig, EngineProcess,
  * } from "./runtime/index.js";
  *
  * const docker = await probeDocker();          // honest about installed vs. not running
@@ -21,6 +21,14 @@
  * ```
  *
  * `ipc.ts` is the one module here that names Electron, and only as a type.
+ *
+ * `RuntimeRole` has a second value, `"web-server"`, that `planLocalLaunch` and
+ * `planDockerLaunch` both still accept - it shapes the CLI's own `-w` flag and a published
+ * port. Nothing in this app ever plans a launch with it: a rendered map is served by this
+ * app's own embedded HTTP server (`LocalMapHandler`, mounted in `main/index.ts`) rather
+ * than by keeping a second engine process alive as a web server. The class that would have
+ * started and probed that second process (`WebServer`, in `webserver.ts`) was removed for
+ * having no caller; see decision D19 in `design/docs/decisions.md`.
  */
 
 export {
@@ -144,14 +152,3 @@ export {
     type WriteEngineConfigOptions,
     type WrittenEngineConfig,
 } from "./config.js";
-
-export {
-    READY_POLL_MS,
-    READY_TIMEOUT_MS,
-    WebServer,
-    freePort,
-    tcpPortProbe,
-    type PortProbe,
-    type WebServerOptions,
-    type WebServerStart,
-} from "./webserver.js";
