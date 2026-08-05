@@ -93,6 +93,9 @@ import type { BedrockIpc } from "./bedrock/index.js";
 import { registerRepairHandlers } from "./repair/index.js";
 import type { RepairIpc } from "./repair/index.js";
 import { ensureJava } from "./java/index.js";
+import { registerSysdepHandlers, SYSDEP_INSTALL_EVENT_CHANNEL } from "./sysdeps/ipc.js";
+import type { SysdepIpc } from "./sysdeps/ipc.js";
+import { spawnProcessRunner } from "./sysdeps/process.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -431,6 +434,31 @@ function startJavaDiscovery(): JavaIpc {
         },
     });
     return javaIpc;
+}
+
+/**
+ * Installing git, the GitHub CLI, Docker Desktop and rsync through winget/Chocolatey,
+ * one button, honest progress.
+ *
+ * Registered once, for the same reason everything above it is. `spawnProcessRunner` is
+ * the one real child-process runner this whole layer uses - every dependency's presence
+ * check, install and post-install verification goes through it, and every test in
+ * `main/sysdeps/` drives a fake instead so nothing there ever launches a real `winget`
+ * or `choco` on the machine running the suite.
+ */
+let sysdepIpc: SysdepIpc | null = null;
+
+function startSysdepInstaller(): SysdepIpc {
+    if (sysdepIpc !== null) return sysdepIpc;
+    sysdepIpc = registerSysdepHandlers(ipcMain, {
+        run: spawnProcessRunner,
+        broadcast: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(SYSDEP_INSTALL_EVENT_CHANNEL, event);
+            }
+        },
+    });
+    return sysdepIpc;
 }
 
 /**
@@ -979,6 +1007,7 @@ async function createWindow(): Promise<void> {
     startRemoteHosting(render);
     startWorldInspection();
     startJavaDiscovery();
+    startSysdepInstaller();
     startConfigEditing();
     startConfigHistory();
     startProjects();
