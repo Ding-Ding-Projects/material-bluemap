@@ -13,10 +13,15 @@
  * `settingsSections.test.ts`; this is the wiring, which is exactly the part that a green
  * logic test cannot vouch for.
  *
- * This jsdom starts without a storage file, so every `TabbedNavigation` this surface
- * mounts gets no persisted layout and seeds its defaults fresh - see the same note in
- * `tabs/TabbedNavigation.test.ts`. That is what keeps one test's tab switch from leaking
- * into the next: nothing here needs to clear a storage key by hand.
+ * jsdom serves this document from an opaque origin, where real `localStorage` is not
+ * available - the same reason `ProfileManager.test.ts`, `CommandPalette.test.ts` and
+ * `tabs/TabbedNavigation.test.ts` each install a map-backed stand-in rather than relying on
+ * the real thing. This file mounts `TabbedNavigation` too, and it persists the active tab
+ * under `material-bluemap-settings-tabs`, so without that same stand-in the anchored-open
+ * loop below would have nowhere to write and the leak would go unnoticed here while still
+ * biting wherever `localStorage` genuinely works. The stand-in is installed below and
+ * cleared before every test, exactly like those other files, so the loop's last-opened
+ * anchor cannot leak into a later test that opens with no anchor at all.
  */
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -50,6 +55,9 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
 
 const scrollIntoView = vi.fn();
 
+/** Where the stand-in `localStorage` below keeps what `TabbedNavigation` writes. */
+const localStorageCells = new Map<string, string>();
+
 beforeAll(() => {
     // jsdom has no layout engine, so none of these exist. Vuetify's drawer observes its
     // own size, `matchMedia` backs the reduced-motion check, and `scrollIntoView` is what
@@ -72,6 +80,25 @@ beforeAll(() => {
     })) as unknown as typeof globalThis.matchMedia;
 
     Element.prototype.scrollIntoView = scrollIntoView;
+
+    // See the file-level note: this document's origin is opaque, so real `localStorage`
+    // is not available at all. `defineProperty` rather than assignment because jsdom
+    // declares the property, and a map rather than the real thing so `beforeEach` below
+    // can clear it between tests without depending on anything jsdom does or does not
+    // implement for an opaque origin.
+    Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        value: {
+            getItem: (key: string) => localStorageCells.get(key) ?? null,
+            setItem: (key: string, value: string) => void localStorageCells.set(key, value),
+            removeItem: (key: string) => void localStorageCells.delete(key),
+            clear: () => localStorageCells.clear(),
+            key: (index: number) => [...localStorageCells.keys()][index] ?? null,
+            get length() {
+                return localStorageCells.size;
+            },
+        } as unknown as Storage,
+    });
 });
 
 /**
@@ -207,6 +234,11 @@ async function clickResult(anchor: SettingsSectionAnchor): Promise<void> {
 }
 
 beforeEach(() => {
+    // See the file-level note: the stand-in `localStorage` installed in `beforeAll` above
+    // outlives any one test, so the tab strip's own persistence has to be reset by hand
+    // between tests, the same way `CommandPalette.test.ts` and `ProfileManager.test.ts`
+    // already clear theirs.
+    localStorage.clear();
     setSetupStorage(memoryStorage());
     reloadSetupLanguage();
     scrollIntoView.mockClear();

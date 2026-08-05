@@ -239,7 +239,7 @@ jobs:
           # One annotation, then the explanation as ordinary log lines. This was written as
           # three quoted strings on one `echo`, separated by runs of spaces, which `echo`
           # collapses into single spaces - so the message read as one run-on sentence and
-          # shellcheck flagged it (SC2291). A GitHub annotation is a single line anyway.
+          # this is what tripped shellcheck's SC2291. A GitHub annotation is a single line anyway.
           echo "::error::Shard ${{ matrix.shard }} rendered no tiles at all, so the engine did not run."
           echo "Check the Render step's output above for the real reason."
           echo "Its exit was swallowed deliberately, so that a shard which merely ran out of time"

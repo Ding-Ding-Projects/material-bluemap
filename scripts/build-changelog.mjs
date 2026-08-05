@@ -315,7 +315,11 @@ function categorise(files) {
             (counts.get(b) ?? 0) - (counts.get(a) ?? 0) ||
             CATEGORY_IDS.indexOf(a) - CATEGORY_IDS.indexOf(b),
     );
-    return { category: areas[0] ?? "other", areas };
+    // A commit that changed no files at all has nothing in `areas`, so the `other` fallback
+    // below must be added to `areas` too - a category with no matching area in the list is a
+    // shape the viewer (and this generator's own consumers) can never produce by construction.
+    if (areas.length === 0) return { category: "other", areas: ["other"] };
+    return { category: areas[0], areas };
 }
 
 function toEntry(commit) {

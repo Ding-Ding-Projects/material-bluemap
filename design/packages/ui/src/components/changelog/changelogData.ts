@@ -40,7 +40,7 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
         subject: "Merge the preserved profile shortcut branch",
         details: "",
         category: "other",
-        areas: [],
+        areas: ["other"],
         files: 0,
         summarizes: 3,
     },
