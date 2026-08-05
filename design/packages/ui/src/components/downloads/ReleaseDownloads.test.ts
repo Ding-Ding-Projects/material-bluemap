@@ -80,6 +80,8 @@ const DOWNLOAD_ID = "test-world-seed-1739-zip-6640a521a882";
 interface FakeOptions {
     readonly active?: readonly string[];
     readonly list?: readonly DownloadSummary[];
+    /** Wires up the "paste a link" field. Left out, the bridge cannot parse one at all. */
+    readonly parseLink?: DownloadBridge["parseLink"];
 }
 
 function fakeBridge(options: FakeOptions = {}) {
@@ -99,9 +101,11 @@ function fakeBridge(options: FakeOptions = {}) {
             listeners.push(listener);
             return () => listeners.splice(listeners.indexOf(listener), 1);
         },
+        parseLink: options.parseLink ?? (async () => null),
         canCancel: true,
         canList: true,
         canSeeActive: true,
+        canParseLink: options.parseLink !== undefined,
     };
 
     return {
@@ -194,6 +198,63 @@ describe("looking at a release", () => {
         await flushPromises();
 
         expect(asked).toBe(0);
+        wrapper.unmount();
+    });
+});
+
+describe("pasting a link", () => {
+    it("stays hidden when the bridge cannot resolve one", async () => {
+        const fake = fakeBridge();
+        const wrapper = render(fake.bridge);
+        await flushPromises();
+
+        expect(wrapper.text()).not.toContain("Paste a link");
+        wrapper.unmount();
+    });
+
+    it("resolves a repository link into the owner, repository and tag fields", async () => {
+        const fake = fakeBridge({
+            parseLink: async (text) =>
+                text === "https://github.com/cafepromenade/Andyville-World/releases/tag/andyville-backup-20260804-160001"
+                    ? {
+                          owner: "cafepromenade",
+                          repo: "Andyville-World",
+                          tag: "andyville-backup-20260804-160001",
+                      }
+                    : null,
+        });
+        const wrapper = render(fake.bridge);
+        await flushPromises();
+
+        const linkField = wrapper.get(".mb-downloads__link input");
+        await linkField.setValue(
+            "https://github.com/cafepromenade/Andyville-World/releases/tag/andyville-backup-20260804-160001",
+        );
+        await flushPromises();
+
+        // Found by value rather than by position, so a template edit that reorders the
+        // three fields cannot make this test pass while pointing at the wrong one.
+        const values = wrapper.findAll("input").map((input) => input.element.value);
+        expect(values).toContain("cafepromenade");
+        expect(values).toContain("Andyville-World");
+        expect(values).toContain("andyville-backup-20260804-160001");
+
+        wrapper.unmount();
+    });
+
+    it("leaves the three fields alone for text that names no repository", async () => {
+        const fake = fakeBridge({ parseLink: async () => null });
+        const wrapper = render(fake.bridge);
+        await flushPromises();
+
+        const linkField = wrapper.get(".mb-downloads__link input");
+        await linkField.setValue("still typing");
+        await flushPromises();
+
+        // The default owner/repo are untouched: a null answer must not blank a field
+        // somebody had already filled in by hand.
+        expect(wrapper.findAll("input").some((input) => input.element.value === "material-bluemap")).toBe(true);
+
         wrapper.unmount();
     });
 });

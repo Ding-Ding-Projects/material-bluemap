@@ -147,9 +147,11 @@ function fakeBridge(options: FakeOptions = {}) {
             listeners.push(listener);
             return () => listeners.splice(listeners.indexOf(listener), 1);
         },
+        parseLink: async () => null,
         canCancel: true,
         canList: true,
         canSeeActive: true,
+        canParseLink: false,
     };
 
     return {
