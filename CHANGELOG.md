@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Document the fixed appearance editor tabs - [`17d0dc6b67`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/17d0dc6b67ca21f8d3f7733f9e7500ff0f53afa8)
 - Complete tabbed material surfaces and resumable Pages publishing - [`1e9ae1b379`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1e9ae1b37973f169e010c759455fc8dbefe8f716)
 - Wire the map control bar and the history panel into the appearance editor - [`796ac32b17`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/796ac32b178af46b10961f1d7aabb465c40200f0)
 - Give every tab and group Edit appearance, not just the strip they sit in - [`cd09b84541`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cd09b845419eafeb1c4e87156038308516cb54ec)
@@ -41,8 +42,6 @@ full message for the in-app changelog viewer.
 - Offer to host a CI-rendered map on Pages, and make the map survive the trip - [`7e1adaaddd`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7e1adaadddc2c9bd68af35111119417db7498767)
 - Add guarded GitHub Pages map hosting - [`f7b2b7fa6d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f7b2b7fa6da0f66f41f3b9ae544e223f23051397)
 - Close the missing screen capture gaps - [`6e17d09de5`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6e17d09de58ca6c57b85a0e6e26ac0effea1ae29)
-- Stop fetching Mojang's licence nobody asked for, and show a render in detail - [`969ae1ae97`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/969ae1ae97a057ae837136e26dff26e31a97d705)
-- Give every render route a door, and stop a broken shard reporting success - [`73caa95b09`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/73caa95b097153af987ca9e7d74e9b3ce3306efc)
 
 ### Rendering and world data
 
@@ -52,8 +51,6 @@ full message for the in-app changelog viewer.
 - Prepare a rendered map for a host that only ever serves files - [`4979978596`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4979978596cbfe036b6fe9f1b41076755d19192e)
 - Plan render shards for useful parallel speed - [`1031cd97f9`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1031cd97f9dde4e1a4e66818f60dd3c5fed0151f)
 - Let the planner find an overworld where the renderer already looked - [`96a373e12d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/96a373e12d73e1ef2fb04360a1b58a5d16fe883b)
-- Port the render tasks, and fix a strategy that scheduled every region twice - [`9f34cff887`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/9f34cff887bac82af440bc651d02ad3bb9208d87)
-- Port the render manager, and let the part size be a choice - [`311942567f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/311942567f8390c9d261665160381f0fe160b9a0)
 
 ### Desktop shell
 
@@ -62,10 +59,6 @@ full message for the in-app changelog viewer.
 - Expose Pages hosting to the renderer - [`9f075acdb2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/9f075acdb25bf405e2e7f954a198335ce90a7989)
 - Expose Pages hosting through app IPC - [`c4bc76f7bc`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c4bc76f7bc8596504861b0f30bf4ea2242f54f5d)
 - Batch large Bedrock conversions safely - [`55bb19e860`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/55bb19e86055e8f5266861eddebdf6a82fcb18b3)
-- Keep renderer defaults alive and name converter memory limits - [`d90d12b2ed`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d90d12b2ed37f0591713927037cef12b55fbff58)
-- Port Bedrock worlds and keep render choices honest - [`16705f6b0f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/16705f6b0fadeb159b408526ee5d71e8fe9356c9)
-- Let a render be asked to run in a container, and refuse rather than pretend - [`f9b412be2a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f9b412be2a0e595818307d77f7ae4d47035fd59e)
-- Make the gh CLI a route that can finish the job, and record a render that really ran - [`7bc28c89b9`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7bc28c89b98525e2dba562a48a95ac5bc7c3e3a2)
 
 ### Landing page and documentation site
 
@@ -75,7 +68,6 @@ full message for the in-app changelog viewer.
 
 - Stop a new CI run cancelling the one before it - [`451304984a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/451304984aae74e84dc4b21b1e0f3faeab8029c1)
 - Publish rendered maps to plain file hosts - [`bd63de8080`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/bd63de80804b3913ff3b9c00c111cb6449158b9a)
-- Add measured timing to release notes - [`aac39451c1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/aac39451c1172691b029863852869e9e3f07420d)
 
 ### Documentation
 
@@ -83,6 +75,34 @@ full message for the in-app changelog viewer.
 - Show the map hosted on Pages, with the evidence and the trap - [`a8276c8a42`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a8276c8a42a5188df2610b110ea53030f6eaecc7)
 - Add a real hosted map capture - [`e571a49a46`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e571a49a46def0d43c19391e00d16c73b3a21c5e)
 - Document static Pages map hosting - [`c85a3bf686`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c85a3bf68674f10bf5a3a144f43be737a5fc3df8)
+
+## 0.1.0-build.257 - 2026-08-04
+
+Tagged at [`e680b40540`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e680b405403153d9621ff9a4e75b8953e28155fa).
+
+### Interface
+
+- Stop fetching Mojang's licence nobody asked for, and show a render in detail - [`969ae1ae97`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/969ae1ae97a057ae837136e26dff26e31a97d705)
+- Give every render route a door, and stop a broken shard reporting success - [`73caa95b09`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/73caa95b097153af987ca9e7d74e9b3ce3306efc)
+
+### Rendering and world data
+
+- Port the render tasks, and fix a strategy that scheduled every region twice - [`9f34cff887`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/9f34cff887bac82af440bc651d02ad3bb9208d87)
+- Port the render manager, and let the part size be a choice - [`311942567f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/311942567f8390c9d261665160381f0fe160b9a0)
+
+### Desktop shell
+
+- Keep renderer defaults alive and name converter memory limits - [`d90d12b2ed`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d90d12b2ed37f0591713927037cef12b55fbff58)
+- Port Bedrock worlds and keep render choices honest - [`16705f6b0f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/16705f6b0fadeb159b408526ee5d71e8fe9356c9)
+- Let a render be asked to run in a container, and refuse rather than pretend - [`f9b412be2a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f9b412be2a0e595818307d77f7ae4d47035fd59e)
+- Make the gh CLI a route that can finish the job, and record a render that really ran - [`7bc28c89b9`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7bc28c89b98525e2dba562a48a95ac5bc7c3e3a2)
+
+### Build, release and tooling
+
+- Add measured timing to release notes - [`aac39451c1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/aac39451c1172691b029863852869e9e3f07420d)
+
+### Documentation
+
 - Capture the render location before it can lie - [`e680b40540`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e680b405403153d9621ff9a4e75b8953e28155fa)
 - Document Bedrock conversion honestly - [`216024ae7b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/216024ae7bfa937076abb9d2278a56796e0a0ec1)
 - Record render checkpoint parity - [`1e036c1aac`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/1e036c1aacb7fb093a3356565040648306ed0cc0)
