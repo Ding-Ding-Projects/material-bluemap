@@ -444,10 +444,10 @@ export const home: HomeContent = {
                 },
                 {
                     title: "Get a world out of a release, without leaving the wizard",
-                    body: "The step that asks where your world is also offers to fetch one. A world published in 1.7 GB parts arrives as the single file it really is: every part checked as it lands, rejoined, checked again whole, and unpacked, with real byte counts rather than a spinner.",
+                    body: "The step that asks where your world is also offers to fetch one. A world published in 1.7 GB parts arrives as the single file it really is: every part checked as it lands, rejoined, checked again whole, and unpacked, with real byte counts rather than a spinner. Now reachable from any public repository, not only this project's own.",
                     status: "ported-unverified",
                     statusNote:
-                        "The downloader, the zip reader and the panel are built and tested, including one test that drives the whole path against a real split archive. Nothing has been fetched from github.com through this surface, so what GitHub itself does is proved against a stand-in.",
+                        "The downloader, the zip reader, the cross-repository fetcher and the panel are built and tested across 185 cases, including one that drives a manifest-shaped download and one that drives a checksum-list one, each end to end against a real archive. Nothing has been fetched from github.com through the shipped desktop app itself, so what GitHub itself does is proved against a stand-in.",
                     articleId: "release-downloads",
                     reading: [{ label: "docs/large-worlds.md", href: LARGE_WORLDS_DOC_URL }],
                 },
