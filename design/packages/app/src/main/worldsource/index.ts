@@ -95,3 +95,24 @@ export {
     type WorldSourceIpc,
     type WorldSourceIpcOptions,
 } from "./ipc.js";
+
+export {
+    SshWorldSourceFetcher,
+    type SshWorldSourceEvent,
+    type SshWorldSourceFetcherOptions,
+    type SshWorldSourceFinishedEvent,
+    type SshWorldSourceLineEvent,
+    type SshWorldSourceRequest,
+} from "./sshFetcher.js";
+
+export {
+    WORLD_SOURCE_SSH_CHANNELS,
+    registerSshWorldSourceHandlers,
+    type SshDetectAnswer,
+    type SshFetchAnswer,
+    type SshSurveyAnswer,
+    type SshTrustAnswer,
+    type SshValidateAnswer,
+    type WorldSourceSshIpc,
+    type WorldSourceSshIpcOptions,
+} from "./sshIpc.js";

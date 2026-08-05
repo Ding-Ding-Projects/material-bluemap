@@ -165,6 +165,28 @@ export {
     type RemoteRenderSuccess,
 } from "./orchestrator.js";
 
+export { encodePowerShellCommand, powershellRemoteCommand, quoteForPowerShell } from "./windowsShell.js";
+
+export {
+    checkRemoteWorldPath,
+    connectAndDetectHost,
+    diffRemoteWorldSurveys,
+    fetchRemoteWorld,
+    probeRsync as probeRsyncForWorldSource,
+    remoteWorldChanged,
+    surveyRemoteWorld,
+    type ConnectResult,
+    type RemoteHostDetection,
+    type RemoteHostKind,
+    type RemoteWorldChanges,
+    type RemoteWorldEntry,
+    type RemoteWorldFetchOptions,
+    type RemoteWorldFetchResult,
+    type RemoteWorldPathCheck,
+    type RemoteWorldSshOptions,
+    type RemoteWorldSurvey,
+} from "./worldsource.js";
+
 export {
     REMOTE_CHANNELS,
     disclosureFor,
