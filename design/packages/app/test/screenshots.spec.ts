@@ -1255,19 +1255,47 @@ test("captures the settings surface and every section in it", async () => {
         await shoot("settings-drawer", "The application settings, opened over the map");
     });
 
-    // Enumerated from the running application rather than from a list kept here, so a
-    // section added in `packages/ui` arrives in this set without anybody remembering to
-    // add it. `data-anchor` is what `SettingsSection.vue` puts on every one of them.
+    // Every settings section is now its own browser-style tab (`AppSettings.vue`'s own
+    // doc comment: "Only the active tab's section is mounted at a time"), so a bulk query
+    // for `[data-anchor]` finds only whichever one tab happens to already be open - it
+    // used to find every section at once, back when they were one long scrolling column
+    // under simultaneous `data-anchor` markers. That regression is invisible in the
+    // manifest (`attempt()` records a gap, not a failure) and was found only by counting
+    // captures: six anchors documented in `docs/render-in-actions.md` and the README
+    // shrank to one (`settings-section-mojang-download-consent`) with the run staying
+    // green throughout - the same "recorded a gap, not a failure" shape `CONFIG_STATE_NOTE`
+    // above already warns about for the options editor.
+    //
+    // Fixed by driving the surface the way a person actually reaches a section now: type
+    // its anchor into the settings search (the search haystack includes the literal
+    // anchor string, per `sectionHaystack` in `settingsSections.ts`), click the one
+    // matching result, which opens and switches to that section's tab, then capture.
+    //
+    // The anchor list is hard-coded rather than imported, for the same reason
+    // `PROFILE_STORAGE_KEY` above is: `settingsSections.ts` is bundled through
+    // `packages/ui`'s own Vite pipeline and this is a plain Playwright/Node test with no
+    // access to that build. If a section is added there without a matching entry here,
+    // this loop simply will not open it - which is exactly the gap this fix exists to
+    // stop being silent, so a missing/renamed anchor shows up as a named capture failure
+    // rather than as a manifest that quietly lists fewer sections than the product has.
     await attempt("Settings sections", async () => {
-        const sections = page.locator(".mb-settings .mb-setting[data-anchor]");
-        const count = await sections.count();
-        expect(count, "the settings drawer rendered no sections").toBeGreaterThan(0);
+        const anchors: { anchor: string; title: string }[] = [
+            { anchor: "mojang-download-consent", title: "Mojang download consent" },
+            { anchor: "java-runtime", title: "Java runtime" },
+            { anchor: "map-storage-directory", title: "Where rendered maps go" },
+            { anchor: "world-folder", title: "World folder" },
+            { anchor: "github-account", title: "GitHub account" },
+            { anchor: "language-and-tone", title: "Language and tone" },
+        ];
 
-        for (let i = 0; i < count; i += 1) {
-            const section = sections.nth(i);
-            const anchor = (await section.getAttribute("data-anchor")) ?? `section-${i}`;
-            const title = (await section.locator(".mb-setting__title").innerText()).trim();
-            await section.scrollIntoViewIfNeeded();
+        const searchInput = page.locator(".mb-settings__search input").first();
+
+        for (const { anchor, title } of anchors) {
+            await searchInput.fill("");
+            await searchInput.fill(anchor);
+            const result = page.locator(".mb-settings__result", { hasText: title });
+            await result.first().waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+            await result.first().click();
             await page.waitForTimeout(500);
             await shoot(
                 `settings-section-${slug(anchor)}`,
@@ -1275,6 +1303,8 @@ test("captures the settings surface and every section in it", async () => {
                 { crop: drawer, cropped: "the settings drawer" },
             );
         }
+
+        await searchInput.fill("");
     });
 
     await attempt("Settings search", async () => {

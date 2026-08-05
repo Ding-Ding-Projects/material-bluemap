@@ -96,7 +96,7 @@ const RECORDS: readonly CaptureRecord[] = [
         aspectRatio: "8 / 5",
         title: "The installed application",
         configuration: "installed from the Windows installer, 1920 by 1200",
-        alt: "The material-bluemap desktop application running after a Windows install, showing a three-dimensional Minecraft map with the ported interface over it: the menu, maps, markers and players controls at the top left, the view-mode and day-night controls with live x and z position inputs and a compass at the top right, zoom controls at the bottom right, and shape, extrude, line and point markers drawn on the map.",
+        alt: "The material-bluemap desktop application running after a Windows install, showing a three-dimensional rendered Minecraft-style terrain (forest, snow and open water) with the ported interface over it: the menu button and a position marker at the top left, the view-mode, day-night, flight and fullscreen controls with live x and z position inputs and a compass at the top right, and the settings, maps-and-servers and configuration buttons at the bottom left.",
         featured: true,
     },
     {

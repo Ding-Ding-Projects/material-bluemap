@@ -1,6 +1,6 @@
 # Screenshots
 
-Commit `a796eab97fde7252401ed0f25de729485b4dd68d`, run `30930438850`, capture mode `local`.
+Commit `c533c8c8d49655194057882a5896e583c35ffd8e`, run `(local run)`, capture mode `local`.
 
 Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it.
 
@@ -27,6 +27,12 @@ First-run setup, the Minecraft files step, which asks once whether the applicati
 ![First-run setup, the map storage step, which asks where rendered maps should be written](firstrun-3-storage.png)
 
 First-run setup, the map storage step, which asks where rendered maps should be written. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the first-run dialog rather than showing the whole window.
+
+## run-location
+
+![The render-location choice: local, Docker on this computer, and another machine over SSH, with Docker's real daemon state and the route that will actually be used](run-location.png)
+
+The render-location choice: local, Docker on this computer, and another machine over SSH, with Docker's real daemon state and the route that will actually be used. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the render-location card rather than showing the whole window.
 
 ## chrome-titlebar
 
@@ -310,6 +316,36 @@ The regex builder anchored to the options editor's search bar. Real Electron app
 
 The super confirmation that guards deleting a map's configuration: two keys, then a full-travel slider, with an emergency exit that is always available. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the confirmation popover rather than showing the whole window.
 
+## config-history
+
+![The config folder's version-history tab, including its honest empty state when this throwaway profile has no folder attached](config-history.png)
+
+The config folder's version-history tab, including its honest empty state when this throwaway profile has no folder attached. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the version-history panel rather than showing the whole window.
+
+## projects-screen
+
+![The Projects screen, showing the real empty state and the path into a new render project](projects-screen.png)
+
+The Projects screen, showing the real empty state and the path into a new render project. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the Projects screen rather than showing the whole window.
+
+## ci-render-screen
+
+![The CI-render screen, with its honest repository fields and the preflight route that refuses before uploading anything](ci-render-screen.png)
+
+The CI-render screen, with its honest repository fields and the preflight route that refuses before uploading anything. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the CI-render screen rather than showing the whole window.
+
+## pages-publishing-screen
+
+![The Pages publishing screen: the searchable render list, the repository fields, and the check that reports what publishing would push before anything is pushed](pages-publishing-screen.png)
+
+The Pages publishing screen: the searchable render list, the repository fields, and the check that reports what publishing would push before anything is pushed. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the Pages publishing screen rather than showing the whole window.
+
+## eula-viewer
+
+![The EULA viewer embedded in Settings, with the bundled or cached licence copy, its provenance and its searchable section tabs](eula-viewer.png)
+
+The EULA viewer embedded in Settings, with the bundled or cached licence copy, its provenance and its searchable section tabs. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the EULA viewer rather than showing the whole window.
+
 ## notifications-corner
 
 ![The notification corner in the bottom right: a message that reports without blocking anything, and beside it the button that opens the history of everything the application has said](notifications-corner.png)
@@ -364,12 +400,6 @@ The make-a-map wizard on its "Review" step. Real Electron app. The map was rende
 
 The release downloads panel, which offers to fetch a world from a GitHub release for somebody with no Minecraft save on this machine. Real Electron app. The map was rendered by upstream BlueMap's Java engine from a world this repository generated, and is served to the app over loopback by this repository's own map handler. What it proves is the viewer port, the embedded server and the reverse proxy. The TypeScript mesher in packages/engine rendered none of it. This image is cropped to the release downloads panel rather than showing the whole window.
 
-## run-location
-
-![The render-location choice, with local, Docker and SSH routes, and Docker's real daemon state](run-location.png)
-
-The render-location choice, with local, Docker and SSH routes, and Docker's real daemon state. Real Electron app. The map was not loaded for this capture, so the card is shown in the Make a map surface with Docker's daemon truthfully reported as not running; the disabled Docker choice cannot silently fall back to local. This image is cropped to the render-location card.
-
 ## Not captured
 
 Nothing was substituted for these. They are listed so the gap is visible.
@@ -377,6 +407,7 @@ Nothing was substituted for these. They are listed so the gap is visible.
 - **Marker search and sort controls**: the map this run captured carries no markers, so the marker menu has no marker section and its search and sort controls are not on screen to photograph
 - **GitHub account, signed in**: signing in needs a real GitHub account and a real device-flow round trip to github.com, and the offline guard refuses every request that is not loopback; the signed-out state of the account section is real and is the one captured
 - **Options editor save plan**: the Save control is disabled in this state, and its tooltip says why; the dialog that lists the files a save would write therefore has no door to open through, and nothing was substituted for it
+- **Render console**: the harness could not open it in this run: locator.waitFor: Timeout 3000ms exceeded.
 - **Release asset list and download progress**: listing a release's assets and downloading one both need real traffic to github.com, which the offline guard refuses; the panel is captured in the state it is in before anything has been asked for
 - **Render progress panel**: it only exists while a render is actually running, which needs a Java runtime, an accepted Mojang download consent and minutes of work; this run declined that consent
 - **Interrupted renders**: it only appears when a previous render was interrupted and left a session behind, and the throwaway profile this run used has never started one
