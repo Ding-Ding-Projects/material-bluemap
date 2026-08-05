@@ -125,3 +125,79 @@ describe("the save dialog's dismissal guard", () => {
         wrapper.unmount();
     });
 });
+
+/**
+ * Regression: `<v-list-item :title="path">` bound Vuetify's own `title` *prop* (the text
+ * it renders), never an HTML `title` attribute -- `VListItem.js` only ever calls
+ * `toDisplayString(props.title)` -- and `.v-list-item-title` defaults to `overflow:
+ * hidden; text-overflow: ellipsis; white-space: nowrap`. This is the one dialog in the
+ * whole application whose entire job is letting somebody verify exactly which files are
+ * about to be overwritten or permanently deleted before that happens; silently ellipsing
+ * a long path with no way to recover the rest of it is the single place that must never
+ * happen here. The fix moved each path into the `#title` slot with a plain `<span
+ * :title="...">`, where the same binding is a genuine DOM attribute.
+ */
+describe("a long config file path, in the files list", () => {
+    const longPath =
+        "C:\\Users\\Someone With A Long Name\\Documents\\Material BlueMap Projects\\survival-server-backups-2026\\config\\maps\\overworld.conf";
+
+    function renderWithPlan(plan: WorkspacePlan) {
+        return mount(ConfigApplyDialog, {
+            props: { modelValue: true, plan, issues: [], folder: "/srv/bluemap/config", saving: false },
+            global: { plugins: [vuetify, i18n()] },
+            // `v-dialog` teleports its card straight to `document.body` (Vuetify's own
+            // `v-overlay` plumbing), outside whatever element `mount()` would otherwise
+            // track -- so this suite reads the live document directly, the same way
+            // `tabGroupPickerMount.test.ts` reads a teleported `.mb-config-regex` popover.
+            attachTo: document.body,
+        });
+    }
+
+    /**
+     * `getAttribute` rather than a CSS attribute selector: the path itself is the value
+     * under test, backslashes and all, and a raw Windows path spliced into a CSS selector
+     * string is exactly the kind of value CSS escaping rules were not designed for.
+     */
+    function titledSpans(): HTMLElement[] {
+        return [...document.querySelectorAll<HTMLElement>(".mb-config-apply__list .v-list-item-title span[title]")];
+    }
+
+    it("carries a written file's full path as a native title, even once the row truncates it", () => {
+        const plan: WorkspacePlan = {
+            ...emptyPlan,
+            empty: false,
+            writes: [{ path: longPath, text: "" }],
+        };
+        const wrapper = renderWithPlan(plan);
+        const spans = titledSpans();
+        expect(spans.some((span) => span.getAttribute("title") === longPath)).toBe(true);
+        expect(spans.some((span) => span.textContent === longPath)).toBe(true);
+        wrapper.unmount();
+    });
+
+    it("carries a deleted file's full path as a native title, even once the row truncates it", () => {
+        const plan: WorkspacePlan = { ...emptyPlan, empty: false, deletes: [longPath] };
+        const wrapper = renderWithPlan(plan);
+        const spans = titledSpans();
+        expect(spans.some((span) => span.getAttribute("title") === longPath)).toBe(true);
+        expect(spans.some((span) => span.textContent === longPath)).toBe(true);
+        wrapper.unmount();
+    });
+});
+
+describe("the config folder path, above the file list", () => {
+    /**
+     * Regression: `.mb-config-apply__folder` had no `overflow-wrap`, and an absolute
+     * Windows path (backslash-separated, no spaces in a project folder someone named
+     * without them) gives the browser no natural break point inside this dialog's fixed
+     * `max-width: 620`. `test.css` is not enabled for this suite's `vitest.config.ts`, so
+     * a `?raw` import reads the exact rule the fix landed in, the same way the
+     * tab-group-picker and marker-set suites already do for their own CSS fixes.
+     */
+    it("sets overflow-wrap: anywhere so a long path wraps instead of overflowing the dialog", async () => {
+        const source = (await import("./ConfigApplyDialog.vue?raw")).default as string;
+        const match = /\.mb-config-apply__folder\s*\{[^}]*\}/.exec(source);
+        expect(match).not.toBeNull();
+        expect(match?.[0] ?? "").toMatch(/overflow-wrap:\s*anywhere/);
+    });
+});

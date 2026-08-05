@@ -150,25 +150,44 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
                         </v-chip>
                     </h3>
 
+                    <!--
+                        Neither row below binds `title` as a prop: on `<v-list-item>` that
+                        binds Vuetify's own display-text prop, never an HTML `title`
+                        attribute (`VListItem.js` only ever calls
+                        `toDisplayString(props.title)`), and `.v-list-item-title` defaults to
+                        `overflow: hidden; text-overflow: ellipsis; white-space: nowrap`. A
+                        config file's path is exactly the value this dialog exists to let
+                        someone verify before an overwrite or a delete that cannot be undone,
+                        so silently ellipsing it with no way to recover the rest is the one
+                        place in this whole dialog that must not happen. The `#title` slot
+                        still renders inside Vuetify's own `.v-list-item-title` wrapper, so
+                        the same span carries a genuine native `title` instead.
+                    -->
                     <v-list density="compact" class="mb-config-apply__list">
                         <v-list-item
                             v-for="path in changedPaths"
                             :key="path"
                             :prepend-icon="createdPaths.has(path) ? mdiFilePlusOutline : mdiFileDocumentOutline"
-                            :title="path"
                             :subtitle="
                                 createdPaths.has(path)
                                     ? t('config.apply.newFile', 'New file')
                                     : t('config.apply.updated', 'Updated, keeping its comments')
                             "
-                        />
+                        >
+                            <template #title>
+                                <span :title="path">{{ path }}</span>
+                            </template>
+                        </v-list-item>
                         <v-list-item
                             v-for="path in plan.deletes"
                             :key="path"
                             :prepend-icon="mdiTrashCanOutline"
-                            :title="path"
                             :subtitle="t('config.apply.willDelete', 'Deleted from the folder')"
-                        />
+                        >
+                            <template #title>
+                                <span :title="path">{{ path }}</span>
+                            </template>
+                        </v-list-item>
                     </v-list>
 
                     <template v-if="plan.entryChanges.length > 0">
@@ -299,6 +318,10 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
     font-size: 0.75rem;
     margin-block-end: 8px;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    /* An absolute Windows path is backslash-separated, giving the browser no natural break
+       point inside this 620px-wide dialog; without this a long one overflows sideways
+       instead of wrapping. */
+    overflow-wrap: anywhere;
 }
 
 .mb-config-apply__heading {
