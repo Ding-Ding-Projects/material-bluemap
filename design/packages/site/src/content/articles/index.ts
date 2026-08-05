@@ -19,6 +19,7 @@
 
 import type { Article, ArticleCategory } from "../types.js";
 
+import { glossary } from "./glossary.js";
 import { install } from "./install.js";
 import { viewerRemoteMode } from "./viewer-remote-mode.js";
 import { embeddedServer } from "./embedded-server.js";
@@ -61,6 +62,7 @@ import { remoteRender } from "./remote-render.js";
 import { automaticRepair } from "./automatic-repair.js";
 
 export const articles: readonly Article[] = [
+    glossary,
     viewerRemoteMode,
     embeddedServer,
     electronSecurity,

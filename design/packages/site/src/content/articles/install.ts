@@ -177,6 +177,10 @@ export const install: Article = {
 
     suggested: [
         {
+            articleId: "glossary",
+            reason: "The words the rest of this site uses without stopping to define them, in one place before you need them.",
+        },
+        {
             articleId: "release-pipeline",
             reason: "How the installer this button points at is built, tagged and published.",
         },
