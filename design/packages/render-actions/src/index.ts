@@ -40,6 +40,32 @@ export {
     WorldValidationError,
     type WorldLocation,
 } from "./world/validate.js";
+export {
+    fingerprintWorld,
+    isUnchanged,
+    FingerprintError,
+    WORLD_FINGERPRINT_VERSION,
+    type WorldFingerprint,
+} from "./world/fingerprint.js";
+
+// scheduled re-rendering: a small honest cadence set, and cheap change detection per
+// world-source, shared between the scheduled-render workflow and (for its app-side
+// configuration surface) the desktop app
+export {
+    CI_SCHEDULE_CADENCES,
+    cadenceIntervalMs,
+    describeCadenceCost,
+    isCadenceDue,
+    isCiScheduleCadence,
+    nextCheckAt,
+    type CiScheduleCadence,
+    type ScheduleDue,
+} from "./schedule/cadence.js";
+export {
+    evaluateScheduleChange,
+    type CiScheduleCheckResult,
+    type CiScheduleSourceKind,
+} from "./schedule/changeCheck.js";
 
 // planning
 export {
