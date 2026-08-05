@@ -1,0 +1,31 @@
+# Keeps the Docker build context for design/packages/cli/Dockerfile small. The
+# Dockerfile COPYs only the specific paths it needs (design/package.json,
+# design/packages, design/tools, vendor/BlueMap/common/webapp/dist); everything
+# below would otherwise still be walked and hashed into the build context,
+# which is real, measured cost — a first build here spent about 50 seconds
+# just transferring context before this file existed, dominated by node_modules
+# and the vendored Java toolchain state, none of which any Dockerfile stage
+# actually reads.
+**/node_modules/
+design/packages/*/dist/
+design/tools/*/dist/
+**/*.tsbuildinfo
+.git/
+# The one dist/ the build genuinely needs — un-excluded, since dockerignore
+# patterns are applied in order and a later "!" wins over an earlier match.
+!vendor/BlueMap/common/webapp/dist/
+
+# The Java oracle harness's own downloaded toolchain and Gradle state
+# (gigabyte-scale; see the matching entries in .gitignore).
+tools/oracle/.gradle/
+tools/oracle/jdk/
+tools/oracle/out/
+vendor/BlueMap/**/build/
+vendor/BlueMap/.gradle/
+vendor/BlueMap/**/node_modules/
+
+# Never bundle a BlueMap render's own output or Mojang download into an image.
+/web/
+/data/
+test-world/
+*.mca

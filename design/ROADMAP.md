@@ -83,10 +83,31 @@ Ported on 2026-08-04, in `packages/engine/src/map/rendermanager/`:
   upstream's keys.
 - **The config schema half**, which landed early in `packages/config`.
 
-Not ported, and so keeping this phase open:
+Not fully ported, and so keeping this phase open:
 
-- **The standalone server CLI and its Dockerfile.** `packages/cli` is a stub with no tests
-  (issue #42) — under active restructuring as of 2026-08-05.
+- **The standalone server CLI and its Dockerfile — built on 2026-08-05 (issue #42), still
+  short of what upstream's CLI does.** `packages/cli` was a one-line stub with no tests; it
+  now mirrors `BlueMapCLI.main()`'s real branching (reusing `@material-bluemap/config`'s
+  `cli/flags.ts` model, not a second copy of it), loads a real config folder the way
+  `BlueMapConfigManager` does — writing upstream's own per-file/per-folder defaults, never
+  a single-shot dump — resolves real resources through `MinecraftVersion`'s real
+  consent-gated download, builds real `BmMap`s over `MCAWorld`/`FileStorage`, drives real
+  renders through `RenderDriver`, serves real routes through `packages/server`'s handlers,
+  and writes the webapp's real `settings.json` (`WebFilesManager.Settings`, field for
+  field). Deliberately deferred, and said so out loud where the CLI is asked for it rather
+  than silently doing nothing: `-n`/mod-resource scanning, `resourceExtensions.zip`
+  parity, SQL storages, non-box render masks, and — the largest gap — `-u`/`--watch`,
+  which exits non-zero naming issue #40's `MapUpdateService` as the still-unwired piece
+  rather than pretending to watch. 3 files, 22 tests (`packages/cli/test`), including one
+  end-to-end test that renders a real `packages/worldgen` world through a real resource
+  pack and serves it, and a real subprocess spawn of the built `dist/index.js`.
+  **`packages/cli/Dockerfile` was built and run for real**, not authored blind: `docker
+  build -f design/packages/cli/Dockerfile .` from the repository root (`pnpm --filter
+  "@material-bluemap/cli..." install`/`build`, then a `pnpm deploy --legacy` prune) produced
+  a runtime image that rendered a real `packages/worldgen` world mounted read-only, served
+  a real hires tile, `index.html` and `settings.json` over its mapped port, answered a real
+  `POST /maps/{id}/update`, and — checked with `docker exec ... id` — runs as `uid=1000
+  (node)`, never root.
 
 Ported on 2026-08-05 (issue #40), in `packages/server/src/plugin/MapUpdateService.ts`
 (`50e4b1a`):
@@ -336,7 +357,7 @@ Until those run, "ported" is the honest word and "done" is not.
 | `site` | 16 | 132 | `viewer` | 7 | 57 |
 | `nbt` | 8 | 56 | `parts` | 2 | 33 |
 | `worldgen` | 3 | 32 | `server` | 1 | 5 |
-| `cli` | none yet | | | | |
+| `cli` | 3 | 22 (`npx vitest run packages/cli/test`, 2026-08-05, issue #42) | | | |
 
 **Read the one failure before treating this as a broken tree, and note that it is already
 gone.** It was `packages/ui/src/components/confirm/superConfirmPolicy.test.ts`, the guard that
