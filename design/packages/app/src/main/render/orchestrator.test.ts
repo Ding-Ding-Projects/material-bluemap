@@ -326,7 +326,144 @@ describe("failures", () => {
         expect(result.failure.detail).toContain("does not exist or is no directory!");
         expect(result.record?.outcome).toBe("failed");
     }, 20_000);
+});
 
+describe("filing evidence with the repair module", () => {
+    it("calls rememberFailure with the run's own diagnostics on a genuine failure", async () => {
+        const script = await fakeCli({
+            lines: [
+                "[12:45:57 INFO] Loading resources...",
+                "[12:45:58 WARNING] ",
+                "################################",
+                " There is a problem with your BlueMap setup!",
+                "",
+                " 'C:\\nope' does not exist or is no directory!",
+                "################################",
+                "[12:45:58 INFO] Start updating 0 maps ...",
+                "[12:45:58 INFO] Your maps are now all up-to-date!",
+                "[12:45:58 INFO] Stopped.",
+            ],
+            exitCode: 0,
+        });
+
+        const remembered: unknown[] = [];
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: spawnScript(script, []),
+            rememberFailure: (evidence) => remembered.push(evidence),
+        });
+
+        const result = await orchestrator.render(request({ renderId: "remembered" }));
+        expect(result.ok).toBe(false);
+
+        expect(remembered).toHaveLength(1);
+        const evidence = remembered[0] as {
+            subject: string;
+            mode: string;
+            command: string;
+            args: string[];
+            exitCode: number | null;
+            mapsScheduled: number | null;
+            setupProblems: string[];
+            javaExecutable: string;
+            javaVersion: string | null;
+            requiredJavaFeature: number;
+            worlds: { mapId: string; path: string }[];
+            hostConfigDir: string;
+        };
+        expect(evidence.subject).toBe("render");
+        expect(evidence.mode).toBe("local");
+        expect(evidence.command).toBe(ENGINE.javaExecutable);
+        expect(evidence.args).toContain(ENGINE.enginePath);
+        expect(evidence.exitCode).toBe(0);
+        expect(evidence.mapsScheduled).toBe(0);
+        expect(evidence.setupProblems.join("\n")).toContain("does not exist or is no directory!");
+        expect(evidence.javaExecutable).toBe(ENGINE.javaExecutable);
+        expect(evidence.javaVersion).toBe(ENGINE.javaVersion);
+        expect(evidence.requiredJavaFeature).toBeGreaterThan(0);
+        expect(evidence.worlds).toEqual([{ mapId: "overworld", path: worldDir }]);
+        expect(evidence.hostConfigDir.length).toBeGreaterThan(0);
+    }, 20_000);
+
+    it("never files evidence for a cancellation, which is not a failure", async () => {
+        const script = await fakeCli({
+            lines: COMPLETE_RENDER,
+            sleepMs: 5_000,
+        });
+
+        const remembered: unknown[] = [];
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: spawnScript(script, []),
+            rememberFailure: (evidence) => remembered.push(evidence),
+        });
+
+        const renderId = "cancel-no-evidence";
+        const started = orchestrator.render(request({ renderId }));
+        // Give the child a moment to actually be spawned before asking it to cancel.
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        orchestrator.cancel(renderId);
+        const result = await started;
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.failure.code).toBe("cancelled");
+        expect(remembered).toHaveLength(0);
+    }, 20_000);
+
+    it("does not let a throwing rememberFailure turn a reported failure into a crash", async () => {
+        const script = await fakeCli({
+            lines: [
+                "[12:45:57 INFO] Loading resources...",
+                "[12:45:58 INFO] Start updating 0 maps ...",
+                "[12:45:58 INFO] Your maps are now all up-to-date!",
+                "[12:45:58 INFO] Stopped.",
+            ],
+            exitCode: 0,
+        });
+
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: spawnScript(script, []),
+            rememberFailure: () => {
+                throw new Error("the repair module's own registry is full");
+            },
+        });
+
+        const result = await orchestrator.render(request({ renderId: "throwing-remember" }));
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.failure.code).toBe("no-maps-rendered");
+    }, 20_000);
+
+    it("is a plain no-op when this build has no rememberFailure wired at all", async () => {
+        const script = await fakeCli({
+            lines: [
+                "[12:45:57 INFO] Loading resources...",
+                "[12:45:58 INFO] Start updating 0 maps ...",
+                "[12:45:58 INFO] Your maps are now all up-to-date!",
+                "[12:45:58 INFO] Stopped.",
+            ],
+            exitCode: 0,
+        });
+
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: spawnScript(script, []),
+        });
+
+        const result = await orchestrator.render(request({ renderId: "no-remember-option" }));
+        expect(result.ok).toBe(false);
+    }, 20_000);
+});
+
+describe("failures", () => {
     it("reports a world folder that is not there, before spawning anything", async () => {
         let spawned = 0;
         const orchestrator = new RenderOrchestrator({

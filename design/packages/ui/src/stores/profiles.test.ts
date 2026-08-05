@@ -66,6 +66,73 @@ afterEach(() => {
     }
 });
 
+describe("mirroring into the main process's own history", () => {
+    afterEach(() => {
+        delete (window as unknown as { materialBluemap?: unknown }).materialBluemap;
+    });
+
+    it("calls profilesHistory.save with the current list, fire-and-forget, whenever it mutates", async () => {
+        const saved: unknown[] = [];
+        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+            syncProfiles: () => Promise.resolve(),
+            profilesHistory: {
+                save: (state: unknown) => {
+                    saved.push(state);
+                    return Promise.resolve({ ok: true });
+                },
+            },
+        };
+
+        const created = addProfile({
+            name: "Mirrored",
+            url: "https://mirrored.example.com",
+            trustCustomizations: true,
+        });
+        await nextTick();
+
+        expect(saved).toHaveLength(1);
+        const state = saved[0] as { version: number; profiles: { id: string }[]; activeId: string | null };
+        expect(state.version).toBe(1);
+        expect(state.profiles.some((profile) => profile.id === created.id)).toBe(true);
+        expect(state.activeId).toBe(profilesStore.activeId);
+    });
+
+    it("does not throw, and does not block localStorage persistence, when the bridge's save rejects", async () => {
+        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+            syncProfiles: () => Promise.resolve(),
+            profilesHistory: {
+                save: () => Promise.reject(new Error("git is unavailable")),
+            },
+        };
+
+        let created: ReturnType<typeof addProfile> | undefined;
+        expect(() => {
+            created = addProfile({
+                name: "Still Saved Locally",
+                url: "https://still-saved.example.com",
+                trustCustomizations: false,
+            });
+        }).not.toThrow();
+
+        await expect(nextTick()).resolves.toBeUndefined();
+        // Give the rejected promise's own microtask a turn, so a failure to swallow it
+        // would surface as an unhandled rejection this test can see.
+        await Promise.resolve();
+
+        expect(cells.get(STORAGE_KEY)).toContain(created?.id ?? "");
+    });
+
+    it("is a plain no-op on a build with no bridge at all, exactly like a browser tab", async () => {
+        // No `window.materialBluemap` set - the default state every test in this file
+        // starts from otherwise, restated here so this test does not depend on running
+        // after one that also left it unset.
+        expect(() => {
+            addProfile({ name: "No Bridge", url: "https://none.example.com", trustCustomizations: false });
+        }).not.toThrow();
+        await expect(nextTick()).resolves.toBeUndefined();
+    });
+});
+
 describe("the write path when localStorage.setItem refuses", () => {
     it("keeps the mutation in memory instead of throwing out of the watcher", async () => {
         throwOnSetItem = true;

@@ -229,30 +229,42 @@ records exactly one revision, an unchanged save records nothing, a restore is it
 undoing a restore is another restore, a machine with no git is an honest state rather than a lost
 save, and a git that fails mid-commit leaves the file on disk exactly as it was written.
 
-**What is not yet done, and is the reason "done" in the issue's checklist is only partly true today:**
-`design/packages/ui/src/stores/profiles.ts` still reads and writes only `localStorage`, and none of
-the settings surfaces call the new `settingsHistory:*` channels either. Saving a profile or changing
-a setting in the running app does not yet produce a history revision, because nothing on the
-renderer side asks the main process to record one. The exact wiring still needed:
+**What is genuinely wired today, past the four steps below:**
 
-1. Expose the four `profilesHistory:*` and four `settingsHistory:*` channels on the preload bridge
-   (`packages/app/src/preload/index.ts`), the same way `history:*` and `project:*` already are.
-2. Have `profiles.ts`'s persistence watcher call `profilesHistory:save` with the current
-   `ProfilesState` after every mutation — fire-and-forget, exactly like the config editor's own save
-   calling `history:snapshot` — in addition to (or, once the migration is proven, instead of) writing
-   `localStorage`. The equivalent call for settings belongs wherever each settings surface currently
-   calls `localStorage.setItem`.
-3. Read `profilesHistory:read` / `settingsHistory:read` at startup as the source of truth once the
-   migration is trusted, with the existing `localStorage` value kept as a fallback and a one-time,
+1. **Done.** Both bridges are exposed on the preload
+   (`design/packages/app/src/preload/index.ts`), the same way `history:*` and `project:*` are —
+   `profilesHistory` and `appSettingsHistory`, each with `read`/`save`/`list`/`restore`.
+2. **Partly done.** `design/packages/ui/src/stores/profiles.ts`'s persistence watcher now calls
+   `profilesHistory.save` with the current `ProfilesState` after every mutation — fire-and-forget,
+   in addition to writing `localStorage`, which stays the real source of truth (see step 3). The
+   maps-and-servers list is this same store read from the interface, so wiring it wires both at
+   once. For settings, the equivalent call needed a merge rather than a plain forward: `settings.json`
+   holds one flat `values` bag shared by every wired surface, and a surface that saved only its own
+   key would silently erase every other surface's already-recorded value the next time it ran. The
+   new `design/packages/ui/src/stores/appSettingsHistorySync.ts` module handles that — it reads the
+   bag that is there now, merges in the calling surface's own key, and saves the merge — and exactly
+   one surface calls it so far, `design/packages/ui/src/components/menu/menuPrefs.ts`'s disclosure
+   state, under the key `menuSearch`. The rest of the dozen-odd `localStorage`-backed surfaces this
+   file names above — `appearanceStore.ts`, `dockPlacement.ts`, `palettePrefs.ts`, `setupPrefs.ts`,
+   `tabStorage.ts`, `eulaStorage.ts`, `remoteTargets.ts` and more — are **not yet wired**; each is a
+   call to `recordAppSetting(key, value)` from wherever that surface currently calls
+   `localStorage.setItem`, once its own value's shape is confirmed JSON-serialisable the way
+   `menuSearch`'s already is.
+3. **Not yet done.** Reading `profilesHistory:read` / `appSettingsHistory:read` at startup as the
+   source of truth, with the existing `localStorage` value kept as a fallback and a one-time,
    idempotent copy into the new store — safe to run twice, because writing the same state twice
-   records nothing the second time.
-4. Surface both histories in the existing History tab (`design/packages/ui/src/components/history/`)
-   alongside the config-folder and project histories already there, reusing its date filter, action
-   filter, search and export rather than building a second panel.
+   records nothing the second time. `localStorage` remains authoritative until this step lands.
+4. **Not yet done.** Surfacing both histories in the existing History tab
+   (`design/packages/ui/src/components/history/`) alongside the config-folder and project histories
+   already there, reusing its date filter, action filter, search and export rather than building a
+   second panel.
 
 None of this changes the promise the main-process half already keeps: once a caller does hand it a
 state to save, the history it keeps is real, local, append-only, and never blocks or fails the save
-it is recording.
+it is recording. And none of the renderer-side wiring above changes it either: a rejected or missing
+`save` call is swallowed at the call site, exactly as `docs/config-history.md`'s own failure-mode
+rule requires, so a history mirror that cannot be written never turns a settings or profile change
+into an error.
 
 ## Failure modes
 

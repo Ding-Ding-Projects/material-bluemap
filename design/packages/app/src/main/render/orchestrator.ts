@@ -82,6 +82,9 @@ import type { SpawnCli } from "./runner.js";
 import type { RenderSessionStore } from "./session.js";
 import { renderIdForWorld, renderWorkspace } from "./workspace.js";
 import type { RenderWorkspace } from "./workspace.js";
+import { collectEvidence } from "../repair/evidence.js";
+import type { RepairEvidence } from "../repair/evidence.js";
+import { REQUIRED_JAVA_FEATURE } from "../java/version.js";
 
 /** Everything the orchestrator needs to know about the engine it is about to run. */
 export interface ResolvedEngine {
@@ -145,6 +148,17 @@ export interface RenderRunOutcome {
     readonly consentMissing: boolean;
     readonly diagnostics: readonly string[];
     readonly durationMs: number;
+    /**
+     * Upstream's multi-line "problem with your BlueMap setup" banners, in order.
+     *
+     * Both `CliRunResult` and `EngineRunResult` already carry this; it was simply never
+     * declared on the narrower interface the two are read through here. Added so a
+     * genuine render failure can hand the repair module the same evidence either
+     * concrete run type actually collected, rather than a copy this file re-derives.
+     */
+    readonly setupProblems: readonly string[];
+    /** Map ids the engine reported loading. Same reason as {@link setupProblems}. */
+    readonly mapsLoaded: readonly string[];
 }
 
 /**
@@ -312,6 +326,19 @@ export interface RenderOrchestratorOptions {
     readonly onEvent?: (event: RenderEvent) => void;
     readonly appVersion?: string | null;
     readonly spawn?: SpawnCli;
+    /**
+     * Files a genuine render failure with the repair module, so the Diagnostics panel has
+     * something to show. Optional, and everything above works without it: a render still
+     * fails the same way, reports the same failure, and records the same provenance. What
+     * is lost without it is only the repair registry's own copy of what happened - see
+     * `main/index.ts`'s `startRepairDiagnostics`, whose `remember` is what this is meant to
+     * receive.
+     *
+     * Never called for a cancellation - see the caller's own comment on why cancelling is
+     * not a failure - and never let a throw from it escape `render()`: a repair module that
+     * cannot file a record must not turn a reported failure into an unreported crash.
+     */
+    readonly rememberFailure?: (evidence: RepairEvidence) => void;
     readonly now?: () => Date;
 
     /* ---- The container half. Every one of these is optional and local ignores them. ---- */
@@ -692,6 +719,7 @@ export class RenderOrchestrator {
             };
             await this.saveRecord(workspace, record);
             await this.options.sessions?.interrupt(renderId, "failed", failure.code);
+            this.rememberFailure(mode, engine, workspace, request, launch, result);
             return this.fail(renderId, failure, record);
         }
 
@@ -903,6 +931,71 @@ export class RenderOrchestrator {
             // A record that cannot be written must never fail the render that produced
             // it. Losing the note about which engine ran is a smaller harm than losing
             // the map, and the map is on disk either way.
+        }
+    }
+
+    /**
+     * Files a genuine render failure with the repair module, if this build has one wired
+     * (`this.options.rememberFailure` - see that option's own doc comment).
+     *
+     * Config text is left empty rather than read from disk here: the basic diagnosis
+     * codes this failure list exists to populate (a port in use, no Java, Java too old, an
+     * unwritable output folder, the Mojang download not accepted, an out-of-memory kill, a
+     * config BlueMap itself refused) read `exitCode`, `diagnostics` and `setupProblems`,
+     * never `evidence.config` - only the guardrailed coding-agent pass reads that, and it
+     * stays unreachable until Settings has a control for it (see `main/index.ts`'s own
+     * comment on `startRepairDiagnostics`). Reading and redacting every config file on
+     * every failed render to serve a feature nothing can reach yet would be work with no
+     * observer.
+     *
+     * `command`/`args` for a local run are the JVM invocation this orchestrator actually
+     * built (`-jar <engine>`), not `CliRun`'s complete argument list, which it keeps
+     * private; for a container run they are `launch`'s own, exactly as spawned. Never lets
+     * a throw - a malformed evidence record, an `options.rememberFailure` that itself
+     * throws - escape into the caller: a repair module that cannot file a record must
+     * never turn a reported failure into an unreported crash.
+     */
+    private rememberFailure(
+        mode: RuntimeMode,
+        engine: ResolvedEngine,
+        workspace: RenderWorkspace,
+        request: RenderRequest,
+        launch: EngineLaunch | null,
+        result: RenderRunOutcome,
+    ): void {
+        const remember = this.options.rememberFailure;
+        if (remember === undefined) return;
+        try {
+            const evidence = collectEvidence({
+                subject: "render",
+                mode,
+                command: launch?.command ?? engine.javaExecutable,
+                args: launch?.args ?? ["-jar", engine.enginePath],
+                result: {
+                    exitCode: result.exitCode,
+                    signal: result.signal,
+                    spawnError: null,
+                    cancelled: result.cancelled,
+                    upToDate: result.upToDate,
+                    mapsScheduled: result.mapsScheduled,
+                    mapsLoaded: result.mapsLoaded,
+                    consentMissing: result.consentMissing,
+                    setupProblems: result.setupProblems,
+                    diagnostics: result.diagnostics,
+                    stderr: [],
+                    durationMs: result.durationMs,
+                },
+                hostConfigDir: workspace.configDir,
+                outputRoot: workspace.storageRoot,
+                worlds: request.maps.map((map) => ({ mapId: map.id, path: map.world })),
+                javaExecutable: engine.javaExecutable,
+                javaVersion: engine.javaVersion,
+                requiredJavaFeature: REQUIRED_JAVA_FEATURE,
+            });
+            remember(evidence);
+        } catch {
+            // See this method's own doc comment: a failure to file the evidence must
+            // never turn a reported render failure into an unreported crash.
         }
     }
 

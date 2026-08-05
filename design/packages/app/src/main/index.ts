@@ -276,6 +276,11 @@ function startRendering(): RenderIpc {
             resourcesPath: app.isPackaged ? process.resourcesPath : null,
         }),
         appVersion: app.getVersion(),
+        // A lazy call to the repair singleton rather than the singleton itself, so this
+        // does not care whether `startRepairDiagnostics()` has run yet - it is idempotent
+        // (see its own doc comment) and creates itself on first call, which this becomes
+        // the moment a render genuinely fails rather than at `createWindow`'s own ordering.
+        rememberFailure: (evidence) => startRepairDiagnostics().remember(evidence),
     });
     // Maps rendered in an earlier session are served again without re-rendering.
     void render.restoreExisting();

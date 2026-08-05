@@ -19,6 +19,7 @@
 import { BrowserWindow, ipcMain } from "electron";
 import type { IpcMainInvokeEvent } from "electron";
 import { hasAcceptedDownload } from "../consent.js";
+import type { RepairEvidence } from "../repair/evidence.js";
 import { ContainerHandoffStore } from "../runtime/handoff.js";
 import type { RuntimeMode } from "../runtime/plan.js";
 import { LocalMapHandler } from "./LocalMapHandler.js";
@@ -91,6 +92,13 @@ export interface RenderIpcOptions {
     readonly dockerImage?: string;
     /** The account's home directory, so a container mount of it is refused by name. */
     readonly home?: string | null;
+    /**
+     * Files a genuine render failure with the repair module, so the Diagnostics panel has
+     * something to show. See {@link RenderOrchestratorOptions.rememberFailure}'s own doc
+     * comment for the full contract - never called for a cancellation, never lets a throw
+     * escape. `main/index.ts` passes its `startRepairDiagnostics()` singleton's `remember`.
+     */
+    readonly rememberFailure?: (evidence: RepairEvidence) => void;
 }
 
 /**
@@ -185,6 +193,7 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         ...(options.docker === undefined ? {} : { docker: options.docker }),
         ...(options.dockerImage === undefined ? {} : { dockerImage: options.dockerImage }),
         ...(options.home === undefined ? {} : { home: options.home }),
+        ...(options.rememberFailure === undefined ? {} : { rememberFailure: options.rememberFailure }),
     });
 
     /**

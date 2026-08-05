@@ -1,4 +1,5 @@
 import { reactive, watch } from "vue";
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 /**
  * Disclosure state for the menu search bars.
@@ -45,6 +46,10 @@ watch(
         } catch {
             // Private-mode or quota failure: the disclosure state is not worth an error toast.
         }
+        // Fire-and-forget mirror into the main process's own settings history, on top of
+        // the localStorage write above rather than instead of it - see
+        // `appSettingsHistorySync.ts`'s own doc comment for the whole rule.
+        recordAppSetting("menuSearch", value);
     },
     { deep: true },
 );

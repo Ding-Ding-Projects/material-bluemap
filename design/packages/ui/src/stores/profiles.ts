@@ -1,4 +1,5 @@
 import { reactive, watch } from "vue";
+import { simpleHistorySaveFn } from "../components/history/simpleHistoryHost.js";
 
 export interface ServerProfile {
     id: string;
@@ -82,6 +83,42 @@ function syncToBridge(): void {
     );
 }
 
+/**
+ * Mirrors the current profile list into the main process's own version history,
+ * fire-and-forget.
+ *
+ * `main/profiles/history.ts` and its `profilesHistory:save` channel have been registered
+ * and tested since before this call existed (`docs/config-history.md`); what was missing
+ * was a live mutation site that actually asked it to record something. This is that site -
+ * the one place every profile add, remove, rename and active-id change already funnels
+ * through to reach `localStorage`.
+ *
+ * Never awaited past its own `void`, and any rejection is swallowed: the rule this history
+ * exists under is that a failed history write must never fail the save a person actually
+ * asked for, and that save already happened above, into `localStorage`, which stays this
+ * store's real source of truth. `window.materialBluemap` is absent in a browser tab and in
+ * every test that mounts no bridge, and `simpleHistorySaveFn` answers null there rather
+ * than throwing, so this is a plain no-op on every build that cannot keep a history at all.
+ */
+function recordProfilesHistory(): void {
+    const save = simpleHistorySaveFn(typeof window === "undefined" ? null : window.materialBluemap, "profilesHistory");
+    if (save === null) return;
+    void save({
+        version: 1,
+        profiles: profilesStore.profiles.map((profile) => ({
+            id: profile.id,
+            name: profile.name,
+            url: profile.url,
+            trustCustomizations: profile.trustCustomizations,
+            ...(profile.dataRoot !== undefined ? { dataRoot: profile.dataRoot } : {}),
+        })),
+        activeId: profilesStore.activeId,
+    }).catch(() => {
+        // Fire-and-forget: a history mirror that could not be written must never surface
+        // as a failed profile save.
+    });
+}
+
 watch(
     () => JSON.stringify(profilesStore),
     (value) => {
@@ -94,6 +131,7 @@ watch(
             // throwing inside this watcher and taking the mutation down with it.
         }
         syncToBridge();
+        recordProfilesHistory();
     },
 );
 syncToBridge();
