@@ -130,6 +130,36 @@ export const MENU_VOICED = {
     },
 
     /* ---------------------------------------------------------------- */
+    /* Fullscreen                                                        */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * `MenuOption`'s `disabled` prop, by itself, tells nobody why: a screen reader hears
+     * "Go Fullscreen, dimmed" and a sighted person sees a greyed-out row, and neither
+     * learns anything a click would not have told them anyway. `document.fullscreenEnabled`
+     * is false when the browser itself refuses the Fullscreen API here - most often because
+     * this page is embedded in a frame that was never granted the permission - and that is
+     * a fact about the browser, not a bug in this app, which is the one thing every level
+     * below keeps saying.
+     */
+    "goFullscreen.unavailable": {
+        en: [
+            "Fullscreen is not available in this browser.",
+            "Fullscreen is not available in this browser.",
+            "Fullscreen is not available in this browser right now.",
+            "Fullscreen is not available in this browser, so the button stays off rather than promising something it cannot do.",
+            "Fullscreen is not available in this browser, which flatly refuses it here, so the button stays off rather than pretending it will work and leaving you to find out the hard way.",
+        ],
+        yue: [
+            "呢個瀏覽器唔支援全螢幕。",
+            "呢個瀏覽器唔支援全螢幕。",
+            "而家呢個瀏覽器唔支援全螢幕。",
+            "呢個瀏覽器唔支援全螢幕，所以個掣寧願熄住，都唔會呃你話得。",
+            "呢個瀏覽器死都唔支援全螢幕，所以個掣寧願熄住扮冇嘢發生，都唔會呃你撳落去先話你知唔得。",
+        ],
+    },
+
+    /* ---------------------------------------------------------------- */
     /* Resetting every setting                                           */
     /* ---------------------------------------------------------------- */
 
@@ -242,6 +272,13 @@ export const MENU_FACTS = {
     "regexBuilder.invalid": {
         en: ["not valid", "nothing matches"],
         yue: ["唔正確", "冇嘢 match 到"],
+    },
+
+    // That fullscreen is unavailable, and that it is the browser's doing rather than a
+    // broken button.
+    "goFullscreen.unavailable": {
+        en: ["Fullscreen", "not available", "this browser"],
+        yue: ["全螢幕", "唔支援", "呢個瀏覽器"],
     },
 
     // Scope, medium, consequence and irreversibility, all four in all ten strings.

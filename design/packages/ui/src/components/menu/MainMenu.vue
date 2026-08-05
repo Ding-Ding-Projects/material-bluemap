@@ -61,6 +61,21 @@ const pageId = computed(() => page.value?.id ?? null);
 
 const fullscreenAvailable = computed(() => document.fullscreenEnabled);
 
+/**
+ * Why "Go Fullscreen" is dimmed, when it is.
+ *
+ * A disabled `MenuOption` on its own tells nobody anything: a screen reader hears "Go
+ * Fullscreen, dimmed" and a sighted person sees a greyed-out row, and neither learns
+ * anything a click would not have told them anyway. `document.fullscreenEnabled` is false
+ * when the browser itself refuses the Fullscreen API here - most often because this page
+ * is embedded in a frame nobody granted the permission to - which is a fact about the
+ * browser, not a bug in this app, so the reason is named rather than left as a mystery.
+ * Empty while the option is enabled: `MenuOption` only renders a tooltip when it has text.
+ */
+const fullscreenTooltip = computed(() =>
+    fullscreenAvailable.value ? "" : t("goFullscreen.unavailable", "Fullscreen is not available in this browser."),
+);
+
 function openPage(id: string, titleKey: string, fallback: string, data: object = {}): void {
     menu.value?.openPage(id, () => t(titleKey, fallback), data);
 }
@@ -125,7 +140,7 @@ function updateMap(): void {
 
             <v-divider class="my-2" />
 
-            <MenuOption :disabled="!fullscreenAvailable" @action="goFullscreen">
+            <MenuOption :disabled="!fullscreenAvailable" :tooltip="fullscreenTooltip" @action="goFullscreen">
                 {{ t("goFullscreen.button", "Go Fullscreen") }}
             </MenuOption>
             <MenuOption @action="resetCamera">
