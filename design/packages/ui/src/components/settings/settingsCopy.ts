@@ -103,6 +103,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Every saved version of your server profiles and your application settings, each one restorable. Restoring is never destructive: what it replaces is recorded first, so it can always be undone.",
             ),
         },
+        "diagnostics": {
+            title: t("settings.diagnostics.title", "Diagnostics"),
+            description: t(
+                "settings.diagnostics.description",
+                "Why a render or the web server failed to start, worked out from what was actually observed, with no model involved unless a local coding agent is installed and switched on. Every change it makes is shown as a diff and recorded in the version history above, so it can be undone.",
+            ),
+        },
     };
 }
 

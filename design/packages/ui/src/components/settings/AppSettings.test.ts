@@ -54,6 +54,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "surface-placement": "Where the panels sit",
     "updates": "Updates",
     "history": "Version history",
+    "diagnostics": "Diagnostics",
 };
 
 const scrollIntoView = vi.fn();

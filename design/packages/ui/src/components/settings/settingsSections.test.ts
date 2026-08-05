@@ -75,6 +75,12 @@ const SECTIONS: SettingsSectionText[] = [
         description: "Every saved version of your server profiles and your application settings.",
         values: ["Server profiles", "Application settings"],
     },
+    {
+        anchor: "diagnostics",
+        title: "Diagnostics",
+        description: "Why a render or the web server failed to start.",
+        values: [],
+    },
 ];
 
 describe("the anchors a render can point at", () => {
@@ -116,9 +122,13 @@ describe("every section the surface renders", () => {
      * reason again: no render stops for the want of an update either, so the installed
      * version, the last check, the feed and a manual check are only ever reachable by
      * opening Settings and reading, never by following a link out of a failed render.
-     * History is last for the same reason once more: no render stops for the want of an
-     * old profile or an old setting, so the version histories of both are only ever
-     * reachable by opening Settings and reading, never by a link out of a failed render.
+     * History is here for the same reason again: no render stops for the want of an old
+     * profile or an old setting, so the version histories of both are only ever reachable
+     * by opening Settings and reading, never by a link out of a failed render. Diagnostics
+     * is last of all, and for a related but distinct reason: a failure that *could* point
+     * somewhere would point at one of the four render-reachable anchors above rather than
+     * at this tab, so this is where the deterministic diagnosis and the guardrailed repair
+     * for whatever those four could not explain are reached instead.
      * Widening the bridge contract to make one list would be widening a contract to suit a
      * layout.
      */
@@ -133,6 +143,7 @@ describe("every section the surface renders", () => {
             "surface-placement",
             "updates",
             "history",
+            "diagnostics",
         ]);
     });
 

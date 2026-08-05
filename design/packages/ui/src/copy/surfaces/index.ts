@@ -41,6 +41,7 @@ import { PATHFIELD_FACTS, PATHFIELD_FIXED, PATHFIELD_VOICED } from "./pathField.
 import { PRESETS_FACTS, PRESETS_FIXED, PRESETS_VOICED } from "./presets.js";
 import { PROFILES_FACTS, PROFILES_FIXED, PROFILES_VOICED } from "./profiles.js";
 import { PROJECT_FACTS, PROJECT_FIXED, PROJECT_VOICED } from "./project.js";
+import { REPAIR_FACTS, REPAIR_FIXED, REPAIR_VOICED } from "./repair.js";
 import { REMOTE_FACTS, REMOTE_FIXED, REMOTE_VOICED } from "./remote.js";
 import { SETTINGS_FACTS, SETTINGS_FIXED, SETTINGS_VOICED } from "./settings.js";
 import { SPEED_FACTS, SPEED_FIXED, SPEED_VOICED } from "./speed.js";
@@ -73,6 +74,7 @@ export const SURFACE_VOICED = {
     ...PRESETS_VOICED,
     ...PROFILES_VOICED,
     ...PROJECT_VOICED,
+    ...REPAIR_VOICED,
     ...REMOTE_VOICED,
     ...SETTINGS_VOICED,
     ...SPEED_VOICED,
@@ -106,6 +108,7 @@ export const SURFACE_FIXED = {
     ...PRESETS_FIXED,
     ...PROFILES_FIXED,
     ...PROJECT_FIXED,
+    ...REPAIR_FIXED,
     ...REMOTE_FIXED,
     ...SETTINGS_FIXED,
     ...SPEED_FIXED,
@@ -139,6 +142,7 @@ export const SURFACE_FACTS = {
     ...PRESETS_FACTS,
     ...PROFILES_FACTS,
     ...PROJECT_FACTS,
+    ...REPAIR_FACTS,
     ...REMOTE_FACTS,
     ...SETTINGS_FACTS,
     ...SPEED_FACTS,

@@ -655,9 +655,37 @@ export const SETTINGS_VOICED = {
         yue: [
             "呢度有你伺服器設定檔同應用程式設定嘅每一個已儲存版本，個個都還原得返。還原永遠唔會破壞嘢：佢換走嘅嗰個會事先記低，所以永遠都可以反悔。",
             "呢度有你伺服器設定檔同應用程式設定嘅每一個已儲存版本，個個都還原得返。還原永遠唔會破壞嘢：佢換走嘅嗰個會事先記低，所以永遠都可以反悔。",
-            "呢度存住你伺服器設定檔同應用程式設定嘅每一個版本，個個都還原得返。還原唔會破壞嘢——佢換走嗰個會事先記低，所以隨時都可以反悔。",
+            "呢度存住你伺服器設定檔同應用程式設定嘅每一個版本，個個都還原得返。還原唔會破壞嘢，佢換走嗰個會事先記低，所以隨時都可以反悔。",
             "呢度存住你伺服器設定檔同應用程式設定嘅每一個版本，個個都還原得返。還原永遠唔會破壞嘢，因為佢換走嗰個會事先記低成一個獨立版本，所以隨時都可以反悔。",
             "呢度存住你伺服器設定檔同應用程式設定嘅每一個版本，一個都唔漏，個個都還原得返。還原永遠唔會破壞嘢，因為佢換走嗰個會事先記低成一個版本，所以就算係還原本身，都一樣可以反悔。",
+        ],
+    },
+
+    /* ---------------------------------------------------------------- */
+    /* The Diagnostics section                                           */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * `settings.diagnostics.description`: the tab that mounts `RepairPanel`, per
+     * `docs/automatic-repair.md`. Two facts pinned at every level: deterministic diagnosis
+     * comes first and no model is involved in it at all, and every change the guardrailed
+     * last resort makes is recorded so it can be undone - the two things that make this
+     * tab trustworthy rather than merely present.
+     */
+    "settings.diagnostics.description": {
+        en: [
+            "Why a render or the web server failed to start, worked out from what was actually observed, with no model involved unless a local coding agent is installed and switched on. Every change it makes is recorded in the version history above, so it can be undone.",
+            "Why a render or the web server failed to start, worked out from what was actually observed, with no model involved unless a local coding agent is installed and switched on. Every change it makes is recorded in the version history above, so it can be undone.",
+            "Why a render or the web server failed to start, worked out from what was actually observed - no model is involved unless a local coding agent is installed and switched on. Every change it makes is recorded in the version history above, so it can be undone.",
+            "Why a render or the web server failed to start, worked out from what was actually observed rather than guessed at. No model is involved at all unless a local coding agent is installed and switched on, and every change it makes is recorded in the version history above, so it can always be undone.",
+            "Why a render or the web server failed to start, worked out from what was actually observed rather than guessed at. No model gets anywhere near it unless a local coding agent is installed and deliberately switched on, and every single change it makes is recorded in the version history above, so it can always be undone.",
+        ],
+        yue: [
+            "點解一次 render 或者 web server 開唔到，係由實際觀察到嘅嘢推斷出嚟，除非裝咗本機 coding agent 仲開咗，先會有 model 牽涉入面。佢做嘅每一個改動都記錄喺上面嗰個版本記錄度，隨時還原得返。",
+            "點解一次 render 或者 web server 開唔到，係由實際觀察到嘅嘢推斷出嚟，除非裝咗本機 coding agent 仲開咗，先會有 model 牽涉入面。佢做嘅每一個改動都記錄喺上面嗰個版本記錄度，隨時還原得返。",
+            "點解一次 render 或者 web server 開唔到，係由實際觀察到嘅嘢推斷出嚟，唔係靠估。除非裝咗本機 coding agent 仲開咗，唔會有 model 牽涉入面。佢做嘅每一個改動都記錄喺上面嗰個版本記錄度，隨時還原得返。",
+            "點解一次 render 或者 web server 開唔到，係由實際觀察到嘅嘢推斷出嚟，唔係靠估。除非裝咗本機 coding agent 仲特登開咗，完全唔會有 model 埋身，佢做嘅每一個改動都會記錄喺上面嗰個版本記錄度，隨時都可以反悔。",
+            "點解一次 render 或者 web server 開唔到，係由實際觀察到嘅嘢推斷出嚟，唔係靠估。除非裝咗本機 coding agent 仲特登開咗，唔會有半隻 model 埋到身，佢做嘅每一個改動都會記錄喺上面嗰個版本記錄度，隨時都可以反悔。",
         ],
     },
 } as const satisfies Record<string, VoicedString>;
@@ -733,6 +761,9 @@ export const SETTINGS_FIXED = {
     "settings.history.title": { en: "Version history", yue: "版本記錄" },
     "settings.history.profiles": { en: "Server profiles", yue: "伺服器設定檔" },
     "settings.history.appSettings": { en: "Application settings", yue: "應用程式設定" },
+
+    /* The Diagnostics tab's own heading, above `settings.diagnostics.description`. */
+    "settings.diagnostics.title": { en: "Diagnostics", yue: "診斷" },
 } as const satisfies Record<string, FixedString>;
 
 export const SETTINGS_FACTS = {
@@ -872,6 +903,13 @@ export const SETTINGS_FACTS = {
     "settings.history.description": {
         en: ["restorable", "recorded first"],
         yue: ["還原得返", "事先記低"],
+    },
+
+    // That no model is involved unless a local agent is deliberately switched on, and
+    // that every change is recorded so it can be undone.
+    "settings.diagnostics.description": {
+        en: ["model", "recorded"],
+        yue: ["model", "記錄"],
     },
 } as const satisfies Record<
     keyof typeof SETTINGS_VOICED,

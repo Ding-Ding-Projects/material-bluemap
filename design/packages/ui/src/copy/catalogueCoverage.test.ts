@@ -105,6 +105,7 @@ const COVERED_SURFACES = [
     "components/pages",
     "components/palette",
     "components/remote",
+    "components/repair",
     "components/settings",
     "components/tabs",
     "components/world",

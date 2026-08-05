@@ -47,6 +47,12 @@ import type {
     ConversionRecord,
 } from "../main/bedrock/index.js";
 import type {
+    AgentAvailability,
+    DiagnoseAnswer,
+    FailureSummary,
+    RepairAnswer,
+} from "../main/repair/index.js";
+import type {
     ProfilesHistoryListing,
     ProfilesSaveResult,
     ProfilesState,
@@ -981,6 +987,31 @@ export interface BedrockBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Diagnosing why a render or the web server failed, and repairing it        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Reaching `main/repair/index.js`, per `docs/automatic-repair.md`.
+ *
+ * The renderer names a failure by the id `repair:remember` returned; it never describes
+ * one. Evidence is put on record by the main process at the moment a run fails - see that
+ * doc's own "the renderer names a failure; it never describes one" note - so every method
+ * here takes an id rather than a payload. Every answer carries its own `ok`, because a
+ * refused edit or an unexplained failure is something this screen has to render, not an
+ * exception to catch.
+ */
+export interface RepairBridge {
+    /** Whether a local coding agent is installed, for the deterministic pass's last resort. */
+    agentAvailability(): Promise<AgentAvailability>;
+    /** Every failure still on record, newest first, enough to pick one by. */
+    failures(): Promise<readonly FailureSummary[]>;
+    /** The deterministic diagnosis for one recorded failure. No model is involved in it. */
+    diagnose(id: string): Promise<DiagnoseAnswer>;
+    /** Runs the repair pass: the deterministic diagnosis, then the guardrailed agent if allowed. */
+    run(id: string): Promise<RepairAnswer>;
+}
+
+/* -------------------------------------------------------------------------- */
 /* The profile list's and the application settings' own version history      */
 /* -------------------------------------------------------------------------- */
 
@@ -1603,6 +1634,9 @@ interface MaterialBlueMapBridge {
     /** Recognising and converting Bedrock Edition worlds. See {@link BedrockBridge}. */
     bedrock: BedrockBridge;
 
+    /** Diagnosing and repairing a failed render or web server. See {@link RepairBridge}. */
+    repair: RepairBridge;
+
     /**
      * A world's own record of how it should be rendered, and the history of it.
      *
@@ -2110,6 +2144,13 @@ const bridge: MaterialBlueMapBridge = {
                 ipcRenderer.off("bedrock:event", forward);
             };
         },
+    },
+
+    repair: {
+        agentAvailability: () => ipcRenderer.invoke("repair:agent"),
+        failures: () => ipcRenderer.invoke("repair:failures"),
+        diagnose: (id) => ipcRenderer.invoke("repair:diagnose", id),
+        run: (id) => ipcRenderer.invoke("repair:run", id),
     },
 
     listBackupRepositories: () => ipcRenderer.invoke("backup:repositories"),

@@ -21,6 +21,7 @@ import UpdateStatusRow from "../update/UpdateStatusRow.vue";
 import { updateText } from "../update/updateCopy.js";
 import type { UpdatesController } from "../update/useUpdates.js";
 import { SimpleHistoryList, simpleHistoryHostFrom } from "../history/index.js";
+import { RepairPanel } from "../repair/index.js";
 import { DOCK_PLACEMENTS } from "./dockPlacement.js";
 import { dockedSurfaces } from "./useDockPlacement.js";
 import { createJavaSetting, describeJavaRejections } from "./javaSetting.js";
@@ -143,6 +144,7 @@ const languageSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const placementSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const historySection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const diagnosticsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 
 /**
  * Resolved once, from the same `globalThis.materialBluemap` every other controller on this
@@ -298,6 +300,12 @@ const sections = computed<SettingsSectionText[]>(() => {
             description: text.history.description,
             values: [historyCopy.value.profiles, historyCopy.value.appSettings],
         },
+        {
+            anchor: "diagnostics",
+            title: text.diagnostics.title,
+            description: text.diagnostics.description,
+            values: [],
+        },
     ];
 });
 
@@ -373,6 +381,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return updatesSection.value;
         case "history":
             return historySection.value;
+        case "diagnostics":
+            return diagnosticsSection.value;
     }
 }
 
@@ -751,6 +761,23 @@ function onDrawer(value: boolean): void {
                     >
                         <SimpleHistoryList :title="historyCopy.profiles" :host="profilesHistoryHost" />
                         <SimpleHistoryList :title="historyCopy.appSettings" :host="appSettingsHistoryHost" />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    `main/repair/index.ts`: the deterministic diagnosis and the guardrailed
+                    local-agent repair for a render or web server that failed to start, per
+                    `docs/automatic-repair.md`. See `RepairPanel.vue`'s own doc comment for
+                    what genuinely reaches this list today.
+                -->
+                <template #diagnostics>
+                    <SettingsSection
+                        ref="diagnosticsSection"
+                        anchor="diagnostics"
+                        :title="copy.diagnostics.title"
+                        :description="copy.diagnostics.description"
+                    >
+                        <RepairPanel />
                     </SettingsSection>
                 </template>
             </TabbedNavigation>

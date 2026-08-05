@@ -69,12 +69,19 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * the last check, the feed and a manual "Check for updates" are always reachable rather
  * than only appearing as a banner when there happens to be one to show.
  *
- * History is last of all: the server-profile list's and the application settings' own
+ * History is next to last: the server-profile list's and the application settings' own
  * version histories, per `main/profiles/ipc.ts` and `main/settings/ipc.ts`. No render
  * stops for the want of an old profile either, so this is reached the same way updates is —
  * by opening Settings — and it is where a profile or a setting deleted by mistake is put
  * back, the same "browse a list, restore one" shape the config folder's own history panel
  * already uses.
+ *
+ * Diagnostics is last of all: why a render or the web server failed to start, per
+ * `main/repair/index.ts` and `docs/automatic-repair.md`. No render stops for the want of a
+ * diagnosis either - a failure that could point somewhere would point at the setting that
+ * actually fixes it, one of the four anchors above - so this is where the deterministic
+ * diagnosis and the guardrailed local-agent repair for whatever it left unexplained are
+ * both reached.
  */
 export const SETTINGS_SECTIONS = [
     ...SETTINGS_ANCHORS,
@@ -83,6 +90,7 @@ export const SETTINGS_SECTIONS = [
     "surface-placement",
     "updates",
     "history",
+    "diagnostics",
 ] as const;
 
 /** A section this surface renders, whether or not a render can send somebody to it. */
