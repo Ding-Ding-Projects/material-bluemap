@@ -1608,10 +1608,17 @@ test("captures the tab strip, its context menu, the tab finder and the bulk-clos
         await shellTabs.locator('[aria-label="Find a tab"]').first().click({ timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".mb-tabs-finder", { state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(400);
+        // `.first()`, not a bare locator: the finder's own `v-menu` carries `eager`, so its
+        // content mounts immediately rather than only when opened - and the settings
+        // surface's own (normally hidden) `TabbedNavigation` carries the identical finder,
+        // so more than one `.mb-tabs-finder` exists in the document at once. Only one is
+        // ever visible, but `.screenshot()` enforces exactly one match regardless of
+        // visibility, so an unscoped locator here is a strict-mode violation waiting to
+        // happen rather than a genuine "did not open" gap.
         await shoot(
             "tab-finder",
             "The tab finder: search this strip, search every open tab in every window, search groups by name, and both text bulk closes, each with its own anchored regex builder",
-            { crop: page.locator(".mb-tabs-finder"), cropped: "the tab finder" },
+            { crop: page.locator(".mb-tabs-finder").first(), cropped: "the tab finder" },
         );
     });
 
