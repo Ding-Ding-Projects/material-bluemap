@@ -1,10 +1,10 @@
-import * as yauzl from "yauzl-promise";
 import {
     PackPath,
     normalizePath,
     type PackFileStats,
     type PackFileSystem,
 } from "./PackFileSystem.js";
+import { ZipReader, type ZipReaderEntry } from "./zipReader.js";
 
 /**
  * A {@link PackFileSystem} over a zip/jar file (upstream: the jdk.zipfs FileSystem
@@ -12,39 +12,40 @@ import {
  *
  * The zip's central directory is read once up-front into an index (path → entry,
  * directory → child-names), so stat/list are in-memory lookups and read is a random
- * access decompression of a single entry via yauzl.
+ * access decompression of a single entry via {@link ZipReader} — a pure-JS reader kept
+ * free of native addons; see `zipReader.ts` for why.
  *
  * A ZipFileSystem can be opened from an OS-file or from an in-memory buffer — the latter
  * allows opening zips nested inside other zips (fabric-mod "jar-in-jar" files).
  */
 export class ZipFileSystem implements PackFileSystem {
     private readonly name: string;
-    private readonly zipFile: yauzl.ZipFile;
+    private readonly reader: ZipReader;
     /** normalized entry-path → central-directory entry */
-    private readonly files: Map<string, yauzl.Entry>;
+    private readonly files: Map<string, ZipReaderEntry>;
     /** normalized directory-path ("" = root) → child-names in central-directory order */
     private readonly directories: Map<string, Set<string>>;
 
     private constructor(
         name: string,
-        zipFile: yauzl.ZipFile,
-        files: Map<string, yauzl.Entry>,
+        reader: ZipReader,
+        files: Map<string, ZipReaderEntry>,
         directories: Map<string, Set<string>>,
     ) {
         this.name = name;
-        this.zipFile = zipFile;
+        this.reader = reader;
         this.files = files;
         this.directories = directories;
     }
 
     /** opens a zip-file from the OS file-system */
     static async openFile(osPath: string): Promise<ZipFileSystem> {
-        return ZipFileSystem.index(osPath, await yauzl.open(osPath));
+        return ZipFileSystem.index(osPath, await ZipReader.openFile(osPath));
     }
 
     /** opens a zip-file held in memory (e.g. a zip nested inside another zip) */
     static async fromBuffer(buffer: Buffer, name: string): Promise<ZipFileSystem> {
-        return ZipFileSystem.index(name, await yauzl.fromBuffer(buffer));
+        return ZipFileSystem.index(name, await ZipReader.fromBuffer(buffer));
     }
 
     /**
@@ -57,8 +58,8 @@ export class ZipFileSystem implements PackFileSystem {
         return ZipFileSystem.fromBuffer(await root.readBytes(), root.toString());
     }
 
-    private static async index(name: string, zipFile: yauzl.ZipFile): Promise<ZipFileSystem> {
-        const files = new Map<string, yauzl.Entry>();
+    private static index(name: string, reader: ZipReader): ZipFileSystem {
+        const files = new Map<string, ZipReaderEntry>();
         const directories = new Map<string, Set<string>>();
         directories.set("", new Set());
 
@@ -76,26 +77,21 @@ export class ZipFileSystem implements PackFileSystem {
             directories.get(parent)?.add(childName);
         };
 
-        try {
-            for (const entry of await zipFile.readEntries()) {
-                const filename = entry.filename;
-                const path = normalizePath(filename);
-                if (path === "") continue;
+        for (const entry of reader.entries()) {
+            const filename = entry.filename;
+            const path = normalizePath(filename);
+            if (path === "") continue;
 
-                if (filename.endsWith("/")) {
-                    // explicit directory-entry
-                    addDirectory(path);
-                } else {
-                    files.set(path, entry);
-                    registerChild(path);
-                }
+            if (filename.endsWith("/")) {
+                // explicit directory-entry
+                addDirectory(path);
+            } else {
+                files.set(path, entry);
+                registerChild(path);
             }
-        } catch (ex) {
-            await zipFile.close().catch(() => undefined);
-            throw ex;
         }
 
-        return new ZipFileSystem(name, zipFile, files, directories);
+        return new ZipFileSystem(name, reader, files, directories);
     }
 
     getName(): string {
@@ -126,14 +122,11 @@ export class ZipFileSystem implements PackFileSystem {
         if (entry === undefined)
             throw new Error("NoSuchFile: " + this.name + "!/" + normalized);
 
-        const stream = await entry.openReadStream();
-        const chunks: Buffer[] = [];
-        for await (const chunk of stream) chunks.push(chunk as Buffer);
-        return Buffer.concat(chunks);
+        return this.reader.read(entry);
     }
 
     async close(): Promise<void> {
-        await this.zipFile.close();
+        await this.reader.close();
     }
 
     /**
