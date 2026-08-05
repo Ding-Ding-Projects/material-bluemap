@@ -28,6 +28,13 @@ on:
         type: string
         required: true
       map-id:
+        description: >-
+          BlueMap's own sanitized storage id (render-world.yml's `plan` job output, from
+          design/packages/render-actions/src/bluemap.ts's sanitizeMapId) - already run
+          through the same rule BlueMap itself applies to a map's config-file name before
+          using it as a directory name, NOT the raw --map-id a user typed. Every path in
+          this file that looks for rendered output depends on that already being correct;
+          see issue #47.
         type: string
         required: true
       map-name:

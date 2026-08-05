@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { sanitizeMapId } from "../bluemap.js";
 import { listFiles } from "../merge/files.js";
 
 /**
@@ -18,13 +19,19 @@ import { listFiles } from "../merge/files.js";
  *
  * ```
  * <storageRoot>/shard-7.complete.json
- * <storageRoot>/<mapId>/tiles/0/...
+ * <storageRoot>/<sanitizeMapId(mapId)>/tiles/0/...
  * ```
  *
+ * That second path is BlueMap's own sanitized id, not the raw `--map-id` string - see
+ * `sanitizeMapId` in `../bluemap.ts`. `inspectShard` below applies it before looking, which
+ * is issue #47's fix: a hyphenated map id renders correctly, but BlueMap writes its tiles
+ * under the underscored directory, and a resume check that looked for the literal hyphenated
+ * name found nothing and reported a genuinely finished shard as unfinished.
+ *
  * Beside the map directory rather than inside it, deliberately. The merge is pointed at
- * `<shard>/<mapId>`, so a marker inside it would be a file the merge has to know to
- * ignore; one directory up, it travels in the same artifact and the same cache and the
- * merge never sees it at all.
+ * `<shard>/<sanitizeMapId(mapId)>`, so a marker inside it would be a file the merge has to
+ * know to ignore; one directory up, it travels in the same artifact and the same cache and
+ * the merge never sees it at all.
  *
  * **Only output whose marker is present is trusted.** A shard without one is not a
  * failure and is not discarded: it is *unfinished*, and its cached state is exactly what
@@ -179,7 +186,14 @@ export interface ShardTrustReport {
 
 export interface VerifyShardOptions {
     readonly shardId: number | "all";
-    /** `<shard>/<mapId>`, the directory the merge would read. */
+    /**
+     * `<shard>/<sanitizeMapId(mapId)>`, the directory the merge would read.
+     *
+     * Callers pass an already-resolved directory here (see `inspectShard` below for the
+     * canonical way to resolve one from a raw map id), so `verifyShardMarker` itself never
+     * needs to know about sanitization - it just counts what is actually in the directory
+     * it was given.
+     */
     readonly mapDirectory: string;
     /** The marker, already read. Null when there is none. */
     readonly marker: ShardCompletionMarker | null;
@@ -261,7 +275,13 @@ export async function verifyShardMarker(options: VerifyShardOptions): Promise<Sh
     };
 }
 
-/** Reads and verifies one shard in one step, from the directory the workflow uses. */
+/**
+ * Reads and verifies one shard in one step, from the directory the workflow uses.
+ *
+ * `options.mapId` is the raw, human-typed map id (a workflow's `--map-id` flag, unchanged).
+ * This resolves it through `sanitizeMapId` before looking on disk, because that raw id is
+ * not what BlueMap actually named the directory - see the module doc above and issue #47.
+ */
 export async function inspectShard(options: {
     readonly storageRoot: string;
     readonly mapId: string;
@@ -271,7 +291,7 @@ export async function inspectShard(options: {
     const marker = await readShardMarker(shardMarkerPath(options.storageRoot, options.shardId));
     return await verifyShardMarker({
         shardId: options.shardId,
-        mapDirectory: join(options.storageRoot, options.mapId),
+        mapDirectory: join(options.storageRoot, sanitizeMapId(options.mapId)),
         marker,
         ...(options.planFingerprint === undefined
             ? {}

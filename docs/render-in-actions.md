@@ -42,6 +42,7 @@ quietly incorrect.
 <summary><b>Contents</b></summary>
 
 - [Running it](#running-it)
+- [`map-id` accepts anything; BlueMap sanitizes it before using it as a path](#map-id-accepts-anything-bluemap-sanitizes-it-before-using-it-as-a-path)
 - [Doing it from the app](#doing-it-from-the-app)
 - [Mojang's EULA](#mojangs-eula)
 - [How the split is decided](#how-the-split-is-decided)
@@ -71,6 +72,48 @@ Actions → **Render world** → Run workflow.
 | `budget-minutes` | how long one job may spend rendering before the world is split (default 240) |
 | `max-jobs` | cap on parallel jobs (default 64; GitHub itself refuses more than 256) |
 | `force-shards` | skip the estimate and use exactly this many shards |
+
+### `map-id` accepts anything; BlueMap sanitizes it before using it as a path
+
+Type whatever `map-id` you like — `test-issue44-staging`, `My Map (v2)`, anything. Nothing
+here refuses a hyphen, a space, or any other character, and it should not: upstream BlueMap
+does not refuse them either. Instead, when BlueMap loads a shard's `maps/<map-id>.conf` file,
+it runs the id through its own sanitiser before using it as the map's on-disk storage
+directory name —
+[`BlueMapConfigManager.sanitiseMapId`](../vendor/BlueMap/common/src/main/java/de/bluecolored/bluemap/common/config/BlueMapConfigManager.java):
+
+```java
+private String sanitiseMapId(String id) {
+    return id.replaceAll("\\W", "_");
+}
+```
+
+Java's `\W` here is the *default*, ASCII-only word class (nothing on this call path sets
+`UNICODE_CHARACTER_CLASS`), so `\w` means exactly `[A-Za-z0-9_]` and `\W` is everything
+outside it. Every character that is not an ASCII letter, digit or underscore — hyphens,
+spaces, dots, parentheses, accented and non-Latin letters, emoji, anything — becomes an
+underscore. `test-issue44-staging` therefore renders correctly but lands on disk as
+`test_issue44_staging`, confirmed against a real render's `settings.json`
+(`"maps":["test_issue44_staging"]`) in issue #47.
+
+**This project mirrors that exact rule rather than inventing a stricter one.** The single
+source of truth is `sanitizeMapId` in
+[`design/packages/render-actions/src/bluemap.ts`](../design/packages/render-actions/src/bluemap.ts),
+tested against the upstream rule (including the non-hyphen cases above) in
+`bluemap.test.ts`. Every place that predicts or looks for BlueMap's real storage directory —
+`config/renderConfig.ts`'s `mapDirectory`, `resume/marker.ts`'s `inspectShard` (backing both
+`resume-check` and `shard-complete`), and `cli.ts`'s shard/partial directory resolution
+(backing `merge`, `verify` and `merge-lowres`) — calls it, so a hyphenated or otherwise
+`\W`-carrying `map-id` is found, counted and merged correctly rather than silently reported
+as "0 hires tiles" for a render that worked. `render-world.yml`'s `plan` job also exposes the
+already-sanitized id as its `map-id` output, which every downstream job path (the merged
+output directory, the published `site/maps/<id>`, the partial-merge staging shape) uses
+instead of re-deriving the rule in shell.
+
+The only place the *raw*, un-sanitized id is deliberately kept is the `maps/<map-id>.conf`
+file name itself — that is what BlueMap's own sanitiser reads and transforms at load time,
+so writing an already-sanitized file name there would be redundant, not required — and the
+human-facing `map-name` display string, which is never used in a path at all.
 
 ### `world`, one field with three meanings
 

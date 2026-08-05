@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { writeShardConfig } from "./config/renderConfig.js";
 import { mergeShardMaps, MergeError, type MergeReport } from "./merge/mergeMap.js";
 import { verifyMerge } from "./merge/verify.js";
@@ -10,7 +11,7 @@ import { formatBytes } from "./plan/disk.js";
 import { planShards, validatePlanAlignment, type ShardPlan } from "./plan/plan.js";
 import { measureWorld } from "./world/measure.js";
 import { locateWorld, WorldValidationError } from "./world/validate.js";
-import { LOD_COUNT, LOD_FACTOR, LOWRES_TILE_SIZE } from "./bluemap.js";
+import { LOD_COUNT, LOD_FACTOR, LOWRES_TILE_SIZE, sanitizeMapId } from "./bluemap.js";
 import { mergeLowresLayers } from "./resume/lowresMerge.js";
 import {
     countHiresTiles,
@@ -167,7 +168,7 @@ const VERIFY_USAGE = `verify --plan <plan.json> --shards <dir> --merged <dir> [o
   --summary <path>       append a markdown verification summary here
 `;
 
-interface Args {
+export interface Args {
     flags: Map<string, string>;
     repeated: Map<string, string[]>;
     booleans: Set<string>;
@@ -244,8 +245,16 @@ async function readPlan(path: string): Promise<ShardPlan> {
     return JSON.parse(await readFile(path, "utf8")) as ShardPlan;
 }
 
-/** The shard map directories, either listed explicitly or derived from a parent directory. */
-async function resolveShardDirectories(args: Args, mapId: string): Promise<string[]> {
+/**
+ * The shard map directories, either listed explicitly or derived from a parent directory.
+ *
+ * `mapId` is the raw, human-typed id (a `--map-id` flag, unchanged). Auto-discovery joins
+ * `sanitizeMapId(mapId)` rather than `mapId` itself, because that raw id is not the
+ * directory name BlueMap actually wrote - see `../bluemap.ts`'s `sanitizeMapId` and issue
+ * #47. An explicit `--shard-dir` is a literal path from the caller and is never
+ * second-guessed: only the auto-discovery join needs the correction.
+ */
+export async function resolveShardDirectories(args: Args, mapId: string): Promise<string[]> {
     const explicit = args.repeated.get("shard-dir");
     if (explicit !== undefined && explicit.length > 0) return explicit.map((path) => resolve(path));
 
@@ -259,7 +268,7 @@ async function resolveShardDirectories(args: Args, mapId: string): Promise<strin
         .map((entry) => entry.name)
         // shard-0, shard-1, shard-10 must order as 0, 1, 10 and not 0, 10, 1
         .sort((a, b) => shardOrdinal(a) - shardOrdinal(b) || (a < b ? -1 : 1))
-        .map((name) => resolve(parent, name, mapId));
+        .map((name) => resolve(parent, name, sanitizeMapId(mapId)));
 
     if (directories.length === 0)
         throw new Error("No shard directories were found under " + resolve(parent));
@@ -336,6 +345,14 @@ async function commandPlan(args: Args): Promise<number> {
         ["shard-ids", JSON.stringify(shardIds)],
         ["shard-count", String(plan.shards.length)],
         ["needs-merge", plan.shards.length > 1 ? "true" : "false"],
+        // BlueMap's own sanitized storage id, not the raw --map-id string: hyphens and
+        // anything else outside [A-Za-z0-9_] become underscores (see bluemap.ts's
+        // sanitizeMapId). This package's own commands already correct for that internally,
+        // but the workflow YAML builds several of its own paths directly (the merged
+        // output directory, the published site/maps/<id>, partial-merge staging) without
+        // going through this CLI at all - those steps read this output instead of
+        // re-deriving the rule in bash. See issue #47.
+        ["map-id", sanitizeMapId(mapId)],
         ["world-dir", location.worldDirectory],
         ["region-dir", location.regionDirectory],
         ["chunk-count", String(measurement.chunkCount)],
@@ -648,7 +665,7 @@ async function commandShardComplete(args: Args): Promise<number> {
     const storageRoot = resolve(required(args, "storage-root", SHARD_COMPLETE_USAGE));
     const mapId = args.flags.get("map-id") ?? plan.mapId;
 
-    const hiresTileCount = await countHiresTiles(join(storageRoot, mapId));
+    const hiresTileCount = await countHiresTiles(join(storageRoot, sanitizeMapId(mapId)));
     const marker = newShardMarker({
         shardId,
         mapId,
@@ -676,8 +693,13 @@ async function commandShardComplete(args: Args): Promise<number> {
     return 0;
 }
 
-/** The partial map directories, either listed explicitly or found under a parent. */
-async function resolvePartialDirectories(args: Args, mapId: string): Promise<string[]> {
+/**
+ * The partial map directories, either listed explicitly or found under a parent.
+ *
+ * Same correction as `resolveShardDirectories` above, for the same reason: `mapId` is the
+ * raw id, and auto-discovery has to look under BlueMap's sanitized directory name.
+ */
+export async function resolvePartialDirectories(args: Args, mapId: string): Promise<string[]> {
     const explicit = args.repeated.get("partial-dir");
     if (explicit !== undefined && explicit.length > 0) return explicit.map((path) => resolve(path));
 
@@ -691,7 +713,7 @@ async function resolvePartialDirectories(args: Args, mapId: string): Promise<str
         .filter((entry) => entry.isDirectory())
         .map((entry) => entry.name)
         .sort((a, b) => shardOrdinal(a) - shardOrdinal(b) || (a < b ? -1 : 1))
-        .map((name) => resolve(parent, name, mapId));
+        .map((name) => resolve(parent, name, sanitizeMapId(mapId)));
 
     if (directories.length === 0)
         throw new Error("No merge-group partials were found under " + resolve(parent));
@@ -961,13 +983,24 @@ async function main(argv: readonly string[]): Promise<number> {
     }
 }
 
-main(process.argv.slice(2))
-    .then((code) => {
-        process.exitCode = code;
-    })
-    .catch((error: unknown) => {
-        if (error instanceof MergeError || error instanceof WorldValidationError)
-            process.stderr.write(error.message + "\n");
-        else process.stderr.write(String(error instanceof Error ? error.stack ?? error.message : error) + "\n");
-        process.exitCode = 1;
-    });
+// Only run as a program when this file is the one node was actually invoked on - not when
+// something imports it. `cli.test.ts` imports `resolveShardDirectories` and
+// `resolvePartialDirectories` directly to test the hyphenated-map-id fix for issue #47, and
+// without this guard that import used to run the whole CLI with vitest's own argv, printing
+// the usage text and setting `process.exitCode` as a side effect of merely loading the module.
+const isMain =
+    typeof process.argv[1] === "string" &&
+    import.meta.url === pathToFileURL(process.argv[1]).href;
+
+if (isMain) {
+    main(process.argv.slice(2))
+        .then((code) => {
+            process.exitCode = code;
+        })
+        .catch((error: unknown) => {
+            if (error instanceof MergeError || error instanceof WorldValidationError)
+                process.stderr.write(error.message + "\n");
+            else process.stderr.write(String(error instanceof Error ? error.stack ?? error.message : error) + "\n");
+            process.exitCode = 1;
+        });
+}

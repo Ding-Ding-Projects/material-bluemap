@@ -4,7 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { GITHUB_MATRIX_JOB_LIMIT, MAX_PLANNED_SHARDS, RENDER_WAVE_SLOTS } from "../bluemap.js";
+import {
+    GITHUB_MATRIX_JOB_LIMIT,
+    MAX_PLANNED_SHARDS,
+    RENDER_WAVE_SLOTS,
+    sanitizeMapId,
+} from "../bluemap.js";
 import type { ShardPlan } from "../plan/plan.js";
 import {
     countHiresTiles,
@@ -221,6 +226,48 @@ describe("shard completion markers", () => {
 
     it("counts nothing for a shard directory that was never created", async () => {
         expect(await countHiresTiles(join(root, "never-rendered"))).toBe(0);
+    });
+
+    // Issue #47: a hyphenated map id renders correctly, but BlueMap sanitizes the hyphen to
+    // an underscore before naming the storage directory. `inspectShard` is what backs both
+    // `resume-check` and (via `countHiresTiles`) `shard-complete`, so this is the wrapper
+    // round-trip for both: a shard that really finished, under the id BlueMap really wrote,
+    // must be found and correctly counted when only the raw hyphenated id is given.
+    it("finds and counts a hyphenated map id's real, sanitized output directory", async () => {
+        const storageRoot = join(root, "bluemap-out", "maps");
+        const rawMapId = "test-issue44-staging";
+
+        // BlueMap's own behaviour: it wrote tiles under the underscored directory, not the
+        // literal hyphenated id a naive `join(storageRoot, rawMapId)` would look for.
+        expect(sanitizeMapId(rawMapId)).toBe("test_issue44_staging");
+        await shardOutput(storageRoot, sanitizeMapId(rawMapId), 6400);
+        await writeShardMarker(
+            shardMarkerPath(storageRoot, 0),
+            newShardMarker({
+                shardId: 0,
+                mapId: rawMapId,
+                dimension: "minecraft:overworld",
+                planFingerprint: "abc123",
+                hiresTileCount: 6400,
+            }),
+        );
+
+        // resume-check, given the raw hyphenated id exactly as a workflow would pass it.
+        const report = await inspectShard({
+            storageRoot,
+            mapId: rawMapId,
+            shardId: 0,
+            planFingerprint: "abc123",
+        });
+
+        expect(report.trusted).toBe(true);
+        expect(report.hiresTileCount).toBe(6400);
+        expect(report.reason).toContain("6400 hires tiles, all present");
+        expect(report.reason).not.toContain("No completion marker");
+
+        // shard-complete's own count (cli.ts's commandShardComplete calls countHiresTiles on
+        // the same sanitized join) agrees, rather than reading 0 for a render that worked.
+        expect(await countHiresTiles(join(storageRoot, sanitizeMapId(rawMapId)))).toBe(6400);
     });
 
     it("reports an empty shard with no marker as unfinished rather than as done", async () => {

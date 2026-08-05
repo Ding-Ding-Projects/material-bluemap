@@ -86,6 +86,39 @@ describe("writing a shard's config directory", () => {
         expect(await writeFor(1)).toContain("render-edges: false");
     });
 
+    // Issue #47: a hyphenated --map-id renders successfully, but BlueMap sanitizes the
+    // hyphen to an underscore before using the id as a storage directory name, so a
+    // predicted mapDirectory that used the raw id pointed at a directory BlueMap never
+    // wrote - reported as "0 hires tiles" for a render that genuinely produced thousands.
+    it("predicts BlueMap's own sanitized storage directory for a hyphenated map id, not the raw one", async () => {
+        const plan = planShards(world(4), {
+            mapId: "test-issue44-staging",
+            budgetSeconds: 120,
+            ...layout,
+        });
+        const written = await writeShardConfig({
+            plan,
+            shard: plan.shards[0]!,
+            worldDirectory: join(root, "world"),
+            configDirectory: join(root, "config"),
+            dataDirectory: join(root, "data"),
+            storageRoot: join(root, "out", "maps"),
+            webRoot: join(root, "out"),
+            mapName: "Staging",
+            acceptDownload: true,
+            renderThreadCount: 4,
+        });
+
+        // BlueMap's real, observed behaviour (confirmed in issue #47 against a real
+        // render's settings.json and shard artifact): the hyphen becomes an underscore.
+        expect(written.mapDirectory).toBe(join(root, "out", "maps", "test_issue44_staging"));
+
+        // The .conf file name itself stays the raw id: BlueMap derives the sanitized id
+        // FROM the file name at load time (sanitiseMapId(getConfigName(configFile))), so
+        // writing an already-sanitized file name here would be redundant, not required.
+        expect(written.files).toContain(join(root, "config", "maps", "test-issue44-staging.conf"));
+    });
+
     it("writes an aligned render-mask for a shard", async () => {
         const map = await writeFor(1);
         expect(map).toContain("render-mask: [");

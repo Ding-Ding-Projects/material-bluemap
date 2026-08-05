@@ -172,6 +172,13 @@ jobs:
     outputs:
       shard-ids: ${{ steps.plan.outputs.shard-ids }}
       shard-count: ${{ steps.plan.outputs.shard-count }}
+      # BlueMap's own sanitized storage id (see design/packages/render-actions/src/bluemap.ts's
+      # sanitizeMapId): hyphens and anything else outside [A-Za-z0-9_] become underscores. Every
+      # path below that has to agree with what BlueMap actually wrote - the merged output
+      # directory, the published site/maps/<id>, the partial-merge staging shape - uses this
+      # rather than `inputs.map-id` directly. issue #47: a hyphenated map-id rendered
+      # correctly, but every one of those paths used the raw id and never found it.
+      map-id: ${{ steps.plan.outputs.map-id }}
       world-dir: ${{ steps.plan.outputs.world-dir }}
       plan-fingerprint: ${{ steps.plan.outputs.plan-fingerprint }}
       wave-count: ${{ steps.plan.outputs.wave-count }}
@@ -527,7 +534,10 @@ jobs:
     with:
       wave: 1
       shards: ${{ needs.plan.outputs.wave1-shards }}
-      map-id: ${{ inputs.map-id }}
+      # BlueMap's already-sanitized storage id (see the `plan` job's `map-id` output above),
+      # not the raw --map-id input: this is what every path inside render-shard-wave.yml
+      # ends up looking for on disk.
+      map-id: ${{ needs.plan.outputs.map-id }}
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
@@ -539,7 +549,10 @@ jobs:
     with:
       wave: 2
       shards: ${{ needs.plan.outputs.wave2-shards }}
-      map-id: ${{ inputs.map-id }}
+      # BlueMap's already-sanitized storage id (see the `plan` job's `map-id` output above),
+      # not the raw --map-id input: this is what every path inside render-shard-wave.yml
+      # ends up looking for on disk.
+      map-id: ${{ needs.plan.outputs.map-id }}
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
@@ -551,7 +564,10 @@ jobs:
     with:
       wave: 3
       shards: ${{ needs.plan.outputs.wave3-shards }}
-      map-id: ${{ inputs.map-id }}
+      # BlueMap's already-sanitized storage id (see the `plan` job's `map-id` output above),
+      # not the raw --map-id input: this is what every path inside render-shard-wave.yml
+      # ends up looking for on disk.
+      map-id: ${{ needs.plan.outputs.map-id }}
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
@@ -563,7 +579,10 @@ jobs:
     with:
       wave: 4
       shards: ${{ needs.plan.outputs.wave4-shards }}
-      map-id: ${{ inputs.map-id }}
+      # BlueMap's already-sanitized storage id (see the `plan` job's `map-id` output above),
+      # not the raw --map-id input: this is what every path inside render-shard-wave.yml
+      # ends up looking for on disk.
+      map-id: ${{ needs.plan.outputs.map-id }}
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
@@ -575,7 +594,10 @@ jobs:
     with:
       wave: 5
       shards: ${{ needs.plan.outputs.wave5-shards }}
-      map-id: ${{ inputs.map-id }}
+      # BlueMap's already-sanitized storage id (see the `plan` job's `map-id` output above),
+      # not the raw --map-id input: this is what every path inside render-shard-wave.yml
+      # ends up looking for on disk.
+      map-id: ${{ needs.plan.outputs.map-id }}
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
@@ -587,7 +609,10 @@ jobs:
     with:
       wave: 6
       shards: ${{ needs.plan.outputs.wave6-shards }}
-      map-id: ${{ inputs.map-id }}
+      # BlueMap's already-sanitized storage id (see the `plan` job's `map-id` output above),
+      # not the raw --map-id input: this is what every path inside render-shard-wave.yml
+      # ends up looking for on disk.
+      map-id: ${{ needs.plan.outputs.map-id }}
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
@@ -599,7 +624,10 @@ jobs:
     with:
       wave: 7
       shards: ${{ needs.plan.outputs.wave7-shards }}
-      map-id: ${{ inputs.map-id }}
+      # BlueMap's already-sanitized storage id (see the `plan` job's `map-id` output above),
+      # not the raw --map-id input: this is what every path inside render-shard-wave.yml
+      # ends up looking for on disk.
+      map-id: ${{ needs.plan.outputs.map-id }}
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
@@ -611,7 +639,10 @@ jobs:
     with:
       wave: 8
       shards: ${{ needs.plan.outputs.wave8-shards }}
-      map-id: ${{ inputs.map-id }}
+      # BlueMap's already-sanitized storage id (see the `plan` job's `map-id` output above),
+      # not the raw --map-id input: this is what every path inside render-shard-wave.yml
+      # ends up looking for on disk.
+      map-id: ${{ needs.plan.outputs.map-id }}
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
@@ -623,7 +654,10 @@ jobs:
     with:
       wave: 9
       shards: ${{ needs.plan.outputs.wave9-shards }}
-      map-id: ${{ inputs.map-id }}
+      # BlueMap's already-sanitized storage id (see the `plan` job's `map-id` output above),
+      # not the raw --map-id input: this is what every path inside render-shard-wave.yml
+      # ends up looking for on disk.
+      map-id: ${{ needs.plan.outputs.map-id }}
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
@@ -635,7 +669,10 @@ jobs:
     with:
       wave: 10
       shards: ${{ needs.plan.outputs.wave10-shards }}
-      map-id: ${{ inputs.map-id }}
+      # BlueMap's already-sanitized storage id (see the `plan` job's `map-id` output above),
+      # not the raw --map-id input: this is what every path inside render-shard-wave.yml
+      # ends up looking for on disk.
+      map-id: ${{ needs.plan.outputs.map-id }}
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
@@ -647,7 +684,10 @@ jobs:
     with:
       wave: 11
       shards: ${{ needs.plan.outputs.wave11-shards }}
-      map-id: ${{ inputs.map-id }}
+      # BlueMap's already-sanitized storage id (see the `plan` job's `map-id` output above),
+      # not the raw --map-id input: this is what every path inside render-shard-wave.yml
+      # ends up looking for on disk.
+      map-id: ${{ needs.plan.outputs.map-id }}
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
@@ -659,7 +699,10 @@ jobs:
     with:
       wave: 12
       shards: ${{ needs.plan.outputs.wave12-shards }}
-      map-id: ${{ inputs.map-id }}
+      # BlueMap's already-sanitized storage id (see the `plan` job's `map-id` output above),
+      # not the raw --map-id input: this is what every path inside render-shard-wave.yml
+      # ends up looking for on disk.
+      map-id: ${{ needs.plan.outputs.map-id }}
       map-name: ${{ inputs.map-name }}
       accept-download: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
 
@@ -763,7 +806,7 @@ jobs:
               --plan shard-plan.json \
               --shard "$shard" \
               --storage-root "$root" \
-              --map-id '${{ inputs.map-id }}' \
+              --map-id '${{ needs.plan.outputs.map-id }}' \
               --summary "$GITHUB_STEP_SUMMARY")
             if ! printf '%s' "$report" | node -e 'let d="";process.stdin.on("data",c=>{d+=c}).on("end",()=>{process.exit(JSON.parse(d).trusted?0:1)})'; then
               unfinished="$unfinished $shard"
@@ -787,8 +830,8 @@ jobs:
           node design/packages/render-actions/dist/cli.js merge \
             --shards shards \
             --plan shard-plan.json \
-            --map-id '${{ inputs.map-id }}' \
-            --out "merged/${{ inputs.map-id }}" \
+            --map-id '${{ needs.plan.outputs.map-id }}' \
+            --out "merged/${{ needs.plan.outputs.map-id }}" \
             ${{ needs.plan.outputs.single-group == 'true' && ' ' || '--lod-count 1' }} \
             --summary "$GITHUB_STEP_SUMMARY"
 
@@ -801,18 +844,23 @@ jobs:
           node design/packages/render-actions/dist/cli.js verify \
             --plan shard-plan.json \
             --shards shards \
-            --map-id '${{ inputs.map-id }}' \
-            --merged "merged/${{ inputs.map-id }}" \
+            --map-id '${{ needs.plan.outputs.map-id }}' \
+            --merged "merged/${{ needs.plan.outputs.map-id }}" \
             --summary "$GITHUB_STEP_SUMMARY"
 
+      # `site/maps/<id>` has to be named with BlueMap's own sanitized id, not the raw
+      # --map-id input: the webapp's settings.json (from the `webapp` artifact, written by
+      # BlueMap itself) lists the sanitized id in its "maps" array, and the viewer fetches
+      # tiles from `maps/<that id>/...`. Publishing under the raw hyphenated name here
+      # would 404 every tile despite a genuinely complete render. See issue #47.
       - name: Assemble the complete map
         if: needs.plan.outputs.single-group == 'true'
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "site/maps"
-          rm -rf "site/maps/${{ inputs.map-id }}"
-          mv "merged/${{ inputs.map-id }}" "site/maps/${{ inputs.map-id }}"
+          rm -rf "site/maps/${{ needs.plan.outputs.map-id }}"
+          mv "merged/${{ needs.plan.outputs.map-id }}" "site/maps/${{ needs.plan.outputs.map-id }}"
           {
             echo "## Output"
             echo ""
@@ -888,7 +936,7 @@ jobs:
         if: needs.plan.outputs.single-group != 'true'
         with:
           name: partial-hires-${{ matrix.group }}
-          path: merged/${{ inputs.map-id }}/tiles/0
+          path: merged/${{ needs.plan.outputs.map-id }}/tiles/0
           retention-days: 30
           compression-level: 1
 
@@ -899,9 +947,9 @@ jobs:
         with:
           name: partial-lowres-${{ matrix.group }}
           path: |
-            merged/${{ inputs.map-id }}/tiles/1
-            merged/${{ inputs.map-id }}/settings.json
-            merged/${{ inputs.map-id }}/textures.json.gz
+            merged/${{ needs.plan.outputs.map-id }}/tiles/1
+            merged/${{ needs.plan.outputs.map-id }}/settings.json
+            merged/${{ needs.plan.outputs.map-id }}/textures.json.gz
           retention-days: 7
 
   # ---------------------------------------------------------------------------------
@@ -951,7 +999,11 @@ jobs:
           path: site
 
       # The lowres artifacts hold the map directory's contents directly, so each is
-      # rearranged into the `<partial>/<mapId>` shape the merge expects.
+      # rearranged into the `<partial>/<sanitized mapId>` shape the merge expects - the
+      # `merge-lowres` command below resolves partial directories the same way `merge`
+      # resolves shard directories, under BlueMap's sanitized id (see cli.ts's
+      # resolvePartialDirectories and design/packages/render-actions/src/bluemap.ts's
+      # sanitizeMapId), so this arrangement has to use that same id or nothing is found.
       - name: Arrange the partials
         shell: bash
         run: |
@@ -959,8 +1011,8 @@ jobs:
           mkdir -p partials
           for dir in partials-raw/*/; do
             name=$(basename "$dir")
-            mkdir -p "partials/$name/${{ inputs.map-id }}"
-            cp -r "$dir." "partials/$name/${{ inputs.map-id }}/"
+            mkdir -p "partials/$name/${{ needs.plan.outputs.map-id }}"
+            cp -r "$dir." "partials/$name/${{ needs.plan.outputs.map-id }}/"
           done
           ls -la partials
 
@@ -969,8 +1021,8 @@ jobs:
           node design/packages/render-actions/dist/cli.js merge-lowres \
             --partials partials \
             --plan shard-plan.json \
-            --map-id '${{ inputs.map-id }}' \
-            --out "site/maps/${{ inputs.map-id }}" \
+            --map-id '${{ needs.plan.outputs.map-id }}' \
+            --out "site/maps/${{ needs.plan.outputs.map-id }}" \
             --summary "$GITHUB_STEP_SUMMARY"
 
       - name: Say where the map went
@@ -1000,7 +1052,7 @@ jobs:
             echo "- **partial-hires-0** to **partial-hires-${last_group}**: the hires tiles, one artifact per merge group."
             echo ""
             echo "Unzip **map-lowres**, then unzip each **partial-hires-N** into"
-            echo "\`maps/${{ inputs.map-id }}/tiles/0/\` inside it. The hires parts never overlap,"
+            echo "\`maps/${{ needs.plan.outputs.map-id }}/tiles/0/\` inside it. The hires parts never overlap,"
             echo "so the order does not matter. Serve the resulting folder over http; opening"
             echo "\`index.html\` from the file system will not work, because the webapp fetches"
             echo "its tiles."

@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import type { BlockRange } from "../bluemap.js";
+import { sanitizeMapId, type BlockRange } from "../bluemap.js";
 import type { Shard, ShardPlan } from "../plan/plan.js";
 
 /**
@@ -31,7 +31,15 @@ export interface ShardConfigOptions {
     configDirectory: string;
     /** BlueMap's runtime data directory, which is where the client jar is cached */
     dataDirectory: string;
-    /** the storage root; the map lands in `<storageRoot>/<mapId>` */
+    /**
+     * The storage root; the map lands in `<storageRoot>/<sanitizeMapId(mapId)>`.
+     *
+     * Not `<storageRoot>/<mapId>` verbatim: BlueMap sanitizes the id it reads out of this
+     * shard's `maps/<mapId>.conf` file name before using it as a directory name (see
+     * `sanitizeMapId` in `../bluemap.ts`). `mapDirectory` below already accounts for that,
+     * which is the whole fix for issue #47 - a hyphenated `--map-id` used to predict
+     * `<storageRoot>/<mapId>` verbatim, a directory BlueMap never wrote to.
+     */
     storageRoot: string;
     /** the webapp webroot */
     webRoot: string;
@@ -182,7 +190,13 @@ export async function writeShardConfig(
 
     return {
         configDirectory,
-        mapDirectory: join(storageRoot, options.plan.mapId),
+        // BlueMap sanitizes the map id it reads out of maps/<mapId>.conf before using it as
+        // a storage directory name (upstream: BlueMapConfigManager.sanitiseMapId). The
+        // `.conf` file above is still named with the raw id - that is what BlueMap's own
+        // sanitizer expects to read - but this predicted output path has to already be the
+        // sanitized form, or every consumer of it is pointed at a directory BlueMap never
+        // wrote. See ../bluemap.ts's sanitizeMapId and docs/render-in-actions.md.
+        mapDirectory: join(storageRoot, sanitizeMapId(options.plan.mapId)),
         files: files.map(([path]) => path),
     };
 }
