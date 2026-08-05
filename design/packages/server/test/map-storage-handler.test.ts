@@ -195,12 +195,18 @@ describe("MapStorageHandler: meta-data endpoints", () => {
         expect(Buffer.from(await res.arrayBuffer())).toEqual(png);
     });
 
-    it("404s live/players.json and live/markers.json when nothing has been persisted for them", async () => {
-        // No live-data supplier is wired at this layer (that is the next slice); this is
-        // upstream's own raw-storage fallback, which 404s absent a stored file.
+    it("answers live/players.json and live/markers.json with the honest empty stub, never 404", async () => {
+        // A mounted map always has a live-data supplier (the default "nothing live yet"
+        // stub when the caller does not provide a real one — see live-endpoints.test.ts),
+        // which upstream registers ahead of the raw-storage fallback tested above.
         const base = await startServer();
-        expect((await fetch(`${base}/maps/world/live/players.json`)).status).toBe(404);
-        expect((await fetch(`${base}/maps/world/live/markers.json`)).status).toBe(404);
+        const players = await fetch(`${base}/maps/world/live/players.json`);
+        expect(players.status).toBe(200);
+        expect(await players.json()).toEqual({ players: [] });
+
+        const markers = await fetch(`${base}/maps/world/live/markers.json`);
+        expect(markers.status).toBe(200);
+        expect(await markers.json()).toEqual({});
     });
 
     it("404s an unrecognized path under the map", async () => {
