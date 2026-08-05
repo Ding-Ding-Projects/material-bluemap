@@ -52,6 +52,11 @@ async function buildEngine(repoRoot) {
 }
 
 /**
+ * @param {string} [options.resourcePack] — an extra resource-pack root (directory or
+ *   `.zip`), mounted ahead of `resourceExtensions` and the client jar via
+ *   `render-ts.mjs --resource-pack`, matching upstream's own precedence
+ *   (`BlueMapService#getPackRoots`: extra packs before `resourceExtensions.zip` before the
+ *   vanilla jar, appended last).
  * @returns {Promise<{status: "rendered"|"unavailable"|"error", mapDirectory?: string,
  *                    tiles?: number, reason?: string, missing?: string[], stack?: string}>}
  */
@@ -64,6 +69,7 @@ export async function renderWithTypeScriptEngine({
     dimension,
     clientJar,
     resourceExtensions,
+    resourcePack,
 }) {
     await buildEngine(repoRoot);
 
@@ -92,6 +98,8 @@ export async function renderWithTypeScriptEngine({
     if (clientJar !== null && clientJar !== undefined) args.push("--client-jar", clientJar);
     if (resourceExtensions !== null && resourceExtensions !== undefined)
         args.push("--resource-extensions", resourceExtensions);
+    if (resourcePack !== null && resourcePack !== undefined)
+        args.push("--resource-pack", resourcePack);
 
     log("[oracle] rendering with the TypeScript engine");
     const result = await run(process.execPath, args, { capture: true });

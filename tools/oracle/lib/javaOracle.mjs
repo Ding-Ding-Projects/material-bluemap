@@ -8,9 +8,28 @@
  * a rebuilt jar invalidates it rather than silently comparing against a stale reference.
  */
 
-import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { exists, isDirectory, listFiles, log, run, sha256 } from "./util.mjs";
+
+/**
+ * A content hash of every file under `directory`, so an extra resource pack that changes -
+ * a fixture regenerated with different bytes, or a real pack somebody swapped in - is
+ * detected the same way a changed `core.conf` is: the cache stamp moves, and a stale
+ * reference render is never reused for a pack it was not actually rendered against.
+ *
+ * @param {string} directory
+ * @returns {Promise<string>}
+ */
+async function hashDirectoryContents(directory) {
+    const files = await listFiles(directory);
+    const parts = [];
+    for (const relativePath of files) {
+        const bytes = await readFile(join(directory, ...relativePath.split("/")));
+        parts.push(relativePath + "\0" + sha256(bytes));
+    }
+    return sha256(parts.join("\n"));
+}
 
 /** Where `build-jars.mjs` points GRADLE_USER_HOME, so a build never touches ~/.gradle. */
 export const GRADLE_USER_HOME_SUBPATH = join("tools", "oracle", ".gradle");
@@ -88,6 +107,13 @@ function quote(value) {
  * folder, so a relative path puts the tiles somewhere other than where the harness then
  * looks for them — which reads as "the render produced nothing".
  *
+ * @param {object} options
+ * @param {string} [options.extraPackDirectory] — an additional resource-pack root (a real
+ *   directory on disk, e.g. a modded pack) copied into `<configDirectory>/packs/`, upstream's
+ *   own mechanism for layering extra packs ahead of the vanilla client jar
+ *   (`BlueMapService#getPackRoots`, `common/.../BlueMapService.java:371-379` —
+ *   `config.getPacksFolder()` defaults to exactly `<configRoot>/packs`, read back and mounted
+ *   in reverse-sorted order). Omitted, nothing is added and the render is plain vanilla.
  * @returns {Promise<{configDirectory: string, mapDirectory: string, configText: string}>}
  */
 export async function writeReferenceConfig({
@@ -101,6 +127,7 @@ export async function writeReferenceConfig({
     dimension,
     acceptDownload,
     renderThreadCount,
+    extraPackDirectory,
 }) {
     configDirectory = resolve(configDirectory);
     dataDirectory = resolve(dataDirectory);
@@ -113,6 +140,17 @@ export async function writeReferenceConfig({
     await mkdir(dataDirectory, { recursive: true });
     await mkdir(storageRoot, { recursive: true });
     await mkdir(webRoot, { recursive: true });
+
+    const packsFolder = join(configDirectory, "packs");
+    await rm(packsFolder, { recursive: true, force: true });
+    if (extraPackDirectory !== undefined && extraPackDirectory !== null) {
+        // A named subfolder, not the packs folder itself: `getPackRoots` lists every entry
+        // directly under `packsFolder` as its own pack root, so the extra pack has to be one
+        // level down or its own files would each be read as a separate (nonsensical) root.
+        const mounted = join(packsFolder, "synthetic-mod-pack");
+        await mkdir(mounted, { recursive: true });
+        await cp(resolve(extraPackDirectory), mounted, { recursive: true });
+    }
 
     const core = [
         "# Written by tools/oracle. accept-download permits BlueMap to fetch the Minecraft",
@@ -193,6 +231,10 @@ export async function writeReferenceConfig({
  *   for a parity check that has to name the version it tested, so callers that care pass
  *   this explicitly. Folded into the cache stamp so a run with a pinned version never
  *   silently reuses a reference rendered against a different one, and vice versa.
+ * @param {string} [options.extraPackDirectory] — see {@link writeReferenceConfig}. Its
+ *   content is hashed into the cache stamp (not just its path), so a fixture regenerated
+ *   with different bytes at the same path — exactly what
+ *   `fixtures/syntheticModPack.mjs` does on every run — invalidates the cache too.
  * @returns {Promise<{mapDirectory: string, dataDirectory: string, cached: boolean, jar: string,
  *                    tileCount: number}>}
  */
@@ -208,6 +250,7 @@ export async function renderReference({
     renderThreadCount,
     refresh,
     minecraftVersion,
+    extraPackDirectory,
 }) {
     const dataDirectory = join(workDirectory, "bluemap-data");
     const referenceRoot = join(workDirectory, "reference");
@@ -226,7 +269,13 @@ export async function renderReference({
         dimension,
         acceptDownload,
         renderThreadCount,
+        extraPackDirectory,
     });
+
+    const extraPackHash =
+        extraPackDirectory !== undefined && extraPackDirectory !== null
+            ? await hashDirectoryContents(resolve(extraPackDirectory))
+            : null;
 
     const stampFile = join(referenceRoot, "reference.json");
     const stamp = {
@@ -234,6 +283,7 @@ export async function renderReference({
         world: worldDirectory,
         configHash: sha256(written.configText),
         minecraftVersion: minecraftVersion ?? null,
+        extraPackHash,
     };
 
     if (!refresh && (await exists(stampFile))) {
@@ -244,6 +294,7 @@ export async function renderReference({
                 previous.world === stamp.world &&
                 previous.configHash === stamp.configHash &&
                 (previous.minecraftVersion ?? null) === stamp.minecraftVersion &&
+                (previous.extraPackHash ?? null) === stamp.extraPackHash &&
                 (await isDirectory(written.mapDirectory))
             ) {
                 const tiles = (await listFiles(written.mapDirectory)).length;

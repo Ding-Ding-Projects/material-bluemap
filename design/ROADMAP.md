@@ -43,7 +43,7 @@ exclusions **S2 and S4 are withdrawn**; S1 and S3 still stand.
 | 0 | plan.md, submodules (+`v0.10.3-mc1.12` legacy tag), monorepo scaffold, CI | **Done** |
 | A | Viewer port (65 files → TS), MD3 shell, Electron shell, embedded server + remote proxy, live-demo verification | **Done** |
 | B | shared utils, NBT, compression, MCA parsing 1.12.2→26.x incl. legacy Chunk_1_12, e2e synthetic-world proofs | **Done** |
-| C | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, textures.json) | Ported. Exit criteria run 2026-08-05 (issue #31): textures.json parity **passes** (vanilla; modded unproven), live end-to-end resolution **passes**, legacy-jar loading **passes** but the era-matched render on top of it has a real, filed defect (#46). Not Done |
+| C | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, textures.json) | **Done.** Exit criteria run 2026-08-05 (issue #31, closed): textures.json parity **passes**, vanilla (1723/1723) and modded (1725/1725, offline synthetic pack, pixel-verified on both engines — `--synthetic-modded`); live end-to-end resolution **passes**; legacy-jar loading **passes**, and the era-matched render defect it surfaced is fixed and closed (#46) |
 | J | **Java render path** (D17): toolchain discovery/provisioning, jar resolution, config writer, CLI runner, progress parser, provenance record, local map serving | Built. CI builds all seven jars and renders a test world with them on every green run; the app's own end-to-end flow is still proven by hand on one Windows machine. See below |
 | D | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks | **Done, and the gate is closed.** `tools/oracle/compare.mjs` rendered a generated 1000x1000 world with both engines on 2026-08-04 and reported **identical**: 995 files matched, 961 of 961 hires tiles byte for byte after decompression, 24 of 24 lowres tiles pixel for pixel, all render-state decisions equal, neither side holding a file the other lacked. A 200x200 fixture on a different seed reports the same. Passing the gate does not itself switch the product over; D17 keeps upstream's engine rendering until that switch is made and verified on its own |
 | E | RenderManager worker pool, watch re-render, full HTTP routes + SSE, config schema (every option), standalone server CLI + Dockerfile | **Part done.** See below for the split |
@@ -336,23 +336,44 @@ blockstate/model/texture/entitystate data classes including the coordinate-seede
 PRNG, the `ResourcePack` orchestrator with its five phases and texture filter, the seven-file
 atlas layer, and `TextureGallery` with `textures.json`.
 
-**2026-08-05: all three exit checks have now actually run (issue #31), and the honest
-result is mixed — 2 pass, 1 reveals a real defect.** "Ported" is still the more accurate
-word than "Done"; see below for exactly which is which, and issue #31 stays open.
+**2026-08-05: all three exit checks have now actually run (issue #31). Check 1 passes for
+both vanilla and modded, check 3 passes, and check 2's render defect is fixed (#46,
+closed) — issue #31 itself is now closed.** "Ported" undersold it; see below for exactly
+what each check proved.
 
-- **Check 1, `textures.json` semantic parity — PASS for vanilla, unproven for modded.**
-  `tools/oracle/textures-parity.mjs` (new, `--accept-download`) pins Minecraft 1.21, renders
-  a minimal world with both engines against the same downloaded-and-verified jar, and diffs
+- **Check 1, `textures.json` semantic parity — PASS, vanilla and modded.**
+  `tools/oracle/textures-parity.mjs` (`--accept-download`) pins Minecraft 1.21, renders a
+  minimal world with both engines against the same downloaded-and-verified jar, and diffs
   their `textures.json` with the existing semantic comparator (`tools/oracle/lib/textures.mjs`
   — every field but the image and the entry order compared exactly, the embedded PNG on
-  decoded pixels per decision D3): **1723 of 1723 gallery entries agree**, the only
-  differences pixel-identical PNG re-encodes. No legitimate modded pack is reachable under
-  this task's Mojang-only network policy, and none is committed to this repository, so that
-  half is recorded as still unproven rather than faked. Two small oracle-harness bugs
+  decoded pixels per decision D3): **1723 of 1723 gallery entries agree** for vanilla alone,
+  the only differences pixel-identical PNG re-encodes. Two small oracle-harness bugs
   (`render-ts.mjs`'s `version.json` key handling; `renderReference`'s missing version-pin
   parameter) were found and fixed along the way — not port bugs.
-- **Check 2, a 1.12.2 jar through the legacy compat path — the path itself works, the
-  render on top of it does not.** `resourcepack-e2e.test.ts`'s new "Proof 4" downloads a
+
+  **The modded half closed offline, `--synthetic-modded`.** No legitimate real modded pack
+  is reachable under this task's Mojang-only network policy, and none is committed to this
+  repository — that has not changed. What changed is that the modded half no longer needs
+  one: `tools/oracle/fixtures/syntheticModPack.mjs` builds a small, fully synthetic
+  resource pack — a new `testmod:` namespace (two blocks: blockstate, block model, item
+  model, texture apiece) plus an override of `minecraft:block/stone`'s texture — entirely
+  in code, the same way `packages/engine/test/fixtures/vanillaShapedPack.ts` builds its own
+  fixture rather than shipping anything from Mojang. `--synthetic-modded` mounts it as an
+  extra, higher-priority resource-pack root on **both** engines (the java side via its own
+  `packs/` folder — `BlueMapService#getPackRoots` — the ts side via `render-ts.mjs`'s
+  pre-existing `--resource-pack`, which had the right precedence but no caller until now)
+  and re-runs the same semantic comparison: **1725 of 1725 entries agree** (1723 vanilla +
+  the pack's 2 new textures), and — the check that actually matters here, since a stale
+  vanilla `minecraft:block/stone` would still "agree" between two unmodded engines — every
+  one of the pack's 3 texture keys was decoded on **both** sides and its top-left pixel
+  matched the pack's own known colour exactly: the two new-namespace textures, and the
+  override (proving the higher-priority pack root genuinely shadowed the vanilla jar's own
+  stone texture, not merely that the resource key still existed). Closed as
+  [#31](https://github.com/Ding-Ding-Projects/material-bluemap/issues/31) with this
+  evidence; a real third-party pack remains a stronger proof if one is ever legitimately
+  reachable, but this closes the code-path gap the check exists to catch.
+- **Check 2, a 1.12.2 jar through the legacy compat path — PASS, including the render on
+  top of it (the defect below is fixed).** `resourcepack-e2e.test.ts`'s new "Proof 4" downloads a
   real 1.12.2 client jar directly from the version manifest (`MinecraftVersion.load` clamps
   any pre-1.13 request up to 1.13 by design, so it cannot be the download vehicle here),
   discovers that **a real client jar carries no `pack.mcmeta` at all** (checked against
@@ -371,8 +392,15 @@ word than "Done"; see below for exactly which is which, and issue #31 stays open
   fix, now reproduced the other direction. `podzol`'s rule only injects a property rather
   than renaming the key and is unaffected. This closes the "era-matched resource pack
   untested" gap in this file's earlier legacy-render section with a real answer, and that
-  answer is a bug — filed separately as
-  [#46](https://github.com/Ding-Ding-Projects/material-bluemap/issues/46).
+  answer was a bug — filed as
+  [#46](https://github.com/Ding-Ding-Projects/material-bluemap/issues/46) and **fixed and
+  closed the same day**: `BlockStateModelRenderer#renderModel` and
+  `ExtendedBlock#getProperties` now gate the rename on both eras (world pre-flattening
+  **and** pack not pre-flattening, via a new `ResourcePack#isLegacy()`), and
+  `render-1-12-era-matched.mjs` asserts on the fix rather than only logging it: grass-family
+  texture vertices went from 0 to 91,944 and `minecraft:blocks/dirt` exposure from 43.6% to
+  10.2% of the render (modern-pack control: 4.3%), with `render-1-12.mjs`'s 14/14 modern-pack
+  checks and `compare.mjs`'s byte-identical modern-world gate both untouched.
 - **Check 3, the live end-to-end resolution — PASS.** This check already had a working,
   committed implementation ("Proof 2" in `resourcepack-e2e.test.ts`) — the issue's finding
   was that it had genuinely never been *run* with the consent flags set. It has now been
@@ -382,9 +410,12 @@ word than "Done"; see below for exactly which is which, and issue #31 stays open
 
 Verification for this section: `BLUEMAP_E2E_DOWNLOAD=1 BLUEMAP_ACCEPT_DOWNLOAD=1 npx vitest
 run packages/engine/test/resourcepack-e2e.test.ts` — **13 passed**; `node
-tools/oracle/textures-parity.mjs --accept-download` — **PASS, 1723/1723**; `node
-tools/oracle/render-1-12-era-matched.mjs --accept-download` — runs clean (2/2 structural
-checks pass, real geometry, no crash) but the FINDING above is real and unresolved.
+tools/oracle/textures-parity.mjs --accept-download` — **PASS, 1723/1723 (vanilla)**; `node
+tools/oracle/textures-parity.mjs --accept-download --synthetic-modded` — **PASS,
+1725/1725, every one of the synthetic pack's 3 texture keys pixel-verified on both
+engines**; `node tools/oracle/render-1-12-era-matched.mjs --accept-download` — **PASS**,
+2/2 structural checks plus the two era-matrix assertions (grass-family vertices nonzero,
+dirt fraction near the modern-pack control).
 
 ## Phase H, SQL storages: what is ported and what is not
 
@@ -582,14 +613,6 @@ closed now. See the 2026-08-05 HANDOFF.md entry for the evidence behind each.
   still has open, now that MySQL/MariaDB/PostgreSQL are proven against real Docker
   servers (2026-08-05, see the Phase H section below). Needs a JVM run this task was not
   scoped to bring in.
-- **Fix `FlatteningRename` firing unconditionally on the world's era instead of also
-  checking the resource pack's** (issue #46, found running Phase C's exit checks): it
-  breaks an era-matched 1.12.2 render for every key-renaming rule (grass, snow, snow_layer,
-  and ~90 more), silently skipping blocks a real 1.12.2 pack already resolves correctly.
-  `tools/oracle/render-1-12-era-matched.mjs` is the regression gate to re-run afterward.
-- **Obtain a legitimate modded resource pack and complete check 1's modded half** (issue
-  #31) — `tools/oracle/textures-parity.mjs --modded <path>` is wired for it but nothing has
-  fetched one, since this task's network use was limited to Mojang's own manifest/jar CDN.
 - **Dispatch a genuinely large world through the render-world workflow** with `df -h`
   evidence at each stage, recorded in `docs/large-worlds.md` (issue #39's own remaining
   checklist item).

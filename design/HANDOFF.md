@@ -7,13 +7,13 @@ uses. Read it first. Everything after it is a dated log written by people who we
 this section is for anyone who was not, including a small language model with no other
 context.
 
-It was last checked against the code on **2026-08-05**, at commit `965af52` on the `main`
-branch, after Phase C's three exit checks (issue #31) actually ran: `textures.json` parity
-and the live end-to-end resolution both pass; the 1.12.2 legacy compat path itself loads
-and resolves real pre-flattening names correctly, but rendering with an era-matched pack
-uncovered a real, separate defect, filed as issue #46 (see the dated section on it below).
-Other agents may still be working — check `git log --oneline -5` before trusting this
-stamp as current.
+It was last checked against the code on **2026-08-05**, at commit `3791655` on the `main`
+branch, after Phase C's three exit checks (issue #31) finished for real: `textures.json`
+parity passes for both vanilla (1723/1723) and modded (1725/1725, an offline synthetic mod
+pack — see the dated section on it below), the live end-to-end resolution passes, and the
+1.12.2 legacy compat path passes including the era-matched render defect it originally
+surfaced (issue #46, fixed and closed). **Issue #31 is closed.** Other agents may still be
+working — check `git log --oneline -5` before trusting this stamp as current.
 
 ### What this project is
 
@@ -2477,4 +2477,88 @@ Verification for this section:
 `BLUEMAP_E2E_DOWNLOAD=1 BLUEMAP_ACCEPT_DOWNLOAD=1 npx vitest run
 packages/engine/test/resourcepack-e2e.test.ts` — **13 passed**; `node
 tools/oracle/render-1-12-era-matched.mjs --accept-download` — 2/2 structural checks pass
-(real geometry, no crash), the FlatteningRename finding above is real and stands unfixed.
+(real geometry, no crash). *Update, same day:* the FlatteningRename finding above was real
+and is now fixed — see issue #46 and the dated section below. The script now asserts on
+the fix rather than only logging it.
+
+### 2026-08-05 — issue #31's last open half closed: modded `textures.json` parity, offline
+
+The one thing left open after the previous section's three exit checks was check 1's
+modded half: `textures-parity.mjs --modded <path>` existed but nothing had ever called it
+with a real pack, because no legitimate modded resource pack was reachable under this
+task's Mojang-only network policy, and none is committed to this repository. That
+constraint has not changed. What changed is that the check no longer needs a real pack to
+be genuinely exercised.
+
+**`tools/oracle/fixtures/syntheticModPack.mjs` (new)** builds a small, fully synthetic
+resource pack, entirely in code — the same "generate it, do not ship it" approach
+`packages/engine/test/fixtures/vanillaShapedPack.ts` already uses for its own vanilla-shaped
+fixture. The pack carries two things a real mod's pack would: a brand-new `testmod:`
+namespace (two blocks — `glowing_ore`, `resonant_planks` — each with its own blockstate,
+block model, item model and 16x16 texture) and an override of vanilla's own
+`minecraft:block/stone` texture, mounted at higher priority than the client jar. `tools/`
+has no dependencies (`tools/README.md`), so the textures are written by a small hand-rolled
+PNG encoder, `tools/oracle/lib/pngEncode.mjs` — the encoding half of the pre-existing
+`lib/png.mjs` reader, verified to round-trip through it before anything else was built on
+top of it.
+
+**Wiring the pack into both engines was most of the actual work.** `--modded`/
+`--synthetic-modded` had a real java-side gap: `javaOracle.mjs`'s `writeReferenceConfig`
+never wrote anything into the CLI's own `packs/` folder (`BlueMapService#getPackRoots`,
+`common/.../BlueMapService.java:371-379` — `config.getPacksFolder()` defaults to
+`<configRoot>/packs`), so `--modded` was accepted on the command line and then silently
+ignored on the java side, exactly as the script's own doc comment already admitted. Fixed:
+`writeReferenceConfig` now copies the extra pack into `<config>/packs/synthetic-mod-pack/`,
+and `renderReference`'s cache stamp now includes a content hash of that pack (not just its
+path), so a fixture regenerated with different bytes at the same path — exactly what this
+builder does on every run — correctly invalidates a stale cached reference. The TypeScript
+side needed less: `render-ts.mjs --resource-pack` already existed with the right
+precedence (extra packs before `resourceExtensions.zip` before the client jar, matching
+upstream exactly); only `tsEngine.mjs`'s `renderWithTypeScriptEngine` was missing the
+parameter to actually pass it through.
+
+**Verified twice, because "the key exists" is not "the pack mounted."** `textures.json`
+already contains `minecraft:block/stone` in an unmodded render — vanilla's own stone block
+has one. So the check does not stop at key presence: `textures-parity.mjs` decodes each of
+the pack's three texture keys' embedded images on **both** engines and compares the
+top-left pixel against the pack's own known solid colour. Vanilla's real stone texture is a
+mottled multi-colour image with no matching flat run of pixels, so this could not pass by
+accident.
+
+Real output, `node tools/oracle/textures-parity.mjs --accept-download --synthetic-modded`:
+
+```
+  minecraft version:  1.21
+  java textures.json:  1725 entr(ies)
+  ts   textures.json:  1725 entr(ies)
+  modded pack:         synthetic (.../synthetic-mod-pack)
+                       all 3 of its texture key(s) present on both sides, and every one
+                       whose expected pixel is known decoded to exactly that colour on
+                       both engines (new namespace + vanilla override alike)
+
+  RESULT: semantically identical. 1725 of 1725 gallery image(s) are pixel-identical but
+  byte-different, which is two PNG encoders writing the same picture (decision D3)
+  (24.1s)
+```
+
+A direct spot-check (not just the harness's own assertion) confirmed the same thing by hand:
+`minecraft:block/stone` decodes to `rgba(90,40,160,255)` — this fixture's override colour,
+not vanilla's real stone — identically on both the java reference and the ported render.
+The vanilla-only path was re-run afterward with no flag changes and still passes
+(1723/1723), so nothing about the wiring changed the unmodded behaviour.
+
+**Disposition, judged against issue #31's own text.** The issue's checklist asks for
+`textures.json` parity against "Vanilla 1.21 and one modded pack" — it does not require the
+modded pack to be a real third-party download, and the actual thing at stake is whether the
+extra-pack-loading code path (new namespace discovery through the atlas mechanism, and a
+pack overriding a lower-priority root) behaves identically between engines. A rigorously
+built synthetic pack answers that question as completely as a real one would; what it
+cannot speak to is any quirk specific to one particular real mod's own resource-pack
+shape, which no single pack — real or synthetic — would cover completely anyway. Judged
+sufficient to close the check and, with checks 2 and 3 already passing and #46 already
+fixed, **issue #31 itself**.
+
+Verification: `node tools/oracle/textures-parity.mjs --accept-download` (vanilla,
+unaffected) and `node tools/oracle/textures-parity.mjs --accept-download
+--synthetic-modded` (modded) — both exit 0. `design/ROADMAP.md`'s Phase C section and phase
+table updated to **Done**.
