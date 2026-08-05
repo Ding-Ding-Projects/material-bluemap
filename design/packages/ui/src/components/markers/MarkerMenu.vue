@@ -17,6 +17,7 @@ import { useMarkerI18n } from "./i18nHelpers.js";
 import { MenuChoice } from "../menu/index.js";
 import type { MenuChoiceItem } from "../menu/MenuChoice.vue";
 import { useBlueMap } from "../menu/useBlueMap.js";
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 import type { SearchMode, SortOrder } from "./markerFilter.js";
 import type {
     AnyMarkerData,
@@ -168,6 +169,9 @@ watch(filtersOpen, (open) => {
         // Storage can be unavailable (private mode). A collapse preference is not worth
         // interrupting the user over.
     }
+    // Fire-and-forget mirror into the main process's own settings history, on top of the
+    // localStorage write above - see `appSettingsHistorySync.ts`'s own doc comment.
+    recordAppSetting("markerFiltersOpen", open);
 });
 
 const matcher = computed(() => createMarkerMatcher(search.value, mode.value, flags.value));

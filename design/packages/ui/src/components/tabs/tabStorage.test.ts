@@ -12,7 +12,11 @@
  * on its defaults rather than throwing on launch.
  */
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../stores/appSettingsHistorySync.js", () => ({ recordAppSetting: vi.fn() }));
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
+
 import {
     addTab,
     createGroup,
@@ -25,7 +29,13 @@ import {
     type TabStripState,
     type TabWorkspaceState,
 } from "./tabModel.js";
-import { TAB_STORAGE_VERSION, readTabWorkspace, writeTabWorkspace, type TabStorage } from "./tabStorage.js";
+import {
+    DEFAULT_TAB_STORAGE_KEY,
+    TAB_STORAGE_VERSION,
+    readTabWorkspace,
+    writeTabWorkspace,
+    type TabStorage,
+} from "./tabStorage.js";
 
 /** A storage that is just a map, so a test never depends on a real localStorage. */
 function memoryStorage(seed?: string): TabStorage & { readonly cells: Map<string, string> } {
@@ -220,5 +230,30 @@ describe("storage that refuses", () => {
         expect(() => {
             writeTabWorkspace(saved(), throwing);
         }).not.toThrow();
+    });
+});
+
+describe("mirroring into the application-settings history", () => {
+    beforeEach(() => {
+        vi.mocked(recordAppSetting).mockClear();
+    });
+
+    it("mirrors the workspace under tabs.<storage key>, for the default key", () => {
+        const workspace = saved();
+        writeTabWorkspace(workspace, memoryStorage());
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith(`tabs.${DEFAULT_TAB_STORAGE_KEY}`, workspace);
+    });
+
+    it("namespaces a second tab strip under its own key, so the two cannot collide", () => {
+        const workspace = saved();
+        writeTabWorkspace(workspace, memoryStorage(), "material-bluemap-settings-tabs");
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith("tabs.material-bluemap-settings-tabs", workspace);
+    });
+
+    it("still mirrors when there is no storage to write to at all", () => {
+        writeTabWorkspace(saved(), null);
+        expect(recordAppSetting).not.toHaveBeenCalled();
     });
 });

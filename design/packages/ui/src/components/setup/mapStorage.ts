@@ -19,6 +19,7 @@
  */
 
 import { setupStorage } from "./setupPrefs.js";
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 export type SetupPlatform = "windows" | "macos" | "linux";
 
@@ -140,6 +141,9 @@ export function readMapStorageDir(): string | null {
 export function writeMapStorageDir(value: string, platform: SetupPlatform): string {
     const normalized = normalizeMapStorageDir(value, platform);
     setupStorage().write(STORAGE_DIR_KEY, normalized);
+    // Fire-and-forget mirror into the main process's own settings history, on top of the
+    // write above - see `appSettingsHistorySync.ts`'s own doc comment.
+    recordAppSetting("mapStorageDir", normalized);
     return normalized;
 }
 

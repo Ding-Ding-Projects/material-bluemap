@@ -12,7 +12,11 @@
  * has taken a keystroke away from whoever needed it.
  */
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../stores/appSettingsHistorySync.js", () => ({ recordAppSetting: vi.fn() }));
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
+
 import {
     DEFAULT_PALETTE_SIZE,
     isPaletteShortcut,
@@ -90,6 +94,18 @@ describe("writing the stored size", () => {
     it("says nothing when storage refuses, because a window size is not an error", () => {
         expect(() => writePaletteSize("full", fakeStorage(null, true))).not.toThrow();
         expect(() => writePaletteSize("full", null)).not.toThrow();
+    });
+});
+
+describe("mirroring into the application-settings history", () => {
+    beforeEach(() => {
+        vi.mocked(recordAppSetting).mockClear();
+    });
+
+    it("mirrors the chosen size under the palette key", () => {
+        writePaletteSize("full", fakeStorage(null));
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith("palette", { size: "full" });
     });
 });
 

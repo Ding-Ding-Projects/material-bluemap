@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../stores/appSettingsHistorySync.js", () => ({ recordAppSetting: vi.fn() }));
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
+
 import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
 import {
     bannerFor,
@@ -79,6 +83,18 @@ describe("the dismissal store", () => {
         expect(readDismissedUpdate()).toBe("0.2.0");
         clearDismissedUpdate();
         expect(readDismissedUpdate()).toBeNull();
+    });
+
+    describe("mirroring into the application-settings history", () => {
+        beforeEach(() => {
+            vi.mocked(recordAppSetting).mockClear();
+        });
+
+        it("mirrors the dismissed version under the updateDismissed key", () => {
+            dismissUpdate("0.2.0");
+            expect(recordAppSetting).toHaveBeenCalledTimes(1);
+            expect(recordAppSetting).toHaveBeenCalledWith("updateDismissed", "0.2.0");
+        });
     });
 });
 

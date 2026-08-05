@@ -24,6 +24,7 @@
  */
 
 import type { RemoteTarget } from "./remoteBridge.js";
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 const STORAGE_KEY = "material-bluemap-remote-targets";
 
@@ -248,6 +249,10 @@ export function saveTargets(
     targets: readonly RemoteTarget[],
     storage: TargetStorage | null = defaultStorage(),
 ): boolean {
+    // Fire-and-forget mirror into the main process's own settings history, on top of the
+    // localStorage write below - see `appSettingsHistorySync.ts`'s own doc comment. Safe by
+    // the same construction this file's own doc comment states: no field here is a secret.
+    recordAppSetting("remoteTargets", targets);
     if (storage === null) return false;
     try {
         storage.setItem(

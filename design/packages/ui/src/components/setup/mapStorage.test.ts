@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../stores/appSettingsHistorySync.js", () => ({ recordAppSetting: vi.fn() }));
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
+
 import { memoryStorage, setSetupStorage, setupStorage } from "./setupPrefs.js";
 import {
     clearMapStorageDir,
@@ -152,5 +156,17 @@ describe("persistence", () => {
         writeMapStorageDir("/srv/maps", "linux");
         clearMapStorageDir();
         expect(readMapStorageDir()).toBeNull();
+    });
+});
+
+describe("mirroring into the application-settings history", () => {
+    beforeEach(() => {
+        vi.mocked(recordAppSetting).mockClear();
+    });
+
+    it("mirrors the normalised directory under the mapStorageDir key", () => {
+        writeMapStorageDir("  /srv/maps/ ", "linux");
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith("mapStorageDir", "/srv/maps");
     });
 });

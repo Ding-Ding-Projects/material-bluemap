@@ -16,6 +16,7 @@
  */
 
 import { onBeforeUnmount, onMounted, type Ref } from "vue";
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 /** The sizes the palette offers, in the order the setting lists them. */
 export const PALETTE_SIZES = ["card", "full"] as const;
@@ -75,6 +76,9 @@ export function writePaletteSize(size: PaletteSize, storage: PaletteStorage | nu
     } catch {
         // Private mode or a full quota. A remembered window size is not worth a toast.
     }
+    // Fire-and-forget mirror into the main process's own settings history, on top of the
+    // localStorage write above - see `appSettingsHistorySync.ts`'s own doc comment.
+    recordAppSetting("palette", { size });
 }
 
 /**

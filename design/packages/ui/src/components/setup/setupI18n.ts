@@ -28,6 +28,7 @@ import {
     type StringKey,
 } from "./setupStrings.js";
 import { readInt, readOneOf, setupStorage } from "./setupPrefs.js";
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 export const LANGUAGE_MODES = ["en", "yue", "bilingual"] as const;
 export type LanguageMode = (typeof LANGUAGE_MODES)[number];
@@ -84,6 +85,9 @@ export function funnyLevel(language: "en" | "yue"): FunnyLevel {
 export function setLanguageMode(mode: LanguageMode): void {
     state.mode = mode;
     setupStorage().write(MODE_KEY, mode);
+    // Fire-and-forget mirror into the main process's own settings history, on top of the
+    // write above - see `appSettingsHistorySync.ts`'s own doc comment.
+    recordAppSetting("languageMode", mode);
     applyDocumentLanguage();
 }
 
@@ -92,9 +96,11 @@ export function setFunnyLevel(language: "en" | "yue", level: FunnyLevel): void {
     if (language === "en") {
         state.funnyEn = clamped;
         setupStorage().write(FUNNY_EN_KEY, String(clamped));
+        recordAppSetting("funnyLevelEn", clamped);
     } else {
         state.funnyYue = clamped;
         setupStorage().write(FUNNY_YUE_KEY, String(clamped));
+        recordAppSetting("funnyLevelYue", clamped);
     }
 }
 

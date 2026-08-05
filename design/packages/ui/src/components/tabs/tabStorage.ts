@@ -45,6 +45,7 @@ import {
     type TabStripState,
     type TabWorkspaceState,
 } from "./tabModel.js";
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 /**
  * The key the application shell's own workspace has always been written under.
@@ -248,4 +249,10 @@ export function writeTabWorkspace(
     } catch {
         // Private mode or a full quota. A remembered tab layout is not worth a toast.
     }
+    // Fire-and-forget mirror into the main process's own settings history, on top of the
+    // localStorage write above - see `appSettingsHistorySync.ts`'s own doc comment. Namespaced
+    // under `tabs.<key>` because this one module backs several independent tab strips (the
+    // main shell, Settings, the config editor, a project editor), each under its own
+    // `localStorage` key, and they must not collide in the shared bag either.
+    recordAppSetting(`tabs.${key}`, workspace);
 }

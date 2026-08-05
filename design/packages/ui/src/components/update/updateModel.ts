@@ -20,6 +20,7 @@
  */
 
 import { setupStorage } from "../setup/setupPrefs.js";
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 import type { UpdateCopyKey } from "./updateCopy.js";
 import type { UpdateState, UpdateStatus } from "./updateBridge.js";
 
@@ -41,6 +42,9 @@ export function readDismissedUpdate(): string | null {
  */
 export function dismissUpdate(version: string): void {
     setupStorage().write(DISMISSED_KEY, version);
+    // Fire-and-forget mirror into the main process's own settings history, on top of the
+    // write above - see `appSettingsHistorySync.ts`'s own doc comment.
+    recordAppSetting("updateDismissed", version);
 }
 
 /** Brings the banner back, which is what the settings row's action does. */

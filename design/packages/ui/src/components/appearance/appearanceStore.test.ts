@@ -10,7 +10,10 @@
  * them and that exporting writes them straight back out.
  */
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../stores/appSettingsHistorySync.js", () => ({ recordAppSetting: vi.fn() }));
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 import { emptyRecord, type AppearanceRecord } from "./appearanceRecord.js";
 import {
@@ -312,6 +315,31 @@ describe("storage", () => {
             setItem: (key) => void seen.push(key),
         });
         expect(seen).toEqual([APPEARANCE_STORAGE_KEY]);
+    });
+});
+
+describe("mirroring into the application-settings history", () => {
+    beforeEach(() => {
+        vi.mocked(recordAppSetting).mockClear();
+    });
+
+    it("mirrors the state itself, structured, under the appearance key", () => {
+        const state = withRecord(emptyState(), "app.tab", record({ typography: { fontSize: 20 } }));
+        writeAppearanceState(state, memoryStorage());
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith("appearance", state);
+    });
+
+    it("still mirrors when storage itself refuses the write", () => {
+        const refusing: AppearanceStorage = {
+            getItem: () => null,
+            setItem: () => {
+                throw new Error("QuotaExceededError");
+            },
+        };
+        writeAppearanceState(emptyState(), refusing);
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith("appearance", emptyState());
     });
 });
 

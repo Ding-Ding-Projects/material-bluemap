@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../stores/appSettingsHistorySync.js", () => ({ recordAppSetting: vi.fn() }));
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
+
 import { memoryStorage, setSetupStorage, setupStorage } from "./setupPrefs.js";
 import {
     FUNNY_LEVELS,
@@ -227,5 +231,29 @@ describe("level names", () => {
         expect(funnyLevel("en")).toBe(5);
         setFunnyLevel("en", 0 as FunnyLevel);
         expect(funnyLevel("en")).toBe(1);
+    });
+});
+
+describe("mirroring into the application-settings history", () => {
+    beforeEach(() => {
+        vi.mocked(recordAppSetting).mockClear();
+    });
+
+    it("mirrors the language mode under the languageMode key", () => {
+        setLanguageMode("yue");
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith("languageMode", "yue");
+    });
+
+    it("mirrors the English funny level under its own key, never the Cantonese one", () => {
+        setFunnyLevel("en", 2);
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith("funnyLevelEn", 2);
+    });
+
+    it("mirrors the Cantonese funny level under its own key, never the English one", () => {
+        setFunnyLevel("yue", 4);
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith("funnyLevelYue", 4);
     });
 });

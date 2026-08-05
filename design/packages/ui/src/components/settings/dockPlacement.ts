@@ -37,7 +37,20 @@
  * the settings surface, and the surfaces that use it import from here. It is not specific
  * to the settings sheet, and {@link DOCK_PLACEMENTS} carries no knowledge of any
  * particular surface.
+ *
+ * ## Placement is mirrored into settings history; size and floating position are not
+ *
+ * {@link writeDockPlacements} calls `recordAppSetting("dockPlacement", ...)` because a
+ * placement is a discrete choice made by clicking an option in {@link SurfacePlacementRow.vue}
+ * - one write per decision. {@link writeDockSizes} and {@link writeDockFloatingRects} do not,
+ * on purpose: `DockedSurface.vue`'s splitter and header drag handlers call `setDockThickness`
+ * and `setDockFloatingRect` on **every pointermove frame** while a panel is being resized or
+ * moved, not once at drag-end, so mirroring them would turn one drag into dozens of history
+ * revisions of pure noise. This exclusion is recorded, with the same reasoning, in
+ * `stores/appSettingsHistorySync.ts`'s `EXCLUDED_APP_SETTINGS`.
  */
+
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 /** The placements a surface may take, in the order every chooser lists them. */
 export const DOCK_PLACEMENTS = ["floating", "left", "right", "top", "bottom"] as const;
@@ -132,6 +145,9 @@ export function writeDockPlacements(
     } catch {
         // Private mode or a full quota. A remembered panel position is not worth a toast.
     }
+    // Fire-and-forget mirror into the main process's own settings history. Deliberately not
+    // done for `writeDockSizes`/`writeDockFloatingRects` - see this file's own doc comment.
+    recordAppSetting("dockPlacement", placements);
 }
 
 /** The record with one surface set. Pure, so the state module has one place that writes. */
@@ -222,7 +238,12 @@ export function readDockSizes(storage: DockStorage | null = defaultStorage()): D
     }
 }
 
-/** Writes the record, silently doing nothing where storage refuses. */
+/**
+ * Writes the record, silently doing nothing where storage refuses.
+ *
+ * Deliberately **not** mirrored into settings history: this fires on every pointermove frame
+ * of a resize drag. See this file's own doc comment and `EXCLUDED_APP_SETTINGS["dockSize"]`.
+ */
 export function writeDockSizes(sizes: DockSizeRecord, storage: DockStorage | null = defaultStorage()): void {
     if (storage === null) return;
     try {
@@ -314,7 +335,12 @@ export function readDockFloatingRects(storage: DockStorage | null = defaultStora
     }
 }
 
-/** Writes the record, silently doing nothing where storage refuses. */
+/**
+ * Writes the record, silently doing nothing where storage refuses.
+ *
+ * Deliberately **not** mirrored into settings history: this fires on every pointermove frame
+ * of a drag or resize. See this file's own doc comment and `EXCLUDED_APP_SETTINGS["dockFloating"]`.
+ */
 export function writeDockFloatingRects(
     rects: DockFloatingRecord,
     storage: DockStorage | null = defaultStorage(),

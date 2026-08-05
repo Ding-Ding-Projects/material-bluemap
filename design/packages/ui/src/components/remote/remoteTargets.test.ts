@@ -13,7 +13,11 @@
  * stored entry must cost one row rather than the whole list.
  */
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../stores/appSettingsHistorySync.js", () => ({ recordAppSetting: vi.fn() }));
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
+
 import {
     DEFAULT_SSH_PORT,
     DEFAULT_WORK_DIR,
@@ -138,6 +142,24 @@ describe("the stored list", () => {
 
         expect(saveTargets([target], refusing)).toBe(false);
         expect(saveTargets([target], null)).toBe(false);
+    });
+
+    describe("mirroring into the application-settings history", () => {
+        beforeEach(() => {
+            vi.mocked(recordAppSetting).mockClear();
+        });
+
+        it("mirrors the list under the remoteTargets key, even when storage refuses", () => {
+            const refusing: TargetStorage = {
+                getItem: () => null,
+                setItem: () => {
+                    throw new Error("quota exceeded");
+                },
+            };
+            saveTargets([target], refusing);
+            expect(recordAppSetting).toHaveBeenCalledTimes(1);
+            expect(recordAppSetting).toHaveBeenCalledWith("remoteTargets", [target]);
+        });
     });
 
     it("adds, replaces by id, and forgets", () => {

@@ -9,7 +9,10 @@
  * one that survives a *reset* is a preference they cannot get rid of.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../../stores/appSettingsHistorySync.js", () => ({ recordAppSetting: vi.fn() }));
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 import {
     DOCK_PLACEMENTS,
@@ -699,5 +702,31 @@ describe("the live size and floating-rectangle state", () => {
         setDockFloatingRect("eula-viewer", { top: 20, left: 30, width: 500, height: 400 });
         expect(dockSizeState().value["app-settings"]).toEqual({ right: 640 });
         expect(dockFloatingState().value["eula-viewer"]).toEqual({ top: 20, left: 30, width: 500, height: 400 });
+    });
+});
+
+describe("mirroring into the application-settings history", () => {
+    beforeEach(() => {
+        vi.mocked(recordAppSetting).mockClear();
+    });
+
+    it("mirrors a placement change under the dockPlacement key - a discrete choice", () => {
+        const placements = { "app-settings": "left" as const };
+        writeDockPlacements(placements, memoryStorage());
+        expect(recordAppSetting).toHaveBeenCalledTimes(1);
+        expect(recordAppSetting).toHaveBeenCalledWith("dockPlacement", placements);
+    });
+
+    it("never mirrors a size change - it fires once per drag frame, not once per decision", () => {
+        writeDockSizes({ "app-settings": { right: 640 } }, memoryStorage());
+        expect(recordAppSetting).not.toHaveBeenCalled();
+    });
+
+    it("never mirrors a floating-rectangle change, for the same reason", () => {
+        writeDockFloatingRects(
+            { "eula-viewer": { top: 20, left: 30, width: 500, height: 400 } },
+            memoryStorage(),
+        );
+        expect(recordAppSetting).not.toHaveBeenCalled();
     });
 });

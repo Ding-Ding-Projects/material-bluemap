@@ -38,6 +38,7 @@ import {
     TYPOGRAPHY_PROPERTIES,
     type TypographySpec,
 } from "./typographySpec.js";
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 /** The storage key, namespaced like every other preference this app keeps. */
 export const APPEARANCE_STORAGE_KEY = "material-bluemap-appearance";
@@ -418,6 +419,10 @@ export function writeAppearanceState(
     } catch {
         // Private mode or a full quota. A remembered theme is not worth a toast.
     }
+    // Fire-and-forget mirror into the main process's own settings history, on top of the
+    // localStorage write above rather than instead of it - see
+    // `appSettingsHistorySync.ts`'s own doc comment for the whole rule.
+    recordAppSetting("appearance", state);
 }
 
 /* -------------------------------------------------------------------------- */
