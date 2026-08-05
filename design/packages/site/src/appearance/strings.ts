@@ -385,6 +385,21 @@ export const APPEARANCE_STRINGS: StringTable = {
         en: "That file is not a theme file for this site, so nothing changed.",
         yue: "個檔唔係呢個站嘅主題檔，所以乜都冇改到。",
     },
+    "preset.select": { en: "Select {name}", yue: "揀選「{name}」" },
+    "preset.selectAll": { en: "Select all", yue: "全選" },
+    "preset.clearSelection": { en: "Clear selection", yue: "清除揀選" },
+    "preset.selectionCount": { en: "{selected} of {total} selected", yue: "已揀 {selected}／{total}" },
+    "preset.deleteSelected": { en: "Delete selected", yue: "刪除已揀選" },
+    "preset.deleteSelectedConfirm": {
+        en: "Delete {count} selected preset(s)? The appearance currently on screen is not changed. This cannot be undone.",
+        yue: "刪除已揀選嘅 {count} 個預設？而家畫面上嘅外觀唔會變。呢個動作無法撤銷。",
+    },
+    "preset.selectedDeleted": { en: "{count} selected preset(s) deleted.", yue: "已刪除 {count} 個已揀選嘅預設。" },
+    "preset.exportSelected": { en: "Export selected", yue: "匯出已揀選" },
+    "preset.exportSelectedDesc": {
+        en: "Writes a JSON file with only the selected presets, not the current on-screen appearance or the rest of your saved presets.",
+        yue: "只將已揀選嘅預設寫成 JSON 檔，唔包括而家畫面上嘅外觀或者其餘已儲低嘅預設。",
+    },
 
     "elements.title": { en: "Elements", yue: "元素" },
     "elements.help": {

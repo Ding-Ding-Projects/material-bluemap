@@ -105,6 +105,97 @@ export function createPresetsPanel(options: PresetsPanelOptions): PresetsPanelVi
     const list = el("ul", { class: "mb-preset-list" });
     root.append(list);
 
+    /**
+     * Bulk selection over the saved presets. Small lists, so the honest scope is simple:
+     * "select all" always means every saved preset, never a filtered subset -- there is no
+     * search field on this list (see menuCoverage.test.ts and the site contract audit for
+     * why: with typically a handful of named presets, a filter would be decoration rather
+     * than a feature, the same reasoning that keeps a search field off a four-item menu).
+     */
+    const selected = new Set<string>();
+
+    const selectAllButton = el("button", {
+        class: "md-button md-button--text",
+        text: t("preset.selectAll"),
+        attrs: { type: "button" },
+    });
+    const clearSelectionButton = el("button", {
+        class: "md-button md-button--text",
+        text: t("preset.clearSelection"),
+        attrs: { type: "button" },
+    });
+    const deleteSelectedButton = el("button", {
+        class: "md-button md-button--outlined md-button--danger",
+        text: t("preset.deleteSelected"),
+        attrs: { type: "button" },
+    });
+    const exportSelectedButton = el("button", {
+        class: "md-button md-button--outlined",
+        text: t("preset.exportSelected"),
+        attrs: { type: "button" },
+    });
+    const selectionCount = el("p", { class: "md-field__help mb-help", attrs: { role: "status" } });
+    const exportSelectedHelp = el("p", { class: "md-field__help mb-help" });
+    fillPhrase(exportSelectedHelp, "preset.exportSelectedDesc");
+
+    function updateSelectionBar(): void {
+        const total = store.presets().length;
+        selectionCount.textContent = t("preset.selectionCount", { selected: selected.size, total });
+        const hasSelection = selected.size > 0;
+        deleteSelectedButton.disabled = !hasSelection;
+        exportSelectedButton.disabled = !hasSelection;
+        clearSelectionButton.disabled = !hasSelection;
+        selectAllButton.disabled = total === 0;
+    }
+
+    selectAllButton.addEventListener("click", () => {
+        for (const preset of store.presets()) selected.add(preset.id);
+        render();
+    });
+    clearSelectionButton.addEventListener("click", () => {
+        selected.clear();
+        render();
+    });
+    deleteSelectedButton.addEventListener("click", () => {
+        void (async (): Promise<void> => {
+            const ids = [...selected];
+            if (ids.length === 0) return;
+            const confirmed = await options.confirmDestructive(
+                t("preset.deleteSelectedConfirm", { count: ids.length })
+            );
+            if (!confirmed) return;
+            const removed = store.deletePresets(ids);
+            selected.clear();
+            transferStatus.textContent = t("preset.selectedDeleted", { count: removed });
+            announce(transferStatus.textContent);
+            render();
+        })();
+    });
+    exportSelectedButton.addEventListener("click", () => {
+        const ids = [...selected];
+        if (ids.length === 0) return;
+        const theme = store.exportPresets(ids);
+        const stamp = new Date().toISOString().slice(0, 10);
+        downloadFile(
+            `material-bluemap-presets-selected-${stamp}.json`,
+            `${JSON.stringify(theme, null, 4)}\n`,
+            "application/json"
+        );
+    });
+
+    root.append(
+        el(
+            "div",
+            { class: "mb-preset-selection" },
+            selectAllButton,
+            clearSelectionButton,
+            deleteSelectedButton,
+            exportSelectedButton,
+            selectionCount
+        ),
+        exportSelectedHelp
+    );
+
     /* ---------------------------------------------------------- *
      * Export and import
      * ---------------------------------------------------------- */
@@ -210,12 +301,34 @@ export function createPresetsPanel(options: PresetsPanelOptions): PresetsPanelVi
     function render(): void {
         clear(list);
         const presets = store.presets();
+        // A selected id whose preset no longer exists (deleted from another tab, or by
+        // this panel's own single-item delete button) cannot stay selected -- there would
+        // be nothing left for "delete selected" or "export selected" to act on.
+        const live = new Set(presets.map((preset) => preset.id));
+        for (const id of [...selected]) if (!live.has(id)) selected.delete(id);
+        updateSelectionBar();
+
         if (presets.length === 0) {
             list.append(el("li", { class: "md-field__help mb-help", text: t("preset.empty") }));
             return;
         }
         for (const preset of presets) {
             const item = el("li", { class: "mb-preset-item" });
+
+            const checkbox = el("input", {
+                class: "mb-select-checkbox",
+                attrs: {
+                    type: "checkbox",
+                    "aria-label": t("preset.select", { name: preset.name }),
+                },
+            });
+            checkbox.checked = selected.has(preset.id);
+            checkbox.addEventListener("change", () => {
+                if (checkbox.checked) selected.add(preset.id);
+                else selected.delete(preset.id);
+                updateSelectionBar();
+            });
+
             const title = el("span", { class: "mb-preset-name", text: preset.name });
             const created = el("span", {
                 class: "mb-preset-created",
@@ -262,6 +375,7 @@ export function createPresetsPanel(options: PresetsPanelOptions): PresetsPanelVi
             });
 
             item.append(
+                checkbox,
                 el("span", { class: "mb-preset-meta" }, title, created),
                 el("span", { class: "mb-preset-actions" }, apply, rename, remove)
             );

@@ -128,6 +128,44 @@ describe("AppearanceStore", () => {
         expect(store.deletePreset("not-real")).toBe(false);
     });
 
+    it("deletePresets removes only the named subset, keeping the rest", () => {
+        const store = new AppearanceStore();
+        store.savePreset("Keep");
+        store.setTypography("card#a", "fontSize", 10);
+        store.savePreset("Doomed one");
+        store.setTypography("card#a", "fontSize", 20);
+        store.savePreset("Doomed two");
+        const [keep, doomedOne, doomedTwo] = store.presets();
+        const removed = store.deletePresets([doomedOne!.id, doomedTwo!.id]);
+        expect(removed).toBe(2);
+        expect(store.presets().map((preset) => preset.id)).toEqual([keep!.id]);
+    });
+
+    it("deletePresets reports only the count actually removed, and touches nothing for an empty or unknown selection", () => {
+        const store = new AppearanceStore();
+        store.savePreset("Stays");
+        expect(store.deletePresets([])).toBe(0);
+        expect(store.presets()).toHaveLength(1);
+        expect(store.deletePresets(["not-real"])).toBe(0);
+        expect(store.presets()).toHaveLength(1);
+        const real = store.presets()[0]!;
+        expect(store.deletePresets([real.id, "also-not-real"])).toBe(1);
+        expect(store.presets()).toEqual([]);
+    });
+
+    it("exportPresets carries only the chosen presets, no current styles and no other presets", () => {
+        const store = new AppearanceStore();
+        store.setTypography("card#a", "fontSize", 30);
+        store.savePreset("Chosen");
+        store.savePreset("Left behind");
+        const [chosen] = store.presets();
+        const theme = store.exportPresets([chosen!.id]);
+        expect(theme.format).toBe(THEME_FORMAT);
+        expect(theme.styles).toEqual({});
+        expect(theme.presets.map((preset) => preset.name)).toEqual(["Chosen"]);
+        expect(theme.settings).toBeUndefined();
+    });
+
     it("round-trips through exportTheme and importTheme without losing styles or presets", () => {
         const store = new AppearanceStore();
         store.setTypography("card#a", "fontSize", 20);

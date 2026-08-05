@@ -143,32 +143,35 @@ interface DestructiveFile {
  */
 const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
     "appearance/presetsPanel.ts": {
-        count: 2,
+        count: 3,
         destroys:
-            "a user-saved appearance preset, or every customised element's appearance at once, and " +
-            "with either one the settings every element following it was inheriting",
+            "a user-saved appearance preset, every customised element's appearance at once, or a " +
+            "bulk-selected subset of saved presets, and with any of the three the settings every " +
+            "element following it was inheriting",
         standing: "gated",
         gatedIn: "appearance/presetsPanel.ts",
         note:
-            "Both calls -- the reset-all button and a preset's own delete icon -- run inside this " +
-            "file's own `void (async () => { const confirmed = await options.confirmDestructive(...` " +
+            "All three calls -- the reset-all button, a preset's own delete icon, and the new " +
+            "delete-selected button over the bulk-selection checkboxes -- run inside this file's " +
+            "own `void (async () => { const confirmed = await options.confirmDestructive(...` " +
             "block and only mutate the store once that promise resolves true.",
     },
     "appearance/store.ts": {
-        count: 2,
+        count: 3,
         destroys:
-            "a saved appearance preset, or every customised element's appearance at once, through the " +
-            "store every appearance surface shares",
+            "a saved appearance preset, every customised element's appearance at once, or a bulk-" +
+            "selected subset of saved presets, through the store every appearance surface shares",
         standing: "gated",
         gatedIn: "appearance/presetsPanel.ts",
         note:
-            "The store's own methods, not a call to the gate: `deletePreset` and `resetAllElements` " +
-            "run the moment they are called, so the gate has to stand at every caller instead. " +
-            "`deletePreset`'s one caller is presetsPanel.ts, gated. `resetAllElements` has two " +
-            "callers -- presetsPanel.ts's own reset-all button, and settings/page.ts's global reset " +
-            "-- and both are gated independently; presetsPanel.ts is named here because it is this " +
-            "file's more direct neighbour, and settings/page.ts's copy of the same call is declared " +
-            "in its own right below.",
+            "The store's own methods, not calls to the gate: `deletePreset`, `resetAllElements` " +
+            "and the new `deletePresets` all run the moment they are called, so the gate has to " +
+            "stand at every caller instead. `deletePreset` and `deletePresets` each have their one " +
+            "caller in presetsPanel.ts, gated. `resetAllElements` has two callers -- presetsPanel." +
+            "ts's own reset-all button, and settings/page.ts's global reset -- and both are gated " +
+            "independently; presetsPanel.ts is named here because it is this file's more direct " +
+            "neighbour, and settings/page.ts's copy of the same call is declared in its own right " +
+            "below.",
     },
     "main.ts": {
         count: 2,

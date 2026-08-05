@@ -198,6 +198,26 @@ export class AppearanceStore {
         return true;
     }
 
+    /**
+     * The bulk-selection counterpart to `deletePreset`: forgets every preset named by id,
+     * keeping the rest, in one persisted write and one emitted change rather than one of
+     * each per preset. Returns how many were actually removed, so a caller with a stale id
+     * (a preset deleted from another tab, say) reports the true count rather than the size
+     * of the selection it was given.
+     */
+    deletePresets(ids: readonly string[]): number {
+        if (ids.length === 0) return 0;
+        const doomed = new Set(ids);
+        const before = this.presetList.length;
+        this.presetList = this.presetList.filter((preset) => !doomed.has(preset.id));
+        const removed = before - this.presetList.length;
+        if (removed > 0) {
+            this.persist();
+            this.emit([]);
+        }
+        return removed;
+    }
+
     renamePreset(id: string, name: string): boolean {
         const index = this.presetList.findIndex((preset) => preset.id === id);
         const preset = this.presetList[index];
@@ -219,6 +239,24 @@ export class AppearanceStore {
             presets: this.presetList.map((preset) => ({ ...preset })),
         } as const;
         return settings === undefined ? base : { ...base, settings };
+    }
+
+    /**
+     * A theme file carrying only the named presets -- deliberately not the current
+     * on-screen appearance and not the rest of the saved presets, unlike `exportTheme`.
+     * "Export selected" means the selection, not everything this element also happens to
+     * be able to export; a visitor who wanted the whole look still has the plain Export
+     * button for that. Still a real, re-importable `ThemeFile`.
+     */
+    exportPresets(ids: readonly string[]): ThemeFile {
+        const chosen = new Set(ids);
+        return {
+            format: THEME_FORMAT,
+            version: THEME_VERSION,
+            exportedAt: new Date().toISOString(),
+            styles: {},
+            presets: this.presetList.filter((preset) => chosen.has(preset.id)).map((preset) => ({ ...preset })),
+        };
     }
 
     /**
