@@ -34,6 +34,7 @@ function stubFetcher(overrides: Partial<DockerWorldFetcher> = {}): DockerWorldFe
         fetch: vi.fn(() => Promise.resolve({ ok: true as const, fetchId: "container:abc:/data/world", filesCopied: 3, filesUnchanged: 0 })),
         cancel: vi.fn(() => true),
         activeFetchIds: vi.fn(() => ["container:abc:/data/world"]),
+        fingerprint: vi.fn(() => Promise.resolve({ ok: true as const, fingerprint: { regions: [] } })),
         ...overrides,
     } as unknown as DockerWorldFetcher;
 }
@@ -122,6 +123,63 @@ describe("dockerworld:cancel and dockerworld:active", () => {
         const ipcMain = register(stubFetcher());
         const handler = ipcMain.handlers.get("dockerworld:active") as Handler;
         expect(await handler(noEvent)).toEqual(["container:abc:/data/world"]);
+    });
+});
+
+describe("dockerworld:fingerprint", () => {
+    it("refuses a request with no source", async () => {
+        const ipcMain = register(stubFetcher());
+        const handler = ipcMain.handlers.get("dockerworld:fingerprint") as Handler;
+        const result = (await handler(noEvent, {})) as { ok: boolean; failure?: { code: string } };
+        expect(result.ok).toBe(false);
+        expect(result.failure?.code).toBe("invalid-request");
+    });
+
+    it("passes a well-formed source straight through to the fetcher", async () => {
+        const fetcher = stubFetcher();
+        const ipcMain = register(fetcher);
+        const handler = ipcMain.handlers.get("dockerworld:fingerprint") as Handler;
+        const source = { kind: "volume", volumeName: "mc-world" };
+        const result = (await handler(noEvent, source)) as { ok: boolean; fingerprint?: unknown };
+        expect(result.ok).toBe(true);
+        expect(fetcher.fingerprint).toHaveBeenCalledWith({ kind: "volume", volumeName: "mc-world" });
+    });
+
+    it("never rejects, even when the fetcher throws", async () => {
+        const fetcher = stubFetcher({ fingerprint: vi.fn(() => Promise.reject(new Error("boom"))) });
+        const ipcMain = register(fetcher);
+        const handler = ipcMain.handlers.get("dockerworld:fingerprint") as Handler;
+        const result = (await handler(noEvent, { kind: "volume", volumeName: "v" })) as {
+            ok: boolean;
+            failure?: { message: string };
+        };
+        expect(result.ok).toBe(false);
+        expect(result.failure?.message).toContain("boom");
+    });
+});
+
+describe("dockerworld:fingerprintsEqual", () => {
+    it("is true for two fingerprints with the same regions, order-independent", async () => {
+        const ipcMain = register(stubFetcher());
+        const handler = ipcMain.handlers.get("dockerworld:fingerprintsEqual") as Handler;
+        const a = { regions: [{ path: "r.0.0.mca", bytes: 10, modifiedAt: 1 }, { path: "r.1.0.mca", bytes: 20, modifiedAt: 2 }] };
+        const b = { regions: [{ path: "r.1.0.mca", bytes: 20, modifiedAt: 2 }, { path: "r.0.0.mca", bytes: 10, modifiedAt: 1 }] };
+        expect(await handler(noEvent, a, b)).toBe(true);
+    });
+
+    it("is false when a region's size differs", async () => {
+        const ipcMain = register(stubFetcher());
+        const handler = ipcMain.handlers.get("dockerworld:fingerprintsEqual") as Handler;
+        const a = { regions: [{ path: "r.0.0.mca", bytes: 10, modifiedAt: 1 }] };
+        const b = { regions: [{ path: "r.0.0.mca", bytes: 11, modifiedAt: 1 }] };
+        expect(await handler(noEvent, a, b)).toBe(false);
+    });
+
+    it("treats malformed input as an empty fingerprint rather than throwing", async () => {
+        const ipcMain = register(stubFetcher());
+        const handler = ipcMain.handlers.get("dockerworld:fingerprintsEqual") as Handler;
+        expect(await handler(noEvent, null, { regions: "not an array" })).toBe(true);
+        expect(await handler(noEvent, { regions: [{ path: "r.0.0.mca", bytes: 10, modifiedAt: 1 }] }, undefined)).toBe(false);
     });
 });
 

@@ -28,7 +28,15 @@ import type {
     InventoryResult,
 } from "./inventory.js";
 import { DockerWorldFetcher } from "./fetch.js";
-import type { DockerSourceRequest, DockerWorldFetchRequest, DockerWorldFetchResult, DockerWorldFetcherOptions } from "./fetch.js";
+import type {
+    DockerSourceRequest,
+    DockerWorldFetchRequest,
+    DockerWorldFetchResult,
+    DockerWorldFetcherOptions,
+    DockerWorldFingerprintResult,
+} from "./fetch.js";
+import { fingerprintsEqual } from "./change.js";
+import type { RegionFingerprint, WorldFingerprint } from "./change.js";
 import * as failures from "./failure.js";
 import type { DockerWorldFailure } from "./failure.js";
 
@@ -40,6 +48,8 @@ export const DOCKERWORLD_CHANNELS = [
     "dockerworld:fetch",
     "dockerworld:cancel",
     "dockerworld:active",
+    "dockerworld:fingerprint",
+    "dockerworld:fingerprintsEqual",
 ] as const;
 
 export type DockerWorldListAnswer =
@@ -101,6 +111,31 @@ function readFetchRequest(value: unknown): DockerWorldFetchRequest | null {
 
 function describe(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+/**
+ * A `WorldFingerprint` from whatever the renderer sent back, tolerantly.
+ *
+ * Same shape `worldsource:ssh:diff`'s own `asEntries` uses: a malformed or missing region
+ * entry is dropped rather than thrown on, because the two fingerprints being compared here
+ * are only ever ones this same channel handed out a moment earlier - the tolerance is a
+ * belt against `structuredClone`-adjacent surprises crossing the bridge, not a real
+ * validation boundary.
+ */
+function asFingerprint(value: unknown): WorldFingerprint {
+    if (typeof value !== "object" || value === null) return { regions: [] };
+    const regions = (value as Record<string, unknown>)["regions"];
+    if (!Array.isArray(regions)) return { regions: [] };
+    return {
+        regions: regions.filter(
+            (entry): entry is RegionFingerprint =>
+                typeof entry === "object" &&
+                entry !== null &&
+                typeof (entry as Record<string, unknown>)["path"] === "string" &&
+                typeof (entry as Record<string, unknown>)["bytes"] === "number" &&
+                typeof (entry as Record<string, unknown>)["modifiedAt"] === "number",
+        ),
+    };
 }
 
 export function registerDockerWorldHandlers(ipcMain: IpcMain, options: DockerWorldIpcOptions = {}): DockerWorldIpc {
@@ -180,6 +215,37 @@ export function registerDockerWorldHandlers(ipcMain: IpcMain, options: DockerWor
     );
 
     ipcMain.handle("dockerworld:active", () => fetcher.activeFetchIds());
+
+    /**
+     * The cheap change-check fingerprint, exposed the same way `worldrepo:remoteTip` and
+     * `worldsource:ssh:survey` are: a call the interface can make before deciding whether a
+     * fetch is worth doing at all. `fingerprint: null` in the answer is not a failure - see
+     * `DockerWorldFetcher.fingerprint`'s own doc comment for when that happens and why.
+     */
+    ipcMain.handle(
+        "dockerworld:fingerprint",
+        async (_event: IpcMainInvokeEvent, request: unknown): Promise<DockerWorldFingerprintResult> => {
+            const source = readSource(request);
+            if (source === null) {
+                return { ok: false, failure: failures.invalidRequest("A container or volume is required.") };
+            }
+            try {
+                return await fetcher.fingerprint(source);
+            } catch (error) {
+                return { ok: false, failure: failures.unusable(describe(error)) };
+            }
+        },
+    );
+
+    /**
+     * The pure half of the change check, exposed the same way `worldsource:ssh:diff` is: no
+     * Docker daemon and no network, just a comparison of two already-gathered fingerprints.
+     */
+    ipcMain.handle(
+        "dockerworld:fingerprintsEqual",
+        (_event: IpcMainInvokeEvent, a: unknown, b: unknown): boolean =>
+            fingerprintsEqual(asFingerprint(a), asFingerprint(b)),
+    );
 
     return {
         fetcher,

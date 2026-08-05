@@ -79,12 +79,17 @@ export function notAWorld(where: string, detail: string): DockerWorldFailure {
 }
 
 /**
- * The one refusal in this file with no override: a running server may still be writing the
- * exact region files being read, and reading them anyway can produce a torn `.mca` file -
- * one that opens, because zlib does not notice a chunk written mid-copy, and corrupts a
- * render three layers away from anything that would point back here. See `dockerworld/`'s
- * own module doc for what a safe route would look like and why this project does not have
- * one yet.
+ * The refusal a running container earns: a running server may still be writing the exact
+ * region files being read, and reading them anyway can produce a torn `.mca` file - one
+ * that opens, because zlib does not notice a chunk written mid-copy, and corrupts a render
+ * three layers away from anything that would point back here.
+ *
+ * This is overridable - the caller can pass `acknowledgeLiveRisk: true` having been shown
+ * this exact sentence - but never silently. What has **no** override is a *standing* one:
+ * there is no setting, no flag defaulting to true, nothing that once accepted applies to
+ * every world after the first. Every fetch of a live world is acknowledged fresh. See
+ * `dockerworld/`'s own module doc for what a safe unattended route (an RCON `save-off`
+ * before the copy) would look like and why this project does not have one yet.
  */
 export function liveWorldNotAcknowledged(containerName: string): DockerWorldFailure {
     return failure(

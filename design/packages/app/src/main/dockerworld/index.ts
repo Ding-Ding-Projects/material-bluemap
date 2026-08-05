@@ -59,6 +59,7 @@ export {
     type DockerWorldFetchRequest,
     type DockerWorldFetchResult,
     type DockerWorldFetcherOptions,
+    type DockerWorldFingerprintResult,
 } from "./fetch.js";
 
 export {

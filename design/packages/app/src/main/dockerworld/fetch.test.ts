@@ -274,6 +274,66 @@ describe("a volume-copy route", () => {
     });
 });
 
+describe("fingerprint", () => {
+    it("reads the bind-direct fingerprint without copying anything", async () => {
+        const worldDir = join(workDir, "world");
+        await writeFixtureWorld(worldDir);
+        let copyCalled = false;
+
+        const runner: CommandRunner = (command, args) => {
+            if (args[0] === "version") return Promise.resolve(DOCKER_VERSION_OK);
+            if (args[0] === "inspect") {
+                return Promise.resolve(
+                    output({ ok: true, exitCode: 0, stdout: containerJson([{ Type: "bind", Source: worldDir, Destination: "/data/world", RW: false }], false) }),
+                );
+            }
+            if (args[0] === "cp") copyCalled = true;
+            return Promise.resolve(output({ exitCode: 1, stderr: "unexpected call" }));
+        };
+        const fetcher = new DockerWorldFetcher({ runner });
+
+        const result = await fetcher.fingerprint({ kind: "container", containerId: "abc123", mountDestination: "/data/world" });
+        expect(result.ok).toBe(true);
+        if (result.ok) {
+            expect(result.fingerprint).not.toBeNull();
+            expect(result.fingerprint?.regions).toEqual([
+                { path: join("region", "r.0.0.mca"), bytes: "region bytes".length, modifiedAt: expect.any(Number) },
+            ]);
+        }
+        expect(copyCalled).toBe(false);
+    });
+
+    it("answers null, honestly, for a container-copy candidate - there is no cheap vantage point", async () => {
+        const runner: CommandRunner = (command, args) => {
+            if (args[0] === "version") return Promise.resolve(DOCKER_VERSION_OK);
+            if (args[0] === "inspect") {
+                return Promise.resolve(
+                    output({ ok: true, exitCode: 0, stdout: containerJson([{ Type: "bind", Source: "/nope-not-reachable", Destination: "/data/world", RW: false }], false) }),
+                );
+            }
+            return Promise.resolve(output({ exitCode: 1, stderr: "unexpected call" }));
+        };
+        const fetcher = new DockerWorldFetcher({ runner });
+
+        const result = await fetcher.fingerprint({ kind: "container", containerId: "abc123", mountDestination: "/data/world" });
+        expect(result.ok).toBe(true);
+        if (result.ok) expect(result.fingerprint).toBeNull();
+    });
+
+    it("surfaces the same resolve failure inspect() would, for a container that does not exist", async () => {
+        const runner: CommandRunner = (command, args) => {
+            if (args[0] === "version") return Promise.resolve(DOCKER_VERSION_OK);
+            if (args[0] === "inspect") return Promise.resolve(output({ exitCode: 1, stderr: "Error: No such container: abc123" }));
+            return Promise.resolve(output({ exitCode: 1, stderr: "unexpected call" }));
+        };
+        const fetcher = new DockerWorldFetcher({ runner });
+
+        const result = await fetcher.fingerprint({ kind: "container", containerId: "abc123", mountDestination: "/data/world" });
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.failure.code).toBe("not-found");
+    });
+});
+
 describe("cancellation", () => {
     it("reports 'cancelled' and leaves the destination without the copy it interrupted", async () => {
         const worldDir = join(workDir, "world");

@@ -37,6 +37,8 @@ import type { DockerWorldFailure } from "./failure.js";
 import { copyRemoteBindMount, dockerCopyToStaging, localIncrementalCopy, volumeCopyToStaging } from "./copy.js";
 import { livenessWarning, remoteDirectoryExists, resolveContainerMount, resolveVolume } from "./resolve.js";
 import type { DockerWorldCandidate } from "./resolve.js";
+import { dockerWorldFingerprint } from "./change.js";
+import type { WorldFingerprint } from "./change.js";
 
 export type DockerSourceRequest =
     | { readonly kind: "container"; readonly containerId: string; readonly mountDestination: string }
@@ -65,6 +67,19 @@ export type DockerWorldEvent =
 export type DockerWorldFetchResult =
     | { readonly ok: true; readonly fetchId: string; readonly filesCopied: number; readonly filesUnchanged: number }
     | { readonly ok: false; readonly fetchId: string; readonly failure: DockerWorldFailure };
+
+/**
+ * The answer to "has this world changed", without fetching a single byte of it.
+ *
+ * `fingerprint: null` is not a failure - it means the resolved route offers no cheap vantage
+ * point (`container-copy`/`volume-copy`; see `change.ts`'s own doc comment for why), and the
+ * only honest way to know is the copy itself. `ok: false` is reserved for the source not
+ * resolving at all - the container or volume does not exist, the daemon is unreachable, and
+ * so on - the same failures {@link DockerWorldFetcher.inspect} already reports.
+ */
+export type DockerWorldFingerprintResult =
+    | { readonly ok: true; readonly fingerprint: WorldFingerprint | null }
+    | { readonly ok: false; readonly failure: DockerWorldFailure };
 
 export interface DockerWorldFetcherOptions {
     /** Local by default. Pass `sshCommandRunner(...)` to reach a remote Linux Docker host. */
@@ -120,6 +135,28 @@ export class DockerWorldFetcher {
                 ? await resolveContainerMount(source.containerId, source.mountDestination, this.resolveOptions())
                 : await resolveVolume(source.volumeName, this.resolveOptions());
         return resolved.ok ? { ok: true, candidate: resolved.value } : { ok: false, failure: resolved.failure };
+    }
+
+    /**
+     * The cheap change-check fingerprint for this source - the same "has it changed" question
+     * `WorldRepoHost.remoteTip` answers for a git-repository world and
+     * `surveyRemoteWorld`/`diffRemoteWorldSurveys` answer for an SSH one, exposed the same way:
+     * a call that resolves the source and reads metadata, never a copy.
+     *
+     * Resolves the candidate exactly as {@link inspect} does, then hands it to `change.ts`'s
+     * `dockerWorldFingerprint`. Never runs `docker cp` or the helper container - only
+     * {@link fetch} does that - so calling this repeatedly, e.g. before every scheduled check,
+     * costs a `readdir`/`stat` pass or one remote `find`, not the world itself.
+     */
+    async fingerprint(source: DockerSourceRequest): Promise<DockerWorldFingerprintResult> {
+        const resolved = await this.inspect(source);
+        if (!resolved.ok) return { ok: false, failure: resolved.failure };
+        const remote = this.options.remote === true;
+        const fingerprint = await dockerWorldFingerprint(resolved.candidate, {
+            ...(this.options.runner === undefined ? {} : { runner: this.options.runner }),
+            ...(remote ? { remote: true } : {}),
+        });
+        return { ok: true, fingerprint };
     }
 
     async fetch(request: DockerWorldFetchRequest): Promise<DockerWorldFetchResult> {

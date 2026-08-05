@@ -9,10 +9,10 @@ asking anybody to know which one it is before they start.
 **Contents**
 
 - [The three ways in](#the-three-ways-in)
-- [The one refusal that has no override](#the-one-refusal-that-has-no-override)
+- [The refusal a running container earns](#the-refusal-a-running-container-earns)
 - [Local daemon, or one reached over SSH](#local-daemon-or-one-reached-over-ssh)
 - [What is incremental, and what is not](#what-is-incremental-and-not)
-- [A cheap change check, for the scheduled-render lane](#a-cheap-change-check-for-the-scheduled-render-lane)
+- [A cheap change check, and where it does and does not reach](#a-cheap-change-check-and-where-it-does-and-does-not-reach)
 - [Using it in the desktop application](#using-it-in-the-desktop-application)
 - [Failure modes](#failure-modes)
 - [Security notes](#security-notes)
@@ -43,7 +43,7 @@ host where root genuinely could read it: this application does not run as root, 
 otherwise for the sake of one machine shape would be exactly the kind of guess the rest of this
 module refuses to make.
 
-## The one refusal that has no override
+## The refusal a running container earns
 
 A running server may be writing to the exact region files being read. Reading them anyway can
 produce a torn `.mca` file — one that opens without error, because the region format's own
@@ -51,20 +51,22 @@ compression does not notice a chunk written mid-copy, and corrupts a render thre
 from anything that would point back here.
 
 So a fetch of a **running** container's world refuses outright unless the caller explicitly says
-`acknowledgeLiveRisk: true`. There is no silent default either way: not "always refuse," which
-would make the common case — a Minecraft server nobody is going to stop for a backup — impossible
-to use at all, and not "always allow," which would occasionally hand somebody a corrupted map with
-nothing at copy time to say why. The warning names the container, states the actual risk in
-words, and says the two honest alternatives: stop the server first, or point this at a backup
-instead.
+`acknowledgeLiveRisk: true`. That flag **is** an override, and it works: pass it, having read the
+warning, and the fetch proceeds anyway. What this refusal does not have is a *silent* or
+*standing* override — nothing "always allows" it by default, nothing persists a prior acceptance
+into a setting that would apply to every world after the first, and nothing lets a caller skip
+past it without the exact sentence naming the container and the risk. Every fetch of a live world
+is acknowledged fresh, per call. Three honest options are named, every time: stop the server
+first, point this at a backup instead, or accept the risk explicitly and fetch it live anyway.
 
-**What this project does not have yet** is an automatic safe route — a `save-off`/`save-all`
+**What this project does not have yet** is a fourth, *automatic* safe route — a `save-off`/`save-all`
 RCON command sent to the server before the copy and `save-on` after, which is how a careful
-backup script protects itself without stopping the server. Building one means an RCON client and
-somewhere to keep the server's RCON password, which is exactly the kind of secret this project's
-own rules say never gets typed into a settings field — it would need the same ephemeral,
-one-time-token intake flow the project uses for any other secret, and that has not been built.
-Until it is, the fetcher's only honest options for a live world are the two named above.
+backup script protects itself without stopping the server and without asking a person to accept
+any risk at all. Building one means an RCON client and somewhere to keep the server's RCON
+password, which is exactly the kind of secret this project's own rules say never gets typed into
+a settings field — it would need the same ephemeral, one-time-token intake flow the project uses
+for any other secret, and that has not been built. Until it is, the three options above are the
+fetcher's only honest ones for a live world.
 
 ## Local daemon, or one reached over SSH
 
@@ -101,12 +103,12 @@ and a fake `FileTransfer`, so none of it needs an actual remote host to prove ou
   losing data to a bug in a comparison. This is also why fetching a Docker world needs no
   destructive-action gate: nothing this module does is destructive.
 
-## A cheap change check, for the scheduled-render lane
+## A cheap change check, and where it does and does not reach
 
 `dockerworld/change.ts` exports `dockerWorldFingerprint`, which answers "has this world changed"
 by reading file **metadata** — region file names, sizes, modification times — and never a byte of
-content, so a scheduler can ask before every scheduled run without paying for the fetch it might
-decide is unnecessary.
+content, so a caller can ask before every fetch without paying for the copy it might decide is
+unnecessary.
 
 **Only the `bind-direct` route gets a cheap answer.** That is the same line `resolve.ts` already
 draws: a bind mount can be listed without touching Docker at all, locally with `readdir`/`stat` or
@@ -114,40 +116,60 @@ remotely in one `find <root> -name '*.mca' -exec stat --format=%n:%s:%Y {} +` ro
 `container-copy` and `volume-copy` have no such vantage point — Docker's own filesystem view is
 reachable only by reading it, and reading it is exactly the expensive step a change check exists
 to avoid. Asking for a fingerprint of one of those routes returns `null`, plainly, rather than a
-wrong or invented answer. A scheduler that wants incrementality out of a volume-backed world pays
-for the copy every time until Docker grows a cheaper way to ask; there is no honest way around
-that today.
+wrong or invented answer. Whoever wants incrementality out of a volume-backed world pays for the
+copy every time until Docker grows a cheaper way to ask; there is no honest way around that today.
 
-`fingerprintsEqual` compares two fingerprints order-independently, so the scheduled-render lane
-can keep the last fingerprint beside its render record and skip a render when the next one
-matches — the same shape the git-repository world source's own change detection will want, for
-the same reason.
+`fingerprintsEqual` compares two fingerprints order-independently, so a caller can keep the last
+fingerprint beside whatever record it keeps and skip a fetch when the next one matches.
+
+**Exposed over IPC, the same way the git-repository and SSH routes expose theirs.**
+`DockerWorldFetcher.fingerprint(source)` resolves the source and returns its fingerprint (or
+`null`, honestly, for the two routes above), and `main/dockerworld/ipc.ts` puts that behind
+`dockerworld:fingerprint` — the same shape `worldrepo:remoteTip` uses for a git-repository world.
+`dockerworld:fingerprintsEqual` exposes the pure comparison the same way `worldsource:ssh:diff`
+does. Both are counted among the eight channels the [desktop-application section
+below](#using-it-in-the-desktop-application) says are not yet called from
+`design/packages/ui` — the same documented gap the fetch, list and inspect channels already carry,
+now including these two.
+
+**What this is not connected to, and why not:** [Scheduled re-rendering](./scheduled-render.md)'s
+`evaluateScheduleChange` gained a `"git"` comparator because a GitHub-hosted Actions runner can
+reach a GitHub-hosted git branch directly — one `gh api` call. It has **no** `"docker"`
+comparator, and `render-world.yml`'s own `world-source` choices are exactly `repository`, `url`,
+`release-asset` and `git` — Docker is not among them, and this is not an oversight to fix later:
+a GitHub-hosted runner has no route to a local Docker daemon or to a Docker host on somebody's own
+network without exposing that daemon to the internet, which this project does not do. That is the
+exact same reason the SSH world source's own `surveyRemoteWorld`/`diffRemoteWorldSurveys` — built
+before this route, and already exposed over IPC the same way — never gained a matching kind
+either. `dockerWorldFingerprint` is real, tested, and reachable through the IPC bridge for
+whatever calls it locally on this computer; it is not, and structurally cannot become, an input to
+the GitHub Actions scheduled-render workflow.
 
 ## Using it in the desktop application
 
 > [!WARNING]
 > **This section describes `main/dockerworld/`, which is fully built and tested (see
 > Verification below) but is not yet reachable from the desktop app's own UI or its IPC preload
-> bridge.** `main/dockerworld/ipc.ts` registers six channels
-> (`dockerworld:list`/`inspectContainer`/`inspectVolume`/`fetch`/`cancel`/`active`) exactly like
-> `worldsource/ipc.ts` does for a release-hosted world, but nothing in `design/packages/app/src/preload`
-> or `design/packages/ui` calls any of them yet, and no picker lists the containers or volumes
-> actually present the way the guided-forms rule requires. This is the same gap
-> [`world-sources.md`](./world-sources.md) records for the cross-repository release path, and it
-> exists here for the same reason: the module and its 74 tests prove the *logic* is correct
-> against fakes, independent of whether a button exists to reach it yet. Wiring the preload
-> bridge, a container/volume picker component, and the copy-catalogue entries its strings need is
-> the next piece of work on this feature, and it is deliberately not rushed into the same task
-> that landed the logic while several other lanes were mid-edit on the exact preload and
-> copy-catalogue files it would need to touch.
+> bridge.** `main/dockerworld/ipc.ts` registers eight channels
+> (`dockerworld:list`/`inspectContainer`/`inspectVolume`/`fetch`/`cancel`/`active`/`fingerprint`/`fingerprintsEqual`)
+> exactly like `worldsource/ipc.ts` does for a release-hosted world, but nothing in
+> `design/packages/app/src/preload` or `design/packages/ui` calls any of them yet, and no picker
+> lists the containers or volumes actually present the way the guided-forms rule requires. This
+> is the same gap [`world-sources.md`](./world-sources.md) records for the cross-repository
+> release path, and it exists here for the same reason: the module and its 83 tests prove the
+> *logic* is correct against fakes, independent of whether a button exists to reach it yet.
+> Wiring the preload bridge, a container/volume picker component, and the copy-catalogue entries
+> its strings need is the next piece of work on this feature, and it is deliberately not rushed
+> into the same task that landed the logic while several other lanes were mid-edit on the exact
+> preload and copy-catalogue files it would need to touch.
 
 Once wired, the intended flow follows this project's guided-forms rule throughout: the picker
 lists the containers and volumes Docker actually reports (`dockerworld:list`) rather than asking
 for an id to be typed, a chosen container's mounts come from `dockerworld:inspectContainer` so the
 world's own mount is picked from a real list rather than guessed, and a running container's
 **Fetch** action is disabled with the exact torn-region-file sentence from
-[the refusal above](#the-one-refusal-that-has-no-override) until the risk is explicitly accepted —
-never a plain greyed-out button with no reason attached.
+[the refusal above](#the-refusal-a-running-container-earns) until the risk is explicitly accepted
+— never a plain greyed-out button with no reason attached.
 
 ## Failure modes
 
@@ -191,7 +213,7 @@ or not — it holds nothing a person asked to keep.
 
 ## Verification
 
-`design/packages/app/src/main/dockerworld/` has 74 tests, none of which need a Docker
+`design/packages/app/src/main/dockerworld/` has 83 tests, none of which need a Docker
 installation, a daemon, or a network connection:
 
 | File | What it proves |
@@ -199,9 +221,9 @@ installation, a daemon, or a network connection:
 | `inventory.test.ts` | the five daemon states map correctly; container and volume listings parse real `docker ... --format {{json .}}` output, including a stray non-JSON line; mounts, running state and the zero-time "never started" case read correctly from `docker inspect` |
 | `resolve.test.ts` | a mount at the wrong destination is refused; a reachable host path routes `bind-direct`; an unreachable one (the Docker Desktop VM-path case) falls back to `container-copy`; a bare volume always routes `volume-copy`; the running flag and its warning text carry through; `remoteDirectoryExists` runs `test -d` through the given runner |
 | `copy.test.ts` | `localIncrementalCopy` copies once, touches nothing on an unchanged second pass, re-copies on a size or modification-time change, and — checked directly — never deletes a file the destination has that the source no longer does; `dockerCopyToStaging` and `volumeCopyToStaging` build the exact argv described above; `copyRemoteBindMount` creates the destination and calls the given `FileTransfer` |
-| `fetch.test.ts` | no daemon, permission denied, a volume that does not exist, a stopped container's world fetched with no acknowledgement needed, a running container refused and confirmed to leave the destination untouched, the same container fetched successfully once the risk is accepted (with the warning event proven present), a copied-out folder that is not a world, both the `container-copy` and `volume-copy` staging routes with their staging directories proven cleaned up afterward, and a cancellation proven to leave the destination without the copy it interrupted |
+| `fetch.test.ts` | no daemon, permission denied, a volume that does not exist, a stopped container's world fetched with no acknowledgement needed, a running container refused and confirmed to leave the destination untouched, the same container fetched successfully once the risk is accepted (with the warning event proven present), a copied-out folder that is not a world, both the `container-copy` and `volume-copy` staging routes with their staging directories proven cleaned up afterward, a cancellation proven to leave the destination without the copy it interrupted, and `fingerprint()` reading the bind-direct fingerprint with no copy invoked, answering `null` for a container-copy candidate, and surfacing the same resolve failure `inspect()` would |
 | `change.test.ts` | the local and remote fingerprints agree on the same content; a size change is detected; `container-copy`/`volume-copy` candidates answer `null` rather than a guess; a remote fingerprint with no runner also answers `null` |
-| `ipc.test.ts` | the six channels register and `dispose` exactly; a malformed request is refused rather than reaching the fetcher; the fetcher's own throw is turned into a reported failure rather than a rejection; `list` and `inspect*` thread an injected runner rather than reaching for whatever `docker` happens to be on the test machine |
+| `ipc.test.ts` | the eight channels register and `dispose` exactly; a malformed request is refused rather than reaching the fetcher; the fetcher's own throw is turned into a reported failure rather than a rejection; `list` and `inspect*` thread an injected runner rather than reaching for whatever `docker` happens to be on the test machine; `dockerworld:fingerprint` refuses a sourceless request, passes a well-formed one through, and never rejects on a fetcher throw; `dockerworld:fingerprintsEqual` compares order-independently and treats malformed input as an empty fingerprint rather than throwing |
 
 Run them with `npx vitest run packages/app/src/main/dockerworld` from `design/`.
 
@@ -219,7 +241,11 @@ genuine article yet.
   `FileTransfer`, `chooseTransfer`) this module reuses rather than reimplementing.
 - [Worlds from somebody else's release](./world-sources.md) — the other input-side world source,
   and the same "fully built, not yet wired to the UI" gap this document names for the same reason.
-- [Scheduled re-rendering](./scheduled-render.md) — the consumer `dockerWorldFingerprint` is
-  built for.
+- [Scheduled re-rendering](./scheduled-render.md) — the GitHub Actions lane `dockerWorldFingerprint`
+  is deliberately *not* wired into, and why: a GitHub-hosted runner has no route to a local
+  Docker daemon.
+- [Worlds hosted on your own SSH server](./ssh-world-sources.md) — the other locally-reachable,
+  scheduled-render-shaped change check (`surveyRemoteWorld`/`diffRemoteWorldSurveys`) that carries
+  the identical, structural gap with the GitHub Actions lane.
 - [Backing up a world or a rendered map](./backup.md) — why this project never reaches for Git
   LFS, including for a world's own storage.

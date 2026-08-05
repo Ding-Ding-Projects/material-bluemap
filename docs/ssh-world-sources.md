@@ -128,7 +128,7 @@ find out.
 ## Verification
 
 `design/packages/app/src/main/remote/worldsource.ts`, `windowsShell.ts`, and
-`design/packages/app/src/main/worldsource/sshFetcher.ts` / `sshIpc.ts` have **85 tests**, all
+`design/packages/app/src/main/worldsource/sshFetcher.ts` / `sshIpc.ts` have **64 tests**, all
 of them against fake SSH and process runners:
 
 | File | What it proves |
