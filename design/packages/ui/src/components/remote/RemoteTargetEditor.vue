@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiCheck, mdiDeleteOutline, mdiPencilOutline, mdiServerPlus } from "@mdi/js";
+import { mdiCheck, mdiContentCopy, mdiDeleteOutline, mdiPencilOutline, mdiServerPlus } from "@mdi/js";
 import {
     VAlert,
     VBtn,
@@ -122,6 +122,28 @@ function edit(target: RemoteTarget): void {
     disclosure.value = null;
 }
 
+/**
+ * Opens the form pre-filled with a copy of an existing machine, under a fresh id and a name
+ * that says it is a copy.
+ *
+ * Nothing is saved yet. A duplicate is most often wanted because two things about the copy
+ * need to differ from the original - a different work directory, a different key, a second
+ * account on the same host - and the same **Check this machine and keep it** button that
+ * validates a new machine validates this one, so a half-edited duplicate can never be saved
+ * without the main process having looked at it first.
+ */
+function duplicate(target: RemoteTarget): void {
+    draft.value = {
+        ...draftFromTarget(target),
+        id: newTargetId(),
+        label: t("remote.targets.copyOfLabel", { name: target.label }, "Copy of {name}"),
+    };
+    editing.value = true;
+    refusal.value = null;
+    accepted.value = null;
+    disclosure.value = null;
+}
+
 function cancelEdit(): void {
     editing.value = false;
     refusal.value = null;
@@ -208,7 +230,7 @@ const canSave = computed(
         draft.value.user.trim() !== "",
 );
 
-defineExpose({ draft, patch, startNew, checkAndSave, editing });
+defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing });
 </script>
 
 <template>
@@ -290,6 +312,15 @@ defineExpose({ draft, patch, startNew, checkAndSave, editing });
                         @click="edit(target)"
                     >
                         {{ t("remote.targets.edit", "Edit") }}
+                    </v-btn>
+                    <v-btn
+                        :prepend-icon="mdiContentCopy"
+                        :aria-label="t('remote.targets.duplicateOne', { name: target.label }, 'Duplicate {name}')"
+                        variant="text"
+                        size="small"
+                        @click="duplicate(target)"
+                    >
+                        {{ t("remote.targets.duplicate", "Duplicate") }}
                     </v-btn>
                     <v-btn
                         :prepend-icon="mdiDeleteOutline"

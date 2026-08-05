@@ -1192,6 +1192,14 @@ export const REMOTE_FIXED = {
     "remote.targets.use": { en: "Use this one", yue: "用呢部" },
     "remote.targets.editOne": { en: "Edit {name}", yue: "改 {name}" },
     "remote.targets.edit": { en: "Edit", yue: "改" },
+    "remote.targets.duplicateOne": { en: "Duplicate {name}", yue: "複製 {name}" },
+    "remote.targets.duplicate": { en: "Duplicate", yue: "複製" },
+    /*
+     * The pre-filled name a duplicate opens with. FIXED like `editOne`/`forgetOne` beside
+     * it: a person retitles this the moment they look at the form, so there is no sentence
+     * here for a funny level to style, only a label they are about to overwrite.
+     */
+    "remote.targets.copyOfLabel": { en: "Copy of {name}", yue: "{name} 嘅副本" },
     "remote.targets.forgetOne": { en: "Forget {name}", yue: "忘記 {name}" },
     "remote.targets.forget": { en: "Forget", yue: "忘記" },
     "remote.targets.add": { en: "Add a machine", yue: "加一部機" },

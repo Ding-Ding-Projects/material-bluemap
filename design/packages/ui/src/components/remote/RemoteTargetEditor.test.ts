@@ -26,6 +26,7 @@ import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import RemoteTargetEditor from "./RemoteTargetEditor.vue";
+import type { RemoteTarget } from "./remoteBridge.js";
 
 beforeAll(() => {
     // jsdom has no layout engine, and Vuetify's fields, radios and overlays observe their
@@ -154,6 +155,64 @@ describe("the identity file's browse button", () => {
             .map((button) => button.attributes("aria-label") ?? "")
             .filter((label) => /work directory/i.test(label));
         expect(nearWorkDir).toEqual([]);
+
+        wrapper.unmount();
+    });
+});
+
+const saved: RemoteTarget = {
+    id: "t-1",
+    label: "the build server",
+    host: "build.lan",
+    port: 2222,
+    user: "renderer",
+    identityFile: "C:/Users/me/.ssh/id_ed25519",
+    workDir: "/srv/renders",
+    image: "eclipse-temurin:25-jre",
+    docker: "docker",
+    keepRemoteFiles: false,
+};
+
+describe("duplicating a saved machine", () => {
+    function mountWithSaved() {
+        return mount(RemoteTargetEditor, {
+            props: { bridge: null, targets: [saved], selectedId: null },
+            global: { plugins: [vuetify, i18n()] },
+        });
+    }
+
+    it("opens the form pre-filled with a copy, under a fresh id nobody typed", async () => {
+        const wrapper = mountWithSaved();
+
+        const button = buttonByAria(wrapper, "Duplicate the build server");
+        await button.trigger("click");
+        await flushPromises();
+
+        const vm = wrapper.vm as unknown as {
+            editing: boolean;
+            draft: { id: string; label: string; host: string; user: string; workDir: string };
+        };
+        expect(vm.editing).toBe(true);
+        expect(vm.draft.id).not.toBe(saved.id);
+        expect(vm.draft.label).toBe("Copy of the build server");
+        // Everything else about the machine travels across unchanged, ready to be edited.
+        expect(vm.draft.host).toBe(saved.host);
+        expect(vm.draft.user).toBe(saved.user);
+        expect(vm.draft.workDir).toBe(saved.workDir);
+
+        wrapper.unmount();
+    });
+
+    it("saves nothing on its own: the original and the duplicate are still two different ids after Save is pressed", async () => {
+        const wrapper = mountWithSaved();
+        (wrapper.vm as unknown as { duplicate: (t: RemoteTarget) => void }).duplicate(saved);
+        await flushPromises();
+
+        const before = (wrapper.vm as unknown as { draft: { id: string } }).draft.id;
+        // No bridge in this test (`bridge: null`), so nothing was emitted yet - only the
+        // form's own state changed, exactly as pressing "Add a machine" would leave it.
+        expect(wrapper.emitted("update:targets")).toBeUndefined();
+        expect(before).not.toBe(saved.id);
 
         wrapper.unmount();
     });
