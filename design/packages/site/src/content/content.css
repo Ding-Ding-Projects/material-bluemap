@@ -24,15 +24,70 @@
 /* ---- Hero ---------------------------------------------------------------------------- */
 
 /*
- * A real elevated tonal surface rather than a 1px outline. This is the token file's own
- * elevation system (`--md-sys-elevation-level1`), which existed unused before this pass:
- * every card on the page, hero included, drew a flat outline instead of a shadow.
+ * The one surface on every page that visibly floats above everything else: level3
+ * elevation (the token file's own top tier used anywhere on this page), a gradient mesh
+ * blended from the primary and secondary container tones rather than a flat fill, and an
+ * asymmetric radius no other surface on the site reaches -- three corners rounder than
+ * the shared "extra-large" step, the fourth cut square so the isometric motif below can
+ * bleed off it. Everything here reads from `--md-sys-color-*` tokens, so the gradient
+ * re-derives for free under `[data-theme="dark"]` and under a live appearance-editor
+ * override; nothing is a literal colour.
  */
 .mb-hero {
+    position: relative;
+    overflow: hidden;
     padding: clamp(var(--md-sys-spacing-6), 4vw, var(--md-sys-spacing-12));
-    border-radius: var(--md-sys-shape-corner-extra-large);
-    background: var(--md-sys-color-surface-container-low);
-    box-shadow: var(--md-sys-elevation-level1);
+    /* One step past the shared shape scale's largest named corner, on three sides only.
+       Deliberately not tokenised: this is a one-off "hero gets bigger than anything else"
+       flourish, not a value another component should reach for. */
+    border-radius: calc(var(--md-sys-shape-corner-extra-large) + 4px)
+        calc(var(--md-sys-shape-corner-extra-large) + 4px) 0
+        calc(var(--md-sys-shape-corner-extra-large) + 4px);
+    background:
+        radial-gradient(
+            135% 160% at 12% -15%,
+            color-mix(in srgb, var(--md-sys-color-primary-container) 60%, transparent) 0%,
+            transparent 55%
+        ),
+        radial-gradient(
+            120% 150% at 105% 115%,
+            color-mix(in srgb, var(--md-sys-color-secondary-container) 45%, transparent) 0%,
+            transparent 60%
+        ),
+        var(--md-sys-color-surface-container-low);
+    box-shadow: var(--md-sys-elevation-level3);
+}
+
+/*
+ * The isometric-block motif: a repeating pinwheel of the site's three container tones,
+ * bled off the hero's one square corner. Pure CSS (a repeating conic-gradient), so it is
+ * local, themes for free and costs no request. Hidden below the breakpoint where the hero
+ * stacks to one column, so it never competes with the pitch text on a narrow viewport.
+ */
+.mb-hero::after {
+    content: "";
+    position: absolute;
+    right: -6%;
+    bottom: -8%;
+    width: 46%;
+    height: 58%;
+    background-image: repeating-conic-gradient(
+        from 45deg,
+        color-mix(in srgb, var(--md-sys-color-primary-container) 75%, transparent) 0deg 90deg,
+        color-mix(in srgb, var(--md-sys-color-tertiary-container) 75%, transparent) 90deg 180deg,
+        color-mix(in srgb, var(--md-sys-color-secondary-container) 75%, transparent) 180deg 270deg,
+        transparent 270deg 360deg
+    );
+    background-size: 28px 28px;
+    clip-path: polygon(100% 0, 100% 100%, 30% 100%, 0 55%, 45% 0);
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+@media (max-width: 56.24rem) {
+    .mb-hero::after {
+        display: none;
+    }
 }
 
 /*
@@ -60,13 +115,37 @@
     align-items: flex-start;
     gap: var(--md-sys-spacing-4);
     min-width: 0;
+    /* The hero's decorative corner motif sits behind this column; keep the pitch above it. */
+    position: relative;
+    z-index: 1;
+}
+
+/*
+ * A register of type that exists nowhere else on the page: all caps, wide tracking, the
+ * primary colour, no background. It reads before the title does, which is the point --
+ * a visitor's eye hits a distinct type style before it hits a single word.
+ *
+ * `.mb-page-kicker` shares this exact rule rather than duplicating it: the same eyebrow
+ * register belongs above the Documentation and Changelog page titles (rendered by
+ * `renderDocs` and `createChangelogView`), just outside the hero this rule was named for.
+ */
+.mb-hero-kicker,
+.mb-page-kicker {
+    margin: 0;
+    color: var(--md-sys-color-primary);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
 }
 
 .mb-hero-eyebrow {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     min-height: 28px;
-    padding: 0 var(--md-sys-spacing-3);
+    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-3);
     border-radius: var(--md-sys-shape-corner-full);
     background: var(--md-sys-color-primary-container);
     color: var(--md-sys-color-on-primary-container);
@@ -76,19 +155,38 @@
     letter-spacing: var(--md-sys-typescale-label-large-tracking);
 }
 
+/*
+ * `i18n.bindText`'s bilingual mode appends a `.i18n-secondary` span, which is `display:
+ * block` (theme/base.css) so it drops to its own line inside ordinary block and inline
+ * content. Inside a flex container that block-ness is ignored -- a flex item lays out in
+ * the row same as any other -- so without `flex-wrap` and a forced 100% basis, the
+ * Cantonese half of an eyebrow pill or a pill button runs straight into the English half
+ * with no space. These three are the pill-shaped, `inline-flex` targets on this page that
+ * carry bilingual copy; nothing else on the hero needs it.
+ */
+.mb-hero-eyebrow .i18n-secondary,
+.mb-download .i18n-secondary,
+.mb-hero-secondary .i18n-secondary {
+    flex-basis: 100%;
+}
+
 .mb-hero-title {
-    font-family: var(--md-sys-typescale-display-medium-font);
-    /* Shrinks with the viewport so the longest title never pushes the page sideways. Widened
-       from a display-small ceiling to display-medium: the title scale existed but nothing on
-       either page ever climbed to it, so the "expressive" jolt never registered at a glance. */
+    font-family: var(--md-sys-typescale-display-large-font);
+    /* Shrinks with the viewport so the longest title never pushes the page sideways. Now
+       climbs all the way to the type scale's own display-large ceiling: a prior pass widened
+       the ceiling to display-medium and the "expressive" jolt still never registered, because
+       nothing on the page actually reached it at ordinary desktop widths. This does. The
+       weight and tracking are overridden here rather than in the shared display-large token,
+       because unrelated components (headings elsewhere on the page) still consume that token
+       at its own default weight. */
     font-size: clamp(
         var(--md-sys-typescale-headline-medium-size),
-        7vw,
-        var(--md-sys-typescale-display-medium-size)
+        8vw,
+        var(--md-sys-typescale-display-large-size)
     );
-    font-weight: var(--md-sys-typescale-display-medium-weight);
-    line-height: 1.1;
-    letter-spacing: var(--md-sys-typescale-display-medium-tracking);
+    font-weight: 650;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
     overflow-wrap: anywhere;
 }
 
@@ -110,39 +208,59 @@
     gap: var(--md-sys-spacing-1);
     min-width: 0;
     padding: var(--md-sys-spacing-4);
-    border-radius: var(--md-sys-shape-corner-medium);
     box-shadow: var(--md-sys-elevation-level1);
+    transition:
+        box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
 }
 
+.mb-hero-stat:hover,
+.mb-hero-stat:focus-within {
+    box-shadow: var(--md-sys-elevation-level2);
+    transform: translateY(-2px);
+}
+
+/*
+ * Alternating radii across the 2x2 preview, so the grid does not repeat one shape at every
+ * scale: the same "large" and "small" steps `.mb-stat` below uses full-size, echoed here at
+ * preview scale rather than the single medium radius every tile shared before.
+ */
 .mb-hero-stat[data-tone="0"] {
+    border-radius: var(--md-sys-shape-corner-large);
     background: var(--md-sys-color-primary-container);
     color: var(--md-sys-color-on-primary-container);
 }
 
 .mb-hero-stat[data-tone="1"] {
+    border-radius: var(--md-sys-shape-corner-small);
     background: var(--md-sys-color-secondary-container);
     color: var(--md-sys-color-on-secondary-container);
 }
 
 .mb-hero-stat[data-tone="2"] {
+    border-radius: var(--md-sys-shape-corner-small);
     background: var(--md-sys-color-tertiary-container);
     color: var(--md-sys-color-on-tertiary-container);
 }
 
 .mb-hero-stat[data-tone="3"] {
+    border-radius: var(--md-sys-shape-corner-large);
     background: var(--md-sys-color-surface-container-high);
     color: var(--md-sys-color-on-surface);
 }
 
+/*
+ * Oversized numerals: the loudest text on the page after the title, where before it was
+ * indistinguishable in weight and size from an ordinary card heading. Tabular figures so
+ * the four values line up rather than jittering against each other's digit widths.
+ */
 .mb-hero-stat-value {
-    font-family: var(--md-sys-typescale-title-large-font);
-    font-size: clamp(
-        var(--md-sys-typescale-title-medium-size),
-        2.4vw,
-        var(--md-sys-typescale-title-large-size)
-    );
-    font-weight: var(--md-sys-typescale-title-large-weight);
-    line-height: 1.15;
+    font-family: var(--md-sys-typescale-display-small-font);
+    font-size: clamp(1.75rem, 5vw, var(--md-sys-typescale-display-small-size));
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+    line-height: 1;
     overflow-wrap: anywhere;
 }
 
@@ -190,10 +308,11 @@
 
 .mb-download {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: center;
     min-height: max(var(--md-sys-min-touch-target), calc(48px * var(--md-sys-density-scale)));
-    padding: 0 var(--md-sys-spacing-8);
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-8);
     border-radius: var(--md-sys-shape-corner-full);
     background: var(--md-sys-color-primary);
     color: var(--md-sys-color-on-primary);
@@ -222,6 +341,48 @@
     display: inline-flex;
     align-items: center;
     color: var(--md-sys-color-primary);
+}
+
+/* The download button and the changelog link, side by side: get the installer, or see
+   what changed first. Wraps to its own line rather than clipping at narrow widths. */
+.mb-hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--md-sys-spacing-3);
+}
+
+/* A tonal counterpart to the filled `.mb-download` button: same pill shape and touch
+   target, secondary-container fill so it reads as "the other real action" rather than a
+   plain text link competing with the primary button for attention. */
+.mb-hero-secondary {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    min-height: max(var(--md-sys-min-touch-target), calc(48px * var(--md-sys-density-scale)));
+    padding: var(--md-sys-spacing-2) var(--md-sys-spacing-6);
+    border: none;
+    border-radius: var(--md-sys-shape-corner-full);
+    background: var(--md-sys-color-secondary-container);
+    color: var(--md-sys-color-on-secondary-container);
+    font-family: var(--md-sys-typescale-label-large-font);
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: var(--md-sys-typescale-label-large-weight);
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
+    text-align: center;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+    transition: background-color var(--md-sys-motion-duration-short4)
+        var(--md-sys-motion-easing-standard);
+}
+
+.mb-hero-secondary:hover {
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-on-secondary-container) var(--md-sys-state-hover-opacity),
+        var(--md-sys-color-secondary-container)
+    );
 }
 
 /* ---- Sections ------------------------------------------------------------------------ */
@@ -273,10 +434,54 @@
 
 /* ---- Statistics ---------------------------------------------------------------------- */
 
+/*
+ * A bento layout on desktop: the first stat spans two columns and two rows, so one number
+ * gets to be the loudest thing in the section instead of every card claiming equal weight.
+ * Below the tablet breakpoint this becomes a horizontal, scroll-snapped strip -- contained
+ * overflow-x, never a page-level one -- rather than seven equal cards stacked full height.
+ */
 .mb-stat-grid {
     display: grid;
     gap: var(--md-sys-spacing-3);
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+}
+
+@media (min-width: 56.25rem) {
+    .mb-stat-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-auto-rows: minmax(9rem, auto);
+    }
+
+    .mb-stat:first-of-type {
+        grid-column: span 2;
+        grid-row: span 2;
+        padding: var(--md-sys-spacing-6);
+        justify-content: center;
+    }
+
+    .mb-stat:first-of-type .mb-stat-value {
+        font-size: clamp(
+            var(--md-sys-typescale-headline-medium-size),
+            4.6vw,
+            var(--md-sys-typescale-display-small-size)
+        );
+    }
+}
+
+@media (max-width: 47.9375rem) {
+    .mb-stat-grid {
+        display: flex;
+        gap: var(--md-sys-spacing-3);
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        scroll-snap-type: x proximity;
+        padding-bottom: var(--md-sys-spacing-2);
+    }
+
+    .mb-stat {
+        flex: 0 0 78%;
+        scroll-snap-align: start;
+    }
 }
 
 /*
@@ -295,11 +500,14 @@
     border-radius: var(--md-sys-shape-corner-large);
     background: var(--md-sys-color-surface-container-lowest);
     box-shadow: var(--md-sys-elevation-level1);
-    transition: box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+    transition:
+        box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
 }
 
 .mb-stat:hover {
     box-shadow: var(--md-sys-elevation-level2);
+    transform: translateY(-2px);
 }
 
 .mb-stat:nth-of-type(4n + 1) {
@@ -376,11 +584,13 @@
     box-shadow: var(--md-sys-elevation-level1);
     transition:
         box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
-        border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+        border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
 }
 
 .mb-engine:hover {
     box-shadow: var(--md-sys-elevation-level2);
+    transform: translateY(-2px);
 }
 
 /*
@@ -445,15 +655,29 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
 }
 
+/*
+ * A raised tonal surface, not an outlined box: elevation replaces the border the way the
+ * hero stat tiles and the engine cards already read, so the capability grid stops being a
+ * third repetition of "rounded rectangle with a hairline" on the same page.
+ */
 .mb-card {
     display: flex;
     flex-direction: column;
     gap: var(--md-sys-spacing-2);
     min-width: 0;
     padding: var(--md-sys-spacing-5);
-    border: 1px solid var(--md-sys-color-outline-variant);
     border-radius: var(--md-sys-shape-corner-large);
-    background: var(--md-sys-color-surface-container-lowest);
+    background: var(--md-sys-color-surface-container-low);
+    box-shadow: var(--md-sys-elevation-level1);
+    transition:
+        box-shadow var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+        transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.mb-card:hover,
+.mb-card:focus-within {
+    box-shadow: var(--md-sys-elevation-level2);
+    transform: translateY(-2px);
 }
 
 .mb-card-head {
@@ -607,11 +831,17 @@
     margin: 0;
 }
 
+/*
+ * Tight, photographic corners: the smallest step on the shape scale, deliberately the
+ * opposite of the hero's exaggerated roundness a few hundred pixels above it. Two very
+ * different shape languages on the same screen read as two different registers -- a
+ * branded surface and a document photograph -- rather than one module repeated.
+ */
 .mb-shot-image {
     width: 100%;
     height: auto;
     border: 1px solid var(--md-sys-color-outline-variant);
-    border-radius: var(--md-sys-shape-corner-medium);
+    border-radius: var(--md-sys-shape-corner-extra-small);
     background: var(--md-sys-color-surface-container-high);
     object-fit: contain;
 }
@@ -701,8 +931,9 @@
 }
 
 .mb-shot-lead .mb-shot-image {
-    border-radius: var(--md-sys-shape-corner-large);
-    box-shadow: var(--md-sys-elevation-level1);
+    /* Still the tight photographic corner, just lifted higher: this is now the first real
+       image a visitor sees, straight after the hero. */
+    box-shadow: var(--md-sys-elevation-level2);
 }
 
 .mb-shot-caption {
@@ -1189,9 +1420,12 @@
 
 @media (prefers-reduced-motion: reduce) {
     .mb-download,
+    .mb-hero-secondary,
+    .mb-hero-stat,
     .mb-changelog-entry,
     .mb-stat,
-    .mb-engine {
+    .mb-engine,
+    .mb-card {
         transition: none;
     }
 }

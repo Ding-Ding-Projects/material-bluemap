@@ -1185,6 +1185,11 @@ export const FIXED = {
     "phase.pending": { en: "Pending", yue: "待處理" },
     "shell.startupFailedReport": { en: "Report this", yue: "回報呢個問題" },
     "home.glossaryButtonLabel": { en: "Read the glossary of terms", yue: "閱讀詞彙表" },
+    "home.heroKicker": {
+        en: "Open source · TypeScript port of BlueMap",
+        yue: "開源項目 · BlueMap 嘅 TypeScript 移植版",
+    },
+    "home.changelogButtonLabel": { en: "See what changed", yue: "睇吓改咗啲乜" },
 } as const satisfies Record<string, FixedString>;
 
 export type VoicedKey = keyof typeof VOICED;

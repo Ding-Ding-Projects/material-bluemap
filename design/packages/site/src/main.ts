@@ -249,11 +249,26 @@ function heroStatTile(stat: HomeStat, tone: number): HTMLElement {
     return tile;
 }
 
-function renderHero(host: HTMLElement, i18n: I18n): void {
+/**
+ * The uppercase label above the hero title.
+ *
+ * New for this pass: a distinct type style (all-caps, wide tracking, primary colour) that
+ * exists nowhere else on the page, so the hero reads as a different register of type before
+ * a visitor reads a single word of it. It sits above the existing release-status pill rather
+ * than replacing it: the pill is a fact ("a verified release exists"), this is a label.
+ */
+function heroKicker(i18n: I18n): HTMLElement {
+    const kicker = el("p", "mb-hero-kicker");
+    i18n.bindText(kicker, "home.heroKicker");
+    return kicker;
+}
+
+function renderHero(host: HTMLElement, navigation: PageNavigation, i18n: I18n): void {
     const hero = el("header", "mb-hero");
     const grid = el("div", "mb-hero-grid");
 
     const main = el("div", "mb-hero-main");
+    main.appendChild(heroKicker(i18n));
     main.appendChild(heroEyebrow(i18n));
     main.appendChild(el("h1", "mb-hero-title", home.title));
     main.appendChild(el("p", "mb-hero-tagline", home.tagline));
@@ -265,23 +280,44 @@ function renderHero(host: HTMLElement, i18n: I18n): void {
         const release = releaseAvailability.release;
         main.appendChild(el("p", "mb-download-lead", downloadCopy.availableLead));
 
+        // Two real actions side by side: get the installer, or see what changed before
+        // committing to a download. Neither is decoration -- both are a real activation.
+        const actions = el("div", "mb-hero-actions");
+
         const download = el("a", "mb-download");
         download.href = release.installer.url;
         download.textContent = downloadButtonLabel(release);
         download.setAttribute("aria-label", downloadAccessibleName(release));
         download.rel = "noopener noreferrer";
-        main.appendChild(download);
+        actions.appendChild(download);
 
+        const changelogButton = el("button", "mb-hero-secondary");
+        changelogButton.type = "button";
+        i18n.bindText(changelogButton, "home.changelogButtonLabel");
+        changelogButton.addEventListener("click", () => navigation.openPage("changelog"));
+        actions.appendChild(changelogButton);
+
+        main.appendChild(actions);
         main.appendChild(el("p", "mb-download-detail", downloadDetailLine(release)));
     } else {
         main.appendChild(el("h2", "mb-download-heading", downloadCopy.unavailableHeading));
         main.appendChild(el("p", "mb-download-detail", downloadCopy.unavailableLead));
         main.appendChild(el("p", "mb-download-detail", releaseAvailability.reason));
 
+        const actions = el("div", "mb-hero-actions");
+
         const link = el("a", "mb-download-link", downloadCopy.unavailableLinkLabel);
         link.href = downloadCopy.unavailableLinkHref;
         link.rel = "noopener noreferrer";
-        main.appendChild(link);
+        actions.appendChild(link);
+
+        const changelogButton = el("button", "mb-hero-secondary");
+        changelogButton.type = "button";
+        i18n.bindText(changelogButton, "home.changelogButtonLabel");
+        changelogButton.addEventListener("click", () => navigation.openPage("changelog"));
+        actions.appendChild(changelogButton);
+
+        main.appendChild(actions);
     }
     main.appendChild(el("p", "mb-download-caveat", downloadCopy.caveat));
     grid.appendChild(main);
@@ -515,7 +551,12 @@ function renderGettingStarted(host: HTMLElement, navigation: PageNavigation, i18
 function renderHome(host: HTMLElement, navigation: PageNavigation, i18n: I18n): void {
     const root = page(host);
 
-    renderHero(root, i18n);
+    renderHero(root, navigation, i18n);
+    // The screenshot gallery used to sit about four viewport-heights down, after a long
+    // stack of prose. It is the single most visually convincing thing on this page -- a
+    // real, running application, not a mockup -- so it renders immediately after the hero
+    // instead of waiting for a reader to scroll past three sections of numbers first.
+    renderShowcase(root, navigation);
     renderGettingStarted(root, navigation, i18n);
 
     const intro = el("div", "mb-prose");
@@ -524,7 +565,6 @@ function renderHome(host: HTMLElement, navigation: PageNavigation, i18n: I18n): 
 
     renderStats(root);
     renderEngines(root, navigation);
-    renderShowcase(root, navigation);
     renderFeatures(root, navigation, i18n);
     renderNotYet(root);
     renderPhases(root, i18n);
