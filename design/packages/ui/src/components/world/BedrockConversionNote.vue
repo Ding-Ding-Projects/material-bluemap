@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiAlertOutline, mdiCubeOutline, mdiSwapHorizontal } from "@mdi/js";
+import { mdiAlertOutline, mdiCubeOutline, mdiDownload, mdiSwapHorizontal } from "@mdi/js";
 import { VAlert, VBtn, VChip, VIcon, VProgressLinear } from "vuetify/components";
 import {
     resolveBedrockBridge,
     type BedrockBridge,
     type BedrockDetectResult,
+    type ChunkerStatus,
     type ConversionProgressEvent,
 } from "./bedrockBridge.js";
 
@@ -91,6 +92,120 @@ onBeforeUnmount(() => {
 const isBedrock = computed(() => detection.value?.detection.bedrock === true && detection.value.error === null);
 
 /* -------------------------------------------------------------------------- */
+/* Chunker itself: found, or fetched on request                               */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Whether Chunker is on this machine at all, checked the moment a Bedrock world is
+ * detected rather than only discovered by a failed Convert. `bedrock:chunker` already
+ * carries everything the button below needs - the exact release that would be fetched,
+ * its size, and `fetchChunker`'s own account of what was and was not verified - so this
+ * asks for it once up front instead of guessing from `lookup.remedy` after the fact.
+ */
+const chunkerStatus = ref<ChunkerStatus | null>(null);
+const chunkerChecking = ref(false);
+
+async function refreshChunkerStatus(): Promise<void> {
+    const active = bridge.value;
+    if (active === null) {
+        chunkerStatus.value = null;
+        return;
+    }
+    chunkerChecking.value = true;
+    try {
+        chunkerStatus.value = await active.chunkerStatus();
+    } catch {
+        // Not knowing is not "found": the row falls back to the Convert button's own
+        // failure path below rather than claiming Chunker is ready when the question
+        // itself could not be answered.
+        chunkerStatus.value = null;
+    } finally {
+        chunkerChecking.value = false;
+    }
+}
+
+watch(
+    isBedrock,
+    (bedrock) => {
+        if (bedrock) void refreshChunkerStatus();
+        else chunkerStatus.value = null;
+    },
+    { immediate: true },
+);
+
+const chunkerMissing = computed(
+    () => chunkerStatus.value?.lookup.found === false,
+);
+
+/** `31790149` -> `"~30 MB"`. A rough figure, stated as one, matching the size Chunker's own module quotes in its "not installed" sentence. */
+const chunkerSizeText = computed(() => {
+    const bytes = chunkerStatus.value?.available.sizeBytes ?? null;
+    if (bytes === null || bytes <= 0) return null;
+    return `~${String(Math.round(bytes / 1e6))} MB`;
+});
+
+/**
+ * Resolved outside the `bedrock.chunkerMissing` call below rather than nested inside it.
+ * The catalogue-coverage scan reads a `t(...)` call's own literal arguments to check its
+ * placeholders line up with the catalogue; a second `t(...)` call nested inside the first
+ * one's argument list confuses that scan into reading the nested call's fallback instead
+ * of this one's. Two separate calls, neither nested in the other, is what keeps the scan
+ * honest.
+ */
+const chunkerSizeUnknownText = computed(() => t("bedrock.chunkerSizeUnknown", "an unknown size"));
+
+const fetchingChunker = ref(false);
+const fetchFailure = ref<string | null>(null);
+const fetchReceived = ref<number | null>(null);
+const fetchTotal = ref<number | null>(null);
+let unsubscribeFetch: (() => void) | null = null;
+
+const fetchPercent = computed(() => {
+    const total = fetchTotal.value;
+    const received = fetchReceived.value;
+    if (total === null || total <= 0 || received === null) return null;
+    return Math.min(100, (received / total) * 100);
+});
+
+/**
+ * Fetches the Chunker jar, verified against the digest pinned in `main/bedrock/chunker.ts`.
+ *
+ * A separate button from Convert, on purpose - see `bedrock:fetchChunker`'s own doc
+ * comment - and the explanation and size above it are what makes pressing it the moment
+ * this row states what will be downloaded and how big, rather than a surprise transfer.
+ */
+async function fetchChunkerJar(): Promise<void> {
+    const active = bridge.value;
+    if (active === null || fetchingChunker.value) return;
+
+    fetchingChunker.value = true;
+    fetchFailure.value = null;
+    fetchReceived.value = null;
+    fetchTotal.value = null;
+    unsubscribeFetch = active.onBedrockEvent((event) => {
+        if (event.kind === "download" && event.conversionId === "chunker") {
+            fetchReceived.value = event.received;
+            fetchTotal.value = event.total;
+        }
+    });
+
+    try {
+        const result = await active.fetchChunker();
+        if (result.ok) {
+            await refreshChunkerStatus();
+        } else {
+            fetchFailure.value = result.message;
+        }
+    } catch (error) {
+        fetchFailure.value = error instanceof Error ? error.message : String(error);
+    } finally {
+        fetchingChunker.value = false;
+        unsubscribeFetch?.();
+        unsubscribeFetch = null;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
 /* Converting                                                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -172,6 +287,7 @@ async function cancel(): Promise<void> {
 
 onBeforeUnmount(() => {
     unsubscribe?.();
+    unsubscribeFetch?.();
 });
 </script>
 
@@ -227,13 +343,82 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <div class="mb-bedrock-note__actions">
+        <!--
+            Chunker itself missing is a different problem from a conversion failing, and
+            it gets a different control: `bedrock:fetchChunker` was already built as "a
+            separate step from converting, and a separate button" - see its own doc
+            comment - and until this row read `chunkerStatus`, nothing on screen ever
+            called it. Convert stays hidden while Chunker is missing rather than being
+            offered and failing, because a button that is certain to fail is worse than
+            one that is not shown.
+        -->
+        <template v-if="chunkerMissing">
+            <v-alert
+                v-if="fetchFailure"
+                type="error"
+                density="compact"
+                variant="tonal"
+                class="mt-2"
+                role="alert"
+            >
+                {{ fetchFailure }}
+            </v-alert>
+
+            <div class="mb-bedrock-note__progress" v-if="fetchingChunker">
+                <v-progress-linear
+                    :model-value="fetchPercent ?? 0"
+                    :indeterminate="fetchPercent === null"
+                    color="primary"
+                />
+                <div class="mb-bedrock-note__progress-row">
+                    <span>{{ t("bedrock.fetchingChunker", "Downloading Chunker…") }}</span>
+                    <v-chip v-if="fetchPercent !== null" size="x-small" variant="tonal">
+                        {{ Math.round(fetchPercent) }}%
+                    </v-chip>
+                </div>
+            </div>
+
+            <template v-else>
+                <p class="mb-bedrock-note__explanation">
+                    {{
+                        t(
+                            "bedrock.chunkerMissing",
+                            { size: chunkerSizeText ?? chunkerSizeUnknownText },
+                            "Chunker is a separate open-source converter this app does not bundle. Converting this world means fetching it once ({size}), verified against a digest committed in this app.",
+                        )
+                    }}
+                </p>
+                <div class="mb-bedrock-note__actions">
+                    <v-btn
+                        :prepend-icon="mdiDownload"
+                        color="primary"
+                        variant="tonal"
+                        size="small"
+                        @click="fetchChunkerJar"
+                    >
+                        {{
+                            chunkerSizeText === null
+                                ? t("bedrock.fetchChunker", "Download Chunker")
+                                : t(
+                                      "bedrock.fetchChunkerSized",
+                                      { size: chunkerSizeText },
+                                      "Download Chunker ({size})",
+                                  )
+                        }}
+                    </v-btn>
+                </div>
+            </template>
+        </template>
+
+        <div class="mb-bedrock-note__actions" v-else>
             <v-btn
                 v-if="!converting"
                 :prepend-icon="mdiSwapHorizontal"
                 color="primary"
                 variant="flat"
                 size="small"
+                :disabled="chunkerChecking"
+                :title="chunkerChecking ? t('bedrock.checkingChunker', 'Checking whether Chunker is installed…') : undefined"
                 @click="convert"
             >
                 {{ t("bedrock.convert", "Convert with Chunker") }}
@@ -241,6 +426,9 @@ onBeforeUnmount(() => {
             <v-btn v-else variant="text" size="small" @click="cancel">
                 {{ t("bedrock.cancel", "Cancel the conversion") }}
             </v-btn>
+            <span v-if="chunkerChecking" class="mb-bedrock-note__checking" role="status">
+                {{ t("bedrock.checkingChunker", "Checking whether Chunker is installed…") }}
+            </span>
         </div>
     </v-alert>
 </template>
@@ -276,5 +464,14 @@ onBeforeUnmount(() => {
 
 .mb-bedrock-note__actions {
     margin-block-start: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.mb-bedrock-note__checking {
+    font-size: 0.75rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

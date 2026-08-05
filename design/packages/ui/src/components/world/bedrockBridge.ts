@@ -59,9 +59,21 @@ export interface ChunkerLicence {
     readonly note: string;
 }
 
+/** Mirrors `ChunkerRelease` in `main/bedrock/chunker.ts`: what `fetchChunker` would fetch. */
+export interface ChunkerReleaseReadout {
+    readonly version: string;
+    readonly asset: string;
+    readonly url: string;
+    readonly sha256: string;
+    readonly sizeBytes: number | null;
+    readonly digestTrust: "pinned" | "api";
+    /** One sentence naming exactly what was and was not verified. */
+    readonly verificationNote: string;
+}
+
 export interface ChunkerStatus {
     readonly lookup: { readonly found: boolean; readonly version: string | null } & Record<string, unknown>;
-    readonly available: { readonly version: string } & Record<string, unknown>;
+    readonly available: ChunkerReleaseReadout;
     readonly fidelity: FidelityBriefing;
     readonly licence: ChunkerLicence;
 }

@@ -101,6 +101,45 @@ export interface JavaRuntimeBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Downloading a Java runtime, when the app has to                           */
+/* -------------------------------------------------------------------------- */
+
+/** Mirrors `JavaDownloadConsentSummary` in `main/java/ipc.ts`. */
+export interface JavaDownloadConsentReadout {
+    readonly accepted: boolean;
+    readonly acceptedAt: string | null;
+}
+
+/** Mirrors `ProvisionEvent` in `main/java/provision.ts`. */
+export interface JavaProvisionEventReadout {
+    readonly stage: "resolving" | "downloading" | "verifying" | "extracting" | "installing" | "done";
+    readonly message: string;
+    readonly received: number | null;
+    readonly total: number | null;
+}
+
+/** Mirrors `JavaProvisionOutcome` in `main/java/ipc.ts`. Never rejects. */
+export type JavaProvisionReadout =
+    | { readonly ok: true; readonly installation: JavaInstallationReadout; readonly provisioned: boolean }
+    | { readonly ok: false; readonly message: string };
+
+/**
+ * Downloading a JDK the app fetches for itself, in the same asked-once-remembered-forever
+ * shape as the Mojang download consent: `javaDownloadConsent` reports whether it was
+ * already agreed to, `acceptJavaDownloadConsent` records agreement, and
+ * `provisionJavaRuntime` is the one call that actually starts the download - refused by
+ * the main process rather than by this bridge when consent has not been given, so the
+ * refusal is the same whichever surface asks. All optional: a browser tab has nothing to
+ * provision into and the section says so rather than showing a dead button.
+ */
+export interface JavaProvisionBridge {
+    javaDownloadConsent?: () => Promise<JavaDownloadConsentReadout>;
+    acceptJavaDownloadConsent?: () => Promise<JavaDownloadConsentReadout>;
+    provisionJavaRuntime?: () => Promise<JavaProvisionReadout>;
+    onJavaProvisionEvent?: (listener: (event: JavaProvisionEventReadout) => void) => () => void;
+}
+
+/* -------------------------------------------------------------------------- */
 /* How much memory a render may use                                          */
 /* -------------------------------------------------------------------------- */
 
@@ -199,6 +238,7 @@ export interface RenderHistoryBridge {
 
 export type SettingsBridge = StorageDirectoryBridge &
     JavaRuntimeBridge &
+    JavaProvisionBridge &
     RenderHistoryBridge &
     RenderMemoryBridge &
     DownloadConcurrencyBridge;
@@ -226,6 +266,16 @@ export function canWriteStorageDirectory(bridge: SettingsBridge | null): boolean
 /** True when this build can report the Java it found. False in a browser tab. */
 export function canReportJava(bridge: SettingsBridge | null): boolean {
     return isFunction(bridge?.javaRuntime);
+}
+
+/** True when this build can report whether the Java download has been agreed to. */
+export function canReadJavaDownloadConsent(bridge: SettingsBridge | null): boolean {
+    return isFunction(bridge?.javaDownloadConsent);
+}
+
+/** True when this build can download and install a Java runtime for itself. */
+export function canProvisionJava(bridge: SettingsBridge | null): boolean {
+    return isFunction(bridge?.provisionJavaRuntime);
 }
 
 /** True when this build can list the renders already on disk. */

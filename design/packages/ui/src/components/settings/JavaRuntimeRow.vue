@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { VAlert, VBtn, VProgressCircular } from "vuetify/components";
-import { mdiRefresh } from "@mdi/js";
+import { VAlert, VBtn, VProgressCircular, VProgressLinear } from "vuetify/components";
+import { mdiDownload, mdiRefresh } from "@mdi/js";
 import { describeJavaRejections, type JavaSetting } from "./javaSetting.js";
 import { javaUnsupportedCopy } from "./settingsCopy.js";
 
@@ -38,6 +38,54 @@ const installation = computed(() => props.setting.report.value?.installation ?? 
 
 function onRefresh(): void {
     void props.setting.load();
+}
+
+/*
+ * Whether a Temurin download has already been agreed to is asked for as soon as this row
+ * exists at all, not only once it is showing the "missing" state - the same reason
+ * `load()` itself starts eagerly. A row that only checked consent once it had something
+ * to show would flash the full explanation on every visit for the first half-second, even
+ * for somebody who agreed to it last week.
+ */
+if (props.setting.canProvision) void props.setting.loadConsent();
+
+/**
+ * The download's progress as a percentage, or null while it is indeterminate.
+ *
+ * `total` is only known once Adoptium's own response named a size; some builds omit it,
+ * and the bar is indeterminate for exactly as long as that is true rather than pretending
+ * to a precision the server never gave.
+ */
+const provisionPercent = computed(() => {
+    const event = props.setting.provisionEvent.value;
+    if (event === null || event.received === null || event.total === null || event.total <= 0) {
+        return null;
+    }
+    return Math.min(100, (event.received / event.total) * 100);
+});
+
+const provisionStageMessage = computed(
+    () => props.setting.provisionEvent.value?.message ?? t("settings.java.provisioning", "Downloading Java…"),
+);
+
+/**
+ * "Roughly 180 MB" rather than an exact figure quoted from an Adoptium response this row
+ * never fetched: the real size is only known once the download itself has resolved a
+ * release, and asking Adoptium a second time purely to word this sentence would be a
+ * network call this button does not otherwise need. The figure is an honest estimate,
+ * stated as one, and the real total - once known - drives the progress bar above instead.
+ */
+const provisionExplain = computed(() =>
+    t(
+        "settings.java.provisionExplain",
+        "Downloads and installs Eclipse Temurin (roughly 180 MB) from Adoptium's own servers, into " +
+            "this app's own data folder. Nothing is installed system-wide, PATH is not touched, and no " +
+            "administrator rights are needed.",
+    ),
+);
+
+function onDownload(): void {
+    void props.setting.requestProvision();
 }
 </script>
 
@@ -120,6 +168,53 @@ function onRefresh(): void {
                     )
                 }}
             </v-alert>
+
+            <!--
+                The one control that actually does what `settings.java.missingHint` above
+                promises. `canProvision` is false in a build whose preload has not grown
+                the provisioning channels yet, and the row falls back to naming
+                `JAVA_HOME` as the only route rather than showing a button that would
+                throw.
+            -->
+            <template v-if="props.setting.canProvision">
+                <v-alert
+                    v-if="props.setting.provisionFailure.value !== null"
+                    type="error"
+                    variant="tonal"
+                    density="comfortable"
+                    role="alert"
+                    class="mb-java-setting__alert"
+                >
+                    {{ props.setting.provisionFailure.value }}
+                </v-alert>
+
+                <div v-if="props.setting.provisioning.value" class="mb-java-setting__provisioning">
+                    <v-progress-linear
+                        :model-value="provisionPercent ?? 0"
+                        :indeterminate="provisionPercent === null"
+                        color="primary"
+                        rounded
+                        aria-hidden="true"
+                    />
+                    <p class="mb-java-setting__note" role="status" aria-live="polite">
+                        {{ provisionStageMessage }}
+                    </p>
+                </div>
+
+                <template v-else>
+                    <p class="mb-java-setting__note">{{ provisionExplain }}</p>
+                    <div class="mb-java-setting__actions">
+                        <v-btn
+                            :prepend-icon="mdiDownload"
+                            color="primary"
+                            variant="tonal"
+                            @click="onDownload"
+                        >
+                            {{ t("settings.java.download", "Download Java") }}
+                        </v-btn>
+                    </div>
+                </template>
+            </template>
         </template>
 
         <template v-else-if="props.setting.state.value === 'failed'">
@@ -219,6 +314,12 @@ function onRefresh(): void {
     line-height: 1.6;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
+}
+
+.mb-java-setting__provisioning {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
 }
 
 .mb-java-setting__actions {

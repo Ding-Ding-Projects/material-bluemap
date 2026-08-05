@@ -1701,6 +1701,63 @@ export const WORLD_VOICED = {
             "{name} 唔係 Java 世界，係 Bedrock 版，所以一定要先轉換，冇捷徑，淨係得低便嗰個掣。",
         ],
     },
+    /*
+     * Chunker missing, and being fetched. A separate button from Convert on purpose - see
+     * `bedrock:fetchChunker`'s own doc comment - and this is the explanation shown before
+     * that button does anything: what it is, that this app does not bundle it, and that the
+     * download is verified against a digest committed in this app rather than merely
+     * trusted. `{size}` is the one interpolated fact; the digest-verification sentence is a
+     * fact every level has to keep saying, pinned in `WORLD_FACTS` below.
+     */
+    "bedrock.chunkerMissing": {
+        en: [
+            "Chunker is a separate open-source converter this app does not bundle. Converting this world means fetching it once ({size}), verified against a digest committed in this app.",
+            "Chunker is a separate open-source converter this app does not bundle. Converting this world means fetching it once ({size}), verified against a digest committed in this app.",
+            "Chunker is a separate open-source converter, and this app does not carry a copy of it. Converting this world means fetching it once ({size}), verified against a digest committed in this app before it is trusted.",
+            "Chunker is a separate open-source project this app never bundles. Converting this world means fetching it once ({size}), and what arrives is checked against a digest committed right here in this app, not merely assumed to be intact.",
+            "Chunker lives on its own as a separate open-source project - this app carries none of it in advance. Converting this world means fetching it once ({size}), and every byte that arrives is checked against a digest committed right here in this app before anything trusts it.",
+        ],
+        yue: [
+            "Chunker 係一個獨立嘅開源轉換工具，呢個程式冇帶住佢。轉換呢個世界要落載一次（{size}），並且會同呢個程式入面寫死嘅 digest 對過先。",
+            "Chunker 係一個獨立嘅開源轉換工具，呢個程式冇帶住佢。轉換呢個世界要落載一次（{size}），並且會同呢個程式入面寫死嘅 digest 對過先。",
+            "Chunker 係一個獨立嘅開源轉換工具，呢個程式根本冇帶佢喺身。轉換呢個世界要落載一次（{size}），落到嚟仲要同呢個程式入面寫死嘅 digest 對過先信得過。",
+            "Chunker 係一個完全獨立嘅開源專案，呢個程式從來冇夾埋佢。轉換呢個世界要落載一次（{size}），落到嚟嗰份會同寫死喺呢個程式入面嘅 digest 對過，唔係求其信咗佢就算。",
+            "Chunker 自己一個開源專案咁企喺度，呢個程式一啲都冇預先帶埋。轉換呢個世界要落載一次（{size}），落到嚟嘅每一個位元組都會同寫死喺呢個程式入面嘅 digest 對過先，冇對過就唔會信。",
+        ],
+    },
+    "bedrock.fetchingChunker": {
+        en: [
+            "Downloading Chunker…",
+            "Downloading Chunker…",
+            "Downloading Chunker now…",
+            "Downloading Chunker, checking it against its digest as it arrives…",
+            "Downloading Chunker, verifying every byte against its digest the moment it lands…",
+        ],
+        yue: [
+            "落載緊 Chunker……",
+            "落載緊 Chunker……",
+            "而家落載緊 Chunker……",
+            "落載緊 Chunker，一路收一路同 digest 對……",
+            "落載緊 Chunker，每一個位元組一到就同 digest 對過先……",
+        ],
+    },
+    "bedrock.checkingChunker": {
+        en: [
+            "Checking whether Chunker is installed…",
+            "Checking whether Chunker is installed…",
+            "Checking whether Chunker is already installed…",
+            "Checking whether a verified copy of Chunker is already on this machine…",
+            "Checking whether a verified copy of Chunker is already sitting on this machine, before offering to fetch another…",
+        ],
+        yue: [
+            "檢查緊 Chunker 裝咗未……",
+            "檢查緊 Chunker 裝咗未……",
+            "檢查緊 Chunker 裝咗未先……",
+            "檢查緊呢部機有冇一份已核對嘅 Chunker……",
+            "檢查緊呢部機係咪已經有一份核對過嘅 Chunker，先至決定使唔使再落多次……",
+        ],
+    },
+
     /* ---------------------------------------------------------------- */
     /* ContainerOffers.vue                                                */
     /* ---------------------------------------------------------------- */
@@ -1991,6 +2048,15 @@ export const WORLD_FIXED = {
         en: "Verifying the converted world...",
         yue: "驗緊轉換咗嘅世界……",
     },
+    /*
+     * `{size}` arrives already formatted as `~30 MB` - see `chunkerSizeText` in
+     * `BedrockConversionNote.vue` - so this stays a plain button label rather than a
+     * voiced sentence with its own funny levels.
+     */
+    "bedrock.fetchChunkerSized": { en: "Download Chunker ({size})", yue: "落載 Chunker（{size}）" },
+    "bedrock.fetchChunker": { en: "Download Chunker", yue: "落載 Chunker" },
+    /* What `bedrock.chunkerMissing` interpolates when the release's own size was not read. */
+    "bedrock.chunkerSizeUnknown": { en: "an unknown size", yue: "唔知幾大" },
 } as const satisfies Record<string, FixedString>;
 
 /* -------------------------------------------------------------------------- */
@@ -1998,6 +2064,14 @@ export const WORLD_FIXED = {
 /* -------------------------------------------------------------------------- */
 
 export const WORLD_FACTS = {
+    // The digest check is the fact a playful rewrite is most tempted to drop for being
+    // technical; it is also the one reason this button is safe to press at all.
+    "bedrock.chunkerMissing": {
+        en: ["{size}", "digest"],
+        yue: ["{size}", "digest"],
+    },
+    "bedrock.fetchingChunker": { en: ["Chunker"], yue: ["Chunker"] },
+    "bedrock.checkingChunker": { en: ["Chunker"], yue: ["Chunker"] },
     "world.containers.blurb": {
         en: ["left running from an earlier session", "nothing here is stopped on its own"],
         yue: ["上一次session剩低運行緊", "唔會自動停止"],

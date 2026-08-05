@@ -32,6 +32,7 @@ import { DOWNLOADS_FACTS, DOWNLOADS_FIXED, DOWNLOADS_VOICED } from "./downloads.
 import { GITHUB_FACTS, GITHUB_FIXED, GITHUB_VOICED } from "./github.js";
 import { GLOSSARY_FACTS, GLOSSARY_FIXED, GLOSSARY_VOICED } from "./glossary.js";
 import { HISTORY_FACTS, HISTORY_FIXED, HISTORY_VOICED } from "./history.js";
+import { HOME_FACTS, HOME_FIXED, HOME_VOICED } from "./home.js";
 import { HOSTING_FACTS, HOSTING_FIXED, HOSTING_VOICED } from "./hosting.js";
 import { MARKERREGEX_FACTS, MARKERREGEX_FIXED, MARKERREGEX_VOICED } from "./markerRegex.js";
 import { MENU_FACTS, MENU_FIXED, MENU_VOICED } from "./menu.js";
@@ -69,6 +70,7 @@ export const SURFACE_VOICED = {
     ...GITHUB_VOICED,
     ...GLOSSARY_VOICED,
     ...HISTORY_VOICED,
+    ...HOME_VOICED,
     ...HOSTING_VOICED,
     ...MARKERREGEX_VOICED,
     ...MENU_VOICED,
@@ -107,6 +109,7 @@ export const SURFACE_FIXED = {
     ...GITHUB_FIXED,
     ...GLOSSARY_FIXED,
     ...HISTORY_FIXED,
+    ...HOME_FIXED,
     ...HOSTING_FIXED,
     ...MARKERREGEX_FIXED,
     ...MENU_FIXED,
@@ -145,6 +148,7 @@ export const SURFACE_FACTS = {
     ...GITHUB_FACTS,
     ...GLOSSARY_FACTS,
     ...HISTORY_FACTS,
+    ...HOME_FACTS,
     ...HOSTING_FACTS,
     ...MARKERREGEX_FACTS,
     ...MENU_FACTS,

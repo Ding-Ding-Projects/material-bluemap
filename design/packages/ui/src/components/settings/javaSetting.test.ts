@@ -189,6 +189,249 @@ describe("a build that can report the runtime", () => {
     });
 });
 
+describe("downloading a Java runtime the app fetches for itself", () => {
+    function provisionBridge(overrides: Partial<SettingsBridge> = {}): SettingsBridge {
+        return {
+            javaRuntime: () => Promise.resolve(NOTHING_SUITABLE),
+            javaDownloadConsent: () => Promise.resolve({ accepted: false, acceptedAt: null }),
+            acceptJavaDownloadConsent: () =>
+                Promise.resolve({ accepted: true, acceptedAt: "2026-08-05T00:00:00.000Z" }),
+            provisionJavaRuntime: () =>
+                Promise.resolve({
+                    ok: true,
+                    provisioned: true,
+                    installation: {
+                        source: "provisioned",
+                        executable: "/userData/java/temurin-25/bin/java",
+                        home: "/userData/java/temurin-25",
+                        version: { feature: 25, version: "25.0.4+7", runtime: null },
+                    },
+                }),
+            onJavaProvisionEvent: () => () => undefined,
+            ...overrides,
+        };
+    }
+
+    it("cannot provision when the bridge is missing any of the three channels", () => {
+        expect(createJavaSetting({ bridge: null }).canProvision).toBe(false);
+        expect(
+            createJavaSetting({ bridge: { javaRuntime: () => Promise.resolve(FOUND) } }).canProvision,
+        ).toBe(false);
+        expect(
+            createJavaSetting({
+                bridge: {
+                    javaDownloadConsent: () => Promise.resolve({ accepted: false, acceptedAt: null }),
+                },
+            }).canProvision,
+        ).toBe(false);
+    });
+
+    it("can provision once the bridge exposes consent and provisioning together", () => {
+        const setting = createJavaSetting({ bridge: provisionBridge() });
+        expect(setting.canProvision).toBe(true);
+    });
+
+    it("reads not-accepted consent without starting a download", async () => {
+        const setting = createJavaSetting({ bridge: provisionBridge() });
+        await setting.loadConsent();
+
+        expect(setting.consent.value).toEqual({ accepted: false, acceptedAt: null });
+        expect(setting.provisioning.value).toBe(false);
+    });
+
+    it("treats a consent read that threw as not knowing, never as accepted", async () => {
+        const setting = createJavaSetting({
+            bridge: provisionBridge({ javaDownloadConsent: () => Promise.reject(new Error("no ipc")) }),
+        });
+        await setting.loadConsent();
+        expect(setting.consent.value).toBeNull();
+    });
+
+    it("records consent as part of the download click, then provisions and reloads discovery", async () => {
+        let accepted = false;
+        let provisioned = false;
+        const setting = createJavaSetting({
+            bridge: provisionBridge({
+                acceptJavaDownloadConsent: () => {
+                    accepted = true;
+                    return Promise.resolve({ accepted: true, acceptedAt: "2026-08-05T00:00:00.000Z" });
+                },
+                provisionJavaRuntime: () => {
+                    // The consent has to have been recorded before provisioning starts.
+                    expect(accepted).toBe(true);
+                    provisioned = true;
+                    return Promise.resolve({
+                        ok: true,
+                        provisioned: true,
+                        installation: {
+                            source: "provisioned",
+                            executable: "/userData/java/temurin-25/bin/java",
+                            home: "/userData/java/temurin-25",
+                            version: { feature: 25, version: "25.0.4+7", runtime: null },
+                        },
+                    });
+                },
+                // After a successful provision, `requestProvision` reloads discovery.
+                javaRuntime: () => Promise.resolve(FOUND),
+            }),
+        });
+        await setting.loadConsent();
+
+        await setting.requestProvision();
+
+        expect(accepted).toBe(true);
+        expect(provisioned).toBe(true);
+        expect(setting.provisioning.value).toBe(false);
+        expect(setting.provisionFailure.value).toBeNull();
+        // The row moved straight to "found" without a second manual refresh.
+        expect(setting.state.value).toBe("found");
+    });
+
+    it("does not re-record consent on a second download once it was already accepted", async () => {
+        let acceptCalls = 0;
+        const setting = createJavaSetting({
+            bridge: provisionBridge({
+                acceptJavaDownloadConsent: () => {
+                    acceptCalls += 1;
+                    return Promise.resolve({ accepted: true, acceptedAt: "2026-08-05T00:00:00.000Z" });
+                },
+            }),
+        });
+        await setting.loadConsent();
+        setting.consent.value = { accepted: true, acceptedAt: "2026-08-01T00:00:00.000Z" };
+
+        await setting.requestProvision();
+
+        expect(acceptCalls).toBe(0);
+    });
+
+    it("reports a refusal from the main process as provisionFailure, without touching state", async () => {
+        const setting = createJavaSetting({
+            bridge: provisionBridge({
+                provisionJavaRuntime: () =>
+                    Promise.resolve({ ok: false, message: "Downloading a Java runtime has to be agreed to first." }),
+            }),
+        });
+
+        await setting.requestProvision();
+
+        expect(setting.provisionFailure.value).toBe("Downloading a Java runtime has to be agreed to first.");
+        expect(setting.provisioning.value).toBe(false);
+    });
+
+    it("reports a thrown provisioning error rather than swallowing it", async () => {
+        const setting = createJavaSetting({
+            bridge: provisionBridge({
+                provisionJavaRuntime: () => Promise.reject(new Error("digest mismatch")),
+            }),
+        });
+
+        await setting.requestProvision();
+
+        expect(setting.provisionFailure.value).toBe("digest mismatch");
+    });
+
+    it("streams progress events while a download is in flight, and unsubscribes when it ends", async () => {
+        type Listener = (event: { stage: string; message: string; received: number | null; total: number | null }) => void;
+        // A holder object rather than reassigned `let` bindings: both callbacks below run
+        // inside nested closures, and mutating a property sidesteps TypeScript's control-flow
+        // narrowing giving the later optional calls a spuriously narrowed `never` type.
+        const state: { delivered: Listener | null; resolve: (() => void) | null; unsubscribed: boolean } = {
+            delivered: null,
+            resolve: null,
+            unsubscribed: false,
+        };
+
+        const setting = createJavaSetting({
+            bridge: provisionBridge({
+                onJavaProvisionEvent: (listener) => {
+                    state.delivered = listener as Listener;
+                    return () => {
+                        state.unsubscribed = true;
+                    };
+                },
+                provisionJavaRuntime: () =>
+                    new Promise((resolve) => {
+                        state.resolve = () =>
+                            resolve({
+                                ok: true,
+                                provisioned: true,
+                                installation: {
+                                    source: "provisioned",
+                                    executable: "/userData/java/temurin-25/bin/java",
+                                    home: "/userData/java/temurin-25",
+                                    version: { feature: 25, version: "25.0.4+7", runtime: null },
+                                },
+                            });
+                    }),
+                javaRuntime: () => Promise.resolve(FOUND),
+            }),
+        });
+
+        const running = setting.requestProvision();
+        await Promise.resolve();
+        expect(setting.provisioning.value).toBe(true);
+        expect(state.delivered).not.toBeNull();
+
+        state.delivered?.({ stage: "downloading", message: "Downloading Temurin 25", received: 10, total: 100 });
+        expect(setting.provisionEvent.value?.message).toBe("Downloading Temurin 25");
+        expect(state.unsubscribed).toBe(false);
+
+        state.resolve?.();
+        await running;
+
+        expect(state.unsubscribed).toBe(true);
+        expect(setting.provisioning.value).toBe(false);
+    });
+
+    it("refuses a second concurrent download while one is already running", async () => {
+        const state: { calls: number; resolve: (() => void) | null } = { calls: 0, resolve: null };
+        const setting = createJavaSetting({
+            bridge: provisionBridge({
+                provisionJavaRuntime: () => {
+                    state.calls += 1;
+                    return new Promise((resolve) => {
+                        state.resolve = () =>
+                            resolve({
+                                ok: true,
+                                provisioned: true,
+                                installation: {
+                                    source: "provisioned",
+                                    executable: "/userData/java/temurin-25/bin/java",
+                                    home: "/userData/java/temurin-25",
+                                    version: { feature: 25, version: "25.0.4+7", runtime: null },
+                                },
+                            });
+                    });
+                },
+                javaRuntime: () => Promise.resolve(FOUND),
+            }),
+        });
+        // Pre-accepted, so `requestProvision` reaches `provision()` on its very first
+        // microtask hop rather than pausing at `acceptJavaDownloadConsent()` first.
+        setting.consent.value = { accepted: true, acceptedAt: "2026-08-01T00:00:00.000Z" };
+
+        const first = setting.requestProvision();
+        const second = setting.requestProvision();
+        // Let the first call's async work reach `provision()` and capture the resolver
+        // before this test tries to call it.
+        await Promise.resolve();
+        await Promise.resolve();
+        state.resolve?.();
+        await Promise.all([first, second]);
+
+        expect(state.calls).toBe(1);
+    });
+
+    it("says it cannot download when the bridge has no provisioning channel at all", async () => {
+        const setting = createJavaSetting({ bridge: { javaRuntime: () => Promise.resolve(NOTHING_SUITABLE) } });
+
+        await setting.requestProvision();
+
+        expect(setting.provisionFailure.value).toBe("This build cannot download a Java runtime from here.");
+    });
+});
+
 describe("describing a discovery", () => {
     it("has nothing to say about a report that does not exist", () => {
         expect(describeJavaRejections(null)).toEqual([]);
