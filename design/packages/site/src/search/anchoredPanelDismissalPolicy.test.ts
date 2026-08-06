@@ -111,6 +111,10 @@ function anchoredPanelLocalNames(source: string): string[] {
     const names = new Set<string>(["AnchoredPanel"]);
     const importClause = /import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*["'][^"']*["']/g;
     for (const [, specifiers] of source.matchAll(importClause)) {
+        // A capture group is typed as possibly undefined even when, as here, the pattern
+        // cannot match without it. Skip rather than assert, so a future edit to the pattern
+        // that genuinely makes the group optional degrades quietly instead of throwing.
+        if (specifiers === undefined) continue;
         for (const specifier of specifiers.split(",")) {
             const alias = /^\s*AnchoredPanel(?:\s+as\s+([A-Za-z_$][\w$]*))?\s*$/.exec(specifier);
             if (alias) names.add(alias[1] ?? "AnchoredPanel");
