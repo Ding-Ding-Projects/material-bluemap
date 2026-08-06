@@ -517,6 +517,22 @@ async function planTemplate(
     };
 }
 
+/**
+ * True when a file already sitting at the marker path is one this application wrote.
+ *
+ * Deliberately checks only `tool`, not the version: a marker from a newer build is still
+ * ours and may be rewritten, whereas anything that does not parse, or that parses without
+ * our tool name, belongs to somebody else and is left alone.
+ */
+function isOurMarker(contentBase64: string): boolean {
+    try {
+        const parsed = JSON.parse(textOf(contentBase64)) as Partial<CiBootstrapMarker>;
+        return parsed.tool === CI_BOOTSTRAP_MARKER_TOOL;
+    } catch {
+        return false;
+    }
+}
+
 /** True only when the marker names this exact path as one this application placed. */
 async function isAppOwnedFile(
     transport: CiTransport,
@@ -551,6 +567,20 @@ async function writeMarker(
         preparedAt,
     };
     const existing = await transport.readFile(owner, repo, CI_BOOTSTRAP_MARKER_FILE);
+    // The two workflow templates are protected from clobbering a foreign file by
+    // isAppOwnedFile above; the marker itself was not, which left a real hole in this
+    // module's own promise that a file it did not write is refused rather than
+    // overwritten. The filename makes a collision unlikely, but "unlikely" is not the
+    // guarantee this module states, and silently replacing somebody's file is the one
+    // outcome no amount of unlikeliness excuses.
+    if (existing !== null && !isOurMarker(existing.contentBase64)) {
+        throw new Error(
+            `${CI_BOOTSTRAP_MARKER_FILE} already exists on ${owner}/${repo} and was not written by ` +
+                "this application, so it has been left exactly as it is and nothing else on the " +
+                "repository was changed. Move or rename that file if you want this repository " +
+                "prepared for CI rendering.",
+        );
+    }
     await transport.writeFile(
         owner,
         repo,

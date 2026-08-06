@@ -312,6 +312,35 @@ describe("a user-authored file sitting at the same path", () => {
         expect(repo.files.get(WORKFLOW_A.path)?.content).toBe("# somebody else's file, not from this application\n");
     });
 
+    it("refuses to overwrite a foreign file sitting at the marker's own path", async () => {
+        // The workflow templates were always protected by the ownership check; the marker
+        // path itself was not, so a file somebody else happened to put there was read for
+        // its sha and then replaced. The filename makes that unlikely, but this module
+        // promises that a file it did not write is refused, and unlikely is not refused.
+        const foreign = '{"tool":"something-else","note":"not ours"}\n';
+        const repo = new FakeRepo({ files: { [CI_BOOTSTRAP_MARKER_FILE]: foreign } });
+
+        const result = await run(repo, { templates: [WORKFLOW_A] });
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.message).toContain(CI_BOOTSTRAP_MARKER_FILE);
+        // The foreign file is exactly as it was.
+        expect(repo.files.get(CI_BOOTSTRAP_MARKER_FILE)?.content).toBe(foreign);
+    });
+
+    it("still rewrites a marker this application wrote, including one from a newer build", async () => {
+        // The refusal must key on authorship, not on version, or an older build would
+        // refuse to touch a repository a newer one prepared and nothing could ever update.
+        const ours = `{"tool":"material-bluemap","version":9999,"files":[],"preparedAt":"x"}\n`;
+        const repo = new FakeRepo({ files: { [CI_BOOTSTRAP_MARKER_FILE]: ours } });
+
+        const result = await run(repo, { templates: [WORKFLOW_A] });
+
+        expect(result.ok).toBe(true);
+        expect(repo.files.get(CI_BOOTSTRAP_MARKER_FILE)?.content).not.toBe(ours);
+    });
+
     it("refuses the whole run even when only one of several files conflicts", async () => {
         const repo = new FakeRepo({
             files: { [WORKFLOW_A.path]: "# not ours\n" },
