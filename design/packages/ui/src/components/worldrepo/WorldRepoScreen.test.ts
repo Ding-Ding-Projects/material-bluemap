@@ -23,8 +23,11 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
+import { VSlider, VSwitch } from "vuetify/components";
 
 import WorldRepoScreen from "./WorldRepoScreen.vue";
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import { GATE_TRAVEL_END } from "../confirm/superConfirmGate.js";
 import type {
     WorldRepoAdoptionPlan,
     WorldRepoAdoptionSignal,
@@ -379,7 +382,46 @@ describe("worlds this computer is tracking", () => {
         expect(wrapper.find(".mb-config-search").exists()).toBe(true);
     });
 
-    it("puts bulk stop-tracking behind the two-key gate, and it really removes on confirm", async () => {
+    it("keeps one world through one key and a partial slider, then removes it only at full travel", async () => {
+        const fake = fakeWorldRepo();
+        const wrapper = mountScreen(fake.bridge);
+        await flushPromises();
+
+        await wrapper.find('[data-test="record-stop"]').trigger("click");
+        await flushPromises();
+
+        const gate = wrapper
+            .findAllComponents(ConfigSuperConfirm)
+            .find((candidate) => candidate.props("title") === "Stop tracking this world");
+        expect(gate?.exists()).toBe(true);
+        expect(gate?.props("action")).toContain("world branch of octocat/andyville-world");
+        expect(gate?.props("affected")).toEqual(["octocat/andyville-world (world)"]);
+
+        const switches = gate?.findAllComponents(VSwitch) ?? [];
+        const slider = gate?.findComponent(VSlider);
+
+        slider?.vm.$emit("update:modelValue", GATE_TRAVEL_END);
+        await flushPromises();
+        expect(fake.removeCalls).toHaveLength(0);
+
+        await switches[0]?.setValue(true);
+        slider?.vm.$emit("update:modelValue", GATE_TRAVEL_END);
+        await flushPromises();
+        expect(fake.removeCalls).toHaveLength(0);
+
+        await switches[1]?.setValue(true);
+        slider?.vm.$emit("update:modelValue", GATE_TRAVEL_END - 1);
+        await flushPromises();
+        expect(fake.removeCalls).toHaveLength(0);
+
+        slider?.vm.$emit("update:modelValue", GATE_TRAVEL_END);
+        await flushPromises();
+        expect(fake.removeCalls).toEqual([
+            { worldPath: RECORD.worldPath, owner: RECORD.owner, repo: RECORD.repo, branch: RECORD.branch },
+        ]);
+    });
+
+    it("puts bulk stop-tracking behind both keys and the full slider", async () => {
         const fake = fakeWorldRepo();
         const wrapper = mountScreen(fake.bridge);
         await flushPromises();
@@ -388,14 +430,70 @@ describe("worlds this computer is tracking", () => {
         await wrapper.find('[data-test="record"] input[type="checkbox"]').setValue(true);
         await flushPromises();
 
-        const gate = wrapper.find('[data-test="bulk-stop"]').exists()
-            ? wrapper.findComponent({ name: "ConfigSuperConfirm" })
-            : null;
-        expect(gate?.exists()).toBe(true);
-        expect(fake.removeCalls).toHaveLength(0);
-        gate?.vm.$emit("confirm");
+        await wrapper.find('[data-test="bulk-stop"]').trigger("click");
         await flushPromises();
-        expect(fake.removeCalls).toEqual([{ worldPath: RECORD.worldPath, owner: RECORD.owner, repo: RECORD.repo, branch: RECORD.branch }]);
+
+        const gate = wrapper
+            .findAllComponents(ConfigSuperConfirm)
+            .find((candidate) => candidate.props("title") === "Stop tracking these worlds");
+        expect(gate?.exists()).toBe(true);
+        expect(gate?.props("action")).toContain("deleted for 1 world(s)");
+        expect(gate?.props("affected")).toEqual(["octocat/andyville-world (world)"]);
+        expect(fake.removeCalls).toHaveLength(0);
+
+        const switches = gate?.findAllComponents(VSwitch) ?? [];
+        const slider = gate?.findComponent(VSlider);
+        await switches[0]?.setValue(true);
+        slider?.vm.$emit("update:modelValue", GATE_TRAVEL_END);
+        await flushPromises();
+        expect(fake.removeCalls).toHaveLength(0);
+
+        await switches[1]?.setValue(true);
+        slider?.vm.$emit("update:modelValue", GATE_TRAVEL_END);
+        await flushPromises();
+        expect(fake.removeCalls).toEqual([
+            { worldPath: RECORD.worldPath, owner: RECORD.owner, repo: RECORD.repo, branch: RECORD.branch },
+        ]);
+    });
+
+    it("keeps the tracked world and shows the host's exact failure when branch deletion is refused", async () => {
+        const fake = fakeWorldRepo({
+            remove: (target) => {
+                fake.removeCalls.push(target);
+                return Promise.resolve({
+                    ok: false,
+                    failure: {
+                        code: "not-ours",
+                        message: "The world branch no longer carries this application's marker, so it was not deleted.",
+                        detail: null,
+                        needsGhSignIn: false,
+                    },
+                });
+            },
+        });
+        const wrapper = mountScreen(fake.bridge);
+        await flushPromises();
+
+        await wrapper.find('[data-test="record-stop"]').trigger("click");
+        await flushPromises();
+        const gate = wrapper
+            .findAllComponents(ConfigSuperConfirm)
+            .find((candidate) => candidate.props("title") === "Stop tracking this world");
+        const switches = gate?.findAllComponents(VSwitch) ?? [];
+        const slider = gate?.findComponent(VSlider);
+
+        await switches[0]?.setValue(true);
+        await switches[1]?.setValue(true);
+        slider?.vm.$emit("update:modelValue", GATE_TRAVEL_END);
+        await flushPromises();
+
+        expect(fake.removeCalls).toEqual([
+            { worldPath: RECORD.worldPath, owner: RECORD.owner, repo: RECORD.repo, branch: RECORD.branch },
+        ]);
+        expect(wrapper.find('[data-test="record"]').exists()).toBe(true);
+        expect(wrapper.find('[data-test="remove-failure"]').text()).toContain(
+            "The world branch no longer carries this application's marker, so it was not deleted.",
+        );
     });
 });
 

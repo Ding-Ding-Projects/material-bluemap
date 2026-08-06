@@ -15,3 +15,11 @@ The two keys, slider, progress state, completion state, and Emergency exit contr
 ## Verification
 
 Test each incomplete state, successful completion, cancellation, Escape/back, reduced motion, keyboard and screen-reader paths, localized strings, and the real destructive operation. Document the action protected and the evidence gathered.
+
+The world-repository screen uses the shared anchored gate for both one-row and bulk stop-tracking.
+Its action copy names every repository and branch, states that local world folders and unrelated
+repository content remain untouched, and reports a refused deletion without removing the tracked
+row. `WorldRepoScreen.test.ts` drives the rendered switches and slider through untouched, one-key,
+partial-travel, full-travel and failure paths; `superConfirm.test.ts` supplies the shared Escape,
+Emergency exit, focus-return, reduced-motion, keyboard, assistive-label and localization proof for
+the same `ConfigSuperConfirm` component.

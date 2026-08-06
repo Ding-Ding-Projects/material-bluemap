@@ -106,6 +106,7 @@ const DESTRUCTIVE_CALLS: readonly { readonly label: string; readonly pattern: Re
     { label: "closes tabs in bulk", pattern: /(?<![A-Za-z0-9_$])applyClosePlan\s*\(/g },
     { label: "stops a render that is running", pattern: /\brun\.cancel\s*\(/g },
     { label: "aborts a download that is running", pattern: /(?<![A-Za-z0-9_$])cancelDownload\s*\(/g },
+    { label: "deletes a tracked world's repository branch", pattern: /\bwr\.remove\s*\(/g },
     { label: "empties web storage outright", pattern: /(?:local|session)Storage\.clear\s*\(/g },
 ];
 
@@ -622,6 +623,21 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "Tiles already drawn are kept deliberately, and the interrupted-render offer " +
             "re-runs against them so a stopped render costs the remaining work only.",
     },
+    "components/worldrepo/WorldRepoScreen.vue": {
+        count: 5,
+        destroys:
+            "one or more world-repository branches this application created, which stops " +
+            "tracking those worlds from this computer while leaving every world folder untouched",
+        standing: "gated",
+        gatedIn: "components/worldrepo/WorldRepoScreen.vue",
+        note:
+            "The single-row and bulk paths each render the shared anchored ConfigSuperConfirm. " +
+            "Both name the exact repository and branch, keep Emergency exit and Escape available, " +
+            "and call removeOne/removeChosen only from the gate's confirm event after both keys and " +
+            "the full-range slider authorize it. The detector deliberately inventories the two " +
+            "destructive handler declarations and the inline single-row call, then separately " +
+            "watches both real wr.remove calls through the world-repository primitive.",
+    },
     "stores/profiles.ts": {
         count: 1,
         destroys: "a saved map or server entry, from this session and from the next",
@@ -746,6 +762,7 @@ describe("the detector, on cases it has to get right", () => {
             "state.signOut();",
             "localStorage.clear();",
             "void run.cancel();",
+            "await wr.remove(target);",
             "const next = applyClosePlan(strip, plan);",
         ];
 
