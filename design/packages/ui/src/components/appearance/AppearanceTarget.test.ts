@@ -443,6 +443,41 @@ describe("the keyboard path", () => {
         expect(targetElement().getAttribute("aria-keyshortcuts")).toBe("Shift+F10 Ctrl+Shift+F10");
     });
 
+    /**
+     * Regression for a defect in the dismissal fix itself: dropping `:activator` in favour of
+     * `:target` (see the component's own `menuId` comment) meant the wrapper had to wire every
+     * ARIA attribute Vuetify's `useActivator` used to supply onto `root` by hand -
+     * `aria-haspopup`, `aria-expanded` and `aria-controls` were carried over, but `aria-owns`
+     * was not. Both popups render through a `<Teleport>`, so their content is never a DOM
+     * descendant of `root`; `aria-owns` is the attribute that tells assistive technology
+     * walking the tree by DOM containment that `root` still owns that teleported content, and
+     * losing it silently degrades that walk even though `aria-controls` still looks correct.
+     */
+    it("also owns the open popup, not just controls it, so a teleported popup is not orphaned", async () => {
+        mountTarget();
+        expect(targetElement().getAttribute("aria-owns")).toBeNull();
+
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+        expect(targetElement().getAttribute("aria-owns")).toBe(
+            targetElement().getAttribute("aria-controls"),
+        );
+        expect(targetElement().getAttribute("aria-owns")).not.toBeNull();
+
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        await settle();
+
+        targetElement().dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }),
+        );
+        await settle();
+        expect(targetElement().getAttribute("aria-owns")).toBe(
+            targetElement().getAttribute("aria-controls"),
+        );
+        expect(targetElement().getAttribute("aria-owns")).not.toBeNull();
+    });
+
     it("reaches the editor from a keystroke that arrived at a control inside the element", async () => {
         // The event bubbles from whatever the host put in the slot, so a focused button inside
         // the target still opens its editor. Listening only on the wrapper's own focus would

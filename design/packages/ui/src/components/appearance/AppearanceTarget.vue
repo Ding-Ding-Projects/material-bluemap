@@ -145,21 +145,26 @@ function focusIntoPopup(edge: "first" | "last"): void {
 const contextTarget = ref<[number, number] | HTMLElement | undefined>(undefined);
 
 /**
- * Stable ids for the two popups, so the wrapper can advertise `aria-controls` itself.
+ * Stable ids for the two popups, so the wrapper can advertise `aria-controls`/`aria-owns` itself.
  *
  * These exist because of what they are *not* used for: neither `<v-menu>` below takes an
  * `:activator`. Vuetify's own `useActivator` composable would happily write
- * `aria-haspopup`/`aria-controls` onto whatever `:activator` points at - but it would also
- * register that same element in the overlay's outside-click `include` list (see
- * `VOverlay.js`'s `include: () => [activatorEl.value]`), so a click anywhere inside it stops
- * counting as "outside". `root` here is the *entire* wrapped surface - for `id="app.tabBar"`
- * that is the whole tab bar and every page under it - so that inclusion is exactly how "right
- * click menu not closing when clicking off the menu" was reported: the click that was
- * supposed to dismiss the menu landed inside `root` and the directive waved it through.
+ * `aria-haspopup`/`aria-expanded`/`aria-controls`/`aria-owns` onto whatever `:activator` points
+ * at - but it would also register that same element in the overlay's outside-click `include`
+ * list (see `VOverlay.js`'s `include: () => [activatorEl.value]`), so a click anywhere inside
+ * it stops counting as "outside". `root` here is the *entire* wrapped surface - for
+ * `id="app.tabBar"` that is the whole tab bar and every page under it - so that inclusion is
+ * exactly how "right click menu not closing when clicking off the menu" was reported: the
+ * click that was supposed to dismiss the menu landed inside `root` and the directive waved it
+ * through.
  *
  * `:target` positions an overlay without any of that side effect, so both menus below use
- * `:target` only and the wrapper wires the accessibility attributes onto `root` by hand
- * instead of trusting `:activator` to do it as a side effect.
+ * `:target` only and the wrapper wires all four accessibility attributes onto `root` by hand
+ * instead of trusting `:activator` to do it as a side effect. `aria-owns` matters here as much
+ * as `aria-controls` does: both popups render through a `<Teleport>`, so their content is not a
+ * DOM descendant of `root`, and `aria-owns` is what tells assistive technology that walks the
+ * accessibility tree by DOM containment - rather than by `aria-controls` alone - that `root`
+ * still owns them.
  */
 const menuId = useId();
 const editorId = useId();
@@ -368,6 +373,7 @@ function onKeydown(event: KeyboardEvent): void {
         :aria-haspopup="haspopup"
         :aria-expanded="menuOpen || editorOpen ? 'true' : 'false'"
         :aria-controls="menuOpen ? menuId : editorOpen ? editorId : undefined"
+        :aria-owns="menuOpen ? menuId : editorOpen ? editorId : undefined"
         @contextmenu="onContextMenu"
         @keydown="onKeydown"
     >
@@ -465,7 +471,7 @@ function onKeydown(event: KeyboardEvent): void {
 }
 
 /*
- * `root` carries `aria-haspopup`/`aria-expanded`/`aria-controls` by hand (see the script's
+ * `root` carries `aria-haspopup`/`aria-expanded`/`aria-controls`/`aria-owns` by hand (see the
  * `menuId`/`editorId` comment for why it is hand-wired rather than left to Vuetify's
  * `:activator`), which is correct ARIA - a screen reader should be told this element owns a
  * popup - and it is also exactly what trips Vuetify's own normalize stylesheet:
