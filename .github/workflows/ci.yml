@@ -206,7 +206,17 @@ jobs:
       # signature - zero failed files, zero failed tests, that one RPC error -
       # never on an actual failing test. `pnpm test` (plain `vitest run`) stays
       # the local/dev command.
+      #
+      # Same heap story as the typecheck step above, and found the same way: with
+      # typecheck fixed, the very next run died here instead with "Ineffective
+      # mark-compacts near heap limit". The suite is over eight thousand tests across
+      # nearly six hundred files; vitest's own config already caps the worker pool at
+      # two forks precisely so this machine is not asked to hold more at once. Raising
+      # the ceiling here lifts the main process and the forks it spawns together,
+      # because a child inherits NODE_OPTIONS.
       - run: pnpm test:ci
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
 
   package:
     name: Windows installer
