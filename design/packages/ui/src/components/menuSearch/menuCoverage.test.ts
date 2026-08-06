@@ -261,6 +261,12 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
             "adoption section - four AppearanceTarget ids in one file.",
         status: "has-search",
     },
+    {
+        file: "world/SshWorldSourcePanel.vue",
+        builtVia: "AppearanceTarget",
+        menu: "Context menu of the guided SSH world-source panel (Edit/Reset appearance).",
+        status: "has-search",
+    },
 
     /* ---------------------------------------------------------------------- */
     /* Confirmed to have no context menu of any kind today                    */

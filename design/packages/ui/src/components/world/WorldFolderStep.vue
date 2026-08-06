@@ -15,6 +15,7 @@ import { useConfigHost } from "../config/configHost.js";
 import { ReleaseDownloads, type DownloadBridge } from "../downloads/index.js";
 import BedrockConversionNote from "./BedrockConversionNote.vue";
 import MinecraftWorldList from "./MinecraftWorldList.vue";
+import SshWorldSourcePanel from "./SshWorldSourcePanel.vue";
 import {
     pathForDroppedFile,
     resolveWorldCatalogBridge,
@@ -116,6 +117,12 @@ function useDownloaded(folder: string): void {
  * step's own inspection says otherwise.
  */
 function useConverted(folder: string): void {
+    emit("update:modelValue", folder);
+    emit("inspect", folder);
+}
+
+/** A fetched SSH world rejoins the ordinary local-folder path, including its real inspection. */
+function useSshWorld(folder: string): void {
     emit("update:modelValue", folder);
     emit("inspect", folder);
 }
@@ -352,6 +359,8 @@ function onDrop(event: DragEvent): void {
         </template>
 
         <MinecraftWorldList :model-value="modelValue" :bridge="catalog" @choose="chooseWorld" />
+
+        <SshWorldSourcePanel @use="useSshWorld" />
 
         <div class="mb-world-step__downloads">
             <v-btn
