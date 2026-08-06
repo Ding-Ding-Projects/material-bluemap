@@ -30,6 +30,22 @@
  * `backup.restoreHandoff` is *not* here. It belongs to `chrome.ts`, because it is what the
  * shell says after it has moved the reader to the Downloads surface, not what this screen
  * says.
+ *
+ * ## `backup.repo.*` and `backup.createRepo.*`: choosing a repository, or making one
+ *
+ * `backup.repo.none` and `backup.repo.noMatch` are two different empty states and read
+ * differently on purpose: the first is the account itself having nothing yet, the second
+ * is the account having plenty and this search finding none of it. `backup.repo.loadedSummary`
+ * and `backup.repo.searchSummary` are the honest-pagination pair - `listWritableRepositories`
+ * in the main process hands over up to 300 repositories, most recently active first, and
+ * "up to 300" survives every level so a bounded page is never presented as the whole account.
+ *
+ * `backup.createRepo.visibility.publicNote` and `.privateNote` state the real trade-off at
+ * this call site: PUBLIC means anybody can download whatever is backed up, and PRIVATE draws
+ * down the repository-count limit of the plan it is created under. That is *not* the same
+ * trade-off `cirender.caveats` states for the CI-render screen - GitHub Actions minutes are a
+ * render-screen fact, because that screen runs a workflow and this one never does. Do not
+ * import that sentence here; it would be a figure this surface has no call site for.
  */
 
 import type { FixedString, VoicedString } from "../../components/setup/setupStrings.js";
@@ -359,6 +375,300 @@ export const BACKUP_VOICED = {
     },
 
     /* ---------------------------------------------------------------- */
+    /* Searching the repositories already loaded, and the two empty     */
+    /* states that must never read the same                             */
+    /* ---------------------------------------------------------------- */
+
+    /*
+     * The honest-pagination pair. `listWritableRepositories` in the main process hands
+     * over up to 300 repositories, most recently active first, and nothing past that is
+     * loaded here at all - so both of these say exactly what was loaded rather than
+     * presenting a bounded page as though it were the whole account. Every level keeps
+     * the "up to 300" clause and the counts; a level that rounds "300 of possibly more"
+     * up to "everything" would be lying about how complete this list is.
+     */
+    "backup.repo.loadedSummary": {
+        en: [
+            "{total} repositories loaded (most recently active first, up to 300).",
+            "{total} repositories loaded (most recently active first, up to 300).",
+            "{total} repositories loaded so far (most recently active first, up to 300).",
+            "{total} repositories loaded and counted (most recently active first, up to 300). That is what is here to search, not necessarily every repository the account owns.",
+            "{total} repositories loaded and counted (most recently active first, up to 300), and that cap is real. That is what is here to search, not a promise that it is everything the account owns.",
+        ],
+        yue: [
+            "已經讀咗 {total} 個儲存庫（跟最近有活動排先，最多 300 個）。",
+            "已經讀咗 {total} 個儲存庫（跟最近有活動排先，最多 300 個）。",
+            "而家已經讀咗 {total} 個儲存庫（跟最近有活動排先，最多 300 個）。",
+            "已經讀咗同數埋 {total} 個儲存庫（跟最近有活動排先，最多 300 個）。呢度就係搵嘢嘅範圍，唔一定係個帳戶擁有嘅全部。",
+            "已經讀咗同數埋 {total} 個儲存庫（跟最近有活動排先，最多 300 個），呢個上限係真㗎。呢度就係搵嘢嘅範圍，唔係話呢個帳戶淨係得咁多。",
+        ],
+    },
+    "backup.repo.searchSummary": {
+        en: [
+            "Showing {shown} of {total} loaded repositories (most recently active first, up to 300). Type its owner and name below if yours is not among them.",
+            "Showing {shown} of {total} loaded repositories (most recently active first, up to 300). Type its owner and name below if yours is not among them.",
+            "Showing {shown} of {total} loaded repositories so far (most recently active first, up to 300). Type its owner and name below if yours is not among them.",
+            "Showing {shown} of {total} loaded repositories (most recently active first, up to 300) - a filtered view, never the whole account. Type its owner and name below if yours is not among them.",
+            "Showing {shown} of {total} loaded repositories (most recently active first, up to 300) - a filtered view, and nothing here claims to be the whole account. Type its owner and name below if yours is not among them, and skip the search entirely.",
+        ],
+        yue: [
+            "而家顯示緊 {total} 個入面嘅 {shown} 個已讀儲存庫（跟最近有活動排先，最多 300 個）。如果搵唔到你嗰個，喺下面打佢嘅擁有者同名。",
+            "而家顯示緊 {total} 個入面嘅 {shown} 個已讀儲存庫（跟最近有活動排先，最多 300 個）。如果搵唔到你嗰個，喺下面打佢嘅擁有者同名。",
+            "而家顯示緊 {total} 個已讀儲存庫入面嘅 {shown} 個（跟最近有活動排先，最多 300 個）。如果搵唔到你嗰個，喺下面打佢嘅擁有者同名。",
+            "顯示緊 {total} 個已讀儲存庫入面嘅 {shown} 個（跟最近有活動排先，最多 300 個）－呢個係篩選過嘅畫面，唔係成個帳戶。搵唔到你嗰個？喺下面打佢嘅擁有者同名。",
+            "顯示緊 {total} 個已讀儲存庫入面嘅 {shown} 個（跟最近有活動排先，最多 300 個）－呢個淨係篩選過嘅畫面，冇話呢度就係成個帳戶。搵唔到你嗰個？喺下面打佢嘅擁有者同名，搜尋都唔使搜咁多次。",
+        ],
+    },
+    /*
+     * Two different empty states, on purpose. `repo.none` is the account itself having
+     * nothing yet; `repo.noMatch` is the account having plenty and this search finding
+     * none of it. Reading the same in both places would send somebody hunting for
+     * repositories that were never missing, just filtered out.
+     */
+    "backup.repo.noMatch": {
+        en: [
+            "None of the loaded repositories match that search. Type the owner and name below instead, or create a new repository.",
+            "None of the loaded repositories match that search. Type the owner and name below instead, or create a new repository.",
+            "None of the loaded repositories match that search, not one. Type the owner and name below instead, or create a new repository.",
+            "None of the loaded repositories match that search. Type the owner and name below instead, or just create a new repository from here.",
+            "None of the loaded repositories match that search, not a single one. Type the owner and name below instead, or skip the hunt and create a new repository from here.",
+        ],
+        yue: [
+            "已讀嘅儲存庫入面冇一個符合呢個搜尋。喺下面打返個擁有者同名，或者整一個新儲存庫。",
+            "已讀嘅儲存庫入面冇一個符合呢個搜尋。喺下面打返個擁有者同名，或者整一個新儲存庫。",
+            "已讀嘅儲存庫入面一個都冇符合呢個搜尋。喺下面打返個擁有者同名，或者整一個新儲存庫。",
+            "已讀嘅儲存庫入面冇一個符合呢個搜尋。喺下面打返個擁有者同名，或者直接整一個新儲存庫。",
+            "已讀嘅儲存庫入面一個都冇符合呢個搜尋，一個都冇。喺下面打返個擁有者同名，或者唔搵喇，直接整一個新儲存庫。",
+        ],
+    },
+    "backup.repo.none": {
+        en: [
+            "This account has no repositories to write to yet. Create one below, or type an owner and name to check one directly.",
+            "This account has no repositories to write to yet. Create one below, or type an owner and name to check one directly.",
+            "This account has no repositories to write to yet, not one. Create one below, or type an owner and name to check one directly.",
+            "This account has no repositories to write to yet. Create one below, or skip the wait and type an owner and name to check one directly.",
+            "This account has no repositories to write to yet, none at all. Create one below, or skip the wait entirely and type an owner and name to check one directly.",
+        ],
+        yue: [
+            "呢個帳戶而家仲未有儲存庫可以寫入。喺下面整一個，或者打個擁有者同名直接檢查一個。",
+            "呢個帳戶而家仲未有儲存庫可以寫入。喺下面整一個，或者打個擁有者同名直接檢查一個。",
+            "呢個帳戶而家仲未有儲存庫可以寫入，一間都冇。喺下面整一個，或者打個擁有者同名直接檢查一個。",
+            "呢個帳戶而家仲未有儲存庫可以寫入。喺下面整一個，或者唔使等，直接打個擁有者同名去檢查一個。",
+            "呢個帳戶而家仲未有儲存庫可以寫入，一間都仲未有。喺下面整一個，或者唔使等喇，直接打個擁有者同名去檢查一個。",
+        ],
+    },
+
+    /* ---------------------------------------------------------------- */
+    /* Creating a brand-new repository, beside choosing an existing one */
+    /* ---------------------------------------------------------------- */
+
+    "backup.createRepo.lead": {
+        en: [
+            "Nothing suitable to pick or check? Create a brand-new repository with the owner and name above.",
+            "Nothing suitable to pick or check? Create a brand-new repository with the owner and name above.",
+            "Nothing suitable to pick or check? Create a brand-new repository instead, with the owner and name above.",
+            "Nothing above worth picking or checking? Fill in the owner and name above and create a brand-new repository instead.",
+            "Nothing above worth picking or checking? Fine: fill in the owner and name above and conjure a brand-new repository instead.",
+        ],
+        yue: [
+            "揀嘅同檢查嘅都冇啱嘅？用番上面嘅擁有者同名，整一個全新嘅儲存庫。",
+            "揀嘅同檢查嘅都冇啱嘅？用番上面嘅擁有者同名，整一個全新嘅儲存庫。",
+            "揀嘅同檢查嘅都冇啱用？咁不如用返上面嘅擁有者同名，整一個全新嘅儲存庫。",
+            "上面冇一個啱揀又啱檢查？咁就用返上面嘅擁有者同名，整一個全新嘅儲存庫啦。",
+            "上面冇一個啱揀又啱檢查？好啦，用返上面嘅擁有者同名，變一個全新嘅儲存庫出嚟。",
+        ],
+    },
+    /*
+     * Shown instead of the whole create-repository card in a build that cannot make one.
+     * Names the alternative, same as `backup.unsupported` above does for the screen at
+     * large, because "cannot" without "so do this instead" is a dead end.
+     */
+    "backup.createRepo.unsupported": {
+        en: [
+            "This build cannot create a repository from here. Create one on GitHub directly, then check it above.",
+            "This build cannot create a repository from here. Create one on GitHub directly, then check it above.",
+            "This build cannot create a repository from here at all. Create one on GitHub directly, then check it above.",
+            "This build cannot create a repository from here, and nothing changes that. Create one on GitHub directly, then check it above instead.",
+            "This build cannot create a repository from here, full stop. Make one on GitHub directly, then come back and check it above instead.",
+        ],
+        yue: [
+            "呢個版本喺呢度整唔到儲存庫。直接喺 GitHub 度整一個，然後上面檢查返佢。",
+            "呢個版本喺呢度整唔到儲存庫。直接喺 GitHub 度整一個，然後上面檢查返佢。",
+            "呢個版本喺呢度根本整唔到儲存庫。直接喺 GitHub 度整一個，然後上面檢查返佢。",
+            "呢個版本喺呢度整唔到儲存庫，做唔到就係做唔到。直接喺 GitHub 度整返一個，然後上面檢查佢。",
+            "呢個版本喺呢度整唔到儲存庫，冇得傾。直接喺 GitHub 度整返一個，然後返嚟上面檢查佢。",
+        ],
+    },
+    /*
+     * The three reasons the "Create this repository" button is grey, in the order
+     * somebody meets them - the same discipline `backup.blocked.*` above holds the main
+     * start button to, and for the same reason: a disabled control with no stated reason
+     * reads as broken rather than as waiting on you.
+     */
+    "backup.createRepo.blockedOwner": {
+        en: [
+            "Type an owner above before creating a repository.",
+            "Type an owner above before creating a repository.",
+            "Type an owner above before this can create a repository.",
+            "No owner has been typed yet. Type one above before creating a repository.",
+            "No owner has been typed yet, so there is nobody to create it for. Type one above before creating a repository.",
+        ],
+        yue: [
+            "先喺上面打個擁有者，先至整到儲存庫。",
+            "先喺上面打個擁有者，先至整到儲存庫。",
+            "整儲存庫之前，要先喺上面打個擁有者。",
+            "而家仲未打擁有者。整儲存庫之前，記得先喺上面打個。",
+            "而家仲未打擁有者，咁都唔知整俾邊個。整儲存庫之前，記得先喺上面打個。",
+        ],
+    },
+    "backup.createRepo.blockedName": {
+        en: [
+            "Type a repository name above before creating it.",
+            "Type a repository name above before creating it.",
+            "Type a repository name above before this can create it.",
+            "No repository name has been typed yet. Type one above before creating it.",
+            "No repository name has been typed yet, so there is nothing to call it. Type one above before creating it.",
+        ],
+        yue: [
+            "先喺上面打個儲存庫名，先至整到佢。",
+            "先喺上面打個儲存庫名，先至整到佢。",
+            "整之前，要先喺上面打個儲存庫名。",
+            "而家仲未打儲存庫名。整之前，記得先喺上面打個。",
+            "而家仲未打儲存庫名，咁都唔知叫佢做咩。整之前，記得先喺上面打個。",
+        ],
+    },
+    "backup.createRepo.blockedCreating": {
+        en: [
+            "Already creating.",
+            "Already creating.",
+            "It is already creating.",
+            "It is already creating; one press was enough.",
+            "It is already creating. One press was enough, and the second one went nowhere.",
+        ],
+        yue: [
+            "已經整緊。",
+            "已經整緊。",
+            "佢已經整緊喇。",
+            "佢已經整緊喇，撳一次就夠。",
+            "佢已經整緊喇。撳一次就夠，第二下係撳咗落空氣。",
+        ],
+    },
+
+    /*
+     * GitHub's own naming grammar, said before GitHub says it - the same rule
+     * `ciRenders.ts`'s `repoNameProblem` states for the CI-render screen's own
+     * create-a-repository flow, restated here because `repositoryNameProblem` in
+     * `backups.ts` is its own copy of the same check rather than a shared import (see
+     * that file's own comment for why). Each one names the exact rule broken, because
+     * "invalid name" alone sends somebody back to guess which character was the problem.
+     */
+    "backup.createRepo.invalid.chars": {
+        en: [
+            "Repository names may only use letters, digits, dots, hyphens and underscores.",
+            "Repository names may only use letters, digits, dots, hyphens and underscores.",
+            "Repository names may only use letters, digits, dots, hyphens and underscores - nothing else.",
+            "GitHub only accepts letters, digits, dots, hyphens and underscores in a repository name. Everything else gets refused.",
+            "GitHub is fussy about this one: letters, digits, dots, hyphens and underscores only. Spaces, slashes and emoji all get shown the door.",
+        ],
+        yue: [
+            "儲存庫名淨係可以用英文字母、數字、句號、連字號同底線。",
+            "儲存庫名淨係可以用英文字母、數字、句號、連字號同底線。",
+            "儲存庫名淨係可以用英文字母、數字、句號、連字號同底線，第啲一律唔得。",
+            "GitHub 淨係收英文字母、數字、句號、連字號同底線做儲存庫名，第啲字符一律拒收。",
+            "GitHub 呢方面幾揀擇：淨係要英文字母、數字、句號、連字號同底線。空格、斜線、表情符號，全部企喺門口入唔到嚟。",
+        ],
+    },
+    "backup.createRepo.invalid.dots": {
+        en: [
+            'A repository name cannot be just "." or "..".',
+            'A repository name cannot be just "." or "..".',
+            'A repository name cannot be just "." or "..", on their own.',
+            'GitHub refuses a repository name that is only "." or "..". Add something else to it.',
+            'A repository named only "." or ".." is the one GitHub always refuses, no matter how politely it is asked. Add something else to it.',
+        ],
+        yue: [
+            "儲存庫名唔可以淨係得「.」或者「..」。",
+            "儲存庫名唔可以淨係得「.」或者「..」。",
+            "儲存庫名唔可以齋係「.」或者「..」呢啲。",
+            "GitHub 唔收淨係「.」或者「..」嘅儲存庫名，加多啲字先得。",
+            "淨係「.」或者「..」嘅儲存庫名，GitHub 點求都唔收，加多啲其他字先得。",
+        ],
+    },
+    "backup.createRepo.invalid.gitSuffix": {
+        en: [
+            'A repository name cannot end in ".git".',
+            'A repository name cannot end in ".git".',
+            'A repository name cannot end in ".git" - GitHub adds that itself.',
+            'GitHub refuses a repository name ending in ".git", because it adds that suffix itself when cloning.',
+            'Ending a repository name in ".git" is redundant twice over: GitHub refuses it, and it would have added that suffix for you anyway.',
+        ],
+        yue: [
+            "儲存庫名唔可以以「.git」結尾。",
+            "儲存庫名唔可以以「.git」結尾。",
+            "儲存庫名唔可以以「.git」結尾，呢個位 GitHub 自己會加。",
+            "GitHub 唔收以「.git」結尾嘅儲存庫名，因為 clone 嗰陣佢自己會加返呢個尾巴。",
+            "儲存庫名以「.git」結尾係多此一舉：GitHub 唔收，而且本身 clone 嗰陣佢都會自動幫你加返。",
+        ],
+    },
+    "backup.createRepo.invalid.long": {
+        en: [
+            "A repository name cannot be longer than 100 characters.",
+            "A repository name cannot be longer than 100 characters.",
+            "A repository name cannot be longer than 100 characters - GitHub's own limit.",
+            "GitHub caps a repository name at 100 characters, so this one needs trimming down.",
+            "100 characters is GitHub's hard ceiling for a repository name, and this one is standing on tiptoe past it. Trim it down.",
+        ],
+        yue: [
+            "儲存庫名唔可以長過 100 個字。",
+            "儲存庫名唔可以長過 100 個字。",
+            "儲存庫名唔可以長過 100 個字，呢個係 GitHub 自己嘅上限。",
+            "GitHub 規定儲存庫名最多 100 個字，呢個要剪短啲先得。",
+            "100 個字係 GitHub 定死嘅上限，呢個名踮起腳都仲係超咗，要剪短少少。",
+        ],
+    },
+
+    /*
+     * The real cost, not the imagined one. PUBLIC here means downloadable by anybody -
+     * the same consent this screen already asks for at `backup.acknowledgePublic` - and
+     * PRIVATE means the opposite of free: it draws down the repository-count limit of
+     * whatever plan it is created under. Neither note claims anything about GitHub
+     * Actions minutes; this screen never runs a workflow, so there are none to spend -
+     * that trade-off belongs to the CI-render screen's `cirender.caveats`, not this one.
+     */
+    "backup.createRepo.visibility.publicNote": {
+        en: [
+            "PUBLIC means anybody can download whatever is backed up here, including the world's builds and coordinates.",
+            "PUBLIC means anybody can download whatever is backed up here, including the world's builds and coordinates.",
+            "PUBLIC means anybody at all can download whatever is backed up here, including the world's builds and coordinates.",
+            "PUBLIC is the loud word here: anybody can download whatever is backed up here, including the world's builds and coordinates.",
+            "PUBLIC is the loud word here, and it means it: anybody can download whatever is backed up here, including the world's builds and coordinates, not just people you know.",
+        ],
+        yue: [
+            "PUBLIC 即係話，凡係喺呢度備份咗嘅嘢，任何人都下載得到，包括個世界嘅建築同座標都一樣。",
+            "PUBLIC 即係話，凡係喺呢度備份咗嘅嘢，任何人都下載得到，包括個世界嘅建築同座標都一樣。",
+            "PUBLIC 即係話，凡係喺呢度備份咗嘅嘢，真係任何人都下載得到，包括個世界嘅建築同座標都一樣。",
+            "PUBLIC 呢個字係大聲講嘅：任何人都下載得到喺呢度備份咗嘅嘢，包括個世界嘅建築同座標。",
+            "PUBLIC 呢個字唔係講吓咁滯，係認真嘅：任何人都下載得到喺呢度備份咗嘅嘢，包括個世界嘅建築同座標，唔止你識嘅人。",
+        ],
+    },
+    "backup.createRepo.visibility.privateNote": {
+        en: [
+            "Private means only accounts you grant access to can see it. It is not free storage: it still counts toward the repository limits of the plan it is created under.",
+            "Private means only accounts you grant access to can see it. It is not free storage: it still counts toward the repository limits of the plan it is created under.",
+            "Private means only accounts you grant access to can see it. It is not free storage either: it still counts toward the repository limits of the plan it is created under.",
+            "Private keeps it to the accounts you grant access to, but it is not free storage: it still counts toward the repository limits of whatever plan it is created under.",
+            "Private keeps it to the accounts you grant access to, but it is not free storage, make no mistake: it still counts toward the repository limits of whatever plan it is created under, same as everything else there.",
+        ],
+        yue: [
+            "Private 即係話，淨係你畀咗權限嘅帳戶先至睇到。呢個唔係免費儲存空間：一樣計落佢所屬方案嘅儲存庫上限度。",
+            "Private 即係話，淨係你畀咗權限嘅帳戶先至睇到。呢個唔係免費儲存空間：一樣計落佢所屬方案嘅儲存庫上限度。",
+            "Private 即係話，淨係你畀咗權限嘅帳戶先至睇到。呢個一樣唔係免費儲存空間：仍然計落佢所屬方案嘅儲存庫上限度。",
+            "Private 淨係俾你畀咗權限嘅帳戶睇到，但呢個唔係免費儲存空間：一樣計落佢所屬方案嘅儲存庫上限度。",
+            "Private 淨係俾你畀咗權限嘅帳戶睇到，但呢個真係唔係免費儲存空間，唔好諗錯：一樣計落佢所屬方案嘅儲存庫上限度，同嗰度其他嘢一樣。",
+        ],
+    },
+
+    /* ---------------------------------------------------------------- */
     /* One backup, while it runs and after it ends                      */
     /* ---------------------------------------------------------------- */
 
@@ -648,6 +958,22 @@ export const BACKUP_FIXED = {
     "backup.signIn": { en: "Sign in to GitHub again", yue: "再登入一次 GitHub" },
 
     /* ---------------------------------------------------------------- */
+    /* Searching existing repositories, and creating a brand-new one    */
+    /* ---------------------------------------------------------------- */
+
+    "backup.repo.search": { en: "Search your repositories", yue: "搵你嘅儲存庫" },
+    "backup.createRepo.ownerKind": { en: "The owner above is", yue: "上面個擁有者係" },
+    "backup.createRepo.ownerKind.user": { en: "my own account", yue: "我自己嘅帳戶" },
+    "backup.createRepo.ownerKind.org": {
+        en: "an organization I belong to",
+        yue: "我所屬嘅一個機構",
+    },
+    "backup.createRepo.visibility": { en: "Visibility", yue: "可見度" },
+    "backup.createRepo.visibility.private": { en: "Private", yue: "私人" },
+    "backup.createRepo.visibility.public": { en: "Public", yue: "公開" },
+    "backup.createRepo.button": { en: "Create this repository", yue: "整呢個儲存庫" },
+
+    /* ---------------------------------------------------------------- */
     /* One backup's card                                                */
     /* ---------------------------------------------------------------- */
 
@@ -787,6 +1113,53 @@ export const BACKUP_FACTS = {
     "backup.blocked.public": { en: ["PUBLIC", "anybody"], yue: ["PUBLIC", "任何人"] },
     "backup.blocked.starting": { en: ["starting"], yue: ["開始緊"] },
     "backup.starting": { en: ["Starting"], yue: ["開始緊"] },
+
+    // Honest pagination: the cap and the counts survive every level, in both places.
+    "backup.repo.loadedSummary": {
+        en: ["{total}", "up to 300"],
+        yue: ["{total}", "最多 300"],
+    },
+    "backup.repo.searchSummary": {
+        en: ["{shown}", "{total}", "up to 300", "Type its owner and name below"],
+        yue: ["{shown}", "{total}", "最多 300", "喺下面打佢嘅擁有者同名"],
+    },
+    // Two different empty states; the fact pinned for each is the one that tells them apart.
+    "backup.repo.noMatch": {
+        en: ["match that search", "create a new repository"],
+        yue: ["符合呢個搜尋", "整一個新儲存庫"],
+    },
+    "backup.repo.none": {
+        en: ["no repositories to write to", "Create one below"],
+        yue: ["未有儲存庫可以寫入", "喺下面整一個"],
+    },
+
+    "backup.createRepo.lead": { en: ["owner and name above"], yue: ["上面嘅擁有者同名"] },
+    "backup.createRepo.unsupported": {
+        en: ["cannot create a repository", "GitHub"],
+        yue: ["整唔到儲存庫", "GitHub"],
+    },
+    // The three "why is this button grey" reasons: each names the unmet condition.
+    "backup.createRepo.blockedOwner": { en: ["owner"], yue: ["擁有者"] },
+    "backup.createRepo.blockedName": { en: ["repository name"], yue: ["儲存庫名"] },
+    "backup.createRepo.blockedCreating": { en: ["creating"], yue: ["整緊"] },
+    // GitHub's own naming grammar, restated: each fact is the rule itself.
+    "backup.createRepo.invalid.chars": {
+        en: ["letters, digits, dots, hyphens and underscores"],
+        yue: ["英文字母", "數字", "句號", "連字號", "底線"],
+    },
+    "backup.createRepo.invalid.dots": { en: ['"."', '".."'], yue: ["「.」", "「..」"] },
+    "backup.createRepo.invalid.gitSuffix": { en: ['".git"'], yue: ["「.git」"] },
+    "backup.createRepo.invalid.long": { en: ["100 characters"], yue: ["100 個字"] },
+    // The real cost: downloadable-by-anybody for PUBLIC, counts-toward-the-limit for
+    // PRIVATE. Neither is about Actions minutes -- this screen never runs a workflow.
+    "backup.createRepo.visibility.publicNote": {
+        en: ["PUBLIC", "anybody", "download"],
+        yue: ["PUBLIC", "任何人", "下載得到"],
+    },
+    "backup.createRepo.visibility.privateNote": {
+        en: ["not free storage", "repository limits"],
+        yue: ["唔係免費儲存空間", "儲存庫上限"],
+    },
 
     "backup.row.stopping": { en: ["Stopping"], yue: ["停緊"] },
     // There is no control to press, which is the actionable half of the sentence.
