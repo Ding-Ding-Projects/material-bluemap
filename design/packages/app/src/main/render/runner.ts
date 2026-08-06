@@ -237,6 +237,22 @@ export class CliRun {
         return this.cancelRequested;
     }
 
+    /**
+     * The OS process id this run is backed by right now, or `null` when there is none to
+     * address - never spawned yet, already exited, or the child object never reported one.
+     *
+     * The process tree here is exactly one process: the JVM itself, spawned directly with
+     * no shell and no launcher script in between (see this file's own header comment). So
+     * a caller that wants to touch "the whole process tree" a running render occupies
+     * needs nothing more than this one id - there is no child of the JVM to also reach.
+     */
+    pid(): number | null {
+        if (this.child === null || this.finished) return null;
+        if (this.child.exitCode !== null) return null;
+        const pid = this.child.pid;
+        return typeof pid === "number" ? pid : null;
+    }
+
     private clearKillTimer(): void {
         if (this.killTimer === null) return;
         clearTimeout(this.killTimer);

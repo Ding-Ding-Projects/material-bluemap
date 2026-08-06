@@ -63,6 +63,17 @@ import type { EngineLaunch, RuntimeMode } from "../runtime/plan.js";
 import { EngineProcess } from "../runtime/process.js";
 import type { SpawnEngine } from "../runtime/process.js";
 import { CONTAINER_PREFIX } from "../runtime/reattach.js";
+import {
+    applyDockerCpuQuota,
+    applyLocalPriority,
+    hostCpuCount,
+    isSpeedLevel,
+    localPriorityLevelFor,
+    type DockerCpuControl,
+    type PriorityControl,
+    type SpeedLevelNumber,
+} from "../runtime/speedControl.js";
+import type { CommandRunner } from "../runtime/command.js";
 import { writeRenderConfig, validateMaps, InvalidRenderRequestError } from "./config.js";
 import type { RenderMapRequest } from "./config.js";
 import * as failures from "./failure.js";
@@ -174,6 +185,72 @@ export interface RenderRunOutcome {
 interface RenderRun {
     start(): Promise<RenderRunOutcome>;
     cancel(): void;
+    /**
+     * The OS process id this run is backed by right now, or `null` when there is none to
+     * address. Both `CliRun` and `EngineProcess` document exactly what that id addresses
+     * for their own mode - see either class's own `pid()` doc comment.
+     */
+    pid(): number | null;
+}
+
+/**
+ * What a live render is running as, kept beside the `RenderRun` itself so
+ * {@link RenderOrchestrator.adjustSpeed} can decide a route without re-deriving it from a
+ * launch that may no longer be in scope by the time somebody drags a slider.
+ */
+interface RunningRender {
+    readonly run: RenderRun;
+    readonly mode: RuntimeMode;
+    /** Set only for a container render - the exact name `docker update` must address. */
+    readonly containerName: string | null;
+    /** The `docker` binary this render's container was launched with, if it is one. */
+    readonly dockerCommand: string;
+}
+
+/**
+ * Why a level 1-5 request to a route that only carries part of the range - Docker's, per
+ * `runtime/speedControl.ts`'s own header comment - resolved the way it did, `"applied"`
+ * included. Never invented on the interface's behalf; the orchestrator names the real
+ * reason so the surface never has to guess at one.
+ */
+export type SpeedAdjustmentReason =
+    | "applied"
+    | "priority-refused"
+    | "process-exited"
+    | "container-stopped"
+    | "not-running"
+    | "invalid-level";
+
+/**
+ * What one live speed-adjustment request did, and what it did not.
+ *
+ * `appliedNow` and `needsRestart` are the feature's whole honesty contract, spelled out as
+ * two separate booleans rather than left for a caller to infer from `route` or `reason`:
+ * something can be true of both at once (a local priority change lands immediately, and
+ * the thread count and thread priority baked into this render's launch still do not move
+ * until the next one), and a surface that only reads one of the two would either claim more
+ * happened than did or hide the part that genuinely did.
+ */
+export interface SpeedAdjustmentResult {
+    readonly ok: boolean;
+    readonly renderId: string;
+    readonly level: SpeedLevelNumber;
+    readonly route: "local" | "docker" | "unsupported";
+    /** True when something about the live process or container was actually changed now. */
+    readonly appliedNow: boolean;
+    /**
+     * True when reaching this level's full effect needs the render restarted - always true
+     * today, because the thread-count/thread-priority half of the novice dial is baked into
+     * a launch's JVM arguments and cannot move without one. Named explicitly rather than
+     * implied so a future route that genuinely applies everything live is not silently
+     * mis-reported by an assumption written before it existed.
+     */
+    readonly needsRestart: boolean;
+    readonly reason: SpeedAdjustmentReason;
+    /** One sentence for a person, naming exactly what changed and what did not. */
+    readonly message: string;
+    /** The refusal's own words, when the route or the OS had any. */
+    readonly detail: string | null;
 }
 
 export interface EngineDescription {
@@ -402,6 +479,25 @@ export interface RenderOrchestratorOptions {
      * asked rather than the client being killed.
      */
     readonly stopContainer?: (name: string) => Promise<void>;
+    /**
+     * How a live speed change reaches this machine's OS scheduler. Injected so a test can
+     * prove the exact priority requested - and a refused raise - without touching this
+     * process's own priority or depending on which OS the test happens to run on.
+     */
+    readonly priorityControl?: PriorityControl;
+    /**
+     * How a live speed change reaches Docker's daemon, as `docker update --cpus`. Distinct
+     * from {@link stopContainer}: that is a single fixed command with no arguments to get
+     * wrong, this one carries the exact quota being asked for, and a test wants to see it
+     * without a daemon anywhere near the test machine.
+     */
+    readonly runner?: CommandRunner;
+    /**
+     * How many logical cores this host reports, for sizing a live Docker CPU quota.
+     * Defaults to `runtime/speedControl.ts`'s own `hostCpuCount()`. Injected so a test's
+     * expectations do not depend on how many cores the machine running the suite has.
+     */
+    readonly hostCpuCount?: () => number;
 }
 
 /** Raised by `resolveEngine` when there is no usable JDK. Carries the explanation. */
@@ -419,7 +515,7 @@ export class EngineUnavailableError extends Error {
 
 export class RenderOrchestrator {
     private readonly options: RenderOrchestratorOptions;
-    private readonly running = new Map<string, RenderRun>();
+    private readonly running = new Map<string, RunningRender>();
 
     constructor(options: RenderOrchestratorOptions) {
         this.options = options;
@@ -444,10 +540,194 @@ export class RenderOrchestrator {
      * needs to acknowledge the click immediately.
      */
     cancel(renderId: string): boolean {
-        const run = this.running.get(renderId);
-        if (run === undefined) return false;
-        run.cancel();
+        const running = this.running.get(renderId);
+        if (running === undefined) return false;
+        running.run.cancel();
         return true;
+    }
+
+    /**
+     * Adjusts a render's speed while it is running, applying exactly what the render's
+     * route can genuinely change right now and reporting exactly what it could not.
+     *
+     * Never throws, for the same reason nothing else on this class does: a slider being
+     * dragged is not a place to let an OS refusal, an already-exited process or an
+     * already-stopped container become an unhandled rejection three frames above a person
+     * who only moved their mouse.
+     *
+     * Never touches this render's `core.conf`, its session record, or anything `resume.ts`
+     * reads to decide whether a render can be carried on: the local route changes only this
+     * OS's own bookkeeping about a live process id, and the Docker route changes only the
+     * daemon's cgroup quota for a live container name. Neither writes a single byte this
+     * render's own resumability depends on.
+     */
+    async adjustSpeed(renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult> {
+        if (!isSpeedLevel(level)) {
+            return {
+                ok: false,
+                renderId,
+                level: 3,
+                route: "unsupported",
+                appliedNow: false,
+                needsRestart: false,
+                reason: "invalid-level",
+                message: "Speed only goes from 1 to 5; that is not one of them.",
+                detail: null,
+            };
+        }
+
+        const running = this.running.get(renderId);
+        if (running === undefined) {
+            return {
+                ok: false,
+                renderId,
+                level,
+                route: "unsupported",
+                appliedNow: false,
+                needsRestart: false,
+                reason: "not-running",
+                message: `Render '${renderId}' is not running right now, so there is nothing to adjust.`,
+                detail: null,
+            };
+        }
+
+        if (running.mode === "docker") return await this.adjustDockerSpeed(running, renderId, level);
+        return this.adjustLocalSpeed(running, renderId, level);
+    }
+
+    /**
+     * Local route: OS process scheduling priority on the JVM's own pid.
+     *
+     * That one id is the whole process tree for a local render - see `render/runner.ts`'s
+     * own `pid()` doc comment for why - so there is no separate child to also reach.
+     */
+    private adjustLocalSpeed(
+        running: RunningRender,
+        renderId: string,
+        level: SpeedLevelNumber,
+    ): SpeedAdjustmentResult {
+        const pid = running.run.pid();
+        if (pid === null) {
+            return {
+                ok: false,
+                renderId,
+                level,
+                route: "local",
+                appliedNow: false,
+                needsRestart: true,
+                reason: "process-exited",
+                message:
+                    "This render's process has already ended, so there is nothing left running to adjust.",
+                detail: null,
+            };
+        }
+
+        const result = applyLocalPriority(pid, level, this.options.priorityControl ?? {});
+        if (!result.ok) {
+            return {
+                ok: false,
+                renderId,
+                level,
+                route: "local",
+                appliedNow: false,
+                needsRestart: true,
+                reason: "process-exited",
+                message:
+                    "This render's process ended before the priority change could reach it. Nothing was applied.",
+                detail: result.error,
+            };
+        }
+
+        if (result.refused) {
+            const landedAt = result.applied === null ? null : localPriorityLevelFor(result.applied);
+            const landedWords = landedAt === null ? "its previous priority" : `'${landedAt.label}'`;
+            return {
+                ok: true,
+                renderId,
+                level,
+                route: "local",
+                appliedNow: true,
+                needsRestart: true,
+                reason: "priority-refused",
+                message:
+                    `Windows would not raise this render to '${result.requested.label}' without administrator rights, which this application never asks for. It kept ${landedWords} instead. The thread count and thread priority baked into this render's launch still only change on the next render.`,
+                detail: null,
+            };
+        }
+
+        return {
+            ok: true,
+            renderId,
+            level,
+            route: "local",
+            appliedNow: true,
+            needsRestart: true,
+            reason: "applied",
+            message: `This render's OS priority is now '${result.requested.label}', effective immediately. The thread count and thread priority baked into this render's launch only change on the next render.`,
+            detail: null,
+        };
+    }
+
+    /** Docker route: the running container's own CPU quota, by name, through the daemon. */
+    private async adjustDockerSpeed(
+        running: RunningRender,
+        renderId: string,
+        level: SpeedLevelNumber,
+    ): Promise<SpeedAdjustmentResult> {
+        const name = running.containerName;
+        if (name === null) {
+            // Unreachable in practice - every docker-mode run carries a container name -
+            // but typed nullable because `EngineLaunch.containerName` is, and a defensive
+            // branch here is cheaper than a non-null assertion that quietly lies later.
+            return {
+                ok: false,
+                renderId,
+                level,
+                route: "docker",
+                appliedNow: false,
+                needsRestart: true,
+                reason: "not-running",
+                message: "This render has no container name recorded, so there is nothing to adjust.",
+                detail: null,
+            };
+        }
+
+        const total = this.options.hostCpuCount?.() ?? hostCpuCount();
+        const control: DockerCpuControl = {
+            docker: running.dockerCommand,
+            ...(this.options.runner === undefined ? {} : { runner: this.options.runner }),
+        };
+        const result = await applyDockerCpuQuota(name, level, total, control);
+
+        if (!result.ok) {
+            return {
+                ok: false,
+                renderId,
+                level,
+                route: "docker",
+                appliedNow: false,
+                needsRestart: true,
+                reason: "container-stopped",
+                message:
+                    "Docker refused the CPU change - most likely because the container has already stopped. Nothing was applied.",
+                detail: result.error,
+            };
+        }
+
+        const quotaWords = result.quota.unlimited
+            ? "every core this machine has - Docker cannot give a container more than that, so levels 3 through 5 all mean the same thing here"
+            : `${String(result.quota.cpus)} of this machine's cores`;
+        return {
+            ok: true,
+            renderId,
+            level,
+            route: "docker",
+            appliedNow: true,
+            needsRestart: true,
+            reason: "applied",
+            message: `This render's container is now allowed ${quotaWords}, effective immediately. The thread count and thread priority baked into this render's launch only change on the next render.`,
+            detail: null,
+        };
     }
 
     /**
@@ -706,7 +986,12 @@ export class RenderOrchestrator {
                           : { stopContainer: this.options.stopContainer }),
                   });
 
-        this.running.set(renderId, run);
+        this.running.set(renderId, {
+            run,
+            mode,
+            containerName: launch?.containerName ?? null,
+            dockerCommand: launch?.command ?? this.options.docker ?? "docker",
+        });
         // The note goes down **before** `docker run`, not after it. The app can be killed
         // in the gap, and a container started with no record beside it is a render nobody
         // can find again: it keeps writing tiles into a bind-mounted folder with nothing

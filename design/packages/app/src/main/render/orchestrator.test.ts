@@ -1,13 +1,21 @@
 import { spawn as nodeSpawn } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Readable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LocalMapHandler } from "./LocalMapHandler.js";
 import { RenderOrchestrator, EngineUnavailableError, classifyRunFailure } from "./orchestrator.js";
-import type { RenderEvent, RenderRequest, ResolvedEngine } from "./orchestrator.js";
+import type { RenderEvent, RenderRequest, ResolvedEngine, SpeedAdjustmentResult } from "./orchestrator.js";
 import type { SpawnCli } from "./runner.js";
+import type { DockerReport } from "../runtime/docker.js";
+import { containerName as dockerContainerName } from "../runtime/plan.js";
+import type { EngineChildProcess, SpawnEngine } from "../runtime/process.js";
+import { CONTAINER_PREFIX } from "../runtime/reattach.js";
+import { dockerCpuQuotaForLevel, localPriorityForLevel } from "../runtime/speedControl.js";
+import type { CommandOutput, CommandRunner } from "../runtime/command.js";
 
 let root = "";
 let storageDir = "";
@@ -80,6 +88,50 @@ function spawnScript(script: string, seen: string[][]): SpawnCli {
         });
     };
 }
+
+/** Polls until `condition` is true, or fails the test by timing out `it`'s own timeout. */
+async function waitUntil(condition: () => boolean): Promise<void> {
+    await new Promise<void>((resolve) => {
+        const wait = setInterval(() => {
+            if (condition()) {
+                clearInterval(wait);
+                resolve();
+            }
+        }, 10);
+    });
+}
+
+/**
+ * A stand-in `docker run` client: a live, killable child that never exits on its own,
+ * exactly what `adjustSpeed`'s docker route needs a window of time to be tested against.
+ * Modelled on `runtime/process.test.ts`'s own `fakeChild`, kept local because that one is
+ * not exported.
+ */
+function fakeContainerChild(lines: readonly string[]): EngineChildProcess & { readonly killed: string[] } {
+    const emitter = new EventEmitter();
+    const killed: string[] = [];
+    const child = emitter as unknown as EngineChildProcess & { killed: string[]; exitCode: number | null };
+    Object.assign(child, {
+        stdout: Readable.from(lines),
+        stderr: Readable.from([]),
+        killed,
+        exitCode: null,
+        kill(signal: string): boolean {
+            killed.push(signal);
+            emitter.emit("close", null, signal);
+            return true;
+        },
+    });
+    return child as EngineChildProcess & { readonly killed: string[] };
+}
+
+const DOCKER_AVAILABLE: DockerReport = {
+    status: "available",
+    clientVersion: "27.4.0",
+    serverVersion: "27.4.0",
+    message: "Docker 27.4.0 is installed and its daemon (27.4.0) is running.",
+    detail: null,
+};
 
 const COMPLETE_RENDER = [
     "[12:35:08 INFO] Loading resources...",
@@ -772,6 +824,245 @@ describe("cancellation", () => {
         });
         expect(orchestrator.cancel("nothing-here")).toBe(false);
     });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Live speed adjustment                                                      */
+/* -------------------------------------------------------------------------- */
+
+describe("adjustSpeed - local route", () => {
+    it("applies each level's exact documented OS priority to the render's own live pid, immediately", async () => {
+        const script = await fakeCli({
+            lines: ["[12:36:13 INFO] Start updating 1 maps ...", "[12:36:23 INFO] updating map 'overworld': 8.5%"],
+            sleepMs: 60_000,
+        });
+        const priorityCalls: Array<{ pid: number; priority: number }> = [];
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: spawnScript(script, []),
+            priorityControl: {
+                setPriority: (pid, priority) => priorityCalls.push({ pid, priority }),
+                getPriority: () => priorityCalls[priorityCalls.length - 1]?.priority ?? 0,
+            },
+        });
+
+        const running = orchestrator.render(request({ renderId: "speed-local" }));
+        await waitUntil(() => orchestrator.activeRenderIds().includes("speed-local"));
+
+        for (const level of [1, 2, 3, 4, 5] as const) {
+            const result: SpeedAdjustmentResult = await orchestrator.adjustSpeed("speed-local", level);
+            expect(result.ok).toBe(true);
+            expect(result.route).toBe("local");
+            expect(result.appliedNow).toBe(true);
+            // Always true today: the thread count and thread priority baked into the
+            // launch's JVM arguments cannot move without a restart, whatever else did.
+            expect(result.needsRestart).toBe(true);
+            expect(result.reason).toBe("applied");
+        }
+
+        expect(priorityCalls.map((call) => call.priority)).toEqual(
+            ([1, 2, 3, 4, 5] as const).map((level) => localPriorityForLevel(level).priority),
+        );
+        // Every call named the same pid: one live JVM process is the render's whole
+        // process tree, so there is no separate child a live priority change could miss.
+        expect(new Set(priorityCalls.map((call) => call.pid)).size).toBe(1);
+
+        orchestrator.cancel("speed-local");
+        await running;
+    }, 30_000);
+
+    it("reports a refused priority raise as a normal, explained outcome - never a throw", async () => {
+        const script = await fakeCli({
+            lines: ["[12:36:13 INFO] Start updating 1 maps ..."],
+            sleepMs: 60_000,
+        });
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: spawnScript(script, []),
+            priorityControl: {
+                setPriority: () => undefined,
+                // The OS accepted the call but kept the process at Normal - exactly what
+                // an unprivileged raise past what Windows allows looks like.
+                getPriority: () => localPriorityForLevel(3).priority,
+            },
+        });
+
+        const running = orchestrator.render(request({ renderId: "speed-refused" }));
+        await waitUntil(() => orchestrator.activeRenderIds().includes("speed-refused"));
+
+        let result: SpeedAdjustmentResult | undefined;
+        expect(async () => {
+            result = await orchestrator.adjustSpeed("speed-refused", 5);
+        }).not.toThrow();
+        result = await orchestrator.adjustSpeed("speed-refused", 5);
+
+        expect(result.ok).toBe(true);
+        expect(result.reason).toBe("priority-refused");
+        expect(result.appliedNow).toBe(true);
+        expect(result.message).toContain("administrator");
+
+        orchestrator.cancel("speed-refused");
+        await running;
+    }, 30_000);
+
+    it("a render with nothing running under its id reports that plainly, never a stale control", async () => {
+        const script = await fakeCli({ lines: COMPLETE_RENDER });
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: spawnScript(script, []),
+        });
+
+        const finished = await orchestrator.render(request({ renderId: "speed-finished" }));
+        expect(finished.ok).toBe(true);
+        expect(orchestrator.activeRenderIds()).toEqual([]);
+
+        const result = await orchestrator.adjustSpeed("speed-finished", 4);
+        expect(result.ok).toBe(false);
+        expect(result.route).toBe("unsupported");
+        expect(result.reason).toBe("not-running");
+
+        // An id nobody ever rendered under reports exactly the same way - the exact
+        // shape a GitHub Actions render's id would come back as, since this orchestrator
+        // never tracks one of those as running in the first place.
+        const neverRan = await orchestrator.adjustSpeed("was-never-a-render", 4);
+        expect(neverRan.ok).toBe(false);
+        expect(neverRan.reason).toBe("not-running");
+    }, 20_000);
+
+    it("refuses a level outside 1-5 without touching anything", async () => {
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+        });
+        // Deliberately outside the typed range, the way an IPC caller sending untrusted
+        // `unknown` could.
+        // @ts-expect-error - level is typed 1-5; this proves the runtime guard too.
+        const result = await orchestrator.adjustSpeed("whatever", 9);
+        expect(result.ok).toBe(false);
+        expect(result.reason).toBe("invalid-level");
+    });
+
+    it("never disturbs the render's own record or session while adjusting speed mid-render", async () => {
+        const script = await fakeCli({
+            lines: ["[12:36:13 INFO] Start updating 1 maps ..."],
+            sleepMs: 60_000,
+        });
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            spawn: spawnScript(script, []),
+        });
+
+        const running = orchestrator.render(request({ renderId: "speed-resumable" }));
+        await waitUntil(() => orchestrator.activeRenderIds().includes("speed-resumable"));
+
+        const recordPath = join(storageDir, "speed-resumable", "render.json");
+        const before = await readFile(recordPath, "utf8");
+
+        await orchestrator.adjustSpeed("speed-resumable", 1);
+        await orchestrator.adjustSpeed("speed-resumable", 5);
+
+        // Neither call touched the one file `resume.ts` and the provenance record both
+        // read to decide whether this render can be carried on.
+        expect(await readFile(recordPath, "utf8")).toBe(before);
+
+        orchestrator.cancel("speed-resumable");
+        await running;
+    }, 30_000);
+});
+
+describe("adjustSpeed - docker route", () => {
+    it("updates the exact running container's CPU quota, by name, rather than a future one", async () => {
+        const child = fakeContainerChild(["[12:36:13 INFO] Start updating 1 maps ..."]);
+        const spawnEngine: SpawnEngine = () => child;
+        const calls: Array<{ command: string; args: readonly string[] }> = [];
+        const runner: CommandRunner = async (command, args): Promise<CommandOutput> => {
+            calls.push({ command, args });
+            return { ok: true, exitCode: 0, stdout: "", stderr: "", spawnError: null };
+        };
+
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            probeDocker: () => Promise.resolve(DOCKER_AVAILABLE),
+            spawnEngine,
+            stopContainer: async () => undefined,
+            runner,
+            hostCpuCount: () => 8,
+        });
+
+        const running = orchestrator.render(request({ renderId: "speed-docker", runtime: "docker" }));
+        await waitUntil(() => orchestrator.activeRenderIds().includes("speed-docker"));
+
+        const expectedName = dockerContainerName(CONTAINER_PREFIX, "speed-docker");
+
+        const throttled = await orchestrator.adjustSpeed("speed-docker", 1);
+        expect(throttled.ok).toBe(true);
+        expect(throttled.route).toBe("docker");
+        expect(throttled.appliedNow).toBe(true);
+
+        const unlimited = await orchestrator.adjustSpeed("speed-docker", 5);
+        expect(unlimited.ok).toBe(true);
+        expect(unlimited.message).toContain("levels 3 through 5");
+
+        const dockerCalls = calls.filter((call) => call.args[0] === "update");
+        expect(dockerCalls).toHaveLength(2);
+        expect(dockerCalls[0]?.args).toEqual([
+            "update",
+            "--cpus",
+            String(dockerCpuQuotaForLevel(1, 8).cpus),
+            expectedName,
+        ]);
+        expect(dockerCalls[1]?.args).toEqual(["update", "--cpus", "0", expectedName]);
+        // Every one of them named the render's *own* container, never a name any other
+        // render (this test only ever started one) could be confused with.
+        for (const call of dockerCalls) expect(call.args[3]).toBe(expectedName);
+
+        orchestrator.cancel("speed-docker");
+        await running;
+    }, 30_000);
+
+    it("reports a stopped container as a normal refusal, never a throw", async () => {
+        const child = fakeContainerChild(["[12:36:13 INFO] Start updating 1 maps ..."]);
+        const spawnEngine: SpawnEngine = () => child;
+        const runner: CommandRunner = async (): Promise<CommandOutput> => ({
+            ok: false,
+            exitCode: 1,
+            stdout: "",
+            stderr: "Error: No such container: gone",
+            spawnError: null,
+        });
+
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: () => Promise.resolve(ENGINE),
+            probeDocker: () => Promise.resolve(DOCKER_AVAILABLE),
+            spawnEngine,
+            stopContainer: async () => undefined,
+            runner,
+        });
+
+        const running = orchestrator.render(request({ renderId: "speed-docker-gone", runtime: "docker" }));
+        await waitUntil(() => orchestrator.activeRenderIds().includes("speed-docker-gone"));
+
+        const result = await orchestrator.adjustSpeed("speed-docker-gone", 1);
+        expect(result.ok).toBe(false);
+        expect(result.reason).toBe("container-stopped");
+        expect(result.detail).toContain("No such container");
+
+        orchestrator.cancel("speed-docker-gone");
+        await running;
+    }, 30_000);
 });
 
 /* -------------------------------------------------------------------------- */

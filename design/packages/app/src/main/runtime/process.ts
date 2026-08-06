@@ -209,6 +209,24 @@ export class EngineProcess {
         return this.cancelRequested;
     }
 
+    /**
+     * The OS process id backing this run right now, or `null` when there is none to
+     * address - never spawned yet, already exited, or the child object never reported one.
+     *
+     * For a local launch this is the JVM itself, and the whole process tree in one id for
+     * the same reason `render/runner.ts`'s own `pid()` is: no shell, no launcher script.
+     * For a **container** launch this is the `docker run` *client*, not the JVM inside the
+     * container - exactly the distinction this file's header comment exists to make. A
+     * caller that wants to reach the container itself must address it by name through
+     * {@link EngineLaunch.containerName}, never through this id.
+     */
+    pid(): number | null {
+        if (this.child === null || this.finished) return null;
+        if (this.child.exitCode !== null) return null;
+        const pid = this.child.pid;
+        return typeof pid === "number" ? pid : null;
+    }
+
     private async stopContainer(name: string): Promise<void> {
         const stop = this.options.stopContainer;
         if (stop !== undefined) {

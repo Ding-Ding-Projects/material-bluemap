@@ -29,7 +29,9 @@ import type {
     RenderRequest,
     RenderResult,
     ResolvedEngine,
+    SpeedAdjustmentResult,
 } from "./orchestrator.js";
+import type { SpeedLevelNumber } from "../runtime/speedControl.js";
 import { describeEngine, readRenderRecord } from "./provenance.js";
 import type { RenderRecord } from "./provenance.js";
 import { findInterruptedRenders, planResume } from "./resume.js";
@@ -232,6 +234,23 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         return typeof renderId === "string" && orchestrator.cancel(renderId);
     });
 
+    /**
+     * Adjusts a render's speed while it is running - see `render/orchestrator.ts`'s own
+     * `adjustSpeed` doc comment for exactly what does and does not move live.
+     *
+     * `level` crosses the IPC boundary as `unknown`, but `adjustSpeed` itself already
+     * refuses anything that is not exactly 1 through 5 with the same `"invalid-level"`
+     * outcome a real caller would get - narrowing it here would only be a second copy of
+     * that check, kept a second place to drift out of step with the first.
+     */
+    ipcMain.handle(
+        "render:adjustSpeed",
+        async (_event: IpcMainInvokeEvent, renderId: unknown, level: unknown): Promise<SpeedAdjustmentResult> => {
+            const id = typeof renderId === "string" ? renderId : "";
+            return await orchestrator.adjustSpeed(id, level as SpeedLevelNumber);
+        },
+    );
+
     ipcMain.handle("render:active", () => orchestrator.activeRenderIds());
 
     /**
@@ -360,6 +379,7 @@ const RENDER_CHANNELS = [
     "render:start",
     "render:runtimeModes",
     "render:cancel",
+    "render:adjustSpeed",
     "render:active",
     "render:interrupted",
     "render:resume",

@@ -317,6 +317,34 @@ export type RenderResult =
       }
     | { ok: false; renderId: string; failure: RenderFailure };
 
+/** Mirrors `SpeedLevelNumber` in `main/runtime/speedControl.ts` - the live speed dial's range. */
+export type SpeedLevelNumber = 1 | 2 | 3 | 4 | 5;
+
+/**
+ * What one live speed-adjustment request did, and what it did not.
+ *
+ * Mirrors `SpeedAdjustmentResult` in `main/render/orchestrator.ts` - see that interface's
+ * own doc comment for why `appliedNow` and `needsRestart` are two separate booleans rather
+ * than one the interface would have to infer from `route` or `reason`.
+ */
+export interface SpeedAdjustmentResult {
+    ok: boolean;
+    renderId: string;
+    level: SpeedLevelNumber;
+    route: "local" | "docker" | "unsupported";
+    appliedNow: boolean;
+    needsRestart: boolean;
+    reason:
+        | "applied"
+        | "priority-refused"
+        | "process-exited"
+        | "container-stopped"
+        | "not-running"
+        | "invalid-level";
+    message: string;
+    detail: string | null;
+}
+
 /** Mirrors `RenderSessionMap` in `main/render/session.ts`. */
 export interface InterruptedRenderMap {
     id: string;
@@ -1642,6 +1670,17 @@ interface MaterialBlueMapBridge {
     /** Stops a running render. False when nothing is running under that id. */
     cancelRender(renderId: string): Promise<boolean>;
 
+    /**
+     * Adjusts a running render's speed live, without stopping it.
+     *
+     * Applies exactly what the render's route can genuinely change right now - OS process
+     * priority for a local render, the container's own CPU quota for a Docker render - and
+     * reports exactly what it could not: `result.message` and `result.reason` say plainly
+     * when part of the requested level only takes effect on the next render. Never rejects,
+     * including when the render has already finished or its container has already stopped.
+     */
+    adjustRenderSpeed(renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult>;
+
     /** Render ids in flight right now. */
     activeRenders(): Promise<string[]>;
 
@@ -2370,6 +2409,7 @@ const bridge: MaterialBlueMapBridge = {
 
     startRender: (request) => ipcRenderer.invoke("render:start", request),
     cancelRender: (renderId) => ipcRenderer.invoke("render:cancel", renderId),
+    adjustRenderSpeed: (renderId, level) => ipcRenderer.invoke("render:adjustSpeed", renderId, level),
     activeRenders: () => ipcRenderer.invoke("render:active"),
     listRenders: () => ipcRenderer.invoke("render:list"),
     interruptedRenders: () => ipcRenderer.invoke("render:interrupted"),
