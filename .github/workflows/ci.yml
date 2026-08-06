@@ -185,7 +185,18 @@ jobs:
       # everything: `ui` goes through Vite, which transpiles file by file and never
       # checks a template, and plain `tsc` cannot read a `.vue` import at all — so that
       # one package runs `vue-tsc` instead.
+      #
+      # `NODE_OPTIONS` raises Node's default old-space limit for this step alone. The
+      # first run after CI moved onto a self-hosted runner died here with
+      # `FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of
+      # memory` (exit 134). `vue-tsc` holds the whole `ui` package's type graph in one
+      # process, that package grew a great deal, and a hosted runner's Node was sizing
+      # its heap against a machine with more headroom than this one has to spare.
+      # Scoped to the step rather than the job so nothing else inherits a raised
+      # ceiling it never needed.
       - run: pnpm typecheck
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
       # `test:ci`, not `test`: every one of the last several CI runs died the same
       # way - every test file and every test reported passed, and the only failure
       # was vitest's own worker-to-main RPC heartbeat (an unhandled error reading
