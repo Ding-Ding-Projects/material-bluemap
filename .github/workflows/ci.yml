@@ -230,6 +230,35 @@ jobs:
       group: ci-package-${{ github.ref }}
       cancel-in-progress: true
     steps:
+      # Three steps below declare `shell: bash`, and on a self-hosted Windows machine that
+      # is not enough on its own. The runner resolves `bash` from PATH, where Windows ships
+      # `C:\Windows\System32\bash.exe` - the WSL launcher, not a shell. With no WSL
+      # distribution installed it exits 1 having printed instructions for installing one,
+      # which is exactly what failed "Stage the CLI jar to bundle" the first time this job
+      # ever ran on this runner. GitHub's own windows-latest image hides the problem by
+      # putting Git Bash ahead of System32; this machine does not.
+      #
+      # Git for Windows is present (the checkout below runs its git.exe), so the fix is to
+      # put its bin directory on PATH before any bash step runs. Entries written to
+      # $GITHUB_PATH are PREPENDED, so this beats System32 for every later step in the job.
+      # Fails loudly with the real reason rather than letting the same WSL error reappear
+      # three steps later wearing a different step name.
+      - name: Put Git Bash ahead of WSL on PATH
+        shell: pwsh
+        run: |
+          $candidates = @(
+            (Join-Path $env:ProgramFiles 'Git\bin'),
+            (Join-Path ${env:ProgramFiles(x86)} 'Git\bin'),
+            (Join-Path $env:LOCALAPPDATA 'Programs\Git\bin')
+          )
+          $found = $candidates | Where-Object { $_ -and (Test-Path (Join-Path $_ 'bash.exe')) } | Select-Object -First 1
+          if (-not $found) {
+            Write-Host "::error::No Git Bash found on this runner. Every 'shell: bash' step in this job would fall through to WSL's bash.exe, which is not a shell. Install Git for Windows here."
+            exit 1
+          }
+          Write-Host "Using Git Bash from $found"
+          $found | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
       - uses: actions/checkout@v4
 
       # Version pinned via design/package.json's own `packageManager` field - see the
