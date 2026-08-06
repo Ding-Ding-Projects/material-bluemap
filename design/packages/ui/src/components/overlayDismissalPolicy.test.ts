@@ -490,6 +490,18 @@ const REGISTRY: readonly OverlayEntry[] = [
         status: "clean",
     },
     {
+        file: "components/worldrepo/WorldRepoScreen.vue",
+        surface:
+            "Four AppearanceTarget wrappers: id=\"worldrepo.page\" (the whole screen), one per " +
+            "sync-in-progress row (id=\"worldrepo.row.<key>\"), one per tracked-world row " +
+            "(id=\"worldrepo.record.<key>\") and id=\"worldrepo.adoption\" (the adoption " +
+            "section) - no v-menu of its own, so all four inherit AppearanceTarget.vue's " +
+            "wiring wholesale.",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
         file: "components/tabs/TabStrip.vue",
         surface:
             "The tab menu and group menu (:target only, no :activator), the new-tab picker, " +

@@ -125,6 +125,7 @@ const MUST_CARRY_A_SEARCH = [
     "components/cirender/CiRenderScreen.vue",
     "components/remote/RemoteTargetEditor.vue",
     "components/settings/AppSettings.vue",
+    "components/worldrepo/WorldRepoScreen.vue",
 ];
 
 describe("a settings surface has a search at all, which the rule below cannot see", () => {

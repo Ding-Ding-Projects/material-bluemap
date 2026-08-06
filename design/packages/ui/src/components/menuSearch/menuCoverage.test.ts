@@ -252,6 +252,15 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
         menu: "Context menu of a dependency row in the winget/Chocolatey installer list (Edit/Reset appearance).",
         status: "has-search",
     },
+    {
+        file: "worldrepo/WorldRepoScreen.vue",
+        builtVia: "AppearanceTarget",
+        menu:
+            "Context menus of the whole screen, the sync-in-progress rows, each tracked-world " +
+            "row (with its own Open/Copy/Resume commands above the appearance ones) and the " +
+            "adoption section - four AppearanceTarget ids in one file.",
+        status: "has-search",
+    },
 
     /* ---------------------------------------------------------------------- */
     /* Confirmed to have no context menu of any kind today                    */

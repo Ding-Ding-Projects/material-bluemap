@@ -147,6 +147,11 @@ const WIRED_PATH_FIELDS: readonly WiredField[] = [
             "absolute path a project carries, per that field's own hint",
         needle: "project.render.outputFolder",
     },
+    {
+        file: "components/worldrepo/WorldRepoScreen.vue",
+        describes: "World folder (worldrepo.field.worldPath), the world being synced or adopted into",
+        needle: "worldrepo.field.worldPath",
+    },
 ];
 
 describe("every path field the wiring pass reported still carries the browse affordance", () => {

@@ -1,0 +1,35 @@
+export { default as WorldRepoScreen } from "./WorldRepoScreen.vue";
+export { createWorldRepo, formatBytes, phaseLabel, sizeLine, targetKey, DEFAULT_WORLD_BRANCH, LOG_LIMIT } from "./worldRepo.js";
+export type { WorldRepo, WorldRepoLogLine, WorldRepoProgress, WorldRepoRow, WorldRepoRowState } from "./worldRepo.js";
+export { resolveWorldRepoBridge } from "./worldRepoBridge.js";
+export type {
+    Answer,
+    WorldRepoAdoptedProject,
+    WorldRepoAdoptionAlreadyLocal,
+    WorldRepoAdoptionAttentionId,
+    WorldRepoAdoptionAttentionItem,
+    WorldRepoAdoptionCandidate,
+    WorldRepoAdoptionPlan,
+    WorldRepoAdoptionPlanFailureReason,
+    WorldRepoAdoptionRestoreSummary,
+    WorldRepoAdoptionSignal,
+    WorldRepoAdoptionStatus,
+    WorldRepoBridge,
+    WorldRepoCiBootstrapMarker,
+    WorldRepoEvent,
+    WorldRepoFailure,
+    WorldRepoGhStatus,
+    WorldRepoMarker,
+    WorldRepoOwner,
+    WorldRepoPhase,
+    WorldRepoPreflight,
+    WorldRepoRecord,
+    WorldRepoRemoveReport,
+    WorldRepoRemoveResult,
+    WorldRepoReport,
+    WorldRepoRepositoryReport,
+    WorldRepoSyncReport,
+    WorldRepoSyncRequest,
+    WorldRepoSyncResult,
+    WorldRepoTarget,
+} from "./worldRepoBridge.js";
