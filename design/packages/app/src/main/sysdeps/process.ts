@@ -45,6 +45,40 @@ export interface ProcessRunResult {
 export type RunProcess = (options: RunProcessOptions) => Promise<ProcessRunResult>;
 
 /**
+ * Reinterprets a `ProcessRunResult.exitCode` as the signed 32-bit value vendor
+ * documentation (winget's `APPINSTALLER_CLI_ERROR_*` HRESULTs, and anything else
+ * that names its exit codes as negative constants) actually publishes.
+ *
+ * On Windows, `GetExitCodeProcess` returns a DWORD — an UNSIGNED 32-bit value —
+ * and Node's `child_process` `close` event (see `finish()` above) hands that
+ * DWORD through as a JS number with no sign reinterpretation. A tool whose exit
+ * codes are HRESULTs documents them signed, e.g. `-1978335135` for `0x8A150061`,
+ * but Node delivers `2316632161` for that exact same process — the unsigned
+ * reading of the identical bits. A strict `=== -1978335135` against Node's raw
+ * value therefore never matches, silently, and every named-outcome branch that
+ * depends on it falls through to a generic failure.
+ *
+ * Every comparison against a documented negative exit-code constant MUST go
+ * through this function first, called once where the result crosses in from
+ * `RunProcess`, rather than re-deriving both forms at each comparison site — a
+ * second form to remember per comparison is a defect waiting to be
+ * reintroduced by the next person who adds a branch.
+ *
+ * `value | 0` is exactly the fix: JS's `ToInt32` abstract operation takes the
+ * operand modulo 2**32 and reads the result as signed, which is the inverse of
+ * what `GetExitCodeProcess` + Node did to produce the unsigned reading in the
+ * first place. Do not "simplify" this away — it looks like a no-op bitwise
+ * flourish but it is load-bearing.
+ *
+ * `null` — a process killed by a signal, or one that never started — is passed
+ * through untouched. `null | 0` evaluates to `0`, which would misreport a
+ * killed process as a clean successful exit; that case is guarded explicitly.
+ */
+export function normalizeExitCode(exitCode: number | null): number | null {
+    return exitCode === null ? null : exitCode | 0;
+}
+
+/**
  * How long a package-manager operation is given before it is treated as hung.
  *
  * Installing Docker Desktop is a large download over a real network connection, so

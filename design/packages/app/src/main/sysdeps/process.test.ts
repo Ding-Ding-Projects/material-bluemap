@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { spawnProcessRunner } from "./process.js";
+import { normalizeExitCode, spawnProcessRunner } from "./process.js";
 
 /**
  * Exercises the real `spawn` path against `node` itself, rather than `winget` or
@@ -77,4 +77,46 @@ describe("spawnProcessRunner", () => {
         });
         expect(result.timedOut).toBe(true);
     }, 10_000);
+});
+
+/**
+ * `normalizeExitCode` exists because Node's `close` event hands back a Windows
+ * `GetExitCodeProcess` DWORD verbatim — unsigned — while vendor tools that use
+ * HRESULT-shaped exit codes (winget's `APPINSTALLER_CLI_ERROR_*` family) document
+ * those same bit patterns signed. These tests cover the ordinary cases the
+ * conversion must leave alone, not just the large-value case it exists to fix —
+ * see `winget.test.ts` for that half, exercised against the real documented
+ * winget codes.
+ */
+describe("normalizeExitCode", () => {
+    it("leaves a clean 0 exit unchanged", () => {
+        expect(normalizeExitCode(0)).toBe(0);
+    });
+
+    it("leaves ordinary small positive codes unchanged", () => {
+        expect(normalizeExitCode(1)).toBe(1);
+        expect(normalizeExitCode(7)).toBe(7);
+        expect(normalizeExitCode(255)).toBe(255);
+    });
+
+    it("leaves an already-signed negative code unchanged", () => {
+        expect(normalizeExitCode(-1)).toBe(-1);
+        expect(normalizeExitCode(-12345)).toBe(-12345);
+    });
+
+    it("passes null through untouched, rather than misreading a killed process as a clean exit", () => {
+        // `null | 0` is `0` in JavaScript — if this function did not special-case
+        // null explicitly, a process killed by a signal (which Node reports as a
+        // null exit code) would silently normalise to "0 = success".
+        expect(normalizeExitCode(null)).toBeNull();
+    });
+
+    it("reinterprets an unsigned 32-bit DWORD as the signed value it represents", () => {
+        // 0xFFFFFFFF as an unsigned DWORD is -1 as a signed 32-bit integer — the
+        // generic version of the exact reinterpretation winget's exit codes need.
+        expect(normalizeExitCode(0xffffffff)).toBe(-1);
+        // The high bit set, nothing else: the boundary between "still positive"
+        // and "reads as negative" in two's complement 32-bit arithmetic.
+        expect(normalizeExitCode(0x80000000)).toBe(-2147483648);
+    });
 });

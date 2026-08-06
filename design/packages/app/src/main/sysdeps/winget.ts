@@ -16,6 +16,7 @@
  * documented findings rather than guessed at.
  */
 
+import { normalizeExitCode } from "./process.js";
 import type { RunProcess } from "./process.js";
 import { INDETERMINATE_PROGRESS, NO_PROGRESS } from "./types.js";
 import type { SysdepInstallStage, SysdepProgress } from "./types.js";
@@ -172,34 +173,41 @@ export async function installWithWinget(
 
     const combined = `${result.stdout}\n${result.stderr}`;
 
+    // Normalise once, at the boundary where the exit code enters from the process
+    // runner, rather than re-deriving the unsigned/signed pair at every branch
+    // below — see `normalizeExitCode` in `process.ts` for why this is needed at
+    // all: Node hands back winget's HRESULT exit codes as unsigned 32-bit values,
+    // not the signed form the `WINGET_*` constants above are documented in.
+    const exitCode = normalizeExitCode(result.exitCode);
+
     if (result.aborted) {
-        return { kind: "cancelled", exitCode: result.exitCode, message: combined.trim() };
+        return { kind: "cancelled", exitCode, message: combined.trim() };
     }
-    if (result.exitCode === WINGET_SUCCESS) {
-        return { kind: "installed", exitCode: result.exitCode, message: combined.trim() };
+    if (exitCode === WINGET_SUCCESS) {
+        return { kind: "installed", exitCode, message: combined.trim() };
     }
-    if (result.exitCode === WINGET_PACKAGE_ALREADY_INSTALLED) {
-        return { kind: "already-installed", exitCode: result.exitCode, message: combined.trim() };
+    if (exitCode === WINGET_PACKAGE_ALREADY_INSTALLED) {
+        return { kind: "already-installed", exitCode, message: combined.trim() };
     }
-    if (result.exitCode === WINGET_NO_APPLICATIONS_FOUND) {
-        return { kind: "not-found", exitCode: result.exitCode, message: combined.trim() };
+    if (exitCode === WINGET_NO_APPLICATIONS_FOUND) {
+        return { kind: "not-found", exitCode, message: combined.trim() };
     }
     if (
-        result.exitCode === WINGET_INSTALL_CANCELLED_BY_USER ||
-        result.exitCode === WINGET_COMMAND_REQUIRES_ADMIN
+        exitCode === WINGET_INSTALL_CANCELLED_BY_USER ||
+        exitCode === WINGET_COMMAND_REQUIRES_ADMIN
     ) {
-        return { kind: "declined-elevation", exitCode: result.exitCode, message: combined.trim() };
+        return { kind: "declined-elevation", exitCode, message: combined.trim() };
     }
     if (result.launchError !== null) {
         return { kind: "failed", exitCode: null, message: result.launchError };
     }
     if (NETWORK_FAILURE_PATTERN.test(combined)) {
-        return { kind: "network-failure", exitCode: result.exitCode, message: combined.trim() };
+        return { kind: "network-failure", exitCode, message: combined.trim() };
     }
     void lastStage;
     return {
         kind: "failed",
-        exitCode: result.exitCode,
+        exitCode,
         message: combined.trim() || "winget exited without output",
     };
 }

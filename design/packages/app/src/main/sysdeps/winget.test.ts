@@ -190,6 +190,62 @@ describe("installWithWinget", () => {
         expect(outcome.message).toBe("ENOENT");
     });
 
+    // The four tests below feed the fake runner the exit code Node's `close`
+    // event ACTUALLY delivers on Windows for these winget outcomes — the
+    // unsigned 32-bit reading of the same HRESULT bit pattern the WINGET_*
+    // constants above document signed (see `normalizeExitCode` in `process.ts`
+    // for the full explanation). Measured live on a real machine:
+    //   WINGET_PACKAGE_ALREADY_INSTALLED  -1978335135 signed == 2316632161 unsigned
+    //   WINGET_NO_APPLICATIONS_FOUND      -1978335212 signed == 2316632084 unsigned
+    //   WINGET_INSTALL_CANCELLED_BY_USER  -1978334964 signed == 2316632332 unsigned
+    //   WINGET_COMMAND_REQUIRES_ADMIN     -1978335206 signed == 2316632090 unsigned
+    // Every test above this one feeds the fake runner the signed constant
+    // directly, which proves the branch logic but nothing about whether a real
+    // spawned winget process's exit code would actually reach that branch — it
+    // stubs the exact seam where this bug lived. Keep both sets: signed and
+    // unsigned must map to the identical outcome, because that is the real
+    // contract (`installWithWinget` has to work for a real Node runner AND for
+    // an already-signed value produced by any other test double). Do not
+    // delete these as "duplicates" of the signed-form tests above — they are
+    // the ones that actually catch a regression of the sign bug.
+    describe("installWithWinget — unsigned exit codes, as Node's close event delivers them", () => {
+        it("treats the unsigned already-installed code as a successful no-op", async () => {
+            const run = scripted("Found at least one version of the package installed", {
+                exitCode: 2316632161,
+            });
+            const outcome = await installWithWinget(run, "Git.Git");
+            expect(outcome.kind).toBe("already-installed");
+            expect(outcome.exitCode).toBe(WINGET_PACKAGE_ALREADY_INSTALLED);
+        });
+
+        it("treats the unsigned no-applications-found code as not-found", async () => {
+            const run = scripted("No package found matching input criteria", {
+                exitCode: 2316632084,
+            });
+            const outcome = await installWithWinget(run, "Nobody.Fake");
+            expect(outcome.kind).toBe("not-found");
+            expect(outcome.exitCode).toBe(WINGET_NO_APPLICATIONS_FOUND);
+        });
+
+        it("treats the unsigned cancelled-by-user code as declined-elevation, not a crash", async () => {
+            const run = scripted("You cancelled the installation.", {
+                exitCode: 2316632332,
+            });
+            const outcome = await installWithWinget(run, "Docker.DockerDesktop");
+            expect(outcome.kind).toBe("declined-elevation");
+            expect(outcome.exitCode).toBe(WINGET_INSTALL_CANCELLED_BY_USER);
+        });
+
+        it("treats the unsigned requires-admin code as declined-elevation", async () => {
+            const run = scripted("This command requires administrator privileges.", {
+                exitCode: 2316632090,
+            });
+            const outcome = await installWithWinget(run, "Docker.DockerDesktop");
+            expect(outcome.kind).toBe("declined-elevation");
+            expect(outcome.exitCode).toBe(WINGET_COMMAND_REQUIRES_ADMIN);
+        });
+    });
+
     it("passes --scope user only when explicitly requested", async () => {
         let seenArgs: readonly string[] = [];
         const run: RunProcess = async (options) => {
