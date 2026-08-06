@@ -33,7 +33,12 @@
  *  1. **The structural sweep.** Every `new AnchoredPanel({ ... })` construction in
  *     `packages/site/src` is found by text search and must be named in {@link REGISTRY} below.
  *     A new call site that joins the list of five below without an entry fails this file, the
- *     same way a new `<v-menu>` fails the UI package's equivalent guard.
+ *     same way a new `<v-menu>` fails the UI package's equivalent guard. The search resolves a
+ *     call site written through an import alias (`import { AnchoredPanel as Panel } from
+ *     "./anchoredPanel.js"`) back to `AnchoredPanel` from the file's own import statement, rather
+ *     than only ever matching the literal identifier `AnchoredPanel` -- see
+ *     {@link anchoredPanelLocalNames} below for why that resolution is load-bearing, not
+ *     decoration.
  *  2. **The declared inventory.** Each call site is classified as one of two shapes, checked
  *     against its own real source rather than trusted:
  *       - `"explicit-null"` -- the call itself sets `dismissBoundary: null`, verified by
@@ -90,37 +95,66 @@ function read(path: string): string {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Every `new AnchoredPanel({ ... })` call in `source`, as the raw text from `new AnchoredPanel`
- * up to (and including) the matching close paren -- a plain depth-counted brace/paren scan
- * rather than a regex, because the options object nearly always spans several lines and can
- * itself contain nested braces (an `onClose` callback, an object literal for `anchor`'s own
- * construction a few lines above).
+ * Every local identifier that `source`'s own import statements bind to the real `AnchoredPanel`
+ * class, plus the literal name `"AnchoredPanel"` itself -- the latter both covers an unaliased
+ * import (the ordinary case, where the local name and the exported name are the same word) and
+ * this file's own inline test fixtures a few lines below, which construct the panel directly
+ * with no import statement at all.
+ *
+ * `import { AnchoredPanel as Panel } from "./anchoredPanel.js"` is completely ordinary,
+ * TypeScript-legal syntax with zero effect on runtime behaviour, and nothing in the toolchain
+ * forbids it. A sweep that only ever looked for the literal text `"new AnchoredPanel("` would
+ * never see `new Panel(...)`, so resolving the alias here -- from the same import clause the
+ * TypeScript compiler itself resolves it from -- is what keeps the sweep honest against a rename.
+ */
+function anchoredPanelLocalNames(source: string): string[] {
+    const names = new Set<string>(["AnchoredPanel"]);
+    const importClause = /import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*["'][^"']*["']/g;
+    for (const [, specifiers] of source.matchAll(importClause)) {
+        for (const specifier of specifiers.split(",")) {
+            const alias = /^\s*AnchoredPanel(?:\s+as\s+([A-Za-z_$][\w$]*))?\s*$/.exec(specifier);
+            if (alias) names.add(alias[1] ?? "AnchoredPanel");
+        }
+    }
+    return [...names];
+}
+
+/**
+ * Every `new AnchoredPanel({ ... })` call in `source` (or `new <alias>({ ... })`, per
+ * {@link anchoredPanelLocalNames} above), as the raw text from `new <name>` up to (and
+ * including) the matching close paren -- a plain depth-counted brace/paren scan rather than a
+ * regex, because the options object nearly always spans several lines and can itself contain
+ * nested braces (an `onClose` callback, an object literal for `anchor`'s own construction a few
+ * lines above).
  */
 function anchoredPanelConstructions(source: string): string[] {
-    const found: string[] = [];
-    const NEEDLE = "new AnchoredPanel(";
-    let searchFrom = 0;
-    for (;;) {
-        const start = source.indexOf(NEEDLE, searchFrom);
-        if (start === -1) break;
-        let depth = 0;
-        let end = -1;
-        for (let index = start + NEEDLE.length - 1; index < source.length; index += 1) {
-            const char = source[index];
-            if (char === "(") depth += 1;
-            else if (char === ")") {
-                depth -= 1;
-                if (depth === 0) {
-                    end = index;
-                    break;
+    const found: { start: number; text: string }[] = [];
+    for (const localName of anchoredPanelLocalNames(source)) {
+        const NEEDLE = `new ${localName}(`;
+        let searchFrom = 0;
+        for (;;) {
+            const start = source.indexOf(NEEDLE, searchFrom);
+            if (start === -1) break;
+            let depth = 0;
+            let end = -1;
+            for (let index = start + NEEDLE.length - 1; index < source.length; index += 1) {
+                const char = source[index];
+                if (char === "(") depth += 1;
+                else if (char === ")") {
+                    depth -= 1;
+                    if (depth === 0) {
+                        end = index;
+                        break;
+                    }
                 }
             }
+            if (end === -1) break;
+            found.push({ start, text: source.slice(start, end + 1) });
+            searchFrom = end + 1;
         }
-        if (end === -1) break;
-        found.push(source.slice(start, end + 1));
-        searchFrom = end + 1;
     }
-    return found;
+    found.sort((a, b) => a.start - b.start);
+    return found.map((entry) => entry.text);
 }
 
 /** How many `new AnchoredPanel(` constructions each file has, counted the same way. */
@@ -246,6 +280,22 @@ describe("anchoredPanelDismissalPolicy.ts: the mechanism sweep", () => {
 
         expect(sourceHasExplicitNull("new AnchoredPanel({ anchor: a, dismissBoundary: null })")).toBe(true);
         expect(sourceHasExplicitNull("new AnchoredPanel({ anchor: a })")).toBe(false);
+    });
+
+    it("still finds a construction when the class is imported under a different local name", () => {
+        // `import { AnchoredPanel as Panel }` is completely ordinary, TypeScript-legal syntax --
+        // nothing in the toolchain forbids it -- and has zero effect on runtime behaviour. A sweep
+        // that only ever searches for the literal text "new AnchoredPanel(" never sees a
+        // `new Panel(...)` call site, so it silently never enters SWEPT_FILES, never needs a
+        // REGISTRY entry, and the "registers every file the sweep finds" check has nothing to
+        // compare against -- a panel anchored to a large element with no dismissBoundary override
+        // (the exact reported-bug shape this file exists to catch) would ship guard-green.
+        const aliased = `
+            import { AnchoredPanel as Panel } from "./anchoredPanel.js";
+            const panel = new Panel({ anchor: bigWrapperElement });
+        `;
+        expect(anchoredPanelConstructions(aliased)).toHaveLength(1);
+        expect(anchoredPanelConstructions(aliased)[0]).toContain("bigWrapperElement");
     });
 });
 
