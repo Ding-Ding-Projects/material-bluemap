@@ -655,6 +655,21 @@ function readIfPresent(path) {
     }
 }
 
+/**
+ * Generated text is compared as repository text, not as a checkout's platform EOL choice.
+ *
+ * Git stores these files with LF, but a Windows checkout created under `core.autocrlf=true`
+ * can materialize CRLF before `.gitattributes` from this fix has taken effect. Normalizing both
+ * sides keeps `--check` about changelog content while still detecting every non-EOL change.
+ */
+function normalizeLineEndings(text) {
+    return text.replace(/\r\n?/g, "\n");
+}
+
+function generatedTextMatches(actual, expected) {
+    return actual !== null && normalizeLineEndings(actual) === normalizeLineEndings(expected);
+}
+
 function main(argv) {
     const check = argv.includes("--check");
     const quiet = argv.includes("--quiet");
@@ -677,7 +692,9 @@ function main(argv) {
     ];
 
     if (check) {
-        const stale = outputs.filter((output) => readIfPresent(output.path) !== output.text);
+        const stale = outputs.filter(
+            (output) => !generatedTextMatches(readIfPresent(output.path), output.text),
+        );
         if (stale.length > 0) {
             const names = stale.map((output) => output.path.replace(REPO_ROOT, "")).join(", ");
             throw new Error(

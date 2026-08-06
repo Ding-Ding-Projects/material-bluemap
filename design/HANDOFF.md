@@ -1,5 +1,21 @@
 # Handoff
 
+## Update, 2026-08-06 — changelog currentness is independent of checkout line endings
+
+The generated changelog files are stored with LF in Git, but `.gitattributes` previously said
+only `text=auto`. A Windows checkout using `core.autocrlf=true` could therefore materialize both
+files as CRLF. `build-changelog.mjs --check` compared raw strings, so the exact same commit was
+“current” in a worktree where the generator had just written LF and “stale” in a clean Windows
+checkout containing the same normalized Git blobs.
+
+The check now normalizes CRLF and legacy lone CR to LF on both sides before comparing, while
+`.gitattributes` pins `CHANGELOG.md` and `changelogData.generated.ts` to LF for future checkouts.
+The comparison still fails on every content change; only line-ending representation is ignored.
+A deliberate reversible proof converted all 1,608 line endings in the tracked `CHANGELOG.md` to
+CRLF, changed its raw hash, and kept `node scripts/build-changelog.mjs --check` green. Running the
+generator restored pure LF and the exact original Git-blob hash, leaving no proof artifact or
+working-tree change behind.
+
 ## Update, 2026-08-06 — generated history no longer impersonates executable UI
 
 CI run `31129289404` exposed three policy failures after the SSH world-source phase landed.
