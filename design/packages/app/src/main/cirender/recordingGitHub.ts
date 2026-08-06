@@ -38,6 +38,8 @@ export interface FakeReply {
     readonly text?: string;
     /** Sent as-is. Use for an artifact zip. */
     readonly bytes?: Uint8Array;
+    /** Extra response headers, merged on top of the content-type this reply already sets. */
+    readonly headers?: Record<string, string>;
 }
 
 interface Route {
@@ -108,22 +110,22 @@ function toResponse(reply: FakeReply): Response {
     if (reply.bytes !== undefined) {
         return new Response(reply.bytes, {
             status: reply.status,
-            headers: { "content-type": "application/zip" },
+            headers: { "content-type": "application/zip", ...reply.headers },
         });
     }
     if (reply.text !== undefined) {
         return new Response(reply.text, {
             status: reply.status,
-            headers: { "content-type": "text/plain" },
+            headers: { "content-type": "text/plain", ...reply.headers },
         });
     }
     if (reply.json !== undefined) {
         return new Response(JSON.stringify(reply.json), {
             status: reply.status,
-            headers: { "content-type": "application/json" },
+            headers: { "content-type": "application/json", ...reply.headers },
         });
     }
-    return new Response(null, { status: reply.status });
+    return new Response(null, { status: reply.status, ...(reply.headers === undefined ? {} : { headers: reply.headers }) });
 }
 
 /* -------------------------------------------------------------------------- */

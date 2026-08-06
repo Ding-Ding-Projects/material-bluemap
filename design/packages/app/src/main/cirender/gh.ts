@@ -189,6 +189,17 @@ export interface GhStatus {
     readonly account: string | null;
     /** The host it is signed in to. `github.com` for nearly everybody. */
     readonly host: string | null;
+    /**
+     * The scopes `gh auth status` named for the active token, or null when it did not say.
+     *
+     * Classic personal-access and OAuth tokens get a `Token scopes: 'repo', 'workflow', ...`
+     * line; a fine-grained token, a `GITHUB_TOKEN` supplied by the environment, or an older
+     * `gh` do not, and null means exactly that - "not stated" - never "has none". A caller
+     * that needs to know whether a scope is present has to treat null as "could not be
+     * checked" rather than as an empty list, or a token this build simply cannot see the
+     * scopes of would be refused for a permission it may well have.
+     */
+    readonly scopes: readonly string[] | null;
     /** One sentence naming the situation and what would change it. */
     readonly message: string;
 }
@@ -217,6 +228,7 @@ export async function detectGh(
             version: null,
             account: null,
             host: null,
+            scopes: null,
             message: NOT_INSTALLED,
         };
     }
@@ -226,6 +238,7 @@ export async function detectGh(
             version: null,
             account: null,
             host: null,
+            scopes: null,
             message:
                 `${GH_COMMAND} is on PATH but would not report its version` +
                 `${firstLine(version.stderr) === "" ? "" : `: ${firstLine(version.stderr)}`}. ` +
@@ -246,6 +259,7 @@ export async function detectGh(
             version: versionText,
             account: null,
             host: null,
+            scopes: null,
             message:
                 `${GH_COMMAND} is installed but nobody is signed in to it. Run \`${GH_LOGIN_COMMAND}\`` +
                 " in a terminal - it has to be run there, because it asks for a code interactively" +
@@ -255,11 +269,13 @@ export async function detectGh(
 
     const account = accountFrom(combined);
     const host = hostFrom(combined);
+    const scopes = scopesFrom(combined);
     return {
         availability: "ready",
         version: versionText,
         account,
         host,
+        scopes,
         message:
             account === null
                 ? `${GH_COMMAND} is installed and signed in.`
@@ -282,6 +298,23 @@ function accountFrom(text: string): string | null {
 function hostFrom(text: string): string | null {
     const match = /Logged in to (\S+) (?:account|as)/.exec(text);
     return match?.[1] ?? null;
+}
+
+/**
+ * `- Token scopes: 'repo', 'workflow', 'read:org'` on a classic token.
+ *
+ * A fine-grained token, an environment-supplied `GITHUB_TOKEN`, and some older `gh`
+ * releases print no such line at all, and that is read as "unknown" rather than as "has no
+ * scopes" - the whole point of the caller carrying `readonly string[] | null` rather than
+ * `readonly string[]`.
+ */
+function scopesFrom(text: string): readonly string[] | null {
+    const line = /Token scopes:\s*(.+)/.exec(text);
+    if (line?.[1] === undefined) return null;
+    const found = [...line[1].matchAll(/'([^']+)'/g)]
+        .map((match) => match[1])
+        .filter((scope): scope is string => typeof scope === "string" && scope.length > 0);
+    return found.length > 0 ? found : null;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -546,10 +546,18 @@ export class CiRenderSync {
         // sign-in can read the repository, and the chosen route's facts when it cannot.
         // Either way it has to arrive *before* the button, because a warning that arrives
         // after the upload is not a warning.
-        const described =
-            resolved.transport === null
-                ? { report: null, appFailure: null, routeFailure: null }
-                : await this.#describeRepository(resolved.transport, owner, repo);
+        //
+        // Called whether or not a dispatch route was found, and that is deliberate: "can
+        // this credential see the repository at all" is a different question from "can a
+        // route already dispatch its render workflow", and answering only the second one
+        // is what used to turn an ordinary just-confirmed-free name, or a hand-made empty
+        // repository nobody has set up yet, into a report indistinguishable from a real
+        // permission refusal - both left `repository: null` because `resolved.transport`
+        // was null either way. `#describeRepository` below now degrades gracefully when
+        // there is no transport to fall back on, so this can run unconditionally and the
+        // surface gets an honest "the repository exists and is writable, it just is not
+        // set up yet" whenever that is what is actually true.
+        const described = await this.#describeRepository(resolved.transport, owner, repo);
         const repository = described.report;
         const repositoryFailure = described.appFailure;
 
@@ -670,9 +678,16 @@ export class CiRenderSync {
      * decide, in the one case where the fuller text is genuinely unavailable. Leaving the
      * warning out instead - which is what this used to do, by refusing the upload outright -
      * is no longer an option now that the `gh` route can publish.
+     *
+     * `transport` is nullable because this is now called from `preflight()` even when
+     * {@link resolveTransport} found no dispatch-ready route at all - the primary read
+     * below uses this application's own session and needs no transport of its own. A null
+     * transport simply means there is nothing to fall back to if that primary read fails,
+     * exactly the same "could not be described" outcome this already reported before a
+     * route existed to fall back on.
      */
     async #describeRepository(
-        transport: CiTransport,
+        transport: CiTransport | null,
         owner: string,
         repo: string,
     ): Promise<{
@@ -686,6 +701,7 @@ export class CiRenderSync {
             return { report: await this.#options.backup.inspectRepository(owner, repo), appFailure: null, routeFailure: null };
         } catch (error) {
             const appFailure = error instanceof Error ? error.message : String(error);
+            if (transport === null) return { report: null, appFailure, routeFailure: null };
             let facts: CiRepositoryFacts;
             try {
                 facts = await transport.readRepository(owner, repo);

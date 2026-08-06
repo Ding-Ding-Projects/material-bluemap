@@ -343,6 +343,57 @@ describe("what leaves this computer is said first", () => {
     });
 });
 
+describe("preflight still describes the repository when no route can dispatch yet", () => {
+    /**
+     * `readWorkflow` 404s for two very different reasons that used to be reported
+     * identically: a repository that does not have the render workflow committed yet -
+     * an empty repository somebody just made by hand, or a name just confirmed free and
+     * about to be created - and a repository this credential genuinely cannot reach.
+     * `resolved.transport` is null in both cases, and the old code used that alone to
+     * decide `repository: null`, which made an ordinary "not set up yet" indistinguishable
+     * from a real permission refusal. This is the fix: the repository read no longer
+     * depends on a dispatch route having been found.
+     */
+    it("reports the repository as readable and writable even though nothing can dispatch to it yet", async () => {
+        // Deliberately no workflow route mocked, so the capability probe 404s for both
+        // credentials (gh is unavailable too, via `noGh()` inside `makeSync`) - exactly
+        // what an existing, unprepared repository looks like from here.
+        const github = new RecordingGitHub();
+        const sync = makeSync({ github, backup: fakeBackup(false) });
+
+        const result = await sync.preflight(request());
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        // Not ready to dispatch a render...
+        expect(result.preflight.routeReport.ready).toBe(false);
+        // ...but the repository itself is not a mystery. This is what lets the surface
+        // tell "exists, not set up yet" apart from "cannot be reached at all".
+        expect(result.preflight.repository?.fullName).toBe(`${OWNER}/${REPO}`);
+        expect(result.preflight.repository?.canWrite).toBe(true);
+        expect(result.preflight.repositoryFailure).toBeNull();
+    });
+
+    it("still reports nothing when the repository itself cannot be read by any credential", async () => {
+        // The genuine "cannot proceed" case: even the repository read fails, with no
+        // transport to fall back to either. This must stay `repository: null`, because
+        // inventing an answer here is exactly the mistake the fix above does not make.
+        const github = new RecordingGitHub();
+        const sync = makeSync({
+            github,
+            backup: { inspectRepository: () => Promise.reject(new Error("not found")) },
+        });
+
+        const result = await sync.preflight(request());
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.preflight.routeReport.ready).toBe(false);
+        expect(result.preflight.repository).toBeNull();
+        expect(result.preflight.repositoryFailure).toContain("not found");
+    });
+});
+
 describe("an unchanged world is not uploaded again", () => {
     it("skips the upload when the fingerprint matches and the release still holds the asset", async () => {
         const github = releaseRoute(baseRoutes(new RecordingGitHub()))

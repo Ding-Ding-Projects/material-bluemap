@@ -597,6 +597,200 @@ export function artifactDownloadHeaders(token: string): Record<string, string> {
     return { ...headers(token), accept: "application/vnd.github+json" };
 }
 
+/* -------------------------------------------------------------------------- */
+/* Repository readiness: empty, Actions policy, scopes, and raw file content   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Whether a repository has ever had a commit.
+ *
+ * A repository somebody just created through `gh repo create` or the GitHub website has
+ * **no default-branch ref at all** until its first commit lands - not an empty one, none.
+ * `GET /repos/{o}/{r}` still answers with a `default_branch` name in that state (GitHub
+ * names what the branch *will be*, not what exists), so that call cannot tell "empty" from
+ * "has commits". `GET .../commits` can: GitHub answers `409 Conflict` with "Git Repository
+ * is empty." for a repository with no commits, and `200` with a list otherwise. This is the
+ * one call the bootstrap flow trusts to tell the two apart.
+ */
+export async function isRepositoryEmpty(
+    owner: string,
+    repo: string,
+    options: ActionsCallOptions,
+): Promise<boolean> {
+    const url =
+        `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
+        "/commits?per_page=1";
+    const response = await options.fetch(url, init(options));
+    if (response.status === 409) return true;
+    if (response.ok) return false;
+    throw await refuse(response, url, `Reading whether ${owner}/${repo} has any commits`);
+}
+
+export type ActionsPolicy =
+    /** GitHub confirmed Actions is switched on for this repository. */
+    | { readonly state: "enabled" }
+    /** GitHub confirmed Actions is switched off - by the repository or by an org policy. */
+    | { readonly state: "disabled"; readonly allowedActions: string | null }
+    /**
+     * GitHub would not say. Reading this endpoint needs admin access to the repository, so
+     * a token that can push but is not an admin gets refused here even though it can start
+     * a workflow perfectly well - a 403 on this one call is not evidence of anything.
+     */
+    | { readonly state: "unknown"; readonly reason: string };
+
+/**
+ * Whether GitHub will actually run a workflow on this repository at all.
+ *
+ * Distinct from the workflow file existing: an organisation can disable Actions outright,
+ * or restrict it to a list that does not include this workflow, and a perfectly present
+ * `render-world.yml` will still never start. `readWorkflow`'s own `state` field only says
+ * whether *that one workflow* was switched off in the Actions tab - this is the repository
+ * (and, transitively, the organisation policy behind it) - so both are read and reported
+ * separately rather than folded into one guess.
+ */
+export async function readActionsPolicy(
+    owner: string,
+    repo: string,
+    options: ActionsCallOptions,
+): Promise<ActionsPolicy> {
+    const url =
+        `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
+        "/actions/permissions";
+    const response = await options.fetch(url, init(options));
+    if (response.status === 403 || response.status === 404) {
+        return {
+            state: "unknown",
+            reason:
+                "Reading whether Actions is enabled needs admin access to the repository, and this" +
+                " account does not have it here. Actions being disabled would show up as every run" +
+                " refusing to start rather than as this call succeeding.",
+        };
+    }
+    if (!response.ok) {
+        throw await refuse(response, url, `Reading whether Actions is enabled on ${owner}/${repo}`);
+    }
+    const body: unknown = await response.json();
+    const enabled = isRecord(body) ? body["enabled"] : null;
+    const allowedActions = isRecord(body) ? optionalText(body["allowed_actions"]) : null;
+    if (enabled === true) return { state: "enabled" };
+    if (enabled === false) return { state: "disabled", allowedActions };
+    return {
+        state: "unknown",
+        reason: "GitHub described the repository's Actions setting in a way this build could not read.",
+    };
+}
+
+/**
+ * The OAuth scopes a **classic** personal access token carries, read from the response
+ * headers of an ordinary call rather than from a dedicated endpoint - GitHub has none.
+ *
+ * `null` is not "no scopes"; it is "could not be read", and that happens for the tokens
+ * this application increasingly issues by default: a fine-grained personal access token or
+ * an OAuth App/GitHub App installation token carries no `x-oauth-scopes` header at all,
+ * because scopes are not how those authorize. A `null` here is reported as "could not be
+ * checked in advance" rather than as a missing scope - claiming a scope is absent from a
+ * header that was never going to be sent would send somebody to re-authorize for no reason.
+ */
+export async function readTokenScopes(
+    options: ActionsCallOptions,
+): Promise<{ readonly scopes: readonly string[] | null }> {
+    const url = `${base(options)}/rate_limit`;
+    const response = await options.fetch(url, init(options));
+    const header = response.headers.get("x-oauth-scopes");
+    if (header === null) return { scopes: null };
+    const scopes = header
+        .split(",")
+        .map((scope) => scope.trim())
+        .filter((scope) => scope.length > 0);
+    return { scopes };
+}
+
+/** One file's content, as the Contents API describes it. */
+export interface RepositoryFile {
+    /** The blob's own git sha, required to update it without racing another writer. */
+    readonly sha: string;
+    readonly contentBase64: string;
+}
+
+/**
+ * One file at a path, on a repository's default branch, or null when there is none.
+ *
+ * `404` is the only "there is nothing here" answer the Contents API gives, and it means
+ * exactly that for a bootstrap: no file at this path is not a refusal, it is the case the
+ * whole feature exists to fix.
+ */
+export async function readRepositoryFile(
+    owner: string,
+    repo: string,
+    path: string,
+    options: ActionsCallOptions,
+): Promise<RepositoryFile | null> {
+    const url =
+        `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
+        `/contents/${path.split("/").map(encodeURIComponent).join("/")}`;
+    const response = await options.fetch(url, init(options));
+    if (response.status === 404) return null;
+    if (!response.ok) throw await refuse(response, url, `Reading ${path} on ${owner}/${repo}`);
+    const body: unknown = await response.json();
+    if (!isRecord(body)) return null;
+    const sha = body["sha"];
+    const content = body["content"];
+    if (typeof sha !== "string" || typeof content !== "string") return null;
+    // GitHub wraps base64 content at 60 characters with embedded newlines; callers decode
+    // it themselves, and the newlines are harmless to a base64 decoder either way.
+    return { sha, contentBase64: content };
+}
+
+/**
+ * Creates or updates one file at a path, on a repository's default branch.
+ *
+ * This is the one call in this feature that writes a file rather than a repository
+ * variable, and it is also the one call that makes the empty-repository case tractable:
+ * the Contents API creates a repository's **first commit** from a plain `PUT` with no
+ * `sha`, exactly the same call that updates an existing file when one is given. There is no
+ * separate "initialize this repository" step to forget.
+ *
+ * `sha` omitted means "this file does not exist yet, create it" - GitHub answers `422` if
+ * it turns out to exist after all, which is the race this refuses to paper over by
+ * retrying: the caller asked to create a specific absence and found it gone.
+ */
+export async function writeRepositoryFile(
+    owner: string,
+    repo: string,
+    path: string,
+    contentBase64: string,
+    message: string,
+    options: ActionsCallOptions,
+    sha?: string,
+): Promise<{ readonly sha: string; readonly commitSha: string | null }> {
+    const url =
+        `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
+        `/contents/${path.split("/").map(encodeURIComponent).join("/")}`;
+    const response = await options.fetch(
+        url,
+        init(options, {
+            method: "PUT",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ message, content: contentBase64, ...(sha === undefined ? {} : { sha }) }),
+        }),
+    );
+    if (!response.ok) throw await refuse(response, url, `Writing ${path} on ${owner}/${repo}`);
+    const body: unknown = await response.json();
+    const content = isRecord(body) ? body["content"] : null;
+    const newSha = isRecord(content) ? content["sha"] : null;
+    const commit = isRecord(body) ? body["commit"] : null;
+    const commitSha = isRecord(commit) ? commit["sha"] : null;
+    if (typeof newSha !== "string") {
+        throw new ActionsCallError(
+            `GitHub accepted the write to ${path} on ${owner}/${repo} but did not answer with the` +
+                " file's new sha, so a following write to the same path cannot be made safely.",
+            response.status,
+            url,
+        );
+    }
+    return { sha: newSha, commitSha: typeof commitSha === "string" ? commitSha : null };
+}
+
 /** One run's JSON, shared by both credential routes. Null for anything unreadable. */
 export function parseRun(value: unknown): WorkflowRun | null {
     if (!isRecord(value)) return null;

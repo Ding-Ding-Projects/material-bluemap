@@ -102,6 +102,12 @@ export interface WorldFolderEntry {
     directory: boolean;
 }
 
+/** A dimension a Spigot/Paper-style server split into its own sibling folder. Mirrors `main/world/inspect.ts`. */
+export interface ServerSiblingDimension {
+    worldFolder: string;
+    regionFiles: number;
+}
+
 /**
  * A shallow reading of a folder somebody picked, for deciding whether it is a world.
  *
@@ -116,6 +122,8 @@ export interface WorldFolderListing {
     folder: string;
     entries: WorldFolderEntry[];
     regionFiles: Record<string, number>;
+    /** The nether and/or the end, when a server split them into sibling folders instead. */
+    serverSiblings: Record<string, ServerSiblingDimension>;
 }
 
 /* -------------------------------------------------------------------------- */

@@ -129,6 +129,29 @@ describe("three states, three sentences", () => {
         expect(status.message).toContain("would not report its version");
     });
 
+    it("reads the token scopes off a classic token's status line", async () => {
+        const runner = fakeRunner({
+            "--version": { stdout: "gh version 2.62.0\n" },
+            status: {
+                code: 0,
+                stdout:
+                    "github.com\n  ✓ Logged in to github.com account octocat (keyring)\n" +
+                    "  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'\n",
+            },
+        });
+        const status = await detectGh(runner);
+        expect(status.scopes).toEqual(["gist", "read:org", "repo", "workflow"]);
+    });
+
+    it("reports scopes as unknown rather than empty when gh did not print a scopes line", async () => {
+        const runner = fakeRunner({
+            "--version": { stdout: "gh version 2.62.0\n" },
+            status: { code: 0, stdout: "✓ Logged in to github.com account octocat\n" },
+        });
+        const status = await detectGh(runner);
+        expect(status.scopes).toBeNull();
+    });
+
     it("never asks gh for the token", async () => {
         const runner = fakeRunner({
             "--version": { stdout: "gh version 2.62.0\n" },

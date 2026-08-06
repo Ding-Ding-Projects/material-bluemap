@@ -244,3 +244,39 @@ export type {
     CiOwnerChoicesOptions,
     CiRepositoryNameAvailability,
 } from "./setup.js";
+
+// Preparing a repository so a CI render can actually run on it: the empty-repository, the
+// additive-workflow, the stale-template and the Actions-disabled cases `readWorkflow`'s
+// probe alone cannot tell apart. See `bootstrap.ts`'s own doc comment for the bug this
+// closes and for why `resolveTransport` now takes an overridable `probe`.
+export {
+    CI_BOOTSTRAP_MARKER_FILE,
+    CI_BOOTSTRAP_MARKER_TOOL,
+    CI_BOOTSTRAP_MARKER_VERSION,
+    REQUIRED_CI_BOOTSTRAP_SCOPES,
+    bootstrapCiRepository,
+} from "./bootstrap.js";
+export type {
+    CiBootstrapEvent,
+    CiBootstrapFailure,
+    CiBootstrapFailureCode,
+    CiBootstrapFileAction,
+    CiBootstrapFileOutcome,
+    CiBootstrapMarker,
+    CiBootstrapOptions,
+    CiBootstrapPhase,
+    CiBootstrapReport,
+    CiBootstrapRequest,
+    CiBootstrapResult,
+    CiWorkflowTemplate,
+} from "./bootstrap.js";
+
+// The real content behind those templates, read off this build's own disk rather than
+// injected by a test. Kept as a separate module so `bootstrap.ts` never touches a
+// filesystem itself - see `workflowTemplates.ts`'s own doc comment.
+export {
+    CI_WORKFLOW_FILE_NAMES,
+    CiWorkflowTemplateError,
+    loadCiWorkflowTemplates,
+} from "./workflowTemplates.js";
+export type { LoadCiWorkflowTemplatesOptions, LoadedCiWorkflowTemplates } from "./workflowTemplates.js";

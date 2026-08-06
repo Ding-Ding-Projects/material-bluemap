@@ -57,23 +57,35 @@ import {
     artifactZipUrl,
     dispatchWorkflow,
     findDispatchedRun,
+    isRepositoryEmpty,
     listRunArtifacts,
     parseArtifacts,
     parseJobs,
     parseRun,
     parseWorkflow,
     pickDispatchedRun,
+    readActionsPolicy,
     readDefaultBranch,
     readJobLogTail,
+    readRepositoryFile,
     readRepositoryVariable,
     readRun,
     readRunJobs,
+    readTokenScopes,
     readWorkflow,
+    writeRepositoryFile,
     writeRepositoryVariable,
     LOG_TAIL_LINES,
     ActionsCallError,
 } from "./actions.js";
-import type { WorkflowArtifact, WorkflowJob, WorkflowRun, WorkflowSummary } from "./actions.js";
+import type {
+    ActionsPolicy,
+    RepositoryFile,
+    WorkflowArtifact,
+    WorkflowJob,
+    WorkflowRun,
+    WorkflowSummary,
+} from "./actions.js";
 import { GH_COMMAND, GH_LOGIN_COMMAND, detectGh, ghApiJson, ghApiPost, ghApiSend, ghApiToFile } from "./gh.js";
 import type { GhStatus, ProcessRunner } from "./gh.js";
 
@@ -222,6 +234,36 @@ export interface CiTransport {
     readVariable(owner: string, repo: string, name: string): Promise<string | null>;
     /** Creates or updates one repository variable. */
     writeVariable(owner: string, repo: string, name: string, value: string): Promise<void>;
+
+    /* -- repository bootstrap: does the repository even have what a run needs? -- */
+
+    /** True when the repository has never had a commit - no default-branch ref exists yet. */
+    isRepositoryEmpty(owner: string, repo: string): Promise<boolean>;
+    /** Whether GitHub will run a workflow here at all, independent of the workflow's own state. */
+    readActionsPolicy(owner: string, repo: string): Promise<ActionsPolicy>;
+    /**
+     * The scopes this credential's token carries, when they can be read at all.
+     *
+     * Session-only in any meaningful sense: `gh` manages its own token and exposes no way
+     * to read its scopes back, so this route always answers `null` - "not checked" rather
+     * than "none", exactly the distinction {@link RouteGhReport} already draws elsewhere.
+     */
+    readTokenScopes(): Promise<{ readonly scopes: readonly string[] | null }>;
+    /** One file's content at a path, on the default branch, or null when it does not exist. */
+    readFile(owner: string, repo: string, path: string): Promise<RepositoryFile | null>;
+    /**
+     * Creates or updates one file at a path, on the default branch - including the very
+     * first commit of a repository that has none yet. `sha` is required to update a file
+     * that already exists and must be omitted to create one that does not.
+     */
+    writeFile(
+        owner: string,
+        repo: string,
+        path: string,
+        contentBase64: string,
+        message: string,
+        sha?: string,
+    ): Promise<{ readonly sha: string; readonly commitSha: string | null }>;
 }
 
 export interface SessionTransportOptions {
@@ -363,6 +405,13 @@ export function sessionTransport(options: SessionTransportOptions): CiTransport 
 
         readVariable: (owner, repo, name) => readRepositoryVariable(owner, repo, name, call),
         writeVariable: (owner, repo, name, value) => writeRepositoryVariable(owner, repo, name, value, call),
+
+        isRepositoryEmpty: (owner, repo) => isRepositoryEmpty(owner, repo, call),
+        readActionsPolicy: (owner, repo) => readActionsPolicy(owner, repo, call),
+        readTokenScopes: () => readTokenScopes(call),
+        readFile: (owner, repo, path) => readRepositoryFile(owner, repo, path, call),
+        writeFile: (owner, repo, path, contentBase64, message, sha) =>
+            writeRepositoryFile(owner, repo, path, contentBase64, message, call, sha),
     };
 }
 
@@ -739,6 +788,98 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
             }
             await ghApiSend(`${path(owner, repo)}/actions/variables`, "POST", { name, value }, api);
         },
+
+        async isRepositoryEmpty(owner, repo): Promise<boolean> {
+            try {
+                await ghApiJson(`${path(owner, repo)}/commits?per_page=1`, api);
+                return false;
+            } catch (error) {
+                if (error instanceof ActionsCallError && error.status === 409) return true;
+                throw error;
+            }
+        },
+
+        async readActionsPolicy(owner, repo): Promise<ActionsPolicy> {
+            try {
+                const body = await ghApiJson(`${path(owner, repo)}/actions/permissions`, api);
+                const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+                if (record["enabled"] === true) return { state: "enabled" };
+                if (record["enabled"] === false) {
+                    const allowed = record["allowed_actions"];
+                    return { state: "disabled", allowedActions: typeof allowed === "string" ? allowed : null };
+                }
+                return {
+                    state: "unknown",
+                    reason: `${GH_COMMAND} described the Actions setting in a way this build could not read.`,
+                };
+            } catch (error) {
+                if (error instanceof ActionsCallError && (error.status === 403 || error.status === 404)) {
+                    return {
+                        state: "unknown",
+                        reason:
+                            "Reading whether Actions is enabled needs admin access to the repository, and" +
+                            ` the account \`${GH_COMMAND}\` is signed in as does not have it here.`,
+                    };
+                }
+                throw error;
+            }
+        },
+
+        // `gh` manages its own token and has no command that reads its scopes back - see
+        // the interface's own note on this method for why `null` is the honest answer here
+        // rather than an empty list.
+        readTokenScopes: () => Promise.resolve({ scopes: null }),
+
+        async readFile(owner, repo, filePath): Promise<RepositoryFile | null> {
+            try {
+                const body = await ghApiJson(
+                    `${path(owner, repo)}/contents/${filePath.split("/").map(encodeURIComponent).join("/")}`,
+                    api,
+                );
+                const record = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+                const sha = record["sha"];
+                const content = record["content"];
+                if (typeof sha !== "string" || typeof content !== "string") return null;
+                return { sha, contentBase64: content };
+            } catch (error) {
+                if (error instanceof ActionsCallError && error.status === 404) return null;
+                throw error;
+            }
+        },
+
+        async writeFile(owner, repo, filePath, contentBase64, message, sha) {
+            const raw = await ghApiSend(
+                `${path(owner, repo)}/contents/${filePath.split("/").map(encodeURIComponent).join("/")}`,
+                "PUT",
+                { message, content: contentBase64, ...(sha === undefined ? {} : { sha }) },
+                api,
+            );
+            let parsed: unknown;
+            try {
+                parsed = JSON.parse(raw);
+            } catch {
+                throw new ActionsCallError(
+                    `${GH_COMMAND} accepted the write to ${filePath} on ${owner}/${repo} but answered` +
+                        " something that was not JSON, so the file's new sha could not be read.",
+                    0,
+                    filePath,
+                );
+            }
+            const record = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
+            const content = record["content"];
+            const newSha = typeof content === "object" && content !== null ? (content as Record<string, unknown>)["sha"] : null;
+            const commit = record["commit"];
+            const commitSha = typeof commit === "object" && commit !== null ? (commit as Record<string, unknown>)["sha"] : null;
+            if (typeof newSha !== "string") {
+                throw new ActionsCallError(
+                    `${GH_COMMAND} accepted the write to ${filePath} on ${owner}/${repo} but did not` +
+                        " answer with the file's new sha.",
+                    0,
+                    filePath,
+                );
+            }
+            return { sha: newSha, commitSha: typeof commitSha === "string" ? commitSha : null };
+        },
     };
 }
 
@@ -846,6 +987,17 @@ export interface ResolveTransportOptions {
     readonly uploadsBase?: string | undefined;
     /** Force a route, for somebody who knows which credential they want. */
     readonly prefer?: CiRoute | undefined;
+    /**
+     * The capability probe used to decide whether a candidate route is usable.
+     *
+     * Defaults to `readWorkflow(owner, repo, workflowFile)` - the cheapest call that proves
+     * a credential can see Actions on a repository that already has the workflow. A
+     * repository being **bootstrapped** does not have it yet by definition, so
+     * `bootstrap.ts` passes a weaker probe here (`readRepository`) that only asks whether
+     * the credential can see the repository at all, which is everything a write needs to
+     * start with.
+     */
+    readonly probe?: ((transport: CiTransport, owner: string, repo: string) => Promise<unknown>) | undefined;
 }
 
 export interface ResolvedTransport {
@@ -868,6 +1020,9 @@ export interface ResolvedTransport {
  * can see which of their two GitHub sign-ins was refused and why.
  */
 export async function resolveTransport(options: ResolveTransportOptions): Promise<ResolvedTransport> {
+    const probe =
+        options.probe ??
+        ((transport, owner, repo) => transport.readWorkflow(owner, repo, options.workflowFile));
     const wantsGh = options.prefer === "gh";
     let sessionUsable = false;
     let sessionReason: string | null = null;
@@ -890,7 +1045,7 @@ export async function resolveTransport(options: ResolveTransportOptions): Promis
         sessionReason = `The ${GH_COMMAND} route was asked for explicitly.`;
     } else {
         try {
-            await session.readWorkflow(options.owner, options.repo, options.workflowFile);
+            await probe(session, options.owner, options.repo);
             sessionUsable = true;
         } catch (error) {
             sessionReason = error instanceof Error ? error.message : String(error);
@@ -914,6 +1069,7 @@ export async function resolveTransport(options: ResolveTransportOptions): Promis
                     version: null,
                     account: null,
                     host: null,
+                    scopes: null,
                     message: `${GH_COMMAND} was not checked: the sign-in in this application worked.`,
                     usable: false,
                     reason: "not needed",
@@ -939,7 +1095,7 @@ export async function resolveTransport(options: ResolveTransportOptions): Promis
             account: gh.account,
         });
         try {
-            await ghRoute.readWorkflow(options.owner, options.repo, options.workflowFile);
+            await probe(ghRoute, options.owner, options.repo);
             ghUsable = true;
         } catch (error) {
             ghReason = error instanceof Error ? error.message : String(error);

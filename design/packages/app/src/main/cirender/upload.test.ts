@@ -80,6 +80,11 @@ function fakeTransport(release: CiRelease = { id: 5, tag: "", htmlUrl: "https://
         listRunArtifacts: unused,
         downloadArtifact: unused,
         readRepository: unused,
+        isRepositoryEmpty: unused,
+        readActionsPolicy: unused,
+        readTokenScopes: unused,
+        readFile: unused,
+        writeFile: unused,
 
         releaseHasAsset: (_owner, _repo, _tag, name) => Promise.resolve(existing.has(name)),
         findRelease: (_owner, _repo, tag) =>

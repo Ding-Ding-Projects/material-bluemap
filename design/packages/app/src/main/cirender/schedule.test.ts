@@ -39,6 +39,11 @@ function fakeTransport(initial: Readonly<Record<string, string>> = {}): CiTransp
         createRelease: unused,
         listReleaseAssets: unused,
         uploadReleaseAsset: unused,
+        isRepositoryEmpty: unused,
+        readActionsPolicy: unused,
+        readTokenScopes: unused,
+        readFile: unused,
+        writeFile: unused,
         readVariable: (_owner, _repo, name) => Promise.resolve(store.get(name) ?? null),
         writeVariable: (_owner, _repo, name, value) => {
             store.set(name, value);
