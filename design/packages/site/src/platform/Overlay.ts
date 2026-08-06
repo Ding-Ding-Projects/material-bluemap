@@ -36,6 +36,16 @@ export class Overlay {
     private readonly onKeyDown: (event: KeyboardEvent) => void;
     private readonly onReflow: () => void;
     private isOpen = false;
+    /**
+     * Elements whose contents never count as "outside" this overlay, beyond `this.element`
+     * and `this.anchor` themselves. A menu can open its own further popover -- the regex
+     * builder behind a menu's local search field is the case that motivated this -- as a
+     * separate document-body-level surface rather than nesting it inside the menu's element.
+     * Without an exemption, the first click inside that nested popover reads as an outside
+     * click here and closes the menu underneath it. Callers register the popover's own root
+     * element for exactly as long as that popover exists; see `addDismissExemption`.
+     */
+    private readonly dismissExemptions = new Set<Node>();
 
     constructor(anchor: HTMLElement, options: OverlayOptions) {
         this.anchor = anchor;
@@ -50,6 +60,9 @@ export class Overlay {
             const target = event.target;
             if (!(target instanceof Node)) return;
             if (this.element.contains(target) || this.anchor.contains(target)) return;
+            for (const exempt of this.dismissExemptions) {
+                if (exempt.contains(target)) return;
+            }
             this.close();
         };
 
@@ -98,6 +111,17 @@ export class Overlay {
         // Returning focus is not optional: without it, closing a menu drops the visitor at
         // the top of the document with no idea where they were.
         if (this.anchor.isConnected) this.anchor.focus();
+    }
+
+    /**
+     * Exempt clicks inside `element` from counting as "outside" this overlay, for as long as
+     * the exemption is not removed. Returns the remover -- call it (typically when the nested
+     * popover itself closes or is destroyed) so a stale exemption cannot outlive the surface it
+     * was protecting and quietly widen the dismiss boundary for good.
+     */
+    addDismissExemption(element: Node): () => void {
+        this.dismissExemptions.add(element);
+        return () => this.dismissExemptions.delete(element);
     }
 
     toggle(): boolean {

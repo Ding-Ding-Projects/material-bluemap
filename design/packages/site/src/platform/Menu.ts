@@ -67,7 +67,15 @@ export class Menu {
     private entries: readonly MenuEntry[] = [];
     private searchModel: SearchQueryModel | null = null;
     private destroySearchModel: (() => void) | null = null;
-    private searchBuilder: { toggle(): void; destroy(): void } | null = null;
+    private searchBuilder: { readonly element: HTMLElement; toggle(): void; destroy(): void } | null = null;
+    /**
+     * Releases the search builder's exemption from this menu's own outside-click dismissal.
+     * The builder opens as a separate document-body-level popover (see `openSearchBuilder`
+     * below), not nested inside `this.overlay.element`, so without an exemption the very first
+     * click inside it -- a token button, the pattern field, a flag checkbox -- would read as
+     * "outside the menu" and close the menu (and the builder with it) instantly.
+     */
+    private releaseSearchBuilderExemption: (() => void) | null = null;
 
     constructor(anchor: HTMLElement, options: MenuOptions) {
         const { entries, header, search, ...overlayOptions } = options;
@@ -79,6 +87,8 @@ export class Menu {
             onClose: () => {
                 this.searchBuilder?.destroy();
                 this.searchBuilder = null;
+                this.releaseSearchBuilderExemption?.();
+                this.releaseSearchBuilderExemption = null;
                 this.destroySearchModel?.();
                 this.destroySearchModel = null;
                 this.searchModel = null;
@@ -244,6 +254,8 @@ export class Menu {
     private openSearchBuilder(anchor: HTMLElement, fieldLabel: string): void {
         if (this.searchInput === undefined) return;
         this.searchBuilder?.destroy();
+        this.releaseSearchBuilderExemption?.();
+        this.releaseSearchBuilderExemption = null;
         this.destroySearchModel?.();
         const model = new SearchQueryModel({
             fieldId: uniqueId("md-menu-search-model"),
@@ -265,6 +277,7 @@ export class Menu {
             anchor,
             returnFocusTo: this.searchInput,
         });
+        this.releaseSearchBuilderExemption = this.overlay.addDismissExemption(this.searchBuilder.element);
         this.searchBuilder.toggle();
     }
 

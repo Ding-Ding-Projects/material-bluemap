@@ -773,7 +773,7 @@ export function createBuilderController(
         readonly anchor: HTMLElement;
         readonly returnFocusTo: HTMLElement;
     },
-): { toggle(): void; close(): void; destroy(): void; isOpen(): boolean } {
+): { readonly element: HTMLElement; toggle(): void; close(): void; destroy(): void; isOpen(): boolean } {
     const fieldLabel = (): string => options.fieldLabelSource?.() ?? options.fieldLabel;
     let view: RegexBuilderView | null = null;
     const panel = new AnchoredPanel({
@@ -790,6 +790,13 @@ export function createBuilderController(
     });
 
     return {
+        // The panel's own root, created once in the AnchoredPanel constructor above and
+        // appended to <body> on first show() -- stable for this controller's whole lifetime,
+        // not just while open. A caller that embeds this controller inside another dismissable
+        // surface (Menu's own search builder is the case this exists for) can register it as a
+        // dismiss exemption on that outer surface, so a click inside this popover is never
+        // mistaken for a click outside the thing that opened it.
+        element: panel.element,
         isOpen: () => panel.isOpen,
         toggle() {
             if (panel.isOpen) {
