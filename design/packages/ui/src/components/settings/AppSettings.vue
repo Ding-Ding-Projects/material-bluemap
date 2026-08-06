@@ -21,7 +21,7 @@ import WorldFolderRow from "./WorldFolderRow.vue";
 import UpdateStatusRow from "../update/UpdateStatusRow.vue";
 import { updateText } from "../update/updateCopy.js";
 import type { UpdatesController } from "../update/useUpdates.js";
-import { SimpleHistoryList, simpleHistoryHostFrom } from "../history/index.js";
+import { SimpleHistoryPanel, simpleHistoryHostFrom } from "../history/index.js";
 import { RepairPanel } from "../repair/index.js";
 import { DOCK_PLACEMENTS } from "./dockPlacement.js";
 import { dockedSurfaces } from "./useDockPlacement.js";
@@ -188,7 +188,7 @@ const flags = ref("im");
 
 const copy = computed(() => sectionCopy(t));
 
-/** The two `SimpleHistoryList` headings, read live so a language switch renames them too. */
+/** The two `SimpleHistoryPanel` headings, read live so a language switch renames them too. */
 const historyCopy = computed(() => ({
     profiles: t("settings.history.profiles", "Server profiles"),
     appSettings: t("settings.history.appSettings", "Application settings"),
@@ -908,8 +908,8 @@ function onDrawer(value: boolean): void {
                         :title="copy.history.title"
                         :description="copy.history.description"
                     >
-                        <SimpleHistoryList :title="historyCopy.profiles" :host="profilesHistoryHost" />
-                        <SimpleHistoryList :title="historyCopy.appSettings" :host="appSettingsHistoryHost" />
+                        <SimpleHistoryPanel :title="historyCopy.profiles" :host="profilesHistoryHost" />
+                        <SimpleHistoryPanel :title="historyCopy.appSettings" :host="appSettingsHistoryHost" />
                     </SettingsSection>
                 </template>
 

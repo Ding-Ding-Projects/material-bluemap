@@ -274,10 +274,22 @@ save, and a git that fails mid-commit leaves the file on disk exactly as it was 
    source of truth, with the existing `localStorage` value kept as a fallback and a one-time,
    idempotent copy into the new store — safe to run twice, because writing the same state twice
    records nothing the second time. `localStorage` remains authoritative until this step lands.
-4. **Not yet done.** Surfacing both histories in the existing History tab
-   (`design/packages/ui/src/components/history/`) alongside the config-folder and project histories
-   already there, reusing its date filter, action filter, search and export rather than building a
-   second panel.
+4. **Done, on `AppSettings.vue`'s own History tab.** Both histories are searchable and
+   date-filterable now, through `SimpleHistoryPanel.vue`
+   (`design/packages/ui/src/components/history/`) rather than `HistoryPanel.vue` itself: they
+   reuse `historyModel.ts`'s filter functions (the same search-plus-date-range-plus-action
+   composition `HistoryPanel.vue` uses) and `ChangelogDateFilter.vue` (the same calendar the
+   changelog viewer uses), but not `HistoryPanel.vue`'s further extras — comparing two
+   revisions, restoring one file or one setting, discarding older revisions — none of which
+   exist on the other side of `SimpleHistoryHost` (`list` and `restore`, nothing else). Export
+   is not offered here either, for the same reason: `HistoryPanel.vue`'s export writes the
+   folder and repository path this host does not carry.
+   `SimpleHistoryList.vue` — the plain, unfiltered list this panel supersedes for these two
+   histories — stays exactly as it was and stays mounted exactly where it was:
+   `ProjectEditor.vue`'s own History tab, which a separate, concurrent piece of work is
+   extending into a project-autosave history with its own search-and-date requirements already
+   in its brief. `SimpleHistoryPanel.vue` is a sibling component, not a rewrite of
+   `SimpleHistoryList.vue`, precisely so that project history is untouched by this change.
 
 None of this changes the promise the main-process half already keeps: once a caller does hand it a
 state to save, the history it keeps is real, local, append-only, and never blocks or fails the save
@@ -353,6 +365,15 @@ file and reports the history failure separately; a git that fails mid-commit lea
 and a restore recorded as a new revision, provably undoable in turn. Neither module introduces a new
 destructive call site in `packages/ui` — both expose read, save, list and restore only, with no
 trim — so the super-confirmation inventory needed no change for this work.
+
+`SimpleHistoryPanel.test.ts` mounts the search-and-date-filterable panel directly, over a fake
+`SimpleHistoryHost` (13 tests): the plain list still restores through the host and reloads; the
+search bar really is `ConfigSearchField` with the regex builder reachable from it and plain text
+the default; the date range and the action chips narrow the same result set the search already
+narrowed rather than replacing it; the filter row starts collapsed with an honest badge count; the
+two empty states — nothing recorded, and nothing matching — stay distinct, with one button to clear
+every filter; and two panels mounted side by side, exactly as `AppSettings.vue` mounts the profile
+and application-settings histories together, never share a `aria-controls` id.
 
 ## Suggested next
 

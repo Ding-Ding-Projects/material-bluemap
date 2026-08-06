@@ -1161,10 +1161,18 @@ export const HISTORY_FIXED = {
     "history.trimNothing": { en: "Nothing to remove", yue: "冇嘢要移除" },
     "history.trim": { en: "Remove {drop} older revisions", yue: "移除 {drop} 個較舊嘅版本" },
 
-    /* SimpleHistoryList.vue's own chrome. */
+    /* SimpleHistoryList.vue's own chrome, shared with SimpleHistoryPanel.vue below it. */
     "history.simple.refresh": { en: "Read {title} history again", yue: "重新讀取{title}嘅版本記錄" },
     "history.simple.refreshShort": { en: "Refresh", yue: "重新整理" },
     "history.simple.loading": { en: "Reading the history...", yue: "讀緊版本記錄……" },
+    /*
+     * SimpleHistoryPanel.vue's own search hint. Not `history.searchHint`'s "a map name": this
+     * panel also covers the application's own settings, which have no map to name.
+     */
+    "history.simple.searchHint": {
+        en: "A label, an action, a revision",
+        yue: "一個標籤、一個動作，或者一個版本",
+    },
 } as const satisfies Record<string, FixedString>;
 
 export const HISTORY_FACTS = {
