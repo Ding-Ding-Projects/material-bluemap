@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiAlertCircleOutline,
+    mdiArrowDownBoldBoxOutline,
     mdiCheckCircleOutline,
     mdiChevronDown,
     mdiChevronUp,
@@ -11,9 +12,21 @@ import {
     mdiPlayCircleOutline,
     mdiStopCircleOutline,
 } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText, VCardTitle, VChip, VIcon, VProgressLinear } from "vuetify/components";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VCardText,
+    VCardTitle,
+    VCheckbox,
+    VChip,
+    VIcon,
+    VProgressLinear,
+    VTooltip,
+} from "vuetify/components";
 import { canResume, etaText, formatBytes, partsText, phaseLabel, transferText } from "./backups.js";
 import type { BackupRow } from "./backups.js";
+import { useStickyScroll } from "../scroll/stickyScroll.js";
 
 /**
  * One backup, while it happens and after it ends.
@@ -55,6 +68,35 @@ const showLog = ref(false);
 
 /** Ties the log toggle button to the log list it discloses, for assistive tech. */
 const logId = computed(() => `mb-backup-row-log-${props.row.backupId}`);
+
+/**
+ * Sticky-scroll following for the log list, once it is open - the same mechanism
+ * `RenderConsole.vue` uses, via `components/scroll/stickyScroll.ts`. On by default: a
+ * backup can talk for an hour, and opening "Show what it reported" while it is still
+ * running is opening it to watch it happen, the same reasoning the render console's own
+ * default follows.
+ *
+ * The list only exists in the DOM while `showLog` is true (`v-if`, not `v-show`, below),
+ * so the container ref is null until then - `useStickyScroll` tolerates that fine, and the
+ * `watch(showLog, ...)` beneath starts the view at the bottom the moment it is revealed,
+ * the same way `RenderConsole.vue`'s `onMounted` starts it there on a permanent surface.
+ */
+const logContainer = ref<HTMLElement | null>(null);
+const autoScroll = useStickyScroll({
+    surface: "backupLog",
+    defaultEnabled: true,
+    container: logContainer,
+    length: () => props.row.log.length,
+});
+// See `RenderConsole.vue`'s own doc comment on the same destructure: `autoScroll` is a plain
+// object, so its properties would not auto-unwrap as refs inside the template otherwise.
+const { enabled: autoScrollEnabled, paused: autoScrollPaused } = autoScroll;
+
+watch(showLog, async (open) => {
+    if (!open) return;
+    await nextTick();
+    autoScroll.scrollToBottom();
+});
 
 const percent = computed(() => props.row.task?.percent ?? 0);
 const transfer = computed(() => transferText(props.row.task, t));
@@ -274,9 +316,56 @@ const cardLabel = computed(() =>
                             : t("backup.row.showLog", "Show what it reported")
                     }}
                 </v-btn>
-                <ul v-if="showLog" :id="logId" class="mb-backup-row__log">
-                    <li v-for="line in row.log" :key="line.id">{{ line.message }}</li>
-                </ul>
+                <div v-if="showLog" class="mb-backup-row__logFrame">
+                    <v-checkbox
+                        v-model="autoScrollEnabled"
+                        class="mb-backup-row__autoScroll"
+                        :label="t('backup.row.autoScroll', 'Follow new lines')"
+                        density="compact"
+                        hide-details
+                        data-test="backup-log-autoscroll"
+                    >
+                        <v-tooltip
+                            activator="parent"
+                            location="top"
+                            :text="
+                                t(
+                                    'backup.row.autoScrollHint',
+                                    'Keeps this log scrolled to the newest line as it arrives. Scrolling up pauses that without turning this off; scroll back down, or use Newest lines, to pick it up again.',
+                                )
+                            "
+                        />
+                    </v-checkbox>
+                    <!--
+                        `role="log"` names what this is to assistive technology without its
+                        implicit `aria-live="polite"` narrating every line - see
+                        `RenderConsole.vue`'s own `<ol>` for the full reasoning, which applies
+                        identically here.
+                    -->
+                    <ul
+                        ref="logContainer"
+                        :id="logId"
+                        class="mb-backup-row__log"
+                        role="log"
+                        aria-live="off"
+                        tabindex="0"
+                        :aria-label="t('backup.row.logRegion', 'What this backup reported')"
+                        @scroll="autoScroll.onScroll"
+                    >
+                        <li v-for="line in row.log" :key="line.id">{{ line.message }}</li>
+                    </ul>
+                    <v-btn
+                        v-if="autoScrollPaused"
+                        class="mb-backup-row__jump"
+                        :prepend-icon="mdiArrowDownBoldBoxOutline"
+                        size="x-small"
+                        variant="flat"
+                        color="primary"
+                        @click="autoScroll.scrollToBottom"
+                    >
+                        {{ t("backup.row.jumpLatest", "Newest lines") }}
+                    </v-btn>
+                </div>
             </template>
         </v-card-text>
     </v-card>
@@ -323,6 +412,21 @@ const cardLabel = computed(() =>
     inline-size: 100%;
 }
 
+.mb-backup-row__logFrame {
+    position: relative;
+    margin-block-start: 4px;
+}
+
+.mb-backup-row__autoScroll {
+    flex: 0 0 auto;
+}
+
+/* See `RenderConsole.vue`'s identical rule: `hide-details` still leaves Vuetify's own
+   selection-control padding, taller than this row's other small controls. */
+.mb-backup-row__autoScroll :deep(.v-selection-control) {
+    min-height: unset;
+}
+
 .mb-backup-row__log {
     max-block-size: 200px;
     overflow-y: auto;
@@ -330,5 +434,16 @@ const cardLabel = computed(() =>
     font-family: "Roboto Mono", monospace;
     font-size: 0.6875rem;
     line-height: 1.6;
+}
+
+.mb-backup-row__log:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+}
+
+.mb-backup-row__jump {
+    position: absolute;
+    inset-block-end: 6px;
+    inset-inline-end: 6px;
 }
 </style>

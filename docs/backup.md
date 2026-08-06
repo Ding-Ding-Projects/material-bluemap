@@ -255,6 +255,20 @@ Once every part is on the release, the staged archive and its parts are deleted 
 pointer and the sidecar stay: a couple of kilobytes, and the way somebody finds their backup again
 when the thing that broke was the network.
 
+### Watching it happen
+
+Each row's **Show what it reported** disclosure holds up to 100 log lines (`LOG_LIMIT` in
+`backups.ts`), and once opened it carries a **Follow new lines** checkbox, on by default — a
+backup can talk for an hour, and opening the disclosure while it is still running is opening it to
+watch it happen. Scrolling up to read an earlier line pauses following automatically, without
+unticking the checkbox; scrolling back down, or the **Newest lines** control that appears only
+while paused, resumes it. The list carries `role="log"` with `aria-live="off"`, so it is reachable
+and readable with the keyboard without a screen reader narrating every line as it arrives. The
+preference is remembered across restarts, shared by every open backup row rather than kept per
+row, and it is the same mechanism (`components/scroll/`) `RenderConsole.vue`'s own console and
+`DownloadRowCard.vue`'s own log use — see [Render console](./render-console.md) for the full
+reasoning behind the pause-on-scroll-up behaviour and the `aria-live="off"` choice.
+
 ### Restoring
 
 **Restoring has its own engine, `main/backup/restore.ts`**, not the downloads surface. This section
@@ -401,6 +415,7 @@ The tests for this feature, and what each one is for:
 | `main/backup/ipc.test.ts` | Exactly the named channels are registered and removed; the token appears in no answer; being signed out is an answer rather than a crash |
 | `components/backup/backups.test.ts` | Events land in the right row; a refusal with no id is reported beside the form, not as a phantom row; reading a repository clears the previous answer first |
 | `components/backup/BackupScreen.test.ts` | A build with no bridge says what is needed; the public warning and its acknowledgement render; restoring emits the release's coordinates and fetches nothing itself; an unfinished backup offers no restore |
+| `components/backup/BackupRunCard.test.ts` | The log toggle's `aria-controls` names the revealed list; the auto-scroll checkbox is on by default with a real accessible name; the log is a `role="log"` region with `aria-live="off"`; new lines scroll the view while checked and do not once unchecked; scrolling away pauses without unticking the checkbox and shows a jump control; scrolling back to the bottom resumes and hides it; an active text selection inside the log is never scrolled away from; keyboard focus is never moved; the preference survives a fresh mount |
 
 What has **not** been verified, stated plainly:
 

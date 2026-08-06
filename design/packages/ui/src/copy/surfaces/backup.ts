@@ -570,6 +570,27 @@ export const BACKUP_VOICED = {
             "備份永遠只會加，唔會減。呢個程式永遠唔會改、換或者刪走一個 release 或者 asset，所以喺呢度點搵都搵唔到粒刪除掣：要刪就去 GitHub 度刪，喺嗰度你會清清楚楚見到自己刪緊咩。",
         ],
     },
+    /*
+     * The log's own auto-scroll checkbox tooltip - the same behaviour `RenderConsole.vue`
+     * offers, on the same "backing up can talk for an hour" reasoning `backups.ts`'s own
+     * doc comment already states.
+     */
+    "backup.row.autoScrollHint": {
+        en: [
+            "Keeps this log scrolled to the newest line as it arrives. Scrolling up pauses that without turning this off; scroll back down, or use Newest lines, to pick it up again.",
+            "Keeps this log scrolled to the newest line as it arrives. Scrolling up pauses that without turning this off; scroll back down, or use Newest lines, to pick it up again.",
+            "Keeps this log scrolled to the newest line as it arrives. Scrolling up pauses that without turning this off, so nothing needs re-ticking; scroll back to the bottom, or use Newest lines, to resume it.",
+            "Keeps this log scrolled to the newest line. Scrolling up to read something pauses it too, without turning this off - scroll back down, or hit Newest lines, when you are ready to resume.",
+            "Keeps this log glued to the newest line. Scroll up and it lets go on its own, without turning this off - scroll back to the bottom, or hit Newest lines, and it glues itself back on.",
+        ],
+        yue: [
+            "跟住呢個 log 到嚟嘅最新一行，將佢捲落去。你向上捲會令佢暫停，但唔會關呢個掣；捲返落底，或者撳「最新嘅行」，就會再繼續跟。",
+            "跟住呢個 log 到嚟嘅最新一行，將佢捲落去。你向上捲會令佢暫停，但唔會關呢個掣；捲返落底，或者撳「最新嘅行」，就會再繼續跟。",
+            "跟住呢個 log 到嚟嘅最新一行，將佢捲落去。你向上捲嗰陣佢會暫停，但唔會關呢個剔掣；捲返去底，或者撳「最新嘅行」，就會再開始跟。",
+            "呢個掣負責將呢個 log 跟住最新一行捲。你向上捲去睇嘢，佢自己會暫停，唔會關呢個剔掣；捲返落底，或者撳「最新嘅行」，準備好就繼續跟。",
+            "呢個掣負責將呢個 log 黐實最新一行。你向上捲，佢會自動鬆手，唔會關呢個剔；捲返落底，或者撳「最新嘅行」，佢又會黐返實。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const BACKUP_FIXED = {
@@ -659,6 +680,10 @@ export const BACKUP_FIXED = {
     "backup.row.resume": { en: "Carry on with this backup", yue: "接住做呢個備份" },
     "backup.row.hideLog": { en: "Hide what it reported", yue: "收埋佢報過嘅嘢" },
     "backup.row.showLog": { en: "Show what it reported", yue: "睇佢報過嘅嘢" },
+    /* The log's own auto-scroll checkbox and jump control, on by default - see BackupRunCard.vue. */
+    "backup.row.autoScroll": { en: "Follow new lines", yue: "跟住新增嘅行" },
+    "backup.row.jumpLatest": { en: "Newest lines", yue: "最新嘅行" },
+    "backup.row.logRegion": { en: "What this backup reported", yue: "呢個備份報過嘅嘢" },
 
     /* ---------------------------------------------------------------- */
     /* The phases, in the order they happen                             */
@@ -805,6 +830,10 @@ export const BACKUP_FACTS = {
     "backup.listings.appendOnly": {
         en: ["never edits, replaces or removes", "GitHub"],
         yue: ["永遠唔會改", "GitHub"],
+    },
+    "backup.row.autoScrollHint": {
+        en: ["newest line", "without turning this off", "Newest lines"],
+        yue: ["最新一行", "唔會關", "最新嘅行"],
     },
 } as const satisfies Record<
     keyof typeof BACKUP_VOICED,
