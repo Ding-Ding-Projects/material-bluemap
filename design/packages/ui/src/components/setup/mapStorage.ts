@@ -25,8 +25,33 @@ export type SetupPlatform = "windows" | "macos" | "linux";
 
 const STORAGE_DIR_KEY = "material-bluemap.maps.directory";
 
-/** Electron's `productName`, which is also the leaf of its `userData` directory. */
+/**
+ * `electron-builder.config.cjs`'s `productName` - the display name in the installer, the
+ * window title and the Start-menu shortcut. Used below only for the macOS and Linux cases,
+ * neither of which this app ships a desktop build for (it is Windows-only in practice), so
+ * there is no real `userData` directory on either platform to be truthful about.
+ */
 const PRODUCT_DIRECTORY = "Material BlueMap";
+
+/**
+ * Electron's real `userData` directory leaf on Windows - not a guess.
+ *
+ * This constant used to be `PRODUCT_DIRECTORY` here too, with a comment claiming it "is
+ * also the leaf of its userData directory". That was wrong: this app never calls
+ * `app.setName()`, so Electron does not read `productName` for `userData` - it falls back
+ * to the raw `"name"` field in `packages/app/package.json`, `@material-bluemap/app`, joined
+ * as a path exactly as written. The `/` becomes a second directory level, so `userData` is
+ * really `%APPDATA%\@material-bluemap\app` - two folders deep, not the flat
+ * `%APPDATA%\Material BlueMap` this file used to show.
+ *
+ * **Do not "fix" this by calling `app.setName()`, or by renaming the npm package.** Either
+ * one would rename every existing profile's `userData` directory out from under itself -
+ * consent, the first-run flag, the GitHub credential, project history, cached maps, all
+ * silently orphaned, because nothing here migrates the old folder's contents to the new
+ * path. That migration is real work, scheduled for a later change; this constant only has
+ * to describe where things already are, truthfully.
+ */
+const WINDOWS_USER_DATA_DIRECTORY = "@material-bluemap\\app";
 
 /** Reads the platform out of a user-agent string. Exported so a test can pass one in. */
 export function detectPlatform(userAgent: string): SetupPlatform {
@@ -60,7 +85,7 @@ export function pathToken(platform: SetupPlatform): string {
 export function defaultMapStorageDir(platform: SetupPlatform): string {
     switch (platform) {
         case "windows":
-            return `%APPDATA%\\${PRODUCT_DIRECTORY}\\maps`;
+            return `%APPDATA%\\${WINDOWS_USER_DATA_DIRECTORY}\\maps`;
         case "macos":
             return `~/Library/Application Support/${PRODUCT_DIRECTORY}/maps`;
         default:

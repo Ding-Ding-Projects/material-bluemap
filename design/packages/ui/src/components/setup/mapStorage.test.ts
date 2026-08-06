@@ -38,7 +38,9 @@ describe("platform detection", () => {
 
 describe("the default folder", () => {
     it("sits beside the app's own data on each platform", () => {
-        expect(defaultMapStorageDir("windows")).toBe("%APPDATA%\\Material BlueMap\\maps");
+        // Windows names the real userData leaf - @material-bluemap\app, from this app's own
+        // package.json "name" field, never renamed via app.setName() - not the display name.
+        expect(defaultMapStorageDir("windows")).toBe("%APPDATA%\\@material-bluemap\\app\\maps");
         expect(defaultMapStorageDir("macos")).toBe(
             "~/Library/Application Support/Material BlueMap/maps",
         );
