@@ -239,5 +239,50 @@ export function useRegisteredTarget(info: AppearanceTargetInfo): void {
     onBeforeUnmount(() => unregisterAppearanceTarget(info.id));
 }
 
+/* -------------------------------------------------------------------------- */
+/* Cross-instance popup coordination                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Whichever `AppearanceTarget` instance currently owns the one open menu or editor, so a
+ * second instance opening its own popup can close the first before opening its own - the same
+ * "one open menu at a time" rule the site's own `contextMenu.ts` already enforces
+ * (`openElementMenu`'s `openMenu?.close()` before it opens a new one).
+ *
+ * Without this, `menuOpen`/`editorOpen` are refs private to each `AppearanceTarget` instance,
+ * with nothing coordinating between them. Right-clicking a second element while the first
+ * one's menu is still open used to leave both rendered and interactive at once: the first
+ * instance's own `vClickOutside` directive only closes on a real `click` DOM event, and a
+ * right mouse press never dispatches one (only `mousedown`/`contextmenu`), so nothing ever
+ * told the first instance to close - two context menus stacked on screen, which no native or
+ * conventional context menu does.
+ */
+let closeOtherAppearancePopup: (() => void) | null = null;
+
+/**
+ * Called by an instance right before it opens its own menu or editor. Closes whichever
+ * *other* instance currently owns the shared "one open popup" slot - a no-op when this
+ * instance already owns it, so reopening or repositioning one's own menu never bounces its
+ * own popup shut - then claims the slot for this instance.
+ */
+export function claimAppearancePopup(close: () => void): void {
+    if (closeOtherAppearancePopup !== null && closeOtherAppearancePopup !== close) {
+        closeOtherAppearancePopup();
+    }
+    closeOtherAppearancePopup = close;
+}
+
+/**
+ * Called by an instance once its own popup has closed (or the instance unmounts), so it stops
+ * being the registered owner. A no-op when some other instance has since claimed the slot,
+ * which is exactly the case a force-closed instance hits: it never owned the slot to begin
+ * with by the time it gets here, since the instance that closed it already claimed it first.
+ */
+export function releaseAppearancePopup(close: () => void): void {
+    if (closeOtherAppearancePopup === close) {
+        closeOtherAppearancePopup = null;
+    }
+}
+
 /** An empty record, re-exported so a component does not reach past this module for one. */
 export { emptyRecord };
