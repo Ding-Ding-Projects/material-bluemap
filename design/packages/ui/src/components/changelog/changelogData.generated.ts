@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "b061962e1d3edce3277e5023cb46c0dbb1a97ce7",
+        shortSha: "b061962e1d",
+        date: "2026-08-06T19:24:03-04:00",
+        subject: "Make changelog checks independent of line endings",
+        details: "Normalize generated text before the currentness comparison and pin both outputs to LF, so a clean Windows CRLF checkout and a generator-written LF checkout agree on content. The stopwatch was checking the paper's folds instead of the words; now it reads the page and still catches every changed sentence.\n\n產生檔比對前先統一換行，兼將兩個輸出釘死做 LF；Windows CRLF checkout 同 generator 寫出嘅 LF 而家會按內容講數。之前個秒錶竟然驗紙張摺痕唔驗文字，依家終於識睇字，改咗一句都照樣捉到。",
+        category: "build",
+        areas: ["build", "docs"],
+        files: 3,
+    },
+    {
         sha: "baee22be34dcbe4451f2465d2fc7d2b6561f818a",
         shortSha: "baee22be34",
         date: "2026-08-06T19:15:57-04:00",

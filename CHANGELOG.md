@@ -45,6 +45,7 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- Make changelog checks independent of line endings - [`b061962e1d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b061962e1d3edce3277e5023cb46c0dbb1a97ce7)
 - Preserve historical generated-only changelog commits - [`baee22be34`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/baee22be34dcbe4451f2465d2fc7d2b6561f818a)
 - Bootstrap every self-hosted CI dependency - [`ee9087c2fb`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ee9087c2fbd4f3f4c37270a12e0303ea0ab5945a)
 
