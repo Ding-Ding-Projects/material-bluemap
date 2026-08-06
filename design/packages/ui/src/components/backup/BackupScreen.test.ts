@@ -22,6 +22,7 @@ import type {
     BackupEvent,
     BackupListing,
     BackupResult,
+    CreateRepositoryAnswer,
     RepositoryChoice,
     RepositoryReport,
 } from "./backupBridge.js";
@@ -145,6 +146,18 @@ function fakeBridge(overrides: Partial<BackupBridge> = {}): BackupBridge {
                 },
             }),
         listBackups: () => Promise.resolve({ ok: true, value: [] } as Answer<readonly BackupListing[]>),
+        createBackupRepository: () =>
+            Promise.resolve({
+                ok: true,
+                value: {
+                    owner: "me",
+                    name: "fresh",
+                    fullName: "me/fresh",
+                    private: true,
+                    canWrite: true,
+                    htmlUrl: "https://github.test/me/fresh",
+                },
+            } as CreateRepositoryAnswer),
         startBackup: () =>
             Promise.resolve({
                 ok: false,
@@ -158,6 +171,7 @@ function fakeBridge(overrides: Partial<BackupBridge> = {}): BackupBridge {
         canListRepositories: true,
         canListBackups: true,
         canSeeActive: true,
+        canCreateRepository: true,
         ...overrides,
     };
 }
@@ -169,6 +183,12 @@ interface Exposed {
     repo: string;
     inspect(): Promise<void>;
     check(): Promise<void>;
+    createOwnerKind: "user" | "organization";
+    createVisibility: "public" | "private";
+    createRepo(): Promise<void>;
+    canCreateRepo: boolean;
+    repoQuery: string;
+    repoRegex: boolean;
 }
 
 /** The component's own fields and actions, named rather than found by markup order. */
@@ -560,5 +580,157 @@ describe("saying why the button will not go, rather than only going grey", () =>
         await settle(wrapper);
 
         expect(wrapper.find('[data-test="blocked"]').exists()).toBe(false);
+    });
+});
+
+describe("creating a new repository, beside choosing an existing one", () => {
+    it("names the unmet condition when nothing has been typed yet", async () => {
+        const wrapper = mountScreen(fakeBridge());
+        await settle(wrapper);
+        expect(wrapper.find('[data-test="create-repo"]').exists()).toBe(true);
+        expect(wrapper.find('[data-test="create-repo-blocked"]').text()).toContain("owner");
+        expect(wrapper.find('[data-test="create-repo-button"]').attributes("disabled")).toBeDefined();
+    });
+
+    it("creates the repository named in the owner/repo fields and selects it automatically", async () => {
+        let sent: unknown = null;
+        const wrapper = mountScreen(
+            fakeBridge({
+                createBackupRepository: (request) => {
+                    sent = request;
+                    return Promise.resolve({
+                        ok: true,
+                        value: {
+                            owner: "me",
+                            name: "fresh",
+                            fullName: "me/fresh",
+                            private: true,
+                            canWrite: true,
+                            htmlUrl: "https://github.test/me/fresh",
+                        },
+                    } as CreateRepositoryAnswer);
+                },
+                inspectBackupRepository: () => Promise.resolve({ ok: true, value: privateReport }),
+            }),
+        );
+        await settle(wrapper);
+        const screen = exposed(wrapper);
+        screen.owner = "me";
+        screen.repo = "fresh";
+        await wrapper.vm.$nextTick();
+        expect(screen.canCreateRepo).toBe(true);
+
+        await screen.createRepo();
+        await settle(wrapper);
+
+        expect(sent).toMatchObject({ ownerLogin: "me", ownerKind: "user", name: "fresh", private: true });
+        // Selected automatically: the fields already name what was just created, and
+        // creating it lands at the same "next real decision" choosing one does - the
+        // repository has been read, exactly as pressing Check would have done.
+        expect(screen.owner).toBe("me");
+        expect(screen.repo).toBe("fresh");
+    });
+
+    it("reports a taken name honestly, without touching the owner/repo fields", async () => {
+        const wrapper = mountScreen(
+            fakeBridge({
+                createBackupRepository: () =>
+                    Promise.resolve({
+                        ok: false,
+                        code: "name-taken",
+                        message: 'A repository named "taken" already exists there.',
+                    } as CreateRepositoryAnswer),
+            }),
+        );
+        await settle(wrapper);
+        const screen = exposed(wrapper);
+        screen.owner = "me";
+        screen.repo = "taken";
+        await wrapper.vm.$nextTick();
+
+        await screen.createRepo();
+        await settle(wrapper);
+
+        expect(wrapper.find('[data-test="create-repo-failure"]').text()).toContain("taken");
+    });
+
+    it("refuses an invalid name in plain words before anything is sent", async () => {
+        const wrapper = mountScreen(fakeBridge());
+        await settle(wrapper);
+        const screen = exposed(wrapper);
+        screen.owner = "me";
+        screen.repo = "not/a/valid/name!";
+        await wrapper.vm.$nextTick();
+
+        expect(screen.canCreateRepo).toBe(false);
+        expect(wrapper.find('[data-test="create-repo-blocked"]').text()).toContain("letters, digits");
+    });
+
+    it("does not offer the affordance at all on a build that cannot create one", async () => {
+        const wrapper = mountScreen(fakeBridge({ canCreateRepository: false }));
+        await settle(wrapper);
+        expect(wrapper.find('[data-test="create-repo"]').exists()).toBe(false);
+    });
+});
+
+describe("searching the repository picker", () => {
+    const repositories: readonly RepositoryChoice[] = [
+        { owner: "me", name: "overworld-saves", fullName: "me/overworld-saves", private: true, canWrite: true, htmlUrl: "" },
+        { owner: "me", name: "nether-saves", fullName: "me/nether-saves", private: false, canWrite: true, htmlUrl: "" },
+        { owner: "acme", name: "shared-map", fullName: "acme/shared-map", private: true, canWrite: true, htmlUrl: "" },
+    ];
+
+    it("filters the loaded repositories by plain text, and shows the honest loaded count", async () => {
+        const wrapper = mountScreen(
+            fakeBridge({ listBackupRepositories: () => Promise.resolve({ ok: true, value: repositories }) }),
+        );
+        await settle(wrapper);
+
+        expect(wrapper.text()).toContain("3 repositories loaded");
+
+        const screen = exposed(wrapper);
+        screen.repoQuery = "nether";
+        await settle(wrapper);
+
+        expect(wrapper.text()).toContain("Showing 1 of 3");
+        const select = wrapper.find('[data-test="repository-search"]');
+        expect(select.exists()).toBe(true);
+    });
+
+    it("shows an honest no-match message rather than an empty list with no explanation", async () => {
+        const wrapper = mountScreen(
+            fakeBridge({ listBackupRepositories: () => Promise.resolve({ ok: true, value: repositories }) }),
+        );
+        await settle(wrapper);
+        const screen = exposed(wrapper);
+        screen.repoQuery = "no-such-repository-anywhere";
+        await settle(wrapper);
+
+        expect(wrapper.find('[data-test="repository-no-match"]').exists()).toBe(true);
+    });
+
+    it("carries the anchored regex builder rather than plain text alone", async () => {
+        const wrapper = mountScreen(
+            fakeBridge({ listBackupRepositories: () => Promise.resolve({ ok: true, value: repositories }) }),
+        );
+        await settle(wrapper);
+        const screen = exposed(wrapper);
+
+        // Plain text is the default.
+        expect(screen.repoRegex).toBe(false);
+        screen.repoQuery = "^me/nether";
+        screen.repoRegex = true;
+        await settle(wrapper);
+
+        expect(wrapper.text()).toContain("Showing 1 of 3");
+    });
+
+    it("distinguishes no repositories loaded from a repository search with no matches", async () => {
+        const wrapper = mountScreen(fakeBridge({ listBackupRepositories: () => Promise.resolve({ ok: true, value: [] }) }));
+        await settle(wrapper);
+
+        expect(wrapper.find('[data-test="repository-none"]').exists()).toBe(true);
+        expect(wrapper.find('[data-test="repository-no-match"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="repository-search"]').exists()).toBe(false);
     });
 });

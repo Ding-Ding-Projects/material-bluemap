@@ -15,7 +15,9 @@ import { join } from "node:path";
 import {
     GitHubCallError,
     createBackupRelease,
+    createRepository,
     findExistingAssets,
+    isRepositoryNameTakenError,
     listWritableRepositories,
     parseRepositoryRecord,
     readRepository,
@@ -290,6 +292,108 @@ describe("creating the release for one backup", () => {
         for (const request of fetch.seen) {
             expect(["GET", "POST"]).toContain(request.method);
         }
+    });
+});
+
+describe("creating a new repository", () => {
+    const createdJson = {
+        full_name: "me/new-world",
+        name: "new-world",
+        owner: { login: "me" },
+        private: false,
+        permissions: { push: true },
+        html_url: "https://github.test/me/new-world",
+    };
+
+    it("posts to /user/repos for a personal owner, initialised so it is never empty", async () => {
+        const fetch = fakeFetch(() => ({ status: 201, body: createdJson }));
+        const created = await createRepository(
+            { ownerLogin: "me", ownerKind: "user", name: "new-world", private: false },
+            { fetch, ...base },
+        );
+
+        expect(created.fullName).toBe("me/new-world");
+        expect(created.canWrite).toBe(true);
+        const request = fetch.seen[0];
+        expect(request?.url).toBe("https://api.test/user/repos");
+        expect(request?.method).toBe("POST");
+        expect(request?.body).toMatchObject({ name: "new-world", private: false, auto_init: true });
+    });
+
+    it("posts to /orgs/{org}/repos for an organisation owner instead", async () => {
+        const fetch = fakeFetch(() => ({
+            status: 201,
+            body: { ...createdJson, full_name: "acme/new-world", owner: { login: "acme" } },
+        }));
+        await createRepository(
+            { ownerLogin: "acme", ownerKind: "organization", name: "new-world", private: true },
+            { fetch, ...base },
+        );
+
+        const request = fetch.seen[0];
+        expect(request?.url).toBe("https://api.test/orgs/acme/repos");
+        expect(request?.body).toMatchObject({ name: "new-world", private: true, auto_init: true });
+    });
+
+    it("reports a taken name honestly, told apart from any other 422", async () => {
+        const fetch = fakeFetch(() => ({
+            status: 422,
+            body: {
+                message: "Validation Failed",
+                errors: [{ resource: "Repository", code: "already_exists", field: "name" }],
+            },
+        }));
+
+        const failure = await createRepository(
+            { ownerLogin: "me", ownerKind: "user", name: "taken", private: false },
+            { fetch, ...base },
+        ).catch((error: unknown) => error);
+
+        expect(failure).toBeInstanceOf(GitHubCallError);
+        expect(isRepositoryNameTakenError(failure)).toBe(true);
+        expect((failure as Error).message).toContain('"taken"');
+        expect((failure as Error).message).toContain("already exists");
+    });
+
+    it("does not mistake an unrelated 422 for a taken name", async () => {
+        const fetch = fakeFetch(() => ({
+            status: 422,
+            body: {
+                message: "Validation Failed",
+                errors: [{ resource: "Repository", code: "invalid", field: "name", message: "name is invalid" }],
+            },
+        }));
+
+        const failure = await createRepository(
+            { ownerLogin: "me", ownerKind: "user", name: "bad name!", private: false },
+            { fetch, ...base },
+        ).catch((error: unknown) => error);
+
+        expect(failure).toBeInstanceOf(GitHubCallError);
+        expect(isRepositoryNameTakenError(failure)).toBe(false);
+        expect((failure as Error).message).toContain("name is invalid");
+    });
+
+    it("reports an organisation refusal (403) with the account's real permission named", async () => {
+        const fetch = fakeFetch(() => ({
+            status: 403,
+            body: { message: "Must have admin rights to Repository." },
+        }));
+
+        const failure = await createRepository(
+            { ownerLogin: "acme", ownerKind: "organization", name: "new-world", private: false },
+            { fetch, ...base },
+        ).catch((error: unknown) => error);
+
+        expect(failure).toBeInstanceOf(GitHubCallError);
+        expect((failure as Error).message).toContain("repo");
+    });
+
+    it("isRepositoryNameTakenError is false for anything that is not that specific refusal", () => {
+        expect(isRepositoryNameTakenError(new Error("unrelated"))).toBe(false);
+        expect(isRepositoryNameTakenError(new GitHubCallError("Creating failed: GitHub answered 500.", 500, "u"))).toBe(
+            false,
+        );
     });
 });
 

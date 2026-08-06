@@ -31,7 +31,7 @@
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { listBackups } from "./catalog.js";
 import type { BackupListing } from "./catalog.js";
-import { listWritableRepositories } from "./github.js";
+import { createRepository, isRepositoryNameTakenError, listWritableRepositories } from "./github.js";
 import type { FetchLike, RepositoryChoice } from "./github.js";
 import { BackupRunner } from "./runner.js";
 import type {
@@ -50,6 +50,7 @@ export const BACKUP_EVENT_CHANNEL = "backup:event";
 /** Every channel this module registers, so `dispose` cannot drift from `install`. */
 export const BACKUP_CHANNELS = [
     "backup:repositories",
+    "backup:createRepository",
     "backup:inspectRepository",
     "backup:inspectSource",
     "backup:list",
@@ -57,6 +58,20 @@ export const BACKUP_CHANNELS = [
     "backup:cancel",
     "backup:active",
 ] as const;
+
+/** What creating a repository from this screen needs, and what it answers with. */
+export interface CreateRepositoryRequest {
+    readonly ownerLogin: string;
+    readonly ownerKind: "user" | "organization";
+    readonly name: string;
+    readonly private: boolean;
+}
+
+export type CreateRepositoryFailureCode = "name-taken" | "not-signed-in" | "other";
+
+export type CreateRepositoryAnswer =
+    | { readonly ok: true; readonly value: RepositoryChoice }
+    | { readonly ok: false; readonly code: CreateRepositoryFailureCode; readonly message: string };
 
 export interface BackupIpcOptions {
     readonly ipcMain: IpcMain;
@@ -123,6 +138,53 @@ export function installBackupIpc(options: BackupIpcOptions): BackupIpc {
                 return { ok: true, value: repositories };
             } catch (error) {
                 return { ok: false, message: sentence(error) };
+            }
+        },
+    );
+
+    /**
+     * Creates a brand-new repository, for somebody who has none suitable to pick from the
+     * list `backup:repositories` already offers.
+     *
+     * This never overwrites anything: GitHub itself refuses a name that already exists
+     * (see {@link isRepositoryNameTakenError}), so there is no "re-initialise" path here
+     * to gate behind a confirmation - the destructive operation this feature could
+     * plausibly need super-confirmation for simply does not exist in this module.
+     */
+    options.ipcMain.handle(
+        "backup:createRepository",
+        async (
+            _event: IpcMainInvokeEvent,
+            request: { ownerLogin?: unknown; ownerKind?: unknown; name?: unknown; private?: unknown },
+        ): Promise<CreateRepositoryAnswer> => {
+            const ownerLogin = readText(request?.ownerLogin);
+            const ownerKind = request?.ownerKind === "organization" ? "organization" : "user";
+            const name = readText(request?.name);
+            if (ownerLogin === null || name === null) {
+                return {
+                    ok: false,
+                    code: "other",
+                    message: "A repository owner and a name are required to create one.",
+                };
+            }
+            const resolved = await callOptions();
+            if (!resolved.ok) return { ok: false, code: "not-signed-in", message: resolved.message };
+            try {
+                const created = await createRepository(
+                    { ownerLogin, ownerKind, name, private: request?.private === true },
+                    {
+                        fetch: options.fetch ?? ((url, init) => fetch(url, init)),
+                        token: resolved.token,
+                        ...(options.apiBase === undefined ? {} : { apiBase: options.apiBase }),
+                    },
+                );
+                return { ok: true, value: created };
+            } catch (error) {
+                return {
+                    ok: false,
+                    code: isRepositoryNameTakenError(error) ? "name-taken" : "other",
+                    message: sentence(error),
+                };
             }
         },
     );

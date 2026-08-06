@@ -9,7 +9,15 @@
  */
 
 import { describe, expect, it, vi } from "vitest";
-import { canResume, createBackups, etaText, partsText, phaseLabel, transferText } from "./backups.js";
+import {
+    canResume,
+    createBackups,
+    etaText,
+    partsText,
+    phaseLabel,
+    repositoryNameProblem,
+    transferText,
+} from "./backups.js";
 import type { BackupRow } from "./backups.js";
 import type {
     Answer,
@@ -17,6 +25,7 @@ import type {
     BackupEvent,
     BackupListing,
     BackupResult,
+    CreateRepositoryAnswer,
     RepositoryChoice,
     RepositoryReport,
 } from "./backupBridge.js";
@@ -55,6 +64,18 @@ function fakeBridge(
                 value: { kind: "world", folder: "/w", label: "w", files: 1, bytes: 1, skipped: [] },
             }),
         listBackups: () => Promise.resolve({ ok: true, value: [] } as Answer<readonly BackupListing[]>),
+        createBackupRepository: () =>
+            Promise.resolve({
+                ok: true,
+                value: {
+                    owner: "o",
+                    name: "fresh",
+                    fullName: "o/fresh",
+                    private: false,
+                    canWrite: true,
+                    htmlUrl: "https://github.test/o/fresh",
+                },
+            } as CreateRepositoryAnswer),
         startBackup: () =>
             Promise.resolve({
                 ok: true,
@@ -85,6 +106,7 @@ function fakeBridge(
         canListRepositories: true,
         canListBackups: true,
         canSeeActive: true,
+        canCreateRepository: true,
         ...overrides,
         emit(event: BackupEvent): void {
             listener?.(event);
@@ -254,6 +276,87 @@ describe("reading a repository", () => {
         const backups = createBackups(bridge);
         expect(await backups.check("o", "r")).toBeNull();
         expect(backups.reportFailure.value).toBe("the channel went away");
+    });
+});
+
+describe("creating a repository", () => {
+    it("puts the new repository at the front of the list, ready to pick", async () => {
+        const bridge = fakeBridge({
+            listBackupRepositories: () =>
+                Promise.resolve({
+                    ok: true,
+                    value: [
+                        {
+                            owner: "o",
+                            name: "old",
+                            fullName: "o/old",
+                            private: false,
+                            canWrite: true,
+                            htmlUrl: "",
+                        },
+                    ],
+                }),
+        });
+        const backups = createBackups(bridge);
+        await backups.loadRepositories();
+        expect(backups.repositories.value.map((r) => r.fullName)).toEqual(["o/old"]);
+
+        const created = await backups.createRepository({
+            ownerLogin: "o",
+            ownerKind: "user",
+            name: "fresh",
+            private: false,
+        });
+
+        expect(created?.fullName).toBe("o/fresh");
+        expect(backups.repositories.value.map((r) => r.fullName)).toEqual(["o/fresh", "o/old"]);
+        expect(backups.createRepositoryFailure.value).toBeNull();
+    });
+
+    it("reports a taken name with its own distinct code, and touches nothing in the list", async () => {
+        const bridge = fakeBridge({
+            createBackupRepository: () =>
+                Promise.resolve({ ok: false, code: "name-taken", message: 'A repository named "taken" already exists there.' }),
+        });
+        const backups = createBackups(bridge);
+
+        const created = await backups.createRepository({
+            ownerLogin: "o",
+            ownerKind: "user",
+            name: "taken",
+            private: false,
+        });
+
+        expect(created).toBeNull();
+        expect(backups.createRepositoryFailure.value?.code).toBe("name-taken");
+        expect(backups.createRepositoryFailure.value?.message).toContain("taken");
+        expect(backups.repositories.value).toEqual([]);
+    });
+
+    it("returns null harmlessly when the build cannot create one at all", async () => {
+        const bridge = fakeBridge({ canCreateRepository: false });
+        delete (bridge as { createBackupRepository?: unknown }).createBackupRepository;
+        const backups = createBackups(bridge);
+        expect(backups.canCreateRepository).toBe(false);
+        expect(
+            await backups.createRepository({ ownerLogin: "o", ownerKind: "user", name: "x", private: false }),
+        ).toBeNull();
+    });
+});
+
+describe("naming a new repository", () => {
+    it("is fine with an ordinary name, and with an empty one - empty is a separate case", () => {
+        expect(repositoryNameProblem("my-world", t)).toBeNull();
+        expect(repositoryNameProblem("", t)).toBeNull();
+        expect(repositoryNameProblem("   ", t)).toBeNull();
+    });
+
+    it("refuses exactly what GitHub refuses, in plain words", () => {
+        expect(repositoryNameProblem(".", t)).toContain('"."');
+        expect(repositoryNameProblem("..", t)).toContain('".."');
+        expect(repositoryNameProblem("world.git", t)).toContain(".git");
+        expect(repositoryNameProblem("a".repeat(101), t)).toContain("100 characters");
+        expect(repositoryNameProblem("my world!", t)).toContain("letters, digits");
     });
 });
 

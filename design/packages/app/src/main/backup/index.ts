@@ -70,8 +70,10 @@ export {
     GitHubCallError,
     REQUIRED_SCOPE,
     createBackupRelease,
+    createRepository,
     findExistingAssets,
     findReleaseByTag,
+    isRepositoryNameTakenError,
     listReleases,
     listWritableRepositories,
     parseRepositoryRecord,
@@ -81,6 +83,7 @@ export {
 } from "./github.js";
 export type {
     BackupRelease,
+    CreateRepositoryRequest,
     FetchLike,
     GitHubCallOptions,
     ReleaseAssetInfo,

@@ -104,6 +104,15 @@ describe("being signed out is an answer, not a crash", () => {
             expect(answer.ok, channel).toBe(false);
             expect(answer.message, channel).toContain("Settings");
         }
+
+        const createAnswer = (await (ipcMain.handlers.get("backup:createRepository") as Handler)(noEvent, {
+            ownerLogin: "o",
+            ownerKind: "user",
+            name: "r",
+        })) as { ok: boolean; code: string; message: string };
+        expect(createAnswer.ok).toBe(false);
+        expect(createAnswer.code).toBe("not-signed-in");
+        expect(createAnswer.message).toContain("Settings");
     });
 
     it("still answers backup:active and backup:cancel, which need nothing", async () => {
@@ -195,6 +204,71 @@ describe("what crosses", () => {
         })) as { ok: boolean; message: string };
         expect(answer.ok).toBe(false);
         expect(answer.message).toContain("owner and name");
+    });
+});
+
+describe("creating a repository", () => {
+    it("creates one and reports it back, with no token in the answer", async () => {
+        const { ipcMain } = install({
+            token: TOKEN,
+            fetch: fakeFetch(() => ({
+                status: 201,
+                body: {
+                    full_name: "o/fresh",
+                    name: "fresh",
+                    owner: { login: "o" },
+                    private: false,
+                    permissions: { push: true },
+                    html_url: "https://github.test/o/fresh",
+                },
+            })),
+        });
+
+        const answer = (await (ipcMain.handlers.get("backup:createRepository") as Handler)(noEvent, {
+            ownerLogin: "o",
+            ownerKind: "user",
+            name: "fresh",
+            private: false,
+        })) as { ok: true; value: { fullName: string } };
+
+        expect(answer.ok).toBe(true);
+        expect(answer.value.fullName).toBe("o/fresh");
+        expect(JSON.stringify(answer)).not.toContain(TOKEN);
+    });
+
+    it("reports a taken name with its own distinct failure code", async () => {
+        const { ipcMain } = install({
+            token: TOKEN,
+            fetch: fakeFetch(() => ({
+                status: 422,
+                body: {
+                    message: "Validation Failed",
+                    errors: [{ resource: "Repository", code: "already_exists", field: "name" }],
+                },
+            })),
+        });
+
+        const answer = (await (ipcMain.handlers.get("backup:createRepository") as Handler)(noEvent, {
+            ownerLogin: "o",
+            ownerKind: "user",
+            name: "taken",
+            private: false,
+        })) as { ok: false; code: string; message: string };
+
+        expect(answer.ok).toBe(false);
+        expect(answer.code).toBe("name-taken");
+        expect(answer.message).toContain("taken");
+    });
+
+    it("refuses a request with no owner or name rather than asking GitHub about nothing", async () => {
+        const { ipcMain } = install({ token: TOKEN });
+        const answer = (await (ipcMain.handlers.get("backup:createRepository") as Handler)(noEvent, {
+            ownerLogin: "",
+            name: "",
+        })) as { ok: boolean; code: string; message: string };
+        expect(answer.ok).toBe(false);
+        expect(answer.code).toBe("other");
+        expect(answer.message).toContain("owner and a name");
     });
 });
 

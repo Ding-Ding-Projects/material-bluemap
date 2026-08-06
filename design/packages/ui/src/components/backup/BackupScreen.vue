@@ -20,7 +20,7 @@ import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import BackupRunCard from "./BackupRunCard.vue";
-import { createBackups, formatBytes } from "./backups.js";
+import { createBackups, formatBytes, repositoryNameProblem } from "./backups.js";
 import type { BackupRow } from "./backups.js";
 import {
     resolveBackupBridge,
@@ -28,6 +28,7 @@ import {
     type BackupListing,
     type BackupSourceKind,
     type BackupSourceReport,
+    type RepositoryChoice,
 } from "./backupBridge.js";
 
 /**
@@ -168,6 +169,121 @@ function choose(fullName: unknown): void {
     owner.value = chosenOwner;
     repo.value = chosenRepo;
     void check();
+}
+
+/*
+ * Searching the repository picker, separate from the backup-listing search further down
+ * this file and bound to its own query, pattern, flags and mode - the anchored builder
+ * `ConfigSearchField` carries applies to this field and this field alone.
+ *
+ * ## The pagination-honesty rule this list has to answer to
+ *
+ * `listWritableRepositories` in the main process reads up to three pages of
+ * `/user/repos` - 300 repositories, most recently active first - and hands the whole,
+ * already-bounded set to this screen in one answer; there is no further paging from here.
+ * So this search is complete over what was loaded, and "loaded" can still be short of
+ * "everything the account owns" for an account past 300 repositories. The summary line
+ * says exactly that rather than presenting a filtered 300 as though it were the whole
+ * account, and the owner/repository text fields beside the list remain the honest way to
+ * reach anything search cannot find.
+ */
+const repoQuery = ref("");
+const repoRegex = ref(false);
+const repoFlags = ref("i");
+
+const repoMatcher = computed(() => createSettingMatcher(repoQuery.value, repoRegex.value, repoFlags.value));
+
+function repositoryText(repository: RepositoryChoice): string {
+    return [repository.fullName, repository.owner, repository.name].join(" ");
+}
+
+const shownRepositories = computed(() =>
+    backups.repositories.value.filter((repository) => repoMatcher.value.test(repositoryText(repository))),
+);
+
+const repositorySample = computed(() =>
+    backups.repositories.value.map((repository) => repositoryText(repository)).join("\n"),
+);
+
+/** Honest about what was searched: complete over what loaded, never "everything". */
+const repositorySummary = computed(() => {
+    const total = backups.repositories.value.length;
+    if (total === 0) return "";
+    if (repoMatcher.value.active) {
+        return t(
+            "backup.repo.searchSummary",
+            { shown: String(shownRepositories.value.length), total: String(total) },
+            "Showing {shown} of {total} loaded repositories (most recently active first, up to 300). If yours is not among them, type its owner and name below.",
+        );
+    }
+    return t(
+        "backup.repo.loadedSummary",
+        { total: String(total) },
+        "{total} repositories loaded (most recently active first, up to 300).",
+    );
+});
+
+/* -- creating a brand-new repository, beside choosing an existing one ------- */
+
+/**
+ * Which kind of account the typed owner names.
+ *
+ * This screen has no owner-listing call of its own - unlike the CI-render screen, which
+ * lists the signed-in login and its organisations - so there is nothing to infer this
+ * from. GitHub's own create-repository call needs to know regardless, because a personal
+ * repository and an organisation's are two different endpoints, so this is a real,
+ * minimal picker rather than a guess: "my account" is the default, and it is only two
+ * choices, not a free-text field pretending to be one.
+ */
+const createOwnerKind = ref<"user" | "organization">("user");
+const createVisibility = ref<"public" | "private">("private");
+const createRepoNameProblem = computed(() => repositoryNameProblem(repo.value, t));
+
+/**
+ * Why the "Create a new repository" button cannot be pressed, in the order somebody fills
+ * the card in - the same discipline `blockedBecause` above holds the main button to.
+ */
+const createBlockedBecause = computed<string | null>(() => {
+    if (!backups.canCreateRepository) {
+        return t(
+            "backup.createRepo.unsupported",
+            "This build cannot create a repository from here. Create one on GitHub directly, then check it above.",
+        );
+    }
+    if (owner.value.trim() === "") {
+        return t("backup.createRepo.blockedOwner", "Type an owner above before creating a repository.");
+    }
+    if (repo.value.trim() === "") {
+        return t("backup.createRepo.blockedName", "Type a repository name above before creating it.");
+    }
+    if (createRepoNameProblem.value !== null) return createRepoNameProblem.value;
+    if (backups.creatingRepository.value) {
+        return t("backup.createRepo.blockedCreating", "Already creating.");
+    }
+    return null;
+});
+
+const canCreateRepo = computed(() => createBlockedBecause.value === null);
+
+/**
+ * Creates the repository named in the owner/repo fields above, then lands at the same
+ * next decision choosing an existing one from the list already does: the fields are
+ * already set to what was just created, so this reads the repository straight away
+ * exactly as {@link choose} does, rather than leaving somebody to press Check themselves.
+ */
+async function createRepo(): Promise<void> {
+    if (!canCreateRepo.value) return;
+    const created = await backups.createRepository({
+        ownerLogin: owner.value.trim(),
+        ownerKind: createOwnerKind.value,
+        name: repo.value.trim(),
+        private: createVisibility.value === "private",
+    });
+    if (created !== null) {
+        owner.value = created.owner;
+        repo.value = created.name;
+        void check();
+    }
 }
 
 const needsAcknowledgement = computed(
@@ -339,7 +455,23 @@ onBeforeUnmount(() => {
  * folder reports what it holds, that reading a public repository gates the button - and
  * naming them here keeps those tests about that rather than about markup order.
  */
-defineExpose({ backups, kind, folder, owner, repo, source, inspect, check });
+defineExpose({
+    backups,
+    kind,
+    folder,
+    owner,
+    repo,
+    source,
+    inspect,
+    check,
+    createOwnerKind,
+    createVisibility,
+    createRepo,
+    canCreateRepo,
+    repoQuery,
+    repoRegex,
+    shownRepositories,
+});
 </script>
 
 <template>
@@ -496,22 +628,43 @@ defineExpose({ backups, kind, folder, owner, repo, source, inspect, check });
                     {{ t("backup.where", "Where to keep it") }}
                 </v-card-title>
                 <v-card-text class="mb-backup__stepBody">
-                    <v-select
-                        v-if="backups.repositories.value.length > 0"
-                        :items="
-                            backups.repositories.value.map((repository) => ({
-                                title: repository.private
-                                    ? t('backup.repoPrivate', { name: repository.fullName }, '{name} (private)')
-                                    : t('backup.repoPublic', { name: repository.fullName }, '{name} (PUBLIC)'),
-                                value: repository.fullName,
-                            }))
-                        "
-                        :label="t('backup.pickRepository', 'One of your repositories')"
-                        variant="outlined"
-                        density="compact"
-                        hide-details="auto"
-                        @update:model-value="choose"
-                    />
+                    <template v-if="backups.repositories.value.length > 0">
+                        <ConfigSearchField
+                            v-model="repoQuery"
+                            v-model:regex="repoRegex"
+                            v-model:flags="repoFlags"
+                            :label="t('backup.repo.search', 'Search your repositories')"
+                            :sample="repositorySample"
+                            :summary="repositorySummary"
+                            density="compact"
+                            data-test="repository-search"
+                        />
+                        <v-select
+                            v-if="shownRepositories.length > 0"
+                            :items="
+                                shownRepositories.map((repository) => ({
+                                    title: repository.private
+                                        ? t('backup.repoPrivate', { name: repository.fullName }, '{name} (private)')
+                                        : t('backup.repoPublic', { name: repository.fullName }, '{name} (PUBLIC)'),
+                                    value: repository.fullName,
+                                }))
+                            "
+                            :label="t('backup.pickRepository', 'One of your repositories')"
+                            variant="outlined"
+                            density="compact"
+                            hide-details="auto"
+                            class="mt-2"
+                            @update:model-value="choose"
+                        />
+                        <p v-else class="mb-backup__note" role="status" data-test="repository-no-match">
+                            {{
+                                t(
+                                    "backup.repo.noMatch",
+                                    "None of the loaded repositories match that search. Type the owner and name below instead, or create a new repository.",
+                                )
+                            }}
+                        </p>
+                    </template>
 
                     <p v-else-if="backups.loadingRepositories.value" class="mb-backup__note" role="status">
                         {{ t("backup.loadingRepositories", "Reading your repositories...") }}
@@ -526,6 +679,15 @@ defineExpose({ backups, kind, folder, owner, repo, source, inspect, check });
                     >
                         {{ backups.repositoriesFailure.value }}
                     </v-alert>
+
+                    <p v-else-if="backups.canListRepositories" class="mb-backup__note" role="status" data-test="repository-none">
+                        {{
+                            t(
+                                "backup.repo.none",
+                                "This account has no repositories to write to yet. Create one below, or type an owner and name to check one directly.",
+                            )
+                        }}
+                    </p>
 
                     <div class="mb-backup__row">
                         <v-text-field
@@ -560,6 +722,91 @@ defineExpose({ backups, kind, folder, owner, repo, source, inspect, check });
                             {{ t("backup.check", "Check this repository") }}
                         </v-btn>
                     </div>
+
+                    <!--
+                        Creating a new repository, beside choosing an existing one - never
+                        replacing it. Uses the owner/repository fields above as the target
+                        rather than a second pair of fields, so there is exactly one place
+                        that names what is about to be created or checked. Placed before the
+                        "checking"/report chain below, and deliberately not part of it - this
+                        card's own `v-if` must not sit between that chain's `v-if` and its
+                        `v-else-if` siblings, or the chain breaks.
+                    -->
+                    <v-card v-if="backups.canCreateRepository" variant="tonal" class="mt-4 pa-3" data-test="create-repo">
+                        <p class="text-medium-emphasis mb-2">
+                            {{
+                                t(
+                                    "backup.createRepo.lead",
+                                    "Nothing suitable to pick or check? Create a brand-new repository with the owner and name above.",
+                                )
+                            }}
+                        </p>
+                        <v-radio-group
+                            v-model="createOwnerKind"
+                            inline
+                            density="compact"
+                            hide-details="auto"
+                            :label="t('backup.createRepo.ownerKind', 'The owner above is')"
+                        >
+                            <v-radio :label="t('backup.createRepo.ownerKind.user', 'my own account')" value="user" />
+                            <v-radio
+                                :label="t('backup.createRepo.ownerKind.org', 'an organization I belong to')"
+                                value="organization"
+                            />
+                        </v-radio-group>
+                        <v-radio-group
+                            v-model="createVisibility"
+                            inline
+                            density="compact"
+                            hide-details="auto"
+                            class="mt-2"
+                            :label="t('backup.createRepo.visibility', 'Visibility')"
+                        >
+                            <v-radio :label="t('backup.createRepo.visibility.private', 'Private')" value="private" />
+                            <v-radio :label="t('backup.createRepo.visibility.public', 'Public')" value="public" />
+                        </v-radio-group>
+                        <p class="text-medium-emphasis mt-1">
+                            {{
+                                createVisibility === "public"
+                                    ? t(
+                                          "backup.createRepo.visibility.publicNote",
+                                          "PUBLIC means anybody can download whatever is backed up here, including the world's builds and coordinates.",
+                                      )
+                                    : t(
+                                          "backup.createRepo.visibility.privateNote",
+                                          "Private means only accounts you grant access to can see it. It is not free storage - it still counts toward the repository limits of the plan it is created under.",
+                                      )
+                            }}
+                        </p>
+
+                        <v-btn
+                            :prepend-icon="mdiCloudUploadOutline"
+                            :disabled="!canCreateRepo"
+                            :title="createBlockedBecause ?? undefined"
+                            :loading="backups.creatingRepository.value"
+                            variant="tonal"
+                            color="primary"
+                            class="mt-2"
+                            data-test="create-repo-button"
+                            @click="createRepo"
+                        >
+                            {{ t("backup.createRepo.button", "Create this repository") }}
+                        </v-btn>
+                        <p v-if="createBlockedBecause !== null" class="text-medium-emphasis mt-2" data-test="create-repo-blocked">
+                            {{ createBlockedBecause }}
+                        </p>
+                        <v-alert
+                            v-if="backups.createRepositoryFailure.value !== null"
+                            type="warning"
+                            density="compact"
+                            variant="tonal"
+                            class="mt-2"
+                            role="alert"
+                            data-test="create-repo-failure"
+                        >
+                            {{ backups.createRepositoryFailure.value.message }}
+                        </v-alert>
+                    </v-card>
 
                     <div v-if="backups.checking.value" class="mb-backup__checking" role="status" aria-live="polite">
                         <v-progress-circular indeterminate size="18" width="2" aria-hidden="true" />

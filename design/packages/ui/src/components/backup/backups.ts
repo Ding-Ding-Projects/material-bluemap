@@ -31,6 +31,8 @@ import type {
     BackupSourceKind,
     BackupSummary,
     BackupTaskProgress,
+    CreateRepositoryFailureCode,
+    CreateRepositoryRequest,
     RepositoryChoice,
     RepositoryReport,
 } from "./backupBridge.js";
@@ -175,6 +177,45 @@ export function canResume(row: BackupRow): boolean {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Naming a new repository: GitHub's own grammar, checked in plain words      */
+/* before a name is ever sent, exactly the way `ciRenders.ts`'s               */
+/* `repoNameProblem` validates the same grammar for the CI-render screen -    */
+/* restated here rather than imported, because that surface's own module is  */
+/* not a dependency this one has any other reason to carry.                  */
+/* -------------------------------------------------------------------------- */
+
+type Translate = (key: string, named: Record<string, unknown>, fallback?: string) => string;
+type T = ((key: string, fallback: string) => string) & Translate;
+
+const REPOSITORY_NAME_PATTERN = /^[A-Za-z0-9._-]+$/;
+
+/**
+ * Why `name` is not a repository name GitHub will accept, in the reader's own words - or
+ * null when it is fine, or empty, since an empty field is a separate "this is required"
+ * message rather than an invalid one.
+ */
+export function repositoryNameProblem(name: string, t: T): string | null {
+    const trimmed = name.trim();
+    if (trimmed === "") return null;
+    if (trimmed === "." || trimmed === "..") {
+        return t("backup.createRepo.invalid.dots", 'A repository name cannot be just "." or "..".');
+    }
+    if (/\.git$/i.test(trimmed)) {
+        return t("backup.createRepo.invalid.gitSuffix", 'A repository name cannot end in ".git".');
+    }
+    if (trimmed.length > 100) {
+        return t("backup.createRepo.invalid.long", "A repository name cannot be longer than 100 characters.");
+    }
+    if (!REPOSITORY_NAME_PATTERN.test(trimmed)) {
+        return t(
+            "backup.createRepo.invalid.chars",
+            "Repository names may only use letters, digits, dots, hyphens and underscores.",
+        );
+    }
+    return null;
+}
+
+/* -------------------------------------------------------------------------- */
 /* The surface's state                                                        */
 /* -------------------------------------------------------------------------- */
 
@@ -184,11 +225,15 @@ export interface Backups {
     readonly canCancel: boolean;
     readonly canListRepositories: boolean;
     readonly canListBackups: boolean;
+    /** True when a brand-new repository can be created from this screen. */
+    readonly canCreateRepository: boolean;
 
     readonly rows: ComputedRef<readonly BackupRow[]>;
     readonly repositories: Ref<readonly RepositoryChoice[]>;
     readonly repositoriesFailure: Ref<string | null>;
     readonly loadingRepositories: Ref<boolean>;
+    readonly creatingRepository: Ref<boolean>;
+    readonly createRepositoryFailure: Ref<{ readonly code: CreateRepositoryFailureCode; readonly message: string } | null>;
 
     /** The repository the interface has read, and what uploading to it would mean. */
     readonly report: Ref<RepositoryReport | null>;
@@ -211,6 +256,13 @@ export interface Backups {
 
     check(owner: string, repo: string): Promise<RepositoryReport | null>;
     loadRepositories(): Promise<void>;
+    /**
+     * Creates a brand-new repository and, on success, adds it to {@link Backups.repositories}
+     * so it is immediately there to pick - the caller still has to set the owner/repo
+     * fields and select it, exactly as choosing any other repository from that list already
+     * works, so creating one lands at the same "next real decision" a chosen one does.
+     */
+    createRepository(request: CreateRepositoryRequest): Promise<RepositoryChoice | null>;
     loadListings(owner: string, repo: string): Promise<void>;
     start(request: BackupRequest): Promise<BackupResult | null>;
     stop(backupId: string): Promise<boolean>;
@@ -228,6 +280,10 @@ export function createBackups(bridge: BackupBridge | null): Backups {
     const repositories = ref<readonly RepositoryChoice[]>([]);
     const repositoriesFailure = ref<string | null>(null);
     const loadingRepositories = ref(false);
+    const creatingRepository = ref(false);
+    const createRepositoryFailure = ref<{ readonly code: CreateRepositoryFailureCode; readonly message: string } | null>(
+        null,
+    );
     const report = ref<RepositoryReport | null>(null);
     const reportFailure = ref<string | null>(null);
     const checking = ref(false);
@@ -344,11 +400,14 @@ export function createBackups(bridge: BackupBridge | null): Backups {
         canCancel: bridge?.canCancel ?? false,
         canListRepositories: bridge?.canListRepositories ?? false,
         canListBackups: bridge?.canListBackups ?? false,
+        canCreateRepository: bridge?.canCreateRepository ?? false,
 
         rows,
         repositories,
         repositoriesFailure,
         loadingRepositories,
+        creatingRepository,
+        createRepositoryFailure,
         report,
         reportFailure,
         checking,
@@ -393,6 +452,30 @@ export function createBackups(bridge: BackupBridge | null): Backups {
                 repositoriesFailure.value = describe(error);
             } finally {
                 loadingRepositories.value = false;
+            }
+        },
+
+        async createRepository(request: CreateRepositoryRequest): Promise<RepositoryChoice | null> {
+            if (bridge?.createBackupRepository === undefined) return null;
+            creatingRepository.value = true;
+            createRepositoryFailure.value = null;
+            try {
+                const answer = await bridge.createBackupRepository(request);
+                if (!answer.ok) {
+                    createRepositoryFailure.value = { code: answer.code, message: answer.message };
+                    return null;
+                }
+                // Prepended rather than appended, and rather than requiring a re-fetch of
+                // the whole list: the repository somebody just created for exactly this
+                // purpose is the one they are about to want to see, not one three pages
+                // into "most recently active".
+                repositories.value = [answer.value, ...repositories.value.filter((r) => r.fullName !== answer.value.fullName)];
+                return answer.value;
+            } catch (error) {
+                createRepositoryFailure.value = { code: "other", message: describe(error) };
+                return null;
+            } finally {
+                creatingRepository.value = false;
             }
         },
 

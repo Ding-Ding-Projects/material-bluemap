@@ -385,6 +385,143 @@ export async function createBackupRelease(
     return release;
 }
 
+/** What creating a new repository needs: who it belongs to, its name, and its visibility. */
+export interface CreateRepositoryRequest {
+    readonly ownerLogin: string;
+    readonly ownerKind: "user" | "organization";
+    readonly name: string;
+    readonly private: boolean;
+}
+
+/**
+ * Creates a brand-new repository for the person or one of the organisations they belong
+ * to, and initialises it with one starter commit.
+ *
+ * ## Why `auto_init: true` is not a default worth reconsidering
+ *
+ * A repository with no commits at all answers a very specific 422 the moment anything
+ * tries to create a release on it - `"Repository is empty."` - which
+ * {@link createBackupRelease}'s own doc comment already had to explain once, learned the
+ * hard way against a real, freshly created, never-pushed-to repository. Initialising with
+ * GitHub's own starter commit sidesteps that trap entirely, for the very first repository
+ * somebody creates from this screen, at no cost to anything else: the one starter commit
+ * is simply the first thing a backup's release sits alongside.
+ *
+ * ## What GitHub needs told apart
+ *
+ * A personal repository is created at `POST /user/repos`; one under an organisation is
+ * created at `POST /orgs/{org}/repos` instead - two different endpoints, not one endpoint
+ * with an `org` field, which is why {@link CreateRepositoryRequest.ownerKind} exists at
+ * all rather than being inferred from the login.
+ */
+export async function createRepository(
+    request: CreateRepositoryRequest,
+    options: GitHubCallOptions,
+): Promise<RepositoryChoice> {
+    const { api } = bases(options);
+    const name = request.name.trim();
+    const url =
+        request.ownerKind === "organization"
+            ? `${api}/orgs/${encodeURIComponent(request.ownerLogin)}/repos`
+            : `${api}/user/repos`;
+    const response = await options.fetch(url, {
+        method: "POST",
+        headers: { ...headers(options.token), "content-type": "application/json" },
+        body: JSON.stringify({ name, private: request.private, auto_init: true }),
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+    });
+
+    if (response.status === 422) throw await refuseRepositoryCreation(response, url, name);
+    if (!response.ok) {
+        throw await refuse(response, url, `Creating ${request.ownerLogin}/${name}`);
+    }
+
+    const choice = readRepositoryRecord(await response.json());
+    if (choice === null) {
+        throw new GitHubCallError(
+            "GitHub created the repository but described it in a way this build could not read.",
+            response.status,
+            url,
+        );
+    }
+    return choice;
+}
+
+/**
+ * Turns a 422 from repository creation into the sentence a person actually needs, telling
+ * a genuine name collision apart from every other validation refusal GitHub answers the
+ * same status for - an invalid character, a name that is only punctuation, a name past the
+ * length limit.
+ */
+async function refuseRepositoryCreation(
+    response: Response,
+    url: string,
+    name: string,
+): Promise<GitHubCallError> {
+    let errors: readonly { readonly field?: unknown; readonly code?: unknown; readonly message?: unknown }[] = [];
+    let topMessage = "";
+    try {
+        const body = (await response.json()) as {
+            message?: unknown;
+            errors?: readonly { field?: unknown; code?: unknown; message?: unknown }[];
+        };
+        if (typeof body.message === "string") topMessage = body.message;
+        if (Array.isArray(body.errors)) errors = body.errors;
+    } catch {
+        // A body that is not JSON falls through to the generic sentence below.
+    }
+
+    const nameTaken = errors.some(
+        (entry) =>
+            entry.field === "name" &&
+            (entry.code === "already_exists" ||
+                (typeof entry.message === "string" && /already exists/i.test(entry.message))),
+    );
+    if (nameTaken) {
+        return new GitHubCallError(REPOSITORY_NAME_TAKEN_MESSAGE(name), response.status, url);
+    }
+
+    const detailText = errors
+        .map((entry) => (typeof entry.message === "string" ? entry.message : null))
+        .filter((entry): entry is string => entry !== null)
+        .join(" ");
+    const said = detailText.length > 0 ? detailText : topMessage;
+    return new GitHubCallError(
+        `Creating "${name}" failed: GitHub answered 422.${said.length > 0 ? ` GitHub said: ${said}` : ""}`,
+        response.status,
+        url,
+    );
+}
+
+/**
+ * The exact sentence a name collision produces, exported so a caller can recognise it
+ * without re-parsing prose - {@link isRepositoryNameTakenError} is the recommended way to
+ * ask "was this refused because the name is taken", but the sentence itself is public too
+ * because it is what the person actually reads.
+ */
+function REPOSITORY_NAME_TAKEN_MESSAGE(name: string): string {
+    return (
+        `A repository named "${name}" already exists there. Choose a different name, or pick ` +
+        "it from the list to use it as it is."
+    );
+}
+
+/**
+ * True when a thrown {@link createRepository} failure means specifically "that name is
+ * already taken", as opposed to any other 422 GitHub answers for repository creation - a
+ * disallowed character, a name that is only punctuation, one past the length limit. Checked
+ * by status and by the exact sentence {@link createRepository} itself produced, never by
+ * guessing at GitHub's own wording, so this cannot drift from what was actually thrown.
+ */
+export function isRepositoryNameTakenError(error: unknown): boolean {
+    return (
+        error instanceof GitHubCallError &&
+        error.status === 422 &&
+        error.message.startsWith('A repository named "') &&
+        error.message.includes("already exists there")
+    );
+}
+
 /** One release by its tag, or null when there is none. Read-only, by construction. */
 export async function findReleaseByTag(
     owner: string,

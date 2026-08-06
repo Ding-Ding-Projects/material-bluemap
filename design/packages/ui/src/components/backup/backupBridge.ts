@@ -52,6 +52,25 @@ export interface RepositoryChoice {
     readonly htmlUrl: string;
 }
 
+/** What creating a repository needs: who it belongs to, its name, and its visibility. */
+export interface CreateRepositoryRequest {
+    readonly ownerLogin: string;
+    readonly ownerKind: "user" | "organization";
+    readonly name: string;
+    readonly private: boolean;
+}
+
+/**
+ * `name-taken` is its own code rather than folded into `other`, because the field beside
+ * it stays exactly what somebody typed and the message beside it can point straight at the
+ * name field rather than reading as a generic failure.
+ */
+export type CreateRepositoryFailureCode = "name-taken" | "not-signed-in" | "other";
+
+export type CreateRepositoryAnswer =
+    | { readonly ok: true; readonly value: RepositoryChoice }
+    | { readonly ok: false; readonly code: CreateRepositoryFailureCode; readonly message: string };
+
 /**
  * One repository, and what uploading to it would mean.
  *
@@ -204,6 +223,13 @@ export type Answer<T> =
 
 export interface BackupBridge {
     listBackupRepositories(): Promise<Answer<readonly RepositoryChoice[]>>;
+    /**
+     * Optional: creates a brand-new repository for somebody who has none suitable to pick
+     * from the list above. Absent on a build that cannot, in which case the screen simply
+     * does not offer the "Create a new repository" affordance - the existing owner/repo
+     * fields keep working exactly as they always did.
+     */
+    createBackupRepository?(request: CreateRepositoryRequest): Promise<CreateRepositoryAnswer>;
     inspectBackupRepository(request: {
         owner: string;
         repo: string;
@@ -225,11 +251,14 @@ export interface BackupBridge {
     readonly canListBackups: boolean;
     /** True when the ids in flight right now can be asked for. */
     readonly canSeeActive: boolean;
+    /** True when a new repository can be created from this screen. */
+    readonly canCreateRepository: boolean;
 }
 
 /** The shape a preload is probed against, one method at a time. */
 type Host = Partial<{
     listBackupRepositories: () => Promise<Answer<readonly RepositoryChoice[]>>;
+    createBackupRepository: (request: CreateRepositoryRequest) => Promise<CreateRepositoryAnswer>;
     inspectBackupRepository: (request: {
         owner: string;
         repo: string;
@@ -274,6 +303,7 @@ export function resolveBackupBridge(): BackupBridge | null {
     const canListRepositories = isFunction(host.listBackupRepositories);
     const canListBackups = isFunction(host.listBackups);
     const canSeeActive = isFunction(host.activeBackups);
+    const canCreateRepository = isFunction(host.createBackupRepository);
 
     const missing = (what: string): Promise<Answer<never>> =>
         Promise.resolve({
@@ -293,6 +323,13 @@ export function resolveBackupBridge(): BackupBridge | null {
             isFunction(host.listBackupRepositories)
                 ? host.listBackupRepositories()
                 : missing("list your repositories"),
+        // Left off the returned object entirely when the preload lacks it, exactly like
+        // every other optional method on this bridge - the caller checks `canCreateRepository`
+        // rather than calling a canned refusal, which is what lets the screen hide the
+        // "Create a new repository" affordance outright rather than showing a dead button.
+        ...(isFunction(host.createBackupRepository)
+            ? { createBackupRepository: (request: CreateRepositoryRequest) => host.createBackupRepository!(request) }
+            : {}),
         listBackups: (request) =>
             isFunction(host.listBackups) ? host.listBackups(request) : missing("list existing backups"),
         // False rather than a rejection: "this build cannot stop a backup" and "there was
@@ -308,5 +345,6 @@ export function resolveBackupBridge(): BackupBridge | null {
         canListRepositories,
         canListBackups,
         canSeeActive,
+        canCreateRepository,
     };
 }

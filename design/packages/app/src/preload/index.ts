@@ -3,6 +3,8 @@ import type { IpcRendererEvent } from "electron";
 import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
 import type { EulaLoadResult } from "../main/eula/index.js";
 import type {
+    CiBootstrapEvent,
+    CiBootstrapResult,
     CiOwnerChoicesAnswer,
     CiPreflight,
     CiRepositoryNameAvailability,
@@ -2522,6 +2524,16 @@ const bridge: MaterialBlueMapBridge = {
     ciRenderScheduleWrite: (syncId, enabled, cadence, accountId) =>
         ipcRenderer.invoke("cirender:scheduleWrite", { syncId, enabled, cadence, accountId }),
 
+    bootstrapCiRepository: (owner, repo, accountId, prefer) =>
+        ipcRenderer.invoke("cirender:bootstrap", { owner, repo, accountId, prefer }),
+    onCiBootstrapEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: CiBootstrapEvent): void => listener(payload);
+        ipcRenderer.on("cirender:bootstrapEvent", forward);
+        return () => {
+            ipcRenderer.off("cirender:bootstrapEvent", forward);
+        };
+    },
+
     pagesRenders: () => ipcRenderer.invoke("pages:renders"),
     pagesOwners: () => ipcRenderer.invoke("pages:owners"),
     pagesPreflight: (request) => ipcRenderer.invoke("pages:preflight", request),
@@ -2642,7 +2654,20 @@ const bridge: MaterialBlueMapBridge = {
         },
         writeProject: async (world, project) => {
             const saved = (await ipcRenderer.invoke("project:save", world, project, false)) as ProjectSaveResult;
-            return saved.ok ? { ok: true as const, file: saved.path } : { ok: false as const, message: saved.reason };
+            // `historyOk`/`historyMessage`/`revision` travel through rather than being
+            // dropped here: a save that wrote the file but could not keep a record of it is
+            // still a save the interface must be able to tell apart from one that kept both
+            // promises, and this convenience wrapper is the only place that decision could
+            // otherwise get lost between `project:save`'s real answer and the caller.
+            return saved.ok
+                ? {
+                      ok: true as const,
+                      file: saved.path,
+                      historyOk: saved.historyOk,
+                      historyMessage: saved.historyMessage,
+                      revision: saved.revision,
+                  }
+                : { ok: false as const, message: saved.reason };
         },
     },
 
@@ -2666,6 +2691,7 @@ const bridge: MaterialBlueMapBridge = {
         save: (state) => ipcRenderer.invoke("profilesHistory:save", state),
         list: (limit) => ipcRenderer.invoke("profilesHistory:list", limit),
         restore: (id) => ipcRenderer.invoke("profilesHistory:restore", id),
+        discardOlderRevisions: (keep) => ipcRenderer.invoke("profilesHistory:discardOlder", keep),
     },
 
     appSettingsHistory: {
@@ -2673,6 +2699,7 @@ const bridge: MaterialBlueMapBridge = {
         save: (state) => ipcRenderer.invoke("settingsHistory:save", state),
         list: (limit) => ipcRenderer.invoke("settingsHistory:list", limit),
         restore: (id) => ipcRenderer.invoke("settingsHistory:restore", id),
+        discardOlderRevisions: (keep) => ipcRenderer.invoke("settingsHistory:discardOlder", keep),
     },
 
     bedrock: {
@@ -2699,6 +2726,7 @@ const bridge: MaterialBlueMapBridge = {
     },
 
     listBackupRepositories: () => ipcRenderer.invoke("backup:repositories"),
+    createBackupRepository: (request) => ipcRenderer.invoke("backup:createRepository", request),
     inspectBackupRepository: (request) => ipcRenderer.invoke("backup:inspectRepository", request),
     inspectBackupSource: (request) => ipcRenderer.invoke("backup:inspectSource", request),
     listBackups: (request) => ipcRenderer.invoke("backup:list", request),
