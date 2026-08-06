@@ -382,20 +382,55 @@ describe("the detected default folder", () => {
         expect(folders[0]?.builtIn).toBe(true);
     });
 
-    it("expands the CurseForge default root into one row per instance, unprompted", async () => {
-        const home = join(root, "home", "ada");
-        const instancesRoot = join(home, "curseforge", "minecraft", "Instances");
-        await mkdir(join(instancesRoot, "Day Teet", "saves", "Bastion"), { recursive: true });
-        await writeFile(join(instancesRoot, "Day Teet", "saves", "Bastion", "level.dat"), "");
-        await mkdir(join(instancesRoot, "All the Mods 9", "saves"), { recursive: true });
+    /**
+     * The three cases below (`expands the CurseForge default root...`, `picks up a new
+     * CurseForge instance...`, `lists Bedrock's worlds folder...`) can only be proven for
+     * real on an actual Windows machine, and are gated to run only there.
+     *
+     * `locations.ts`'s `defaultLauncherRoots`/`defaultMinecraftFolders` deliberately build
+     * these two candidates with `path.win32.join` whenever `platform: "win32"` is asked
+     * for, precisely so the *string* is honest about Windows from a Linux runner too - see
+     * that file's own header and `locations.test.ts`, which already proves that string
+     * construction on every platform with no disk involved. The trap is one level up: this
+     * file's `folderState`/`detectLauncherRoot` then hand that backslash-joined string
+     * straight to real `fs.lstat`/`fs.opendir`. On Windows a backslash is a real separator
+     * and the call resolves. On a POSIX runner it is an ordinary filename character, not a
+     * separator - `fs.lstat("\\tmp\\...\\curseforge\\minecraft")` looks for one file
+     * literally named that, relative to the working directory, and never finds the fixture
+     * this test built with `mkdir`/`join` (which used real `/` on that runner). No amount
+     * of fixture engineering closes that gap: a win32-shaped nested directory tree cannot
+     * be created, or found again, on a filesystem where `\` is not a separator. Rather than
+     * let that architecture mismatch read as a passing test that proves nothing (or a
+     * failing one that blames the code), these three are `skipIf`'d off of every runner but
+     * a real Windows one - the same "real machine, opt-in, never decides the CI verdict"
+     * shape `bedrock/convert.e2e.test.ts` and `render/orchestrator.realJvm.test.ts` already
+     * use, just gated on the platform capability rather than an environment flag.
+     *
+     * The recursive scanning these candidates share (`detectLauncherRoot`: case-insensitive
+     * `Instances` lookup, three ways in, the `MAX_INSTANCES` cap) is proven on every
+     * platform already, in `launcherRoots.test.ts`, and the "offer it only when it is
+     * really there" loop these two feed into is proven on every platform too, by "only
+     * offers a portable installation that is really there" below. What only a real Windows
+     * machine can additionally prove is that the win32-joined candidate this file computes
+     * really does resolve against a real Windows filesystem end to end.
+     */
+    it.skipIf(process.platform !== "win32")(
+        "expands the CurseForge default root into one row per instance, unprompted",
+        async () => {
+            const home = join(root, "home", "ada");
+            const instancesRoot = join(home, "curseforge", "minecraft", "Instances");
+            await mkdir(join(instancesRoot, "Day Teet", "saves", "Bastion"), { recursive: true });
+            await writeFile(join(instancesRoot, "Day Teet", "saves", "Bastion", "level.dat"), "");
+            await mkdir(join(instancesRoot, "All the Mods 9", "saves"), { recursive: true });
 
-        const folders = await listMinecraftFolders({ platform: "win32", env: {}, home, storeFile });
-        const curseforge = folders.filter((folder) => folder.origin === "curseforge-default");
+            const folders = await listMinecraftFolders({ platform: "win32", env: {}, home, storeFile });
+            const curseforge = folders.filter((folder) => folder.origin === "curseforge-default");
 
-        const labels = curseforge.map((folder) => folder.label).sort();
-        expect(labels).toEqual(["All the Mods 9", "Day Teet"]);
-        expect(curseforge.every((folder) => folder.builtIn)).toBe(true);
-    });
+            const labels = curseforge.map((folder) => folder.label).sort();
+            expect(labels).toEqual(["All the Mods 9", "Day Teet"]);
+            expect(curseforge.every((folder) => folder.builtIn)).toBe(true);
+        },
+    );
 
     it("says nothing at all about CurseForge when it is not installed, rather than a permanent missing row", async () => {
         const home = join(root, "home", "ada");
@@ -404,20 +439,26 @@ describe("the detected default folder", () => {
         expect(folders.some((folder) => folder.origin === "curseforge-default")).toBe(false);
     });
 
-    it("picks up a new CurseForge instance on the very next read, with nothing remounted", async () => {
-        const home = join(root, "home", "ada");
-        const instancesRoot = join(home, "curseforge", "minecraft", "Instances");
-        await mkdir(join(instancesRoot, "Day Teet", "saves"), { recursive: true });
+    // Same real-Windows-only constraint as "expands the CurseForge default root..." above:
+    // this reads the win32-joined candidate against a real filesystem a second time, to
+    // prove the list is recomputed rather than cached, which needs the same real disk.
+    it.skipIf(process.platform !== "win32")(
+        "picks up a new CurseForge instance on the very next read, with nothing remounted",
+        async () => {
+            const home = join(root, "home", "ada");
+            const instancesRoot = join(home, "curseforge", "minecraft", "Instances");
+            await mkdir(join(instancesRoot, "Day Teet", "saves"), { recursive: true });
 
-        const before = await listMinecraftFolders({ platform: "win32", env: {}, home, storeFile });
-        expect(before.filter((folder) => folder.origin === "curseforge-default")).toHaveLength(1);
+            const before = await listMinecraftFolders({ platform: "win32", env: {}, home, storeFile });
+            expect(before.filter((folder) => folder.origin === "curseforge-default")).toHaveLength(1);
 
-        await mkdir(join(instancesRoot, "New Pack", "saves"), { recursive: true });
-        const after = await listMinecraftFolders({ platform: "win32", env: {}, home, storeFile });
+            await mkdir(join(instancesRoot, "New Pack", "saves"), { recursive: true });
+            const after = await listMinecraftFolders({ platform: "win32", env: {}, home, storeFile });
 
-        const curseforge = after.filter((folder) => folder.origin === "curseforge-default");
-        expect(curseforge.map((folder) => folder.label).sort()).toEqual(["Day Teet", "New Pack"]);
-    });
+            const curseforge = after.filter((folder) => folder.origin === "curseforge-default");
+            expect(curseforge.map((folder) => folder.label).sort()).toEqual(["Day Teet", "New Pack"]);
+        },
+    );
 
     it("is absent, not a missing row, when Bedrock's package folder is not on this machine", async () => {
         const folders = await listMinecraftFolders({
@@ -430,23 +471,29 @@ describe("the detected default folder", () => {
         expect(folders.some((folder) => folder.origin === "bedrock-appdata")).toBe(false);
     });
 
-    it("lists Bedrock's worlds folder when the packaged-app storage is really there", async () => {
-        const localAppData = join(root, "local");
-        await mkdir(
-            join(localAppData, "Packages", "Microsoft.MinecraftUWP_8wekyb3d8bbwe", "LocalState", "games", "com.mojang", "minecraftWorlds"),
-            { recursive: true },
-        );
+    // Same real-Windows-only constraint as the CurseForge cases above: `defaultMinecraftFolders`
+    // builds this candidate with `path.win32.join` too, for the identical reason, and it needs
+    // the identical real filesystem to resolve against the fixture below.
+    it.skipIf(process.platform !== "win32")(
+        "lists Bedrock's worlds folder when the packaged-app storage is really there",
+        async () => {
+            const localAppData = join(root, "local");
+            await mkdir(
+                join(localAppData, "Packages", "Microsoft.MinecraftUWP_8wekyb3d8bbwe", "LocalState", "games", "com.mojang", "minecraftWorlds"),
+                { recursive: true },
+            );
 
-        const folders = await listMinecraftFolders({
-            platform: "win32",
-            env: { APPDATA: join(root, "appdata"), LOCALAPPDATA: localAppData },
-            storeFile,
-        });
+            const folders = await listMinecraftFolders({
+                platform: "win32",
+                env: { APPDATA: join(root, "appdata"), LOCALAPPDATA: localAppData },
+                storeFile,
+            });
 
-        const bedrock = folders.find((folder) => folder.origin === "bedrock-appdata");
-        expect(bedrock?.state).toBe("ok");
-        expect(bedrock?.savesPath.endsWith("minecraftWorlds")).toBe(true);
-    });
+            const bedrock = folders.find((folder) => folder.origin === "bedrock-appdata");
+            expect(bedrock?.state).toBe("ok");
+            expect(bedrock?.savesPath.endsWith("minecraftWorlds")).toBe(true);
+        },
+    );
 
     it("only offers a portable installation that is really there", async () => {
         const beside = join(root, "portable");
