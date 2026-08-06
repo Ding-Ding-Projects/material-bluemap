@@ -183,6 +183,52 @@ what it is gets said plainly:
   still count against the account's storage limits, and a few large backups can reach them. The note
   says "cheap rather than free" rather than promising anything.
 
+### Creating a repository, when nothing suitable exists yet
+
+The repository picker used to be able to do exactly one thing: list what already existed. Somebody
+with no repository to back up to had to leave the application, make one on GitHub by hand, and come
+back to pick it — a dead end for the person this feature exists to help the most, the one who has
+never done this before.
+
+`createRepository` (`main/backup/github.ts`) closes that gap from the same "Where to keep it" card
+the picker and the owner/repository fields already live on, rather than opening a second dialog:
+
+- **The owner is either your own account or an organisation you belong to.** GitHub uses two
+  different endpoints for the two cases — `POST /user/repos` for a personal repository, `POST
+  /orgs/{org}/repos` for one under an organisation — so this screen asks which one applies with a
+  two-choice picker rather than guessing from the typed name.
+- **Visibility is a real choice, with the consequence stated in the same words as everywhere else
+  on this screen:** PUBLIC means anybody can download it, private means only granted accounts can
+  see it and is not free storage.
+- **It is initialised with one starter commit.** A repository with no commits at all answers a very
+  specific 422 the moment anything tries to create a release on it — `"Repository is empty."` — the
+  exact trap the append-only design above already had to name once, discovered against a real,
+  freshly created, never-pushed-to repository. `auto_init: true` sidesteps it entirely for the very
+  first repository somebody creates from this screen.
+- **A taken name is told apart from every other 422** GitHub answers with the same status — an
+  invalid character, a name that is only punctuation, one past the length limit — and reported with
+  its own `name-taken` code so the interface can point at the name field rather than showing a
+  generic failure.
+- **Creating never overwrites.** GitHub itself refuses a name that already exists, so there is no
+  "re-initialise an existing repository" path anywhere in this feature that would need gating behind
+  the destructive-action super-confirmation — the operation that would need it simply does not exist.
+- **The new repository is selected automatically.** The owner and repository fields already name
+  what was just created, and creating it re-reads the repository exactly as choosing an existing one
+  from the list does, landing at the same "what uploading here would mean" report rather than
+  leaving somebody to press Check themselves.
+
+### Searching the repository list
+
+`listWritableRepositories` reads up to three pages of `/user/repos` — 300 repositories, most
+recently active first — and hands the whole, already-bounded set to the screen in one answer; there
+is no further paging from the interface. The repository picker's search (the shared
+`ConfigSearchField`, with its own anchored regex builder, plain text by default) is therefore
+complete over what was loaded and says so: the summary line reads "showing N of 300 loaded
+repositories" rather than implying it searched the whole account, and if the repository you want is
+not among the 300 most recently active, the owner/repository text fields beside the list remain the
+honest way to reach it. Three distinguishable states cover what the list can be: nothing loaded yet,
+this account genuinely has none, and no loaded repository matched the current search.
+
 ### What happens, in order
 
 1. **Read the folder.** Count the files, total the bytes, name anything that will be left out.
