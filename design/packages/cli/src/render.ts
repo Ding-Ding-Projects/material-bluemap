@@ -8,28 +8,24 @@
  * `packages/server/src/render/RenderDriver.ts` makes and the exact call a plugin's
  * `/bluemap update` command makes upstream — see that module's own doc comment for why.
  *
- * ## `-u`/`--watch` is accepted, not implemented
+ * ## `-u`/`--watch`, now wired (closes issue #40's CLI half)
  *
- * Upstream's `-u` does two things: it changes `force`'s starting point (an incremental
- * update, same as no flag) and it starts a `MapUpdateService` file-watcher per map plus a
- * periodic full-update timer, so the process keeps running and re-renders on change.
- * `packages/engine` has the watcher primitives (`WatchService`, `MCAWorldRegionWatchService`)
- * but nothing joins a file-system event to a render task yet — `ROADMAP.md` issue #40,
- * "Watch-driven re-render... nothing joins a file-system event to a render task". So this
- * CLI does the one real render `-u` implies, then refuses to sit and pretend it is
- * watching: it prints exactly what is missing and exits non-zero, per the issue's own
- * "Never exit 0 having done nothing" requirement. `-ru` and `-fu` etc. still perform their
- * real render first.
+ * Upstream's `-u` does two things, both now real here: it starts a `MapUpdateService`
+ * file-watcher per map (`packages/server/src/plugin/MapUpdateService.ts`, already ported)
+ * and, when `core.conf`'s `full-update-interval` is greater than zero, a periodic timer
+ * that re-triggers every targeted map on that interval
+ * (`BlueMapCLI.java:182-197`'s `updateAllMapsTask`). `startWatchers` below is the join
+ * between "a region-file changed" and "a region got re-rendered" that the module doc
+ * comment on `MapUpdateService` already names; this file just calls it. The process is
+ * kept alive by `index.ts` the same way `-w` already keeps it alive for the webserver —
+ * see that file's own comment.
  */
 
 import type { BmMap, RenderManager } from "@material-bluemap/engine";
 import { TileUpdateStrategy } from "@material-bluemap/engine";
 import type { ResolvedCliActions, TileUpdateStrategy as ForceStrategyString } from "@material-bluemap/config";
-import { RenderDriver } from "@material-bluemap/server";
+import { RenderDriver, MapUpdateService } from "@material-bluemap/server";
 import type { Logger } from "./logger.js";
-
-/** Distinct from upstream's 0/1/2: an explicitly requested behaviour this CLI does not implement yet. */
-export const EXIT_NOT_IMPLEMENTED = 3;
 
 const FORCE_STRATEGY: Readonly<Record<ForceStrategyString, TileUpdateStrategy>> = {
     none: TileUpdateStrategy.FORCE_NONE,
@@ -54,7 +50,7 @@ export interface RunRenderOptions {
 export async function runRender(
     action: NonNullable<ResolvedCliActions["render"]>,
     options: RunRenderOptions,
-): Promise<{ readonly triggered: number }> {
+): Promise<{ readonly triggered: number; readonly targets: readonly BmMap[] }> {
     const { maps, renderManager, logger } = options;
     const driver = new RenderDriver(renderManager);
     const force = FORCE_STRATEGY[action.force];
@@ -64,7 +60,7 @@ export async function runRender(
 
     if (targets.length === 0) {
         logger.warn("No maps matched -m/--maps (or none are configured); nothing to render.");
-        return { triggered: 0 };
+        return { triggered: 0, targets: [] };
     }
 
     logger.info(`Start updating ${String(targets.length)} map(s) ...`);
@@ -95,7 +91,82 @@ export async function runRender(
     }
 
     logger.info("Your maps are now all up-to-date!");
-    return { triggered };
+    return { triggered, targets };
+}
+
+export interface RunningWatch {
+    /** upstream: `List<MapUpdateService> mapUpdateServices` */
+    readonly services: readonly MapUpdateService[];
+    /** upstream: `Timer timer` holding `updateAllMapsTask` — `null` when `full-update-interval <= 0`. */
+    readonly fullUpdateTimer: ReturnType<typeof setInterval> | null;
+    /** upstream: `shutdown`'s watcher half — closes every watcher, then clears the full-update timer. */
+    close(): Promise<void>;
+}
+
+export interface StartWatchersOptions {
+    readonly targets: readonly BmMap[];
+    readonly renderManager: RenderManager;
+    /** upstream: `CoreConfig.getUpdateCooldown()`, in seconds (`core.conf`'s `update-cooldown`). */
+    readonly updateCooldownSeconds: number;
+    /** upstream: `CoreConfig.getFullUpdateInterval()`, in minutes (`core.conf`'s `full-update-interval`); 0 disables it. */
+    readonly fullUpdateIntervalMinutes: number;
+    readonly logger: Logger;
+}
+
+/**
+ * upstream: `BlueMapCLI.renderMaps`'s `if (watch) { ... }` watcher-construction block plus
+ * its `if (watch) { long fullUpdateInterval = ...; ... }` periodic-timer block. One
+ * `MapUpdateService` per targeted map, started immediately, plus (when the config's
+ * `full-update-interval` is positive) a timer that re-triggers every targeted map's
+ * incremental update on that interval, exactly as `updateAllMapsTask` does.
+ *
+ * A watcher that fails to construct for one map is logged and skipped, matching upstream's
+ * per-map `try`/`catch` — one map's world-type refusing a watch service must not stop the
+ * rest, nor the render this CLI already performed for it.
+ */
+export function startWatchers(options: StartWatchersOptions): RunningWatch {
+    const { targets, renderManager, updateCooldownSeconds, fullUpdateIntervalMinutes, logger } = options;
+    const driver = new RenderDriver(renderManager);
+
+    const services: MapUpdateService[] = [];
+    for (const map of targets) {
+        try {
+            const service = new MapUpdateService(renderManager, map, {
+                regionUpdateCooldownMs: updateCooldownSeconds * 1000,
+                verbose: true,
+                onInfo: (message) => logger.info(message),
+                onDebug: (message) => logger.info(message),
+                onWarn: (message) => logger.warn(message),
+                onError: (message, error) => logger.error(message, error),
+            });
+            service.start();
+            services.push(service);
+            logger.info(`Watching map '${map.getId()}' for changes...`);
+        } catch (error) {
+            logger.error(`Failed to create update-watcher for map: ${map.getId()} (This means the map might not automatically update)`, error);
+        }
+    }
+
+    let fullUpdateTimer: ReturnType<typeof setInterval> | null = null;
+    if (fullUpdateIntervalMinutes > 0) {
+        const intervalMs = fullUpdateIntervalMinutes * 60_000;
+        fullUpdateTimer = setInterval(() => {
+            logger.info(`Start updating ${String(targets.length)} map(s) ...`);
+            for (const map of targets) driver.triggerUpdate(map, TileUpdateStrategy.FORCE_NONE);
+        }, intervalMs);
+        if (typeof fullUpdateTimer === "object" && typeof (fullUpdateTimer as { unref?: () => void }).unref === "function") {
+            (fullUpdateTimer as unknown as { unref: () => void }).unref();
+        }
+    }
+
+    return {
+        services,
+        fullUpdateTimer,
+        async close(): Promise<void> {
+            await Promise.all(services.map((service) => service.close()));
+            if (fullUpdateTimer !== null) clearInterval(fullUpdateTimer);
+        },
+    };
 }
 
 function formatDuration(ms: number): string {

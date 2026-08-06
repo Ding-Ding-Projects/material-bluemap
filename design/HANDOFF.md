@@ -3234,3 +3234,91 @@ Verification: `node tools/oracle/textures-parity.mjs --accept-download` (vanilla
 unaffected) and `node tools/oracle/textures-parity.mjs --accept-download
 --synthetic-modded` (modded) — both exit 0. `design/ROADMAP.md`'s Phase C section and phase
 table updated to **Done**.
+
+### 2026-08-06 — `-u`/`--watch` stops lying, closing issue #40's CLI half
+
+`packages/cli`'s `-u`/`--watch` flag has existed since issue #42 landed on 2026-08-05, and
+it always did exactly one real thing: run the one render it implied, then log an error and
+exit 3 saying nothing joined a file-system event to a render task, naming issue #40's
+`MapUpdateService` as the piece that was never wired in. `MapUpdateService` itself had
+existed since that same day (`50e4b1a`, `packages/server/src/plugin/MapUpdateService.ts`)
+with 8 tests of its own — it was never the missing logic, only the missing call site. That
+call site is now built.
+
+**`design/packages/cli/src/render.ts`** drops `EXIT_NOT_IMPLEMENTED` and adds
+`startWatchers()`, returning a `RunningWatch` (`services`, `fullUpdateTimer`, `close()`).
+`runRender()` now also returns its resolved `targets`, so the caller can hand the same
+resolved map list to the watcher without re-resolving it a second time. This ports two
+blocks out of upstream's `vendor/BlueMap/implementations/cli/src/main/java/de/bluecolored
+/bluemap/cli/BlueMapCLI.java`: the `if (watch) {...}` block (~lines 102-118), which
+constructs one watch per targeted map, and the `updateAllMapsTask` periodic-timer block
+(~lines 182-197), which drives a full re-render on a fixed interval independent of
+file-system events. One `MapUpdateService` is constructed per targeted map, reusing the
+already-ported `packages/server/src/plugin/MapUpdateService.ts` as-is — nothing about its
+watcher, debounce or dedup logic was touched or reimplemented here.
+
+**`design/packages/cli/src/cli.ts`**: `CliResult` gained `watch: RunningWatch | null`. The
+branch that used to build the exit-3 `EXIT_NOT_IMPLEMENTED` error for `-u` now calls
+`startWatchers(...)`, reading `core.conf`'s `update-cooldown` (seconds, converted to
+milliseconds) and `full-update-interval` (minutes, converted to milliseconds) — the same
+two knobs upstream's own config exposes for this. `EXIT_NOT_IMPLEMENTED` is gone from the
+`EXIT` table entirely, since nothing constructs it anymore; a now-dead `let exitCode` from
+the old branching was inlined while this was in there.
+
+**`design/packages/cli/src/index.ts`**'s `shutdown()` closes `result.watch` first, mirroring
+upstream's own `shutdown` runnable (`BlueMapCLI.java:206`), and the keep-alive branch now
+triggers on `result.server !== null || result.watch !== null` — a `-u` run with no HTTP
+server still keeps the process alive to watch, exactly as it should.
+
+**Tests, new and real.** `packages/cli/test/fixtures/fakeMap.ts` (new) is a fake `BmMap`/
+`World` builder plus a blocking `WatchService`, used to drive `render-watch.test.ts` (new,
+6 tests) through: one `MapUpdateService` per targeted map, started; a per-map throw during
+watcher construction still leaves the rest watched (not aborted wholesale); the periodic
+timer exists only when `full-update-interval > 0`, and firing it re-triggers every target;
+no timer at all when the interval is 0; `close()` closes everything and is idempotent; and
+the periodic timer's own trigger uses the shared `FORCE_NONE` strategy, not a fresh one.
+`packages/cli/test/e2e.test.ts` gained one genuinely end-to-end case on top of those unit
+tests: `runCli(["-c", configFolder, "-u"])` renders for real, exits 0, and returns a
+non-null `watch`; the test then touches a real region file on disk and proves a real render
+was scheduled from it. That assertion reads the `"Scheduled update for region-file:"` log
+line rather than a queue count — a queue-count assertion was tried first and found to race,
+because the live worker pool drains the task before a count taken after the touch can
+observe it. That race was caught and fixed in this session, not inherited from anywhere.
+
+**Two honest deviations, found and deliberately left alone rather than quietly patched
+over:**
+
+1. **Queue priority is not upstream's.** Upstream's `updateAllMapsTask` calls
+   `renderManager.scheduleRenderTasksNext(...)`, which jumps the queue ahead of whatever is
+   already scheduled. This port's periodic timer instead goes through
+   `RenderDriver.triggerUpdate` → `scheduleRenderTask(...)`, a normal tail-enqueue. So
+   upstream's periodic full-refresh jumps ahead of a backlog of pending region updates, and
+   this port's queues behind it instead. This is **not something introduced by this
+   change** — `runRender`'s own initial-render call already has the identical
+   characteristic, and a check of `packages/server` today finds nothing anywhere calling
+   `scheduleRenderTaskNext`/`scheduleRenderTasksNext`, upstream's "jump the queue" API, at
+   all. It is written down here rather than silently carried forward because it needs an
+   actual decision — add a "Next" scheduling path to `RenderDriver`, or accept and document
+   the simplification — and that decision was not this task's to make unilaterally.
+2. **Exception granularity is currently unreachable, not wrong.** Upstream distinguishes an
+   `IOException` (logged as an error) from an `UnsupportedOperationException` — "not
+   supported for the world-type", logged as a *warning* — when constructing a watcher for a
+   map fails. `startWatchers` collapses both into a single `catch` that always logs an
+   error. In practice this changes nothing today: `MCAWorld.createRegionWatchService()`
+   never throws, and it is the only real `World` implementation this port has, so the
+   warning path is dead code on both sides of the comparison. Recorded so it is not
+   forgotten if a second `World` implementation is ever added.
+
+Verification for this section: `pnpm --filter @material-bluemap/cli run typecheck` — clean.
+`npx eslint packages/cli` — clean, after fixing one real `prefer-const` error the change
+introduced. `npx vitest run packages/cli` — **29 passed, 0 skipped, 4 test files**.
+`npx vitest run packages/server` — **42 passed** (`MapUpdateService` itself is untouched by
+this change). Both `webappBundleBuilt`-gated e2e tests ran for real, not skipped, after
+`npm install && npm run build` in `vendor/BlueMap/common/webapp`; the new `-u` test took
+roughly 9 seconds and its log carries `Scheduled update for region-file: (0, 0) (Map:
+overworld)`. Two guard tests were confirmed to actually guard, not just pass, by breaking
+each on purpose and restoring it: removing the per-map try/catch turned the skip-on-throw
+test red, and changing `> 0` to `>= 0` turned the no-timer test red. `design/ROADMAP.md`'s
+Phase E section is updated below to close this half of issue #40; the two upstream
+deviations above are recorded there too rather than only here. **CI has not run against
+this change yet** — everything above is local verification only.

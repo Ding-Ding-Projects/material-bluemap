@@ -50,7 +50,7 @@ exclusions **S2 and S4 are withdrawn**; S1 and S3 still stand.
 | C | Resource-pack pipeline (VFS, blockstates/models/atlases, textures, legacy compat, Mojang downloader, textures.json) | **Done.** Exit criteria run 2026-08-05 (issue #31, closed): textures.json parity **passes**, vanilla (1723/1723) and modded (1725/1725, offline synthetic pack, pixel-verified on both engines — `--synthetic-modded`); live end-to-end resolution **passes**; legacy-jar loading **passes**, and the era-matched render defect it surfaced is fixed and closed (#46) |
 | J | **Java render path** (D17): toolchain discovery/provisioning, jar resolution, config writer, CLI runner, progress parser, provenance record, local map serving | Built. CI builds all seven jars and renders a test world with them on every green run; the app's own end-to-end flow is still proven by hand on one Windows machine. See below |
 | D | Hires mesher, byte-exact PRBM writer, lowres LOD cascade, renderstate, file storage, masks | **Done, and the gate is closed.** `tools/oracle/compare.mjs` rendered a generated 1000x1000 world with both engines on 2026-08-04 and reported **identical**: 995 files matched, 961 of 961 hires tiles byte for byte after decompression, 24 of 24 lowres tiles pixel for pixel, all render-state decisions equal, neither side holding a file the other lacked. A 200x200 fixture on a different seed reports the same. Passing the gate does not itself switch the product over; D17 keeps upstream's engine rendering until that switch is made and verified on its own |
-| E | RenderManager worker pool, watch re-render, full HTTP routes + SSE, config schema (every option), standalone server CLI + Dockerfile | **Part done.** See below for the split |
+| E | RenderManager worker pool, watch re-render, full HTTP routes + SSE, config schema (every option), standalone server CLI + Dockerfile | **Part done.** `-u`/`--watch` closed 2026-08-06, the CLI half of issue #40. See below for the split |
 | F | Full options GUI (all settings, map wizard, storage editors, config import) | **Reachable, and it now opens on settings.** `App.vue` mounts the Material title bar, the world wizard, first-run setup and the settings surface. Three gaps closed: the preload never exposed the window controls (a frameless window with no minimise or close); only 6 of a map's 92 settings could reach a render; and (`5c810d0`) the editor opened on "Nothing is open yet" with no tabs once it resolved a real bridge, so it now opens on the config folder BlueMap already uses, or on BlueMap's defaults labelled as unsaved. Its controls were swept in `6b8ef7b`: registry-key selects no longer render blank against values BlueMap writes, and both colour fields use the continuous picker with alpha, kept true by `packages/config/test/controlPolicy.test.ts` |
 | G | Docker hosting GUI (dockerode instance manager) | Pending |
 | H | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade | **Part done.** SQL storages ported and proven against real MySQL/MariaDB/PostgreSQL servers, and now proven cross-compatible with upstream's real Java engine over a shared MariaDB database, both directions (issue #32, closed — see below); command palette, marker editor, JS addon system, static export and the three.js upgrade remain Pending |
@@ -100,10 +100,11 @@ Not fully ported, and so keeping this phase open:
   and writes the webapp's real `settings.json` (`WebFilesManager.Settings`, field for
   field). Deliberately deferred, and said so out loud where the CLI is asked for it rather
   than silently doing nothing: `-n`/mod-resource scanning, `resourceExtensions.zip`
-  parity, SQL storages, non-box render masks, and — the largest gap — `-u`/`--watch`,
-  which exits non-zero naming issue #40's `MapUpdateService` as the still-unwired piece
-  rather than pretending to watch. 3 files, 22 tests (`packages/cli/test`), including one
-  end-to-end test that renders a real `packages/worldgen` world through a real resource
+  parity, SQL storages in the CLI, and non-box render masks. (`-u`/`--watch` was deferred
+  here too when this paragraph was first written, exiting non-zero and naming issue #40's
+  `MapUpdateService` as the still-unwired piece; it closed on 2026-08-06 — see below.)
+  3 files, 22 tests (`packages/cli/test`) as of this paragraph's original writing, including
+  one end-to-end test that renders a real `packages/worldgen` world through a real resource
   pack and serves it, and a real subprocess spawn of the built `dist/index.js`.
   **`packages/cli/Dockerfile` was built and run for real**, not authored blind: `docker
   build -f design/packages/cli/Dockerfile .` from the repository root (`pnpm --filter
@@ -140,11 +141,69 @@ Ported on 2026-08-05 (issue #40), in `packages/server/src/plugin/MapUpdateServic
   touched, schedules exactly its own region; a real chokidar-backed watch service (not a
   mock) drives every burst/coalescing/cooldown/head-of-queue/error-surfacing case, the last
   proven with a live `process.on('unhandledRejection')` guard that never fires.
-- **Not wired into `packages/cli`.** That package was mid-restructure by a different task in
-  the same pass this landed in, so the bridge stops at a clean `start()`/`close()` API
+- **Wired into `packages/cli` on 2026-08-06 — see the dated block immediately below.** At
+  the time this bullet was written, that package was mid-restructure by a different task in
+  the same pass this landed in, so the bridge stopped at a clean `start()`/`close()` API
   (`new MapUpdateService(renderManager, map).start()` per watched map,
   `await service.close()` on shutdown) rather than fighting over a file someone else was
-  actively editing. The CLI hookup itself remains open.
+  actively editing. The CLI hookup itself is closed now.
+
+Ported on 2026-08-06 (issue #40's CLI half, closed), in `packages/cli`:
+
+- **`-u`/`--watch` now does what it always claimed to.** `packages/cli/src/render.ts` drops
+  `EXIT_NOT_IMPLEMENTED` and adds `startWatchers()`, returning a `RunningWatch` (`services`,
+  `fullUpdateTimer`, `close()`); `runRender()` now also returns its resolved `targets` so the
+  caller can hand the same resolved map list to the watcher rather than re-resolving it. It
+  ports upstream's `vendor/BlueMap/implementations/cli/src/main/java/de/bluecolored/bluemap
+  /cli/BlueMapCLI.java`'s `if (watch) {...}` block (~lines 102-118) and its
+  `updateAllMapsTask` periodic-timer block (~lines 182-197) — one `MapUpdateService` per
+  targeted map, reusing the already-ported `packages/server/src/plugin/MapUpdateService.ts`
+  as-is, with none of its watcher/debounce/dedup logic reimplemented.
+- **`packages/cli/src/cli.ts`**: `CliResult` gained `watch: RunningWatch | null`; the old
+  exit-3 branch for `-u` now calls `startWatchers(...)`, reading `core.conf`'s
+  `update-cooldown` (seconds → ms) and `full-update-interval` (minutes → ms).
+  `EXIT_NOT_IMPLEMENTED` is gone from the `EXIT` table entirely.
+- **`packages/cli/src/index.ts`**'s `shutdown()` closes `result.watch` first, mirroring
+  upstream's `shutdown` runnable (`BlueMapCLI.java:206`); the keep-alive branch now triggers
+  on `result.server !== null || result.watch !== null`.
+- **Tests**: `packages/cli/test/fixtures/fakeMap.ts` (new) — fake `BmMap`/`World` builder
+  plus a blocking `WatchService`; `packages/cli/test/render-watch.test.ts` (new, 6 tests) —
+  one service per map and started, per-map skip-on-throw still watching the rest, the timer
+  existing only when `full-update-interval > 0` and re-triggering every target when fired,
+  no timer at 0, idempotent `close()`, and the periodic timer using `FORCE_NONE`.
+  `packages/cli/test/e2e.test.ts` gained one real end-to-end case: `runCli(["-c",
+  configFolder, "-u"])` renders, exits 0, returns a non-null `watch`, then a real region file
+  is touched and a real render is proven scheduled from it — asserted on the `"Scheduled
+  update for region-file:"` log line rather than a queue count, since the live worker pool
+  drains the task before a count taken after the touch can observe it (a race found and
+  fixed in this session).
+- **Two honest deviations, found and left alone rather than silently patched:**
+  1. **Queue priority is not upstream's.** Upstream's `updateAllMapsTask` calls
+     `renderManager.scheduleRenderTasksNext(...)`, jumping the queue; this port's periodic
+     timer goes through `RenderDriver.triggerUpdate` → `scheduleRenderTask(...)`, a normal
+     tail-enqueue. Upstream's periodic full-refresh therefore jumps ahead of a backlog of
+     pending region updates; this port's queues behind it. **Pre-existing, not introduced
+     here** — `runRender`'s own initial-render call has the identical characteristic, and
+     nothing in `packages/server` calls `scheduleRenderTaskNext`/`scheduleRenderTasksNext`
+     anywhere today. Needs a decision (add a "Next" path to `RenderDriver`, or document the
+     simplification), recorded rather than picked unilaterally.
+  2. **Exception granularity, currently unreachable.** Upstream distinguishes `IOException`
+     (logged as an error) from `UnsupportedOperationException` ("not supported for the
+     world-type", logged as a warning) when a watcher fails to construct; `startWatchers`
+     collapses both into one `catch` that always logs an error. `MCAWorld
+     .createRegionWatchService()` never throws and is the only real `World` implementation
+     in this port, so the path is dead today.
+
+Verification for this block: `pnpm --filter @material-bluemap/cli run typecheck` clean;
+`npx eslint packages/cli` clean (after fixing one real `prefer-const` error the change
+introduced); `npx vitest run packages/cli` — **29 passed, 0 skipped, 4 test files**; `npx
+vitest run packages/server` — **42 passed** (`MapUpdateService` untouched). Both
+`webappBundleBuilt`-gated e2e tests ran for real after `npm install && npm run build` in
+`vendor/BlueMap/common/webapp`; the new `-u` test took roughly 9s and its log carries
+`Scheduled update for region-file: (0, 0) (Map: overworld)`. Both guard tests were confirmed
+to actually guard by breaking them on purpose and restoring: removing the per-map try/catch
+turned the skip test red, and changing `> 0` to `>= 0` turned the no-timer test red. **CI
+has not run against this change yet.**
 
 Ported on 2026-08-05 (issue #41), in `packages/server/`:
 
@@ -721,8 +780,12 @@ tracked by an open issue; each item is named here so it is not lost between pass
 - **Wire `RenderManager.saveRenderTaskQueue`/`.loadRenderTaskQueue` into something that
   actually calls them** — a periodic-save timer and load-on-startup, in `packages/server`
   or `packages/cli` (issue #30's own follow-on, not closed by it).
-- **Join `packages/cli`'s `-u`/`--watch` to `packages/server`'s `MapUpdateService`** — both
-  exist; nothing calls the second from the first yet.
+- ~~Join `packages/cli`'s `-u`/`--watch` to `packages/server`'s `MapUpdateService`~~ **Done
+  (issue #40's CLI half, 2026-08-06).** See "Phase E, what is ported and what is not" above
+  for the detail, including two upstream deviations recorded rather than silently fixed:
+  the periodic full-refresh tail-enqueues instead of jumping the queue like upstream's does,
+  and a watcher-construction exception path that is upstream-only-distinguished but
+  currently unreachable in this port.
 - **Prove SQLite and PostgreSQL cross-compatibility with upstream's real Java engine
   specifically.** Issue #32 itself is closed: MariaDB has the real cross-engine proof, both
   directions, and MySQL/MariaDB/PostgreSQL are independently proven against real same-engine

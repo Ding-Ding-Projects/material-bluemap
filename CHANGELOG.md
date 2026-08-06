@@ -29,6 +29,10 @@ full message for the in-app changelog viewer.
 - Fix the Cantonese funny-level caption landing on top of its own tick label - [`8e2c44b57f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8e2c44b57ffbce4380f54bd8fb11631dcf719655)
 - Fix the bottom-left FAB stack painting over page text at every width and scale - [`26d74a8a28`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/26d74a8a28061adeb2d56de2d4a795f99df3d1f9)
 
+### Server, CLI and configuration
+
+- cli: wire -u/--watch to a real MapUpdateService per map, closing issue #40's CLI half - [`PENDING_COMMIT_SHA`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/PENDING_COMMIT_SHA)
+
 ### Landing page and documentation site
 
 - Give the site's command palette real inline setting controls, not just a link - [`a72fa8f43f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a72fa8f43f31a8677357a47424a6ee6d3ccb2e67)

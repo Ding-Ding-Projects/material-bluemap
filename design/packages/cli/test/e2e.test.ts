@@ -20,12 +20,12 @@
  */
 
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { generateWorld } from "@material-bluemap/worldgen";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCli, type CliResult } from "../src/cli.js";
 import { writeFixtureResourcePack } from "./fixtures/resourcePack.js";
 
@@ -54,7 +54,7 @@ afterEach(async () => {
 });
 
 /** Bootstraps a config folder, then points it at a real fixture world + resource pack. */
-async function prepareFixtureConfig(): Promise<{ configFolder: string }> {
+async function prepareFixtureConfig(): Promise<{ configFolder: string; worldFolder: string }> {
     const configFolder = join(root, "config");
 
     // phase 1: let the real CLI write its own defaults (this is the same "generate on an
@@ -88,10 +88,11 @@ async function prepareFixtureConfig(): Promise<{ configFolder: string }> {
     await rm(join(configFolder, "maps", "nether.conf"));
     await rm(join(configFolder, "maps", "end.conf"));
 
-    return { configFolder };
+    return { configFolder, worldFolder: generated.worldFolder };
 }
 
 async function teardown(result: CliResult): Promise<void> {
+    await result.watch?.close();
     await result.server?.close();
     if (result.renderManager !== null) {
         result.renderManager.stop();
@@ -195,6 +196,71 @@ describe("e2e: runCli renders a real fixture map and serves real routes", () => 
         // thing the missing renderManager.start() above broke
         await serveResult.renderManager!.awaitIdle();
         expect(serveResult.renderManager!.getScheduledRenderTaskCount()).toBe(0);
+    }, 30_000);
+
+    // ROADMAP.md issue #40's CLI half: `-u` used to log-and-`exitCode = EXIT.NOT_IMPLEMENTED`
+    // (a real bug report, not a stub) — this is the proof the real behaviour that replaced
+    // it actually works end-to-end, not just against the fakes in render-watch.test.ts.
+    it.skipIf(!webappBundleBuilt)("`-u` renders, exits 0 with a non-null watch, and its per-map watcher schedules a real update from a real file change", async () => {
+        const { configFolder, worldFolder } = await prepareFixtureConfig();
+
+        const result = await runCli(["-c", configFolder, "-u"], "0.0.0-test");
+        cleanups.push(() => teardown(result));
+
+        // the headline regression: this used to be EXIT.NOT_IMPLEMENTED (3), not 0
+        expect(result.exitCode).toBe(0);
+        expect(result.watch).not.toBeNull();
+        expect(result.renderManager).not.toBeNull();
+        expect(result.watch!.services).toHaveLength(1);
+        expect(result.watch!.services.every((service) => !service.isClosed())).toBe(true);
+
+        // the render `-u` also performs (upstream: renderMaps() runs unconditionally before
+        // the watch branch) already drained to idle inside runRender/runCli.
+        await result.renderManager!.awaitIdle();
+        expect(result.renderManager!.getScheduledRenderTaskCount()).toBe(0);
+
+        const regionFolder = join(worldFolder, "region");
+        const regionFile = readdirSync(regionFolder).find((name) => name.endsWith(".mca"));
+        expect(regionFile).toBeDefined();
+
+        // `console.error` is this CLI's own `logger.ts` sink (info/warn/error all go
+        // there — see that module's own doc comment on why stdout stays reserved for
+        // command output). Capturing it, rather than sampling
+        // `renderManager.getScheduledRenderTaskCount()` after the wait below, is
+        // deliberate: this CLI's `renderManager` is already running its real worker pool
+        // (started for the render `-u` performs first), so the moment
+        // `MapUpdateService` schedules the touched region's task, that same pool can pick
+        // it up and drain it before a test assertion ever gets to observe the queue
+        // non-empty — confirmed for real, once, by hand: a manual run of this exact
+        // scenario logged "Scheduled update for region-file: (0, 0) (Map: overworld)"
+        // while `getScheduledRenderTaskCount()` read back 0 a moment later. The count
+        // genuinely went 0 -> 1 -> 0; a test sampling it after a fixed wait just cannot
+        // reliably catch the middle of that, so the log line — written unconditionally
+        // by `MapUpdateService.fireScheduledUpdate`'s `verboseLog` the instant it
+        // schedules — is the non-racy signal that scheduling itself really happened.
+        const consoleErrorSpy = vi.spyOn(console, "error");
+
+        // touch (rewrite) the exact real region file the render above just processed
+        const regionPath = join(regionFolder, regionFile!);
+        await writeFile(regionPath, await readFile(regionPath));
+
+        // MapUpdateService's floor delay is a hard-coded 5000ms (see that class's own doc
+        // comment on the bare literal in updateRegion) — this test's own cooldown comes
+        // from core.conf's real default (`update-cooldown: 60`), which is far larger than
+        // the time since the map's own last update, so the floor is what actually governs
+        // here. Waiting past it proves startWatchers wired a REAL, WORKING watcher — the
+        // fs-event actually reached MapUpdateService and MapUpdateService actually reached
+        // this CLI's own RenderManager — not one that merely constructed without throwing.
+        await new Promise((resolve) => setTimeout(resolve, 7000));
+
+        const logged = consoleErrorSpy.mock.calls.map((args) => String(args[0] as unknown)).join("\n");
+        expect(logged).toContain("Scheduled update for region-file:");
+        expect(logged).toContain("(Map: overworld)");
+        consoleErrorSpy.mockRestore();
+
+        // whatever the exact interleaving was, the queue must be empty again by now
+        await result.renderManager!.awaitIdle();
+        expect(result.renderManager!.getScheduledRenderTaskCount()).toBe(0);
     }, 30_000);
 });
 
