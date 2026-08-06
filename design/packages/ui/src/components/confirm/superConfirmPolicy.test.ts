@@ -165,13 +165,13 @@ interface DestructiveFile {
  */
 const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
     "bridge.d.ts": {
-        count: 3,
+        count: 4,
         destroys:
-            "config files on disk, the recorded Mojang download consent, and older revisions of a " +
-            "config folder's version history",
+            "config files on disk, the recorded Mojang download consent, older revisions of a " +
+            "config folder's version history, and older revisions of a world's project history",
         standing: "type-only",
         note:
-            "The preload bridge's shape, not a call to it. All three routes are declared again at " +
+            "The preload bridge's shape, not a call to it. All four routes are declared again at " +
             "the files that actually invoke them, and the gate belongs there.",
     },
     "components/ProfileManager.vue": {
@@ -326,6 +326,30 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "The one call in the whole history feature that takes anything away. Everything else " +
             "there only ever adds a revision, restore included: a restore writes the old files back " +
             "and records that as a new revision, so the state it replaced stays in the list.",
+    },
+    "components/history/SimpleHistoryList.vue": {
+        count: 1,
+        destroys:
+            "older revisions of a project's, a profile list's, or the application settings' own " +
+            "version history - whichever one this instance was mounted against - and with them the " +
+            "only route back to the states they recorded",
+        standing: "gated",
+        gatedIn: "components/history/SimpleHistoryList.vue",
+        note:
+            "The narrow list-and-restore host's retention control, offered only once its optional " +
+            "`discardOlderRevisions` is really there - see `simpleHistoryHost.ts`. Restore, the " +
+            "list's other action, only ever adds a revision.",
+    },
+    "components/history/SimpleHistoryPanel.vue": {
+        count: 1,
+        destroys:
+            "older revisions of a profile list's or the application settings' own version history " +
+            "and with them the only route back to the states they recorded",
+        standing: "gated",
+        gatedIn: "components/history/SimpleHistoryPanel.vue",
+        note:
+            "Same control, same optional-capability gating as `SimpleHistoryList.vue` above, on the " +
+            "sibling component `AppSettings.vue` mounts for its searchable, date-filterable history.",
     },
     "components/history/historyHost.ts": {
         count: 3,

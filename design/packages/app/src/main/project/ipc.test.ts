@@ -27,7 +27,7 @@ import {
     type ProjectMap,
 } from "@material-bluemap/config";
 
-import { historyRoot, runGit, type GitResult, type GitRunner, type RestoreResult } from "../history/index.js";
+import { historyRoot, runGit, type GitResult, type GitRunner, type HistoryWrite, type RestoreResult } from "../history/index.js";
 
 import {
     PROJECT_CHANNELS,
@@ -324,6 +324,7 @@ describe.skipIf(!hasGit)("a real history, on a real disk", { timeout: 60_000 }, 
         list: () => Promise<ProjectHistoryListing>;
         restore: (id: string) => Promise<RestoreResult>;
         read: () => Promise<ProjectReadOutcome>;
+        discardOlder: (keep: number) => Promise<HistoryWrite>;
     }> {
         const { folder, dataDir } = await world();
         const ipcMain = fakeIpcMain();
@@ -338,6 +339,7 @@ describe.skipIf(!hasGit)("a real history, on a real disk", { timeout: 60_000 }, 
             list: () => call<ProjectHistoryListing>("project:history", folder),
             restore: (id) => call<RestoreResult>("project:restore", folder, id),
             read: () => call<ProjectReadOutcome>("project:read", folder),
+            discardOlder: (keep) => call<HistoryWrite>("project:discardOlder", folder, keep),
         };
     }
 
@@ -483,6 +485,44 @@ describe.skipIf(!hasGit)("a real history, on a real disk", { timeout: 60_000 }, 
         expect(listing.revisions.filter((revision) => revision.action === "restored")).toHaveLength(2);
         expect(listing.revisions.map((revision) => revision.id)).toContain(first);
         expect(listing.revisions.map((revision) => revision.id)).toContain(second);
+    });
+
+    describe("pruning: keeps the newest revisions and removes the rest", () => {
+        it("keeps only the newest `keep` revisions, refusing nothing that survives", async () => {
+            const app = await wired();
+            await app.save(project({ name: "First" }));
+            await app.save(project({ name: "Second", updatedAt: "2026-08-04T13:00:00-04:00" }));
+            await app.save(project({ name: "Third", updatedAt: "2026-08-04T14:00:00-04:00" }));
+            expect((await app.list()).revisions).toHaveLength(3);
+
+            const written = await app.discardOlder(1);
+            expect(written.ok).toBe(true);
+
+            const after = await app.list();
+            expect(after.revisions).toHaveLength(1);
+            expect(after.revisions[0]?.label).toContain("Third");
+        });
+
+        it("refuses a `keep` that is not a whole number of at least one, and prunes nothing", async () => {
+            const app = await wired();
+            await app.save(project({ name: "First" }));
+            await app.save(project({ name: "Second", updatedAt: "2026-08-04T13:00:00-04:00" }));
+
+            const refused = await app.discardOlder(0);
+            expect(refused.ok).toBe(false);
+            expect((await app.list()).revisions).toHaveLength(2);
+        });
+
+        it("refuses a relative world folder for discardOlder too, exactly as every other channel does", async () => {
+            const ipcMain = fakeIpcMain();
+            registerProjectHandlers(ipcMain, { dataDir: "/data", git: noGit });
+            const written = (await ipcMain.handlers.get("project:discardOlder")?.(
+                noEvent,
+                "relative/path",
+                1,
+            )) as HistoryWrite;
+            expect(written.ok).toBe(false);
+        });
     });
 
     /**

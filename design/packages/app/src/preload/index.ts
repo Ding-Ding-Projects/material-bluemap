@@ -2193,6 +2193,19 @@ interface MaterialBlueMapBridge {
         accountId?: string,
     ): Promise<{ ok: true; value: CiScheduleWriteResult } | { ok: false; message: string }>;
 
+    /**
+     * Prepares a repository so a CI render can actually run on it - committing the render
+     * workflow additively, whether the repository is truly empty, already has content, or
+     * carries a stale copy this application wrote before. See `main/cirender/bootstrap.ts`.
+     */
+    bootstrapCiRepository(
+        owner: string,
+        repo: string,
+        accountId?: string,
+        prefer?: "session" | "gh",
+    ): Promise<CiBootstrapResult>;
+    onCiBootstrapEvent(listener: (event: CiBootstrapEvent) => void): () => void;
+
     /* ---- Hosting a rendered map on GitHub Pages -------------------------- */
 
     /** Renders on this computer with a web root worth publishing. */

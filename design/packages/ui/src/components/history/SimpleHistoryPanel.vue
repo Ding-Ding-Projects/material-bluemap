@@ -1,14 +1,26 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiFilterVariant, mdiRefresh } from "@mdi/js";
-import { VAlert, VBtn, VChip, VProgressCircular } from "vuetify/components";
+import { mdiDownload, mdiFilterVariant, mdiRefresh, mdiScissorsCutting } from "@mdi/js";
+import { VAlert, VBtn, VChip, VMenu, VNumberInput, VProgressCircular } from "vuetify/components";
 
 import ChangelogDateFilter from "../changelog/ChangelogDateFilter.vue";
 import { type DayKey } from "../changelog/changelogDates.js";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import MenuSearchList, { type MenuSearchItem } from "../menuSearch/MenuSearchList.vue";
+import { raiseNotice } from "../../stores/notices.js";
 import HistoryRevisionRow from "./HistoryRevisionRow.vue";
-import { actionFacets, daysWithRevisions, filterRevisions, historySpan, searchCorpus } from "./historyModel.js";
+import {
+    EXPORT_EXTENSIONS,
+    actionFacets,
+    daysWithRevisions,
+    exportRevisions,
+    filterRevisions,
+    historySpan,
+    searchCorpus,
+    type ExportFormat,
+} from "./historyModel.js";
 import type { SimpleHistoryHost } from "./simpleHistoryHost.js";
 
 /**
@@ -30,11 +42,16 @@ import type { SimpleHistoryHost } from "./simpleHistoryHost.js";
  * produced it - so reusing them here is a second *caller*, not a second implementation that could
  * quietly stop matching the first.
  *
- * `HistoryPanel.vue`'s further extras - comparing two revisions, restoring one file or one
- * setting, discarding older revisions - stay absent, because none of them exist on the other side
- * of {@link SimpleHistoryHost} yet (`docs/config-history.md` names them as config-folder
- * history's own extras). Offering them here would be offering buttons that throw the moment they
- * are pressed.
+ * `HistoryPanel.vue`'s comparing-two-revisions and restoring-one-file/one-setting extras stay
+ * absent, because neither exists on the other side of {@link SimpleHistoryHost} yet
+ * (`docs/config-history.md` names them as config-folder history's own extras). Offering them
+ * here would be offering buttons that throw the moment they are pressed.
+ *
+ * Retention is different: {@link SimpleHistoryHost.discardOlderRevisions} is optional and
+ * probed the same way every other extra on this project's host contracts is, so the trim
+ * control below appears only once the bridge genuinely has it, and export needs nothing from
+ * the host at all - it only formats the revisions already on screen, exactly as
+ * `HistoryPanel.vue`'s own export does.
  */
 const props = defineProps<{
     /** What this history is of, e.g. "Server profiles". Shown as the section's own heading. */
@@ -195,22 +212,123 @@ function clearFilters(): void {
     to.value = null;
     chosenActions.value = [];
 }
+
+/* -------------------------------------------------------------------------- */
+/* Retention (optional - only offered when the host really has it)            */
+/* -------------------------------------------------------------------------- */
+
+const keep = ref(20);
+
+/** Against every revision, not the filtered view - trimming keeps the newest, full stop. */
+const wouldDrop = computed(() => Math.max(0, revisions.value.length - Math.max(1, keep.value)));
+
+const trimAffected = computed(() =>
+    revisions.value.slice(Math.max(1, keep.value)).slice(0, 8).map((revision) => `${revision.shortId}  ${revision.label}`),
+);
+
+async function trimHistory(): Promise<void> {
+    const current = props.host;
+    if (current === null || current.discardOlderRevisions === undefined || busy.value) return;
+
+    busy.value = true;
+    try {
+        const written = await current.discardOlderRevisions(Math.max(1, keep.value));
+        raiseNotice(written.ok ? "success" : "error", written.message);
+        if (written.ok) await load();
+    } finally {
+        busy.value = false;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Export (client-side: formats the filtered revisions already on screen)     */
+/* -------------------------------------------------------------------------- */
+
+const exportOpen = ref(false);
+
+const exportItems = computed<MenuSearchItem[]>(() => [
+    { id: "markdown", label: t("history.exportMarkdown", "Markdown file") },
+    { id: "json", label: t("history.exportJson", "JSON file") },
+    { id: "csv", label: t("history.exportCsv", "CSV file") },
+    { id: "text", label: t("history.exportPlain", "Plain text file") },
+]);
+
+function exportText(format: ExportFormat): string {
+    return exportRevisions(shown.value, format, {
+        title: props.title,
+        folder: repository.value,
+        repository: repository.value,
+        range:
+            activeFilterCount.value > 0
+                ? t(
+                      "history.exportFiltered",
+                      { kept: String(shown.value.length), total: String(revisions.value.length) },
+                      "This file holds {kept} of {total} revisions, filtered the same way the screen was.",
+                  )
+                : t("history.exportAll", "This file holds every revision recorded for this folder."),
+        empty: t("history.exportEmpty", "Nothing matched these filters."),
+    });
+}
+
+function slug(text: string): string {
+    return text.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-").replaceAll(/^-+|-+$/g, "") || "history";
+}
+
+function download(format: ExportFormat): void {
+    const name = `${slug(props.title)}-history.${EXPORT_EXTENSIONS[format]}`;
+    const blob = new Blob([exportText(format)], {
+        type: format === "json" ? "application/json" : format === "csv" ? "text/csv" : "text/plain",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = name;
+    link.click();
+    URL.revokeObjectURL(url);
+    raiseNotice("success", t("history.exported", { name }, "Exported {name}."));
+}
+
+function chooseExport(id: string): void {
+    exportOpen.value = false;
+    download(id as ExportFormat);
+}
 </script>
 
 <template>
     <section class="mb-simple-history" :aria-label="title">
         <div class="mb-simple-history__head">
             <h4 class="mb-simple-history__title">{{ title }}</h4>
-            <v-btn
-                :prepend-icon="mdiRefresh"
-                :aria-label="t('history.simple.refresh', { title }, 'Read {title} history again')"
-                variant="text"
-                size="small"
-                :disabled="loading || host === null"
-                @click="load"
-            >
-                {{ t("history.simple.refreshShort", "Refresh") }}
-            </v-btn>
+            <div class="mb-simple-history__headActions">
+                <v-btn
+                    v-if="available && revisions.length > 0"
+                    :prepend-icon="mdiDownload"
+                    variant="text"
+                    size="small"
+                    :aria-label="t('history.exportView', 'Export what is on screen to a file')"
+                    :aria-expanded="exportOpen ? 'true' : 'false'"
+                    aria-haspopup="menu"
+                >
+                    {{ t("history.export", "Export") }}
+                    <v-menu v-model="exportOpen" activator="parent" :close-on-content-click="false" location="bottom end">
+                        <MenuSearchList
+                            v-if="exportOpen"
+                            :items="exportItems"
+                            :label="t('history.exportView', 'Export what is on screen to a file')"
+                            @choose="chooseExport"
+                        />
+                    </v-menu>
+                </v-btn>
+                <v-btn
+                    :prepend-icon="mdiRefresh"
+                    :aria-label="t('history.simple.refresh', { title }, 'Read {title} history again')"
+                    variant="text"
+                    size="small"
+                    :disabled="loading || host === null"
+                    @click="load"
+                >
+                    {{ t("history.simple.refreshShort", "Refresh") }}
+                </v-btn>
+            </div>
         </div>
 
         <p v-if="host === null" class="mb-simple-history__note">
@@ -342,6 +460,45 @@ function clearFilters(): void {
                     />
                 </ul>
             </template>
+
+            <div v-if="host !== null && host.discardOlderRevisions !== undefined" class="mb-simple-history__retention">
+                <v-number-input
+                    v-model="keep"
+                    :label="t('history.keep', 'Revisions to keep')"
+                    :min="1"
+                    :max="10000"
+                    control-variant="stacked"
+                    density="compact"
+                    variant="outlined"
+                    hide-details="auto"
+                    class="mb-simple-history__keep"
+                />
+
+                <ConfigSuperConfirm
+                    :title="t('history.trimTitle', 'Remove older revisions')"
+                    :action="
+                        t(
+                            'history.trimAction',
+                            { drop: String(wouldDrop), keep: String(Math.max(1, keep)) },
+                            'This removes {drop} older revisions for good and keeps the newest {keep}. What is removed cannot be restored afterwards, by this app or by anything else.',
+                        )
+                    "
+                    :affected="trimAffected"
+                    :confirm-label="t('history.trimConfirm', 'Slide to remove the older revisions')"
+                    :disabled="busy || wouldDrop === 0"
+                    @confirm="trimHistory"
+                >
+                    <template #activator="{ props: activator }">
+                        <v-btn v-bind="activator" :prepend-icon="mdiScissorsCutting" color="error" variant="text" size="small">
+                            {{
+                                wouldDrop === 0
+                                    ? t("history.trimNothing", "Nothing to remove")
+                                    : t("history.trim", { drop: String(wouldDrop) }, "Remove {drop} older revisions")
+                            }}
+                        </v-btn>
+                    </template>
+                </ConfigSuperConfirm>
+            </div>
         </template>
     </section>
 </template>
@@ -356,6 +513,13 @@ function clearFilters(): void {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    flex-wrap: wrap;
+}
+
+.mb-simple-history__headActions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .mb-simple-history__title {
@@ -428,5 +592,17 @@ function clearFilters(): void {
     list-style: none;
     max-height: 360px;
     overflow-y: auto;
+}
+
+.mb-simple-history__retention {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-block-start: 12px;
+}
+
+.mb-simple-history__keep {
+    max-width: 160px;
 }
 </style>

@@ -261,3 +261,45 @@ describe("timestamps", () => {
         expect(localTimestamp(new Date(2026, 7, 3, 13, 5, 9))).toMatch(/^2026-08-03T13:05:09[+-]\d{2}:\d{2}$/);
     });
 });
+
+describe("a category's cooldown", () => {
+    it("keeps a second success in the same category off the toast stack, within the window", () => {
+        const state = createNoticeState();
+        notify(state, "success", "first", { category: "autosave", cooldownMs: 30_000 });
+        notify(state, "success", "second", { category: "autosave", cooldownMs: 30_000 });
+
+        expect(state.live.map((notice) => notice.message)).toEqual(["first"]);
+    });
+
+    it("never drops the throttled notice from the reviewable history", () => {
+        const state = createNoticeState();
+        notify(state, "success", "first", { category: "autosave", cooldownMs: 30_000 });
+        notify(state, "success", "second", { category: "autosave", cooldownMs: 30_000 });
+
+        expect(state.history.map((notice) => notice.message)).toEqual(["second", "first"]);
+    });
+
+    it("never throttles a warning or an error, even inside the window", () => {
+        const state = createNoticeState();
+        notify(state, "error", "first failure", { category: "autosave", cooldownMs: 30_000 });
+        notify(state, "error", "second failure", { category: "autosave", cooldownMs: 30_000 });
+
+        expect(state.live.map((notice) => notice.message)).toEqual(["first failure", "second failure"]);
+    });
+
+    it("does nothing without a category, even with a cooldown given", () => {
+        const state = createNoticeState();
+        notify(state, "success", "first", { cooldownMs: 30_000 });
+        notify(state, "success", "second", { cooldownMs: 30_000 });
+
+        expect(state.live).toHaveLength(2);
+    });
+
+    it("does not cross-throttle two different categories", () => {
+        const state = createNoticeState();
+        notify(state, "success", "autosave ok", { category: "autosave", cooldownMs: 30_000 });
+        notify(state, "success", "render done", { category: "render", cooldownMs: 30_000 });
+
+        expect(state.live).toHaveLength(2);
+    });
+});

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, useId, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiCloudSyncOutline,
@@ -56,6 +56,7 @@ import type { SettingsTarget } from "./components/world/index.js";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
 import { appState, blueMapApp, mapState, showMapMenu } from "./stores/bluemap.js";
 import { notices, raiseNotice } from "./stores/notices.js";
+import { wireProjectAutosaveNotices } from "./stores/projectAutosaveNotices.js";
 
 const { t } = useI18n();
 const setupI18n = useSetupI18n();
@@ -156,6 +157,15 @@ function revealPage(pageId: string): void {
 onMounted(() => {
     tabs.value?.ensurePage(PAGE_HOME);
 });
+
+/**
+ * The autosave scheduler's own notice policy, mounted once for the whole session rather than
+ * per project screen: `main/project/autosave.ts`'s quiet timer keeps running, and can flush,
+ * even while nobody has the project editor open. See `stores/projectAutosaveNotices.ts` for
+ * what actually gets said - almost always nothing, per the non-blocking-notification rules.
+ */
+const stopAutosaveNotices = wireProjectAutosaveNotices();
+onUnmounted(stopAutosaveNotices);
 
 /**
  * A glossary term's "tell me more" link asking for the Docs tab specifically.

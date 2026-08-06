@@ -26,6 +26,7 @@
  */
 
 import {
+    discardOlderRevisions,
     ensureRepository,
     historyRoot,
     listRevisions,
@@ -252,4 +253,18 @@ export async function restoreProfilesRevision(options: ProfilesHistoryOptions, i
         await rememberProject(options.dataDir, folder, restored.revision?.at ?? null, undefined, PROFILES_HISTORY_DIRECTORY);
     }
     return restored;
+}
+
+/**
+ * Keeps the newest `keep` revisions of the profile list's history and removes the rest.
+ * **Destructive.** See `project/history.ts`'s `discardOlderProjectRevisions` for why this
+ * belongs behind a two-key confirmation gate rather than a plain button.
+ */
+export async function discardOlderProfilesRevisions(
+    options: ProfilesHistoryOptions,
+    keep: number,
+): Promise<HistoryWrite> {
+    const opened = await open(options);
+    if (!opened.ok) return { ok: false, message: opened.message };
+    return await discardOlderRevisions(opened.git, keep);
 }

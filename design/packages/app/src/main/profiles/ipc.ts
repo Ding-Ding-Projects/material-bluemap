@@ -23,9 +23,16 @@
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 
-import { DEFAULT_REVISION_LIMIT, type RestoreResult } from "../history/index.js";
+import { DEFAULT_REVISION_LIMIT, type HistoryWrite, type RestoreResult } from "../history/index.js";
 
-import { profilesHistoryListing, profilesHistoryRoot, restoreProfilesRevision, type ProfilesHistoryListing, type ProfilesHistoryOptions } from "./history.js";
+import {
+    discardOlderProfilesRevisions,
+    profilesHistoryListing,
+    profilesHistoryRoot,
+    restoreProfilesRevision,
+    type ProfilesHistoryListing,
+    type ProfilesHistoryOptions,
+} from "./history.js";
 import { saveProfilesState, type ProfilesSaveResult } from "./save.js";
 import { readProfilesState, type ProfileRecord, type ProfilesState } from "./store.js";
 
@@ -35,6 +42,7 @@ export const PROFILES_HISTORY_CHANNELS = [
     "profilesHistory:save",
     "profilesHistory:list",
     "profilesHistory:restore",
+    "profilesHistory:discardOlder",
 ] as const;
 
 export type ProfilesHistoryIpcOptions = ProfilesHistoryOptions;
@@ -175,6 +183,19 @@ export function registerProfilesHistoryHandlers(
             const revision = checkRevision(id);
             if (!revision.ok) return { ok: false, message: revision.message };
             return await restoreProfilesRevision(options, revision.id);
+        },
+    );
+
+    ipcMain.handle(
+        "profilesHistory:discardOlder",
+        async (_event: IpcMainInvokeEvent, keep: unknown): Promise<HistoryWrite> => {
+            if (typeof keep !== "number" || !Number.isFinite(keep) || keep < 1) {
+                return {
+                    ok: false,
+                    message: "How many revisions to keep has to be a whole number of at least one.",
+                };
+            }
+            return await discardOlderProfilesRevisions(options, Math.floor(keep));
         },
     );
 

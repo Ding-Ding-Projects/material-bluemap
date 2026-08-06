@@ -65,6 +65,23 @@ export interface NoticeOptions {
     readonly title?: string;
     readonly detail?: string;
     readonly actions?: readonly NoticeAction[];
+    /**
+     * Buckets this notice for {@link cooldownMs} below. Two calls sharing a category within
+     * that window are the same *kind* of event happening again in a hurry - an autosave
+     * failing three times in the next ten seconds, say - and the second one restates nothing
+     * a person did not already see a moment ago.
+     */
+    readonly category?: string;
+    /**
+     * How long, in milliseconds, a repeat of this {@link category} is kept off the toast
+     * stack. The repeat is never lost - it still lands in the reviewable history exactly as
+     * every notice does - only the *interruption* is throttled, which is the part the
+     * non-blocking-notification rules actually ask to be rationed. Ignored without a
+     * `category`, and ignored for `error`/`warning`, which never auto-dismiss and must never
+     * be the one that goes missing from the corner because a sibling shown a second earlier
+     * still occupies the slot.
+     */
+    readonly cooldownMs?: number;
 }
 
 export interface Notice {
@@ -81,6 +98,12 @@ export interface Notice {
     readonly at: string;
     /** Milliseconds until this dismisses itself, or null when it stays. */
     readonly timeout: number | null;
+    /**
+     * A caller-chosen bucket, e.g. `"project-history"`, used only for the cooldown below. Not
+     * shown anywhere: it is bookkeeping for how often a *kind* of notice may interrupt, not a
+     * label the user reads.
+     */
+    readonly category?: string;
 }
 
 /**
@@ -140,6 +163,12 @@ export interface NoticeState {
      * timeouts so a profile that never opens the setting keeps its exact prior behaviour.
      */
     durationLevel: NoticeDurationLevel["level"];
+    /**
+     * When each {@link NoticeOptions.category} was last shown live, epoch milliseconds.
+     * Internal bookkeeping for {@link notify}'s cooldown - never rendered, never read outside
+     * this module and its tests.
+     */
+    cooldowns: Map<string, number>;
 }
 
 export function createNoticeState(): NoticeState {
@@ -149,6 +178,7 @@ export function createNoticeState(): NoticeState {
         nextId: 1,
         reviewedId: 0,
         durationLevel: DEFAULT_NOTICE_DURATION_LEVEL,
+        cooldowns: new Map(),
     });
 }
 
@@ -185,7 +215,7 @@ export function notify(
     options?: string | NoticeOptions,
 ): Notice {
     const resolved: NoticeOptions = typeof options === "string" ? { detail: options } : (options ?? {});
-    const { title, detail, actions } = resolved;
+    const { title, detail, actions, category, cooldownMs } = resolved;
 
     const notice: Notice = {
         id: state.nextId++,
@@ -196,9 +226,25 @@ export function notify(
         ...(title === undefined ? {} : { title }),
         ...(detail === undefined ? {} : { detail }),
         ...(actions === undefined || actions.length === 0 ? {} : { actions }),
+        ...(category === undefined ? {} : { category }),
     };
 
-    state.live.push(notice);
+    // A warning or an error is never throttled: those are the ones the non-blocking
+    // notification rules say must persist until somebody reads them, and a cooldown that
+    // dropped one on the strength of a sibling shown a moment earlier would be exactly the
+    // failure this queue exists to prevent. Only info/success, and only with both a category
+    // and a cooldown, can land in the reviewable history without also going live.
+    const throttled =
+        category !== undefined &&
+        cooldownMs !== undefined &&
+        (level === "info" || level === "success") &&
+        (state.cooldowns.get(category) ?? -Infinity) + cooldownMs > Date.now();
+
+    if (!throttled) {
+        state.live.push(notice);
+        if (category !== undefined) state.cooldowns.set(category, Date.now());
+    }
+
     state.history.unshift(notice);
     if (state.history.length > HISTORY_LIMIT) state.history.length = HISTORY_LIMIT;
 

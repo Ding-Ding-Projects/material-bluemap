@@ -13,11 +13,12 @@
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 
-import { DEFAULT_REVISION_LIMIT, type RestoreResult } from "../history/index.js";
+import { DEFAULT_REVISION_LIMIT, type HistoryWrite, type RestoreResult } from "../history/index.js";
 
 import {
     appSettingsHistoryListing,
     appSettingsHistoryRoot,
+    discardOlderAppSettingsRevisions,
     restoreAppSettingsRevision,
     type AppSettingsHistoryListing,
     type AppSettingsHistoryOptions,
@@ -31,6 +32,7 @@ export const APP_SETTINGS_HISTORY_CHANNELS = [
     "settingsHistory:save",
     "settingsHistory:list",
     "settingsHistory:restore",
+    "settingsHistory:discardOlder",
 ] as const;
 
 export type AppSettingsHistoryIpcOptions = AppSettingsHistoryOptions;
@@ -135,6 +137,19 @@ export function registerAppSettingsHistoryHandlers(
             const revision = checkRevision(id);
             if (!revision.ok) return { ok: false, message: revision.message };
             return await restoreAppSettingsRevision(options, revision.id);
+        },
+    );
+
+    ipcMain.handle(
+        "settingsHistory:discardOlder",
+        async (_event: IpcMainInvokeEvent, keep: unknown): Promise<HistoryWrite> => {
+            if (typeof keep !== "number" || !Number.isFinite(keep) || keep < 1) {
+                return {
+                    ok: false,
+                    message: "How many revisions to keep has to be a whole number of at least one.",
+                };
+            }
+            return await discardOlderAppSettingsRevisions(options, Math.floor(keep));
         },
     );
 

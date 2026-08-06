@@ -17,7 +17,7 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { runGit, type GitResult, type GitRunner, type RestoreResult } from "../history/index.js";
+import { runGit, type GitResult, type GitRunner, type HistoryWrite, type RestoreResult } from "../history/index.js";
 
 import {
     PROFILES_FILE,
@@ -192,6 +192,7 @@ describe.skipIf(!hasGit)("a real history, on a real disk", { timeout: 60_000 }, 
         list: () => Promise<ProfilesHistoryListing>;
         restore: (id: string) => Promise<RestoreResult>;
         read: () => Promise<ProfilesState>;
+        discardOlder: (keep: number) => Promise<HistoryWrite>;
     }> {
         const dataDir = await tempDataDir();
         const ipcMain = fakeIpcMain();
@@ -205,8 +206,25 @@ describe.skipIf(!hasGit)("a real history, on a real disk", { timeout: 60_000 }, 
             list: () => call<ProfilesHistoryListing>("profilesHistory:list"),
             restore: (id) => call<RestoreResult>("profilesHistory:restore", id),
             read: () => call<ProfilesState>("profilesHistory:read"),
+            discardOlder: (keep) => call<HistoryWrite>("profilesHistory:discardOlder", keep),
         };
     }
+
+    it("prunes: keeps only the newest `keep` revisions, and refuses an invalid `keep`", async () => {
+        const app = await wired();
+        await app.save(state([profile("home", "Home server", "https://example.test")]));
+        await app.save(state([profile("home", "Home server", "https://example.test/two")]));
+        await app.save(state([profile("home", "Home server", "https://example.test/three")]));
+        expect((await app.list()).revisions).toHaveLength(3);
+
+        const refused = await app.discardOlder(0);
+        expect(refused.ok).toBe(false);
+        expect((await app.list()).revisions).toHaveLength(3);
+
+        const written = await app.discardOlder(1);
+        expect(written.ok).toBe(true);
+        expect((await app.list()).revisions).toHaveLength(1);
+    });
 
     it("records exactly one revision for one save", async () => {
         const app = await wired();

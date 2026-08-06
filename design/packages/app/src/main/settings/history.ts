@@ -7,6 +7,7 @@
 
 import {
     APP_SETTINGS_HISTORY_DIRECTORY,
+    discardOlderRevisions,
     ensureRepository,
     historyRoot,
     listRevisions,
@@ -205,4 +206,18 @@ export async function restoreAppSettingsRevision(
         await rememberProject(options.dataDir, folder, restored.revision?.at ?? null, undefined, APP_SETTINGS_HISTORY_DIRECTORY);
     }
     return restored;
+}
+
+/**
+ * Keeps the newest `keep` revisions of the application settings' history and removes the
+ * rest. **Destructive.** See `project/history.ts`'s `discardOlderProjectRevisions` for why
+ * this belongs behind a two-key confirmation gate rather than a plain button.
+ */
+export async function discardOlderAppSettingsRevisions(
+    options: AppSettingsHistoryOptions,
+    keep: number,
+): Promise<HistoryWrite> {
+    const opened = await open(options);
+    if (!opened.ok) return { ok: false, message: opened.message };
+    return await discardOlderRevisions(opened.git, keep);
 }

@@ -712,6 +712,12 @@ function startCiRenders(render: RenderIpc, github: GitHubIpc, backup: BackupIpc)
                 window.webContents.send("cirender:event", event);
             }
         },
+        broadcastBootstrap: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (window.isDestroyed()) continue;
+                window.webContents.send("cirender:bootstrapEvent", event);
+            }
+        },
         appVersion: app.getVersion(),
     });
     return ciRenderIpc;

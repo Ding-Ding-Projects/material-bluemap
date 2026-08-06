@@ -13,7 +13,7 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { runGit, type GitResult, type GitRunner, type RestoreResult } from "../history/index.js";
+import { runGit, type GitResult, type GitRunner, type HistoryWrite, type RestoreResult } from "../history/index.js";
 
 import {
     APP_SETTINGS_FILE,
@@ -181,6 +181,7 @@ describe.skipIf(!hasGit)("a real history, on a real disk", { timeout: 60_000 }, 
         list: () => Promise<AppSettingsHistoryListing>;
         restore: (id: string) => Promise<RestoreResult>;
         read: () => Promise<AppSettingsState>;
+        discardOlder: (keep: number) => Promise<HistoryWrite>;
     }> {
         const dataDir = await tempDataDir();
         const ipcMain = fakeIpcMain();
@@ -194,8 +195,25 @@ describe.skipIf(!hasGit)("a real history, on a real disk", { timeout: 60_000 }, 
             list: () => call<AppSettingsHistoryListing>("settingsHistory:list"),
             restore: (id) => call<RestoreResult>("settingsHistory:restore", id),
             read: () => call<AppSettingsState>("settingsHistory:read"),
+            discardOlder: (keep) => call<HistoryWrite>("settingsHistory:discardOlder", keep),
         };
     }
+
+    it("prunes: keeps only the newest `keep` revisions, and refuses an invalid `keep`", async () => {
+        const app = await wired();
+        await app.save(state({ appearance: { fontSize: 14 } }));
+        await app.save(state({ appearance: { fontSize: 15 } }));
+        await app.save(state({ appearance: { fontSize: 16 } }));
+        expect((await app.list()).revisions).toHaveLength(3);
+
+        const refused = await app.discardOlder(-1);
+        expect(refused.ok).toBe(false);
+        expect((await app.list()).revisions).toHaveLength(3);
+
+        const written = await app.discardOlder(1);
+        expect(written.ok).toBe(true);
+        expect((await app.list()).revisions).toHaveLength(1);
+    });
 
     it("records exactly one revision for one save", async () => {
         const app = await wired();

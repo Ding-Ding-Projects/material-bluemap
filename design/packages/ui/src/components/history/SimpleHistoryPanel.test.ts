@@ -130,6 +130,12 @@ function fakeHost(overrides: Partial<SimpleHistoryHost> = {}, revisions = REVISI
                 ? overrides.restore(id)
                 : { ok: true, revision: null, message: `Restored ${id}`, skipped: [] };
         },
+        // Left off unless a test asks for it, exactly as `simpleHistoryHostFrom` leaves it
+        // off a host built from a bridge that does not have it: the trim control's own
+        // gating on `host.discardOlderRevisions !== undefined` is what this proves.
+        ...(overrides.discardOlderRevisions === undefined
+            ? {}
+            : { discardOlderRevisions: overrides.discardOlderRevisions }),
     };
     return { host, calls };
 }
@@ -360,5 +366,72 @@ describe("no host at all", () => {
 
         expect(view.text()).toContain("This build has no version history");
         expect(view.findComponent(ConfigSearchField).exists()).toBe(false);
+    });
+});
+
+describe("pruning: offered only once the host really has it", () => {
+    it("shows no trim control at all when the host lacks discardOlderRevisions", async () => {
+        const { host } = fakeHost();
+        const view = open(host);
+        await flush();
+
+        expect(view.text()).not.toContain("Revisions to keep");
+    });
+
+    it("opens a two-key super-confirm gate naming exactly what would be removed, and never calls the host before it is authorized", async () => {
+        const discardOlderRevisions = vi.fn().mockResolvedValue({
+            ok: true,
+            revision: null,
+            message: "Removed 1 older revision.",
+        });
+        const { host } = fakeHost({ discardOlderRevisions });
+        const view = open(host);
+        await flush();
+
+        expect(view.text()).toContain("Revisions to keep");
+
+        // Three revisions, and the "keep" field defaults to 20: nothing is due to be
+        // trimmed yet, so the button reads "Nothing to remove" until the field is lowered
+        // below the revision count.
+        const keepInput = view.find(".mb-simple-history__keep input");
+        expect(keepInput.exists()).toBe(true);
+        await keepInput.setValue("1");
+        await flush();
+
+        const trimButton = view
+            .findAll("button")
+            .find((button) => button.text().includes("Remove") && button.text().includes("older revision"));
+        expect(trimButton).toBeTruthy();
+        await trimButton?.trigger("click");
+        await flush();
+
+        // The gate itself - two keys and a slider - is `ConfigSuperConfirm.vue`'s own
+        // contract and is exercised by that component's own tests; what this proves is
+        // that *this* control opens it with the right facts in it, and does not call the
+        // host on its own before the gate says so. Vuetify's `v-menu` teleports its
+        // content onto `document.body` rather than nesting it under the wrapper's own
+        // root, so the gate's text is read from there.
+        expect(document.body.textContent).toContain("Remove older revisions");
+        expect(document.body.textContent).toContain("This removes 2 older revisions for good and keeps the newest 1");
+        expect(discardOlderRevisions).not.toHaveBeenCalled();
+    });
+});
+
+describe("export", () => {
+    it("offers no export button when there is nothing to export", async () => {
+        const { host } = fakeHost({}, []);
+        const view = open(host);
+        await flush();
+
+        expect(view.text()).not.toContain("Export");
+    });
+
+    it("offers an export button once revisions exist", async () => {
+        const { host } = fakeHost();
+        const view = open(host);
+        await flush();
+
+        const exportButton = view.findAll("button").find((button) => button.text() === "Export");
+        expect(exportButton).toBeTruthy();
     });
 });

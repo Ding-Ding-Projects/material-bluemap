@@ -12,7 +12,7 @@
  * the moment they are pressed. This is the host shaped for what is genuinely there.
  */
 
-import type { HistoryRestoreResult, HistoryRevision } from "./historyHost.js";
+import type { HistoryRestoreResult, HistoryRevision, HistoryWrite } from "./historyHost.js";
 
 /** What `list()` answers with. Structurally identical for the profile list and the settings. */
 export interface SimpleHistoryListing {
@@ -30,6 +30,14 @@ export interface SimpleHistoryListing {
 export interface SimpleHistoryHost {
     list(limit?: number): Promise<SimpleHistoryListing>;
     restore(id: string): Promise<HistoryRestoreResult>;
+    /**
+     * Keeps the newest `keep` revisions and removes the rest. **Destructive**, and optional
+     * for the same reason {@link HistoryHost}'s own extras in `historyHost.ts` are: a shell
+     * that predates this capability still keeps a perfectly good history, and a component
+     * that offered a trim button anyway would be offering one that throws when pressed. Probed
+     * one at a time by {@link simpleHistoryHostFrom}, never assumed.
+     */
+    discardOlderRevisions?(keep: number): Promise<HistoryWrite>;
 }
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -51,16 +59,24 @@ export function simpleHistoryHostFrom(
     const api = (bridge as Record<string, unknown>)[namespace];
     if (typeof api !== "object" || api === null) return null;
 
-    const candidate = api as Partial<Record<"list" | "restore", unknown>>;
+    const candidate = api as Partial<Record<"list" | "restore" | "discardOlderRevisions", unknown>>;
     if (!isFunction(candidate.list) || !isFunction(candidate.restore)) return null;
 
     const ready = api as {
         list(limit?: number): Promise<SimpleHistoryListing>;
         restore(id: string): Promise<HistoryRestoreResult>;
+        discardOlderRevisions?(keep: number): Promise<HistoryWrite>;
     };
     return {
         list: (limit) => ready.list(limit),
         restore: (id) => ready.restore(id),
+        // Spread rather than assigned, exactly as `historyHostFromBridge` treats its own
+        // optional extras: `exactOptionalPropertyTypes` makes `discardOlderRevisions:
+        // undefined` a different thing from the property being absent, and the component
+        // asks "is this method here?", not "did I get a value?".
+        ...(isFunction(ready.discardOlderRevisions)
+            ? { discardOlderRevisions: (keep: number) => ready.discardOlderRevisions?.(keep) as Promise<HistoryWrite> }
+            : {}),
     };
 }
 

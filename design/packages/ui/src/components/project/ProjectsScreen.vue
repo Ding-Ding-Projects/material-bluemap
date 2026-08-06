@@ -311,6 +311,23 @@ async function save(): Promise<void> {
         openProject.value = stamped;
         savedProject.value = stamped;
         raiseNotice("success", t("project.save.done", { file: answer.file }, "Saved the project to {file}."));
+        // The file write above is the thing somebody asked for by pressing Save, and it
+        // already succeeded - `answer.ok` said so. `historyOk` is a second, independent
+        // promise: that a revision of this save was kept in the local history. When that one
+        // breaks, the save itself must still read as the success it was, so this is a
+        // second, separate notice rather than folding a failure into the sentence above -
+        // and it persists until dismissed, because a broken safety net is not something an
+        // auto-dismissing toast should be allowed to say once and forget.
+        if (answer.historyOk === false) {
+            raiseNotice(
+                "warning",
+                t(
+                    "project.save.historyFailed",
+                    { message: answer.historyMessage ?? "" },
+                    "The project was saved, but its local history could not be kept: {message}",
+                ),
+            );
+        }
         void reload();
     } catch (error) {
         saveFailure.value = error instanceof Error ? error.message : String(error);

@@ -36,6 +36,28 @@ describe("simpleHistoryHostFrom", () => {
         await host?.restore("abc123");
         expect(restore).toHaveBeenCalledWith("abc123");
     });
+
+    it("leaves discardOlderRevisions off the host when the bridge does not have it - list and restore alone still mount", () => {
+        const host = simpleHistoryHostFrom(
+            { profilesHistory: { list: vi.fn(), restore: vi.fn() } },
+            "profilesHistory",
+        );
+        expect(host).not.toBeNull();
+        expect(host?.discardOlderRevisions).toBeUndefined();
+    });
+
+    it("offers discardOlderRevisions, forwarding to the bridge, once the shell has grown it", async () => {
+        const discardOlderRevisions = vi.fn().mockResolvedValue({ ok: true, revision: null, message: "Trimmed." });
+        const host = simpleHistoryHostFrom(
+            { profilesHistory: { list: vi.fn(), restore: vi.fn(), discardOlderRevisions } },
+            "profilesHistory",
+        );
+
+        expect(host?.discardOlderRevisions).toBeInstanceOf(Function);
+        const result = await host?.discardOlderRevisions?.(20);
+        expect(discardOlderRevisions).toHaveBeenCalledWith(20);
+        expect(result).toEqual({ ok: true, revision: null, message: "Trimmed." });
+    });
 });
 
 describe("simpleHistorySaveFn", () => {

@@ -40,7 +40,7 @@
 
 import { inject, provide, type InjectionKey } from "vue";
 import type { ProjectFile, ProjectReadFailure } from "@material-bluemap/config";
-import type { HistoryRestoreResult } from "../history/historyHost.js";
+import type { HistoryRestoreResult, HistoryRevision, HistoryWrite } from "../history/historyHost.js";
 import type { SimpleHistoryHost, SimpleHistoryListing } from "../history/simpleHistoryHost.js";
 
 /* -------------------------------------------------------------------------- */
@@ -101,7 +101,21 @@ export type ProjectReadAnswer =
     | { readonly ok: false; readonly failure: ProjectReadFailure };
 
 export type ProjectWriteAnswer =
-    | { readonly ok: true; readonly file: string }
+    | {
+          readonly ok: true;
+          readonly file: string;
+          /**
+           * Set on a write that went through the history engine (a save, not a delete):
+           * false when the file was written but no record of it could be kept. Absent for
+           * a call - `deleteProject` today - that never touches history at all, which is a
+           * different thing from a history write that ran and failed.
+           */
+          readonly historyOk?: boolean;
+          /** What the history did or could not do, in one sentence. Absent alongside `historyOk`. */
+          readonly historyMessage?: string;
+          /** The revision this write created, or null when nothing changed. Absent alongside `historyOk`. */
+          readonly revision?: HistoryRevision | null;
+      }
     | { readonly ok: false; readonly message: string };
 
 /* -------------------------------------------------------------------------- */
@@ -239,6 +253,12 @@ export function resolveProjectHost(): ProjectHost | null {
 interface BridgeProjectHistoryApi {
     history(worldFolder: string, limit?: number): Promise<SimpleHistoryListing>;
     restore(worldFolder: string, id: string): Promise<HistoryRestoreResult>;
+    /**
+     * Optional, exactly as {@link SimpleHistoryHost.discardOlderRevisions} is: probed on its
+     * own so a shell that predates it still offers a perfectly good browse-and-restore list,
+     * just without a trim control that would otherwise throw when pressed.
+     */
+    discardOlderRevisions?(worldFolder: string, keep: number): Promise<HistoryWrite>;
 }
 
 /**
@@ -265,6 +285,12 @@ export function projectHistoryHostFor(bridge: unknown, worldFolder: string): Sim
     return {
         list: (limit) => ready.history(worldFolder, limit),
         restore: (id) => ready.restore(worldFolder, id),
+        ...(isFunction(ready.discardOlderRevisions)
+            ? {
+                  discardOlderRevisions: (keep: number) =>
+                      ready.discardOlderRevisions?.(worldFolder, keep) as Promise<HistoryWrite>,
+              }
+            : {}),
     };
 }
 

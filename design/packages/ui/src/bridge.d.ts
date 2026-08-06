@@ -302,6 +302,21 @@ interface BlueMapProjectBridge {
     ): Promise<BlueMapProjectSaveResult>;
     history(worldFolder: string, limit?: number): Promise<BlueMapProjectHistoryListing>;
     restore(worldFolder: string, id: string): Promise<BlueMapHistoryRestoreResult>;
+    /**
+     * Keeps the newest `keep` revisions of this world's project history and removes the
+     * rest. **Destructive.**
+     */
+    discardOlderRevisions(worldFolder: string, keep: number): Promise<BlueMapHistoryWrite>;
+
+    /** Tells the autosave scheduler this world's project now looks like this. */
+    notifyAutosaveChange(worldFolder: string, project: BlueMapProjectFile): Promise<void>;
+    /** Writes whatever is pending for one world immediately. `null` when nothing was pending. */
+    flushAutosave(
+        worldFolder: string,
+        reason: "boundary" | "destructive" | "quit",
+    ): Promise<BlueMapProjectSaveResult | null>;
+    /** Every autosave attempt this scheduler makes, automatic or flushed, successful or not. */
+    onAutosaveEvent(listener: (event: BlueMapProjectAutosaveEvent) => void): () => void;
 
     /** Every world this machine knows about that carries a project. */
     listProjects(): Promise<{
@@ -327,7 +342,17 @@ interface BlueMapProjectBridge {
     writeProject(
         world: string,
         project: BlueMapProjectFile,
-    ): Promise<{ ok: true; file: string } | { ok: false; message: string }>;
+    ): Promise<
+        | { ok: true; file: string; historyOk: boolean; historyMessage: string; revision: BlueMapHistoryRevision | null }
+        | { ok: false; message: string }
+    >;
+}
+
+/** Why one autosave happened, and what it produced. Mirrors `ProjectAutosaveEvent` in the preload. */
+interface BlueMapProjectAutosaveEvent {
+    worldFolder: string;
+    reason: "quiet" | "boundary" | "destructive" | "quit";
+    result: BlueMapProjectSaveResult;
 }
 
 interface BlueMapHistoryBridge {

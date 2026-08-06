@@ -362,9 +362,42 @@ each with an honest label naming the profile or setting that moved; nothing reco
 changed nothing; no `.git` inside either live store, with the repository kept in its own family
 beside `config-history/` and `project-history/`; a save on a machine with no git still writes the
 file and reports the history failure separately; a git that fails mid-commit leaves the save intact;
-and a restore recorded as a new revision, provably undoable in turn. Neither module introduces a new
-destructive call site in `packages/ui` — both expose read, save, list and restore only, with no
-trim — so the super-confirmation inventory needed no change for this work.
+and a restore recorded as a new revision, provably undoable in turn.
+
+## Pruning and export reach every history, not only a config folder's
+
+`discardOlderRevisions` was originally a config-folder-only extra. It no longer is: `project:discardOlder`,
+`profilesHistory:discardOlder` and `settingsHistory:discardOlder` all wrap the same generic
+`discardOlderRevisions(git, keep)` in `history/repository.ts` — no new git logic, three more thin IPC
+wrappers with the same "keep a whole number of at least one" refusal `history:discardOlder` already
+enforces. `SimpleHistoryHost.discardOlderRevisions` is optional, probed the same one-at-a-time way
+`HistoryHost`'s own extras are: a shell that predates it still offers a perfectly good browse-and-restore
+list, just without a trim control that would otherwise throw. Where the bridge has it,
+`SimpleHistoryList.vue` (the project History tab) and `SimpleHistoryPanel.vue` (the profile and
+application-settings sections in Settings) both grow a "Revisions to keep" field and a trim button
+behind `ConfigSuperConfirm` — the same two-key gate, the same "cannot be restored afterwards" wording,
+as the config-folder panel's own retention control. Export needs no new backend at all: it formats
+whatever `list()` already returned, through the same `exportRevisions` used by `HistoryPanel.vue`, so a
+project's, a profile list's or the application settings' history can leave as Markdown, JSON, CSV or
+plain text exactly like a config folder's can.
+
+## What the user is told when a save's history could not be kept
+
+`ProjectSaveResult.historyOk`/`historyMessage`/`revision` existed on the bridge from the start but were
+silently dropped by `preload/index.ts`'s `writeProject` convenience wrapper before the interface ever saw
+them — the exact "built and unreachable" pattern this project keeps finding, one layer deeper: the type
+was declared and even exported, but nothing on the other side of the call ever read it. `writeProject` now
+passes all three through, and `ProjectsScreen.vue`'s manual save raises a second, persistent warning notice
+- separate from the "Saved" success toast - whenever `historyOk` is `false`, naming what the history layer
+could not do. The autosave scheduler's own outcomes reach the same policy through
+`stores/projectAutosaveNotices.ts`: a routine, successful autosave (`reason: "quiet"`, or a flushed
+`"boundary"`/`"destructive"`/`"quit"` that still succeeded) raises nothing at all - the project's own
+History tab is the ambient "your work is being kept" indicator - and only a failed write or a failed
+history record ever interrupts, at every reason, because a broken safety net is exactly what the
+non-blocking-notification rules call out as deserving attention. Repeat autosave failures inside one
+minute share a `notify()` category and cooldown (new to `components/config/notifications.ts`, alongside
+this work) so a repository that starts failing every autosave interrupts once and then stops interrupting,
+while every occurrence still lands in the notification centre's reviewable history.
 
 `SimpleHistoryPanel.test.ts` mounts the search-and-date-filterable panel directly, over a fake
 `SimpleHistoryHost` (13 tests): the plain list still restores through the host and reloads; the
