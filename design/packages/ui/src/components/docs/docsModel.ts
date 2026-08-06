@@ -82,6 +82,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "render-mask-drawing.md",
     "eula-and-consent.md",
     "dependency-provisioning.md",
+    "gh-cli-accounts.md",
     "automatic-updates.md",
     "render-console.md",
 ];
