@@ -61,6 +61,30 @@ document says so.
 | **The flattening** | A change Minecraft made in version 1.13. Before it, a block was a number plus four extra bits (stone was `1`, andesite was `1:5`). After it, a block is a name (`minecraft:andesite`). Worlds from 1.12.2 and older use the old numbers. Some names also changed meaning: `minecraft:grass` used to be the grass **block** and now means a small grass **plant** |
 | **`worldgen`** | `design/packages/worldgen`. Makes a fake Minecraft world from a number (a "seed"), so tests have a real world to read without downloading one. It can write the modern format or the 1.12.2 one |
 
+## Update, 2026-08-06 — world-repository branch deletion is inside the declared gate
+
+CI run `31127389086` correctly caught three destructive-code hits in
+`components/worldrepo/WorldRepoScreen.vue`: the `removeOne` and `removeChosen` handler
+declarations, plus the inline `removeOne(record)` call. The detector intentionally inventories
+destructive handler declarations as well as invocations, but it did not yet recognise the two
+real `wr.remove(...)` calls because their method name has no capitalized suffix. The screen
+already rendered the shared anchored `ConfigSuperConfirm` for both user paths, but it was missing
+from the explicit destructive-call inventory and its mounted test bypassed the gate by emitting
+`confirm` directly.
+
+The detector now has an explicit world-repository primitive for `wr.remove(...)`, and its
+structural declaration check no longer mistakes `async function removeOne(...)` or
+`removeChosen(...)` definitions for calls. The screen inventory therefore declares three actual
+sites: the single-row gate's inline `removeOne(record)` boundary and the two `wr.remove(...)`
+host calls. The bulk gate passes `removeChosen` as a handler reference rather than invoking it in
+the template, so it is proved by the mounted interaction test instead of being counted as call
+syntax. The mounted tests drive the real two switches and slider: untouched, one-key and partial
+travel leave the branch alone; both keys plus full travel reach the exact repository/branch; the
+bulk path obeys the same boundary; and a host refusal leaves the tracked row plus the exact failure
+visible. Shared `ConfigSuperConfirm` coverage remains the proof for Escape, Emergency exit, focus
+return, reduced-motion, keyboard, assistive labels and localized copy. The world-repository and
+contract articles record the boundary and updated test inventory.
+
 ### What works right now
 
 - **Hosted CI is fully green, for the first time in this pass.** [Run

@@ -106,14 +106,28 @@ const DESTRUCTIVE_CALLS: readonly { readonly label: string; readonly pattern: Re
     { label: "closes tabs in bulk", pattern: /(?<![A-Za-z0-9_$])applyClosePlan\s*\(/g },
     { label: "stops a render that is running", pattern: /\brun\.cancel\s*\(/g },
     { label: "aborts a download that is running", pattern: /(?<![A-Za-z0-9_$])cancelDownload\s*\(/g },
+    { label: "deletes a tracked world's repository branch", pattern: /\bwr\.remove\s*\(/g },
     { label: "empties web storage outright", pattern: /(?:local|session)Storage\.clear\s*\(/g },
 ];
+
+/**
+ * The naming net also matches the name in `function removeSomething(...)`. That is a
+ * declaration, not a call, and counting it makes a file look safer merely because its wrapper
+ * has a scary name. Only invocations belong in the inventory.
+ */
+function isFunctionDeclaration(text: string, index: number): boolean {
+    const lineStart = text.lastIndexOf("\n", index - 1) + 1;
+    return /\b(?:async\s+)?function\s+$/.test(text.slice(lineStart, index));
+}
 
 function destructiveHits(text: string): number {
     let count = 0;
     for (const call of DESTRUCTIVE_CALLS) {
         call.pattern.lastIndex = 0;
-        count += text.match(call.pattern)?.length ?? 0;
+        for (const match of text.matchAll(call.pattern)) {
+            if (isFunctionDeclaration(text, match.index)) continue;
+            count += 1;
+        }
     }
     return count;
 }
@@ -182,14 +196,14 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
     },
 
     "components/appearance/AppearanceEditor.vue": {
-        count: 2,
+        count: 1,
         destroys:
             "a user-saved appearance preset, and with it the settings every element following that preset was inheriting",
         standing: "gated",
         gatedIn: "components/appearance/AppearanceEditor.vue",
     },
     "components/config/ConfigMarkerSetsField.vue": {
-        count: 2,
+        count: 1,
         destroys: "a marker set from the map config being edited",
         standing: "buffer",
         note:
@@ -197,20 +211,20 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "dialog says so, and that dialog is gated when the plan deletes anything.",
     },
     "components/config/MaskDrawingCanvas.vue": {
-        count: 4,
+        count: 3,
         destroys: "one vertex from the polygon shape being drawn, in the unsaved mask being edited",
         standing: "buffer",
         note:
             "Same buffer as maskCanvas.ts's own removePolygonPoint below, which this file's " +
-            "removePoint wraps: its own declaration and the dblclick/click handlers that " +
-            "reach it account for three of the four hits, and the removePolygonPoint call " +
-            "inside its body is the fourth. Nothing reaches disk -- the toolbar's own Undo " +
+            "removePoint wraps: the dblclick/click handlers that reach it account for two " +
+            "hits, and the removePolygonPoint call inside its body is the third. Its function " +
+            "declaration is not a call. Nothing reaches disk -- the toolbar's own Undo " +
             "button (bound to canUndo(history)) restores the vertex in one click, the same " +
             "as every other edit this canvas makes, and ConfigMaskField.vue's own note above " +
             "already covers the same field once it is written back into the config record.",
     },
     "components/config/ConfigMaskField.vue": {
-        count: 2,
+        count: 1,
         destroys: "a render mask shape from the map config being edited",
         standing: "buffer",
         note:
@@ -250,7 +264,7 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "edit that the user undoes by typing the value again, and nothing is written.",
     },
     "components/config/configWorkspace.ts": {
-        count: 1,
+        count: 0,
         destroys: "a map or storage entry in the unsaved workspace",
         standing: "buffer",
         note:
@@ -258,7 +272,7 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "plan's delete list, which the apply dialog shows and gates before running.",
     },
     "components/config/maskCanvas.ts": {
-        count: 1,
+        count: 0,
         destroys: "one vertex from the polygon shape being drawn, in the unsaved mask being edited",
         standing: "buffer",
         note:
@@ -319,7 +333,7 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "control in this application uses.",
     },
     "components/github/githubAccount.ts": {
-        count: 2,
+        count: 1,
         destroys: "the stored GitHub token, and the grant on the account when GitHub honours the revocation",
         standing: "gated",
         gatedIn: "components/github/GitHubStatusRow.vue",
@@ -328,16 +342,15 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "the gate with that row, and is listed separately so the count cannot drift.",
     },
     "components/github/githubAccountsStore.ts": {
-        count: 2,
+        count: 1,
         destroys:
             "one stored account's GitHub token, and the grant on that account when GitHub honours the revocation",
         standing: "gated",
         gatedIn: "components/github/GitHubAccountsList.vue",
         note:
-            "Issue #10, closed: the per-account removal primitive behind the row above (the " +
-            "interface signature and the implementation both name the same call, hence two). " +
-            "It moves behind the gate with that row, and is listed separately so the count " +
-            "cannot drift.",
+            "Issue #10, closed: the per-account removal primitive behind the row above. Its " +
+            "function declaration is not counted; the one invocation remains behind the gate " +
+            "with that row, and is listed separately so the count cannot drift.",
     },
     "components/history/HistoryPanel.vue": {
         count: 1,
@@ -415,17 +428,17 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "leaves the history untouched, and marking as read only moves a watermark forward.",
     },
     "components/notifications/noticeBulk.ts": {
-        count: 2,
+        count: 0,
         destroys:
             "the selected notifications' entries in this session's notification history, and off " +
             "the corner too for any of them still showing",
         standing: "gated",
         gatedIn: "components/NoticeBulkToolbar.vue",
         note:
-            "`deleteImpact(` is the same read-only preview described above. `deleteSelectedHistory(` " +
-            "is declared here -- this file is the pure-logic layer the toolbar calls into, the same " +
-            "shape as `components/tabs/closePlans.ts` -- but it is never called from here; its one " +
-            "caller is `components/NoticeBulkToolbar.vue`, behind the gate. There is no local " +
+            "`deleteImpact(` and `deleteSelectedHistory(` are declarations, not calls. This file is " +
+            "the pure-logic layer the toolbar calls into, the same shape as " +
+            "`components/tabs/closePlans.ts`; the destructive function's one caller is " +
+            "`components/NoticeBulkToolbar.vue`, behind the gate. There is no local " +
             "version history for the notification queue the way there is for a config folder, so " +
             "the gate's own sentence is the only place 'this cannot be undone' is said, and it has " +
             "to say so.",
@@ -458,16 +471,15 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "makes it required is noticed as a count that has drifted from zero.",
     },
     "components/remote/RemoteHostingPanel.vue": {
-        count: 1,
+        count: 0,
         destroys:
             "the running container hosting a map on the person's own server and, unless the target " +
             "keeps its files, the uploaded copy of the world and its tiles too",
         standing: "gated",
         gatedIn: "components/remote/RemoteHostingPanel.vue",
         note:
-            "The one call in the whole hosting feature that takes anything away. Named " +
-            "removeHosting rather than stop, the same way PagesScreen.vue's own stop call is " +
-            "named removeHosting, so this detector's net actually catches it. The gate names " +
+            "This file declares the removeHosting handler but does not invoke it locally, so " +
+            "its count is zero once declarations stop masquerading as calls. The gate names " +
             "exactly what a republish costs (the whole upload again, not a resume) before the " +
             "container is ever torn down.",
     },
@@ -484,7 +496,7 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "flight on it, which is stopped from the run panel and is declared there.",
     },
     "components/remote/remoteTargets.ts": {
-        count: 1,
+        count: 0,
         destroys: "one entry of the saved-machines list, as a list operation",
         standing: "reversible",
         note:
@@ -507,7 +519,7 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "on purpose, exactly like RenderRunPanel.vue's own -- there is no gate to name.",
     },
     "components/pages/PagesScreen.vue": {
-        count: 3,
+        count: 2,
         destroys:
             "a published map's website: GitHub Pages is turned off for the repository and the " +
             "publishing branch is deleted, so the address stops working",
@@ -541,7 +553,7 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "and the full-range slider in front of it first.",
     },
     "components/menu/SettingsMenu.vue": {
-        count: 2,
+        count: 1,
         destroys: "every saved viewer setting in this browser, followed by a reload",
         standing: "gated",
         gatedIn: "components/menu/SettingsMenu.vue",
@@ -571,7 +583,7 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "again from the same screen, and nothing that was downloaded is removed by it.",
     },
     "components/setup/mapStorage.ts": {
-        count: 1,
+        count: 0,
         destroys: "the remembered path of the map storage directory",
         standing: "reversible",
         note:
@@ -597,7 +609,7 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "gate. Its second call removes a tab group, which closes no tab at all.",
     },
     "components/tabs/closePlans.ts": {
-        count: 2,
+        count: 1,
         destroys: "many tabs at once, along with any unsaved work they were holding",
         standing: "gated",
         gatedIn: "components/tabs/TabClosePanel.vue",
@@ -606,7 +618,7 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "one puts the reviewable preview and then the gate in front of it.",
     },
     "components/tabs/tabModel.ts": {
-        count: 1,
+        count: 0,
         destroys: "a tab group, which is a label and an ordering rather than any content",
         standing: "reversible",
         note:
@@ -622,8 +634,23 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "Tiles already drawn are kept deliberately, and the interrupted-render offer " +
             "re-runs against them so a stopped render costs the remaining work only.",
     },
+    "components/worldrepo/WorldRepoScreen.vue": {
+        count: 3,
+        destroys:
+            "one or more world-repository branches this application created, which stops " +
+            "tracking those worlds from this computer while leaving every world folder untouched",
+        standing: "gated",
+        gatedIn: "components/worldrepo/WorldRepoScreen.vue",
+        note:
+            "The single-row and bulk paths each render the shared anchored ConfigSuperConfirm. " +
+            "Both name the exact repository and branch, keep Emergency exit and Escape available, " +
+            "and call removeOne/removeChosen only from the gate's confirm event after both keys and " +
+            "the full-range slider authorize it. The three actual calls are the single-row gate's " +
+            "inline removeOne(record) boundary and the two wr.remove calls that reach the host. " +
+            "Function declarations are deliberately not inventory entries.",
+    },
     "stores/profiles.ts": {
-        count: 1,
+        count: 0,
         destroys: "a saved map or server entry, from this session and from the next",
         standing: "gated",
         gatedIn: "components/ProfileManager.vue",
@@ -746,6 +773,7 @@ describe("the detector, on cases it has to get right", () => {
             "state.signOut();",
             "localStorage.clear();",
             "void run.cancel();",
+            "await wr.remove(target);",
             "const next = applyClosePlan(strip, plan);",
         ];
 
@@ -756,6 +784,8 @@ describe("the detector, on cases it has to get right", () => {
         const innocent = [
             "const can = canRemoveEntry(workspace, key);",
             "function cancel(): void { open.value = false; }",
+            "async function removeOne(record: WorldRepoRecord): Promise<void> {}",
+            "async function removeChosen(): Promise<void> {}",
             "const removed = list.filter((row) => row.id !== id);",
             "if (canSignOut(bridge)) return;",
             "emit('cancel');",
