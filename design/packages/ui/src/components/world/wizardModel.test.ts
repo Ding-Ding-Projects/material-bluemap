@@ -445,4 +445,28 @@ describe("auto-loading the other dimensions", () => {
         expect(nether.world).toBe("/srv/world_nether");
         expect(nether.config).toContain('world: "/srv/world_nether"');
     });
+
+    it("never lets two extra maps collide on the same id, even when their slugs would otherwise match", () => {
+        const wizard = createMapWizard({ separator: "/" });
+        wizard.setWorld(
+            "/srv/world",
+            inspectWorldFolder({
+                folder: "/srv/world",
+                entries: [{ path: "level.dat", directory: false }],
+                regionFiles: {
+                    region: 5,
+                    // Two custom dimensions whose labels slugify to the exact same id.
+                    "dimensions/foo/bar-baz/region": 3,
+                    "dimensions/foo-bar/baz/region": 2,
+                },
+            }),
+        );
+        wizard.mapId.value = "world";
+        wizard.storageDirectory.value = "/var/lib/material-bluemap/maps";
+
+        wizard.setExtraDimensionsIncluded(["foo:bar-baz", "foo-bar:baz"], true);
+        const ids = wizard.toRenderRequest().maps.map((map) => map.id);
+
+        expect(new Set(ids).size).toBe(ids.length);
+    });
 });

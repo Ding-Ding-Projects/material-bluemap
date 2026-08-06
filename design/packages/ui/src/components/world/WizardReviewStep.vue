@@ -19,7 +19,7 @@ import { GlossaryTerm } from "../glossary/index.js";
 import { valueToText } from "../config/fieldValue.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import type { FieldChange } from "../config/configModel.js";
-import { extraMapId, type RunOptions } from "./wizardModel.js";
+import { extraMapId, uniqueMapId, type RunOptions } from "./wizardModel.js";
 import type { WorldDimension } from "./worldFolder.js";
 
 /**
@@ -80,15 +80,24 @@ const threadsText = computed<string>({
     },
 });
 
-/** The extra maps exactly as `toRenderRequest()` will build them: same id, same world. */
-const extraMapRows = computed(() =>
-    props.extraDimensions.map((dimension) => ({
-        key: dimension.key,
-        label: dimension.label,
-        id: extraMapId(props.mapId.trim() === "" ? "map" : props.mapId.trim(), dimension),
-        world: dimension.worldFolder ?? props.world,
-    })),
-);
+/**
+ * The extra maps exactly as `toRenderRequest()` will build them: same id (including its
+ * de-duplication, in the same order, seeded the same way), same world.
+ */
+const extraMapRows = computed(() => {
+    const baseId = props.mapId.trim() === "" ? "map" : props.mapId.trim();
+    const usedIds = new Set<string>([baseId]);
+    return props.extraDimensions.map((dimension) => {
+        const id = uniqueMapId(extraMapId(baseId, dimension), usedIds);
+        usedIds.add(id);
+        return {
+            key: dimension.key,
+            label: dimension.label,
+            id,
+            world: dimension.worldFolder ?? props.world,
+        };
+    });
+});
 
 function describeValue(value: PlainValue | undefined): string {
     const text = valueToText(value ?? null);

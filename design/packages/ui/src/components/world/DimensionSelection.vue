@@ -2,7 +2,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiCheckboxMultipleMarkedOutline, mdiCheckboxMultipleBlankOutline, mdiSelectInverse } from "@mdi/js";
-import { VBtn, VCheckbox, VChip, VTooltip } from "vuetify/components";
+import { VBtn, VCheckbox, VChip } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import type { WorldDimension } from "./worldFolder.js";
@@ -181,6 +181,13 @@ function regionsLabel(dimension: WorldDimension): string {
 
             <ul v-else class="mb-dimension-select__list">
                 <li v-for="dimension in shown" :key="dimension.key" class="mb-dimension-select__row">
+                    <!--
+                        The disabled reason is a permanently visible sentence rather than a
+                        hover-only tooltip, matching this app's own established rule: a fact
+                        reachable only by hovering is not reachable by simply reading the
+                        panel, and every disabled control here names its exact unmet condition
+                        in text, not just to a mouse.
+                    -->
                     <v-checkbox
                         :model-value="isIncluded(dimension)"
                         :disabled="dimension.key === primaryKey"
@@ -189,16 +196,7 @@ function regionsLabel(dimension: WorldDimension): string {
                         density="compact"
                         hide-details="auto"
                         @update:model-value="(value: boolean | null) => toggle(dimension, value)"
-                    >
-                        <v-tooltip v-if="dimension.key === primaryKey" activator="parent" location="top">
-                            {{
-                                t(
-                                    "world.identity.dimensionsPrimaryReason",
-                                    "This is the map you are customising above; it is always included.",
-                                )
-                            }}
-                        </v-tooltip>
-                    </v-checkbox>
+                    />
                     <span
                         v-if="dimension.key === primaryKey"
                         class="mb-dimension-select__reason"
@@ -298,5 +296,24 @@ function regionsLabel(dimension: WorldDimension): string {
     align-items: center;
     flex-basis: 100%;
     margin-inline-start: 34px;
+    max-inline-size: 100%;
+}
+
+/*
+    A sibling folder's own absolute path can be long, and this chip's whole point is to
+    show it in full rather than truncate the one fact that tells someone where their data
+    really lives. Vuetify's own chip content is nowrap by default, which at a narrow width
+    or a high display scale would push the chip past the row rather than wrap inside it.
+*/
+.mb-dimension-select__facts .v-chip {
+    max-inline-size: 100%;
+    height: auto;
+}
+
+.mb-dimension-select__facts .v-chip :deep(.v-chip__content) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+    padding-block: 2px;
 }
 </style>

@@ -96,6 +96,27 @@ export function extraMapId(baseId: string, dimension: WorldDimension): string {
     return combined === "" ? dimensionSlug(dimension) : combined;
 }
 
+/**
+ * `candidate`, or the same id with a counting suffix appended, so two dimensions whose
+ * labels happen to slugify to the same id - two differently namespaced custom
+ * dimensions with near-identical names, say - never silently collide into one map
+ * config overwriting another's.
+ *
+ * Exported so the review step can preview the exact id a render will use, including
+ * the de-duplication, rather than a preview that could disagree with what
+ * `toRenderRequest()` actually builds whenever two dimensions' ids would otherwise clash.
+ */
+export function uniqueMapId(candidate: string, used: ReadonlySet<string>): string {
+    if (!used.has(candidate)) return candidate;
+    for (let suffix = 2; suffix < 1000; suffix++) {
+        const attempt = suggestMapId(`${candidate}-${suffix}`);
+        if (attempt !== "" && !used.has(attempt)) return attempt;
+    }
+    // Exhausted only if somebody ticked hundreds of dimensions that all slugify
+    // identically, which is not a real world this app will ever be handed.
+    return candidate;
+}
+
 /** The three dimensions offered when nothing has read the world folder. */
 export const FALLBACK_DIMENSIONS: readonly WorldDimension[] = [
     {
@@ -619,6 +640,9 @@ export function createMapWizard(options: MapWizardOptions = {}): MapWizard {
     function extraDimensionMaps(): RenderMapRequest[] {
         const baseId = mapId.value.trim() === "" ? "map" : mapId.value.trim();
         const baseName = displayName.value.trim() === "" ? baseId : displayName.value.trim();
+        // Seeded with the primary map's own id, so an extra map can never collide with
+        // the map the rest of the wizard is building either.
+        const usedIds = new Set<string>([baseId]);
 
         const maps: RenderMapRequest[] = [];
         for (const candidate of dimensions.value) {
@@ -629,7 +653,8 @@ export function createMapWizard(options: MapWizardOptions = {}): MapWizard {
             // from the primary world path - BlueMap resolves DIM-1/DIM1 relative to
             // whatever `world` names, and that sibling is the only folder that has them.
             const world = candidate.worldFolder ?? worldPath.value.trim();
-            const id = extraMapId(baseId, candidate);
+            const id = uniqueMapId(extraMapId(baseId, candidate), usedIds);
+            usedIds.add(id);
             const name = `${baseName} - ${candidate.label}`;
 
             const text = renderMapTemplate({
