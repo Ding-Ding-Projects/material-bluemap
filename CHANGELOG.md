@@ -31,7 +31,7 @@ full message for the in-app changelog viewer.
 
 ### Server, CLI and configuration
 
-- cli: wire -u/--watch to a real MapUpdateService per map, closing issue #40's CLI half - [`PENDING_COMMIT_SHA`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/PENDING_COMMIT_SHA)
+- cli: wire -u/--watch to a real MapUpdateService per map, closing issue #40's CLI half - [`61eee4a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/61eee4a)
 
 ### Landing page and documentation site
 
