@@ -872,6 +872,35 @@ jobs:
             sudo apt-get install -y zip
           fi
 
+      # This job calls `gh` nine times - to check the tag is free, count existing releases
+      # for the code-name ordinal, create the release and upload its assets - and GitHub's
+      # hosted ubuntu-latest image ships the CLI already. This machine does not, and the
+      # symptom was not a helpful "gh: not found": `set -euo pipefail` turns the failed
+      # command substitution `count=$(gh release list ...)` into the whole step exiting 127,
+      # which reads like a missing file rather than a missing tool. The `if gh release view`
+      # line above it fails silently too, because a failing condition is not an error under
+      # `set -e`, so the first half of the step appears to succeed on its way to a confusing
+      # exit code.
+      #
+      # Fetched into a job-local directory rather than installed with apt: nothing about
+      # this needs to persist on the machine or be administered, and it mirrors the
+      # shellcheck step in the `workflows` job above. Checks first, so a runner that already
+      # has it pays nothing.
+      - name: Ensure the GitHub CLI is on PATH
+        run: |
+          set -euo pipefail
+          if command -v gh >/dev/null 2>&1; then
+            echo "gh already present: $(gh --version | head -1)"
+          else
+            version=2.62.0
+            mkdir -p "$RUNNER_TEMP/gh-bin"
+            curl -fsSL --retry 3 \
+              "https://github.com/cli/cli/releases/download/v${version}/gh_${version}_linux_amd64.tar.gz" \
+              | tar -xz -C "$RUNNER_TEMP/gh-bin" --strip-components=2 "gh_${version}_linux_amd64/bin/gh"
+            echo "$RUNNER_TEMP/gh-bin" >> "$GITHUB_PATH"
+            echo "installed gh $version"
+          fi
+
       # pnpm before setup-node, so the node cache can key off the lockfile. Version
       # pinned via design/package.json's own `packageManager` field - see the comment on
       # the same step in the `check` job above for why.
