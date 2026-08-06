@@ -342,8 +342,14 @@ async function attempt(surface: string, run: () => Promise<void>): Promise<void>
     try {
         await run();
     } catch (error) {
-        const reason = error instanceof Error ? error.message.split("\n")[0] : String(error);
+        const details = error instanceof Error ? error.message : String(error);
+        const reason = details.split("\n")[0];
         skip(surface, `the harness could not open it in this run: ${reason ?? "unknown error"}`);
+        await writeFile(
+            join(shotDir, `diagnostic-${slug(surface)}.txt`),
+            `${details}\n`,
+            "utf8",
+        ).catch(() => undefined);
         await page
             .screenshot({ path: join(shotDir, `diagnostic-${slug(surface)}.png`) })
             .catch(() => undefined);
@@ -2147,22 +2153,110 @@ test("captures the make-a-map wizard at every step", async () => {
     });
 
     await attempt("Wizard, Docker world source", async () => {
-        const opener = page.locator('[data-test="docker-open"]');
-        await opener.click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForSelector("#mb-docker-world-panel", {
-            state: "visible",
-            timeout: ELEMENT_TIMEOUT,
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send("Emulation.setDeviceMetricsOverride", {
+            width: 390,
+            height: 844,
+            deviceScaleFactor: 2,
+            mobile: false,
         });
-        await page.waitForTimeout(500);
-        await shoot(
-            "wizard-docker-world-source",
-            "The local Docker world-source checklist inside the first wizard step: Docker's real state, actual containers and volumes, a browsed local destination, live-copy risk acknowledgement, and honest progress",
-            {
-                crop: page.locator("#mb-docker-world-panel"),
-                cropped: "the local Docker world-source checklist",
-            },
-        );
-        await opener.click({ timeout: ELEMENT_TIMEOUT });
+        try {
+            const opener = page.locator('[data-test="docker-open"]');
+            await opener.click({ timeout: ELEMENT_TIMEOUT });
+            const panel = page.locator("#mb-docker-world-panel");
+            await panel.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+            await page.waitForTimeout(500);
+
+            const metrics = await panel.evaluate((element) => {
+                const label = (candidate: Element): string =>
+                    candidate.getAttribute("data-test") ??
+                    candidate.getAttribute("aria-label") ??
+                    candidate.textContent?.trim().slice(0, 80) ??
+                    candidate.tagName.toLowerCase();
+                const controls = Array.from(
+                    element.querySelectorAll<HTMLElement>(
+                        "button:not([disabled]), input:not([disabled]), [role='checkbox'], [role='combobox']",
+                    ),
+                ).filter((candidate) => candidate.getClientRects().length > 0);
+                const hitTarget = (candidate: HTMLElement): HTMLElement =>
+                    candidate instanceof HTMLInputElement
+                        ? (candidate.closest<HTMLElement>(".v-field, .v-selection-control") ??
+                          candidate)
+                        : candidate;
+                const clippedControls = controls
+                    .filter((candidate) => {
+                        const rect = hitTarget(candidate).getBoundingClientRect();
+                        return rect.left < 0 || rect.right > window.innerWidth;
+                    })
+                    .map(label);
+                const undersized = controls
+                    .filter((candidate) => {
+                        const rect = hitTarget(candidate).getBoundingClientRect();
+                        return rect.width < 44 || rect.height < 44;
+                    })
+                    .map(label);
+
+                return {
+                    viewport: {
+                        width: window.innerWidth,
+                        height: window.innerHeight,
+                        deviceScaleFactor: window.devicePixelRatio,
+                    },
+                    documentOverflowX:
+                        document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                    bodyOverflowX: document.body.scrollWidth - document.body.clientWidth,
+                    panelOverflowX: element.scrollWidth - element.clientWidth,
+                    clippedControls,
+                    undersized,
+                };
+            });
+
+            expect(metrics.viewport.width).toBe(390);
+            expect(metrics.viewport.height).toBe(844);
+            // Chromium reports the float32 representation on Windows
+            // (`2.0000000596046448` here), not a hand-rounded integer.
+            expect(metrics.viewport.deviceScaleFactor).toBeCloseTo(2, 5);
+            expect(metrics.documentOverflowX).toBe(0);
+            expect(metrics.bodyOverflowX).toBe(0);
+            expect(metrics.panelOverflowX).toBe(0);
+            expect(metrics.clippedControls).toEqual([]);
+            expect(metrics.undersized).toEqual([]);
+            await writeFile(
+                join(shotDir, "wizard-docker-world-source-390x844-200pct.metrics.json"),
+                `${JSON.stringify(metrics, null, 2)}\n`,
+                "utf8",
+            );
+            const compactCapture = await cdp.send("Page.captureScreenshot", {
+                format: "png",
+                fromSurface: true,
+                captureBeyondViewport: false,
+            });
+            const compactName = "wizard-docker-world-source-390x844-200pct";
+            const compactSurface =
+                "The local Docker world-source checklist at a 390 by 844 CSS-pixel viewport and 200% device scale: Docker's real state, actual containers and volumes, a browsed local destination, live-copy risk acknowledgement, and honest progress";
+            const compactCaption =
+                `${compactSurface}. ${target.caption} In this image, ${mapNote()}. ` +
+                "Captured through Chromium's own DevTools surface so the image uses the same exact CSS viewport and device scale as the metrics. The metrics record zero horizontal overflow, clipped controls, or undersized interactive targets.";
+            await writeFile(
+                join(shotDir, `${compactName}.png`),
+                Buffer.from(compactCapture.data, "base64"),
+            );
+            await writeFile(
+                join(shotDir, `${compactName}.caption.txt`),
+                `${compactCaption}\n`,
+                "utf8",
+            );
+            captures.push({
+                name: compactName,
+                file: `${compactName}.png`,
+                surface: compactSurface,
+                caption: compactCaption,
+            });
+            await opener.click({ timeout: ELEMENT_TIMEOUT });
+        } finally {
+            await cdp.send("Emulation.clearDeviceMetricsOverride");
+            await page.setViewportSize(SURFACE_VIEWPORT);
+        }
     });
 
     const world = captureWorldFolder();

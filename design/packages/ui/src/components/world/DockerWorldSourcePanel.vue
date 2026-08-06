@@ -867,6 +867,19 @@ defineExpose({
     white-space: normal;
 }
 
+.mb-docker-world .v-btn,
+.mb-docker-world .v-selection-control,
+.mb-docker-world .v-field {
+    min-block-size: 44px;
+    min-inline-size: 44px;
+}
+
+.mb-docker-world .v-btn-toggle,
+.mb-docker-world .v-btn-toggle .v-btn {
+    block-size: 44px !important;
+    min-block-size: 44px !important;
+}
+
 .mb-docker-world__progress {
     display: grid;
     gap: 6px;

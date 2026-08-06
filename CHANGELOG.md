@@ -22,7 +22,9 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Merge corrected main into Docker world-source phase - [`f876961f74`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f876961f74f4bc3ac22f397adef737c05a416add) _(summary of 6 commits, also listed here)_
 - Separate generated changelog data from policy scans - [`af2d372754`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/af2d372754b336f22d65a6062d1fd2f102935b61)
+- Wire Docker world sources into the map wizard - [`c977ad66ab`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c977ad66ab2c7bb255253e13e4e9e73bfdcaf996)
 - Merge SSH phase into self-hosted CI bootstrap - [`bb56bd37a0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/bb56bd37a0e4705ac5dc1711dd633e25dc06727e) _(summary of 4 commits, also listed here)_
 - Merge SSH world sources into the map wizard - [`515a8cf524`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/515a8cf524d74cdb2b7722d80295bc713ff59ba8) _(summary of 3 commits, also listed here)_
 - Wire SSH world sources into the map wizard - [`0db7a0d934`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0db7a0d9341be0a2be13bcbced8765af7a2a413c)

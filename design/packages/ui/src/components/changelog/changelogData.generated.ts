@@ -26,6 +26,17 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "f876961f74f4bc3ac22f397adef737c05a416add",
+        shortSha: "f876961f74",
+        date: "2026-08-06T19:28:31-04:00",
+        subject: "Merge corrected main into Docker world-source phase",
+        details: "Bring the CI policy correction in before publication; both fixes now share one branch instead of waving from opposite platforms.\\n\\n出街前先合返 CI policy 修正，兩邊啲 fix 而家同一條線，唔使隔住月台揮手。\n\n# Conflicts:\n#\tdesign/HANDOFF.md",
+        category: "interface",
+        areas: ["interface", "docs", "build"],
+        files: 15,
+        summarizes: 6,
+    },
+    {
         sha: "b061962e1d3edce3277e5023cb46c0dbb1a97ce7",
         shortSha: "b061962e1d",
         date: "2026-08-06T19:24:03-04:00",
@@ -54,6 +65,16 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
         category: "interface",
         areas: ["interface", "docs", "build"],
         files: 13,
+    },
+    {
+        sha: "c977ad66ab2c7bb255253e13e4e9e73bfdcaf996",
+        shortSha: "c977ad66ab",
+        date: "2026-08-06T19:27:58-04:00",
+        subject: "Wire Docker world sources into the map wizard",
+        details: "The container and volume fetcher finally gets a real wizard door, typed progress events, cancellation, and a one-attempt live-world warning. The code had packed its bags but forgotten to install a doorknob.\\n\\nDocker 容器同 volume 嘅 world source 終於喺精靈有真門口，連真進度、取消，同每次都要重新確認嘅 live-world 風險一齊駁通。之前啲 code 行李執晒，原來係唔記得裝門柄。",
+        category: "interface",
+        areas: ["interface", "shell", "site", "docs"],
+        files: 33,
     },
     {
         sha: "bb56bd37a0e4705ac5dc1711dd633e25dc06727e",
