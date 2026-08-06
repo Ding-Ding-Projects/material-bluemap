@@ -56,9 +56,41 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      # ForgeGradle 7 (the `:forge` module's build plugin) needs a JDK 8 of its own,
+      # separate from and in addition to the JavaLanguageVersion 25 the project itself
+      # compiles against below. ForgeGradle's own build-time tools (the old MCP/AT
+      # tooling) are pinned to run under Java 8, and when ForgeGradle cannot find one
+      # already installed it downloads its own via a bundled "Disco" (foojay) client into
+      # its Gradle cache.
+      #
+      # On this self-hosted runner's container image that download path is broken: the
+      # extracted `bin/java` fails with `error while loading shared libraries: libjli.so:
+      # cannot open shared object file`. `libjli.so` ships inside the JDK tarball itself,
+      # so a missing *file* is not the cause - the dynamic loader cannot resolve it via
+      # the JDK's own RPATH, which on this stripped image means the base shared-library
+      # set `libjli.so` links against isn't there. Installing the missing base libraries
+      # for that stripped image is a fallback worth trying if this recurs, but the more
+      # direct fix, taken here, is to give ForgeGradle a real, already-installed JDK 8 so
+      # its own provisioner never needs to download - and therefore run - anything.
+      #
+      # This step must run *before* the JavaLanguageVersion 25 install right below it.
+      # actions/setup-java points the plain `JAVA_HOME` at whichever install ran last, so
+      # ordering it first here keeps `JAVA_HOME` on 25 (the JVM that has always launched
+      # this Gradle build) unchanged, while still exporting `JAVA_HOME_8_X64` for the
+      # `-Dorg.gradle.java.installations.fromEnv` flag on the Gradle invocation below to
+      # find. That flag is what makes ForgeGradle's own toolchain lookup - which is built
+      # on Gradle's standard installation registry - see this JDK 8 as "already installed"
+      # instead of "needs provisioning".
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
       # Upstream pins JavaLanguageVersion.of(25) in buildSrc/bluemap.java.gradle.kts,
       # and the produced bytecode is class-file version 69, so 25 is what both the build
-      # and the resulting jars need.
+      # and the resulting jars need. Installed second so it remains the default
+      # `JAVA_HOME` that launches Gradle itself, exactly as before the JDK 8 step above
+      # was added.
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -135,10 +167,20 @@ jobs:
       # Bare project paths. Upstream's settings.gradle.kts includes each implementation
       # at the root and then relocates its projectDir, so `:implementations:cli` does not
       # exist and Gradle rejects it with "project not found".
+      #
+      # `org.gradle.java.installations.fromEnv` is a Gradle *system* property (hence `-D`,
+      # not a project `-P`), naming the two `actions/setup-java` steps above by their
+      # exported `JAVA_HOME_<version>_X64` variables so Gradle's installation registry -
+      # and ForgeGradle's own toolchain lookup built on top of it - resolves both the
+      # project's JDK 25 and ForgeGradle's own required JDK 8 from real local installs
+      # instead of ForgeGradle downloading its own. This is additive: Gradle's default
+      # auto-detection (JAVA_HOME, OS-standard install locations, IDE/version-manager
+      # locations) still runs too, this just adds two more places to look.
       - name: Build all seven shadow jars
         working-directory: vendor/BlueMap
         run: >
           ./gradlew --build-cache --stacktrace
+          -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64,JAVA_HOME_25_X64
           :cli:shadowJar
           :fabric:shadowJar
           :forge:shadowJar

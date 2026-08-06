@@ -157,3 +157,38 @@ in a way that left long stretches of `main` with no verdict at all. `release` ke
 pre-existing job-level group (`cancel-in-progress: false`) untouched — a queued publish should
 wait, never be dropped, and a workflow-level group could have cancelled a release job mid-publish,
 which is exactly the failure this decision must not reintroduce.
+
+**Follow-up, 2026-08-06: `build-jars.yml`'s `jars` job failed every run on the new self-hosted
+runner**, deterministically, on the `:forge` shadow jar. ForgeGradle 7 (the plugin behind that one
+module) needs its own JDK 8 to run its build-time tools (the old MCP/AT tooling), separate from the
+JavaLanguageVersion 25 the project itself compiles under. When ForgeGradle cannot find a JDK 8
+already installed, it downloads one itself through a bundled "Disco" (foojay) client into its own
+Gradle cache — and on this runner's container image, the downloaded tarball's `bin/java` fails to
+even start: `error while loading shared libraries: libjli.so: cannot open shared object file`.
+`libjli.so` ships inside the JDK archive itself, so the file is not missing; the dynamic loader
+cannot resolve it via the JDK's own RPATH, which on this stripped image means the base
+shared-library set that path points at isn't there. This never showed up before the self-hosted
+move because GitHub's hosted images carry that base library set; it is exactly the kind of
+"nothing is preinstalled" gap the bullet list above was written for, just one layer deeper than
+`shellcheck`/`zip`/`xvfb` — a JDK a *build plugin* provisions for itself, not one this workflow
+asks for directly.
+
+Two fixes were available: chase down and install whatever base libraries the stripped image is
+missing so the *downloaded* JDK 8 can run, or make ForgeGradle never need to download one at all.
+The second is what shipped, because it does not depend on this specific container image's package
+set staying the same, and because a properly-installed JDK is cached by the runner between runs
+where a re-downloaded one is thrown away. `build-jars.yml`'s `build` job now installs a Temurin JDK
+8 with `actions/setup-java` *before* its existing JDK 25 install (installing second is what keeps
+`JAVA_HOME` — and therefore the JVM that launches Gradle itself — on 25, unchanged from before), and
+passes `-Dorg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64,JAVA_HOME_25_X64` on the `./gradlew`
+invocation. That system property is Gradle's own mechanism for naming environment variables that
+point at real JDK installs; `actions/setup-java` exports exactly such a variable
+(`JAVA_HOME_<version>_X64`) for every JDK it installs in a job. ForgeGradle's own toolchain lookup
+is built on that same Gradle installation registry, so once a real JDK 8 is a registered
+installation, ForgeGradle finds it there and its Disco-download path — the one that was failing —
+never runs. Nothing in `vendor/BlueMap` was touched: doing so would mark the vendored checkout
+dirty and stamp every jar's version with a `-dirty` suffix (see the "Resolve the upstream version"
+step in `build-jars.yml`), so the fix lives entirely in the workflow's own `-D` flag and installed
+toolchains. The rest of `ci.yml` and `pages.yml` were re-audited at the same time for the same class
+of "assumed the hosted image" failure and found already covered by the bullet list above; no other
+job invokes a build plugin that provisions its own JDK.
