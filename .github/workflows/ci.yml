@@ -638,6 +638,36 @@ jobs:
         working-directory: design
         run: pnpm install --frozen-lockfile
 
+      # This project has hit a specific failure mode before: npm/pnpm's install-script
+      # gate can leave the `electron` package present in node_modules while its
+      # postinstall binary download never ran, so `electron/dist/` has no actual
+      # executable - Playwright then reports a confusing `exitCode=127` from
+      # `electron.launch()` thirty lines later with no indication that the real
+      # problem was a missing download rather than, say, a missing shared library
+      # (see the GTK check further down, which is the *other* known cause of that
+      # same exit code). `require('electron')` is the identical resolution
+      # `_electron.launch()` performs internally and returns the binary path
+      # directly, so this checks the exact thing about to be launched, before
+      # Playwright ever tries it. If the download is missing, its own install.js is
+      # re-run once as a repair attempt before failing loudly.
+      - name: Verify the Electron binary was actually downloaded
+        working-directory: design/packages/app
+        run: |
+          set -euo pipefail
+          electron_bin=$(node -e "console.log(require('electron'))")
+          if [ -x "$electron_bin" ]; then
+            echo "electron binary present: $electron_bin"
+          else
+            echo "electron binary missing at $electron_bin; re-running its postinstall download"
+            electron_pkg_dir=$(node -e "console.log(require('path').dirname(require.resolve('electron/package.json')))")
+            node "$electron_pkg_dir/install.js"
+            if [ ! -x "$electron_bin" ]; then
+              echo "::error::the electron binary at $electron_bin is still missing after re-running $electron_pkg_dir/install.js - this is a genuine download failure, not an install-script skip that a retry can fix"
+              exit 1
+            fi
+            echo "electron binary present after repair: $electron_bin"
+          fi
+
       - name: Build workspace
         working-directory: design
         run: pnpm build
@@ -709,6 +739,40 @@ jobs:
         if: steps.playwright-deps.outputs.satisfied != 'true'
         working-directory: design/packages/app
         run: pnpm exec playwright install-deps chromium
+
+      # Playwright's dry run above only ever asks about headless *Chromium's* own
+      # dependencies. Electron is not just a wrapper around that Chromium - its own
+      # main process links against GTK for native dialogs and the tray icon - and
+      # that is a real, separate dependency Playwright never asked about and never
+      # installs. This is exactly what broke this job on 2026-08-06 (CI run
+      # 31076054310): the Chromium-deps step above reported everything satisfied,
+      # then the Capture step's untruncated error read
+      #   error while loading shared libraries: libgtk-3.so.0: cannot open shared
+      #   object file: No such file or directory
+      # with electron.launch() exiting 127 as a result - "command not found" is
+      # apt/exec's phrasing for this, but the dynamic loader was the thing that
+      # actually failed to resolve a dependency; the electron binary itself was
+      # present and had already been assigned a pid. `ldconfig -p`, not
+      # `command -v`, is the correct check for a shared library rather than an
+      # executable - same check-first, install-only-if-missing shape as the
+      # unzip/xvfb step above, so a warm runner that already has it skips the
+      # install.
+      - name: Ensure Electron's own GTK runtime library is present
+        run: |
+          set -euo pipefail
+          if ldconfig -p | grep -q 'libgtk-3\.so\.0'; then
+            echo "libgtk-3.so.0 already resolvable"
+          else
+            echo "libgtk-3.so.0 missing; installing (requires sudo on this self-hosted runner)"
+            sudo apt-get update
+            # Debian trixie (this runner's OS - see the apt sources in the Chromium
+            # deps step above) renamed this package with a "t64" suffix as part of
+            # the 64-bit time_t transition, the same pattern already visible in that
+            # step's own install list (libatk1.0-0t64, libasound2t64, libcups2t64).
+            # Try the current name first and fall back to the pre-transition name so
+            # this keeps working if the runner's Debian version ever changes.
+            sudo apt-get install -y libgtk-3-0t64 || sudo apt-get install -y libgtk-3-0
+          fi
 
       # Electron needs a display. xvfb gives it one without a desktop session.
       # `local` mode serves the map this run rendered, so the captures are

@@ -213,3 +213,55 @@ than this machine has is caught correctly - the dry run reports it missing, the 
 step (gated on the dry run's result) runs and installs it. Any dry-run failure, for that reason or
 any other, is treated as "not confirmed satisfied" and falls through to the real install, so the
 check can only ever skip work it has verified is unnecessary, never the reverse.
+
+**Same follow-up, 2026-08-06 (second incident): the `screenshots` job still failed after the
+Playwright dry-run fix above landed**, this time with all 24 screenshot tests gated on one failing
+`electron.launch()` in `beforeAll` and never running. The run's summary truncated the useful line
+(`[pid=249620][err] ...electron: error while loading shared libraries: libgtk-3.so.0: ...` cut off
+mid-path), so the first step was pulling the untruncated job log with `gh api
+repos/<repo>/actions/jobs/<id>/logs` rather than guessing between this project's two previously-seen
+causes of the same misleading `exitCode=127` (a never-downloaded Electron binary, and a missing
+shared library). The full line was:
+
+```
+error while loading shared libraries: libgtk-3.so.0: cannot open shared object file: No such file or directory
+```
+
+Confirmed as the missing-library cause, not the missing-binary one: the process had already been
+assigned a pid before it died, so the binary itself was present and executable. The library it
+wanted is real and simply never gets installed by anything already in this job - `playwright
+install-deps chromium` (the step directly above in `ci.yml`) only computes Chromium's own dependency
+list, and Electron's *own* main process links against GTK for native dialogs and the tray icon,
+which is a dependency Chromium alone does not have and Playwright's dry run therefore never reports
+missing. `ci.yml` gained a second check-first, install-only-if-missing step right after the Playwright
+one: `ldconfig -p | grep -q libgtk-3.so.0` (the correct check for a *shared library* rather than an
+executable, unlike `command -v` used elsewhere in this file), installing `libgtk-3-0t64` with a
+fallback to the pre-transition `libgtk-3-0` if that fails - this runner's Debian trixie renamed the
+package with a "t64" suffix as part of its 64-bit time_t transition, the same pattern already visible
+in the Chromium-deps package list (`libatk1.0-0t64`, `libasound2t64`, `libcups2t64`).
+
+Three other things were checked in the same pass and found *not* to need changing, recorded here so
+nobody re-investigates them:
+
+- **The `unzip`/`xvfb-run` presence check's condition is correct, not inverted.**
+  `command -v xvfb-run >/dev/null 2>&1 || missing+=(xvfb)` appends to `missing` only when the command
+  is *absent* (non-zero exit), and the job log for this same failing run shows `xvfb` actually being
+  installed - "installing: xvfb (requires sudo on this self-hosted runner)" - so the probe was doing
+  its job. This was not the bug.
+- **A defensive check for the *other* known cause (the Electron binary never having been downloaded
+  at all, hit before on this project via npm/pnpm's install-script gate) was added anyway**, as a
+  step right after `pnpm install` that resolves `require('electron')` - the same resolution
+  `_electron.launch()` performs internally - and re-runs the package's own `install.js` once as a
+  repair if the binary is missing, failing loudly and by name if it still is not there afterward.
+  It was not the cause of this particular failure (the process had a pid), but it is a distinct,
+  previously-seen cause of the identical misleading `exitCode=127`, cheap to check, and now fails with
+  a clear message instead of a confusing one thirty log lines later.
+- **The `WARN Failed to create bin at .../material-bluemap-render-actions` line earlier in the same
+  job log is harmless install-ordering noise, not a real defect.** `pnpm install --frozen-lockfile`
+  links every workspace package's declared `bin` entry before `pnpm build` has produced anything, so
+  `packages/render-actions/dist/cli.js` (and `packages/worldgen/dist/cli.js`) do not exist yet at
+  link time and pnpm skips those two symlinks with a warning rather than failing. Nothing in this
+  repository invokes either bin by name afterward - every call site (`ci.yml`'s `test-world` job
+  included) runs `node design/packages/<pkg>/dist/cli.js` by explicit path, and `pnpm build` produces
+  that file a few steps later in the same job (confirmed in the log: `packages/render-actions build:
+  Done` after `tsc -p tsconfig.json`). No fix was needed.
