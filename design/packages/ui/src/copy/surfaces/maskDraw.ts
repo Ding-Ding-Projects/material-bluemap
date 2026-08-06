@@ -4,12 +4,11 @@
  * render path cannot translate.
  *
  * `maskGeometry.ts` and `maskFidelity.ts` compute the numbers and the fact this copy narrates;
- * this file only says them. It is a new surface, so per the standing instruction (see
- * `speed.ts`'s own header for the precedent) it ships **unwired**: it is not yet spread into
- * `SURFACE_VOICED`/`SURFACE_FIXED`/`SURFACE_FACTS` in `surfaces/index.ts`. Until the drawing
- * canvas that renders these strings exists and is wired up, every `t()` call against these
- * keys resolves to its English, level-1 fallback — which is why every fallback string below
- * is written as the real level-1 sentence rather than a placeholder.
+ * this file only says them. It is spread into `SURFACE_VOICED`/`SURFACE_FIXED`/`SURFACE_FACTS`
+ * in `surfaces/index.ts` alongside `maskDrawCanvas.ts` (that file's own toolbar, preset and
+ * field labels), now that `components/config/MaskDrawingCanvas.vue` calls these keys directly
+ * for its cost readout and its cloud/Actions fidelity warning — the drawing canvas this file's
+ * own header used to say did not exist yet.
  *
  * ## The one fact every level has to keep
  *

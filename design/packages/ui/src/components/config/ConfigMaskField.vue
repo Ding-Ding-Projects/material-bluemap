@@ -1,12 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiArrowDown, mdiArrowUp, mdiChevronDown, mdiChevronUp, mdiClose, mdiPlus, mdiVectorDifference } from "@mdi/js";
-import { VBtn, VCard, VCardText, VChip, VDivider, VSelect, VSwitch, VTooltip } from "vuetify/components";
+import { mdiArrowDown, mdiArrowUp, mdiChevronDown, mdiChevronUp, mdiClose, mdiPencilRuler, mdiPlus, mdiVectorDifference } from "@mdi/js";
+import { VAlert, VBtn, VCard, VCardText, VChip, VDivider, VSelect, VSwitch, VTooltip } from "vuetify/components";
 import { MASK_SHAPES, MASK_TYPE_OPTIONS, type FieldMeta, type PlainValue } from "@material-bluemap/config";
 import ConfigControl from "./ConfigControl.vue";
 import ConfigListField from "./ConfigListField.vue";
 import { docShownText, isDocLong, provenanceOf } from "./explainField.js";
+import MaskDrawingCanvas from "./MaskDrawingCanvas.vue";
+import { UNKNOWN_WORLD, type ShapeKind, type WorldOrientation } from "./maskCanvas.js";
+import { estimateRenderCost } from "./maskGeometry.js";
+import { normalizeMaskList } from "./maskRecordNormalize.js";
+
+/** The four shapes the drawing canvas can actually draw. A blur has no footprint of its own. */
+const DRAWABLE_KINDS: readonly ShapeKind[] = ["box", "circle", "ellipse", "polygon"];
 
 /**
  * The render mask: an ordered list of shapes, each either adding to or
@@ -28,8 +35,16 @@ const props = withDefaults(
         disabled?: boolean;
         /** Nesting depth, so a blur's own list can be indented and named. */
         depth?: number;
+        /**
+         * What is honestly known about the world this mask belongs to, for the drawing
+         * canvas's presets and orientation banner. Optional and defaults to
+         * {@link UNKNOWN_WORLD}: a caller that has not wired up region-file measurement or
+         * spawn reading yet still gets a fully working canvas, just one that says plainly it
+         * does not know the world's shape, rather than one that fails to render at all.
+         */
+        world?: WorldOrientation;
     }>(),
-    { disabled: false, depth: 0 },
+    { disabled: false, depth: 0, world: () => UNKNOWN_WORLD },
 );
 
 const emit = defineEmits<{ "update:modelValue": [value: PlainValue[]] }>();
@@ -42,6 +57,18 @@ const { t } = useI18n();
  */
 const isDisabled = computed(() => props.disabled === true);
 const depthValue = computed(() => props.depth ?? 0);
+const worldOrientation = computed<WorldOrientation>(() => props.world);
+
+/**
+ * The whole render-mask's honest cost, shown only at the top level (never inside a blur's
+ * own nested list, which is a modifier over its parent's shapes rather than a mask of its
+ * own). `maskGeometry.ts`'s `estimateRenderCost` already knows the four cases that matter:
+ * no shapes at all (the whole world, and that is correct), exactly one additive shape (the
+ * real number), more than one or any subtraction (an explicit upper bound, since the true
+ * overlap is not worth computing here), and a shape left unbounded on some axis (no number
+ * at all rather than an invented one).
+ */
+const wholeMaskCost = computed(() => (depthValue.value === 0 ? estimateRenderCost(normalizeMaskList(props.modelValue)) : null));
 
 
 interface ShapeRow {
@@ -177,6 +204,27 @@ function toggleDoc(rowIndex: number, path: string): void {
     docOpen.value = { ...docOpen.value, [key]: !isDocOpen(rowIndex, path) };
 }
 
+/**
+ * Whether a row's drawing canvas is open. Same per-row-index keying as `docOpen` above, and
+ * the same reason: every box row shares one key space, so opening one row's canvas must
+ * never also open every other box row's.
+ */
+const drawOpen = ref<Record<number, boolean>>({});
+
+function isDrawOpen(rowIndex: number): boolean {
+    return drawOpen.value[rowIndex] ?? false;
+}
+
+function toggleDraw(rowIndex: number): void {
+    drawOpen.value = { ...drawOpen.value, [rowIndex]: !isDrawOpen(rowIndex) };
+}
+
+/** The shape kind a row can be drawn as, or `null` for a blur, which has no footprint of its own. */
+function drawableKind(row: ShapeRow): ShapeKind | null {
+    const bare = row.typeKey.replace(/^bluemap:/, "");
+    return (DRAWABLE_KINDS as readonly string[]).includes(bare) ? (bare as ShapeKind) : null;
+}
+
 /** Provenance for one field against the shape's own record, not a whole config file. */
 function maskProvenance(row: ShapeRow, field: FieldMeta) {
     return provenanceOf(field, row.record);
@@ -193,6 +241,60 @@ function shapeSummary(row: ShapeRow): string {
 
 <template>
     <div class="mb-config-mask" role="group" :aria-label="label">
+        <!--
+          The whole list's own honest cost, once -- never repeated per row, and never shown
+          for a blur's nested list, which describes a softening of its parent rather than an
+          area of its own.
+        -->
+        <v-alert
+            v-if="wholeMaskCost !== null"
+            type="info"
+            density="compact"
+            variant="tonal"
+            class="mb-config-mask__cost"
+        >
+            <template v-if="wholeMaskCost.basis === 'whole-world'">
+                {{ t("mask.cost.wholeWorld", "No mask, so the whole world renders.") }}
+            </template>
+            <template v-else-if="wholeMaskCost.basis === 'unbounded'">
+                {{ t("mask.cost.unbounded", "At least one shape has no limit on some axis, so no area number can be given.") }}
+            </template>
+            <template v-else-if="wholeMaskCost.basis === 'exact'">
+                {{ t("mask.cost.label", "Selected area") }}:
+                {{
+                    t(
+                        "mask.cost.exact",
+                        {
+                            blocks: (wholeMaskCost.areaBlocks ?? 0).toLocaleString(),
+                            chunks: (wholeMaskCost.areaChunks ?? 0).toLocaleString(),
+                            regions: (wholeMaskCost.areaRegions ?? 0).toLocaleString(),
+                        },
+                        "{blocks} blocks (about {chunks} chunks, about {regions} regions).",
+                    )
+                }}
+            </template>
+            <template v-else>
+                {{ t("mask.cost.label", "Selected area") }}:
+                {{
+                    t(
+                        "mask.cost.upperBound",
+                        {
+                            blocks: (wholeMaskCost.areaBlocks ?? 0).toLocaleString(),
+                            chunks: (wholeMaskCost.areaChunks ?? 0).toLocaleString(),
+                            regions: (wholeMaskCost.areaRegions ?? 0).toLocaleString(),
+                        },
+                        "Up to {blocks} blocks (up to about {chunks} chunks, up to about {regions} regions). The real area may be smaller once shapes overlap or subtract.",
+                    )
+                }}
+            </template>
+            <span v-if="wholeMaskCost.extent !== null" class="mb-config-mask__extentLine">
+                {{ t("mask.cost.extentLabel", "Extent") }}:
+                X {{ wholeMaskCost.extent.minX }}..{{ wholeMaskCost.extent.maxX }},
+                Z {{ wholeMaskCost.extent.minZ }}..{{ wholeMaskCost.extent.maxZ }}
+                ({{ t("mask.cost.units.blocks", "blocks") }})
+            </span>
+        </v-alert>
+
         <p v-if="rows.length === 0" class="mb-config-mask__empty">
             {{
                 t(
@@ -212,6 +314,18 @@ function shapeSummary(row: ShapeRow): string {
                             </v-chip>
                             <span class="mb-config-mask__summary">{{ shapeSummary(row) }}</span>
                             <div class="mb-config-mask__actions">
+                                <v-btn
+                                    v-if="drawableKind(row) !== null"
+                                    :prepend-icon="mdiPencilRuler"
+                                    :aria-expanded="isDrawOpen(row.index) ? 'true' : 'false'"
+                                    :disabled="isDisabled"
+                                    variant="text"
+                                    size="small"
+                                    density="comfortable"
+                                    @click="toggleDraw(row.index)"
+                                >
+                                    {{ isDrawOpen(row.index) ? t("config.mask.hideDraw", "Hide drawing") : t("config.mask.draw", "Draw…") }}
+                                </v-btn>
                                 <v-btn
                                     :icon="mdiArrowUp"
                                     :aria-label="t('config.mask.moveUp', 'Move this shape earlier')"
@@ -259,6 +373,17 @@ function shapeSummary(row: ShapeRow): string {
 
                         <p v-if="row.shape" class="mb-config-mask__doc">{{ row.shape.doc }}</p>
 
+                        <MaskDrawingCanvas
+                            v-if="isDrawOpen(row.index) && drawableKind(row) !== null"
+                            :model-value="row.record"
+                            :shape-kind="drawableKind(row)!"
+                            :label="t('config.mask.drawLabel', { index: row.index + 1 }, 'Drawing surface for shape {index}')"
+                            :world="worldOrientation"
+                            :disabled="isDisabled"
+                            class="mb-config-mask__canvas"
+                            @update:model-value="(value) => replaceAt(row.index, value)"
+                        />
+
                         <v-switch
                             :model-value="row.record['subtract'] === true"
                             :label="t('config.mask.subtract', 'Subtract instead of add')"
@@ -281,6 +406,7 @@ function shapeSummary(row: ShapeRow): string {
                                         :label="field.label"
                                         :disabled="isDisabled"
                                         :depth="depthValue + 1"
+                                        :world="worldOrientation"
                                         @update:model-value="(value: PlainValue[]) => setField(row.index, field, value)"
                                     />
                                     <ConfigListField
@@ -391,6 +517,22 @@ function shapeSummary(row: ShapeRow): string {
 </template>
 
 <style>
+.mb-config-mask__cost {
+    margin-block-end: 8px;
+}
+
+.mb-config-mask__extentLine {
+    display: block;
+    font-size: 0.75rem;
+    margin-block-start: 4px;
+    opacity: 0.85;
+}
+
+.mb-config-mask__canvas {
+    display: block;
+    margin-block: 8px;
+}
+
 .mb-config-mask__rows {
     list-style: none;
     margin: 0;

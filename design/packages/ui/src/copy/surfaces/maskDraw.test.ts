@@ -1,11 +1,14 @@
 /**
- * The render mask drawing surface's catalogue, checked directly, before anything registers it.
+ * The render mask drawing surface's catalogue, checked directly as well as through the
+ * whole-package checks.
  *
- * `maskDraw.ts` is not spread into `SURFACE_VOICED` / `SURFACE_FIXED` / `SURFACE_FACTS` -- see
- * that file's own header for why -- so `appCopy.test.ts` and `catalogueCoverage.test.ts`
- * cannot see this module at all. This mirrors what `speed.test.ts` does for the Speed dial's
- * catalogue: the same integrity checks, applied directly to `MASKDRAW_VOICED`,
- * `MASKDRAW_FIXED` and `MASKDRAW_FACTS` by importing them straight from `./maskDraw.js`.
+ * `maskDraw.ts` is now spread into `SURFACE_VOICED`/`SURFACE_FIXED`/`SURFACE_FACTS` in
+ * `surfaces/index.ts`, so `appCopy.test.ts` and `catalogueCoverage.test.ts` exercise it too
+ * once `components/config` is included there. This file keeps its own direct checks anyway,
+ * mirroring what `speed.test.ts` does for the Speed dial's catalogue: the same integrity
+ * checks, applied directly to `MASKDRAW_VOICED`, `MASKDRAW_FIXED` and `MASKDRAW_FACTS` by
+ * importing them straight from `./maskDraw.js`, so this file's own suite still passes or
+ * fails on this module alone.
  */
 
 import { describe, expect, it } from "vitest";

@@ -967,6 +967,9 @@ export const CONFIGEDITOR_FIXED = {
     "config.mask.shape": { en: "Shape", yue: "形狀" },
     "config.mask.subtract": { en: "Subtract instead of add", yue: "減走，唔係加上" },
     "config.mask.add": { en: "Add a shape", yue: "加個形狀" },
+    "config.mask.draw": { en: "Draw…", yue: "畫圖…" },
+    "config.mask.hideDraw": { en: "Hide drawing", yue: "收埋幅畫" },
+    "config.mask.drawLabel": { en: "Drawing surface for shape {index}", yue: "第 {index} 個形狀嘅畫板" },
 
     /* The screen's notification strip. */
     "config.notices.region": { en: "Notifications", yue: "通知" },
