@@ -2248,8 +2248,17 @@ Say this plainly to whoever asks; none of it has a green check yet.
   macOS, not on Linux. The 961-tile render came from invoking the jar directly, not from the
   app's orchestrator. Reproducing it end to end through `startRender` and opening the result
   in the viewer is the obvious next piece of evidence, and it does not exist yet.
-- **JDK provisioning is unit tested against fakes only.** No real Temurin archive has been
-  resolved, downloaded, verified and extracted by this code on a machine with no JDK.
+- **JDK provisioning is proven against the real network on Windows, but not from the
+  button.** Opt-in tests (`MBM_REAL_JDK_DOWNLOAD=1`) have resolved real Adoptium metadata,
+  downloaded a real Temurin `jdk-25.0.4+7` archive (141,164,204 bytes, x64/windows),
+  verified its real SHA-256, extracted it with the bundled `tar.exe`, and run the extracted
+  binary to confirm it reports `25.0.4` — with `JAVA_HOME` and `PATH` blinded so
+  `ensureJava` genuinely took its provisioning branch rather than finding the machine's own
+  JDK. A wrong digest is refused and the bytes deleted; a transfer aborted at 95% resumes
+  from that byte offset over a real HTTP range request. Two agents ran this independently.
+  Still unproven: nobody has pressed `Download Java` in a packaged build and watched it
+  finish, the proof is Windows-only, and because the tests are opt-in, CI never runs
+  them — so no automatic gate stops this regressing.
 - **Only `:cli:shadowJar` has been built by hand.** A reusable CI workflow that builds all
   seven and attaches them to the release is on the branch
   (`.github/workflows/build-jars.yml`, called from `ci.yml`), but this entry cannot vouch

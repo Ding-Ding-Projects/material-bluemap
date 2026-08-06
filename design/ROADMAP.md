@@ -323,8 +323,13 @@ What is still **not** proven, and so keeps this phase honest:
 
 - The desktop app's own end-to-end flow has been driven by hand on one Windows machine. It
   has not run on macOS or on Linux.
-- JDK provisioning has been unit tested against fakes. No real Temurin archive has been
-  downloaded, verified and extracted by the app on a machine with no JDK.
+- JDK provisioning is proven against the real network on Windows: real Adoptium metadata,
+  a real Temurin `jdk-25.0.4+7` archive (141,164,204 bytes) downloaded, its real SHA-256
+  verified, extracted, and the extracted binary run and reporting `25.0.4`, with discovery
+  blinded so the provisioning branch genuinely ran. Digest refusal and mid-transfer resume
+  are proven too. Still unproven: the same path driven from the `Download Java` button in a
+  packaged build, and anything outside Windows. The proof is opt-in
+  (`MBM_REAL_JDK_DOWNLOAD=1`), so CI does not run it.
 - The 961-tile render was produced by invoking the jar directly. Reproducing it through
   the app's own orchestrator, from a render request to tiles the viewer opens, has not
   been captured as evidence.
