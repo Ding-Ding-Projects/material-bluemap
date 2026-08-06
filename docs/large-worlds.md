@@ -85,6 +85,16 @@ percentage is a weighted estimate across the transfer, the rejoin and the unpack
 is one. A download can be cancelled at any point, and cancelling keeps everything already
 transferred, so starting it again continues rather than begins.
 
+Each row also carries a **Show what it reported** log disclosure. Opened, it shows a **Follow new
+lines** checkbox, on by default: a multi-part download can run for a long time, and opening the log
+while it is still going is opening it to watch it happen. Scrolling up to read an earlier line
+pauses following automatically, without unticking the checkbox; scrolling back down, or the
+**Newest lines** control that appears only while paused, resumes it. The `<pre>` carries
+`role="log"` with `aria-live="off"` rather than letting every line be announced as it arrives, and
+an active text selection inside it is never scrolled away from. The preference is remembered
+across restarts and is the same shared mechanism (`components/scroll/`) the render console and the
+backup log use — see [Render console](./render-console.md) for the full reasoning.
+
 Each row is in one of five states, and they are kept apart because they mean different things:
 
 | State | What it means |
@@ -340,6 +350,7 @@ re-copied from the first part that disagreed.
 | The whole download path, end to end, against a real split archive | `design/packages/app/src/main/download/downloader.test.ts` |
 | The rows, the failure classification, and events winning over the on-disk record | `design/packages/ui/src/components/downloads/downloads.test.ts` |
 | The panel: reconciling a download already in flight, and reading back a finished one | `design/packages/ui/src/components/downloads/ReleaseDownloads.test.ts` |
+| The row's own log disclosure and its auto-scroll checkbox: on by default, `role="log"` with `aria-live="off"`, follows while checked and does not once unchecked, pauses on a manual scroll without unticking the checkbox, resumes on scrolling back down, never scrolls away from a text selection, never moves keyboard focus, and the preference survives a fresh mount | `design/packages/ui/src/components/downloads/DownloadRowCard.test.ts` |
 
 Run them with:
 

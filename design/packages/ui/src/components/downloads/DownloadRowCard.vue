@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiAlertCircleOutline,
+    mdiArrowDownBoldBoxOutline,
     mdiCheckCircleOutline,
     mdiChevronDown,
     mdiChevronUp,
@@ -11,7 +12,18 @@ import {
     mdiPlayCircleOutline,
     mdiStopCircleOutline,
 } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText, VCardTitle, VChip, VIcon, VProgressLinear } from "vuetify/components";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VCardText,
+    VCardTitle,
+    VCheckbox,
+    VChip,
+    VIcon,
+    VProgressLinear,
+    VTooltip,
+} from "vuetify/components";
 import {
     adviseOnDownloadFailure,
     canResume,
@@ -24,6 +36,7 @@ import {
 } from "./downloads.js";
 import { formatDuration } from "../world/renderRun.js";
 import type { SettingsTarget } from "./downloadBridge.js";
+import { useStickyScroll } from "../scroll/stickyScroll.js";
 
 /**
  * One download, while it happens and after it ends.
@@ -69,6 +82,32 @@ const detailOpen = ref(false);
 const logOpen = ref(false);
 
 const row = computed(() => props.row);
+
+/**
+ * Sticky-scroll following for the log, once it is open - the same mechanism
+ * `RenderConsole.vue` and `BackupRunCard.vue` share via `components/scroll/stickyScroll.ts`.
+ * On by default: opening "Show what it reported" while a multi-part download is still
+ * running is opening it to watch it happen, the render console's own reasoning applied
+ * here. The `<pre>` only exists in the DOM while `logOpen` is true (`v-if`), so the
+ * container ref is null until then; `watch(logOpen, ...)` below starts the view at the
+ * bottom the moment it is revealed.
+ */
+const logContainer = ref<HTMLElement | null>(null);
+const autoScroll = useStickyScroll({
+    surface: "downloadLog",
+    defaultEnabled: true,
+    container: logContainer,
+    length: () => row.value.log.length,
+});
+// See `RenderConsole.vue`'s own doc comment on the same destructure: `autoScroll` is a
+// plain object, so its properties would not auto-unwrap as refs inside the template.
+const { enabled: autoScrollEnabled, paused: autoScrollPaused } = autoScroll;
+
+watch(logOpen, async (open) => {
+    if (!open) return;
+    await nextTick();
+    autoScroll.scrollToBottom();
+});
 const task = computed(() => props.row.task);
 const running = computed(() => props.row.state === "running");
 
@@ -366,9 +405,56 @@ const noResumeReason = computed(() =>
                             : t("downloads.row.showLog", { n: row.log.length }, "Show what it reported ({n} lines)")
                     }}
                 </v-btn>
-                <pre v-if="logOpen" :id="logPanelId" class="mb-download-row__pre">{{
-                    row.log.map((line) => line.message).join("\n")
-                }}</pre>
+                <div v-if="logOpen" class="mb-download-row__logFrame">
+                    <v-checkbox
+                        v-model="autoScrollEnabled"
+                        class="mb-download-row__autoScroll"
+                        :label="t('downloads.row.autoScroll', 'Follow new lines')"
+                        density="compact"
+                        hide-details
+                        data-test="download-log-autoscroll"
+                    >
+                        <v-tooltip
+                            activator="parent"
+                            location="top"
+                            :text="
+                                t(
+                                    'downloads.row.autoScrollHint',
+                                    'Keeps this log scrolled to the newest line as it arrives. Scrolling up pauses that without turning this off; scroll back down, or use Newest lines, to pick it up again.',
+                                )
+                            "
+                        />
+                    </v-checkbox>
+                    <!--
+                        `role="log"` names what this is to assistive technology without its
+                        implicit `aria-live="polite"` narrating every line - see
+                        `RenderConsole.vue`'s own `<ol>` for the full reasoning, which applies
+                        identically here.
+                    -->
+                    <pre
+                        ref="logContainer"
+                        :id="logPanelId"
+                        class="mb-download-row__pre"
+                        role="log"
+                        aria-live="off"
+                        tabindex="0"
+                        :aria-label="t('downloads.row.logRegion', 'What this download reported')"
+                        @scroll="autoScroll.onScroll"
+                    >{{
+                        row.log.map((line) => line.message).join("\n")
+                    }}</pre>
+                    <v-btn
+                        v-if="autoScrollPaused"
+                        class="mb-download-row__jump"
+                        :prepend-icon="mdiArrowDownBoldBoxOutline"
+                        size="x-small"
+                        variant="flat"
+                        color="primary"
+                        @click="autoScroll.scrollToBottom"
+                    >
+                        {{ t("downloads.row.jumpLatest", "Newest lines") }}
+                    </v-btn>
+                </div>
             </div>
         </v-card-text>
     </v-card>
@@ -443,6 +529,20 @@ const noResumeReason = computed(() =>
     margin-block-start: 12px;
 }
 
+.mb-download-row__logFrame {
+    position: relative;
+}
+
+.mb-download-row__autoScroll {
+    flex: 0 0 auto;
+}
+
+/* See `RenderConsole.vue`'s identical rule: `hide-details` still leaves Vuetify's own
+   selection-control padding, taller than this row's other small controls. */
+.mb-download-row__autoScroll :deep(.v-selection-control) {
+    min-height: unset;
+}
+
 .mb-download-row__pre {
     margin-block-start: 8px;
     padding: 8px;
@@ -455,6 +555,17 @@ const noResumeReason = computed(() =>
     font-family: "Roboto Mono", ui-monospace, monospace;
     font-size: 0.75rem;
     line-height: 1.5;
+}
+
+.mb-download-row__pre:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+}
+
+.mb-download-row__jump {
+    position: absolute;
+    inset-block-end: 6px;
+    inset-inline-end: 6px;
 }
 
 @media (prefers-reduced-motion: reduce) {
