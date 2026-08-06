@@ -99,6 +99,7 @@ export const RENDERING_ORDER: readonly string[] = [
     "ci-repository-setup.md",
     "scheduled-render.md",
     "pages-hosting.md",
+    "live-preview.md",
     "resumable-renders.md",
     "large-worlds.md",
     "backup.md",

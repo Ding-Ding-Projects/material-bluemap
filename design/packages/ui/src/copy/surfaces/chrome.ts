@@ -343,6 +343,7 @@ export const CHROME_FIXED = {
     "tabs.page.servers": { en: "Maps and servers", yue: "地圖同伺服器" },
     "tabs.page.backups": { en: "Backups", yue: "備份" },
     "tabs.page.pages": { en: "Publish to Pages", yue: "發佈到 Pages" },
+    "tabs.page.preview": { en: "Watch it live", yue: "即時直播睇" },
     "tabs.group.newName": { en: "New group", yue: "新群組" },
 
     "world.rendered": { en: "Rendered map", yue: "算好嘅地圖" },

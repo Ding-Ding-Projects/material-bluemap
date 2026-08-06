@@ -28,6 +28,7 @@ import { HomeScreen } from "./components/home/index.js";
 import ProfileManager from "./components/ProfileManager.vue";
 import { BackupScreen } from "./components/backup/index.js";
 import PagesScreen from "./components/pages/PagesScreen.vue";
+import PreviewScreen from "./components/preview/PreviewScreen.vue";
 import { CiRenderScreen } from "./components/cirender/index.js";
 import { RunLocationCard } from "./components/remote/index.js";
 import { ConfigScreen } from "./components/config/index.js";
@@ -212,7 +213,7 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("separates the shell into ten pages behind one persistent strip", () => {
+    it("separates the shell into eleven pages behind one persistent strip", () => {
         shell();
 
         expect(tabLabels()).toEqual([
@@ -231,6 +232,9 @@ describe("the tab strip", () => {
             "Maps and servers",
             "Backups",
             "Publish to Pages",
+            // The local twin of Pages: no address for a fake bridge-less shell to have
+            // started hosting, so this always mounts as an ordinary, unhosted tab.
+            "Watch it live",
             "Docs",
         ]);
     });
@@ -441,6 +445,16 @@ describe("the tab strip", () => {
         await settle();
 
         expect(app.findComponent(PagesScreen).exists()).toBe(true);
+    });
+
+    it("reaches the live-preview surface through its tab, rather than leaving it in the bundle", async () => {
+        const app = shell();
+        expect(app.findComponent(PreviewScreen).exists()).toBe(false);
+
+        tabButton("Watch it live").click();
+        await settle();
+
+        expect(app.findComponent(PreviewScreen).exists()).toBe(true);
     });
 
     it("puts the choice of where a render runs on the page where a render is started", async () => {
