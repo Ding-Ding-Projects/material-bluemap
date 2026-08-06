@@ -279,6 +279,15 @@ const PATH_FIELD_EXEMPTIONS: Record<string, Exemption> = {
             "itself is chosen through this same file's own browseForFolder(), a few lines " +
             "away, which is what adds a folder rather than relabels one already added.",
     },
+    "components/project/DiscoveredWorldsPanel.vue::project.discovered.renameLabel": {
+        reason: "not-a-location",
+        note:
+            "The same field as MinecraftWorldList.vue's own world.mounts.renameLabel above, " +
+            "on this panel's own discovered-world rows: it renames the display label of a " +
+            "folder already mounted, in place. The mount itself is chosen through this " +
+            "file's own browseForFolder(), a few lines away, which is what adds a folder " +
+            "rather than relabels one already added.",
+    },
     "components/cirender/CiRenderScreen.vue::cirender.field.world": {
         reason: "own-browse",
         note:
