@@ -184,8 +184,9 @@ export function canResume(row: BackupRow): boolean {
 /* not a dependency this one has any other reason to carry.                  */
 /* -------------------------------------------------------------------------- */
 
-type Translate = (key: string, named: Record<string, unknown>, fallback?: string) => string;
-type T = ((key: string, fallback: string) => string) & Translate;
+/* `Translate` and `T` are declared once near the top of this file; this section uses
+   those rather than restating them, which is what made the compiler count each name
+   twice and fail the whole package's typecheck. */
 
 const REPOSITORY_NAME_PATTERN = /^[A-Za-z0-9._-]+$/;
 
