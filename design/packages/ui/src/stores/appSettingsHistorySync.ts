@@ -117,6 +117,7 @@ export const APP_SETTINGS_HISTORY_KEYS: readonly AppSettingsHistoryKey[] = [
     { key: "funnyLevelYue", owner: "components/setup/setupI18n.ts" },
     { key: "updateDismissed", owner: "components/update/updateModel.ts" },
     { key: "noticeDuration", owner: "components/config/noticeDurationPrefs.ts" },
+    { key: "autoScroll", owner: "components/scroll/autoScrollPrefs.ts" },
     { key: "renderMemory", owner: "components/settings/renderMemorySetting.ts" },
     { key: "downloadConcurrency", owner: "components/settings/downloadConcurrencySetting.ts" },
     // tabStorage.ts backs four independent tab strips through one module, each keyed by
