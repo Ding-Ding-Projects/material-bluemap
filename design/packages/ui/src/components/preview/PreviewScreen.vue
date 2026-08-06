@@ -248,6 +248,16 @@ const renderItems = computed(() =>
                     </p>
                 </div>
 
+                <v-chip
+                    v-if="!host.status.value.running && host.selectedRenderId.value !== ''"
+                    color="default"
+                    size="small"
+                    variant="tonal"
+                    class="mb-preview__idleChip"
+                >
+                    {{ t("preview.status.stopped", "Not hosting") }}
+                </v-chip>
+
                 <div class="mb-preview__actions">
                     <v-btn
                         v-if="!host.status.value.running"
@@ -389,6 +399,10 @@ const renderItems = computed(() =>
 .mb-preview__disabledReason {
     font-size: 0.75rem;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-preview__idleChip {
+    align-self: flex-start;
 }
 
 .mb-preview__running {
