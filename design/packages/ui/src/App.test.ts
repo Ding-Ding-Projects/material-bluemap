@@ -16,7 +16,7 @@
  * in. All three are invisible to a test that pokes at state.
  */
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
@@ -42,6 +42,46 @@ import { FirstRunSetup, WelcomeSurface } from "./components/setup/index.js";
 import { appearanceTargets } from "./components/appearance/index.js";
 import { addLocalMap, profilesStore, removeProfile } from "./stores/profiles.js";
 import { notices, raiseNotice } from "./stores/notices.js";
+
+/**
+ * Every case in this file mounts the whole shell, and the whole shell is the single most
+ * expensive thing this workspace's jsdom suite mounts - a title bar, eleven tab pages'
+ * worth of wiring, the appearance system, the command palette, first-run setup and the
+ * notification corner, all real components rather than stand-ins. The workspace default of
+ * 30s (see `vitest.config.ts`) is nowhere near that on a developer machine - every test here
+ * runs in under a second and a half in isolation - but it was measured too close on the
+ * self-hosted CI runner this project moved onto, and measurement rather than a doubled
+ * guess is what earns this file its own number:
+ *
+ *   - CI run 31074156612 (commit be82630) failed exactly two of this file's 34 tests, both
+ *     with `Error: Test timed out in 30000ms`: "the notification corner > is mounted once
+ *     by the shell..." (`App.test.ts:717`) at 43561ms elapsed, and "...shows a message
+ *     raised while nothing is open" (`App.test.ts:730`) at 36517ms - the process itself
+ *     did not even notice the 30s mark until well past it, which is contention delaying
+ *     the timeout's own report, not a test quietly doing 43 seconds of real work.
+ *   - The whole file is the tell: that same run logged
+ *     `App.test.ts (34 tests | 2 failed) 146739ms` - about 3.3x a clean local run of this
+ *     exact file alone (44.37s wall, 24.58s of that in tests). Every other test here mounts
+ *     the identical shell and stayed under 30s only by margin, not because it is cheaper.
+ *   - It is not this file, or App.vue, getting slower to start: `ProjectEditor.test.ts`, a
+ *     comparably heavy jsdom-mount file elsewhere in this package, took 119199ms in that
+ *     same CI run against 27.99s run alone locally - roughly the same ~4x factor - while
+ *     running concurrently with this file in the other of `vitest.config.ts`'s two pinned
+ *     forks. A `TabGroupPicker.typecheck.test.ts` in the same run spent 53941ms shelling
+ *     out to `vue-tsc` in that same two-fork pool. Profiling `App.vue`'s own mount path
+ *     found nothing eager to blame either: `renderIndicator.reconcile()`, wired in
+ *     `onMounted`, resolves near-instantly the moment `window.materialBluemap` is
+ *     undefined (true for every test in this file), and `HomeScreen` - the page the shell
+ *     opens on by default - has no eager work of its own. Measured here: 952ms and 563ms
+ *     mounting alone, 972ms and 606ms mounting early inside a full, two-fork-pinned run of
+ *     this workspace's entire 9,329-test suite. The shell is not the regression; the
+ *     runner's shared two-process pool getting oversubscribed by other files' real work is.
+ *
+ * 60s (this codebase's own convention for known-slow, real-world work - see the several
+ * `{ timeout: 60_000 }` "on a real disk" describes in `packages/app`) leaves comfortable
+ * room above the worst measured 43.5s without pretending a genuine hang would go unnoticed.
+ */
+vi.setConfig({ testTimeout: 60_000 });
 
 beforeAll(() => {
     // jsdom has no layout engine, so none of these exist: Vuetify's overlays observe their
