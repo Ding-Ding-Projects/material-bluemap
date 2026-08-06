@@ -252,11 +252,75 @@ describe("the tab strip", () => {
         expect(document.querySelector(".mb-docs")).not.toBeNull();
     });
 
-    it("opens on Home for a fresh install, rather than an unexplained tab of eight strangers", () => {
+    it("seeds a brand-new, unmounted workspace open on Home rather than an unexplained tab of eight strangers", () => {
+        // What this proves, narrowly: `TabbedNavigation`'s own `seedStrip()` picks the first
+        // declared page as the starting tab, and Home is first in `pages`. It says nothing
+        // about first-run setup, which has its own test right below - a bare `shell()` mount
+        // never drives `FirstRunSetup`'s `finished` event at all, so this alone cannot tell
+        // the two apart.
         const app = shell();
 
         expect(app.findComponent(HomeScreen).exists()).toBe(true);
         expect(document.querySelector(".mb-map-page")).toBeNull();
+    });
+
+    it("opens on Home for a fresh install, the moment first-run setup genuinely completes", async () => {
+        // The seed test above passing is not proof that a real first-time user ever reaches
+        // Home: it never drives first-run setup at all, so it would keep passing unchanged
+        // even while `App.vue`'s `onFirstRunFinished` was calling `revealPage(PAGE_WORLD)`
+        // directly - which is exactly what shipped, landing every fresh install straight on
+        // the wizard and skipping Home every single time. This exercises the actual
+        // completion path instead: the same `finished` event `FirstRunSetup` emits on a real
+        // "Finish setup" success (proven to fire only on that success by
+        // `FirstRunSetup.test.ts`), rather than a workspace pre-seeded in isolation.
+        const app = shell();
+        expect(app.findComponent(HomeScreen).exists()).toBe(true);
+
+        await app.findComponent(FirstRunSetup).vm.$emit("finished");
+        await settle();
+
+        expect(app.findComponent(HomeScreen).exists()).toBe(true);
+        expect(document.querySelector(".mb-map-page")).toBeNull();
+        expect(app.findComponent(WorldScreen).exists()).toBe(false);
+        expect(tabButton("Home, pinned").getAttribute("aria-selected")).toBe("true");
+    });
+
+    it("returns a user with a saved workspace to their last active tab, not forced back to Home", () => {
+        // The regression the Home fix above could plausibly introduce: a persisted
+        // workspace, from a build old enough to have Home but a person who was last looking
+        // at "Make a map", must not be yanked back to Home just because the shell mounted.
+        // `onFirstRunFinished` only ever fires once, for a genuine first-time completion, so
+        // it plays no part in an ordinary returning-user mount - this proves the mount path
+        // itself stays exactly as untouched as the task asked.
+        cells.set(
+            "material-bluemap-tabs",
+            JSON.stringify({
+                version: 1,
+                strips: [
+                    {
+                        id: "strip-main",
+                        label: "Main",
+                        windowId: "window-main",
+                        windowLabel: "Material BlueMap",
+                        tabs: [
+                            { id: "t-home", pageId: "home", label: "Home" },
+                            { id: "t-map", pageId: "map", label: "Map" },
+                            { id: "t-world", pageId: "world", label: "Make a map" },
+                        ],
+                        groups: [],
+                        pinnedOrder: ["t-home"],
+                        slots: [],
+                        activeTabId: "t-world",
+                    },
+                ],
+            }),
+        );
+
+        const app = shell();
+
+        expect(app.findComponent(WorldScreen).exists()).toBe(true);
+        expect(app.findComponent(HomeScreen).exists()).toBe(false);
+        expect(tabButton("Make a map").getAttribute("aria-selected")).toBe("true");
     });
 
     it("shows the map-state message once the Map tab is chosen", async () => {
@@ -532,18 +596,24 @@ describe("\"what is this?\"", () => {
         expect(app.findComponent(WelcomeSurface).props("open")).toBe(false);
     });
 
-    it("lands on \"Make a map\" the moment first-run setup genuinely completes", async () => {
-        // The other half of the same "start here" pointer: somebody who has never opened
-        // the panel at all still ends up exactly where the welcome step told them to go,
-        // the instant "Finish setup" succeeds. `FirstRunSetup` decides for itself whether
-        // to show anything with no bridge installed, so its own `finished` event is
-        // exercised directly here rather than by driving all four of its steps again -
+    it("lands on Home - not straight on \"Make a map\" - the moment first-run setup genuinely completes", async () => {
+        // Deliberately a different destination from the test right above. Pressing "Start
+        // here" inside the panel is an explicit, in-the-moment choice by someone already
+        // reading the panel's own description of the wizard, and `onWelcomeStart` still
+        // sends that click straight to "Make a map" unchanged. Finishing setup without ever
+        // opening the panel is not that choice - it is a first-time user's very first
+        // moment in the app - and `App.vue`'s `onFirstRunFinished` used to treat the two as
+        // the same thing, landing on the wizard directly and skipping Home, the screen built
+        // for exactly this moment, every time. `FirstRunSetup` decides for itself whether to
+        // show anything with no bridge installed, so its own `finished` event is exercised
+        // directly here rather than by driving all four of its steps again -
         // `FirstRunSetup.test.ts` already proves the event fires only on a real success.
         const app = shell();
         await app.findComponent(FirstRunSetup).vm.$emit("finished");
         await settle();
 
-        expect(tabButton("Make a map").getAttribute("aria-selected")).toBe("true");
+        expect(tabButton("Home, pinned").getAttribute("aria-selected")).toBe("true");
+        expect(app.findComponent(HomeScreen).exists()).toBe(true);
     });
 });
 

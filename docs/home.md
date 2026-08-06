@@ -23,6 +23,25 @@ pinning, grouping, its four discovery searches, and its persistence across resta
 exactly as they did before this page existed. Home is additive; nothing about "opening a new tab"
 changed to make room for it.
 
+### Where first-run setup actually lands
+
+Finishing first-run setup - "Finish setup" on the last step, whichever way consent was
+answered - is what actually puts Home in front of a brand-new install. `App.vue`'s
+`onFirstRunFinished` used to call `revealPage("world")` directly the instant setup completed,
+which switched straight past Home to the wizard every single time; Home existed, was fully
+built, and a genuine first-time user never saw it unless they happened to notice and click its
+own pinned, icon-only tab first. `onFirstRunFinished` now calls `revealPage("home")` instead, so
+the moment setup finishes a newcomer lands on the page built to answer "where do I start" -
+Home's own hero card is "Make a map", weighted `primary`, so the wizard stays exactly one click
+away rather than being taken from anyone. This only ever fires once, the instant a first-time
+user's own setup completes, so a returning user with a saved workspace is untouched: they come
+back to whatever tab they last left active, exactly as before.
+
+Pressing "Start here" inside the standalone "what is this?" panel (`WelcomeSurface.vue`) is a
+different, deliberate case and still goes straight to the wizard, unchanged: it is an explicit
+click from someone already reading that panel's own description of what the wizard does, not the
+first moment a new install shows anybody anything.
+
 ### Openers, not links
 
 The failure this page exists to fix is not "the destinations are hidden", it is "arriving
@@ -76,6 +95,33 @@ an icon, search keywords, an optional disabled reason with its remedy, and the a
 card whose action is unavailable is never merely greyed out with no explanation - it either shows
 the remedy button in its place or names the unmet condition beside a disabled one, which is the
 same honesty rule the rest of the application already holds every guided form to.
+
+### Bulk actions do not apply here
+
+The project's shared rule is that every list, table, grid and collection supports bulk actions,
+because repeating an action forty times over one item at a time is the app failing to do its job.
+The capability grid is deliberately exempt, and this is that exemption written down rather than a
+silent gap:
+
+- Every card is a fixed navigation entry to a destination this build already has - "Make a map",
+  Settings, Docs, the config editor and the rest - not a record a user created, owns, or can
+  meaningfully act on in a batch. There is nothing to select forty of: the grid does not grow or
+  shrink with what the user does, it is the same catalogue of destinations for everyone.
+- Each card's single action is heterogeneous, not the one operation the bulk-actions rule assumes
+  (delete, export, move, tag, retry, enable/disable). "Open the guide", "open Settings at the
+  GitHub row", and "open the config editor's history screen" cannot sensibly be selected together
+  and run as one batched verb, because they are not the same verb wearing different data.
+- The actual collections a card's destination leads to already carry their own bulk-actions story
+  on their own surface, which is where the rule properly applies: the maps-and-servers list
+  (`ProfileManager.vue`) owns the profiles, the notification centre owns the notices, and the docs
+  browser owns the articles. Home is the door to each of those rooms, not a second copy of the
+  room.
+
+The one place Home comes close to a "collection" is the Continue row - every rendered profile
+except the seeded demo server, each opened by making it the active map. It is still a launcher
+list rather than a record collection for the same reason: "continue" is a single per-profile
+action with no batched equivalent, and managing those profiles (renaming, removing, bulk-closing)
+is `ProfileManager.vue`'s job, reached through its own tab.
 
 ## Reuse over duplication
 
@@ -158,7 +204,7 @@ application.
 | `homeCatalog.test.ts` | The pure logic: what a card's searchable text contains (including its disabled reason and its keywords), the one-line-per-card search sample, and `filterCapabilities` against an inactive matcher, a plain-text match, a keyword-only match, an invalid pattern, and catalogue-order preservation. |
 | `homeState.test.ts` | The one persisted preference: defaults to expanded, round-trips a collapse and an expand, treats a junk stored value as expanded, and removes the record on expand rather than writing a second falsy value. |
 | `HomeScreen.test.ts` | Mounted: every capability group actually renders; the viewer's own menu group is entirely absent with no map open and appears once one is; Backups and Publish to Pages name the missing prerequisite and offer the real remedy, then drop both the moment a map is rendered; the introduction shows by default and its collapse persists across a remount; the continue row is absent on a first launch and offers every rendered map by name once one exists, opening it and asking for the map tab; search narrows the grid to a plain-text match, offers the regex-builder toggle, and says plainly (with a working way back) when nothing matches; and every shell-owned action (Settings at an anchor, the options editor at a screen, the EULA panel, "what is this?", the command palette) emits rather than acting on its own. |
-| `App.test.ts` | Mounted, from the shell: the strip now separates into nine pages with Home first, Home is reachable through its own pinned tab, and a fresh install opens on Home rather than an unexplained tab of eight strangers - the Map tab's own state message is reached by choosing it explicitly. |
+| `App.test.ts` | Mounted, from the shell: the strip now separates into nine pages with Home first, Home is reachable through its own pinned tab, and a freshly seeded workspace with no persisted layout starts on Home - the Map tab's own state message is reached by choosing it explicitly. Separately, and driving the real path rather than a pre-seeded workspace: a fresh install lands on Home the moment `FirstRunSetup` genuinely emits `finished` (not a pre-seeded workspace that would pass regardless of what the handler does), a returning user with a saved workspace stays on their last active tab rather than being forced back to Home, and pressing "Start here" inside the standalone "what is this?" panel still goes straight to the wizard, which is the one first-run-adjacent route this page's landing fix deliberately left unchanged. |
 | `TabbedNavigation.test.ts` | `pinnedPageIds` pins a page's tab from the moment it is first seeded; `ensurePage` adds a tab for a page a saved workspace predates, pins it, and never disturbs the tab a returning user was already looking at; and neither ever re-pins a tab the user has since unpinned by hand. |
 | `catalogueCoverage.test.ts` | `components/home` joins the list of surfaces every one of whose rendered keys has a real catalogue entry, in every language, at every funny level. |
 | `overlayDismissalPolicy.test.ts`, `menuCoverage.test.ts` | Home's four `AppearanceTarget` regions are declared in both surfaces' inventories, so a future edit to `AppearanceTarget.vue` itself is the one place that keeps all four correct, and neither guard's own "did you forget to register a new one" check can silently pass this page by. |

@@ -368,24 +368,37 @@ const eulaOpen = ref(false);
 const welcomeOpen = ref(false);
 
 /**
- * "Start here" was pressed inside the panel: close it and land on the one place a
- * beginner actually wants to go. The welcome step can only ever describe this route,
- * because it is shown before the tab strip is something anybody has had a reason to
- * touch; both this and `onFirstRunFinished` below are what make that description true.
+ * "Start here" was pressed inside the panel: close it and land directly on the wizard,
+ * skipping Home on purpose. Pressing this button is a deliberate, explicit "take me
+ * straight there" from someone already reading the panel's own description of the
+ * wizard - unlike `onFirstRunFinished` below, which is not a button press at all and
+ * lands a first-time user on Home instead, where that same destination is one click away
+ * as the hero card.
  */
 function onWelcomeStart(): void {
     revealPage(PAGE_WORLD);
 }
 
 /**
- * First-run setup finished for real - not merely dismissed after a failure. The "start
- * here" pointer the welcome step gives is a promise the shell keeps immediately: landing
- * directly on "Make a map", where the wizard's own first step already lists the worlds
- * already found on this computer, rather than leaving the newcomer on an empty map tab
- * with eight unexplained destinations to choose between.
+ * First-run setup finished for real - not merely dismissed after a failure.
+ *
+ * This used to call `revealPage(PAGE_WORLD)` directly, which landed a brand-new install
+ * straight on the wizard and skipped Home - the one screen built to answer "where do I
+ * start" - every single time a person actually finished setup. Home is `pages`' own first
+ * entry, seeded pinned and already active on a genuinely fresh workspace (see
+ * `seedStrip()` in `TabbedNavigation.vue`), so `revealPage(PAGE_HOME)` here either
+ * confirms that seed or, on an upgrading install whose saved layout was last left
+ * somewhere else, brings the person back to it - `onMounted`'s `ensurePage(PAGE_HOME)`
+ * above guarantees the tab exists by the time this can ever fire. This handler only runs
+ * once, the instant a first-time user's own setup completes, so it can never pull a
+ * returning user back from wherever their persisted workspace already had them.
+ *
+ * The welcome step's "start here" pointer still names "Make a map" as the next step - see
+ * `welcome.startHere` - and that promise still holds: Home's own hero card is that same
+ * destination, weighted `primary`, exactly one click away.
  */
 function onFirstRunFinished(): void {
-    revealPage(PAGE_WORLD);
+    revealPage(PAGE_HOME);
 }
 
 /* -------------------------------------------------------------------------- */
