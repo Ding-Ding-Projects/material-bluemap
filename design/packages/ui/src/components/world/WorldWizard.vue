@@ -373,11 +373,15 @@ defineExpose({ wizard });
                 :sorting="wizard.sorting.value"
                 :dimensions="wizard.dimensions.value"
                 :dimensions-are-real="wizard.inspection.value.dimensions.length > 0"
+                :included-extra-dimensions="wizard.includedExtraDimensions.value"
                 @update:display-name="(value: string) => (wizard.displayName.value = value)"
                 @update:map-id="(value: string) => (wizard.mapId.value = value)"
                 @update:id-follows-name="(value: boolean) => (wizard.idFollowsName.value = value)"
                 @update:sorting="(value: number) => (wizard.sorting.value = value)"
                 @choose-dimension="wizard.chooseDimension"
+                @include-dimensions="(keys) => wizard.setExtraDimensionsIncluded(keys, true)"
+                @exclude-dimensions="(keys) => wizard.setExtraDimensionsIncluded(keys, false)"
+                @invert-dimensions="wizard.invertExtraDimensionInclusion"
             />
 
             <MapOptionsStep
@@ -414,6 +418,7 @@ defineExpose({ wizard });
                 :display-name="wizard.displayName.value || wizard.mapId.value"
                 :dimension-key="wizard.dimensionKey.value"
                 :dimension-label="dimensionLabel"
+                :extra-dimensions="wizard.extraDimensions.value"
                 :storage-directory="wizard.storageDirectory.value"
                 :reaching="wizard.reachingChanges.value"
                 :carried="wizard.carriedChanges.value"

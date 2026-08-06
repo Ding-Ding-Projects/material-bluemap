@@ -249,6 +249,46 @@ export const WORLD_VOICED = {
         ],
     },
 
+    /*
+     * DimensionSelection.vue, mounted from MapIdentityStep.vue right below the primary
+     * dimension picker: the list every detected dimension shows up in, with its own
+     * search bar and bulk include/exclude. `world.identity.dimensionsNoMatch` follows
+     * `world.list.noMatch`'s own precedent for a "nothing matches this search" state
+     * next to a filterable list rather than being downgraded to FIXED.
+     */
+    "world.identity.dimensionsBlurb": {
+        en: [
+            "Every dimension this world has is listed below, with its region count. The Nether and the End start unticked, since rendering them is not always wanted, and a dimension added by a mod or datapack starts unticked too, since its size is not known in advance. Tick the ones to render as well; each becomes its own map, lit correctly for its dimension.",
+            "Every dimension this world has is listed below, each with its region count. The Nether and the End start unticked, because rendering them is not always wanted, and a dimension added by a mod or datapack starts unticked too, because its size is not known in advance. Tick the ones you also want rendered; each becomes its own map, lit correctly for its dimension.",
+            "Every dimension this world has shows up below, with its region count. The Nether and the End start unticked, since you don't always want them rendered, and anything a mod or datapack added starts unticked too, since nobody knows its size ahead of time. Tick whatever else you want; each one gets its own map, lit right for its dimension.",
+            "Every dimension this world has turns up below, region count and all. The Nether and the End start unticked, because who said you wanted the Nether rendered, and anything a mod or datapack bolted on starts unticked too, since nobody has a clue how big it is. Tick whatever else takes your fancy; each one gets its own map, lit just right for its dimension.",
+            "Every dimension this world is hiding shows up below, region count included, no exceptions. The Nether and the End start unticked, because let's be honest, nobody asked for a lava-scented bonus map, and anything a mod or datapack smuggled in starts unticked too, since its size is anyone's guess. Tick whatever else tickles your fancy; each one gets its own map, lit just right for its dimension, no cutting corners.",
+        ],
+        yue: [
+            "呢個世界擁有嘅每一個維度都會列喺下面，附上區域檔案數量。Nether 同 End 預設係唔剔嘅，因為唔係次次都想連埋佢哋一齊算；由 mod 或者 datapack 加入嘅維度都係預設唔剔，因為事先唔知佢有幾大。剔低想一齊算嘅，每一個都會變成自己嘅地圖，用返啱佢個維度嘅設定。",
+            "呢個世界有嘅每一個維度都會列喺下面，連埋區域檔案數量。Nether 同 End 一開始係唔剔嘅，因為未必次次都想算埋佢哋；由 mod 或者 datapack 加落去嘅維度都係一開始唔剔，因為事先估唔到佢有幾大。剔低想一齊算嘅嗰啲，每一個都會變成自己嘅地圖，跟返啱佢個維度嘅設定。",
+            "呢個世界有嘅維度全部列喺下面，連區域檔案數量都有。Nether 同 End 一開波係唔剔嘅，始終唔係個個都想連佢哋一齊算；mod 或者 datapack 加嘅維度都係一開波唔剔，事先都估唔到有幾大嘛。想埋嘅就剔低佢，每一個都會變成自己嘅地圖，跟返啱佢個維度嘅設定。",
+            "呢個世界匿埋嘅維度全部現形喺下面，區域檔案數量都影埋。Nether 同 End 一開波梗係唔剔啦，邊個話你想連埋個地獄一齊算吖，mod 或者 datapack 塞嘅維度一樣唔剔，有幾大冇人知。想加嘅自己剔，每一個都會變成自己嘅地圖，跟啱佢個維度。",
+            "呢個世界匿埋嘅維度全部現晒形喺下面，區域檔案數量一個都冇走雞。Nether 同 End 一開波預設唔剔，講句真心話，邊個成日想白撞多張熔岩主題地圖吖，mod 或者 datapack 偷偷塞落嚟嘅維度一樣唔剔，有幾大真係天曉得。鍾意邊個就自己剔邊個，每一個都會變成自己嘅地圖，跟到足佢個維度嘅設定，一個彎都冇轉錯。",
+        ],
+    },
+    "world.identity.dimensionsNoMatch": {
+        en: [
+            "No dimension matches that search. Clearing it brings the whole list back.",
+            "No dimension matches that search. Clearing it brings the whole list back.",
+            "No dimension matches that search. Clearing it brings the whole list back.",
+            "Nothing matches that search. Clearing it brings the whole list back.",
+            "Not one dimension matches that search. Clearing it brings the whole list back, every dimension present and correct.",
+        ],
+        yue: [
+            "冇維度符合呢個搜尋。清空就會攞返成個清單。",
+            "冇維度符合呢個搜尋。清空就會攞返成個清單。",
+            "冇維度符合呢個搜尋。清空就會攞返成個清單。",
+            "一個維度都冇撞啱呢個搜尋。清空就會攞返成個清單。",
+            "一個維度都冇撞啱呢個搜尋。清空就會攞返成個清單，一個都冇走漏。",
+        ],
+    },
+
     /* ---------------------------------------------------------------- */
     /* MapOptionsStep.vue                                                */
     /* ---------------------------------------------------------------- */
@@ -1830,6 +1870,35 @@ export const WORLD_FIXED = {
     "world.identity.sorting": { en: "Sort order", yue: "排序" },
     "world.wizard.step.identity": { en: "Name and dimension", yue: "名稱同維度" },
 
+    /* DimensionSelection.vue, mounted inside MapIdentityStep.vue - see WORLD_VOICED above
+     * for this component's own blurb and "no match" state. */
+    "world.identity.dimensionsTitle": { en: "Also render these dimensions", yue: "仲要一齊算呢啲維度" },
+    "world.identity.dimensionsOnlyOverworld": {
+        en: "This world only has the Overworld. There is nothing else to include.",
+        yue: "呢個世界淨係得 Overworld。冇第二樣嘢可以加。",
+    },
+    "world.identity.dimensionsSearchLabel": { en: "Search these dimensions", yue: "搜尋呢啲維度" },
+    "world.identity.dimensionsSearchHint": {
+        en: "a name, an id, or a region count",
+        yue: "一個名、一個 id，或者一個區域數量",
+    },
+    "world.identity.dimensionsSearchSummary": {
+        en: "Showing {shown} of {total}",
+        yue: "顯示緊 {total} 個入面嘅 {shown} 個",
+    },
+    "world.identity.dimensionsIncludeShown": { en: "Include {n} shown", yue: "剔埋顯示緊嘅 {n} 個" },
+    "world.identity.dimensionsExcludeShown": { en: "Exclude {n} shown", yue: "剔走顯示緊嘅 {n} 個" },
+    "world.identity.dimensionsInvert": { en: "Invert shown", yue: "反選顯示緊嘅" },
+    "world.identity.dimensionsVanillaBadge": { en: "Vanilla dimension", yue: "原版維度" },
+    "world.identity.dimensionsExternalBadge": {
+        en: "Stored in a sibling folder: {folder}",
+        yue: "存喺隔籬嘅資料夾：{folder}",
+    },
+    "world.identity.dimensionsPrimaryReason": {
+        en: "This is the map you are customising above; it is always included.",
+        yue: "呢個就係你上面度緊嘅嗰張地圖，一定會包埋。",
+    },
+
     /* MapOptionsStep.vue */
     "world.options.search": { en: "Search these settings", yue: "搜尋呢啲設定" },
     "world.options.searchHint": {
@@ -1906,6 +1975,7 @@ export const WORLD_FIXED = {
     "world.review.worldLabel": { en: "World", yue: "世界" },
     "world.review.dimensionLabel": { en: "Dimension", yue: "維度" },
     "world.review.mapLabel": { en: "Map", yue: "地圖" },
+    "world.review.extraMapsLabel": { en: "Also rendered", yue: "仲會一齊算" },
     "world.review.storageLabel": { en: "Written to", yue: "寫去邊" },
     "world.review.engineLabel": { en: "Engine", yue: "引擎" },
     "world.review.javaLabel": { en: "Java runtime", yue: "Java 執行環境" },
@@ -2106,6 +2176,14 @@ export const WORLD_FACTS = {
     "world.identity.presetDetail": {
         en: ["sky colour", "void colour", "ambient light", "cave removal", "keeps every option you have changed"],
         yue: ["天空顏色", "虛空顏色", "環境光", "洞穴清除", "保留你自己改過嘅每一個選項"],
+    },
+    "world.identity.dimensionsBlurb": {
+        en: ["Nether", "End", "unticked", "own map"],
+        yue: ["Nether", "End", "唔剔", "自己嘅地圖"],
+    },
+    "world.identity.dimensionsNoMatch": {
+        en: ["Clearing it brings", "back"],
+        yue: ["清空", "攞返"],
     },
     "world.options.badPattern": { en: ["not valid", "nothing is shown"], yue: ["唔合法", "唔會顯示"] },
     "world.options.matches": { en: ["{shown}", "{total}"], yue: ["{shown}", "{total}"] },

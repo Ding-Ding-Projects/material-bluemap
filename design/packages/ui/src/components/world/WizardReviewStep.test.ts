@@ -120,6 +120,7 @@ const Host = defineComponent({
                         displayName: "Overworld",
                         dimensionKey: "minecraft:overworld",
                         dimensionLabel: "Overworld",
+                        extraDimensions: [],
                         storageDirectory: "/srv/bluemap/maps",
                         reaching: REACHING,
                         carried: CARRIED,

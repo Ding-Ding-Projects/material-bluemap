@@ -324,3 +324,125 @@ describe("the render request", () => {
         expect(request.renderThreads).toBe(4);
     });
 });
+
+describe("auto-loading the other dimensions", () => {
+    /** A world read with all three vanilla dimensions present. */
+    function answeredWithDimensions() {
+        const wizard = createMapWizard({ separator: "/" });
+        wizard.setWorld(
+            "/srv/survival/world",
+            inspectWorldFolder(
+                worldListing("/srv/survival/world", { region: 40, "DIM-1/region": 8, "DIM1/region": 3 }),
+            ),
+        );
+        wizard.displayName.value = "Survival";
+        wizard.mapId.value = "survival";
+        wizard.storageDirectory.value = "/var/lib/material-bluemap/maps";
+        return wizard;
+    }
+
+    it("still renders exactly one map when nothing extra was ticked", () => {
+        const wizard = answeredWithDimensions();
+
+        expect(wizard.includedExtraDimensions.value.size).toBe(0);
+        expect(wizard.toRenderRequest().maps).toHaveLength(1);
+    });
+
+    it("adds a ticked dimension as its own map, lit from its own template", () => {
+        const wizard = answeredWithDimensions();
+        wizard.setExtraDimensionsIncluded(["minecraft:the_nether"], true);
+
+        const request = wizard.toRenderRequest();
+        expect(request.maps).toHaveLength(2);
+
+        const nether = request.maps[1]!;
+        expect(nether.dimension).toBe("minecraft:the_nether");
+        expect(nether.world).toBe("/srv/survival/world");
+        expect(nether.id).toBe("survival-the-nether");
+        expect(nether.name).toBe("Survival - The Nether");
+        expect(nether.sorting).toBe(100);
+        // Its own preset, not the primary map's: the nether sky colour, not the
+        // overworld's, and none of the primary map's own edits replayed onto it.
+        expect(nether.config).toContain('sky-color: "#290000"');
+        expect(nether.config).toContain('dimension: "minecraft:the_nether"');
+    });
+
+    it("adds several ticked dimensions at once", () => {
+        const wizard = answeredWithDimensions();
+        wizard.setExtraDimensionsIncluded(["minecraft:the_nether", "minecraft:the_end"], true);
+
+        const request = wizard.toRenderRequest();
+        expect(request.maps.map((map) => map.dimension)).toEqual([
+            "minecraft:overworld",
+            "minecraft:the_nether",
+            "minecraft:the_end",
+        ]);
+    });
+
+    it("un-ticks a dimension it was told to exclude", () => {
+        const wizard = answeredWithDimensions();
+        wizard.setExtraDimensionsIncluded(["minecraft:the_nether", "minecraft:the_end"], true);
+        wizard.setExtraDimensionsIncluded(["minecraft:the_nether"], false);
+
+        expect(wizard.toRenderRequest().maps.map((map) => map.dimension)).toEqual([
+            "minecraft:overworld",
+            "minecraft:the_end",
+        ]);
+    });
+
+    it("never double-renders the primary dimension through a bulk include", () => {
+        const wizard = answeredWithDimensions();
+        // A bulk "include everything shown" naming the primary key too must not add a
+        // second, redundant copy of the map already being built above it.
+        wizard.setExtraDimensionsIncluded(
+            ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"],
+            true,
+        );
+
+        expect(wizard.toRenderRequest().maps).toHaveLength(3);
+    });
+
+    it("inverts a batch of dimensions at once", () => {
+        const wizard = answeredWithDimensions();
+        wizard.setExtraDimensionsIncluded(["minecraft:the_nether"], true);
+        wizard.invertExtraDimensionInclusion(["minecraft:the_nether", "minecraft:the_end"]);
+
+        expect(wizard.toRenderRequest().maps.map((map) => map.dimension)).toEqual([
+            "minecraft:overworld",
+            "minecraft:the_end",
+        ]);
+    });
+
+    it("drops a dimension from the extra set once it becomes the one being tuned", () => {
+        const wizard = answeredWithDimensions();
+        wizard.setExtraDimensionsIncluded(["minecraft:the_nether"], true);
+        expect(wizard.toRenderRequest().maps).toHaveLength(2);
+
+        wizard.chooseDimension("minecraft:the_nether");
+
+        // It is now the primary map itself, so it must not also render as an extra.
+        expect(wizard.toRenderRequest().maps).toHaveLength(1);
+        expect(wizard.toRenderRequest().maps[0]?.dimension).toBe("minecraft:the_nether");
+    });
+
+    it("points an extra map at its own sibling folder for a split-server layout", () => {
+        const wizard = createMapWizard({ separator: "/" });
+        wizard.setWorld(
+            "/srv/world",
+            inspectWorldFolder({
+                folder: "/srv/world",
+                entries: [{ path: "level.dat", directory: false }],
+                regionFiles: { region: 20 },
+                serverSiblings: { nether: { worldFolder: "/srv/world_nether", regionFiles: 6 } },
+            }),
+        );
+        wizard.mapId.value = "world";
+        wizard.storageDirectory.value = "/var/lib/material-bluemap/maps";
+
+        wizard.setExtraDimensionsIncluded(["minecraft:the_nether"], true);
+        const nether = wizard.toRenderRequest().maps[1]!;
+
+        expect(nether.world).toBe("/srv/world_nether");
+        expect(nether.config).toContain('world: "/srv/world_nether"');
+    });
+});

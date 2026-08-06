@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { VAlert, VChip, VListItem, VSelect, VTextField } from "vuetify/components";
+import DimensionSelection from "./DimensionSelection.vue";
 import { MAP_ID_MAX_LENGTH, MAP_ID_PATTERN, suggestMapId } from "./wizardModel.js";
 import type { WorldDimension } from "./worldFolder.js";
 
@@ -26,6 +27,8 @@ const props = defineProps<{
     dimensions: readonly WorldDimension[];
     /** False when nothing could read the world folder, so these are the vanilla three. */
     dimensionsAreReal: boolean;
+    /** Which other dimensions besides {@link dimensionKey} will also be rendered. */
+    includedExtraDimensions: ReadonlySet<string>;
 }>();
 
 const emit = defineEmits<{
@@ -35,6 +38,10 @@ const emit = defineEmits<{
     "update:sorting": [value: number];
     /** Chooses a dimension, which also resets the preset and the sort order. */
     chooseDimension: [key: string];
+    /** Includes or excludes a batch of extra dimensions in one step. */
+    includeDimensions: [keys: readonly string[]];
+    excludeDimensions: [keys: readonly string[]];
+    invertDimensions: [keys: readonly string[]];
 }>();
 
 const { t } = useI18n();
@@ -175,6 +182,16 @@ const dimensionItems = computed(() =>
                 }}
             </span>
         </p>
+
+        <DimensionSelection
+            :dimensions="dimensions"
+            :primary-key="dimensionKey"
+            :included="includedExtraDimensions"
+            :dimensions-are-real="dimensionsAreReal"
+            @include="(keys) => emit('includeDimensions', keys)"
+            @exclude="(keys) => emit('excludeDimensions', keys)"
+            @invert="(keys) => emit('invertDimensions', keys)"
+        />
     </section>
 </template>
 

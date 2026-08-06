@@ -19,7 +19,8 @@ import { GlossaryTerm } from "../glossary/index.js";
 import { valueToText } from "../config/fieldValue.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import type { FieldChange } from "../config/configModel.js";
-import type { RunOptions } from "./wizardModel.js";
+import { extraMapId, type RunOptions } from "./wizardModel.js";
+import type { WorldDimension } from "./worldFolder.js";
 
 /**
  * Step five: exactly what pressing the button will do.
@@ -38,6 +39,8 @@ const props = defineProps<{
     displayName: string;
     dimensionKey: string;
     dimensionLabel: string;
+    /** Every other dimension that was ticked on the identity step, each rendering as its own map. */
+    extraDimensions: readonly WorldDimension[];
     storageDirectory: string;
     reaching: readonly FieldChange[];
     carried: readonly FieldChange[];
@@ -76,6 +79,16 @@ const threadsText = computed<string>({
         change({ renderThreads: Number.isFinite(parsed) && parsed > 0 ? parsed : null });
     },
 });
+
+/** The extra maps exactly as `toRenderRequest()` will build them: same id, same world. */
+const extraMapRows = computed(() =>
+    props.extraDimensions.map((dimension) => ({
+        key: dimension.key,
+        label: dimension.label,
+        id: extraMapId(props.mapId.trim() === "" ? "map" : props.mapId.trim(), dimension),
+        world: dimension.worldFolder ?? props.world,
+    })),
+);
 
 function describeValue(value: PlainValue | undefined): string {
     const text = valueToText(value ?? null);
@@ -158,6 +171,18 @@ async function copyConfig(): Promise<void> {
                         {{ displayName }} <span class="mb-world-review__key">{{ mapId }}</span>
                         <GlossaryTerm term="mapId" />
                     </dd>
+
+                    <template v-if="extraMapRows.length > 0">
+                        <dt>{{ t("world.review.extraMapsLabel", "Also rendered") }}</dt>
+                        <dd>
+                            <ul class="mb-world-review__extraMaps">
+                                <li v-for="row in extraMapRows" :key="row.key">
+                                    {{ row.label }} <span class="mb-world-review__key">{{ row.id }}</span>
+                                    <span class="mb-world-review__key">{{ row.world }}</span>
+                                </li>
+                            </ul>
+                        </dd>
+                    </template>
 
                     <dt>{{ t("world.review.storageLabel", "Written to") }}</dt>
                     <dd>{{ storageDirectory }} <GlossaryTerm term="storage" /></dd>
@@ -425,6 +450,13 @@ async function copyConfig(): Promise<void> {
     font-family: "Roboto Mono", ui-monospace, monospace;
     font-size: 0.6875rem;
     color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+}
+
+.mb-world-review__extraMaps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    line-height: 1.6;
 }
 
 .mb-world-review__run {
