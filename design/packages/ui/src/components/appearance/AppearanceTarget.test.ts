@@ -367,6 +367,61 @@ describe("the keyboard path", () => {
         expect(bodyText()).toContain("Edit appearance...");
     });
 
+    it("moves focus into the menu on ArrowDown, since Tab alone would walk the rest of the page first", async () => {
+        // Regression for "keyboard-opened context menu no longer receives focus". Both
+        // `<v-menu>`s used to bind `:activator="root"`, which is what wired Vuetify's own
+        // `onActivatorKeydown` (`VMenu.js`, via `useActivator`'s `bindActivatorProps`) onto the
+        // wrapper - the handler that moves focus into the popup's first focusable child on
+        // `ArrowDown`. Dropping `:activator` for the outside-click fix (see the "dismissal"
+        // describe block below) dropped that wiring too, with nothing replacing it: the popup
+        // opens, but focus stays on the wrapper, and because the popup is teleported to the end
+        // of `<body>`, `Tab` alone would walk every other focusable control on the page before
+        // ever reaching it.
+        mountTarget();
+        // A real keyboard user has to have tabbed to the wrapper for Shift+F10 to reach it in
+        // the first place; jsdom's synthetic `dispatchEvent` does not move real focus the way a
+        // genuine keypress on a focused element does, so this stands in for that Tab.
+        targetElement().focus();
+        targetElement().dispatchEvent(
+            new KeyboardEvent("keydown", { key: "F10", shiftKey: true, bubbles: true }),
+        );
+        await settle();
+        expect(bodyText()).toContain("Edit appearance...");
+        expect(document.activeElement).toBe(targetElement());
+
+        targetElement().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+        await settle();
+
+        // The menu's own search field is the first focusable thing inside it.
+        const search = document.querySelector<HTMLInputElement>(".mb-config-search input");
+        expect(search).not.toBeNull();
+        expect(document.activeElement).toBe(search);
+    });
+
+    it("moves focus into the editor on ArrowDown too, reached from Ctrl+Shift+F10", async () => {
+        mountTarget();
+        targetElement().focus();
+        targetElement().dispatchEvent(
+            new KeyboardEvent("keydown", {
+                key: "F10",
+                shiftKey: true,
+                ctrlKey: true,
+                bubbles: true,
+            }),
+        );
+        await settle();
+        expect(bodyText()).toContain("Appearance of The test row");
+        expect(document.activeElement).toBe(targetElement());
+
+        targetElement().dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+        await settle();
+
+        const panel = document.querySelector<HTMLElement>(".mb-appearance-editor");
+        expect(panel).not.toBeNull();
+        expect(panel?.contains(document.activeElement)).toBe(true);
+        expect(document.activeElement).not.toBe(targetElement());
+    });
+
     it("goes straight to the editor on Ctrl+Shift+F10, exactly as Shift+right-click does", async () => {
         mountTarget();
         targetElement().dispatchEvent(

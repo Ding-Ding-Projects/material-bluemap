@@ -98,6 +98,44 @@ const menuOpen = ref(false);
 const editorOpen = ref(false);
 
 /**
+ * The popup content, so `onKeydown` can hand focus into it by hand.
+ *
+ * Neither `<v-menu>` below takes `:activator` (see the `menuId` comment for why), and
+ * `:activator` is the only thing that would otherwise have wired this up for free: Vuetify's
+ * `useActivator` attaches an `onKeydown` listener to the activator element itself
+ * (`VMenu.js`'s `onActivatorKeydown`, bound through `bindActivatorProps` in
+ * `vuetify/lib/util/bindProps.js`) that moves focus to the popup's first child on `ArrowDown`
+ * and its last on `ArrowUp` - the ordinary way a keyboard user reaches an already-open menu,
+ * because `VOverlay` never calls `.focus()` itself when `isActive` flips true, and the popup is
+ * teleported to a `.v-overlay-container` at the end of `<body>` where `Tab` alone would walk
+ * through the rest of the page first. Dropping `:activator` dropped that wiring along with it,
+ * so it is rebuilt here by hand instead, scoped to just the popup's own content rather than the
+ * whole wrapped surface `:activator="root"` would have registered.
+ */
+const menuContent = ref<HTMLElement | null>(null);
+const editorContent = ref<HTMLElement | null>(null);
+
+const FOCUSABLE_SELECTOR =
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** Every focusable descendant of `container`, in DOM order. */
+function focusableIn(container: HTMLElement | null): HTMLElement[] {
+    if (container === null) return [];
+    return [...container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)];
+}
+
+/**
+ * Moves focus into whichever popup is currently open - the first focusable child for
+ * `ArrowDown`, the last for `ArrowUp` - mirroring `onActivatorKeydown` above.
+ */
+function focusIntoPopup(edge: "first" | "last"): void {
+    const container = menuOpen.value ? menuContent.value : editorOpen.value ? editorContent.value : null;
+    const items = focusableIn(container);
+    if (items.length === 0) return;
+    (edge === "first" ? items[0] : items[items.length - 1]).focus();
+}
+
+/**
  * Where the context menu appears.
  *
  * The pointer position for a right-click, because that is where the user is looking, and the
@@ -296,13 +334,25 @@ function onContextMenu(event: MouseEvent): void {
 
 function onKeydown(event: KeyboardEvent): void {
     const isContextKey = event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey);
-    if (!isContextKey) return;
+    if (isContextKey) {
+        event.preventDefault();
+        event.stopPropagation();
 
-    event.preventDefault();
-    event.stopPropagation();
+        if (event.ctrlKey) openEditor();
+        else openMenu(root.value ?? undefined);
+        return;
+    }
 
-    if (event.ctrlKey) openEditor();
-    else openMenu(root.value ?? undefined);
+    // The `focusIntoPopup` counterpart to `onActivatorKeydown` (see the `menuContent` comment
+    // above): only while a popup this wrapper owns is actually open, and only while focus is
+    // still on the wrapper itself rather than already inside the slot content, where a host's
+    // own widget may have a legitimate use for its own arrow keys.
+    const popupOpen = menuOpen.value || editorOpen.value;
+    if (popupOpen && (event.key === "ArrowDown" || event.key === "ArrowUp") && event.target === root.value) {
+        event.preventDefault();
+        event.stopPropagation();
+        focusIntoPopup(event.key === "ArrowDown" ? "first" : "last");
+    }
 }
 </script>
 
@@ -340,7 +390,7 @@ function onKeydown(event: KeyboardEvent): void {
             offset="4"
             @update:model-value="(value: boolean) => !value && closeMenu()"
         >
-            <div class="mb-appearance-target__menu" role="none">
+            <div ref="menuContent" class="mb-appearance-target__menu" role="none">
                 <ConfigSearchField
                     v-model="search"
                     v-model:regex="searchRegex"
@@ -396,7 +446,9 @@ function onKeydown(event: KeyboardEvent): void {
             offset="12"
             @update:model-value="(value: boolean) => !value && closeEditor()"
         >
-            <AppearanceEditor :target-id="id" :target-label="label" />
+            <div ref="editorContent">
+                <AppearanceEditor :target-id="id" :target-label="label" />
+            </div>
         </v-menu>
     </component>
 </template>
