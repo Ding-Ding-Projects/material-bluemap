@@ -779,6 +779,70 @@ export const CIRENDER_VOICED = {
     },
 
     /*
+     * Picked from "One of your repositories", not typed: a first-class, already-valid
+     * state, and one that must never be confused with the create-path checks above. Where
+     * `cirender.repo.available`/`.taken` describe a *typed* name's fate on GitHub, this one
+     * describes a choice that has already been made, and there is nothing left to check.
+     */
+    "cirender.repo.selected": {
+        en: [
+            "{owner}/{repo} is one of your own repositories, picked from the list above.",
+            "{owner}/{repo} is one of your own repositories, picked from the list above.",
+            "{owner}/{repo} is one of your own repositories, picked from the list above rather than typed.",
+            "{owner}/{repo} came from the list above, one of your own repositories - nothing to check, it is already yours.",
+            "{owner}/{repo} came straight off the list above, one of your own repositories - there is nothing here to check, only to use.",
+        ],
+        yue: [
+            "{owner}/{repo} 係你自己其中一個倉庫，喺上面個列表度揀返嚟嘅。",
+            "{owner}/{repo} 係你自己其中一個倉庫，喺上面個列表度揀返嚟嘅。",
+            "{owner}/{repo} 係你自己其中一個倉庫，喺上面個列表度揀返嚟，唔係打出嚟嘅。",
+            "{owner}/{repo} 係喺上面個列表度揀嘅，本身就係你自己個倉庫 - 冇嘢好check，本來就係你嘅。",
+            "{owner}/{repo} 直接喺上面個列表攞返嚟，本身就係你自己個倉庫 - 呢度冇嘢好check，淨係攞嚟用。",
+        ],
+    },
+
+    /*
+     * The two situations "no route can dispatch yet" used to answer with the same alarming
+     * message: an existing repository nobody has set up for CI rendering, and a name that
+     * may not exist yet at all. Read together with `cirender.readiness.missing` below, and
+     * kept apart deliberately - confusing "not set up" with "cannot be reached" sends
+     * somebody who just confirmed a free name looking for a permission problem that was
+     * never there.
+     */
+    "cirender.readiness.exists": {
+        en: [
+            "{owner}/{repo} exists and this credential can write to it, but it is not set up for a GitHub render yet - it has no render workflow. Setting it up is the next step, not a sign-in problem.",
+            "{owner}/{repo} exists and this credential can write to it, but it is not set up for a GitHub render yet - it has no render workflow. Setting it up is the next step, not a sign-in problem.",
+            "{owner}/{repo} exists, and this credential can write to it, but it is not set up for a GitHub render yet - it has no render workflow. Setting it up is the next step, not a sign-in problem.",
+            "{owner}/{repo} exists and is writable, but it is not set up for a GitHub render yet - it has no render workflow. Setting it up is next; nothing here is a sign-in problem.",
+            "{owner}/{repo} exists, is perfectly writable, and is simply not set up for a GitHub render yet - it has no render workflow. Setting it up is the whole of what is left; nothing here is a sign-in problem.",
+        ],
+        yue: [
+            "{owner}/{repo} 係存在嘅，呢個憑證亦都寫得入去，不過未設定做 GitHub 算圖 - 冇 render workflow。下一步係去設定，唔係登入出問題。",
+            "{owner}/{repo} 係存在嘅，呢個憑證亦都寫得入去，不過未設定做 GitHub 算圖 - 冇 render workflow。下一步係去設定，唔係登入出問題。",
+            "{owner}/{repo} 存在，呢個憑證亦都寫得入去，不過未設定做 GitHub 算圖 - 冇 render workflow。下一步係去設定，呢度冇任何登入問題。",
+            "{owner}/{repo} 存在，亦寫得入去，淨係未設定做 GitHub 算圖 - 冇 render workflow。下一步就係去設定，唔係憑證出咗事。",
+            "{owner}/{repo} 實實在在存在，亦寫得入去，淨係未設定做 GitHub 算圖 - 冇 render workflow。剩返嘅就係去設定；呢度絕對唔係登入問題。",
+        ],
+    },
+    "cirender.readiness.missing": {
+        en: [
+            "{owner}/{repo} may not exist yet. If that name is free, creating it and setting it up is the next step; if it already exists privately, check that the signed-in account can see it.",
+            "{owner}/{repo} may not exist yet. If that name is free, creating it and setting it up is the next step; if it already exists privately, check that the signed-in account can see it.",
+            "{owner}/{repo} may not exist yet. If that name is free, creating it and setting it up is the next step; if it already exists privately, check that the signed-in account can see it.",
+            "{owner}/{repo} may not exist yet, and that is the ordinary case. If the name is free, creating it and setting it up is what comes next; a private repository this account cannot see would look the same, so check that too.",
+            "{owner}/{repo} may not exist yet, and probably that is all this is. If the name is free, creating it and setting it up is next; the one other explanation is a private repository this account cannot see, so check that too.",
+        ],
+        yue: [
+            "{owner}/{repo} 可能仲未存在。如果個名得閒，下一步就係整個出嚟再設定好；如果佢其實已經係私人倉庫，就check下呢個已登入帳戶睇唔睇到。",
+            "{owner}/{repo} 可能仲未存在。如果個名得閒，下一步就係整個出嚟再設定好；如果佢其實已經係私人倉庫，就check下呢個已登入帳戶睇唔睇到。",
+            "{owner}/{repo} 好可能仲未存在。如果個名得閒，下一步就係整個出嚟再設定好；如果佢其實已經係私人倉庫，就check下呢個已登入帳戶睇唔睇到。",
+            "{owner}/{repo} 可能仲未存在，呢個都算正常。如果個名得閒，跟住就整個出嚟再設定；仲有一個可能係佢係個私人倉庫、呢個帳戶睇唔到，都值得check埋。",
+            "{owner}/{repo} 可能仲未存在，十居其九淨係咁解。如果個名得閒，跟住就係整個出嚟再設定好；唯一另一個可能係私人倉庫、呢個帳戶睇唔到，都check多次啦。",
+        ],
+    },
+
+    /*
      * The Check button, disabled and named exactly which field is missing - the same
      * discipline `blocked.*` above already holds the Render button to.
      */
@@ -1086,6 +1150,20 @@ export const CIRENDER_FIXED = {
         yue: "讀緊你嘅倉庫...",
     },
 
+    /*
+     * The real, working next step beside `cirender.readiness.exists`/`.missing` - opens the
+     * repository on GitHub, or GitHub's own prefilled "create a repository" page when there
+     * is not one yet, so setting it up by hand is never more than one click away.
+     */
+    "cirender.readiness.open": {
+        en: "Open {owner}/{repo} on GitHub to set it up",
+        yue: "喺 GitHub 開 {owner}/{repo} 去設定",
+    },
+    "cirender.readiness.create": {
+        en: "Create {owner}/{repo} on GitHub",
+        yue: "喺 GitHub 開返 {owner}/{repo}",
+    },
+
     /* Scheduled re-rendering: the section title, its toggle, the cadence choices, and the
      * status readout. Short factual labels, like every other field name on this screen. */
     "cirender.schedule.title": { en: "Scheduled re-rendering", yue: "排程算圖" },
@@ -1102,6 +1180,41 @@ export const CIRENDER_FIXED = {
     "cirender.schedule.reason": { en: "Why: {reason}", yue: "原因：{reason}" },
     "cirender.schedule.loading": { en: "Reading the schedule...", yue: "讀緊排程..." },
     "cirender.schedule.saving": { en: "Saving...", yue: "儲緊..." },
+
+    /*
+     * Preparing a repository automatically - see docs/ci-repository-setup.md. Short factual
+     * status lines, the same register as `cirender.repo.checking` and the schedule labels
+     * above: what is happening right now, and what each file's own outcome was. Nothing
+     * here needs funny-level variation - it is a progress readout, not a claim worth
+     * dressing up, and a phase label read out by a screen reader has to stay exactly as
+     * literal at every setting.
+     */
+    "cirender.bootstrap.action": { en: "Set this repository up", yue: "幫呢個倉庫設定好" },
+    "cirender.bootstrap.phase.checkingScopes": {
+        en: "Checking sign-in permissions...",
+        yue: "檢查緊登入權限...",
+    },
+    "cirender.bootstrap.phase.readingRepository": {
+        en: "Reading the repository...",
+        yue: "讀緊個倉庫...",
+    },
+    "cirender.bootstrap.phase.writingFiles": {
+        en: "Adding the render workflow...",
+        yue: "加緊個算圖 workflow...",
+    },
+    "cirender.bootstrap.phase.checkingActions": {
+        en: "Checking whether GitHub Actions is enabled...",
+        yue: "檢查緊 GitHub Actions 開咗未...",
+    },
+    "cirender.bootstrap.phase.finished": { en: "Done.", yue: "搞掂。" },
+    "cirender.bootstrap.file.created": { en: "Added {path}", yue: "加咗 {path}" },
+    "cirender.bootstrap.file.updated": { en: "Updated {path}", yue: "更新咗 {path}" },
+    "cirender.bootstrap.file.unchanged": {
+        en: "{path} was already up to date",
+        yue: "{path} 本身已經係最新",
+    },
+    "cirender.bootstrap.file.refused": { en: "{path} was not touched", yue: "{path} 冇郁過" },
+    "cirender.bootstrap.reauth": { en: "Sign in again and grant it", yue: "再登入一次，畀返個權限" },
 } as const satisfies Record<string, FixedString>;
 
 export const CIRENDER_FACTS = {
@@ -1287,6 +1400,22 @@ export const CIRENDER_FACTS = {
     "cirender.repo.unknown": {
         en: ["{message}", "Could not check"],
         yue: ["{message}", "查唔到"],
+    },
+
+    // A choice, not a proposal: {owner} and {repo} pin exactly which repository was picked.
+    "cirender.repo.selected": {
+        en: ["{owner}", "{repo}", "one of your own repositories"],
+        yue: ["{owner}", "{repo}", "你自己"],
+    },
+    // "not set up" is the whole difference from a real block, and the fact that it exists
+    // and is writable is what makes that claim checkable rather than merely reassuring.
+    "cirender.readiness.exists": {
+        en: ["{owner}", "{repo}", "exists", "no render workflow"],
+        yue: ["{owner}", "{repo}", "存在", "冇 render workflow"],
+    },
+    "cirender.readiness.missing": {
+        en: ["{owner}", "{repo}", "may not exist yet", "creating it"],
+        yue: ["{owner}", "{repo}", "可能仲未存在", "整個出嚟"],
     },
 
     "cirender.checkBlocked.world": {

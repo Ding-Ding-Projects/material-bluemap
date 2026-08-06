@@ -44,6 +44,10 @@ import {
 import type { CiRow } from "./ciRenders.js";
 import { resolveCiRenderBridge } from "./ciRenderBridge.js";
 import type {
+    CiBootstrapEvent,
+    CiBootstrapFileOutcome,
+    CiBootstrapPhase,
+    CiBootstrapReport,
     CiJobReport,
     CiRenderBridge,
     CiPreflight,
@@ -378,12 +382,40 @@ const repositoryItems = computed(() =>
     })),
 );
 
+/**
+ * The repository last picked from "One of your repositories", exactly as chosen - or null
+ * once nothing on screen still matches it.
+ *
+ * This is what tells apart the two routes into `owner`/`repo` that used to collapse into
+ * one: picking an existing repository out of a list the app itself populated is an act of
+ * *choosing*, not of proposing a name, and there is nothing to check it against - GitHub
+ * already told this build the repository is there. Typing a name, on the other hand, is a
+ * proposal for a repository that may not exist yet, and that is exactly what the live
+ * availability check below is for. Without this ref the two were indistinguishable once the
+ * fields held the same string, and picking your own repository out of the app's own list
+ * produced a "this name already exists" warning about the repository you had just chosen.
+ */
+const pickedRepository = ref<{ owner: string; repo: string } | null>(null);
+
+/** True while `owner`/`repo` still hold exactly the repository just picked from the list. */
+const repositoryIsPicked = computed(
+    () =>
+        pickedRepository.value !== null &&
+        owner.value.trim() === pickedRepository.value.owner &&
+        repo.value.trim() === pickedRepository.value.repo,
+);
+
 function chooseRepository(value: unknown): void {
     if (typeof value !== "string") return;
     const [chosenOwner, chosenRepo] = value.split("/");
     if (chosenOwner === undefined || chosenRepo === undefined) return;
     owner.value = chosenOwner;
     repo.value = chosenRepo;
+    pickedRepository.value = { owner: chosenOwner, repo: chosenRepo };
+    // Selecting from the list is the choice, made in full - there is no name being
+    // proposed here for the create-path check below to have an opinion about, and any
+    // verdict already on screen described a different, typed name that no longer applies.
+    renders.clearNameAvailability();
 }
 
 /** Which of GitHub's naming rules `repo` breaks, or null when it is fine or still empty. */
@@ -398,12 +430,26 @@ let nameCheckTimer: ReturnType<typeof setTimeout> | null = null;
  * letter after - debounced here so it asks about the name somebody actually meant to type,
  * once they have paused rather than mid-keystroke. Any stale verdict is dropped the instant
  * either field changes, so a "taken" from the previous name is never shown beside a new one.
+ *
+ * A pair that still matches {@link pickedRepository} is left alone entirely: that is the
+ * "chosen from the list" route, and running the create-path check against it is exactly how
+ * picking your own existing repository used to produce a collision warning about itself.
+ * Anything else - the very next keystroke that moves either field away from the picked pair,
+ * or a name that was always typed by hand - drops the picked state and checks normally.
  */
 watch([owner, repo], ([nextOwner, nextRepo]) => {
     renders.clearNameAvailability();
     if (nameCheckTimer !== null) clearTimeout(nameCheckTimer);
     const trimmedOwner = nextOwner.trim();
     const trimmedRepo = nextRepo.trim();
+    if (
+        pickedRepository.value !== null &&
+        trimmedOwner === pickedRepository.value.owner &&
+        trimmedRepo === pickedRepository.value.repo
+    ) {
+        return;
+    }
+    if (pickedRepository.value !== null) pickedRepository.value = null;
     if (trimmedOwner === "" || trimmedRepo === "" || repoProblem.value !== null) return;
     nameCheckTimer = setTimeout(() => {
         void renders.checkRepoName(trimmedOwner, trimmedRepo);
@@ -411,6 +457,7 @@ watch([owner, repo], ([nextOwner, nextRepo]) => {
 });
 
 const repoAvailabilityTone = computed<"success" | "warning" | "muted">(() => {
+    if (repositoryIsPicked.value) return "success";
     const availability = renders.nameAvailability.value;
     if (availability === null) return "muted";
     if (availability.status === "available") return "success";
@@ -419,6 +466,16 @@ const repoAvailabilityTone = computed<"success" | "warning" | "muted">(() => {
 });
 
 const repoAvailabilityText = computed<string>(() => {
+    // Picked from "One of your repositories": a first-class, already-valid state, said
+    // plainly rather than run through the create-path collision wording that answers a
+    // different question - whether a *typed* name happens to be free.
+    if (repositoryIsPicked.value) {
+        return t(
+            "cirender.repo.selected",
+            { owner: owner.value.trim(), repo: repo.value.trim() },
+            "{owner}/{repo} is one of your own repositories, picked from the list above.",
+        );
+    }
     const availability = renders.nameAvailability.value;
     if (availability === null) return "";
     if (availability.status === "available") {
@@ -478,6 +535,170 @@ const forceUpload = ref(false);
 const preflight = computed<CiPreflight | null>(() => renders.preflight.value);
 const isPublic = computed(() => preflight.value?.repository?.private === false);
 const routeReport = computed(() => preflight.value?.routeReport ?? null);
+
+/**
+ * The three situations "no route can dispatch yet" collapses into one alarming message
+ * otherwise, told apart using what the preflight report already knows rather than a second
+ * network call: `"exists"` when the repository itself was read successfully and this
+ * credential can write to it - the ordinary state for a hand-made or just-emptied
+ * repository nobody has set up for CI rendering yet; `"missing"` when the repository could
+ * not be read at all - the ordinary state right after confirming a name is free, and about
+ * to be created; and `null` for a genuine block (a real permission refusal, or a repository
+ * this credential truly cannot reach), which gets none of the reassuring framing below.
+ *
+ * `preflight.repository` answers the first question honestly now that it is read whether
+ * or not a dispatch route was found - see `sync.ts`'s `#describeRepository` - so this needs
+ * nothing beyond what a plain check already returned.
+ */
+const readinessNeedsSetup = computed<"exists" | "missing" | null>(() => {
+    const report = preflight.value;
+    if (report === null || report.routeReport.ready) return null;
+    if (report.repository !== null) return report.repository.canWrite ? "exists" : null;
+    return "missing";
+});
+
+/**
+ * The real, working fallback for "this repository needs setting up": opens it on GitHub -
+ * or, when it does not exist yet, GitHub's own prefilled "create a repository" page - so a
+ * person can create it, or add the render workflow, by hand right now.
+ *
+ * This is the seam a repository-bootstrap operation is expected to sit in front of: a build
+ * that exposes a bridge method for preparing a repository automatically (creating it,
+ * committing the workflow file, confirming Actions is enabled) should call that instead,
+ * following the same optional-method degrade every other capability on this card already
+ * uses (`canManageSchedule`, `canListOwners`, ...) - probe for it, and fall back to this
+ * button when a build does not have it. Until then, this is never a dead end: it is a real
+ * browser tab a person can act on immediately.
+ */
+function openRepositorySetup(): void {
+    const targetOwner = owner.value.trim();
+    const targetRepo = repo.value.trim();
+    if (targetOwner === "" || targetRepo === "") return;
+    const url =
+        readinessNeedsSetup.value === "exists"
+            ? (preflight.value?.repository?.htmlUrl ??
+                  `https://github.com/${encodeURIComponent(targetOwner)}/${encodeURIComponent(targetRepo)}`)
+            : `https://github.com/new?owner=${encodeURIComponent(targetOwner)}&name=${encodeURIComponent(targetRepo)}`;
+    emit("open", url);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Preparing a repository automatically: the seam `openRepositorySetup` above */
+/* was left for. See docs/ci-repository-setup.md for the operation itself.    */
+/* -------------------------------------------------------------------------- */
+
+/** True only when the build carries both halves of the capability - see `ciRenderBridge.ts`. */
+const canBootstrapAutomatically = computed(
+    () => bridge?.bootstrapCiRepository !== undefined && bridge.onCiBootstrapEvent !== undefined,
+);
+
+const bootstrapping = ref(false);
+const bootstrapReport = ref<CiBootstrapReport | null>(null);
+const bootstrapFailureMessage = ref<string | null>(null);
+/** True only for the one failure a re-authorisation button actually fixes. */
+const bootstrapMissingScope = ref(false);
+/** The single line shown while a bootstrap runs: the current phase, or the latest log line. */
+const bootstrapProgressText = ref<string | null>(null);
+let unsubscribeBootstrap: (() => void) | null = null;
+
+/**
+ * One managed file's outcome, in words - a literal `t()` call per branch rather than a
+ * key built from `outcome.action`, because the coverage guard that proves every catalogue
+ * key still has a call site reads the source for literal calls and cannot follow one that
+ * is assembled at runtime.
+ */
+function bootstrapFileOutcomeText(outcome: { readonly path: string; readonly action: CiBootstrapFileOutcome["action"] }): string {
+    switch (outcome.action) {
+        case "created":
+            return t("cirender.bootstrap.file.created", { path: outcome.path }, "Added {path}");
+        case "updated":
+            return t("cirender.bootstrap.file.updated", { path: outcome.path }, "Updated {path}");
+        case "unchanged":
+            return t(
+                "cirender.bootstrap.file.unchanged",
+                { path: outcome.path },
+                "{path} was already up to date",
+            );
+        case "refused":
+            return t("cirender.bootstrap.file.refused", { path: outcome.path }, "{path} was not touched");
+    }
+}
+
+function bootstrapPhaseLabel(phase: CiBootstrapPhase): string {
+    switch (phase) {
+        case "checking-scopes":
+            return t("cirender.bootstrap.phase.checkingScopes", "Checking sign-in permissions...");
+        case "reading-repository":
+            return t("cirender.bootstrap.phase.readingRepository", "Reading the repository...");
+        case "writing-files":
+            return t("cirender.bootstrap.phase.writingFiles", "Adding the render workflow...");
+        case "checking-actions":
+            return t("cirender.bootstrap.phase.checkingActions", "Checking whether GitHub Actions is enabled...");
+        case "finished":
+            return t("cirender.bootstrap.phase.finished", "Done.");
+    }
+}
+
+/**
+ * Runs the real preparation when the build can, and falls back to the plain "open GitHub"
+ * button otherwise - the exact degrade `openRepositorySetup`'s own doc comment describes.
+ *
+ * Never a spinner that hides a failure: every event this receives updates
+ * {@link bootstrapProgressText} on screen, and the outcome - every file's real action, the
+ * real Actions-enabled answer, or the real refusal - is what is shown afterwards, never a
+ * guessed success. A successful run re-checks the repository immediately, so the person who
+ * pressed the button lands on the next real decision (starting a render) rather than back
+ * where they began.
+ */
+async function setupRepositoryAutomatically(): Promise<void> {
+    const targetOwner = owner.value.trim();
+    const targetRepo = repo.value.trim();
+    if (targetOwner === "" || targetRepo === "") return;
+    if (bridge === null || !canBootstrapAutomatically.value) {
+        openRepositorySetup();
+        return;
+    }
+
+    bootstrapping.value = true;
+    bootstrapReport.value = null;
+    bootstrapFailureMessage.value = null;
+    bootstrapMissingScope.value = false;
+    bootstrapProgressText.value = bootstrapPhaseLabel("checking-scopes");
+    unsubscribeBootstrap?.();
+    unsubscribeBootstrap = bridge.onCiBootstrapEvent!((event: CiBootstrapEvent) => {
+        if (event.type === "phase") bootstrapProgressText.value = bootstrapPhaseLabel(event.phase);
+        else if (event.type === "log") bootstrapProgressText.value = event.message;
+        else if (event.type === "file") {
+            bootstrapProgressText.value = bootstrapFileOutcomeText(event.outcome);
+        }
+    });
+
+    try {
+        const result = await bridge.bootstrapCiRepository!(
+            targetOwner,
+            targetRepo,
+            effectiveAccountId.value,
+        );
+        if (result.ok) {
+            bootstrapReport.value = result.report;
+            bootstrapProgressText.value = null;
+            // The workflow now exists (or Actions is now known to be off) - re-read the
+            // repository so the card reflects it rather than the stale "needs setup" state.
+            await check();
+        } else {
+            bootstrapFailureMessage.value = result.failure.message;
+            bootstrapMissingScope.value = result.failure.code === "missing-scope";
+            bootstrapProgressText.value = null;
+        }
+    } catch (error) {
+        bootstrapFailureMessage.value = error instanceof Error ? error.message : String(error);
+        bootstrapProgressText.value = null;
+    } finally {
+        bootstrapping.value = false;
+        unsubscribeBootstrap?.();
+        unsubscribeBootstrap = null;
+    }
+}
 
 /**
  * What `gh` is on this machine, as one of three sentences rather than "unavailable".
@@ -744,6 +965,7 @@ onBeforeUnmount(() => {
     if (nameCheckTimer !== null) clearTimeout(nameCheckTimer);
     renders.dispose();
     accountsList.dispose();
+    unsubscribeBootstrap?.();
 });
 </script>
 
@@ -1021,7 +1243,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <p
-                        v-if="renders.checkingName.value"
+                        v-if="renders.checkingName.value && !repositoryIsPicked"
                         class="text-medium-emphasis mt-1"
                         data-test="repo-availability"
                         role="status"
@@ -1030,7 +1252,7 @@ onBeforeUnmount(() => {
                         {{ t("cirender.repo.checking", "Checking whether that name is free...") }}
                     </p>
                     <p
-                        v-else-if="renders.nameAvailability.value !== null"
+                        v-else-if="repositoryIsPicked || renders.nameAvailability.value !== null"
                         class="mt-1"
                         :class="{
                             'text-success': repoAvailabilityTone === 'success',
@@ -1096,6 +1318,127 @@ onBeforeUnmount(() => {
                         <p v-if="ghState !== null" class="mt-1 text-medium-emphasis" data-test="route-gh">
                             {{ ghState.text }}
                         </p>
+                    </VAlert>
+
+                    <!--
+                        Not every "no route yet" is a block: an existing repository nobody
+                        has set up for CI rendering, or a name just confirmed free and about
+                        to be created, are both ordinary points on the happy path and say so
+                        here - in `info` tone, with the real next step - rather than reading
+                        as the same alarm as a genuine permission refusal above.
+                    -->
+                    <VAlert
+                        v-if="readinessNeedsSetup !== null"
+                        type="info"
+                        variant="tonal"
+                        class="mb-3"
+                        data-test="needs-setup"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        {{
+                            readinessNeedsSetup === "exists"
+                                ? t(
+                                      "cirender.readiness.exists",
+                                      { owner: owner.trim(), repo: repo.trim() },
+                                      "{owner}/{repo} exists and this credential can write to it, but it is not set up for a GitHub render yet - it has no render workflow. Setting it up is the next step, not a sign-in problem.",
+                                  )
+                                : t(
+                                      "cirender.readiness.missing",
+                                      { owner: owner.trim(), repo: repo.trim() },
+                                      "{owner}/{repo} may not exist yet. If that name is free, creating it and setting it up is the next step; if it already exists privately, check that the signed-in account can see it.",
+                                  )
+                        }}
+
+                        <!--
+                            The real thing, when this build can do it: a click that
+                            actually adds the render workflow, rather than a link to a
+                            browser tab somebody still has to act in by hand. The manual
+                            fallback stays for "missing" (this may not even exist yet, so
+                            there is nothing to prepare) and for any build without the
+                            capability.
+                        -->
+                        <div v-if="readinessNeedsSetup === 'exists' && canBootstrapAutomatically">
+                            <VBtn
+                                size="small"
+                                variant="tonal"
+                                color="primary"
+                                class="mt-2"
+                                data-test="bootstrap-repository"
+                                :loading="bootstrapping"
+                                :disabled="bootstrapping"
+                                @click="setupRepositoryAutomatically"
+                            >
+                                {{ t("cirender.bootstrap.action", "Set this repository up") }}
+                            </VBtn>
+                            <p
+                                v-if="bootstrapping"
+                                class="text-medium-emphasis mt-2"
+                                data-test="bootstrap-progress"
+                                role="status"
+                                aria-live="polite"
+                            >
+                                <VProgressCircular indeterminate size="16" width="2" class="mr-2" />
+                                {{ bootstrapProgressText }}
+                            </p>
+                        </div>
+                        <VBtn
+                            v-else
+                            size="small"
+                            variant="text"
+                            class="mt-2"
+                            data-test="setup-repository"
+                            @click="openRepositorySetup"
+                        >
+                            {{
+                                readinessNeedsSetup === "exists"
+                                    ? t(
+                                          "cirender.readiness.open",
+                                          { owner: owner.trim(), repo: repo.trim() },
+                                          "Open {owner}/{repo} on GitHub to set it up",
+                                      )
+                                    : t(
+                                          "cirender.readiness.create",
+                                          { owner: owner.trim(), repo: repo.trim() },
+                                          "Create {owner}/{repo} on GitHub",
+                                      )
+                            }}
+                        </VBtn>
+                    </VAlert>
+
+                    <!-- The real outcome of a bootstrap attempt: per-file, honest, and never a green tick over a disabled Actions setting. -->
+                    <VAlert
+                        v-if="bootstrapReport !== null"
+                        :type="bootstrapReport.ready ? 'success' : 'warning'"
+                        variant="tonal"
+                        class="mb-3"
+                        data-test="bootstrap-result"
+                    >
+                        <p>{{ bootstrapReport.credentialDescribe }}</p>
+                        <ul class="mt-1">
+                            <li v-for="file in bootstrapReport.files" :key="file.path">
+                                {{ bootstrapFileOutcomeText(file) }}
+                            </li>
+                        </ul>
+                        <p class="mt-2">{{ bootstrapReport.actionsMessage }}</p>
+                        <p v-for="note in bootstrapReport.notes" :key="note" class="mt-1 text-medium-emphasis">
+                            {{ note }}
+                        </p>
+                    </VAlert>
+
+                    <VAlert
+                        v-if="bootstrapFailureMessage !== null"
+                        type="error"
+                        variant="tonal"
+                        class="mb-3"
+                        data-test="bootstrap-failure"
+                    >
+                        {{ bootstrapFailureMessage }}
+                        <div v-if="bootstrapMissingScope" class="mt-2">
+                            <VBtn size="small" variant="tonal" color="primary" @click="emit('signIn')">
+                                {{ t("cirender.bootstrap.reauth", "Sign in again and grant it") }}
+                            </VBtn>
+                        </div>
                     </VAlert>
 
                     <VAlert

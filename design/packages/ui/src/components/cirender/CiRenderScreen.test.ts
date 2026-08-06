@@ -1160,6 +1160,415 @@ describe("an existing repository, offered because this flow never creates one", 
         );
         expect((wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value).toBe("maps");
     });
+
+    /**
+     * Selecting from this exact list is what used to break: the app's own picker offered
+     * `octocat/maps`, and choosing it fed the same `owner`/`repo` refs the create-path
+     * availability check watches, producing a "this name already exists" warning about the
+     * repository somebody had just chosen on purpose. `checkCiRepoName` is stubbed to
+     * answer "taken" here specifically so a regression - the watch firing again - would be
+     * caught rather than passing by accident because nothing was wired to answer it.
+     */
+    it("selecting an existing repository produces no collision warning and never asks GitHub about it", async () => {
+        vi.useFakeTimers();
+        try {
+            let checkCalls = 0;
+            const bridge: CiRenderBridge = {
+                ...fakeBridge(preflight()),
+                listExistingRepositories: () =>
+                    Promise.resolve({
+                        ok: true,
+                        value: [
+                            {
+                                owner: "octocat",
+                                name: "maps",
+                                fullName: "octocat/maps",
+                                private: true,
+                                canWrite: true,
+                                htmlUrl: "https://github.test/octocat/maps",
+                            },
+                        ],
+                    }),
+                checkCiRepoName: () => {
+                    checkCalls += 1;
+                    return Promise.resolve({
+                        status: "taken",
+                        owner: "octocat",
+                        repo: "maps",
+                        private: true,
+                        htmlUrl: "https://github.test/octocat/maps",
+                    });
+                },
+            };
+            const wrapper = mountScreen(bridge);
+            await flushPromises();
+
+            const select = wrapper
+                .findAllComponents(VSelect)
+                .find((component) => component.props("label") === "One of your repositories");
+            await select?.vm.$emit("update:modelValue", "octocat/maps");
+            await flushPromises();
+            await vi.advanceTimersByTimeAsync(600);
+            await flushPromises();
+
+            const availability = wrapper.find('[data-test="repo-availability"]');
+            expect(availability.exists()).toBe(true);
+            expect(availability.text()).not.toContain("already exists");
+            expect(availability.text()).toContain("octocat/maps");
+            expect(checkCalls).toBe(0);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("resumes the create-path check, and can warn again, once the picked pair is typed over", async () => {
+        vi.useFakeTimers();
+        try {
+            const bridge: CiRenderBridge = {
+                ...fakeBridge(preflight()),
+                listExistingRepositories: () =>
+                    Promise.resolve({
+                        ok: true,
+                        value: [
+                            {
+                                owner: "octocat",
+                                name: "maps",
+                                fullName: "octocat/maps",
+                                private: true,
+                                canWrite: true,
+                                htmlUrl: "https://github.test/octocat/maps",
+                            },
+                        ],
+                    }),
+                checkCiRepoName: () =>
+                    Promise.resolve({
+                        status: "taken",
+                        owner: "octocat",
+                        repo: "renamed",
+                        private: false,
+                        htmlUrl: null,
+                    }),
+            };
+            const wrapper = mountScreen(bridge);
+            await flushPromises();
+
+            const select = wrapper
+                .findAllComponents(VSelect)
+                .find((component) => component.props("label") === "One of your repositories");
+            await select?.vm.$emit("update:modelValue", "octocat/maps");
+            await flushPromises();
+
+            // Typing over the picked name is what turns this back into an ordinary
+            // create-path proposal - the stale "picked" state must not survive it.
+            await wrapper.find('[data-test="repo-field"] input').setValue("renamed");
+            await flushPromises();
+            await vi.advanceTimersByTimeAsync(600);
+            await flushPromises();
+
+            expect(wrapper.find('[data-test="repo-availability"]').text()).toContain("already exists");
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("leaves the forward path unblocked: Check runs and the render button is not disabled", async () => {
+        const bridge: CiRenderBridge = {
+            ...fakeBridge(preflight()),
+            listExistingRepositories: () =>
+                Promise.resolve({
+                    ok: true,
+                    value: [
+                        {
+                            owner: "octocat",
+                            name: "maps",
+                            fullName: "octocat/maps",
+                            private: true,
+                            canWrite: true,
+                            htmlUrl: "https://github.test/octocat/maps",
+                        },
+                    ],
+                }),
+        };
+        const wrapper = mountScreen(bridge);
+        await flushPromises();
+
+        const select = wrapper
+            .findAllComponents(VSelect)
+            .find((component) => component.props("label") === "One of your repositories");
+        await select?.vm.$emit("update:modelValue", "octocat/maps");
+        await flushPromises();
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="check-blocked"]').exists()).toBe(false);
+
+        const buttons = wrapper.findAll("button");
+        await buttons.find((button) => button.text().includes("Check"))?.trigger("click");
+        await flushPromises();
+
+        // The default `preflight()` fixture reports a ready route and an already-uploaded,
+        // unchanged world, so nothing besides the two consent boxes stands between here and
+        // a startable render - proving the picker's own selection never left a dead end.
+        await wrapper.find('[data-test="ack-upload"] input').setValue(true);
+        await flushPromises();
+        expect(wrapper.find('[data-test="start"]').attributes("disabled")).toBeUndefined();
+    });
+});
+
+describe("a repository that is not ready says why, without reading as a hard block", () => {
+    it("an existing, writable repository with no route yet is 'not set up', and offers to open it", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(
+                preflight({
+                    repository: {
+                        owner: "o",
+                        repo: "r",
+                        fullName: "o/r",
+                        private: false,
+                        canWrite: true,
+                        htmlUrl: "https://github.test/o/r",
+                        warning: null,
+                    },
+                    routeReport: routeReport({ ready: false, describe: "Neither GitHub route can start a render on this repository." }),
+                }),
+            ),
+        );
+        await check(wrapper);
+
+        const panel = wrapper.find('[data-test="needs-setup"]');
+        expect(panel.exists()).toBe(true);
+        expect(panel.text()).toContain("o/r");
+        expect(panel.text()).not.toContain("Neither GitHub route can start a render");
+
+        // The real, working fallback: opens the repository itself, using the exact URL the
+        // preflight report already carried - never a guessed or reconstructed one.
+        await wrapper.find('[data-test="setup-repository"]').trigger("click");
+        await flushPromises();
+        expect(wrapper.emitted("open")).toEqual([["https://github.test/o/r"]]);
+    });
+
+    it("a repository that may not exist yet offers to create it, framed as the ordinary next step", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(
+                preflight({
+                    repository: null,
+                    repositoryFailure: "GitHub answered 404.",
+                    routeReport: routeReport({ ready: false, describe: "Neither GitHub route can start a render on this repository." }),
+                }),
+            ),
+        );
+        await check(wrapper);
+
+        const panel = wrapper.find('[data-test="needs-setup"]');
+        expect(panel.exists()).toBe(true);
+        expect(panel.text()).toContain("may not exist yet");
+        expect(panel.text()).toContain("o/r");
+    });
+
+    it("opening the setup action for a missing repository emits GitHub's own prefilled create-repository URL", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(
+                preflight({
+                    repository: null,
+                    repositoryFailure: "GitHub answered 404.",
+                    routeReport: routeReport({ ready: false }),
+                }),
+            ),
+        );
+        await check(wrapper);
+
+        await wrapper.find('[data-test="setup-repository"]').trigger("click");
+        await flushPromises();
+
+        expect(wrapper.emitted("open")).toEqual([["https://github.com/new?owner=o&name=r"]]);
+    });
+
+    it("a genuine block - this credential cannot write to an existing repository - gets no reassuring setup panel", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(
+                preflight({
+                    repository: {
+                        owner: "o",
+                        repo: "r",
+                        fullName: "o/r",
+                        private: true,
+                        canWrite: false,
+                        htmlUrl: "https://github.test/o/r",
+                        warning: null,
+                    },
+                    routeReport: routeReport({ ready: false }),
+                }),
+            ),
+        );
+        await check(wrapper);
+
+        expect(wrapper.find('[data-test="needs-setup"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="route"]').exists()).toBe(true);
+    });
+
+    it("names the render button's exact unmet condition rather than only greying it out", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(
+                preflight({
+                    repository: null,
+                    repositoryFailure: "GitHub answered 404.",
+                    routeReport: routeReport({
+                        ready: false,
+                        describe: "Neither GitHub route can start a render on this repository.",
+                    }),
+                }),
+            ),
+        );
+        await check(wrapper);
+
+        expect(wrapper.find('[data-test="start"]').attributes("disabled")).toBeDefined();
+        expect(wrapper.find('[data-test="blocked"]').text()).toContain(
+            "Neither GitHub route can start a render",
+        );
+    });
+});
+
+describe("preparing a repository automatically, rather than sending somebody to GitHub by hand", () => {
+    function existingUnpreparedPreflight(): CiPreflight {
+        return preflight({
+            repository: {
+                owner: "o",
+                repo: "r",
+                fullName: "o/r",
+                private: false,
+                canWrite: true,
+                htmlUrl: "https://github.test/o/r",
+                warning: null,
+            },
+            routeReport: routeReport({ ready: false, describe: "Neither GitHub route can start a render on this repository." }),
+        });
+    }
+
+    it("a build with no bootstrap capability keeps the plain 'open GitHub' fallback", async () => {
+        const wrapper = mountScreen(fakeBridge(existingUnpreparedPreflight()));
+        await check(wrapper);
+
+        expect(wrapper.find('[data-test="bootstrap-repository"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="setup-repository"]').exists()).toBe(true);
+    });
+
+    it("runs the real operation, shows progress, and lands the repository ready to render", async () => {
+        let listener: ((event: unknown) => void) | null = null;
+        const readyPreflight = preflight({
+            repository: existingUnpreparedPreflight().repository,
+            routeReport: routeReport({ ready: true }),
+        });
+        let calls = 0;
+        const bridge = fakeBridge(existingUnpreparedPreflight(), [], {
+            ciRenderPreflight: () => {
+                calls += 1;
+                // The check button's own bridge answer, and the one a successful
+                // bootstrap re-triggers - the second call reports the repository as
+                // ready, exactly as it would be once the workflow actually landed.
+                return Promise.resolve({ ok: true, value: calls === 1 ? existingUnpreparedPreflight() : readyPreflight });
+            },
+            bootstrapCiRepository: (owner, repo) => {
+                expect(owner).toBe("o");
+                expect(repo).toBe("r");
+                listener?.({ type: "phase", phase: "writing-files", at: "now" });
+                return Promise.resolve({
+                    ok: true,
+                    report: {
+                        owner: "o",
+                        repo: "r",
+                        route: "session",
+                        credentialDescribe: "Using the GitHub sign-in in this application (octocat).",
+                        files: [
+                            { path: ".github/workflows/render-world.yml", action: "created", reason: null },
+                            { path: ".github/workflows/render-shard-wave.yml", action: "created", reason: null },
+                        ],
+                        markerWritten: true,
+                        actionsEnabled: true,
+                        actionsMessage: "GitHub Actions is enabled for this repository.",
+                        ready: true,
+                        notes: [],
+                    },
+                });
+            },
+            onCiBootstrapEvent: (fn) => {
+                listener = fn as (event: unknown) => void;
+                return () => {
+                    listener = null;
+                };
+            },
+        });
+        const wrapper = mountScreen(bridge);
+        await check(wrapper);
+
+        await wrapper.find('[data-test="bootstrap-repository"]').trigger("click");
+        await flushPromises();
+
+        const result = wrapper.find('[data-test="bootstrap-result"]');
+        expect(result.exists()).toBe(true);
+        expect(result.text()).toContain("render-world.yml");
+        expect(result.text()).toContain("GitHub Actions is enabled");
+        // The next real decision - starting a render - is reachable: the repository was
+        // re-checked and now reports ready, rather than leaving the person to press
+        // "Check" again themselves.
+        expect(wrapper.find('[data-test="route"]').exists()).toBe(true);
+    });
+
+    it("names a missing scope and offers to sign in again, rather than a generic failure", async () => {
+        const bridge = fakeBridge(existingUnpreparedPreflight(), [], {
+            bootstrapCiRepository: () =>
+                Promise.resolve({
+                    ok: false,
+                    failure: {
+                        code: "missing-scope",
+                        message: 'The GitHub sign-in is missing the "workflow" permission.',
+                        missingScopes: ["workflow"],
+                    },
+                }),
+            onCiBootstrapEvent: () => () => {},
+        });
+        const wrapper = mountScreen(bridge);
+        await check(wrapper);
+
+        await wrapper.find('[data-test="bootstrap-repository"]').trigger("click");
+        await flushPromises();
+
+        const failure = wrapper.find('[data-test="bootstrap-failure"]');
+        expect(failure.text()).toContain("workflow");
+
+        const buttons = failure.findAll("button");
+        await buttons[0]?.trigger("click");
+        expect(wrapper.emitted("signIn")).toBeTruthy();
+    });
+
+    it("Actions disabled is reported as such, never as a green tick", async () => {
+        const bridge = fakeBridge(existingUnpreparedPreflight(), [], {
+            bootstrapCiRepository: () =>
+                Promise.resolve({
+                    ok: true,
+                    report: {
+                        owner: "o",
+                        repo: "r",
+                        route: "session",
+                        credentialDescribe: "Using the GitHub sign-in in this application (octocat).",
+                        files: [{ path: ".github/workflows/render-world.yml", action: "created", reason: null }],
+                        markerWritten: true,
+                        actionsEnabled: false,
+                        actionsMessage: "GitHub Actions is turned off for o/r. Turn it on there before a render can run.",
+                        ready: false,
+                        notes: [],
+                    },
+                }),
+            onCiBootstrapEvent: () => () => {},
+        });
+        const wrapper = mountScreen(bridge);
+        await check(wrapper);
+
+        await wrapper.find('[data-test="bootstrap-repository"]').trigger("click");
+        await flushPromises();
+
+        const result = wrapper.find('[data-test="bootstrap-result"]');
+        expect(result.text()).toContain("turned off");
+    });
 });
 
 describe("the repository name: suggested once a world is chosen, checked live", () => {

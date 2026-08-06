@@ -417,6 +417,71 @@ export type CiScheduleWriteResult =
     | { readonly ok: false; readonly failure: CiScheduleWriteFailure };
 
 /* -------------------------------------------------------------------------- */
+/* Preparing a repository that has never had the render workflow on it        */
+/* -------------------------------------------------------------------------- */
+
+export type CiBootstrapFileAction = "created" | "updated" | "unchanged" | "refused";
+
+export interface CiBootstrapFileOutcome {
+    readonly path: string;
+    readonly action: CiBootstrapFileAction;
+    readonly reason: string | null;
+}
+
+export interface CiBootstrapReport {
+    readonly owner: string;
+    readonly repo: string;
+    readonly route: CiRoute;
+    readonly credentialDescribe: string;
+    readonly files: readonly CiBootstrapFileOutcome[];
+    readonly markerWritten: boolean;
+    /** Null when this could not be determined - not the same as "enabled". */
+    readonly actionsEnabled: boolean | null;
+    readonly actionsMessage: string;
+    /** True only when every file landed and Actions is not known to be disabled. */
+    readonly ready: boolean;
+    readonly notes: readonly string[];
+}
+
+export type CiBootstrapFailureCode =
+    | "invalid-request"
+    | "missing-scope"
+    | "no-route"
+    | "repository-not-writable"
+    | "user-authored-conflict"
+    | "http-error";
+
+export interface CiBootstrapFailure {
+    readonly code: CiBootstrapFailureCode;
+    readonly message: string;
+    readonly missingScopes: readonly string[] | null;
+}
+
+export type CiBootstrapResult =
+    | { readonly ok: true; readonly report: CiBootstrapReport }
+    | { readonly ok: false; readonly failure: CiBootstrapFailure };
+
+export type CiBootstrapPhase =
+    | "checking-scopes"
+    | "reading-repository"
+    | "writing-files"
+    | "checking-actions"
+    | "finished";
+
+export type CiBootstrapEvent =
+    | { readonly type: "started"; readonly owner: string; readonly repo: string; readonly at: string }
+    | { readonly type: "phase"; readonly phase: CiBootstrapPhase; readonly at: string }
+    | { readonly type: "file"; readonly outcome: CiBootstrapFileOutcome; readonly at: string }
+    | {
+          readonly type: "log";
+          readonly level: "info" | "warning" | "error";
+          readonly message: string;
+          readonly at: string;
+      }
+    | { readonly type: "finished"; readonly report: CiBootstrapReport; readonly at: string }
+    | { readonly type: "failed"; readonly failure: CiBootstrapFailure; readonly at: string };
+
+/* -------------------------------------------------------------------------- */
 /* The bridge                                                                 */
 /* -------------------------------------------------------------------------- */
 
@@ -474,6 +539,22 @@ export interface CiRenderBridge {
         cadence: CiScheduleCadence,
         accountId?: string,
     ): Promise<Answer<CiScheduleWriteResult>>;
+
+    /**
+     * Prepares a repository so a CI render can actually run on it: a truly empty
+     * repository, an existing project that never had the render workflow added, or a
+     * stale copy this application wrote earlier. See docs/ci-repository-setup.md.
+     * Optional: a build without it falls back to the plain refusal message
+     * `routeReport.describe` already carries, exactly as it did before this existed.
+     */
+    bootstrapCiRepository?(
+        owner: string,
+        repo: string,
+        accountId?: string,
+        prefer?: CiRoute,
+    ): Promise<CiBootstrapResult>;
+    /** Progress while a repository is being prepared. Present exactly when the above is. */
+    onCiBootstrapEvent?(listener: (event: CiBootstrapEvent) => void): () => void;
 }
 
 /** The shape a preload is probed against, one method at a time. */
@@ -502,6 +583,13 @@ type Host = Partial<{
         cadence: CiScheduleCadence,
         accountId?: string,
     ) => Promise<Answer<CiScheduleWriteResult>>;
+    bootstrapCiRepository: (
+        owner: string,
+        repo: string,
+        accountId?: string,
+        prefer?: CiRoute,
+    ) => Promise<CiBootstrapResult>;
+    onCiBootstrapEvent: (listener: (event: CiBootstrapEvent) => void) => () => void;
 }>;
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {
@@ -609,6 +697,16 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
                       cadence: CiScheduleCadence,
                       accountId?: string,
                   ) => host.ciRenderScheduleWrite!(syncId, enabled, cadence, accountId),
+              }
+            : {}),
+        // Both or neither: a "Set this repository up" button with no way to hear it
+        // running is exactly the spinner-that-hides-a-failure this project forbids.
+        ...(isFunction(host.bootstrapCiRepository) && isFunction(host.onCiBootstrapEvent)
+            ? {
+                  bootstrapCiRepository: (owner: string, repo: string, accountId?: string, prefer?: CiRoute) =>
+                      host.bootstrapCiRepository!(owner, repo, accountId, prefer),
+                  onCiBootstrapEvent: (listener: (event: CiBootstrapEvent) => void) =>
+                      host.onCiBootstrapEvent!(listener),
               }
             : {}),
     };

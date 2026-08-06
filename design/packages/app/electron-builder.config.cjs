@@ -62,6 +62,21 @@ module.exports = {
             to: "jars",
             filter: ["**/*"],
         },
+        // The two render workflow files a CI-render bootstrap commits to a repository -
+        // see cirender/workflowTemplates.ts's `loadCiWorkflowTemplates`, which reads them
+        // back from `resourcesPath/workflows/` in a packaged build. Without this entry a
+        // shipped installer has no `.github/workflows` to walk up to (the packaged app's
+        // own directory tree is not a checkout of this repository), so bootstrapping a
+        // repository would fail on every real install with "the workflow files this
+        // application ships... could not be found" even though it works perfectly in a
+        // development checkout, where the fallback walk finds this repository's own
+        // `.github/workflows` instead. Copied straight from the source of truth, the same
+        // way the UI bundle above is staged rather than duplicated by hand.
+        {
+            from: "../../../.github/workflows",
+            to: "workflows",
+            filter: ["render-world.yml", "render-shard-wave.yml"],
+        },
     ],
     asar: true,
     // No native modules reach the packaged app — everything is bundled by esbuild.

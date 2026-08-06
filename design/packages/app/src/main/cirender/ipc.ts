@@ -34,6 +34,8 @@ import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import type { FetchLike, RepositoryReport } from "../backup/index.js";
 import type { LocalMapHandler } from "../render/LocalMapHandler.js";
 import { RENDER_WORKFLOW_FILE } from "./actions.js";
+import { bootstrapCiRepository } from "./bootstrap.js";
+import type { CiBootstrapEvent, CiBootstrapResult } from "./bootstrap.js";
 import { nodeProcessRunner } from "./gh.js";
 import { isCiScheduleCadence, readCiSchedule, writeCiSchedule } from "./schedule.js";
 import type { CiScheduleStatus, CiScheduleWriteResult } from "./schedule.js";
@@ -52,6 +54,7 @@ import { resolveTransport } from "./transport.js";
 import type { CiRoute, CiTransport, RouteReport } from "./transport.js";
 import { checkCiRepositoryNameAvailability, listCiOwnerChoices, suggestCiRepositoryName } from "./setup.js";
 import type { CiOwnerChoicesAnswer, CiRepositoryNameAvailability } from "./setup.js";
+import { CiWorkflowTemplateError, loadCiWorkflowTemplates } from "./workflowTemplates.js";
 
 /** The channel every phase, log, run-state and outcome event arrives on. */
 export const CIRENDER_EVENT_CHANNEL = "cirender:event";
@@ -74,7 +77,13 @@ export const CIRENDER_CHANNELS = [
     // .github/workflows/scheduled-render.yml's last report, and turning it on or off.
     "cirender:scheduleRead",
     "cirender:scheduleWrite",
+    // Preparing a repository that has never had the render workflow committed to it, so a
+    // truly empty repository is not a dead end - see `bootstrap.ts`.
+    "cirender:bootstrap",
 ] as const;
+
+/** Every `CiBootstrapEvent` a bootstrap in progress emits arrives on this channel. */
+export const CIRENDER_BOOTSTRAP_EVENT_CHANNEL = "cirender:bootstrapEvent";
 
 export interface CiRenderIpcOptions {
     readonly ipcMain: IpcMain;
@@ -103,6 +112,8 @@ export interface CiRenderIpcOptions {
     readonly runner?: ProcessRunner | undefined;
     /** Overridable so a test can watch what was broadcast. */
     readonly broadcast: (event: CiSyncEvent) => void;
+    /** Every `CiBootstrapEvent` a repository preparation in progress emits. */
+    readonly broadcastBootstrap?: ((event: CiBootstrapEvent) => void) | undefined;
     readonly mounts?: LocalMapHandler | undefined;
     /** Overridable so a test never touches the network. */
     readonly fetch?: FetchLike | undefined;
@@ -370,6 +381,69 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
             } catch (error) {
                 return { ok: false, message: sentence(error) };
             }
+        },
+    );
+
+    // Prepares a repository that does not yet have the render workflow on it - a truly
+    // empty repository, an existing project that never had it added, or a stale copy this
+    // application wrote earlier. See `bootstrap.ts` for the four states this tells apart
+    // and why nothing here can clobber a file it did not itself place there.
+    options.ipcMain.handle(
+        "cirender:bootstrap",
+        async (
+            _event: IpcMainInvokeEvent,
+            request: { owner?: unknown; repo?: unknown; accountId?: unknown; prefer?: unknown } | undefined,
+        ): Promise<CiBootstrapResult> => {
+            const owner = readText(request?.owner);
+            const repo = readText(request?.repo);
+            if (owner === null || repo === null) {
+                return {
+                    ok: false,
+                    failure: {
+                        code: "invalid-request",
+                        message: "A repository owner and name are required to prepare a repository.",
+                        missingScopes: null,
+                    },
+                };
+            }
+            const accountId = readText(request?.accountId);
+            const prefer = request?.prefer === "session" || request?.prefer === "gh" ? request.prefer : undefined;
+
+            let loaded: Awaited<ReturnType<typeof loadCiWorkflowTemplates>>;
+            try {
+                // `process.resourcesPath` is only meaningful in a packaged build; a
+                // development run's `undefined` here just leaves the loader to its own
+                // checkout-walking fallback, exactly as calling it with no options would.
+                loaded = await loadCiWorkflowTemplates({
+                    resourcesDir: process.resourcesPath,
+                });
+            } catch (error) {
+                return {
+                    ok: false,
+                    failure: {
+                        code: "http-error",
+                        message:
+                            error instanceof CiWorkflowTemplateError || error instanceof Error
+                                ? error.message
+                                : String(error),
+                        missingScopes: null,
+                    },
+                };
+            }
+
+            return await bootstrapCiRepository(
+                { owner, repo },
+                {
+                    token: await options.token(accountId ?? undefined),
+                    account: (await options.account?.(accountId ?? undefined)) ?? null,
+                    fetch: options.fetch ?? ((url, init) => fetch(url, init)),
+                    runner: options.runner ?? nodeProcessRunner(),
+                    templates: loaded.templates,
+                    templateVersion: loaded.version,
+                    ...(prefer === undefined ? {} : { prefer }),
+                    onEvent: (event) => options.broadcastBootstrap?.(event),
+                },
+            );
         },
     );
 
