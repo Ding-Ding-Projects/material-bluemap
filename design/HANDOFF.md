@@ -72,15 +72,18 @@ already rendered the shared anchored `ConfigSuperConfirm` for both user paths, b
 from the explicit destructive-call inventory and its mounted test bypassed the gate by emitting
 `confirm` directly.
 
-The detector now has an explicit world-repository primitive for `wr.remove(...)`, so the inventory
-declares all five watched shapes as gated in the screen itself rather than relying on the two
-handler names to stand in for the calls that touch GitHub. Its own detector test watches that
-primitive. The mounted screen tests drive the real two switches and slider: untouched, one-key
-and partial travel leave the branch alone; both keys plus full travel reach the exact
-repository/branch; the bulk path obeys the same boundary; and a host refusal leaves the tracked
-row plus the exact failure visible. Shared `ConfigSuperConfirm` coverage remains the proof for
-Escape, Emergency exit, focus return, reduced-motion, keyboard, assistive labels and localized
-copy. The world-repository and contract articles record the boundary and updated test inventory.
+The detector now has an explicit world-repository primitive for `wr.remove(...)`, and its
+structural declaration check no longer mistakes `async function removeOne(...)` or
+`removeChosen(...)` definitions for calls. The screen inventory therefore declares three actual
+sites: the single-row gate's inline `removeOne(record)` boundary and the two `wr.remove(...)`
+host calls. The bulk gate passes `removeChosen` as a handler reference rather than invoking it in
+the template, so it is proved by the mounted interaction test instead of being counted as call
+syntax. The mounted tests drive the real two switches and slider: untouched, one-key and partial
+travel leave the branch alone; both keys plus full travel reach the exact repository/branch; the
+bulk path obeys the same boundary; and a host refusal leaves the tracked row plus the exact failure
+visible. Shared `ConfigSuperConfirm` coverage remains the proof for Escape, Emergency exit, focus
+return, reduced-motion, keyboard, assistive labels and localized copy. The world-repository and
+contract articles record the boundary and updated test inventory.
 
 ### What works right now
 
