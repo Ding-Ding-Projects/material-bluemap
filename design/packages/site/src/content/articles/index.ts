@@ -59,6 +59,7 @@ import { renderConsole } from "./render-console.js";
 import { publishingToPages } from "./publishing-to-pages.js";
 import { dockerAndLocal } from "./docker-and-local.js";
 import { remoteRender } from "./remote-render.js";
+import { sshWorldSources } from "./ssh-world-sources.js";
 import { remoteHosting } from "./remote-hosting.js";
 import { automaticRepair } from "./automatic-repair.js";
 
@@ -91,6 +92,7 @@ export const articles: readonly Article[] = [
     bedrockWorlds,
     javaRenderPath,
     dockerAndLocal,
+    sshWorldSources,
     remoteRender,
     remoteHosting,
     resourcePacks,

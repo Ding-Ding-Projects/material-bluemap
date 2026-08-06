@@ -19,6 +19,7 @@
 export { default as WorldScreen } from "./WorldScreen.vue";
 export { default as WorldWizard } from "./WorldWizard.vue";
 export { default as WorldFolderStep } from "./WorldFolderStep.vue";
+export { default as SshWorldSourcePanel } from "./SshWorldSourcePanel.vue";
 export { default as MapIdentityStep } from "./MapIdentityStep.vue";
 export { default as MapOptionsStep } from "./MapOptionsStep.vue";
 export { default as MapStorageStep } from "./MapStorageStep.vue";
@@ -56,6 +57,18 @@ export {
     resolveWorldBridge,
     writeStorageDirectory,
 } from "./worldBridge.js";
+
+export { resolveSshWorldSourceBridge, surveyLooksLikeWorld } from "./sshWorldSourceBridge.js";
+export type {
+    SshDetectAnswer,
+    SshHostKeyOffer,
+    SshRemoteHostKind,
+    SshRemoteWorldEntry,
+    SshRemoteWorldFetchResult,
+    SshSurveyAnswer,
+    SshWorldSourceBridge,
+    SshWorldSourceEvent,
+} from "./sshWorldSourceBridge.js";
 export type {
     EngineDescription,
     InterruptedRenderMap,

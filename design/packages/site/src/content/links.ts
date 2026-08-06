@@ -54,6 +54,7 @@ export const RENDER_IN_ACTIONS_DOC_URL = repoFile("docs/render-in-actions.md");
 export const RESUMABLE_RENDERS_DOC_URL = repoFile("docs/resumable-renders.md");
 export const LARGE_WORLDS_DOC_URL = repoFile("docs/large-worlds.md");
 export const WORLD_SOURCES_DOC_URL = repoFile("docs/world-sources.md");
+export const SSH_WORLD_SOURCES_DOC_URL = repoFile("docs/ssh-world-sources.md");
 export const PRIVATE_WORLD_DOC_URL = repoFile("docs/private-world-rendering.md");
 export const CHANGELOG_VIEWER_DOC_URL = repoFile("docs/changelog-viewer.md");
 export const COMMAND_PALETTE_DOC_URL = repoFile("docs/command-palette.md");

@@ -47,6 +47,7 @@ import {
     REPO_URL,
     RESUMABLE_RENDERS_DOC_URL,
     ROADMAP_URL,
+    SSH_WORLD_SOURCES_DOC_URL,
     SUPER_CONFIRMATION_DOC_URL,
     TABBED_NAVIGATION_DOC_URL,
     UPSTREAM_URL,
@@ -452,6 +453,17 @@ export const home: HomeContent = {
                         "The downloader, the zip reader, the cross-repository fetcher and the panel are built and tested across 185 cases, including one that drives a manifest-shaped download and one that drives a checksum-list one, each end to end against a real archive. Nothing has been fetched from github.com through the shipped desktop app itself, so what GitHub itself does is proved against a stand-in.",
                     articleId: "release-downloads",
                     reading: [{ label: "docs/large-worlds.md", href: LARGE_WORLDS_DOC_URL }],
+                },
+                {
+                    title: "Browse and fetch a world from your own SSH server",
+                    body: "The wizard reuses the saved remote-machine editor and Explorer-style browser: choose a key-only host, inspect its actual folders with world-likelihood badges, review an unknown fingerprint, survey the folder, then fetch it into the ordinary local-world path with progress and cancellation.",
+                    status: "ported-unverified",
+                    statusNote:
+                        "The complete preload-to-wizard seam is mounted and covered by focused bridge/UI tests plus the existing 64 main-process SSH-world tests. The UI build and policy guards pass. A genuine Linux or Windows host has not yet completed this flow through a packaged build.",
+                    articleId: "ssh-world-sources",
+                    reading: [
+                        { label: "docs/ssh-world-sources.md", href: SSH_WORLD_SOURCES_DOC_URL },
+                    ],
                 },
                 {
                     title: "Sign in to GitHub, only when something private needs it",

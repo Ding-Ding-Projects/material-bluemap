@@ -86,6 +86,31 @@ document says so.
 | **The flattening** | A change Minecraft made in version 1.13. Before it, a block was a number plus four extra bits (stone was `1`, andesite was `1:5`). After it, a block is a name (`minecraft:andesite`). Worlds from 1.12.2 and older use the old numbers. Some names also changed meaning: `minecraft:grass` used to be the grass **block** and now means a small grass **plant** |
 | **`worldgen`** | `design/packages/worldgen`. Makes a fake Minecraft world from a number (a "seed"), so tests have a real world to read without downloading one. It can write the modern format or the 1.12.2 one |
 
+## Update, 2026-08-06 — SSH world sources are reachable from the map wizard
+
+The `worldsource:ssh:*` main-process and preload work is no longer another instance of the
+project's recurring “built, tested, unreachable” defect. The World step now mounts
+`SshWorldSourcePanel.vue`, which uses the existing saved `RemoteTargetEditor` and
+Explorer-style `RemoteFileBrowser` rather than inventing a second host store or directory
+picker. The guided order is the main-process order: validate the saved target, detect POSIX or
+Windows and check the host key, stop for explicit review of an unknown fingerprint, validate
+the chosen path in that host's grammar, survey it for `level.dat` plus region data, then fetch
+with transfer messages and cancellation. Success feeds the resulting local folder back through
+the wizard's ordinary `inspect` path.
+
+The renderer seam is feature-detected from the real nested
+`window.materialBluemap.sshWorldSource` namespace and refuses a partial bridge. Focused evidence:
+21/21 mounted/seam/wizard/preload tests pass; the five relevant surface policies pass 55/55;
+`@material-bluemap/ui` typecheck passes; and the production workspace build selected 13 of 14
+packages and built the UI from 1,553 modules. The language/funny catalogue now covers every
+`components/world` key (the remaining catalogue gap is only `components/project`).
+
+**Still not a real-host claim.** No packaged build has fetched through this surface from a
+genuine Linux or Windows OpenSSH host, so the site article and canonical feature document keep
+the status `ported-unverified`. The cheap headless runtime proof opened the real built panel at
+390 CSS pixels and 200% scale with zero horizontal overflow, viewport escapes, or clipped
+buttons; a genuine host-backed transfer remains the missing evidence.
+
 ## Update, 2026-08-06 — world-repository branch deletion is inside the declared gate
 
 CI run `31127389086` correctly caught three destructive-code hits in

@@ -673,6 +673,27 @@ describe("remote-render article", () => {
     });
 });
 
+describe("ssh-world-sources article", () => {
+    // Completeness guard: the SSH fetcher is a separate user journey from rendering on
+    // another machine. Its canonical documentation and landing-page route must not
+    // disappear just because both features speak SSH.
+    const article = findArticle("ssh-world-sources");
+
+    it("exists", () => {
+        expect(article).toBeDefined();
+    });
+
+    it("is reachable from a landing-page feature card", () => {
+        const carded = new Set(homeFeatures.map((feature) => feature.articleId));
+        expect(carded.has("ssh-world-sources")).toBe(true);
+    });
+
+    it("cites the canonical SSH world-source documentation", () => {
+        const labels = article!.sources.map((source) => source.label);
+        expect(labels).toContain("docs/ssh-world-sources.md");
+    });
+});
+
 /* -------------------------------------------------------------------------- */
 /* Search                                                                     */
 /* -------------------------------------------------------------------------- */
