@@ -406,6 +406,12 @@ interface BlueMapWorldFolderListing {
     folder: string;
     entries: { path: string; directory: boolean }[];
     regionFiles: Record<string, number>;
+    /**
+     * The nether and/or the end, when a Spigot/Paper-style server split them into
+     * sibling folders instead of nesting them inside this one. Keyed `"nether"` /
+     * `"the_end"`.
+     */
+    serverSiblings: Record<string, { worldFolder: string; regionFiles: number }>;
 }
 
 /**

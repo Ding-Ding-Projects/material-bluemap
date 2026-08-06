@@ -114,6 +114,147 @@ describe("recognising a world", () => {
         ]);
         expect(dimensions.map((dimension) => dimension.sorting)).toEqual([0, 300, 400]);
     });
+
+    it("recognises a vanilla dimension living under its own modern dimensions/ path", () => {
+        // Real worlds on this machine (found during this feature's own verification pass)
+        // write even their vanilla dimensions under the modern per-dimension path upstream's
+        // own MCAWorld.resolveDimensionFolder checks first, rather than at the legacy
+        // region/DIM-1/DIM1 locations. A reader that only knew the legacy paths listed these
+        // as unrecognised custom dimensions and rendered the Nether with the Overworld's own
+        // sky colour, void colour and ambient light.
+        const dimensions = dimensionsIn({
+            "dimensions/minecraft/overworld/region": 322,
+            "dimensions/minecraft/the_nether/region": 17,
+            "dimensions/minecraft/the_end/region": 14,
+        });
+
+        expect(dimensions).toEqual([
+            {
+                key: "minecraft:overworld",
+                dimensionType: "minecraft:overworld",
+                label: "Overworld",
+                regionDirectory: "dimensions/minecraft/overworld/region",
+                regionFiles: 322,
+                preset: "overworld",
+                sorting: 0,
+                custom: false,
+                external: false,
+            },
+            {
+                key: "minecraft:the_nether",
+                dimensionType: "minecraft:the_nether",
+                label: "The Nether",
+                regionDirectory: "dimensions/minecraft/the_nether/region",
+                regionFiles: 17,
+                preset: "nether",
+                sorting: 100,
+                custom: false,
+                external: false,
+            },
+            {
+                key: "minecraft:the_end",
+                dimensionType: "minecraft:the_end",
+                label: "The End",
+                regionDirectory: "dimensions/minecraft/the_end/region",
+                regionFiles: 14,
+                preset: "end",
+                sorting: 200,
+                custom: false,
+                external: false,
+            },
+        ]);
+    });
+
+    it("prefers the legacy path over the modern one when a world genuinely has both", () => {
+        const dimensions = dimensionsIn({
+            region: 40,
+            "dimensions/minecraft/overworld/region": 999,
+        });
+
+        expect(dimensions).toHaveLength(1);
+        expect(dimensions[0]?.regionDirectory).toBe("region");
+        expect(dimensions[0]?.regionFiles).toBe(40);
+    });
+
+    it("still finds a genuinely unrecognised custom dimension beside a modern-path vanilla one", () => {
+        const dimensions = dimensionsIn({
+            "dimensions/minecraft/overworld/region": 10,
+            "dimensions/aether/skyland/region": 5,
+        });
+
+        expect(dimensions.map((dimension) => dimension.key)).toEqual(["minecraft:overworld", "aether:skyland"]);
+        expect(dimensions[0]?.custom).toBe(false);
+        expect(dimensions[1]?.custom).toBe(true);
+    });
+
+    it("marks every ordinarily-found dimension as not external", () => {
+        const dimensions = dimensionsIn({ region: 1, "DIM-1/region": 1, "dimensions/aether/skyland/region": 1 });
+
+        expect(dimensions.every((dimension) => dimension.external === false)).toBe(true);
+        expect(dimensions.every((dimension) => dimension.worldFolder === undefined)).toBe(true);
+    });
+});
+
+describe("a Spigot/Paper-style server layout", () => {
+    it("offers the nether and the end from their sibling folders", () => {
+        const dimensions = dimensionsIn(
+            { region: 40 },
+            {
+                nether: { worldFolder: "/srv/world_nether", regionFiles: 12 },
+                the_end: { worldFolder: "/srv/world_the_end", regionFiles: 4 },
+            },
+        );
+
+        expect(dimensions.map((dimension) => dimension.key)).toEqual([
+            "minecraft:overworld",
+            "minecraft:the_nether",
+            "minecraft:the_end",
+        ]);
+
+        const nether = dimensions.find((dimension) => dimension.key === "minecraft:the_nether");
+        expect(nether?.external).toBe(true);
+        expect(nether?.worldFolder).toBe("/srv/world_nether");
+        expect(nether?.regionFiles).toBe(12);
+        // The label, the preset and the sort order are exactly the vanilla nether's -
+        // only where BlueMap has to be told to look for it differs.
+        expect(nether?.label).toBe("The Nether");
+        expect(nether?.preset).toBe("nether");
+        expect(nether?.sorting).toBe(100);
+    });
+
+    it("prefers a dimension the chosen folder really holds over a same-named sibling", () => {
+        // A world that genuinely has its own DIM-1 - a copy made before the server
+        // split it out, say - is never shadowed by a sibling folder next to it.
+        const dimensions = dimensionsIn(
+            { region: 40, "DIM-1/region": 9 },
+            { nether: { worldFolder: "/srv/world_nether", regionFiles: 12 } },
+        );
+
+        const nether = dimensions.find((dimension) => dimension.key === "minecraft:the_nether");
+        expect(nether?.external).toBe(false);
+        expect(nether?.worldFolder).toBeUndefined();
+        expect(nether?.regionFiles).toBe(9);
+    });
+
+    it("leaves out a sibling with no region files, the same as an empty in-folder one", () => {
+        const dimensions = dimensionsIn({ region: 40 }, { nether: { worldFolder: "/srv/world_nether", regionFiles: 0 } });
+
+        expect(dimensions.map((dimension) => dimension.key)).toEqual(["minecraft:overworld"]);
+    });
+
+    it("reads server-sibling dimensions through the full inspection too", () => {
+        const inspection = inspectWorldFolder({
+            ...listing("/srv/world", ["level.dat", "region/"], { region: 40 }),
+            serverSiblings: { nether: { worldFolder: "/srv/world_nether", regionFiles: 6 } },
+        });
+
+        expect(inspection.ok).toBe(true);
+        expect(inspection.dimensions.map((dimension) => dimension.key)).toEqual([
+            "minecraft:overworld",
+            "minecraft:the_nether",
+        ]);
+        expect(inspection.dimensions[1]?.worldFolder).toBe("/srv/world_nether");
+    });
 });
 
 describe("saying precisely what is wrong", () => {

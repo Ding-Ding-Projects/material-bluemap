@@ -1,3 +1,4 @@
+import { readdirSync } from "node:fs";
 import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -148,6 +149,85 @@ describe("a world folder", () => {
         // A world is a world. Reporting `playerdata/level.dat` would make the wizard's
         // saves-folder rule fire on a folder that has its own level.dat at the top.
         expect(worldsInside(listing)).toEqual([]);
+    });
+});
+
+describe("a Spigot/Paper-style server layout", () => {
+    it("finds the nether and the end in their conventional sibling folders", async () => {
+        const world = await makeWorld(join(root, "world"), { region: 40 });
+        await makeWorld(join(root, "world_nether"), { "DIM-1/region": 5 });
+        await makeWorld(join(root, "world_the_end"), { "DIM1/region": 2 });
+
+        const listing = await inspectWorldFolder(world);
+
+        expect(listing.serverSiblings["nether"]).toEqual({
+            worldFolder: join(root, "world_nether"),
+            regionFiles: 5,
+        });
+        expect(listing.serverSiblings["the_end"]).toEqual({
+            worldFolder: join(root, "world_the_end"),
+            regionFiles: 2,
+        });
+        // The in-folder table is untouched: the split layout never nests DIM-1/DIM1
+        // inside the overworld's own folder, so nothing here is found there either.
+        expect(listing.regionFiles["DIM-1/region"]).toBeUndefined();
+        expect(listing.regionFiles["DIM1/region"]).toBeUndefined();
+    });
+
+    it("finds only whichever sibling actually exists", async () => {
+        const world = await makeWorld(join(root, "world"), { region: 10 });
+        await makeWorld(join(root, "world_nether"), { "DIM-1/region": 3 });
+        // No world_the_end here at all.
+
+        const listing = await inspectWorldFolder(world);
+
+        expect(listing.serverSiblings["nether"]?.regionFiles).toBe(3);
+        expect(listing.serverSiblings["the_end"]).toBeUndefined();
+    });
+
+    it("never mistakes an unrelated folder for a split-off dimension", async () => {
+        const world = await makeWorld(join(root, "world"), { region: 10 });
+        // Same name, same DIM-1/region shape, but no level.dat of its own - a scratch
+        // copy or a stray backup, not a world the server actually loaded.
+        await regionFiles(join(root, "world_nether", "DIM-1", "region"), 5);
+
+        const listing = await inspectWorldFolder(world);
+
+        expect(listing.serverSiblings["nether"]).toBeUndefined();
+    });
+
+    it("does not go looking for siblings unless the chosen folder is itself a world", async () => {
+        const saves = join(root, "saves");
+        await makeWorld(join(saves, "Bastion"), { region: 2 });
+        // A folder that would match the sibling suffix, sitting right beside `saves`
+        // itself, which is not a world and must never trigger the sibling probe.
+        await makeWorld(join(root, "saves_nether"), { "DIM-1/region": 4 });
+
+        const listing = await inspectWorldFolder(saves);
+
+        expect(listing.serverSiblings).toEqual({});
+    });
+
+    it("counts a sibling's region files without reading a single one of them", async () => {
+        const world = await makeWorld(join(root, "world"), { region: 1 });
+        await makeWorld(join(root, "world_nether"), { "DIM-1/region": 8 });
+
+        const listing = await inspectWorldFolder(world);
+
+        expect(listing.serverSiblings["nether"]?.regionFiles).toBe(8);
+    });
+
+    it("never writes anything into the world folder or its siblings while reading them", async () => {
+        const world = await makeWorld(join(root, "world"), { region: 6 });
+        await makeWorld(join(root, "world_nether"), { "DIM-1/region": 3 });
+
+        const rootBefore = readdirSync(root).sort();
+        const worldBefore = readdirSync(world).sort();
+
+        await inspectWorldFolder(world);
+
+        expect(readdirSync(root).sort()).toEqual(rootBefore);
+        expect(readdirSync(world).sort()).toEqual(worldBefore);
     });
 });
 

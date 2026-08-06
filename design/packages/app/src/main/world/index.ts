@@ -183,6 +183,7 @@ export {
     MAX_ENTRIES,
     MAX_WORLD_PROBES,
     inspectWorldFolder,
+    type ServerSiblingDimension,
     type WorldFolderEntry,
     type WorldFolderListing,
 } from "./inspect.js";

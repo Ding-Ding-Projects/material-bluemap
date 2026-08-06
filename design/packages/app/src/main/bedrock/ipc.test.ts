@@ -41,6 +41,7 @@ function listing(overrides: Partial<WorldFolderListing> = {}): WorldFolderListin
         entries: [],
         regionFiles: { "": 0 },
         leveldbFiles: null,
+        serverSiblings: {},
         ...overrides,
     };
 }

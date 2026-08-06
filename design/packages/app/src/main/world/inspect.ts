@@ -25,6 +25,29 @@
  * only way "this is the saves folder, and it holds Bastion and Creative Test" can be
  * said instead of the useless "there is no level.dat here".
  *
+ * ## The dimension that is not inside the folder at all
+ *
+ * Spigot, Paper and their derivatives do not keep the nether and the end nested inside
+ * the overworld's own folder. Loading a world server-side splits it into three sibling
+ * folders next to each other - `world`, `world_nether`, `world_the_end` by default -
+ * and the nether and end chunks still live at `DIM-1/region` and `DIM1/region` *inside
+ * those sibling folders*, because that is where the vanilla world-loading code always
+ * put them; only the folder that contains them moved. `MCAWorld.resolveDimensionFolder`
+ * in vendored upstream (`core/.../world/mca/MCAWorld.java`) is what a server itself
+ * asks for a dimension's folder, and it is handed the sibling's own path as `worldFolder`
+ * for the nether and the end - upstream never searches for the sibling itself, because a
+ * running Bukkit server already knows each world's real folder from its own API. This
+ * reader has no server to ask, so it looks for the two conventional sibling names beside
+ * the chosen folder, the way a person renders a Spigot server's saves without one.
+ *
+ * Two directories, tried by their exact name first and, only if neither exists,
+ * resolved case-insensitively from a single bounded listing of the parent - never more.
+ * A sibling only counts once it has both its own `level.dat` and real region files
+ * under `DIM-1/region` or `DIM1/region`; either missing and it is not reported, which is
+ * what stops an unrelated `worldedit_nether` scratch folder from being read as a
+ * dimension. Only asked when the chosen folder is itself a world: a `saves` folder or a
+ * `region` folder picked by mistake has no sibling worth finding.
+ *
  * ## Region files are counted, never listed
  *
  * `.mca` files are counted while the directory is being read and are left out of
@@ -52,13 +75,24 @@
  */
 
 import { lstat, opendir } from "node:fs/promises";
-import { isAbsolute, join } from "node:path";
+import { basename, dirname, isAbsolute, join } from "node:path";
 
 /** One file or directory found inside the chosen folder. */
 export interface WorldFolderEntry {
     /** Relative to the folder that was read, forward slashes, no leading `./`. */
     readonly path: string;
     readonly directory: boolean;
+}
+
+/**
+ * A dimension a Spigot/Paper-style server split into its own sibling folder rather than
+ * nesting it inside the chosen one - see the file's own header comment.
+ */
+export interface ServerSiblingDimension {
+    /** The sibling's own folder, absolute. This is what BlueMap has to be told `world` is. */
+    readonly worldFolder: string;
+    /** Region files under its `DIM-1/region` or `DIM1/region`, counted the same way as everywhere else here. */
+    readonly regionFiles: number;
 }
 
 /**
@@ -90,6 +124,13 @@ export interface WorldFolderListing {
      * directory was found in the listing, which no Minecraft-written Java world has.
      */
     readonly leveldbFiles: number | null;
+    /**
+     * The nether and/or the end, when a Spigot/Paper-style server split them into
+     * sibling folders beside this one instead of nesting them inside it. Keyed
+     * `"nether"` / `"the_end"`. Empty when this folder already holds its own `DIM-1`
+     * or `DIM1`, when this folder is not itself a world, or when neither sibling exists.
+     */
+    readonly serverSiblings: Readonly<Record<string, ServerSiblingDimension>>;
 }
 
 /** The file that makes a folder a world. Compared lower-cased; emitted lower-case. */
@@ -106,6 +147,16 @@ const LEVELDB = "db";
 
 /** The two dimension folders Minecraft writes beside the overworld. */
 const VANILLA_DIMENSIONS = ["DIM-1", "DIM1"] as const;
+
+/**
+ * The conventional sibling names a Spigot/Paper-style server splits a world into, and
+ * which vanilla dimension folder each one keeps its region files under - see the file
+ * header. `world` stays `world`; only the nether and the end ever move to a sibling.
+ */
+const SERVER_SIBLINGS: readonly { readonly key: string; readonly suffix: string; readonly dimension: string }[] = [
+    { key: "nether", suffix: "_nether", dimension: "DIM-1" },
+    { key: "the_end", suffix: "_the_end", dimension: "DIM1" },
+];
 
 /**
  * Caps, so a folder that is not a world cannot turn this into a crawler.
@@ -215,7 +266,59 @@ export async function inspectWorldFolder(folder: string): Promise<WorldFolderLis
     // settles the question, and the wizard never looks at these markers once it has one.
     if (!hasLevelDat) await probeWorldsInside(root, directories, entries);
 
-    return { folder: root, entries, regionFiles, leveldbFiles };
+    // Only worth asking the other way around too: a folder that is not itself a world
+    // has no sibling worth finding, and every sibling probe below is a directory read a
+    // `saves` folder or a `region` folder picked by mistake would pay for nothing.
+    const serverSiblings = hasLevelDat ? await readServerSiblings(root) : {};
+
+    return { folder: root, entries, regionFiles, leveldbFiles, serverSiblings };
+}
+
+/**
+ * The nether and/or the end, when a Spigot/Paper-style server split them into sibling
+ * folders beside this one - see the file's own header comment for why they are looked
+ * for by name rather than nested inside the chosen folder.
+ *
+ * Read-only, and bounded to at most two sibling folders and, only when neither exact
+ * name exists, one extra listing of the parent to resolve one case-insensitively. A
+ * `level.dat` inside the candidate is required before its region files are even looked
+ * at, which is what keeps an unrelated `worldedit_nether` scratch folder from being
+ * mistaken for this world's own nether.
+ */
+async function readServerSiblings(root: string): Promise<Record<string, ServerSiblingDimension>> {
+    const result: Record<string, ServerSiblingDimension> = {};
+
+    const parent = dirname(root);
+    const base = basename(root);
+    if (parent === root || base === "") return result;
+
+    // Read once, only if an exact-case match misses, and shared between both siblings.
+    let parentNames: string[] | null = null;
+
+    for (const sibling of SERVER_SIBLINGS) {
+        const wantedName = `${base}${sibling.suffix}`;
+        let siblingRoot = join(parent, wantedName);
+
+        if (!(await isRealDirectory(siblingRoot))) {
+            if (parentNames === null) parentNames = await listDirectories(parent, MAX_WORLD_PROBES);
+            const found = findDirectory(parentNames, wantedName);
+            if (found === null) continue;
+            siblingRoot = join(parent, found);
+            if (!(await isRealDirectory(siblingRoot))) continue;
+        }
+
+        const levelDatStats = await lstat(join(siblingRoot, LEVEL_DAT)).catch(() => null);
+        if (levelDatStats === null || !levelDatStats.isFile()) continue;
+
+        const regionPath = join(siblingRoot, sibling.dimension, REGION);
+        if (!(await isRealDirectory(regionPath))) continue;
+        const count = await countRegionFiles(regionPath);
+        if (count === null) continue;
+
+        result[sibling.key] = { worldFolder: siblingRoot, regionFiles: count };
+    }
+
+    return result;
 }
 
 /**
