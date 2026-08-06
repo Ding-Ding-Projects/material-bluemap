@@ -196,6 +196,19 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "Edits the unsaved workspace. The file on disk is untouched until the apply " +
             "dialog says so, and that dialog is gated when the plan deletes anything.",
     },
+    "components/config/MaskDrawingCanvas.vue": {
+        count: 4,
+        destroys: "one vertex from the polygon shape being drawn, in the unsaved mask being edited",
+        standing: "buffer",
+        note:
+            "Same buffer as maskCanvas.ts's own removePolygonPoint below, which this file's " +
+            "removePoint wraps: its own declaration and the dblclick/click handlers that " +
+            "reach it account for three of the four hits, and the removePolygonPoint call " +
+            "inside its body is the fourth. Nothing reaches disk -- the toolbar's own Undo " +
+            "button (bound to canUndo(history)) restores the vertex in one click, the same " +
+            "as every other edit this canvas makes, and ConfigMaskField.vue's own note above " +
+            "already covers the same field once it is written back into the config record.",
+    },
     "components/config/ConfigMaskField.vue": {
         count: 2,
         destroys: "a render mask shape from the map config being edited",
@@ -243,6 +256,17 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
         note:
             "The staging step, not the delete. It moves the entry's file onto the save " +
             "plan's delete list, which the apply dialog shows and gates before running.",
+    },
+    "components/config/maskCanvas.ts": {
+        count: 1,
+        destroys: "one vertex from the polygon shape being drawn, in the unsaved mask being edited",
+        standing: "buffer",
+        note:
+            "removePolygonPoint is a pure transform of the in-memory shape, the same " +
+            "position as configModel.ts's own field-clearing function above: nothing is " +
+            "written until the config's own save runs, and this file's own undo history " +
+            "(initHistory/pushHistory/undo, further down) puts the vertex straight back " +
+            "with one click through MaskDrawingCanvas.vue's Undo button.",
     },
     "components/downloads/downloadBridge.ts": {
         count: 2,
@@ -469,6 +493,18 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "performs no deletion of its own. Which machine is forgotten, and whether that " +
             "matters, is a question about the caller, and that caller is declared in its own " +
             "right immediately above.",
+    },
+    "components/renders/activeRenders.ts": {
+        count: 1,
+        destroys: "nothing: it stops a render that is running",
+        standing: "resumable",
+        note:
+            "The same shape as components/world/RenderRunPanel.vue's own entry, and the same " +
+            "underlying track.run.cancel(): tiles already drawn are kept, and RendersScreen." +
+            "vue's per-row Stop button and bulk-cancel dialog both say so out loud. The bulk " +
+            "path runs behind ConfigSuperConfirm anyway as an extra check before touching " +
+            "several renders at once, but the single-row cancel this file drives is ungated " +
+            "on purpose, exactly like RenderRunPanel.vue's own -- there is no gate to name.",
     },
     "components/pages/PagesScreen.vue": {
         count: 3,
