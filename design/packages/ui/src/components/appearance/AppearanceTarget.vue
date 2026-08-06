@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId } from "vue";
+import { computed, onBeforeUnmount, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiPalette, mdiRestore } from "@mdi/js";
 import { VList, VListItem, VMenu } from "vuetify/components";
@@ -7,7 +7,12 @@ import { VList, VListItem, VMenu } from "vuetify/components";
 import AppearanceEditor from "./AppearanceEditor.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
-import { useAppearanceTarget, useRegisteredTarget } from "./useAppearance.js";
+import {
+    claimAppearancePopup,
+    releaseAppearancePopup,
+    useAppearanceTarget,
+    useRegisteredTarget,
+} from "./useAppearance.js";
 
 /**
  * Wraps any element and gives it the whole appearance feature.
@@ -199,6 +204,14 @@ function returnFocus(): void {
 function openMenu(at: [number, number] | HTMLElement | undefined): void {
     contextTarget.value = at;
     search.value = "";
+    // The regex toggle and its flags belong to this one menu session, not to the element - a
+    // menu that closed with regex mode on must not silently hand it to the next menu that
+    // opens, whether that is the same element reopened or a different AppearanceTarget
+    // entirely. Reset both back to ConfigSearchField's own defaults (see `searchRegex`/
+    // `searchFlags` above) every time a menu opens, so a freshly opened search field always
+    // starts as a plain-text substring match.
+    searchRegex.value = false;
+    searchFlags.value = "i";
     editorOpen.value = false;
     menuOpen.value = true;
 }
@@ -277,7 +290,7 @@ function onKeydown(event: KeyboardEvent): void {
             :close-on-content-click="false"
             location="bottom start"
             offset="4"
-            @update:model-value="(value: boolean) => !value && (menuOpen = false)"
+            @update:model-value="(value: boolean) => !value && closeMenu()"
         >
             <div class="mb-appearance-target__menu" role="none">
                 <ConfigSearchField

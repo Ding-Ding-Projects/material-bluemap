@@ -200,6 +200,40 @@ describe("the context menu", () => {
 
         expect(bodyText()).toContain("Reset this element");
     });
+
+    it("returns focus to the element when Escape closes it", async () => {
+        // Mirrors "the anchored editor > returns focus to the element when it closes" -
+        // the menu's own `@update:model-value` handler used to only reassign the
+        // already-false `menuOpen` ref instead of calling `closeMenu()`, so this path never
+        // called `returnFocus()` and focus was abandoned wherever the Escape keydown landed.
+        mountTarget();
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+
+        targetElement().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        await settle();
+
+        expect(document.activeElement?.className).toContain("host-button");
+    });
+
+    it("returns focus to the element when an outside press closes it", async () => {
+        // Same defect, reached through the outside-click path this file's dismissal suite
+        // proves closes the menu (see "dismissal: closes on an outside pointer press"
+        // below) - closing is not enough on its own; focus has to come back too.
+        mountTarget();
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+
+        const decoy = document.createElement("button");
+        decoy.textContent = "elsewhere on the page";
+        document.body.appendChild(decoy);
+        decoy.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        decoy.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await settle();
+
+        expect(document.activeElement?.className).toContain("host-button");
+    });
 });
 
 describe("the keyboard path", () => {
