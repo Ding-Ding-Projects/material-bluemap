@@ -39,11 +39,13 @@
 import {
     DEFAULT_REVISION_LIMIT,
     PROJECT_HISTORY_DIRECTORY,
+    discardOlderRevisions,
     ensureRepository,
     historyRoot,
     listRevisions,
     probeGit,
     readRevisionFiles,
+    readIndex,
     rememberProject,
     remoteNames,
     repoGit,
@@ -52,6 +54,7 @@ import {
     runGit,
     snapshotProject,
     type GitRunner,
+    type HistoryProject,
     type HistoryRevision,
     type HistorySource,
     type HistoryWrite,
@@ -309,4 +312,35 @@ export async function restoreProjectRevision(
         );
     }
     return restored;
+}
+
+/**
+ * Keeps the newest `keep` revisions of one world's project history and removes the rest.
+ *
+ * **Destructive**, exactly as `history/repository.ts`'s {@link discardOlderRevisions} is for
+ * a config folder: what this removes cannot be restored afterwards, by this app or by
+ * anything else, which is why the settings surface that calls this puts it behind a
+ * two-key confirmation gate rather than a plain button.
+ */
+export async function discardOlderProjectRevisions(
+    options: ProjectHistoryOptions,
+    worldFolder: string,
+    keep: number,
+): Promise<HistoryWrite> {
+    const opened = await open(options, worldFolder);
+    if (!opened.ok) return { ok: false, message: opened.message };
+    return await discardOlderRevisions(opened.git, keep);
+}
+
+/**
+ * Every world this machine has ever recorded a project revision for, from the family's own
+ * mapping file - not a git listing, so it answers even when a repository was deleted from
+ * under the process.
+ *
+ * Read for a settings surface that wants to say, honestly, how many project histories exist
+ * and when each one last wrote, without opening a repository per world just to answer that.
+ */
+export async function projectHistoryProjects(options: ProjectHistoryOptions): Promise<readonly HistoryProject[]> {
+    const index = await readIndex(options.dataDir, PROJECT_HISTORY_DIRECTORY);
+    return index.projects;
 }

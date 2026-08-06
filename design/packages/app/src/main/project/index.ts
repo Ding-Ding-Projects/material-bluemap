@@ -13,6 +13,8 @@
  *  - `history.ts` binds a save to the version history that already exists, keeping the
  *    repository beside the application's data and never inside a world.
  *  - `save.ts` is the write and the record of it, in that order.
+ *  - `autosave.ts` is the debounced scheduler in front of `save.ts`, so a project is snapshotted
+ *    automatically as somebody edits it rather than only when they remember to press Save.
  *  - `ipc.ts` is the only file here that names a channel.
  *
  * ```ts
@@ -61,8 +63,10 @@ export {
 } from "./discover.js";
 
 export {
+    discardOlderProjectRevisions,
     projectFileSource,
     projectHistoryListing,
+    projectHistoryProjects,
     projectHistoryRoot,
     projectRepositoryPath,
     recordProjectRevision,
@@ -74,6 +78,20 @@ export {
 export { saveProject, type ProjectSaveOptions, type ProjectSaveResult } from "./save.js";
 
 export {
+    DEFAULT_AUTOSAVE_MAX_WAIT_MS,
+    DEFAULT_AUTOSAVE_QUIET_MS,
+    createProjectAutosave,
+    wireAutosaveQuitFlush,
+    type AutosaveListener,
+    type AutosaveOutcome,
+    type AutosaveReason,
+    type ProjectAutosaveEngine,
+    type ProjectAutosaveOptions,
+    type QuitAppLike,
+} from "./autosave.js";
+
+export {
+    PROJECT_AUTOSAVE_EVENT_CHANNEL,
     PROJECT_CHANNELS,
     projectHistoryLocation,
     registerProjectHandlers,

@@ -41,11 +41,18 @@
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 
-import { DEFAULT_REVISION_LIMIT, type RestoreResult } from "../history/index.js";
+import { DEFAULT_REVISION_LIMIT, type HistoryWrite, type RestoreResult } from "../history/index.js";
 
+import {
+    createProjectAutosave,
+    type AutosaveReason,
+    type ProjectAutosaveEngine,
+    type ProjectAutosaveOptions,
+} from "./autosave.js";
 import { discoverProject, discoverProjects, type ProjectPresence } from "./discover.js";
 import { checkProjectValue, checkWorldFolder, readProject, type ProjectReadOutcome } from "./file.js";
 import {
+    discardOlderProjectRevisions,
     projectHistoryListing,
     projectHistoryRoot,
     type ProjectHistoryListing,
@@ -62,20 +69,51 @@ export const PROJECT_CHANNELS = [
     "project:save",
     "project:history",
     "project:restore",
+    "project:discardOlder",
+    "project:autosaveNotify",
+    "project:autosaveFlush",
 ] as const;
 
 /**
- * What this layer needs, which is exactly what the history binding needs and nothing more.
+ * Broadcast when an autosave attempt finishes, automatic or flushed, successful or not.
  *
- * An alias rather than an interface of its own, because there is no second thing to
- * configure here: the file name is a constant, the world folder arrives per call, and the
- * only choices are where the application keeps its data and how git is run. Declaring an
- * empty interface extending the other would say the same thing while implying a difference
- * that does not exist.
+ * Not one of {@link PROJECT_CHANNELS}: those are request/response `ipcMain.handle` channels,
+ * and this is a one-way `webContents.send` the main process pushes on its own schedule -
+ * nobody in the renderer asks for one of these, they arrive when the scheduler in
+ * `autosave.ts` decides a write happened. Named here, beside the rest of this channel's
+ * shape, rather than in `main/index.ts` where it is wired, so the preload and the main
+ * process cannot drift on the string.
  */
-export type ProjectIpcOptions = ProjectHistoryOptions;
+export const PROJECT_AUTOSAVE_EVENT_CHANNEL = "project:autosaveEvent";
+
+/**
+ * What this layer needs: the history binding's own options, plus the autosave scheduler's.
+ *
+ * `autosave` is optional and, when omitted, the scheduler still exists with the engine's own
+ * defaults - `project:autosaveNotify` and `project:autosaveFlush` are always registered, so an
+ * autosave is never a capability the renderer has to detect. Only a test that wants a shorter
+ * debounce than a person would ever wait for reaches into it.
+ */
+export interface ProjectIpcOptions extends ProjectHistoryOptions {
+    readonly autosave?: Pick<ProjectAutosaveOptions, "quietMs" | "maxWaitMs" | "onAutosave" | "save">;
+}
+
+/** Only the flush reasons a renderer may ask for. `quiet` is the debounce's own, never sent. */
+function checkFlushReason(value: unknown): { ok: true; reason: Exclude<AutosaveReason, "quiet"> } | { ok: false } {
+    if (value === "boundary" || value === "destructive" || value === "quit") return { ok: true, reason: value };
+    return { ok: false };
+}
 
 export interface ProjectIpc {
+    /**
+     * The scheduler backing `project:autosaveNotify`/`project:autosaveFlush`.
+     *
+     * Exposed so the application's own quit handling can flush it - see {@link
+     * wireAutosaveQuitFlush} - without a second engine being created for that purpose. Nothing
+     * about the channel handlers reaches through this in the other direction; a caller reaching
+     * in to flush a world is exactly the same call the renderer makes over IPC.
+     */
+    readonly autosave: ProjectAutosaveEngine;
     dispose(): void;
 }
 
@@ -120,6 +158,8 @@ function checkRevision(value: unknown): { ok: true; id: string } | { ok: false; 
  * duplicate registration behind - `ipcMain.handle` throws on a channel that already has one.
  */
 export function registerProjectHandlers(ipcMain: IpcMain, options: ProjectIpcOptions): ProjectIpc {
+    const autosave = createProjectAutosave({ ...options, ...options.autosave });
+
     ipcMain.handle(
         "project:read",
         async (_event: IpcMainInvokeEvent, worldFolder: unknown): Promise<ProjectReadOutcome> => {
@@ -218,9 +258,59 @@ export function registerProjectHandlers(ipcMain: IpcMain, options: ProjectIpcOpt
         },
     );
 
+    ipcMain.handle(
+        "project:discardOlder",
+        async (_event: IpcMainInvokeEvent, worldFolder: unknown, keep: unknown): Promise<HistoryWrite> => {
+            const checked = checkWorldFolder(worldFolder);
+            if (!checked.ok) return { ok: false, message: checked.reason };
+            if (typeof keep !== "number" || !Number.isFinite(keep) || keep < 1) {
+                return {
+                    ok: false,
+                    message: "How many revisions to keep has to be a whole number of at least one.",
+                };
+            }
+            return await discardOlderProjectRevisions(options, checked.folder, Math.floor(keep));
+        },
+    );
+
+    ipcMain.handle(
+        "project:autosaveNotify",
+        (_event: IpcMainInvokeEvent, worldFolder: unknown, project: unknown): void => {
+            const checked = checkWorldFolder(worldFolder);
+            if (!checked.ok) return;
+
+            // A project the renderer's own model could not have produced is not something to
+            // schedule a write for; the debounce simply never starts, exactly as if nothing had
+            // been sent. `project:save` still gets the last word on what is actually writable -
+            // this only decides whether there is something worth scheduling for it to write.
+            const value = checkProjectValue(project);
+            if (!value.ok) return;
+
+            autosave.notifyChange(checked.folder, value.project);
+        },
+    );
+
+    ipcMain.handle(
+        "project:autosaveFlush",
+        async (
+            _event: IpcMainInvokeEvent,
+            worldFolder: unknown,
+            reason: unknown,
+        ): Promise<ProjectSaveResult | null> => {
+            const checked = checkWorldFolder(worldFolder);
+            if (!checked.ok) return null;
+            const checkedReason = checkFlushReason(reason);
+            if (!checkedReason.ok) return null;
+
+            return await autosave.flush(checked.folder, checkedReason.reason);
+        },
+    );
+
     return {
+        autosave,
         dispose(): void {
             for (const channel of PROJECT_CHANNELS) ipcMain.removeHandler(channel);
+            autosave.dispose();
         },
     };
 }

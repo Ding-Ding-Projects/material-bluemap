@@ -67,8 +67,8 @@ import { installPagesIpc, PAGES_EVENT_CHANNEL } from "./pages/index.js";
 import type { PagesIpc } from "./pages/index.js";
 import { installWorldRepoIpc, WORLD_REPO_EVENT_CHANNEL } from "./worldrepo/index.js";
 import type { WorldRepoIpc } from "./worldrepo/index.js";
-import { registerProjectHandlers } from "./project/index.js";
-import type { ProjectIpc } from "./project/index.js";
+import { PROJECT_AUTOSAVE_EVENT_CHANNEL, registerProjectHandlers, wireAutosaveQuitFlush } from "./project/index.js";
+import type { AutosaveOutcome, ProjectIpc } from "./project/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
 import type { BackupIpc } from "./backup/ipc.js";
 import { installGitHubIpc } from "./github/ipc.js";
@@ -510,12 +510,33 @@ function startConfigHistory(): HistoryIpc {
  * repository is derived from the world folder on every call and lives under the app's own
  * data directory - never as a `.git` inside somebody's world, which would drop an object
  * store next to their region files and change what every backup tool sees.
+ *
+ * `wireAutosaveQuitFlush` is hooked in at the same moment the handlers are, so a project with
+ * an autosave pending is written and recorded before the application is allowed to exit - see
+ * `project/autosave.ts` for what "pending" means and why an ordinary quit with nothing pending
+ * is never delayed by this.
  */
 let projectIpc: ProjectIpc | null = null;
 
 function startProjects(): ProjectIpc {
     if (projectIpc !== null) return projectIpc;
-    projectIpc = registerProjectHandlers(ipcMain, { dataDir: app.getPath("userData") });
+    projectIpc = registerProjectHandlers(ipcMain, {
+        dataDir: app.getPath("userData"),
+        autosave: {
+            // Every autosave attempt, quiet or flushed, successful or not, is pushed to
+            // every open window rather than kept inside the main process. The renderer's
+            // own listener decides what to do with it - stay quiet for a routine success
+            // and only interrupt for a failure or a restore, per the non-blocking
+            // notification rules - but that decision needs the fact first, and this is
+            // the one place the fact exists before it crosses the bridge.
+            onAutosave: (outcome: AutosaveOutcome) => {
+                for (const window of BrowserWindow.getAllWindows()) {
+                    if (!window.isDestroyed()) window.webContents.send(PROJECT_AUTOSAVE_EVENT_CHANNEL, outcome);
+                }
+            },
+        },
+    });
+    wireAutosaveQuitFlush(app, projectIpc.autosave);
     return projectIpc;
 }
 
