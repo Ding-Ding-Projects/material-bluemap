@@ -130,6 +130,27 @@ const paintsABox = computed(() =>
     BOX_DECLARATIONS.some((declaration) => declaration in target.style.value.style),
 );
 
+/**
+ * What kind of popup `aria-haspopup` should announce.
+ *
+ * This wrapper drives two structurally different popups, not one: the context menu is a real
+ * `role="menu"` with `menuitem` rows, arrow-key navigated, and the editor
+ * (`AppearanceEditor.vue`) is a `<section>` landmark - tabs, sliders, colour pickers, buttons -
+ * a settings region, not a menu at all. `"menu"` is only the honest answer while the menu is
+ * the popup actually open (or about to open by default); once `editorOpen` is true the control
+ * owns a non-menu popup and must say so, or a screen reader user who took the
+ * Ctrl+Shift+F10/Shift+right-click route hears "has popup menu" right up to and through a
+ * tabbed form panel that is navigated nothing like a menu. `aria-controls` already switches to
+ * `editorId` in that state (below); `aria-haspopup` has to switch with it so the two attributes
+ * describe the same popup instead of two different ones.
+ *
+ * `"dialog"` is the closest of the enumerated `aria-haspopup` tokens (`menu`, `listbox`, `tree`,
+ * `grid`, `dialog`, `true`/`false`) to "a popup with form controls in it", which is what the
+ * editor is. `"menu"` remains the default for the closed state, since a plain right-click or
+ * plain Shift+F10 - the gesture with no modifier to announce in advance - opens the real menu.
+ */
+const haspopup = computed(() => (editorOpen.value ? "dialog" : "menu"));
+
 const search = ref("");
 const searchRegex = ref(false);
 const searchFlags = ref("i");
@@ -201,7 +222,31 @@ function returnFocus(): void {
     (focusable ?? element).focus();
 }
 
+/**
+ * Closes whichever popup *this* instance owns, without returning focus.
+ *
+ * This is the callback a different `AppearanceTarget` instance calls (through
+ * `claimAppearancePopup` in `useAppearance.ts`) right before it opens its own menu or editor,
+ * if this instance still has one open. `menuOpen`/`editorOpen` are refs private to this one
+ * component instance - nothing else was ever watching them - so without this coordinator,
+ * right-clicking element B while element A's context menu was still open left both rendered
+ * and interactive at once: A's own `vClickOutside` directive only closes on a real `click` DOM
+ * event, and a right mouse press never dispatches one (only `mousedown`/`contextmenu`), so
+ * nothing ever told A to close. `returnFocus()` is deliberately skipped: the popup that is
+ * about to open belongs to the *other* element, so focus is headed there, not back to an
+ * element the user has already moved away from.
+ */
+function forceClosePopup(): void {
+    menuOpen.value = false;
+    editorOpen.value = false;
+}
+
+// Stops this instance being the registered "one open popup" owner once it unmounts, so a
+// later claim from elsewhere never calls `forceClosePopup` on a component that is gone.
+onBeforeUnmount(() => releaseAppearancePopup(forceClosePopup));
+
 function openMenu(at: [number, number] | HTMLElement | undefined): void {
+    claimAppearancePopup(forceClosePopup);
     contextTarget.value = at;
     search.value = "";
     // The regex toggle and its flags belong to this one menu session, not to the element - a
@@ -218,16 +263,19 @@ function openMenu(at: [number, number] | HTMLElement | undefined): void {
 
 function closeMenu(): void {
     menuOpen.value = false;
+    releaseAppearancePopup(forceClosePopup);
     returnFocus();
 }
 
 function openEditor(): void {
+    claimAppearancePopup(forceClosePopup);
     menuOpen.value = false;
     editorOpen.value = true;
 }
 
 function closeEditor(): void {
     editorOpen.value = false;
+    releaseAppearancePopup(forceClosePopup);
     returnFocus();
 }
 
@@ -267,7 +315,7 @@ function onKeydown(event: KeyboardEvent): void {
         tabindex="-1"
         :style="target.style.value.style"
         :aria-keyshortcuts="`Shift+F10 ${EDITOR_SHORTCUT}`"
-        aria-haspopup="menu"
+        :aria-haspopup="haspopup"
         :aria-expanded="menuOpen || editorOpen ? 'true' : 'false'"
         :aria-controls="menuOpen ? menuId : editorOpen ? editorId : undefined"
         @contextmenu="onContextMenu"
