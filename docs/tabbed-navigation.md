@@ -59,6 +59,30 @@ Keeping the membership and merely hiding the tab from the group's run would make
 search report a tab that is demonstrably not in the group, which is worse than losing the
 membership because it is a lie rather than a loss.
 
+### Reaching a page a saved workspace predates
+
+`seedStrip` only ever runs once, the moment a workspace file cannot be read at all - a genuinely
+fresh install, or a file this build cannot parse. Restoring an existing one only ever repairs what
+is already there; it never invents a tab for a page the saved record does not know about, because
+"half-restore the layout and improvise the rest" is indistinguishable from a bug. That is fine
+right up until a page ships that every install, upgrading or fresh, needs to actually find - [the
+Home tab](./home.md) is exactly that case.
+
+Two small, narrowly scoped pieces of `TabbedNavigation.vue` exist for a host to lean on rather than
+reinvent:
+
+- **`pinnedPageIds`**, a prop naming the page ids pinned the moment a tab for them first exists -
+  at seed time on a fresh install, or later, through `ensurePage` below. It is applied once, at
+  creation; unpinning one of these tabs by hand afterwards is never reversed on a later mount,
+  because "hard to lose by accident" is a promise about the first time a page appears, not a
+  standing rule this component re-enforces against a choice the user already made.
+- **`ensurePage(pageId)`**, the exposed method that adds a tab for a page with none, pinning it
+  when `pinnedPageIds` names it, without moving whichever tab is currently active. A no-op once the
+  tab exists, so it is safe - and cheap enough - to call on every mount rather than behind a
+  one-time flag of the host's own. This is the third and narrowest of the three host-writable
+  actions this component exposes, alongside `revealPage` and `renamePage`: it can only add a tab
+  for a page that has none, never move, close or rename one that already exists.
+
 ### Nothing is silently clipped
 
 When the ordinary region cannot hold every segment, the ones that do not fit move into an overflow
@@ -215,6 +239,8 @@ Run them with `npx vitest run packages/ui/src/components/tabs` from `design/`.
 
 ## Suggested reading
 
+- [Home](./home.md), the one page every install - fresh or upgrading - is guaranteed a pinned tab
+  for, and the reason `pinnedPageIds`/`ensurePage` exist at all.
 - [Super confirmation](./super-confirmation.md), which stands in front of every bulk close.
 - [The regex builder and the search bars it reaches](./regex-builder.md), which supplies all four
   tab searches and both bulk-close fields.

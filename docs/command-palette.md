@@ -213,6 +213,8 @@ Run them with `npx vitest run packages/ui/src/components/palette` from `design/`
 
 ## Suggested reading
 
+- [Home](./home.md), the pinned landing tab whose capability cards reuse this same catalogue's
+  copy and the same shell handlers this file's own destination rows already open.
 - [The regex builder and the search bars it reaches](./regex-builder.md), which the palette's own
   search bar is one of.
 - [Language modes and funny levels](./language-and-tone.md), whose catalogue does not carry the

@@ -103,6 +103,7 @@ const COVERED_SURFACES = [
     "components/github",
     "components/glossary",
     "components/history",
+    "components/home",
     "components/menu",
     "components/pages",
     "components/palette",

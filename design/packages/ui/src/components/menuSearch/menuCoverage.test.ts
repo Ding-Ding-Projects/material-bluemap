@@ -214,6 +214,14 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
         menu: "Context menu of a project/world row (Edit/Reset appearance).",
         status: "has-search",
     },
+    {
+        file: "home/HomeScreen.vue",
+        builtVia: "AppearanceTarget",
+        menu:
+            "Context menu of each of the landing tab's four AppearanceTarget regions " +
+            "(the whole page, the intro, the continue row, the capability grid).",
+        status: "has-search",
+    },
 
     /* ---------------------------------------------------------------------- */
     /* Confirmed to have no context menu of any kind today                    */
