@@ -440,6 +440,62 @@ function emergencyExit(): Locator {
 }
 
 /**
+ * Selects a page's tab in the shell's own strip, whether or not it currently fits.
+ *
+ * A fresh profile seeds one tab per declared page - eleven of them - and at this
+ * harness's `SURFACE_VIEWPORT` (1280x800) only the first seven ordinary tabs fit before
+ * `TabStrip.vue`'s own overflow arithmetic moves the rest behind the "N tabs do not fit"
+ * control (see that component's own doc comment: "moved into an overflow menu and the
+ * button says how many"). That is real, working behaviour - the exact mechanism the
+ * "Tab strip" capture below exists to show - not an absent surface, so a plain
+ * `[role="tab"]` lookup for one of the later pages times out waiting for an element that
+ * is sitting behind that control rather than missing. `pagesTab.waitFor(...)` did exactly
+ * that for "Publish to Pages" and read as a broken screen in the manifest, when the fix a
+ * person would use without thinking about it is the same overflow menu `TabStrip.vue`
+ * already ships: open it, and choose the tab from the list inside.
+ *
+ * Tries the direct tab first, with a short budget rather than `ELEMENT_TIMEOUT`, so a tab
+ * that is genuinely visible activates immediately and one that is not falls through to
+ * the overflow route well inside this step's own timeout instead of spending the whole
+ * budget on a lookup that was never going to resolve.
+ *
+ * The overflow *button* is scoped to `.mb-shell-tabs`, not the bare page. `AppSettings.vue`
+ * and `ConfigScreen.vue` mount their own `TabbedNavigation` too - see the "Tab context
+ * menu" step further down this file for the exact prior bug an unscoped lookup here would
+ * repeat: it can resolve to Settings' or the options editor's own overflow control
+ * instead, invisible while that surface is closed and therefore never clickable no matter
+ * how long the wait.
+ *
+ * The overflow menu's *content* is deliberately left unscoped. `v-menu` teleports it out
+ * from under `.mb-shell-tabs` into the shared overlay container - the same reason "Tab
+ * finder" further down reaches for its panel unscoped rather than through `shellTabs` -
+ * and because this menu is not `eager` like the tab finder's, nothing is mounted for it at
+ * all until this function's own click opens it, so there is only ever one to find.
+ */
+async function openShellTab(label: RegExp): Promise<void> {
+    const shellTabs = page.locator(".mb-shell-tabs");
+    const direct = shellTabs.locator('[role="tab"]', { hasText: label }).first();
+    const directlyVisible = await direct
+        .waitFor({ state: "visible", timeout: 2_000 })
+        .then(() => true)
+        .catch(() => false);
+
+    if (directlyVisible) {
+        if ((await direct.getAttribute("aria-selected")) !== "true") {
+            await direct.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+        }
+        return;
+    }
+
+    const overflowButton = shellTabs.locator('[aria-label*="do not fit"]').first();
+    await overflowButton.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    await overflowButton.click({ timeout: ELEMENT_TIMEOUT });
+    const item = page.locator(".mb-tabs-strip__sheet .v-list-item", { hasText: label }).first();
+    await item.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
+    await item.click({ timeout: ELEMENT_TIMEOUT });
+}
+
+/**
  * Presses the command palette's own shortcut and waits for it to render.
  *
  * `Control+Shift+F`, not `Control+K`: the palette used to answer to Ctrl+K, and that
@@ -1652,12 +1708,13 @@ test("captures the remaining first-class screens", async () => {
     // Needs nothing but the application: the render list is read from disk and is honestly
     // empty on a throwaway profile, and the preflight is never run, so no GitHub account and
     // no network are involved in reaching this screen.
+    //
+    // "Publish to Pages" is the ninth of eleven seeded tabs, past the seven that fit this
+    // harness's capture viewport before the strip's own overflow arithmetic takes over - see
+    // `openShellTab`'s own doc comment for the run that first showed a plain `[role="tab"]`
+    // lookup timing out on that, not on a missing screen.
     await attempt("Pages publishing screen", async () => {
-        const pagesTab = page.locator('[role="tab"]', { hasText: /Publish to Pages/i }).first();
-        await pagesTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-        if ((await pagesTab.getAttribute("aria-selected")) !== "true") {
-            await pagesTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
-        }
+        await openShellTab(/Publish to Pages/i);
         const publish = page.locator(".mb-pages-screen");
         await publish.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         await page.waitForTimeout(500);
