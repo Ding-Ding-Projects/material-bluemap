@@ -1754,6 +1754,166 @@ export interface WorldSourceSshBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Reading a world out of a Docker container or volume ("dockerworld")        */
+/* -------------------------------------------------------------------------- */
+
+/** Mirrors `DockerWorldFailureCode` in `main/dockerworld/failure.ts`. */
+export type DockerWorldFailureCode =
+    | "invalid-request"
+    | "not-installed"
+    | "daemon-unreachable"
+    | "refused"
+    | "unusable"
+    | "not-found"
+    | "not-a-world"
+    | "live-world-not-acknowledged"
+    | "copy-failed"
+    | "storage-unwritable"
+    | "cancelled";
+
+/** Mirrors `DockerWorldFailure` in `main/dockerworld/failure.ts`. */
+export interface DockerWorldFailure {
+    code: DockerWorldFailureCode;
+    /** One sentence naming what is wrong, in words a person can act on. */
+    message: string;
+    /** Supporting evidence: Docker's own words, a path, an exit code. */
+    detail: string | null;
+}
+
+/** Mirrors `DockerContainerSummary` in `main/dockerworld/inventory.ts`. */
+export interface DockerContainerSummary {
+    id: string;
+    name: string;
+    image: string;
+    /** Docker's own status line, e.g. "Up 3 hours" or "Exited (0) 2 days ago". */
+    status: string;
+    running: boolean;
+}
+
+/** Mirrors `DockerVolumeSummary` in `main/dockerworld/inventory.ts`. */
+export interface DockerVolumeSummary {
+    name: string;
+    driver: string;
+}
+
+/** Mirrors `DockerMount` in `main/dockerworld/inventory.ts`. */
+export interface DockerMount {
+    type: string;
+    /** The host path for a bind mount, or the mountpoint Docker reports for a volume. */
+    source: string;
+    /** The volume's name, when `type` is `"volume"`. Null otherwise. */
+    volumeName: string | null;
+    /** Where this is mounted inside the container. */
+    destination: string;
+    readOnly: boolean;
+}
+
+/** Mirrors `DockerContainerDetail` in `main/dockerworld/inventory.ts`. */
+export interface DockerContainerDetail extends DockerContainerSummary {
+    mounts: DockerMount[];
+    startedAt: string | null;
+}
+
+/** Mirrors `DockerVolumeDetail` in `main/dockerworld/inventory.ts`. */
+export interface DockerVolumeDetail extends DockerVolumeSummary {
+    /** Where the volume's data lives on the daemon's own host. Rarely readable from here directly. */
+    mountpoint: string;
+}
+
+/** Mirrors `DockerWorldListAnswer` in `main/dockerworld/ipc.ts`. */
+export type DockerWorldListAnswer =
+    | { ok: true; containers: readonly DockerContainerSummary[]; volumes: readonly DockerVolumeSummary[] }
+    | { ok: false; failure: DockerWorldFailure };
+
+/** Mirrors `DockerContainerAnswer` in `main/dockerworld/ipc.ts`. */
+export type DockerContainerAnswer =
+    | { ok: true; detail: DockerContainerDetail }
+    | { ok: false; failure: DockerWorldFailure };
+
+/** Mirrors `DockerVolumeAnswer` in `main/dockerworld/ipc.ts`. */
+export type DockerVolumeAnswer =
+    | { ok: true; detail: DockerVolumeDetail }
+    | { ok: false; failure: DockerWorldFailure };
+
+/** Mirrors `DockerSourceRequest` in `main/dockerworld/fetch.ts`. */
+export type DockerSourceRequest =
+    | { kind: "container"; containerId: string; mountDestination: string }
+    | { kind: "volume"; volumeName: string };
+
+/** Mirrors `DockerWorldFetchRequest` in `main/dockerworld/fetch.ts`. */
+export interface DockerWorldFetchRequest {
+    source: DockerSourceRequest;
+    /** The local folder the world lands in. Created if it does not exist. */
+    destination: string;
+    /**
+     * True to fetch a live world anyway, having read the running warning `list`,
+     * `inspectContainer` or `fingerprint` reported. False or omitted refuses - see
+     * `main/dockerworld/failure.ts`'s `liveWorldNotAcknowledged`.
+     */
+    acknowledgeLiveRisk?: boolean;
+    /** The world's dimension, for the post-copy world check. Defaults to the overworld. */
+    dimension?: string;
+}
+
+/** Mirrors `DockerWorldFetchResult` in `main/dockerworld/fetch.ts`. */
+export type DockerWorldFetchResult =
+    | { ok: true; fetchId: string; filesCopied: number; filesUnchanged: number }
+    | { ok: false; fetchId: string; failure: DockerWorldFailure };
+
+/** Mirrors `RegionFingerprint` in `main/dockerworld/change.ts`. */
+export interface DockerWorldRegionFingerprint {
+    path: string;
+    bytes: number;
+    /** Unix seconds - `find -printf`/`stat` and Node's own `Stats` agree on that unit. */
+    modifiedAt: number;
+}
+
+/** Mirrors `WorldFingerprint` in `main/dockerworld/change.ts`. */
+export interface DockerWorldFingerprint {
+    regions: readonly DockerWorldRegionFingerprint[];
+}
+
+/**
+ * Mirrors `DockerWorldFingerprintResult` in `main/dockerworld/fetch.ts`. `fingerprint: null`
+ * is not a failure - it means the resolved route (a container or volume copy) offers no
+ * cheap vantage point; see that module's own doc comment for why.
+ */
+export type DockerWorldFingerprintResult =
+    | { ok: true; fingerprint: DockerWorldFingerprint | null }
+    | { ok: false; failure: DockerWorldFailure };
+
+/**
+ * Reading a world out of a Docker container or volume, per `main/dockerworld/ipc.ts`. The
+ * local daemon only - see that module's own doc comment for why a remote Docker host
+ * reached over SSH is not wired to a button yet.
+ *
+ * A namespace for the same reason `bedrock` and `repair` are: the picker feature-detects
+ * the whole capability at once. No method here rejects: every possible answer, including
+ * "Docker is not installed", is a sentence the picker has to show, never a stack trace.
+ * There is no `onDockerWorldEvent`: every channel here is invoke-and-await, because
+ * `main/dockerworld/ipc.ts` registers no broadcast for it (see `startDockerWorld` in
+ * `main/index.ts`) - `fetch` resolves once the copy has ended, whichever way it ended.
+ */
+export interface DockerWorldBridge {
+    /** Every container and volume Docker knows about, running or not. */
+    list(): Promise<DockerWorldListAnswer>;
+    /** One container's mounts and running state, read fresh - never cached. */
+    inspectContainer(id: string): Promise<DockerContainerAnswer>;
+    /** One volume's driver and mountpoint. */
+    inspectVolume(name: string): Promise<DockerVolumeAnswer>;
+    /** Copies a world out. Resolves once the copy has ended, whichever way it ended. */
+    fetch(request: DockerWorldFetchRequest): Promise<DockerWorldFetchResult>;
+    /** Stops a running fetch. False when nothing is running under that id. */
+    cancel(fetchId: string): Promise<boolean>;
+    /** Fetch ids still running right now. */
+    active(): Promise<readonly string[]>;
+    /** The cheap change-check fingerprint for a source, without copying anything. */
+    fingerprint(source: DockerSourceRequest): Promise<DockerWorldFingerprintResult>;
+    /** The pure half of the change check: no Docker daemon and no network. */
+    fingerprintsEqual(a: DockerWorldFingerprint, b: DockerWorldFingerprint): Promise<boolean>;
+}
+
+/* -------------------------------------------------------------------------- */
 /* The profile list's and the application settings' own version history      */
 /* -------------------------------------------------------------------------- */
 
@@ -2584,6 +2744,9 @@ interface MaterialBlueMapBridge {
      */
     sshWorldSource: WorldSourceSshBridge;
 
+    /** Reading a world out of a Docker container or volume. See {@link DockerWorldBridge}. */
+    dockerWorld: DockerWorldBridge;
+
     /**
      * A world's own record of how it should be rendered, and the history of it.
      *
@@ -3109,6 +3272,17 @@ const bridge: MaterialBlueMapBridge = {
                 ipcRenderer.off("worldsource:ssh:event", forward);
             };
         },
+    },
+
+    dockerWorld: {
+        list: () => ipcRenderer.invoke("dockerworld:list"),
+        inspectContainer: (id) => ipcRenderer.invoke("dockerworld:inspectContainer", id),
+        inspectVolume: (name) => ipcRenderer.invoke("dockerworld:inspectVolume", name),
+        fetch: (request) => ipcRenderer.invoke("dockerworld:fetch", request),
+        cancel: (fetchId) => ipcRenderer.invoke("dockerworld:cancel", fetchId),
+        active: () => ipcRenderer.invoke("dockerworld:active"),
+        fingerprint: (source) => ipcRenderer.invoke("dockerworld:fingerprint", source),
+        fingerprintsEqual: (a, b) => ipcRenderer.invoke("dockerworld:fingerprintsEqual", a, b),
     },
 
     dockerRuntime: () => ipcRenderer.invoke("runtime:docker"),

@@ -69,6 +69,8 @@ import { installPreviewIpc, PreviewNetworkStore, PREVIEW_EVENT_CHANNEL } from ".
 import type { PreviewIpc } from "./preview/index.js";
 import { installWorldRepoIpc, WORLD_REPO_EVENT_CHANNEL } from "./worldrepo/index.js";
 import type { WorldRepoIpc } from "./worldrepo/index.js";
+import { registerDockerWorldHandlers } from "./dockerworld/index.js";
+import type { DockerWorldIpc } from "./dockerworld/index.js";
 import { PROJECT_AUTOSAVE_EVENT_CHANNEL, registerProjectHandlers, wireAutosaveQuitFlush } from "./project/index.js";
 import type { AutosaveOutcome, ProjectIpc } from "./project/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
@@ -891,6 +893,23 @@ function startSshWorldSources(): WorldSourceSshIpc {
 }
 
 /**
+ * Reading a world out of a Docker container or volume, without zipping it up first.
+ *
+ * Registered once, for the same reason everything above it is. The local daemon only -
+ * see `dockerworld/ipc.ts`'s own doc comment for why a remote Docker host reached over SSH
+ * is not wired to a button yet even though `DockerWorldFetcher` already supports one, and
+ * for why no `broadcast` is wired here: every channel this registers is invoke-and-await,
+ * so there is no progress stream for a picker to miss by not subscribing to one.
+ */
+let dockerWorldIpc: DockerWorldIpc | null = null;
+
+function startDockerWorld(): DockerWorldIpc {
+    if (dockerWorldIpc !== null) return dockerWorldIpc;
+    dockerWorldIpc = registerDockerWorldHandlers(ipcMain);
+    return dockerWorldIpc;
+}
+
+/**
  * Handing a render to a Linux machine over SSH.
  *
  * Reports on the RENDER channel for the same reason: a remote render appears in the same
@@ -1107,6 +1126,7 @@ async function createWindow(): Promise<void> {
     startWorldRepoHosting();
     startWorldSources(render, downloads, github);
     startSshWorldSources();
+    startDockerWorld();
     startRuntime(render);
     startRemoteRendering(render);
     startRemoteHosting(render);
