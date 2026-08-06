@@ -44,7 +44,7 @@
  * "unlimited" -- typing `-2147483648` by hand remains the way to leave an axis unbounded.
  */
 
-import type { PlainValue } from "@material-bluemap/config";
+import type { MaskConfig, PlainValue } from "@material-bluemap/config";
 import { JAVA_DOUBLE_MAX, JAVA_INT_MAX, JAVA_INT_MIN, isUnboundedSentinel } from "./fieldValue.js";
 
 /* -------------------------------------------------------------------------- */
@@ -810,4 +810,62 @@ export function cloudFidelityForSingleShape(kind: ShapeKind, subtract: boolean):
         honored: false,
         unsupportedReason: `This is a ${kind}; the cloud/Actions render path only translates a box shape today.`,
     };
+}
+
+/**
+ * Whether the **whole** render-mask list -- every shape in it, not just one -- would survive
+ * the cloud/Actions render path.
+ *
+ * This is `cloudFidelityForSingleShape`'s list-level twin, and the gap it closes: a person can
+ * draw two ordinary, non-subtracting boxes -- an entirely unremarkable thing to do -- and every
+ * per-shape canvas alert stays quiet, because `cloudFidelityForSingleShape` only ever asks "if
+ * this shape were the mask's only entry, would it translate?" and the answer for each box alone
+ * is yes. The list as a whole is a different question, and `maskFor` in
+ * `packages/cli/src/maps.ts` answers it the same way for every list longer than one shape: the
+ * whole world renders, unmasked.
+ *
+ * A byte-for-byte hand mirror of `app/src/main/render/maskFidelity.ts`'s own `checkCloudFidelity`
+ * -- which itself hand-mirrors `maskFor` -- because `packages/ui` cannot import an Electron
+ * main-process module any more than that module can import back into this package. Keep this in
+ * agreement with `checkCloudFidelity` if that rule ever changes; `maskCanvas.test.ts` exercises
+ * the same cases `maskFidelity.test.ts` does, so a hand-sync that is missed is a red test on both
+ * sides, never a silent drift.
+ */
+export interface MaskListCloudFidelity {
+    /** `true` only when the cloud path renders exactly this whole render-mask list. */
+    readonly honored: boolean;
+    /** Named, not guessed. `null` exactly when `honored` is `true`. */
+    readonly unsupportedReason: string | null;
+}
+
+export function cloudFidelityForMask(masks: readonly MaskConfig[]): MaskListCloudFidelity {
+    if (masks.length === 0) {
+        return { honored: true, unsupportedReason: null };
+    }
+    if (masks.length === 1 && masks[0]!.type === "bluemap:box" && !masks[0]!.subtract) {
+        return { honored: true, unsupportedReason: null };
+    }
+    return { honored: false, unsupportedReason: unsupportedMaskListReason(masks) };
+}
+
+function unsupportedMaskListReason(masks: readonly MaskConfig[]): string {
+    if (masks.length > 1) {
+        return `${masks.length} shapes are configured; the cloud/Actions render path only translates a single shape today.`;
+    }
+    const only = masks[0]!;
+    if (only.subtract) {
+        return "This shape is set to subtract; the cloud/Actions render path only translates a single, non-subtracting shape today.";
+    }
+    switch (only.type) {
+        case "bluemap:circle":
+            return "This is a circle; the cloud/Actions render path only translates a box shape today.";
+        case "bluemap:ellipse":
+            return "This is an ellipse; the cloud/Actions render path only translates a box shape today.";
+        case "bluemap:polygon":
+            return "This is a polygon; the cloud/Actions render path only translates a box shape today.";
+        case "bluemap:blur":
+            return "This is a blur; the cloud/Actions render path only translates a box shape today.";
+        default:
+            return "This shape is not translated by the cloud/Actions render path today.";
+    }
 }

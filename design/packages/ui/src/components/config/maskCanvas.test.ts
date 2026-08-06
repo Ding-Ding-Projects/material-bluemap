@@ -8,6 +8,7 @@
  */
 
 import { describe, expect, it } from "vitest";
+import type { BoxMask, CircleMask, MaskConfig } from "@material-bluemap/config";
 import {
     BLOCKS_PER_REGION,
     CHUNK_BLOCKS,
@@ -21,6 +22,7 @@ import {
     aroundSpawnPreset,
     canRedo,
     canUndo,
+    cloudFidelityForMask,
     cloudFidelityForSingleShape,
     defaultShapeFor,
     estimateArea,
@@ -677,5 +679,61 @@ describe("cloudFidelityForSingleShape", () => {
             expect(result.honored).toBe(false);
             expect(result.unsupportedReason).toContain(kind);
         }
+    });
+});
+
+/**
+ * `cloudFidelityForMask` is the list-level twin of `cloudFidelityForSingleShape` above: it
+ * mirrors `app/src/main/render/maskFidelity.ts`'s own `checkCloudFidelity` by hand, the same
+ * way that file mirrors `packages/cli/src/maps.ts`'s `maskFor`. These cases are deliberately
+ * the same ones `maskFidelity.test.ts` exercises, so a hand-sync missed on either side is a
+ * red test rather than a silent drift.
+ */
+describe("cloudFidelityForMask", () => {
+    const BOX: BoxMask = {
+        type: "bluemap:box",
+        subtract: false,
+        "min-x": -100,
+        "max-x": 100,
+        "min-y": -64,
+        "max-y": 320,
+        "min-z": -100,
+        "max-z": 100,
+    };
+
+    const CIRCLE: CircleMask = {
+        type: "bluemap:circle",
+        subtract: false,
+        "center-x": 0,
+        "center-z": 0,
+        radius: 50,
+        "min-y": -64,
+        "max-y": 320,
+    };
+
+    it("honors an empty mask list -- no mask, the whole world, and that is correct", () => {
+        expect(cloudFidelityForMask([])).toEqual({ honored: true, unsupportedReason: null });
+    });
+
+    it("honors exactly one non-subtracting box", () => {
+        expect(cloudFidelityForMask([BOX])).toEqual({ honored: true, unsupportedReason: null });
+    });
+
+    it("does NOT honor a single subtracting box", () => {
+        const result = cloudFidelityForMask([{ ...BOX, subtract: true }]);
+        expect(result.honored).toBe(false);
+        expect(result.unsupportedReason).toMatch(/subtract/i);
+    });
+
+    it("does NOT honor a single circle", () => {
+        const result = cloudFidelityForMask([CIRCLE]);
+        expect(result.honored).toBe(false);
+        expect(result.unsupportedReason).toMatch(/circle/i);
+    });
+
+    it("does NOT honor two plain boxes -- the ordinary-looking case that silently loses the whole mask today", () => {
+        const result = cloudFidelityForMask([BOX, { ...BOX, "min-x": 200, "max-x": 300 } satisfies MaskConfig]);
+        expect(result.honored).toBe(false);
+        expect(result.unsupportedReason).toMatch(/2 shapes/i);
     });
 });

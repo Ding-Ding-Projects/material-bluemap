@@ -1,13 +1,15 @@
 # Drawing a render mask
 
-`render-mask` decides which part of a world BlueMap actually renders, and until this change it
-was configured entirely by typing block coordinates into numeric fields
+`render-mask` decides which part of a world BlueMap actually renders. It used to be configured
+entirely by typing block coordinates into numeric fields
 (`design/packages/ui/src/components/config/ConfigMaskField.vue`) — a control nobody can use
-without already knowing the exact X/Y/Z of the area they care about. This document covers the
-**value layer** underneath a drawing surface: the two-way-bound numbers, the honest cost
-estimate, the engine-fidelity check, and export/import. It is the plumbing a canvas draws
-against, not the canvas itself; see [What still needs building](#what-still-needs-building) for
-exactly where that line sits today.
+without already knowing the exact X/Y/Z of the area they care about. This document covers both
+halves now: the **value layer** underneath a drawing surface (the two-way-bound numbers, the
+honest cost estimate, the engine-fidelity check, and export/import) and the drawing surface
+itself, `design/packages/ui/src/components/config/MaskDrawingCanvas.vue`, an SVG canvas with
+draggable handles, snap-to-chunk/region, undo/redo, zoom, presets and a keyboard-operable
+equivalent for every gesture. See [What still needs building](#what-still-needs-building) for
+what is genuinely not wired up yet.
 
 ## Behaviour
 
@@ -84,6 +86,26 @@ phrase like "may not match exactly". `localFidelity` is the reassuring counterpa
 desktop path is always `honored: true`, whatever shape was drawn, so the warning is legibly about
 one render path and not a statement that the mask itself is broken.
 
+**The warning exists at two levels, because the risk does too.**
+`design/packages/ui/src/components/config/MaskDrawingCanvas.vue` shows a per-shape warning while
+one shape is open for drawing (`cloudFidelityForSingleShape` in `maskCanvas.ts`), which answers
+"if this shape were the mask's only entry, would the cloud path translate it?" — true for a plain
+box, false for anything else. That question alone leaves a real gap: draw **two** ordinary,
+non-subtracting boxes and every per-shape alert stays quiet, because each box *alone* would
+translate fine. The mask as a whole still does not, because the cloud path only ever keeps a list
+of exactly one shape.
+
+`design/packages/ui/src/components/config/ConfigMaskField.vue` closes that gap with a second,
+list-level check — `cloudFidelityForMask`, also in `maskCanvas.ts` — shown once for the whole
+render-mask list rather than repeated per shape, and only at the list's top level (never for a
+blur's own nested list, which softens its parent's shapes rather than standing as a mask of its
+own). It is a second hand mirror of the same rule `checkCloudFidelity` already mirrors from
+`maskFor`, kept in sync the same way: `maskCanvas.test.ts` exercises the identical cases
+`maskFidelity.test.ts` does, so a missed hand-sync on either side is a red test, never a silent
+drift. Two ordinary boxes is the case worth naming by name here, because it is the single most
+likely way a real mask exceeds what the cloud renderer understands — nothing about drawing a
+second box looks unusual, and nothing warned about it before this list-level check existed.
+
 ### Export and import
 
 `design/packages/ui/src/components/config/maskFile.ts` writes a mask list as a small,
@@ -119,22 +141,21 @@ recording. Saving a mask you just drew is a save like any other.
 
 ## What still needs building
 
-This document covers the value layer: the synchronised numeric/geometric state, the cost
-estimate, the cloud-fidelity check, and export/import — all pure, framework-agnostic modules with
-their own test suites. It does **not** cover:
+The value layer (synchronised numeric/geometric state, the cost estimate, both cloud-fidelity
+checks, export/import) and the drawing canvas itself are both built, wired together, and voiced
+in the copy catalogue (`design/packages/ui/src/copy/surfaces/maskDraw.ts` is spread into
+`SURFACE_VOICED`/`SURFACE_FIXED`/`SURFACE_FACTS` in `copy/surfaces/index.ts`, exactly like every
+other finished surface). Two things named in earlier drafts of this document are still genuinely
+not wired up:
 
-- the actual drawing canvas — an SVG or Canvas surface that renders handles, drag gestures, snap-
-  to-chunk/region toggling, undo/redo, zoom/pan, and a keyboard-operable equivalent for every
-  gesture;
-- the world-extent/spawn-point backing (`inspectWorldFolder`, `measureWorld`, `LevelData`'s spawn
-  read) that would let a canvas frame itself against the real world rather than an unlabelled
-  grid;
-- command palette entries pointing at the mask editor specifically, and copy catalogue wiring
-  (`design/packages/ui/src/copy/surfaces/maskDraw.ts` ships with the cost/fidelity/export strings
-  written and self-tested, but — per this project's standing pattern for a surface with no
-  renderer yet, the same one `speed.ts` documents — it is not yet spread into
-  `SURFACE_VOICED`/`SURFACE_FIXED`/`SURFACE_FACTS`; that happens when the canvas that renders
-  these strings lands).
+- **the world-extent/spawn-point backing.** `inspectWorldFolder`/`measureWorld`/`LevelData`'s
+  spawn read already exist for the "Make a map" wizard, but `ConfigMaskField.vue` never passes a
+  `world` prop down to the canvas — every mask editor still opens against `UNKNOWN_WORLD`, an
+  unlabelled grid with no real extent or spawn marker to frame itself against, rather than the
+  real measured world;
+- **command palette entries** pointing at the mask editor specifically. The palette's own
+  catalogue (`copy/surfaces/palette.ts`) has no `mask.*` entries yet, so the render-mask editor is
+  not reachable from a `Ctrl+Shift+F` search today.
 
 `maskDraft.ts`, `maskGeometry.ts`, `maskFile.ts` and `maskFidelity.ts` are the seam a canvas
 component binds to: call `createShapeDraft`/`setFieldText`/`setFieldNumber` for the synchronised
@@ -181,10 +202,19 @@ config editor already trusts for every other value read from a file.
   `packages/cli/src/maps.ts`'s own `maskFor` doc comment describes: empty, a single non-subtracting
   box, a single subtracting box, a circle, more than one shape, and each of the four unsupported
   shape kinds named distinctly; the local path is always honored regardless of shape.
+- `design/packages/ui/src/components/config/maskCanvas.test.ts` — `cloudFidelityForSingleShape`'s
+  own per-shape cases, plus `cloudFidelityForMask`'s list-level mirror of the same five cases
+  `maskFidelity.test.ts` exercises: empty, one non-subtracting box, one subtracting box, one
+  circle, and two plain boxes.
+- `design/packages/ui/src/components/config/ConfigMaskField.test.ts` — the list-level warning
+  actually renders: silent for an empty mask and for exactly one plain box, present for two plain
+  boxes, a single subtracting box and a single circle, and fires exactly once — never twice — for
+  a blur whose nested list holds two boxes of its own.
 - `design/packages/ui/src/copy/surfaces/maskDraw.test.ts` — the catalogue's own shape (five
   levels, both languages, no em dashes), that level 1 and level 5 genuinely read differently, and
-  that every pinned fact — the real numbers, and "whole world"/"unmasked" in the cloud-fidelity
-  warning specifically — survives every funny level in both languages.
+  that every pinned fact — the real numbers, and "whole world"/"unmasked" and "a single,
+  non-subtracting box" in the two cloud-fidelity warnings specifically — survives every funny
+  level in both languages.
 
 ## Suggested next
 

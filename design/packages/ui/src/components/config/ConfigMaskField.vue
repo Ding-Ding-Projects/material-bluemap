@@ -8,7 +8,7 @@ import ConfigControl from "./ConfigControl.vue";
 import ConfigListField from "./ConfigListField.vue";
 import { docShownText, isDocLong, provenanceOf } from "./explainField.js";
 import MaskDrawingCanvas from "./MaskDrawingCanvas.vue";
-import { UNKNOWN_WORLD, type ShapeKind, type WorldOrientation } from "./maskCanvas.js";
+import { UNKNOWN_WORLD, cloudFidelityForMask, type ShapeKind, type WorldOrientation } from "./maskCanvas.js";
 import { estimateRenderCost } from "./maskGeometry.js";
 import { normalizeMaskList } from "./maskRecordNormalize.js";
 
@@ -69,6 +69,22 @@ const worldOrientation = computed<WorldOrientation>(() => props.world);
  * at all rather than an invented one).
  */
 const wholeMaskCost = computed(() => (depthValue.value === 0 ? estimateRenderCost(normalizeMaskList(props.modelValue)) : null));
+
+/**
+ * The whole render-mask's honest cloud/Actions fidelity, shown only at the top level for the
+ * same reason `wholeMaskCost` is: a blur's own nested list is a softening of its parent's
+ * shapes, not a mask of its own, so it never raises a second top-level warning underneath the
+ * one its parent already shows.
+ *
+ * This is the check the per-shape warning inside `MaskDrawingCanvas.vue`
+ * (`cloudFidelityForSingleShape`) cannot make on its own: that check only ever asks "if this
+ * shape were the mask's only entry, would the cloud path translate it?", so two perfectly
+ * ordinary boxes -- each individually honored -- raise no warning there at all, even though the
+ * cloud path only ever keeps a list of exactly one shape and would render the whole world,
+ * unmasked, for exactly that mask. `cloudFidelityForMask` asks the question for the list as a
+ * whole instead.
+ */
+const maskFidelity = computed(() => (depthValue.value === 0 ? cloudFidelityForMask(normalizeMaskList(props.modelValue)) : null));
 
 
 interface ShapeRow {
@@ -295,6 +311,36 @@ function shapeSummary(row: ShapeRow): string {
             </span>
         </v-alert>
 
+        <!--
+          The list-level cloud/Actions fidelity warning: shown once for the whole mask, never
+          per shape, and never for a blur's own nested list (gated the same way `wholeMaskCost`
+          above is). This is the one MaskDrawingCanvas.vue's own per-shape warning cannot catch:
+          two ordinary, individually-honored boxes still lose the whole mask on the cloud path,
+          because that path only ever keeps a list of exactly one shape.
+        -->
+        <v-alert
+            v-if="maskFidelity !== null && !maskFidelity.honored"
+            type="warning"
+            density="compact"
+            variant="tonal"
+            class="mb-config-mask__fidelity"
+        >
+            <p>
+                <strong>{{ t("mask.fidelity.cloudLabel", "Cloud/Actions render") }}:</strong>
+                {{
+                    t(
+                        "mask.fidelity.listUnsupported",
+                        { reason: maskFidelity.unsupportedReason ?? "" },
+                        "This mask is not supported by the cloud/Actions render path: {reason} That path only ever translates a single, non-subtracting box, so it renders the whole world there instead, completely unmasked.",
+                    )
+                }}
+            </p>
+            <p>
+                <strong>{{ t("mask.fidelity.localLabel", "Local desktop render") }}:</strong>
+                {{ t("mask.fidelity.local", "The local desktop render always applies exactly this mask, whatever shape it is.") }}
+            </p>
+        </v-alert>
+
         <p v-if="rows.length === 0" class="mb-config-mask__empty">
             {{
                 t(
@@ -517,7 +563,8 @@ function shapeSummary(row: ShapeRow): string {
 </template>
 
 <style>
-.mb-config-mask__cost {
+.mb-config-mask__cost,
+.mb-config-mask__fidelity {
     margin-block-end: 8px;
 }
 

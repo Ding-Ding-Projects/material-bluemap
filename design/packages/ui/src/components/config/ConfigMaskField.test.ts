@@ -128,3 +128,55 @@ describe("a spot check against the real schema behaviour", () => {
         expect(wrapper.text()).toContain("Double.MAX_VALUE");
     });
 });
+
+/**
+ * The list-level cloud/Actions fidelity warning: shown once for the whole mask, never per
+ * shape. `cloudFidelityForMask` (`maskCanvas.ts`) is the pure rule this wires in; these tests
+ * prove `ConfigMaskField.vue` actually calls it and renders the result, because two ordinary
+ * boxes are exactly the case the per-shape `MaskDrawingCanvas.vue` warning cannot catch --
+ * each box alone is honored, and only the list as a whole is not.
+ */
+describe("the list-level cloud/Actions fidelity warning", () => {
+    const CLOUD_LABEL = "Cloud/Actions render";
+    const WARNING_SNIPPET = "single, non-subtracting box";
+
+    it("does not fire for an empty mask -- no mask is the correct, honored case", () => {
+        const wrapper = mountMask([]);
+        expect(wrapper.text()).not.toContain(CLOUD_LABEL);
+    });
+
+    it("does not fire for exactly one plain box -- the one shape the cloud path actually translates", () => {
+        const wrapper = mountMask([{ type: "bluemap:box" }]);
+        expect(wrapper.text()).not.toContain(CLOUD_LABEL);
+    });
+
+    it("fires for two plain boxes -- the ordinary-looking case that silently loses the whole mask today", () => {
+        const wrapper = mountMask([{ type: "bluemap:box" }, { type: "bluemap:box", "min-x": 200 }]);
+        const text = wrapper.text();
+        expect(text).toContain(CLOUD_LABEL);
+        expect(text).toContain(WARNING_SNIPPET);
+        // The failure is total, never softened: "the whole world" renders, unmasked.
+        expect(text).toContain("whole world");
+        expect(text).toContain("unmasked");
+        // The working alternative is stated too, not just the failure.
+        expect(text.toLowerCase()).toContain("local");
+    });
+
+    it("fires for a single subtracting box", () => {
+        const wrapper = mountMask([{ type: "bluemap:box", subtract: true }]);
+        expect(wrapper.text()).toContain(CLOUD_LABEL);
+    });
+
+    it("fires for a single circle", () => {
+        const wrapper = mountMask([{ type: "bluemap:circle" }]);
+        expect(wrapper.text()).toContain(CLOUD_LABEL);
+    });
+
+    it("fires exactly once for a blur that nests two boxes -- the nested list never raises its own top-level warning", () => {
+        const wrapper = mountMask([
+            { type: "bluemap:blur", masks: [{ type: "bluemap:box" }, { type: "bluemap:box", "min-x": 200 }] },
+        ]);
+        const occurrences = wrapper.text().split(CLOUD_LABEL).length - 1;
+        expect(occurrences).toBe(1);
+    });
+});

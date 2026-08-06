@@ -21,8 +21,17 @@
  * carries the reassuring half at every level too: the local desktop render always applies
  * exactly what was drawn, so the warning is about one path, not about the mask being unusable.
  *
+ * `mask.fidelity.listUnsupported` is that same fact restated for the **whole render-mask
+ * list** rather than one shape: `ConfigMaskField.vue`'s own top-level fidelity check
+ * (`cloudFidelityForMask` in `maskCanvas.ts`) fires for the one case the per-shape warning
+ * above cannot catch — two or more perfectly ordinary boxes, each individually translatable,
+ * but the cloud path only ever keeps a list of exactly one. Unlike the per-shape reason, this
+ * key states the general rule itself as fixed prose ("only a single, non-subtracting box"),
+ * not only through the dynamic `{reason}`, so the rule survives even if a future reason string
+ * is ever rewritten to omit it.
+ *
  * `MASKDRAW_FACTS` pins the real numbers and the real words: `{blocks}`, `{chunks}`,
- * `{regions}`, and — for the fidelity warning — "whole world" itself, because a message that
+ * `{regions}`, and — for the fidelity warnings — "whole world" itself, because a message that
  * stops naming what actually gets rendered is not a funnier message, it is a useless one.
  */
 
@@ -118,6 +127,29 @@ export const MASKDRAW_VOICED = {
             "friendly reminder：雲端／Actions 算圖路線而家仲譯唔到呢個遮罩（{reason}），所以喺嗰邊起嘅render會算晒成個世界，完全冇遮罩，唔係一個大概嘅範圍，唔係約莫，係成個世界都走唔甩。",
         ],
     },
+    /*
+     * The list-level warning: fires once for the whole render-mask list rather than per shape,
+     * and specifically covers the case the per-shape warning above cannot -- more than one
+     * shape, each individually fine, but the cloud path only ever keeps a list of exactly one.
+     * Every level states the general rule as fixed prose ("a single, non-subtracting box"), not
+     * only through {reason}, plus the same "whole world"/"unmasked" total-failure fact.
+     */
+    "mask.fidelity.listUnsupported": {
+        en: [
+            "This mask is not supported by the cloud/Actions render path: {reason} That path only ever translates a single, non-subtracting box, so it renders the whole world there instead, completely unmasked.",
+            "This mask is not supported by the cloud/Actions render path: {reason} That path only ever translates a single, non-subtracting box, so it renders the whole world there instead, completely unmasked.",
+            "The cloud/Actions render path cannot translate this mask: {reason} It only understands a single, non-subtracting box shape, so a render started there renders the whole world instead, completely unmasked.",
+            "The cloud/Actions render path cannot translate this mask yet: {reason} It only ever understands a single, non-subtracting box shape, so a render started there renders the whole world, completely unmasked, not an approximation of what was drawn.",
+            "Heads up: the cloud/Actions render path only understands a single, non-subtracting box shape, and this mask is not that ({reason}), so a render started there renders the whole world, completely unmasked, not a bounding box, not an approximation, the whole thing.",
+        ],
+        yue: [
+            "呢個遮罩喺雲端／Actions 算圖路線唔支援：{reason} 嗰條路線淨係譯得一個唔相減嘅箱形，所以喺嗰邊會算成個世界，完全冇遮罩。",
+            "呢個遮罩喺雲端／Actions 算圖路線唔支援：{reason} 嗰條路線淨係譯得一個唔相減嘅箱形，所以喺嗰邊會算成個世界，完全冇遮罩。",
+            "雲端／Actions 算圖路線譯唔到呢個遮罩：{reason} 佢淨係識一個唔相減嘅箱形，所以喺嗰邊起嘅render會算成個世界，完全冇遮罩。",
+            "雲端／Actions 算圖路線而家仲譯唔到呢個遮罩：{reason} 佢淨係識一個唔相減嘅箱形，所以喺嗰邊起嘅render會算成個世界，完全冇遮罩，唔係約莫畫嗰個形狀。",
+            "friendly reminder：雲端／Actions 算圖路線淨係識一個唔相減嘅箱形，呢個遮罩唔係咁款（{reason}），所以喺嗰邊起嘅render會算晒成個世界，完全冇遮罩，唔係一個大概嘅範圍，唔係約莫，係成個世界都走唔甩。",
+        ],
+    },
     /* The reassuring half, always paired with the warning above. */
     "mask.fidelity.local": {
         en: [
@@ -211,6 +243,10 @@ export const MASKDRAW_FACTS = {
     "mask.fidelity.cloudUnsupported": {
         en: ["cloud/Actions", "{reason}", "whole world", "unmasked"],
         yue: ["雲端／Actions", "{reason}", "成個世界", "冇遮罩"],
+    },
+    "mask.fidelity.listUnsupported": {
+        en: ["cloud/Actions", "{reason}", "single, non-subtracting box", "whole world", "unmasked"],
+        yue: ["雲端／Actions", "{reason}", "一個唔相減嘅箱形", "成個世界", "冇遮罩"],
     },
     "mask.fidelity.local": { en: ["local desktop render", "exactly this mask"], yue: ["本機桌面算圖", "呢個遮罩"] },
     "mask.export.done": { en: ["{shapes}", "{path}", "blocks", "Minecraft world coordinates"], yue: ["{shapes}", "{path}", "方塊", "Minecraft 世界座標"] },
