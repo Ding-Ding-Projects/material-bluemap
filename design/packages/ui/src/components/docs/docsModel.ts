@@ -102,6 +102,7 @@ export const RENDERING_ORDER: readonly string[] = [
     "ssh-world-sources.md",
     "docker-world-source.md",
     "world-git-repository.md",
+    "repository-adoption.md",
     "remote-render.md",
     "remote-hosting.md",
     "private-world-rendering.md",
