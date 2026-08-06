@@ -1005,6 +1005,35 @@ export interface ProjectBridge {
     ): Promise<ProjectSaveResult>;
     history(worldFolder: string, limit?: number): Promise<ProjectHistoryListing>;
     restore(worldFolder: string, id: string): Promise<HistoryRestoreResult>;
+    /**
+     * Keeps the newest `keep` revisions of this world's project history and removes the
+     * rest. **Destructive.** See `main/history/ipc.ts`'s `discardOlderRevisions` for why a
+     * settings surface puts this behind a two-key confirmation gate rather than a button.
+     */
+    discardOlderRevisions(worldFolder: string, keep: number): Promise<HistoryWrite>;
+
+    /**
+     * Tells the main process's autosave scheduler that this world's project now looks like
+     * this. Fire-and-forget: the scheduler debounces on its own quiet interval, and every
+     * attempt it eventually makes is reported through {@link onAutosaveEvent}, not through
+     * this call's own return value.
+     */
+    notifyAutosaveChange(worldFolder: string, project: ProjectFileContents): Promise<void>;
+    /**
+     * Writes whatever is pending for one world immediately, instead of waiting for the
+     * scheduler's debounce. Answers `null` when nothing was pending, which is the ordinary
+     * case at most boundaries.
+     */
+    flushAutosave(
+        worldFolder: string,
+        reason: "boundary" | "destructive" | "quit",
+    ): Promise<ProjectSaveResult | null>;
+    /**
+     * Every autosave attempt this scheduler makes, automatic or flushed, successful or not.
+     * The renderer's own notice policy decides what, if anything, a person is told about
+     * one - see `stores/projectAutosaveNotices.ts`.
+     */
+    onAutosaveEvent(listener: (event: ProjectAutosaveEvent) => void): () => void;
 
     /**
      * Every world this machine knows about that carries a project.
@@ -1024,7 +1053,22 @@ export interface ProjectBridge {
     writeProject(
         world: string,
         project: ProjectFileContents,
-    ): Promise<{ ok: true; file: string } | { ok: false; message: string }>;
+    ): Promise<
+        | { ok: true; file: string; historyOk: boolean; historyMessage: string; revision: HistoryRevision | null }
+        | { ok: false; message: string }
+    >;
+}
+
+/**
+ * Why one autosave happened, and what it produced. Mirrors `AutosaveOutcome` in
+ * `main/project/autosave.ts`; restated here for the same reason every other bridge type in
+ * this file is restated rather than imported - the preload is bundled separately from the
+ * main process.
+ */
+export interface ProjectAutosaveEvent {
+    worldFolder: string;
+    reason: "quiet" | "boundary" | "destructive" | "quit";
+    result: ProjectSaveResult;
 }
 
 interface HistoryBridge {
@@ -1182,6 +1226,11 @@ interface ProfilesHistoryBridge {
     list(limit?: number): Promise<ProfilesHistoryListing>;
     /** Puts the profile list back as it was at one revision, recorded as a new revision. */
     restore(id: string): Promise<RestoreResult>;
+    /**
+     * Keeps the newest `keep` revisions and removes the rest. **Destructive** - see
+     * `main/profiles/history.ts`'s `discardOlderProfilesRevisions`.
+     */
+    discardOlderRevisions(keep: number): Promise<HistoryWrite>;
 }
 
 /** The application settings' version history. Same shape as {@link ProfilesHistoryBridge}, same reason. */
@@ -1190,6 +1239,7 @@ interface AppSettingsHistoryBridge {
     save(state: AppSettingsState): Promise<AppSettingsSaveResult | { ok: false; message: string }>;
     list(limit?: number): Promise<AppSettingsHistoryListing>;
     restore(id: string): Promise<RestoreResult>;
+    discardOlderRevisions(keep: number): Promise<HistoryWrite>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1367,6 +1417,56 @@ export interface GitHubRefreshAccountResult {
     failure: GitHubFailure | null;
 }
 
+/* -------------------------------------------------------------------------- */
+/* The gh command-line tool's OWN accounts - a completely separate store      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One account the `gh` command-line tool itself has stored on this computer - NOT one of
+ * this application's own accounts above. `gh` keeps its own credential store, shared by
+ * every terminal, script and other tool on this machine, and it can hold different accounts
+ * - or a different active one - than this application does. See `main/ghcli/accounts.ts`
+ * for the full explanation and why the two are never merged into one list.
+ */
+export interface GhCliAccount {
+    login: string;
+    host: string;
+    active: boolean;
+    scopes: string[];
+    /** False when `gh` reported no scope text for this account at all (a fine-grained token). */
+    scopesReported: boolean;
+    tokenSource: string | null;
+    gitProtocol: string | null;
+    healthy: boolean;
+    stateDetail: string | null;
+    /** From this application's own scopes of interest (`repo`, `workflow`), the ones missing. */
+    missingAppScopes: string[];
+}
+
+export type GhCliAvailability = "not-installed" | "no-accounts" | "ready" | "unrecognised";
+
+export interface GhCliAccountsStatus {
+    availability: GhCliAvailability;
+    version: string | null;
+    accounts: GhCliAccount[];
+    source: "json" | "text" | null;
+    message: string;
+}
+
+/**
+ * What switching gh's active account actually did.
+ *
+ * `ok: true` is only ever reported after the main process re-read the account list and
+ * confirmed the switch genuinely took - never from `gh`'s own exit code alone. `message`
+ * always names the machine-wide consequence on success: this changes gh for every terminal,
+ * script and other tool on the computer, not only this application.
+ */
+export interface GhCliSwitchResult {
+    ok: boolean;
+    account: GhCliAccount | null;
+    message: string;
+}
+
 export /**
  * The backup types come from the main process itself rather than being restated here, so
  * this bridge cannot drift from what actually crosses. Only the two names the UI spells
@@ -1376,6 +1476,18 @@ export /**
 type BackupRepositoryChoice = RepositoryChoice;
 type BackupRepositoryReport = RepositoryReport;
 type BackupAnswer<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
+/**
+ * `backup:createRepository`'s own envelope, carrying a distinguishable failure code -
+ * `main/backup/ipc.ts` keeps this private for the same reason it keeps `BackupAnswer`
+ * private, so it is restated here rather than imported.
+ */
+type BackupCreateRepositoryAnswer =
+    | { readonly ok: true; readonly value: BackupRepositoryChoice }
+    | {
+          readonly ok: false;
+          readonly code: "name-taken" | "not-signed-in" | "other";
+          readonly message: string;
+      };
 
 interface BackupSourceReport {
     readonly kind: BackupSourceKind;
@@ -1821,6 +1933,28 @@ interface MaterialBlueMapBridge {
     /** Renews one specific account's token ahead of its own expiry. */
     githubRefreshAccount(id: string): Promise<GitHubRefreshAccountResult>;
 
+    /* ---------------------------------------------------------------------- */
+    /* The gh command-line tool's OWN accounts - a separate credential store   */
+    /* ---------------------------------------------------------------------- */
+
+    /**
+     * Every account the `gh` command-line tool itself has stored on this computer - not
+     * this application's own accounts above, and never merged with them. Absent entirely on
+     * a build with no ghCli support; the interface says so plainly rather than showing an
+     * empty list that would read as "you have no accounts".
+     */
+    ghCliListAccounts(): Promise<GhCliAccountsStatus>;
+
+    /**
+     * Switches `gh`'s own active account on one host.
+     *
+     * This changes `gh` for the **whole computer** - every terminal, script and other tool
+     * that shells out to `gh`, not only this application. Never rejects: a failure comes
+     * back `ok: false` with a message naming the real reason, and a success is only ever
+     * reported after re-reading confirmed the switch genuinely took.
+     */
+    ghCliSwitchAccount(host: string, login: string): Promise<GhCliSwitchResult>;
+
     /**
      * Reading and writing a BlueMap config folder, for the options screen.
      *
@@ -2135,6 +2269,18 @@ interface MaterialBlueMapBridge {
 
     /** Repositories the signed-in account can actually write to. */
     listBackupRepositories(): Promise<BackupAnswer<readonly BackupRepositoryChoice[]>>;
+    /**
+     * Creates a brand-new repository for somebody who has none suitable to pick from the
+     * list above, and initialises it with one starter commit so a first backup's release
+     * never lands on an empty repository. Never overwrites: GitHub itself refuses a name
+     * that already exists, reported here with its own `name-taken` code.
+     */
+    createBackupRepository(request: {
+        ownerLogin: string;
+        ownerKind: "user" | "organization";
+        name: string;
+        private: boolean;
+    }): Promise<BackupCreateRepositoryAnswer>;
     /** Reads a repository so the surface can warn about a PUBLIC one before packing. */
     inspectBackupRepository(request: { owner: string; repo: string }): Promise<BackupAnswer<BackupRepositoryReport>>;
     /** Reads a folder well enough to say what backing it up would involve. */
@@ -2291,6 +2437,9 @@ const bridge: MaterialBlueMapBridge = {
     githubSetActiveAccount: (id) => ipcRenderer.invoke("github:setActiveAccount", { id }),
     githubRefreshAccount: (id) => ipcRenderer.invoke("github:refreshAccount", { id }),
 
+    ghCliListAccounts: () => ipcRenderer.invoke("ghCli:listAccounts"),
+    ghCliSwitchAccount: (host, login) => ipcRenderer.invoke("ghCli:switchAccount", { host, login }),
+
     config: {
         readFolder: (folder) => ipcRenderer.invoke("config:readFolder", folder),
         writeFiles: (folder, files) => ipcRenderer.invoke("config:writeFiles", folder, files),
@@ -2420,6 +2569,17 @@ const bridge: MaterialBlueMapBridge = {
             ipcRenderer.invoke("project:save", worldFolder, project, replaceUnreadable === true),
         history: (worldFolder, limit) => ipcRenderer.invoke("project:history", worldFolder, limit),
         restore: (worldFolder, id) => ipcRenderer.invoke("project:restore", worldFolder, id),
+        discardOlderRevisions: (worldFolder, keep) => ipcRenderer.invoke("project:discardOlder", worldFolder, keep),
+        notifyAutosaveChange: (worldFolder, project) =>
+            ipcRenderer.invoke("project:autosaveNotify", worldFolder, project),
+        flushAutosave: (worldFolder, reason) => ipcRenderer.invoke("project:autosaveFlush", worldFolder, reason),
+        onAutosaveEvent: (listener) => {
+            const forward = (_event: IpcRendererEvent, payload: ProjectAutosaveEvent): void => listener(payload);
+            ipcRenderer.on("project:autosaveEvent", forward);
+            return () => {
+                ipcRenderer.off("project:autosaveEvent", forward);
+            };
+        },
 
         listProjects: async () => {
             const folders = (await ipcRenderer.invoke("world:folders")) as { id: string }[];

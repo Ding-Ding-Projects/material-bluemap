@@ -96,6 +96,9 @@ import { ensureJava } from "./java/index.js";
 import { registerSysdepHandlers, SYSDEP_INSTALL_EVENT_CHANNEL } from "./sysdeps/ipc.js";
 import type { SysdepIpc } from "./sysdeps/ipc.js";
 import { spawnProcessRunner } from "./sysdeps/process.js";
+import { registerGhCliHandlers } from "./ghcli/ipc.js";
+import type { GhCliIpc } from "./ghcli/ipc.js";
+import { nodeProcessRunner } from "./cirender/gh.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -459,6 +462,22 @@ function startSysdepInstaller(): SysdepIpc {
         },
     });
     return sysdepIpc;
+}
+
+/**
+ * The `gh` command-line tool's OWN accounts - a completely separate credential store from
+ * `startGitHubSignIn()`'s above. Registered once, for the same reason everything else here
+ * is. `nodeProcessRunner()` is the one real child-process runner this reuses, exactly as
+ * `cirender/`'s own CI-render `gh` fallback already does; every test in `main/ghcli/` drives
+ * a fake instead so nothing there ever spawns a real `gh` or touches this machine's real
+ * active account.
+ */
+let ghCliIpc: GhCliIpc | null = null;
+
+function startGhCliAccounts(): GhCliIpc {
+    if (ghCliIpc !== null) return ghCliIpc;
+    ghCliIpc = registerGhCliHandlers(ipcMain, { runner: nodeProcessRunner() });
+    return ghCliIpc;
 }
 
 /**
@@ -1029,6 +1048,7 @@ async function createWindow(): Promise<void> {
     startWorldInspection();
     startJavaDiscovery();
     startSysdepInstaller();
+    startGhCliAccounts();
     startConfigEditing();
     startConfigHistory();
     startProjects();
