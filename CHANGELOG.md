@@ -15,13 +15,16 @@ nobody wrote.
 This file is generated. Run `node scripts/build-changelog.mjs` to rebuild it, and
 `node scripts/build-changelog.mjs --check` to prove it is current. Generation fails rather
 than emitting a reference to a commit that cannot be resolved. The same command writes
-`design/packages/ui/src/components/changelog/changelogData.ts`, which carries each commit's
+`design/packages/ui/src/components/changelog/changelogData.generated.ts`, which carries each commit's
 full message for the in-app changelog viewer.
 
 ## Unreleased
 
 ### Interface
 
+- Separate generated changelog data from policy scans - [`af2d372754`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/af2d372754b336f22d65a6062d1fd2f102935b61)
+- Merge SSH phase into self-hosted CI bootstrap - [`bb56bd37a0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/bb56bd37a0e4705ac5dc1711dd633e25dc06727e) _(summary of 4 commits, also listed here)_
+- Merge SSH world sources into the map wizard - [`515a8cf524`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/515a8cf524d74cdb2b7722d80295bc713ff59ba8) _(summary of 3 commits, also listed here)_
 - Wire SSH world sources into the map wizard - [`0db7a0d934`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0db7a0d9341be0a2be13bcbced8765af7a2a413c)
 - Count destructive calls, not their declarations - [`26a2d49f7b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/26a2d49f7bc02c3e7f947dcfa70564a99b4355b9)
 - Wire the git-world-repository screen into the tab strip and the palette - [`6e7ee602a7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6e7ee602a7ab3bd671650dc4b52ef098dbbbe8a4)
@@ -39,6 +42,11 @@ full message for the in-app changelog viewer.
 - Bridge dockerworld: wire up the ipc.ts nobody ever called - [`64c0f9a294`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/64c0f9a2948f1281508303f8b4d4955a4cc6d868)
 - Bridge worldsource:ssh: a wizard step that could see the channel, not use it - [`76abb04b43`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/76abb04b43eb4f9fdd898be33e2d7d54939e35af)
 - Bridge worldrepo: the 11-channel git world host that had no way in - [`639308d855`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/639308d8558a713ece5582519717028ad4aa0ae3)
+
+### Build, release and tooling
+
+- Preserve historical generated-only changelog commits - [`baee22be34`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/baee22be34dcbe4451f2465d2fc7d2b6561f818a)
+- Bootstrap every self-hosted CI dependency - [`ee9087c2fb`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ee9087c2fbd4f3f4c37270a12e0303ea0ab5945a)
 
 ### Documentation
 
