@@ -19,7 +19,11 @@
 
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
-import { CHANGELOG_REPOSITORY_URL, CHANGELOG_UNRELEASED, CHANGELOG_VERSIONS } from "./changelogData.js";
+import {
+    CHANGELOG_REPOSITORY_URL,
+    CHANGELOG_UNRELEASED,
+    CHANGELOG_VERSIONS,
+} from "./changelogData.generated.js";
 import { CHANGELOG_CATEGORIES, type ChangelogEntry } from "./changelogModel.js";
 import { isDayKey } from "./changelogDates.js";
 

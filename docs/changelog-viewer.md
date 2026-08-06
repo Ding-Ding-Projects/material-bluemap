@@ -14,7 +14,7 @@ commit that cannot be resolved.
 | Output | What it is |
 |---|---|
 | `CHANGELOG.md` | The scannable record: every version, its date, its entries grouped by area, each linked to its commit. |
-| `design/packages/ui/src/components/changelog/changelogData.ts` | The same record plus each commit's full message body, which is what the viewer renders and searches. |
+| `design/packages/ui/src/components/changelog/changelogData.generated.ts` | The same record plus each commit's full message body, which is what the viewer renders and searches. Its generated filename and banner keep quoted historical prose outside executable-source policy scans. |
 
 Both are generated. Neither is edited by hand.
 

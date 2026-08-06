@@ -1,5 +1,23 @@
 # Handoff
 
+## Update, 2026-08-06 — generated history no longer impersonates executable UI
+
+CI run `31129289404` exposed three policy failures after the SSH world-source phase landed.
+Two were the same category error: `changelogData.ts` contains static, generated commit messages,
+but executable-source regex scans treated quoted historical prose and code excerpts as live
+destructive calls and promotional prompts. The generated module is now named
+`changelogData.generated.ts`, carries a generator-owned banner, and is excluded only when both
+signals agree. Watched-fail cases prove a suffix without the banner and a banner without the
+suffix remain inside the policy net, while the preserved historical `sponsorship` text remains
+in the generated record.
+
+The third failure was legitimate inventory drift. `SshWorldSourcePanel.vue` opens one blocking
+dialog after the user presses Browse; it asks the real decision “choose this remote world folder
+or cancel and keep the current path.” `BLOCKING_SURFACES` now declares that one dialog and its
+count rather than pretending the remote browser is a notification. The focused policy rerun is
+33/33 green; broader SSH, changelog, typecheck, and lint evidence is recorded with the corrective
+commit.
+
 ## Update, 2026-08-06 — every self-hosted CI job now bootstraps its own dependencies
 
 The self-hosted migration in decision D19 had accumulated correct but disconnected fixes:
