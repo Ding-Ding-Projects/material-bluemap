@@ -346,6 +346,7 @@ function toEntry(commit) {
 function isGeneratedOnlyCommit(commit) {
     return commit.files.length > 0 && commit.files.every((path) =>
         path === "CHANGELOG.md" ||
+        path === "design/packages/ui/src/components/changelog/changelogData.ts" ||
         path === "design/packages/ui/src/components/changelog/changelogData.generated.ts",
     );
 }
