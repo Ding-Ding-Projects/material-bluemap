@@ -66,6 +66,7 @@ export function titleFromMarkdown(markdown: string, fallbackId: string): string 
  * command palette's own catalogue keeps its groups in the order the surface they describe uses.
  */
 export const APPLICATION_ORDER: readonly string[] = [
+    "home.md",
     "glossary.md",
     "command-palette.md",
     "notification-centre.md",
@@ -75,24 +76,32 @@ export const APPLICATION_ORDER: readonly string[] = [
     "super-confirmation.md",
     "language-and-tone.md",
     "finding-worlds.md",
+    "path-field.md",
     "regex-builder.md",
     "config-history.md",
     "eula-and-consent.md",
+    "dependency-provisioning.md",
     "automatic-updates.md",
     "render-console.md",
 ];
 
 /** The same, for the "Rendering" table. */
 export const RENDERING_ORDER: readonly string[] = [
+    "java-runtime-provisioning.md",
     "docker-and-local.md",
     "automatic-repair.md",
     "render-in-actions.md",
+    "scheduled-render.md",
     "pages-hosting.md",
     "resumable-renders.md",
     "large-worlds.md",
     "backup.md",
     "world-sources.md",
+    "ssh-world-sources.md",
+    "docker-world-source.md",
+    "world-git-repository.md",
     "remote-render.md",
+    "remote-hosting.md",
     "private-world-rendering.md",
     "legacy-1-12-worlds.md",
     "bedrock-worlds.md",
