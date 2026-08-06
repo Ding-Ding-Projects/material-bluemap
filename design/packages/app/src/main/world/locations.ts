@@ -11,29 +11,62 @@
  *
  * ## What is looked in, and what is deliberately not
  *
- * The default installation, per platform, and a portable one beside the executable:
+ * The default Java installation, per platform, a portable one beside the executable, and
+ * (Windows only) the Bedrock Edition worlds folder:
  *
  * ```
  * Windows   %APPDATA%\.minecraft\saves
  * macOS     ~/Library/Application Support/minecraft/saves
  * elsewhere ~/.minecraft/saves
  * portable  <directory holding the running executable>/.minecraft/saves
+ * Bedrock   %LOCALAPPDATA%\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds
  * ```
  *
- * There is no entry for MultiMC, Prism, ATLauncher or any other third-party launcher, and
- * that is a decision rather than an oversight. Their instance roots move with how they
- * were installed, and nothing in this repository records the real shape of those paths -
- * writing one from memory would produce a row that silently looks in the wrong place and
- * reports "no worlds" about a folder full of them, which is worse than not looking. The
- * user-mounted folders in `mounts.ts` cover them properly: one instance's `.minecraft` is
- * mounted once, with a label, and its worlds join the list like any other. When somebody
- * confirms a launcher's layout from that launcher's own documentation, it belongs here.
+ * The Bedrock row is Windows-only because Bedrock's packaged-app storage convention
+ * (`%LOCALAPPDATA%\Packages\<PackageFamilyName>\LocalState\...`) is a Windows/MSIX thing
+ * with no equivalent on the other platforms this repository considers. `<PackageFamilyName>`
+ * is `Microsoft.MinecraftUWP_8wekyb3d8bbwe` - a fixed identity Microsoft assigns the
+ * Store's Minecraft for Windows app, documented across Microsoft's own developer docs and
+ * unrelated to any user's locale or edition. **What was actually verified on a development
+ * machine for this feature**: the general `Packages\<PackageFamilyName>\LocalState` shape
+ * is real and populated by several other installed packaged apps on that machine (this very
+ * application among them, once packaged); the specific Minecraft UWP package was not
+ * present there, because Bedrock was not installed on that machine. The row behaves exactly
+ * like every other default here when it turns out not to exist: `state: "missing"`, so the
+ * interface can say it looked rather than pretending Bedrock support was never considered.
+ *
+ * There is no entry for CurseForge's, MultiMC's, Prism's, ATLauncher's or any other
+ * third-party launcher's own instance root **as a single-`saves` default** - and for the
+ * three of those never verified on a development machine (MultiMC, Prism, ATLauncher,
+ * GDLauncher, Modrinth), there is no default entry of any kind. Their instance roots move
+ * with how they were installed, and nothing in this repository records the real shape of
+ * those paths - writing one from memory would produce a row that silently looks in the
+ * wrong place and reports "no worlds" about a folder full of them, which is worse than not
+ * looking. CurseForge is the one exception, and it is not a guess: a development machine
+ * for this feature had CurseForge actually installed, at
+ * `<home>\curseforge\minecraft\Instances\<Instance Name>\saves`, each instance folder
+ * carrying its own `minecraftinstance.json` beside its `saves`. That default root is
+ * offered through `defaultLauncherRoots` below rather than through this function, because
+ * expanding it into one row per instance needs a directory read - see `launcherRoots.ts`.
+ * For every launcher not confirmed this way, the user-mounted folders in `mounts.ts` cover
+ * it properly: `resolveMinecraftFolder` recognises the same `Instances/<name>/saves` shape
+ * on anything a person mounts by hand, launcher-name-agnostic, so a folder from an
+ * unverified launcher that happens to share CurseForge's convention still works, and one
+ * that does not is refused by name rather than silently mislooked-in. When somebody
+ * confirms another launcher's real layout from that launcher's own documentation, it
+ * belongs here as a proper default.
  */
 
 import { posix, win32 } from "node:path";
 
 /** Which of the known places a candidate came from. Reported so a row can say where it looked. */
-export type MinecraftFolderOrigin = "appdata" | "home" | "application-support" | "beside-executable";
+export type MinecraftFolderOrigin =
+    | "appdata"
+    | "home"
+    | "application-support"
+    | "beside-executable"
+    | "bedrock-appdata"
+    | "curseforge-default";
 
 export interface DefaultMinecraftFolder {
     /**
@@ -105,8 +138,8 @@ export function defaultMinecraftFolders(
     const path = pathApi(options.platform);
     const found: DefaultMinecraftFolder[] = [];
 
-    const add = (installation: string, origin: MinecraftFolderOrigin): void => {
-        const savesPath = path.join(installation, "saves");
+    const add = (installation: string, origin: MinecraftFolderOrigin, savesChildName = "saves"): void => {
+        const savesPath = path.join(installation, savesChildName);
         if (found.some((candidate) => candidate.savesPath === savesPath)) return;
         found.push({ id: `default:${origin}`, installationPath: installation, savesPath, origin });
     };
@@ -119,6 +152,29 @@ export function defaultMinecraftFolders(
             // process launched without the variable (a service, a stripped environment)
             // is not a machine without Minecraft.
             add(path.join(options.home.trim(), "AppData", "Roaming", ".minecraft"), "appdata");
+        }
+
+        // Bedrock Edition, under the packaged-app storage every Store app on Windows uses.
+        // See the module comment for exactly what was verified and what was not.
+        const localAppData = envValue(env, "LOCALAPPDATA");
+        const localAppDataRoot =
+            localAppData ??
+            (options.home !== undefined && options.home.trim() !== ""
+                ? path.join(options.home.trim(), "AppData", "Local")
+                : null);
+        if (localAppDataRoot !== null) {
+            add(
+                path.join(
+                    localAppDataRoot,
+                    "Packages",
+                    "Microsoft.MinecraftUWP_8wekyb3d8bbwe",
+                    "LocalState",
+                    "games",
+                    "com.mojang",
+                ),
+                "bedrock-appdata",
+                "minecraftWorlds",
+            );
         }
     } else if (options.platform === "darwin") {
         const home = options.home?.trim() ?? "";
@@ -133,6 +189,30 @@ export function defaultMinecraftFolders(
     if (beside !== "") add(path.join(beside, ".minecraft"), "beside-executable");
 
     return found;
+}
+
+/** A launcher's own root, offered as a candidate rather than a confirmed folder. */
+export interface DefaultLauncherRoot {
+    readonly root: string;
+    readonly origin: MinecraftFolderOrigin;
+}
+
+/**
+ * Launcher roots worth probing for a multi-instance layout, separately from
+ * {@link defaultMinecraftFolders} because expanding one into real rows needs a directory
+ * read - see `launcherRoots.ts`'s `detectLauncherRoot`, which this repository's `mounts.ts`
+ * calls against each candidate here.
+ *
+ * CurseForge only, and only on Windows: verified present on a development machine for this
+ * feature at `<home>\curseforge\minecraft`, holding an `Instances` directory with one
+ * subfolder per modpack instance, each with its own `saves`. See the module comment for
+ * what "verified" means here and why no other launcher gets a default candidate.
+ */
+export function defaultLauncherRoots(options: DefaultMinecraftFolderOptions): readonly DefaultLauncherRoot[] {
+    if (options.platform !== "win32") return [];
+    const home = options.home?.trim() ?? "";
+    if (home === "") return [];
+    return [{ root: win32.join(home, "curseforge", "minecraft"), origin: "curseforge-default" }];
 }
 
 /**
@@ -152,5 +232,9 @@ export function describeOrigin(origin: MinecraftFolderOrigin): string {
             return "the default .minecraft folder in your home directory";
         case "beside-executable":
             return "a .minecraft folder beside the application";
+        case "bedrock-appdata":
+            return "the Bedrock Edition worlds folder under %LOCALAPPDATA%";
+        case "curseforge-default":
+            return "the default CurseForge folder";
     }
 }

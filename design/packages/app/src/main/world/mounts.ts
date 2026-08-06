@@ -38,10 +38,12 @@
 import { lstat, mkdir, opendir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import {
+    defaultLauncherRoots,
     defaultMinecraftFolders,
     type DefaultMinecraftFolderOptions,
     type MinecraftFolderOrigin,
 } from "./locations.js";
+import { detectLauncherRoot, type LauncherInstance } from "./launcherRoots.js";
 
 /** Which of the two things the person handed over was found. */
 export type FolderResolution = "installation" | "saves";
@@ -102,7 +104,18 @@ export const MAX_LABEL_LENGTH = 80;
 /* -------------------------------------------------------------------------- */
 
 export type ResolveResult =
-    | { readonly ok: true; readonly savesPath: string; readonly resolution: FolderResolution }
+    | {
+          readonly ok: true;
+          readonly savesPath: string;
+          readonly resolution: FolderResolution;
+          /**
+           * Set only when `chosen` turned out to be a launcher root (see `launcherRoots.ts`):
+           * every instance found under it, `savesPath`/`resolution` above describing the
+           * first one. `mountMinecraftFolder` mounts every entry here, not only the first,
+           * so pointing at a launcher's root picks up all of its instances in one action.
+           */
+          readonly instances?: readonly LauncherInstance[];
+      }
     | { readonly ok: false; readonly message: string };
 
 /**
@@ -140,6 +153,18 @@ export async function resolveMinecraftFolder(chosen: string): Promise<ResolveRes
     if (await holdsWorlds(folder)) return { ok: true, savesPath: folder, resolution: "saves" };
     if (baseName(folder).toLowerCase() === "saves") {
         return { ok: true, savesPath: folder, resolution: "saves" };
+    }
+
+    // A launcher's own root: many instances, each with its own `saves`, rather than one
+    // `saves` folder directly under `folder`. See `launcherRoots.ts` for exactly what is
+    // recognised and why. Checked before the one-world/final refusal below so a folder that
+    // *is* a launcher root never reaches either of those misleading messages.
+    const launcherInstances = await detectLauncherRoot(folder);
+    if (launcherInstances !== null) {
+        const primary = launcherInstances[0];
+        if (primary !== undefined) {
+            return { ok: true, savesPath: primary.savesPath, resolution: "installation", instances: launcherInstances };
+        }
     }
 
     // One world, where a folder of worlds was wanted. Named as such, because this is the
@@ -354,11 +379,14 @@ export async function listMinecraftFolders(options: FolderListOptions): Promise<
     for (const candidate of defaultMinecraftFolders(options)) {
         const stored = store.labels[candidate.id];
         const { state, stateDetail } = await folderState(candidate.savesPath);
-        // The portable candidate is only listed when it really exists. The platform's own
-        // default is listed either way, because "we looked here and found nothing" is the
-        // sentence somebody with no Minecraft installed needs; a row for a portable
-        // installation nobody has is a permanent "missing" line that answers no question.
-        if (candidate.origin === "beside-executable" && state !== "ok") continue;
+        // The portable candidate and the Bedrock candidate are only listed when they really
+        // exist. The platform's own Java default is listed either way, because "we looked
+        // here and found nothing" is the sentence somebody with no Minecraft installed
+        // needs; a permanent "missing" row for a portable installation or a Bedrock/Store
+        // install nobody has answers no question and clutters every other machine's list.
+        if ((candidate.origin === "beside-executable" || candidate.origin === "bedrock-appdata") && state !== "ok") {
+            continue;
+        }
         folders.push({
             id: candidate.id,
             label: stored ?? defaultLabelFor(candidate.savesPath),
@@ -372,6 +400,34 @@ export async function listMinecraftFolders(options: FolderListOptions): Promise<
             stateDetail,
             mountedAt: null,
         });
+    }
+
+    // Launcher roots with a multi-instance layout, expanded fresh on every call so a newly
+    // installed modpack instance appears without anybody re-mounting anything. Absent
+    // entirely (not a "missing" row) when the root itself is not there or holds nothing
+    // shaped like an instance - see `defaultLauncherRoots` and `detectLauncherRoot` for why.
+    for (const root of defaultLauncherRoots(options)) {
+        const instances = await detectLauncherRoot(root.root);
+        if (instances === null) continue;
+        for (const instance of instances) {
+            if (folders.some((existing) => sameFolder(existing.savesPath, instance.savesPath))) continue;
+            const id = folderIdFor(instance.savesPath);
+            const stored = store.labels[id];
+            const { state, stateDetail } = await folderState(instance.savesPath);
+            folders.push({
+                id,
+                label: stored ?? instance.name,
+                labelled: stored !== undefined,
+                chosenPath: instance.installationPath,
+                savesPath: instance.savesPath,
+                resolution: "installation",
+                builtIn: true,
+                origin: root.origin,
+                state,
+                stateDetail,
+                mountedAt: null,
+            });
+        }
     }
 
     for (const mount of store.mounts) {
@@ -436,6 +492,11 @@ export async function mountMinecraftFolder(
     if (!resolved.ok) return resolved;
 
     const existing = await listMinecraftFolders(options);
+
+    if (resolved.instances !== undefined && resolved.instances.length > 0) {
+        return await mountLauncherInstances(resolved.instances, existing, options);
+    }
+
     const already = existing.find((folder) => sameFolder(folder.savesPath, resolved.savesPath));
     if (already !== undefined) return { ok: true, folder: already, alreadyMounted: true };
 
@@ -477,6 +538,82 @@ export async function mountMinecraftFolder(
             state,
             stateDetail,
             mountedAt: mount.mountedAt,
+        },
+    };
+}
+
+/**
+ * Mounts every instance found under a launcher root in one action.
+ *
+ * Each instance becomes its own ordinary `StoredMount`, exactly as if it had been mounted
+ * one at a time - the same id (derived from its `savesPath`), the same unmount, the same
+ * rename. What differs is only how many are added by one call, and that an instance already
+ * in the list is left alone rather than duplicated: mounting the same root a second time,
+ * after a new modpack instance has appeared, mounts only the new one.
+ *
+ * Returns the first newly mounted instance as `folder` for the caller's notice, with
+ * `alreadyMounted: true` only when *every* instance was already in the list - a root with
+ * one new instance among three familiar ones is real progress and is reported as such.
+ */
+async function mountLauncherInstances(
+    instances: readonly LauncherInstance[],
+    existing: readonly MinecraftFolder[],
+    options: FolderListOptions,
+): Promise<MountResult> {
+    const toAdd = instances.filter(
+        (instance) => !existing.some((folder) => sameFolder(folder.savesPath, instance.savesPath)),
+    );
+
+    if (toAdd.length === 0) {
+        const first = instances[0];
+        const already = first === undefined ? undefined : existing.find((folder) => sameFolder(folder.savesPath, first.savesPath));
+        if (already !== undefined) return { ok: true, folder: already, alreadyMounted: true };
+    }
+
+    const room = MAX_MOUNTS - existing.length;
+    if (room <= 0 || toAdd.length === 0) {
+        return {
+            ok: false,
+            message: `This list already holds ${MAX_MOUNTS} folders, which is as many as it keeps. Unmount one to add another.`,
+        };
+    }
+
+    const capped = toAdd.slice(0, room);
+    const nowIso = new Date().toISOString();
+    const newMounts: StoredMount[] = capped.map((instance) => ({
+        id: folderIdFor(instance.savesPath),
+        label: instance.name,
+        chosenPath: instance.installationPath,
+        savesPath: instance.savesPath,
+        resolution: "installation",
+        mountedAt: nowIso,
+    }));
+
+    if (options.storeFile != null) {
+        const store = await readFolderStore(options.storeFile);
+        await writeFolderStore(options.storeFile, { ...store, mounts: [...store.mounts, ...newMounts] });
+    }
+
+    const first = newMounts[0];
+    if (first === undefined) {
+        return { ok: false, message: "No new instance was found to mount." };
+    }
+    const { state, stateDetail } = await folderState(first.savesPath);
+    return {
+        ok: true,
+        alreadyMounted: false,
+        folder: {
+            id: first.id,
+            label: first.label,
+            labelled: false,
+            chosenPath: first.chosenPath,
+            savesPath: first.savesPath,
+            resolution: first.resolution,
+            builtIn: false,
+            origin: null,
+            state,
+            stateDetail,
+            mountedAt: first.mountedAt,
         },
     };
 }

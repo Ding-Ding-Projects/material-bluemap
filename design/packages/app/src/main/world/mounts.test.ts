@@ -255,6 +255,93 @@ describe("a folder that has gone away", () => {
     });
 });
 
+describe("mounting a launcher root with several instances", () => {
+    /** `<root>/minecraft/Instances/<name>/saves`, mirroring CurseForge's real layout. */
+    async function makeLauncherRoot(rootName: string, instances: Record<string, readonly string[]>): Promise<string> {
+        const launcherRoot = join(root, rootName);
+        for (const [name, worlds] of Object.entries(instances)) {
+            const instance = join(launcherRoot, "minecraft", "Instances", name);
+            for (const world of worlds) {
+                await mkdir(join(instance, "saves", world), { recursive: true });
+                await writeFile(join(instance, "saves", world, "level.dat"), "");
+            }
+            if (worlds.length === 0) await mkdir(join(instance, "saves"), { recursive: true });
+        }
+        return launcherRoot;
+    }
+
+    it("mounts every instance as its own folder, in one call", async () => {
+        const launcherRoot = await makeLauncherRoot("curseforge", {
+            "Day Teet": ["Bastion"],
+            "All the Mods 9": [],
+        });
+
+        const result = await mountMinecraftFolder(launcherRoot, options());
+
+        expect(result.ok).toBe(true);
+        const folders = await listMinecraftFolders(options());
+        expect(folders.map((folder) => folder.label).sort()).toEqual(["All the Mods 9", "Day Teet"]);
+        expect(folders.every((folder) => folder.builtIn === false)).toBe(true);
+    });
+
+    it("finds worlds in each instance separately, once scanned", async () => {
+        const launcherRoot = await makeLauncherRoot("curseforge", {
+            "Day Teet": ["Bastion", "Creative Test"],
+            "All the Mods 9": ["Base Camp"],
+        });
+
+        await mountMinecraftFolder(launcherRoot, options());
+        const folders = await listMinecraftFolders(options());
+
+        const dayTeet = folders.find((folder) => folder.label === "Day Teet");
+        const atm9 = folders.find((folder) => folder.label === "All the Mods 9");
+        expect(dayTeet?.savesPath.endsWith(join("Day Teet", "saves"))).toBe(true);
+        expect(atm9?.savesPath.endsWith(join("All the Mods 9", "saves"))).toBe(true);
+        expect(dayTeet?.savesPath).not.toBe(atm9?.savesPath);
+    });
+
+    it("mounts only the new instance when the root is mounted again after a new one appears", async () => {
+        const launcherRoot = await makeLauncherRoot("curseforge", { "Day Teet": ["Bastion"] });
+        await mountMinecraftFolder(launcherRoot, options());
+
+        await mkdir(join(launcherRoot, "minecraft", "Instances", "New Pack", "saves"), { recursive: true });
+        const second = await mountMinecraftFolder(launcherRoot, options());
+
+        expect(second.ok).toBe(true);
+        if (second.ok) expect(second.folder.label).toBe("New Pack");
+        const folders = await listMinecraftFolders(options());
+        expect(folders.map((folder) => folder.label).sort()).toEqual(["Day Teet", "New Pack"]);
+    });
+
+    it("reports already mounted when every instance is already in the list", async () => {
+        const launcherRoot = await makeLauncherRoot("curseforge", { "Day Teet": ["Bastion"] });
+        await mountMinecraftFolder(launcherRoot, options());
+
+        const second = await mountMinecraftFolder(launcherRoot, options());
+
+        expect(second.ok).toBe(true);
+        if (second.ok) expect(second.alreadyMounted).toBe(true);
+        expect(await listMinecraftFolders(options())).toHaveLength(1);
+    });
+
+    it("unmounting one instance leaves the others, and touches nothing on disk", async () => {
+        const launcherRoot = await makeLauncherRoot("curseforge", {
+            "Day Teet": ["Bastion"],
+            "All the Mods 9": ["Base"],
+        });
+        await mountMinecraftFolder(launcherRoot, options());
+        const folders = await listMinecraftFolders(options());
+        const dayTeet = folders.find((folder) => folder.label === "Day Teet");
+        expect(dayTeet).toBeDefined();
+
+        await unmountMinecraftFolder(dayTeet!.id, storeFile);
+
+        const after = await listMinecraftFolders(options());
+        expect(after.map((folder) => folder.label)).toEqual(["All the Mods 9"]);
+        expect(await readdir(join(launcherRoot, "minecraft", "Instances", "Day Teet", "saves"))).toEqual(["Bastion"]);
+    });
+});
+
 describe("the detected default folder", () => {
     it("is listed even when it does not exist, so the interface can say where it looked", async () => {
         const home = join(root, "home", "ada");
@@ -293,6 +380,72 @@ describe("the detected default folder", () => {
         const folders = await listMinecraftFolders(listOptions);
         expect(folders).toHaveLength(1);
         expect(folders[0]?.builtIn).toBe(true);
+    });
+
+    it("expands the CurseForge default root into one row per instance, unprompted", async () => {
+        const home = join(root, "home", "ada");
+        const instancesRoot = join(home, "curseforge", "minecraft", "Instances");
+        await mkdir(join(instancesRoot, "Day Teet", "saves", "Bastion"), { recursive: true });
+        await writeFile(join(instancesRoot, "Day Teet", "saves", "Bastion", "level.dat"), "");
+        await mkdir(join(instancesRoot, "All the Mods 9", "saves"), { recursive: true });
+
+        const folders = await listMinecraftFolders({ platform: "win32", env: {}, home, storeFile });
+        const curseforge = folders.filter((folder) => folder.origin === "curseforge-default");
+
+        const labels = curseforge.map((folder) => folder.label).sort();
+        expect(labels).toEqual(["All the Mods 9", "Day Teet"]);
+        expect(curseforge.every((folder) => folder.builtIn)).toBe(true);
+    });
+
+    it("says nothing at all about CurseForge when it is not installed, rather than a permanent missing row", async () => {
+        const home = join(root, "home", "ada");
+        const folders = await listMinecraftFolders({ platform: "win32", env: {}, home, storeFile });
+
+        expect(folders.some((folder) => folder.origin === "curseforge-default")).toBe(false);
+    });
+
+    it("picks up a new CurseForge instance on the very next read, with nothing remounted", async () => {
+        const home = join(root, "home", "ada");
+        const instancesRoot = join(home, "curseforge", "minecraft", "Instances");
+        await mkdir(join(instancesRoot, "Day Teet", "saves"), { recursive: true });
+
+        const before = await listMinecraftFolders({ platform: "win32", env: {}, home, storeFile });
+        expect(before.filter((folder) => folder.origin === "curseforge-default")).toHaveLength(1);
+
+        await mkdir(join(instancesRoot, "New Pack", "saves"), { recursive: true });
+        const after = await listMinecraftFolders({ platform: "win32", env: {}, home, storeFile });
+
+        const curseforge = after.filter((folder) => folder.origin === "curseforge-default");
+        expect(curseforge.map((folder) => folder.label).sort()).toEqual(["Day Teet", "New Pack"]);
+    });
+
+    it("is absent, not a missing row, when Bedrock's package folder is not on this machine", async () => {
+        const folders = await listMinecraftFolders({
+            platform: "win32",
+            env: { APPDATA: join(root, "appdata") },
+            home: join(root, "home", "ada"),
+            storeFile,
+        });
+
+        expect(folders.some((folder) => folder.origin === "bedrock-appdata")).toBe(false);
+    });
+
+    it("lists Bedrock's worlds folder when the packaged-app storage is really there", async () => {
+        const localAppData = join(root, "local");
+        await mkdir(
+            join(localAppData, "Packages", "Microsoft.MinecraftUWP_8wekyb3d8bbwe", "LocalState", "games", "com.mojang", "minecraftWorlds"),
+            { recursive: true },
+        );
+
+        const folders = await listMinecraftFolders({
+            platform: "win32",
+            env: { APPDATA: join(root, "appdata"), LOCALAPPDATA: localAppData },
+            storeFile,
+        });
+
+        const bedrock = folders.find((folder) => folder.origin === "bedrock-appdata");
+        expect(bedrock?.state).toBe("ok");
+        expect(bedrock?.savesPath.endsWith("minecraftWorlds")).toBe(true);
     });
 
     it("only offers a portable installation that is really there", async () => {

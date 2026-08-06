@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { defaultMinecraftFolders, describeOrigin } from "./locations.js";
+import { defaultLauncherRoots, defaultMinecraftFolders, describeOrigin } from "./locations.js";
 
 describe("the default Minecraft folder, per platform", () => {
     it("finds it under APPDATA on Windows", () => {
@@ -111,8 +111,62 @@ describe("a machine with nothing to go on", () => {
 
 describe("naming a place in a message", () => {
     it("has words for every origin it can report", () => {
-        for (const origin of ["appdata", "home", "application-support", "beside-executable"] as const) {
+        for (const origin of [
+            "appdata",
+            "home",
+            "application-support",
+            "beside-executable",
+            "bedrock-appdata",
+            "curseforge-default",
+        ] as const) {
             expect(describeOrigin(origin).length).toBeGreaterThan(10);
         }
+    });
+});
+
+describe("Bedrock Edition's worlds folder, Windows only", () => {
+    it("is built from LOCALAPPDATA's packaged-app storage, beside the Java default", () => {
+        const found = defaultMinecraftFolders({
+            platform: "win32",
+            env: { APPDATA: "C:\\Users\\ada\\AppData\\Roaming", LOCALAPPDATA: "C:\\Users\\ada\\AppData\\Local" },
+        });
+
+        expect(found.map((folder) => folder.origin)).toEqual(["appdata", "bedrock-appdata"]);
+        expect(found[1]?.savesPath).toBe(
+            "C:\\Users\\ada\\AppData\\Local\\Packages\\Microsoft.MinecraftUWP_8wekyb3d8bbwe\\LocalState\\games\\com.mojang\\minecraftWorlds",
+        );
+    });
+
+    it("builds the path LOCALAPPDATA would have expanded to when the variable is missing", () => {
+        const found = defaultMinecraftFolders({ platform: "win32", env: {}, home: "C:\\Users\\ada" });
+
+        const bedrock = found.find((folder) => folder.origin === "bedrock-appdata");
+        expect(bedrock?.savesPath).toBe(
+            "C:\\Users\\ada\\AppData\\Local\\Packages\\Microsoft.MinecraftUWP_8wekyb3d8bbwe\\LocalState\\games\\com.mojang\\minecraftWorlds",
+        );
+    });
+
+    it("is not offered on macOS or Linux, where this packaged-app storage shape does not exist", () => {
+        expect(defaultMinecraftFolders({ platform: "darwin", home: "/Users/ada" })).toHaveLength(1);
+        expect(defaultMinecraftFolders({ platform: "linux", home: "/home/ada" })).toHaveLength(1);
+    });
+
+    it("is absent, not merely empty, when there is no APPDATA, no LOCALAPPDATA and no home", () => {
+        expect(defaultMinecraftFolders({ platform: "win32", env: {} })).toEqual([]);
+    });
+});
+
+describe("the CurseForge default root candidate", () => {
+    it("is offered under the user's home directory, on Windows, when a home is known", () => {
+        const found = defaultLauncherRoots({ platform: "win32", home: "C:\\Users\\ada" });
+
+        expect(found).toEqual([{ root: "C:\\Users\\ada\\curseforge\\minecraft", origin: "curseforge-default" }]);
+    });
+
+    it("is not offered on a platform where it was never verified, or with no home directory", () => {
+        expect(defaultLauncherRoots({ platform: "darwin", home: "/Users/ada" })).toEqual([]);
+        expect(defaultLauncherRoots({ platform: "linux", home: "/home/ada" })).toEqual([]);
+        expect(defaultLauncherRoots({ platform: "win32", home: "" })).toEqual([]);
+        expect(defaultLauncherRoots({ platform: "win32" })).toEqual([]);
     });
 });
