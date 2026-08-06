@@ -134,6 +134,39 @@ function targetElement(): HTMLElement {
     return element;
 }
 
+/**
+ * Two independent `AppearanceTarget` instances side by side, which is what it takes to prove
+ * (or disprove) coordination *between* instances - `mountTarget()` above only ever renders
+ * one, so it cannot tell a fixed defect from one that was never reachable in the first place.
+ */
+function mountTwoTargets(): VueWrapper {
+    wrapper = mount(VApp, {
+        attachTo: document.body,
+        global: { plugins: [vuetify, i18n] },
+        slots: {
+            default: () =>
+                h("div", {}, [
+                    h(
+                        AppearanceTarget,
+                        { id: "test.rowA", label: "Row A" },
+                        { default: () => h("button", { class: "host-button-a" }, "Host A") },
+                    ),
+                    h(
+                        AppearanceTarget,
+                        { id: "test.rowB", label: "Row B" },
+                        { default: () => h("button", { class: "host-button-b" }, "Host B") },
+                    ),
+                ]),
+        },
+    });
+    return wrapper;
+}
+
+/** Every mounted wrapper element, in DOM order - `targetElement()` only ever returns the first. */
+function targetElements(): HTMLElement[] {
+    return [...document.querySelectorAll<HTMLElement>(".mb-appearance-target")];
+}
+
 function bodyText(): string {
     return document.body.textContent ?? "";
 }
@@ -233,6 +266,83 @@ describe("the context menu", () => {
         await settle();
 
         expect(document.activeElement?.className).toContain("host-button");
+    });
+});
+
+/**
+ * Regression for "context menu's regex search mode leaks across close/reopen".
+ *
+ * `openMenu()` used to reset only `search.value`, never `searchRegex`/`searchFlags` - both of
+ * which are bound one-way into `ConfigSearchField` and never reset by that component itself,
+ * because it is a controlled field that trusts its parent's `v-model`. A menu closed with
+ * regex mode on therefore reopened - on the same element or a completely different
+ * `AppearanceTarget` - with the toggle still active and the very next keystroke parsed as a
+ * pattern instead of the plain-text substring match every other freshly opened menu uses.
+ */
+describe("the search field's regex mode", () => {
+    /** The `.*` toggle is the only append-inner button carrying `aria-pressed`. */
+    function regexToggle(): HTMLElement | null {
+        return document.querySelector<HTMLElement>(".mb-config-search button[aria-pressed]");
+    }
+
+    it("starts a freshly opened menu in plain-text mode, not a prior session's regex mode", async () => {
+        mountTarget();
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+
+        expect(regexToggle()?.getAttribute("aria-pressed")).toBe("false");
+
+        regexToggle()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await settle();
+        expect(regexToggle()?.getAttribute("aria-pressed")).toBe("true");
+
+        // Close the menu the same way "returns focus to the element when it closes" does.
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        await settle();
+
+        // Reopen the same element's menu.
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+
+        expect(regexToggle()?.getAttribute("aria-pressed")).toBe("false");
+    });
+
+    it("resets the flags alongside the toggle, not just its visible state", async () => {
+        // The toggle's `aria-pressed` is the visible half of the leak; `searchFlags` is the
+        // other half - a flags string left over from a prior session (say, a user who added
+        // "m" for multiline) would silently change how the *next* pattern is evaluated even if
+        // the toggle itself were reset correctly. Prove both by round-tripping through the
+        // builder popover, which is the one place `flags` is actually editable.
+        mountTarget();
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+
+        regexToggle()?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await settle();
+
+        const builderButton = [...document.querySelectorAll<HTMLElement>(".mb-config-search button")].find(
+            (button) => button.textContent?.trim() === ".*",
+        );
+        builderButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await settle();
+
+        const flagChips = [...document.querySelectorAll<HTMLElement>(".mb-config-regex .v-chip")];
+        const multilineChip = flagChips.find((chip) => chip.textContent?.includes("m"));
+        multilineChip?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await settle();
+
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        await settle();
+
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+
+        expect(regexToggle()?.getAttribute("aria-pressed")).toBe("false");
+        const search = document.querySelector<HTMLInputElement>(".mb-config-search input");
+        expect(search?.value ?? "").toBe("");
     });
 });
 
@@ -501,6 +611,74 @@ describe("editing changes the element", () => {
     });
 });
 
+/**
+ * Regression for "aria-haspopup is hardcoded to 'menu' even when the wrapper's popup is the
+ * non-menu editor".
+ *
+ * The wrapper drives two structurally different popups: the context menu, a real `role="menu"`
+ * with `menuitem` rows, and the editor (`AppearanceEditor.vue`), a `<section>` landmark with
+ * tabs, sliders and colour pickers - a settings region, not a menu. Two of the three ways to
+ * reach a popup here - Ctrl+Shift+F10 and Shift+right-click - go straight to the editor and
+ * never touch the menu at all. `aria-haspopup` used to be a static `"menu"` regardless of which
+ * popup was actually open, so a screen reader user who took either of those routes was told
+ * "has popup menu" right up to and through a tabbed form panel navigated nothing like a menu -
+ * a Name/Role/Value mismatch between what was announced and what actually opened.
+ */
+describe("aria-haspopup matches whichever popup is actually open", () => {
+    it("says menu while the context menu is open", async () => {
+        mountTarget();
+        targetElement().dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+
+        expect(targetElement().getAttribute("aria-haspopup")).toBe("menu");
+    });
+
+    it("does not say menu once Ctrl+Shift+F10 opens the editor instead", async () => {
+        mountTarget();
+        targetElement().dispatchEvent(
+            new KeyboardEvent("keydown", {
+                key: "F10",
+                shiftKey: true,
+                ctrlKey: true,
+                bubbles: true,
+            }),
+        );
+        await settle();
+
+        // Sanity check that this really did open the editor and not the menu, so a failure
+        // below is about the attribute and not about which popup opened.
+        expect(bodyText()).toContain("Appearance of The test row");
+
+        expect(targetElement().getAttribute("aria-haspopup")).not.toBe("menu");
+    });
+
+    it("does not say menu once Shift+right-click opens the editor instead", async () => {
+        mountTarget();
+        targetElement().dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }),
+        );
+        await settle();
+
+        expect(bodyText()).toContain("Appearance of The test row");
+        expect(targetElement().getAttribute("aria-haspopup")).not.toBe("menu");
+    });
+
+    it("goes back to menu once the editor closes and focus returns", async () => {
+        mountTarget();
+        targetElement().dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }),
+        );
+        await settle();
+        expect(targetElement().getAttribute("aria-haspopup")).not.toBe("menu");
+
+        targetElement().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        await settle();
+
+        expect(targetElement().getAttribute("aria-haspopup")).toBe("menu");
+    });
+});
+
 describe("the wrapper's own cursor", () => {
     /**
      * Regression for "the full GUI has a mouse click cursor": both `<v-menu>`s above bind
@@ -734,5 +912,111 @@ describe("dismissal: closes on an outside pointer press", () => {
         expect(removedTypes).toContain("click");
         expect(removedTypes).toContain("mousedown");
         removeSpy.mockRestore();
+    });
+});
+
+/**
+ * Regression for "right-clicking a second element leaves the first element's context menu
+ * open".
+ *
+ * Every `AppearanceTarget` instance owns its own local `menuOpen`/`editorOpen` refs, with
+ * nothing coordinating between instances. Right-clicking element B while element A's menu was
+ * still open used to leave both rendered and interactive at once: B's `onContextMenu` only
+ * ever touched B's own refs, and A's menu can only be dismissed through Vuetify's
+ * `vClickOutside` directive, which closes on a real `click` DOM event - a right mouse press
+ * never dispatches one (only `mousedown`/`contextmenu`), so nothing ever told A to close. No
+ * native or conventional context menu leaves a previous one open like this; opening a new one
+ * always closes whichever was already open.
+ */
+describe("cross-instance dismissal: opening a second element's popup closes the first", () => {
+    /** See the "dismissal" suite above for why `.v-overlay--active` is what "open" means here. */
+    function activeCount(selector: string): number {
+        return document.querySelectorAll(`.v-overlay--active ${selector}`).length;
+    }
+
+    it("closes element A's context menu when element B's context menu opens", async () => {
+        mountTwoTargets();
+        const [elementA, elementB] = targetElements();
+        expect(elementA).not.toBeUndefined();
+        expect(elementB).not.toBeUndefined();
+
+        elementA?.dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, clientX: 10, clientY: 10 }),
+        );
+        await settle();
+        expect(activeCount(".mb-appearance-target__menu")).toBe(1);
+
+        elementB?.dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, clientX: 300, clientY: 300 }),
+        );
+        await settle();
+
+        // Exactly one menu is open now - B's - never both stacked at once.
+        expect(activeCount(".mb-appearance-target__menu")).toBe(1);
+        // And it really is B's that stayed open, not A's: `aria-expanded` on each wrapper
+        // element is this component's own record of which popup it owns (see `menuOpen ||
+        // editorOpen` in the template), independent of the shared `.mb-appearance-target__menu`
+        // class every instance's menu content carries.
+        expect(elementA?.getAttribute("aria-expanded")).toBe("false");
+        expect(elementB?.getAttribute("aria-expanded")).toBe("true");
+    });
+
+    it("closes element A's anchored editor when element B's context menu opens", async () => {
+        mountTwoTargets();
+        const [elementA, elementB] = targetElements();
+
+        elementA?.dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }),
+        );
+        await settle();
+        expect(activeCount(".mb-appearance-editor")).toBe(1);
+        expect(bodyText()).toContain("Appearance of Row A");
+
+        elementB?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+
+        expect(activeCount(".mb-appearance-editor")).toBe(0);
+        expect(activeCount(".mb-appearance-target__menu")).toBe(1);
+    });
+
+    it("closes element A's context menu when element B's editor opens directly", async () => {
+        mountTwoTargets();
+        const [elementA, elementB] = targetElements();
+
+        elementA?.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true }));
+        await settle();
+        expect(activeCount(".mb-appearance-target__menu")).toBe(1);
+
+        elementB?.dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }),
+        );
+        await settle();
+
+        expect(activeCount(".mb-appearance-target__menu")).toBe(0);
+        expect(activeCount(".mb-appearance-editor")).toBe(1);
+        expect(bodyText()).toContain("Appearance of Row B");
+    });
+
+    it("does not disturb element A's own menu when element A merely repositions it", async () => {
+        // The coordinator must be a no-op for an instance closing and reopening its own
+        // popup - only a *different* instance claiming the shared slot should force-close
+        // anything. Mirrors "a second right-click elsewhere repositions the menu rather than
+        // opening a duplicate" above, now with a second instance present to coordinate with.
+        mountTwoTargets();
+        const [elementA] = targetElements();
+
+        elementA?.dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, clientX: 10, clientY: 10 }),
+        );
+        await settle();
+        expect(activeCount(".mb-appearance-target__menu")).toBe(1);
+
+        elementA?.dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, clientX: 250, clientY: 250 }),
+        );
+        await settle();
+
+        expect(activeCount(".mb-appearance-target__menu")).toBe(1);
+        expect(elementA?.getAttribute("aria-expanded")).toBe("true");
     });
 });
