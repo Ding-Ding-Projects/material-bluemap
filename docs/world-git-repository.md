@@ -69,9 +69,12 @@ and is not merely inherited from copying the map's code:
 
 ## Publishing and updating from the application
 
-`WorldRepoHost` takes a world folder path directly — the same folder a render already
-reads, which may be an actively-running server's save folder — and a repository to keep it
-in:
+The **World repository** tab drives this end to end — `WorldRepoScreen.vue`
+(`design/packages/ui/src/components/worldrepo/`), reached from the tab strip beside
+**Publish to Pages**, the other direction the identical trick runs in. Nothing about the
+main-process host below is exclusive to that screen: `WorldRepoHost` takes a world folder
+path directly — the same folder a render already reads, which may be an actively-running
+server's save folder — and a repository to keep it in:
 
 1. **Preflight** (`WorldRepoHost.preflight`) reads the world folder, the target repository
    and branch, and reports what syncing would do without writing a byte: file count and
@@ -94,6 +97,19 @@ The marker (`.material-bluemap-world.json`) is written into the world folder its
 beside `level.dat`, because it has to be part of the pushed tree for the guard to read it
 back through GitHub's contents API — the same reason the Pages publisher's marker lives
 inside the rendered map rather than beside it.
+
+On screen, those four steps read as: a world folder chosen through the native browse
+affordance every path field in this application offers; an owner picked from a real list
+(the signed-in account plus every organisation it can write to, via `WorldRepoHost.owners`)
+rather than typed blind; **an explicit "Create this repository" button**, reusing the exact
+capability `BackupScreen.vue` already offers for the same reason that screen has one — a
+person presses a button that says it creates a repository, and never discovers that Sync did
+it silently; a **Check before anything is pushed** button that runs the preflight and shows
+its blockers and warnings before the acknowledgement checkbox can even be ticked; and a
+searchable, bulk-selectable list of **worlds this computer is tracking**, each with its own
+Open-on-GitHub, resume-if-interrupted and stop-tracking actions, the last one gated behind
+the same two-key destructive-action confirmation every other irreversible action in this
+application uses.
 
 ## Using one in GitHub Actions
 
@@ -220,12 +236,27 @@ not with git's own capabilities.
 comparator: unchanged when two branch-tip SHAs match, changed when they differ, and an
 error — never a guess — when a SHA is missing from either side.
 
+The interface has 37 tests of its own, in `design/packages/ui/src/components/worldrepo/`:
+`worldRepoBridge.test.ts` (5) proves the preload bridge is genuinely all-or-nothing across
+its eleven channels; `worldRepo.test.ts` (15) proves a sync row appears the instant Sync is
+pressed rather than waiting on the first IPC round-trip, that `pushVerified: false` is never
+silently upgraded to a plain success, and that removal is tracked through its own state
+rather than the sync event stream, because `WorldRepoHost.remove` is a plain call rather than
+a phased operation; `WorldRepoScreen.test.ts` (17) proves the explicit create-repository
+button never calls `sync` and the Sync button never calls `createBackupRepository`, that the
+acknowledgement genuinely gates the button and the disabled button names why, that bulk
+stop-tracking sits behind the two-key gate, and that every step of the adoption flow — the
+probe and viewing a plan — never calls `sync` or `remove`.
+
 Run them with `npx vitest run packages/app` and `npx vitest run packages/render-actions`
-from `design/`. The two touched workflow files are checked with `actionlint` and
-`shellcheck` installed.
+from `design/`, and `npx vitest run packages/ui/src/components/worldrepo` for the interface.
+The two touched workflow files are checked with `actionlint` and `shellcheck` installed.
 
 ## Related reading
 
+- [Adopting a repository this app already prepared](./repository-adoption.md) — the other
+  half of the same tab: recognising, on a second computer, a repository this application
+  already synced a world into on the first one.
 - [Publishing a rendered map to GitHub Pages](./pages-hosting.md) — the design this
   feature reuses, for the opposite direction: a rendered map going out, rather than a world
   coming in.

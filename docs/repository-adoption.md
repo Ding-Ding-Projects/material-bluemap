@@ -5,10 +5,14 @@ repositories it always could - but the fresh install remembers none of them. Wit
 the repository picker is a bare list, and picking the wrong entry (or the right one, then
 re-answering every question the wizard already answered once) is the ordinary outcome.
 `worldrepo/adopt.ts` recognises the repositories this application has already prepared, and
-reads back what can honestly be restored from one.
+reads back what can honestly be restored from one - reachable from the **World repository**
+tab's own "Adopt a repository from another computer" section, alongside syncing a world
+into a repository in the first place (see [A world kept in a git
+repository](./world-git-repository.md)).
 
 **Contents**
 
+- [Reaching this from the application](#reaching-this-from-the-application)
 - [The two markers, and what each one promises](#the-two-markers-and-what-each-one-promises)
 - [Checking a list: a hedge, never a certainty](#checking-a-list-a-hedge-never-a-certainty)
 - [Building a plan](#building-a-plan)
@@ -19,6 +23,37 @@ reads back what can honestly be restored from one.
 - [Security notes](#security-notes)
 - [Verification](#verification)
 - [Related reading](#related-reading)
+
+## Reaching this from the application
+
+`WorldRepoScreen.vue` (`design/packages/ui/src/components/worldrepo/`) drives all of this
+from the **World repository** tab. Its own candidate list comes from the same "repositories
+this GitHub sign-in can write to" call `BackupScreen.vue` already exposes
+(`listBackupRepositories`) rather than a second implementation of it - searchable, and
+multi-selectable so "check these 12" is one bulk action rather than 12 clicks. Checking
+returns each candidate's `AdoptionSignal` verbatim: the status becomes a chip
+("Looks like yours", "Not one of yours", "Not checked", and so on) and the hedged sentence
+itself is shown exactly as `adopt.ts` composed it, never rewritten into something more
+confident. A `"prepared"` or `"prepared-newer-version"` row offers **View what could be
+restored**, which reads the plan and shows:
+
+- the project's name, its maps, its storages and its non-default render settings, read
+  straight from `AdoptionPlan.restoring`;
+- **every item in `needsAttention`**, each with its own icon and, where a concrete
+  destination exists, its own button: the dependencies item opens Settings at the Java
+  runtime row, and the remote-host item opens Settings plain. The world-folder item does
+  not get a button of its own next to the others - it *is* the next step, answered by the
+  native folder-browse field immediately below the list;
+- `alreadyLocal`, when this computer already has a local project synced from the same
+  repository, so adopting a second time is a decision made with that fact in front of it
+  rather than discovered afterward.
+
+**Adopting** writes only the local project file - through `ProjectHost.writeProject`, the
+same call `ProjectsScreen.vue` already uses to save any project - into the world folder just
+chosen. Nothing about the repository is touched: the whole flow up to and including this
+button is `GET` requests, and the write that finally happens lands on this computer's own
+disk, never GitHub's. The finished write hands the shell straight to the Projects page, open
+at that world, the same landing spot a finished guide run already uses.
 
 ## The two markers, and what each one promises
 
@@ -199,6 +234,16 @@ and nothing token- or credential-shaped.
 `worldrepo/ipc.test.ts` proves the two IPC channels this exposes -
 `worldrepo:adoptionProbe` and `worldrepo:adoptionPlan` - refuse a malformed request and
 report an unreachable repository honestly rather than inventing a plan for it.
+
+`WorldRepoScreen.test.ts` (`design/packages/ui/src/components/worldrepo/`, part of that
+screen's 37 tests - see [A world kept in a git repository](./world-git-repository.md)'s own
+Verification section for the full breakdown) proves the interface side of the same
+discipline: the rendered hedge text is never upgraded past what `adopt.ts` actually said;
+checking and viewing a plan never call `sync` or `remove`, confirmed against a fake bridge
+that records every call it receives; every `needsAttention` item renders, with the
+dependencies and remote-host items routing to Settings at the anchor they name; and adopting
+writes through `ProjectHost.writeProject` and nothing else, emitting the world path the shell
+uses to land on the Projects page.
 
 ## Related reading
 
