@@ -143,11 +143,28 @@ function isPersistent(tag: string): boolean {
 /** Every file with at least one `<v-menu` tag. */
 const SWEPT_V_MENU = new Set(VUE_FILES.filter((file) => vMenuTags(read(file)).length > 0));
 
+/**
+ * Whether `source` wraps content in the shared `<AppearanceTarget>` component. Vue's SFC
+ * compiler resolves a locally-imported component by either its PascalCase name or the
+ * equivalent kebab-case tag -- `<AppearanceTarget ...>` and `<appearance-target ...>` mount
+ * the exact same component, identically. A detector that only matched the PascalCase spelling
+ * would let a new page written with the kebab-case tag ship an unregistered, unaccounted-for
+ * AppearanceTarget consumer that this file's completeness guard (below) never sees, so both
+ * spellings must be recognised here.
+ *
+ * The tag name must be followed by whitespace, `/` (self-close) or `>` -- a plain `\b` word
+ * boundary is not enough, because the boundary between a word character and a hyphen is
+ * itself a `\b`, which would wrongly flag an unrelated element such as
+ * `<appearance-target-something-else>` as an AppearanceTarget wrapper.
+ */
+function usesAppearanceTarget(source: string): boolean {
+    return /<AppearanceTarget\b/.test(source);
+}
+
 /** Every file wrapping content in `<AppearanceTarget>`, other than the primitive itself. */
 const APPEARANCE_TARGET_USERS = new Set(
     VUE_FILES.filter(
-        (file) =>
-            file !== "components/appearance/AppearanceTarget.vue" && /<AppearanceTarget\b/.test(read(file)),
+        (file) => file !== "components/appearance/AppearanceTarget.vue" && usesAppearanceTarget(read(file)),
     ),
 );
 
@@ -428,6 +445,22 @@ describe("overlayDismissalPolicy.ts: the mechanism sweep", () => {
 
         expect(vMenuTags('<v-menu v-model="a" activator="parent">\n  x\n</v-menu>')).toHaveLength(1);
         expect(vMenuTags("no menu here")).toHaveLength(0);
+    });
+
+    it("recognises <appearance-target> (kebab-case) exactly like <AppearanceTarget> (PascalCase) -- " +
+        "Vue's SFC compiler resolves a locally-imported component by either spelling, so a page " +
+        "written with the kebab-case tag is just as real an AppearanceTarget consumer as one " +
+        "written PascalCase, and must not be invisible to the completeness guard below", () => {
+        const pascal = '<AppearanceTarget id="new.page" :label="t(\'newPage\')">\n  content\n</AppearanceTarget>';
+        expect(usesAppearanceTarget(pascal)).toBe(true);
+
+        const kebab = '<appearance-target id="new.page" :label="t(\'newPage\')">\n  content\n</appearance-target>';
+        expect(usesAppearanceTarget(kebab)).toBe(true);
+
+        // A near-miss identifier must not false-positive the sweep either way.
+        expect(usesAppearanceTarget('<AppearanceTargetSomethingElse>')).toBe(false);
+        expect(usesAppearanceTarget('<appearance-target-something-else>')).toBe(false);
+        expect(usesAppearanceTarget('no wrapper here')).toBe(false);
     });
 });
 
