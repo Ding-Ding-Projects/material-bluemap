@@ -119,14 +119,14 @@ const VUE_FILES = vueFiles(UI_SRC).map(relativeToSource);
  * including `:activator` and `:target`). Returns -1 if the tag never closes.
  */
 function findTagEnd(source: string, start: number): number {
-    let quote: '"' | "'"' | null = null;
+    let quote: '"' | "'" | null = null;
     for (let i = start; i < source.length; i++) {
         const char = source[i];
         if (quote !== null) {
             if (char === quote) quote = null;
             continue;
         }
-        if (char === '"' || char === "'"') {
+        if (char === '"' || char === "'") {
             quote = char;
             continue;
         }
@@ -182,7 +182,7 @@ const SWEPT_V_MENU = new Set(VUE_FILES.filter((file) => vMenuTags(read(file)).le
  * `<appearance-target-something-else>` as an AppearanceTarget wrapper.
  */
 function usesAppearanceTarget(source: string): boolean {
-    return /<AppearanceTarget\b/.test(source);
+    return /<(?:AppearanceTarget|appearance-target)(?=[\s/>])/.test(source);
 }
 
 /** Every file wrapping content in `<AppearanceTarget>`, other than the primitive itself. */
