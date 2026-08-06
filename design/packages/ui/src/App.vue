@@ -10,6 +10,7 @@ import {
     mdiFolderMultipleOutline,
     mdiGavel,
     mdiHelpCircleOutline,
+    mdiHomeOutline,
     mdiMapOutline,
     mdiMapPlus,
     mdiServerNetwork,
@@ -17,6 +18,7 @@ import {
 } from "@mdi/js";
 import type { MenuPage } from "@material-bluemap/viewer";
 import MapView from "./components/MapView.vue";
+import { HomeScreen } from "./components/home/index.js";
 import ProfileManager from "./components/ProfileManager.vue";
 import ZoomButtons from "./components/controls/ZoomButtons.vue";
 import FreeFlightMobileControls from "./components/controls/FreeFlightMobileControls.vue";
@@ -87,6 +89,7 @@ useBlueMapTheme(currentApp);
  * page whose slot name has drifted from its id renders the tab system's honest "this build
  * has no content for that page" message rather than failing loudly.
  */
+const PAGE_HOME = "home";
 const PAGE_MAP = "map";
 const PAGE_WORLD = "world";
 const PAGE_PROJECTS = "projects";
@@ -97,6 +100,12 @@ const PAGE_PAGES = "pages";
 const PAGE_DOCS = "docs";
 
 const pages = computed<TabPage[]>(() => [
+    // First in the strip and pinned on a fresh install (see the `pinned-page-ids` binding
+    // below): the one destination that represents every capability this app has, weighted
+    // so a newcomer sees the single obvious next step and a returning user sees what they
+    // were doing last. "Opening new tabs, people won't know where to go at first" is the
+    // exact complaint this page exists to answer.
+    { id: PAGE_HOME, label: t("tabs.page.home", "Home"), icon: mdiHomeOutline },
     { id: PAGE_MAP, label: t("tabs.page.map", "Map"), icon: mdiMapOutline },
     { id: PAGE_WORLD, label: t("tabs.page.world", "Make a map"), icon: mdiMapPlus },
     // Next to the guide rather than at the end of the strip, because they are the two ends
@@ -132,6 +141,21 @@ const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
 function revealPage(pageId: string): void {
     tabs.value?.revealPage(pageId);
 }
+
+/**
+ * Home reaches every workspace, not only a fresh install's.
+ *
+ * `TabbedNavigation`'s own seeding pins Home for a genuinely new install, because
+ * `PAGE_HOME` is first in `pages` and `pinned-page-ids` names it - see that binding above.
+ * A workspace saved by an earlier build never restores a tab for a page it did not know
+ * about, though, so `ensurePage` is what reaches an upgrading user: it adds a pinned Home
+ * tab exactly once and otherwise does nothing, on every mount, per its own doc comment on
+ * `TabbedNavigation.vue`. Cheap enough to call unconditionally rather than behind a
+ * one-time flag of this component's own.
+ */
+onMounted(() => {
+    tabs.value?.ensurePage(PAGE_HOME);
+});
 
 /**
  * A glossary term's "tell me more" link asking for the Docs tab specifically.
@@ -610,7 +634,28 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     :label="t('appearance.target.app.tabBar', 'The tab bar')"
                     as="div"
                 >
-                    <TabbedNavigation ref="tabs" :pages="pages">
+                    <TabbedNavigation ref="tabs" :pages="pages" :pinned-page-ids="[PAGE_HOME]">
+                        <!--
+                            Home draws no canvas and owns no shell-level state, so its page
+                            slot is a thin, scrollable host - the same shape every other
+                            non-map page here uses. Every destination it offers emits back to
+                            this component, exactly as `WorldScreen` and `ProjectsScreen`
+                            already do, so the code that actually opens a surface stays in
+                            the one place that already owns it.
+                        -->
+                        <template #home>
+                            <div class="mb-world-host mb-interactive">
+                                <HomeScreen
+                                    @reveal-page="revealPage"
+                                    @open-settings="openSettings($event)"
+                                    @open-config="openConfig($event)"
+                                    @open-eula="eulaOpen = true"
+                                    @open-welcome="welcomeOpen = true"
+                                    @open-palette="paletteOpen = true"
+                                />
+                            </div>
+                        </template>
+
                         <!--
                             The map page draws nothing of its own: the canvas is behind the
                             whole application layer, so this page is a transparent,

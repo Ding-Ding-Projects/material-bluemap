@@ -24,6 +24,7 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import App from "./App.vue";
+import { HomeScreen } from "./components/home/index.js";
 import ProfileManager from "./components/ProfileManager.vue";
 import { BackupScreen } from "./components/backup/index.js";
 import PagesScreen from "./components/pages/PagesScreen.vue";
@@ -211,10 +212,14 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("separates the shell into eight pages behind one persistent strip", () => {
+    it("separates the shell into nine pages behind one persistent strip", () => {
         shell();
 
         expect(tabLabels()).toEqual([
+            // Pinned tabs announce that state in their own accessible name - see
+            // `TabButton.vue`'s `tabs.strip.pinnedTab` - which is also the proof that Home
+            // really did seed pinned rather than merely first in the ordinary region.
+            "Home, pinned",
             "Map",
             "Make a map",
             "Projects",
@@ -226,6 +231,18 @@ describe("the tab strip", () => {
         ]);
     });
 
+    it("reaches Home through its own tab, pinned so it cannot be swept up by a bulk close", async () => {
+        const app = shell();
+
+        const homeTab = tabButton("Home, pinned");
+        expect(homeTab.closest(".mb-tabs-strip__pinned")).not.toBeNull();
+
+        homeTab.click();
+        await settle();
+
+        expect(app.findComponent(HomeScreen).exists()).toBe(true);
+    });
+
     it("reaches the docs browser through its own tab", async () => {
         shell();
 
@@ -235,8 +252,18 @@ describe("the tab strip", () => {
         expect(document.querySelector(".mb-docs")).not.toBeNull();
     });
 
-    it("opens on the map, which is where the map-state message lives", () => {
+    it("opens on Home for a fresh install, rather than an unexplained tab of eight strangers", () => {
+        const app = shell();
+
+        expect(app.findComponent(HomeScreen).exists()).toBe(true);
+        expect(document.querySelector(".mb-map-page")).toBeNull();
+    });
+
+    it("shows the map-state message once the Map tab is chosen", async () => {
         shell();
+
+        tabButton("Map").click();
+        await settle();
 
         expect(document.querySelector(".mb-map-page")).not.toBeNull();
         expect(document.querySelector(".mb-map-state")?.textContent).toContain("No map loaded.");
