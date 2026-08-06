@@ -197,6 +197,35 @@ export function worldAtPath(
     return worlds.find((world) => samePath(world.path, path)) ?? null;
 }
 
+/**
+ * One row per world, even when the same world was reachable through two mounted folders.
+ *
+ * The common case never reaches this at all: mounting a Minecraft folder and its own
+ * `saves` folder both resolves to the same `savesPath` on the main-process side
+ * (`folderIdFor` in `mounts.ts`), so the second mount is refused as already-mounted before
+ * a second folder row - and therefore a second copy of every world in it - could ever
+ * exist. This is the belt to that braces: a defensive, independently testable pass over
+ * whatever the bridge actually returned, for the cases that folder-level dedup does not
+ * reach - a stale cache, a symlinked folder, two different bridges disagreeing about a
+ * path's casing.
+ *
+ * "The same world" is decided by {@link samePath} on `world.path` - separator-folded and
+ * case-folded, exactly as every other identity check in this module - which is the stable
+ * identifier the contract asks for rather than a raw string comparison. The first
+ * occurrence wins and the rest are dropped, so the result stays stable regardless of which
+ * folder a duplicate happened to be read from first.
+ */
+export function dedupeWorldsByPath(
+    worlds: readonly MinecraftWorldSummary[],
+): readonly MinecraftWorldSummary[] {
+    const seen: MinecraftWorldSummary[] = [];
+    for (const world of worlds) {
+        if (seen.some((kept) => samePath(kept.path, world.path))) continue;
+        seen.push(world);
+    }
+    return seen;
+}
+
 /* -------------------------------------------------------------------------- */
 /* The words                                                                  */
 /* -------------------------------------------------------------------------- */

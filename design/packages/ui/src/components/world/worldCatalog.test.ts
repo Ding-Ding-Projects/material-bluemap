@@ -12,6 +12,7 @@
 import { describe, expect, it } from "vitest";
 import {
     describeFolderState,
+    dedupeWorldsByPath,
     dimensionCount,
     displayName,
     formatWorldSize,
@@ -202,6 +203,42 @@ describe("recognising a folder somebody already has", () => {
 
         expect(worldAtPath(worlds, "/home/ada/.minecraft/saves/Bastion/")?.name).toBe("Bastion");
         expect(worldAtPath(worlds, "/media/usb/Bastion")).toBeNull();
+    });
+});
+
+describe("the same world reachable two ways", () => {
+    it("keeps one row when two folders both produced the same path", () => {
+        const worlds = [
+            world({ folderId: "mount:one", path: "/home/ada/.minecraft/saves/Bastion", name: "Bastion" }),
+            world({ folderId: "mount:two", path: "/home/ada/.minecraft/saves/Bastion", name: "Bastion" }),
+        ];
+
+        const deduped = dedupeWorldsByPath(worlds);
+
+        expect(deduped).toHaveLength(1);
+        expect(deduped[0]?.folderId).toBe("mount:one");
+    });
+
+    it("folds case and separators, the same identity samePath uses everywhere else", () => {
+        const worlds = [
+            world({ path: "D:\\Saves\\Bastion", name: "Bastion" }),
+            world({ path: "d:/saves/bastion/", name: "Bastion" }),
+        ];
+
+        expect(dedupeWorldsByPath(worlds)).toHaveLength(1);
+    });
+
+    it("keeps every world when none of the paths collide", () => {
+        const worlds = [
+            world({ path: "/a/Bastion", name: "Bastion" }),
+            world({ path: "/a/Creative Test", name: "Creative Test" }),
+        ];
+
+        expect(dedupeWorldsByPath(worlds)).toHaveLength(2);
+    });
+
+    it("does not choke on an empty list", () => {
+        expect(dedupeWorldsByPath([])).toEqual([]);
     });
 });
 

@@ -76,6 +76,8 @@ export const APPLICATION_ORDER: readonly string[] = [
     "super-confirmation.md",
     "language-and-tone.md",
     "finding-worlds.md",
+    "project-world-discovery.md",
+    "dimension-detection.md",
     "path-field.md",
     "regex-builder.md",
     "config-history.md",
@@ -85,6 +87,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "gh-cli-accounts.md",
     "automatic-updates.md",
     "render-console.md",
+    "renders-in-progress.md",
 ];
 
 /** The same, for the "Rendering" table. */

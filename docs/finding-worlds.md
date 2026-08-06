@@ -8,10 +8,12 @@ works: the default Minecraft installation is found without anybody adding it.
 
 | Place | Path |
 |---|---|
-| Windows | `%APPDATA%\.minecraft\saves`, falling back to building the path from the home directory when the variable is absent |
+| Windows (Java) | `%APPDATA%\.minecraft\saves`, falling back to building the path from the home directory when the variable is absent |
 | macOS | `~/Library/Application Support/minecraft/saves` |
 | Everywhere else | `~/.minecraft/saves` |
 | Portable | `<directory of the running executable>/.minecraft/saves`, listed **only when it really exists** |
+| Windows (Bedrock) | `%LOCALAPPDATA%\Packages\Microsoft.MinecraftUWP_8wekyb3d8bbwe\LocalState\games\com.mojang\minecraftWorlds`, listed **only when it really exists** |
+| Windows (CurseForge) | `%USERPROFILE%\curseforge\minecraft\Instances\<Instance Name>\saves`, one row per instance, listed **only when the root really exists** |
 | Anything else | folders the user has mounted (below) |
 
 `main/world/locations.ts` takes the platform, the environment, the home directory and the
@@ -20,12 +22,44 @@ layout is testable from a Linux CI runner. That is not a stylistic preference: t
 repository has already shipped a path bug that no test could reach for exactly that reason,
 and `main/java/discovery.ts` carries the same note.
 
-### Why there is no MultiMC or Prism entry
+### Bedrock Edition and CurseForge, and what "verified" means for each
 
-Their instance-root layouts could not be confirmed from anything in this repository, and a
-guessed root reports *no worlds* about a folder full of them. That is worse than not
-looking, because it answers a question it was never asked and looks authoritative doing it.
-Mounting covers those installations properly, and `locations.ts` says so in its header.
+Both rows above were added only after being checked against a real, installed layout on a
+development machine, in keeping with the rule the rest of this section explains.
+
+- **Bedrock.** `%LOCALAPPDATA%\Packages\<PackageFamilyName>\LocalState\...` is Windows' own
+  storage convention for every packaged Store app, confirmed present and populated by
+  several other installed packaged apps on that development machine. `Microsoft.MinecraftUWP_
+  8wekyb3d8bbwe` is Microsoft's own fixed package identity for Minecraft for Windows,
+  documented independently of this repository. What was **not** observed is the Minecraft
+  UWP package itself - Bedrock was not installed on that machine - so the row behaves like
+  the existing portable-installation row: silent when absent, never a permanent "missing"
+  line on every machine that lacks it. Once Bedrock's `level.dat` is found (little-endian
+  NBT behind an 8-byte header, not the Java format), the existing detection in
+  [Bedrock Edition worlds](./bedrock-worlds.md) names it as Bedrock rather than reporting a
+  parse failure - this location just gets that folder in front of the same detector.
+- **CurseForge.** Confirmed for real: a development machine had it installed, at
+  `<home>\curseforge\minecraft\Instances\<Instance Name>\saves`, each instance carrying its
+  own `minecraftinstance.json` beside its `saves`. A CurseForge installation holds *several*
+  instances under one root rather than one `saves` folder directly, so this is not a single
+  row like the others - `main/world/launcherRoots.ts`'s `detectLauncherRoot` reads the
+  `Instances` directory and lists every instance under it as its own row, re-read on every
+  visit to the list so a newly created modpack instance appears without anybody re-mounting
+  anything.
+
+### Why there is still no MultiMC, Prism, ATLauncher, GDLauncher or Modrinth default entry
+
+None of the five could be confirmed on a real machine for this feature, and a guessed root
+reports *no worlds* about a folder full of them. That is worse than not looking, because it
+answers a question it was never asked and looks authoritative doing it.
+
+What changed is that the check `detectLauncherRoot` runs is **the shape**, not a hardcoded
+launcher name: an `Instances` directory (any case) whose children each hold their own
+`saves`. A folder from one of these five launchers that happens to share the same
+convention CurseForge uses is still recognised the moment somebody mounts it by hand,
+exactly like any other folder - it is only the *automatic, no-action-needed* default entry
+that is withheld until this repository can confirm a real layout the same way CurseForge's
+was confirmed. Mounting covers every launcher properly today; see below.
 
 ## Mounting more Minecraft folders
 
@@ -35,6 +69,11 @@ instance tree, a copy on a second drive. Each can be mounted, and the list persi
 - **Either level is accepted.** Somebody will pick `.minecraft` and somebody else will pick
   `.minecraft/saves`; both are the same intent. What it resolved to is recorded and shown.
   A folder that is neither is refused by name, with the parent to mount instead.
+- **A launcher root with several instances is accepted too.** Pointed at a folder shaped
+  like CurseForge's own `Instances/<name>/saves` layout - the folder itself, its per-game
+  folder, or the `Instances` directory directly - every instance found under it is mounted
+  as its own row in one action, and a later remount after a new modpack instance appears
+  mounts only the new one.
 - **Labels matter more than they look.** Two folders both called `saves` tell you nothing
   apart, so each mount carries a name. Built-in entries can be renamed too, keyed by origin
   so a moved home directory keeps the name.
@@ -135,12 +174,18 @@ cd design && npx vitest run packages/ui/src/components/world # the list, its key
 
 `locations.ts` is tested with a fake platform, environment and home directory and no
 filesystem at all. The filesystem-touching tests use real temporary directories rather than
-a fake `fs`, because a fake would decide the very questions worth asking.
+a fake `fs`, because a fake would decide the very questions worth asking - including the
+CurseForge-shaped directory tree `launcherRoots.test.ts` builds and reads back.
 
 ## Related
 
+- [Worlds ready to use on the Projects tab](project-world-discovery.md) - this same
+  catalogue, surfaced a second way: automatically, with bulk actions, distinguishing a
+  discovered world from a project somebody has actually set up
 - [regex-builder.md](regex-builder.md) - the builder this list's search uses
 - [path-field.md](path-field.md) - the same browse button, wired into every other folder
   and file field in the application
+- [Bedrock Edition worlds](bedrock-worlds.md) - what happens once a Bedrock world reaches
+  the detector this location's row feeds
 - [legacy-1-12-worlds.md](legacy-1-12-worlds.md) - what a 1.12.2 world can and cannot do
 - [large-worlds.md](large-worlds.md) - getting a world that is not on this machine yet

@@ -16,6 +16,7 @@ import {
 import { serializeProjectFile, type ProjectFile } from "@material-bluemap/config";
 import ProjectEditor from "./ProjectEditor.vue";
 import ProjectList from "./ProjectList.vue";
+import DiscoveredWorldsPanel from "./DiscoveredWorldsPanel.vue";
 import {
     createProject,
     projectToRenderRequest,
@@ -28,6 +29,7 @@ import { hostMissingReason, resolveProjectHost, type ProjectHost, type ProjectLi
 import RenderRunPanel from "../world/RenderRunPanel.vue";
 import { createRenderRun } from "../world/renderRun.js";
 import { consentIsAccepted, refreshConsent } from "../world/consentState.js";
+import { resolveWorldCatalogBridge, type WorldCatalogBridge } from "../world/worldCatalog.js";
 import {
     readStorageDirectory,
     resolveOptionalWorldBridge,
@@ -67,6 +69,8 @@ const props = withDefaults(
         host?: ProjectHost | null;
         bridge?: WorldBridge | null;
         optionalBridge?: OptionalWorldBridge | null;
+        /** The same world catalogue `MinecraftWorldList.vue` (the wizard) reads from. */
+        worldCatalogBridge?: WorldCatalogBridge | null;
         configHost?: ConfigHost | null;
         /** Bumped by the shell when its settings surface closes. See `consentState.ts`. */
         settingsEpoch?: number;
@@ -97,6 +101,8 @@ const { t } = useI18n();
 const host = props.host === undefined ? resolveProjectHost() : props.host;
 const bridge = props.bridge === undefined ? resolveWorldBridge() : props.bridge;
 const optional = props.optionalBridge === undefined ? resolveOptionalWorldBridge() : props.optionalBridge;
+const worldCatalogBridge =
+    props.worldCatalogBridge === undefined ? resolveWorldCatalogBridge() : props.worldCatalogBridge;
 const configHost = props.configHost === undefined ? createBridgeConfigHost() : props.configHost;
 provideConfigHost(configHost);
 
@@ -137,6 +143,9 @@ const rows = computed<ProjectRow[]>(() =>
         problem: summary.problem,
     })),
 );
+
+/** Every project's world, so a discovered world already carrying one is left off that list. */
+const projectWorldPaths = computed(() => rows.value.map((row) => row.world));
 
 async function reload(): Promise<void> {
     if (host === null) return;
@@ -377,17 +386,13 @@ async function pickWorld(): Promise<void> {
  * does not show it until it has been saved - a row for a file that is not there would be
  * the list asserting something untrue.
  */
-function confirmCreate(): void {
-    if (createProblem.value !== null) return;
-    const world = createWorld.value.trim();
+function openNewProjectFor(world: string): void {
     const project = createProject(worldLeaf(world));
 
     openWorld.value = world;
     openProject.value = project;
     savedProject.value = null;
     saveFailure.value = null;
-    createOpen.value = false;
-    createWorld.value = "";
 
     raiseNotice(
         "info",
@@ -396,6 +401,76 @@ function confirmCreate(): void {
             "The project is open but not written yet. Add its maps, set anything you want, and save when it is ready.",
         ),
     );
+}
+
+function confirmCreate(): void {
+    if (createProblem.value !== null) return;
+    const world = createWorld.value.trim();
+    createOpen.value = false;
+    createWorld.value = "";
+    openNewProjectFor(world);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Starting one from a world the catalogue already found                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One discovered world, chosen to start a project from.
+ *
+ * The one-click route the contract asks for: no typing, no browsing for the path, straight
+ * into the same unsaved-editor state {@link confirmCreate} produces, ready to add maps and
+ * save. An unsaved project already open is left alone rather than replaced, exactly as the
+ * `openWorld` prop watcher above already treats a navigation request - losing somebody's
+ * unsaved edits to honour a click elsewhere in the same tab is not a trade this makes.
+ */
+function useDiscoveredWorld(world: string): void {
+    if (dirty.value) {
+        raiseNotice(
+            "warning",
+            t(
+                "project.discovered.unsavedInTheWay",
+                "There is an unsaved project open already. Save or close it first, then choose this world again.",
+            ),
+        );
+        return;
+    }
+    openNewProjectFor(world);
+}
+
+/**
+ * Several discovered worlds at once: a default project is written for each immediately,
+ * rather than opening an editor nobody would review one at a time. Failures are reported
+ * per world, the same honesty `forget` below gives a batch delete.
+ */
+async function useDiscoveredWorlds(worlds: readonly string[]): Promise<void> {
+    if (host === null || worlds.length === 0) return;
+
+    busy.value = true;
+    const failures: string[] = [];
+    let created = 0;
+    for (const world of worlds) {
+        try {
+            const project = touch(createProject(worldLeaf(world)));
+            const answer = await host.writeProject(world, project);
+            if (answer.ok) created += 1;
+            else failures.push(`${world}: ${answer.message}`);
+        } catch (error) {
+            failures.push(`${world}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    busy.value = false;
+
+    if (created > 0) {
+        raiseNotice(
+            "success",
+            t("project.discovered.createdMany", { created }, "Started {created} projects, with their default maps. Open one to change anything."),
+        );
+    }
+    for (const failure of failures) {
+        raiseNotice("error", t("project.discovered.createFailed", { failure }, "This one could not be started: {failure}"));
+    }
+    void reload();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -567,22 +642,38 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             @notify="(message) => notify('info', message)"
         />
 
-        <ProjectList
-            v-else
-            :rows="rows"
-            :busy="busy"
-            :host-name="host?.name ?? null"
-            :can-delete="host?.canDelete ?? false"
-            :scanned="listing.scanned"
-            :problems="listing.problems"
-            @open="open"
-            @render="renderRow"
-            @forget="(world) => forget([world])"
-            @forget-many="forget"
-            @refresh="reload"
-            @create="createOpen = true"
-            @notify="notify"
-        />
+        <template v-else>
+            <!--
+                Worlds this computer already found, that nobody has started a project for
+                yet - above the established list, so a brand new install shows something
+                ready to work with instead of only "no projects yet". See
+                `DiscoveredWorldsPanel.vue` and `discoveredWorlds.ts` for the discovered/
+                project distinction and why it is drawn this way.
+            -->
+            <DiscoveredWorldsPanel
+                :bridge="worldCatalogBridge"
+                :project-worlds="projectWorldPaths"
+                @use="useDiscoveredWorld"
+                @use-many="useDiscoveredWorlds"
+                @notify="notify"
+            />
+
+            <ProjectList
+                :rows="rows"
+                :busy="busy"
+                :host-name="host?.name ?? null"
+                :can-delete="host?.canDelete ?? false"
+                :scanned="listing.scanned"
+                :problems="listing.problems"
+                @open="open"
+                @render="renderRow"
+                @forget="(world) => forget([world])"
+                @forget-many="forget"
+                @refresh="reload"
+                @create="createOpen = true"
+                @notify="notify"
+            />
+        </template>
 
         <!-- Starting one asks for a folder, so it is a decision dialog rather than a notice. -->
         <v-card v-if="createOpen" class="mb-projects-screen__create">
