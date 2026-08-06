@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Prove Docker world-source compact layout - [`7c343fbb84`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7c343fbb84176ddfed9c5687e085b6b5aa047732)
 - Merge corrected main into Docker world-source phase - [`f876961f74`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f876961f74f4bc3ac22f397adef737c05a416add) _(summary of 6 commits, also listed here)_
 - Separate generated changelog data from policy scans - [`af2d372754`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/af2d372754b336f22d65a6062d1fd2f102935b61)
 - Wire Docker world sources into the map wizard - [`c977ad66ab`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c977ad66ab2c7bb255253e13e4e9e73bfdcaf996)

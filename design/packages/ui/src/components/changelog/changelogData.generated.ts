@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "7c343fbb84176ddfed9c5687e085b6b5aa047732",
+        shortSha: "7c343fbb84",
+        date: "2026-08-06T19:55:20-04:00",
+        subject: "Prove Docker world-source compact layout",
+        details: "The 390x844@2 gate now records real viewport metrics, captures through CDP without mixing CSS and physical pixels, and gives every Docker control a 44 px hit target. The first crop had eaten half the card while smiling green; the camera now keeps its units on the same planet.\\n\\n390x844@2 閘而家會記真 viewport 數據，用 CDP 影相唔再撈亂 CSS 同實體 pixel，Docker 控件亦全部有 44 px 撳位。第一版個 crop 食咗半張卡仲扮晒綠燈；而家部相機終於同啲單位住返同一個星球。",
+        category: "interface",
+        areas: ["interface", "shell", "docs"],
+        files: 4,
+    },
+    {
         sha: "f876961f74f4bc3ac22f397adef737c05a416add",
         shortSha: "f876961f74",
         date: "2026-08-06T19:28:31-04:00",
