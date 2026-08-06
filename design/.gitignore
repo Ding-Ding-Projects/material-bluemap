@@ -16,6 +16,10 @@ test-results/
 # at `workspaceRoot` per vitest.config.ts - permits the test's dynamic `import()` of it.
 packages/app/test/.zstd-bundle-scratch/
 
+# Same reasoning, for packages/app/test/updateFeedRepositoryInjection.test.ts's throwaway
+# bundles proving the build-time repository injection reaches the update feed URL.
+packages/app/test/.update-feed-injection-scratch/
+
 # The opt-in live resource-pack proof (packages/engine/test/resourcepack-e2e.test.ts)
 # caches the Minecraft client-jar it downloads here. Never commit a Mojang jar, or
 # anything extracted from one. The second line is a belt-and-braces guard: it is the

@@ -17,7 +17,10 @@
  *         platform: process.platform,
  *         arch: process.arch,
  *         version: app.getVersion(),
- *         repository: "Ding-Ding-Projects/material-bluemap",
+ *         // Baked in by build.mjs's esbuild `define` - see src/main/globals.d.ts - never a
+ *         // literal here. A hardcoded string is exactly what shipped in 114 installers
+ *         // before this and would go silently stale the moment the repository moves.
+ *         repository: __MATERIAL_BLUEMAP_REPOSITORY__,
  *         environment: process.env,
  *     }),
  *     engine: process.platform === "win32" ? engineFromAutoUpdater(autoUpdater) : null,

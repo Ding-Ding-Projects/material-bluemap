@@ -610,7 +610,18 @@ function startUpdates(render: RenderIpc): void {
             platform: process.platform,
             arch: process.arch,
             version: app.getVersion(),
-            repository: "Ding-Ding-Projects/material-bluemap",
+            // Baked in by esbuild's `define` in build.mjs (see globals.d.ts), never written
+            // here as a literal. 114 installers already shipped with "Ding-Ding-Projects/
+            // material-bluemap" hardcoded at this exact call site; a rename that moves the
+            // repository would leave every one of them asking an address that only works
+            // until GitHub's redirect lapses, is reused, or the repo moves again - and the
+            // failure is invisible, because a client that cannot reach its feed just stops
+            // hearing about updates rather than raising an error anyone sees. Deriving it at
+            // build time means a rename changes nothing here; the `MATERIAL_BLUEMAP_UPDATE_
+            // FEED` runtime override that `environment` below still feeds into `resolveFeed`
+            // remains the way to point an already-installed client somewhere else without a
+            // rebuild - which is what actually rescues those 114 installers during a rename.
+            repository: __MATERIAL_BLUEMAP_REPOSITORY__,
             environment: process.env,
         }),
         engine: process.platform === "win32" ? engineFromAutoUpdater(autoUpdater) : null,

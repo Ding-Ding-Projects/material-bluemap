@@ -82,7 +82,95 @@ export function copyZstdWasmAsset(destDir) {
     cpSync(zstdWasmSrc, join(destDir, "zstd.wasm"));
 }
 
+/**
+ * The repository a build with no CI signal and no explicit override names.
+ *
+ * Real - it is this project's actual repository today - so a plain `pnpm build` on a
+ * workstation still produces something that would work if that build were ever installed,
+ * rather than a placeholder that would silently fail to update. It is not used inside CI;
+ * see the throw below for why that distinction matters.
+ */
+export const DEFAULT_REPOSITORY = "Ding-Ding-Projects/material-bluemap";
+
+/** What `resolveFeed` (main/update/feed.ts) itself accepts: `owner/repo`, nothing else. */
+const REPOSITORY_PATTERN = /^[\w.-]+\/[\w.-]+$/;
+
+/**
+ * Which repository this build's shipped updater should ask - decided once, here, at bundle
+ * time, and frozen into the bundle by esbuild's `define` in {@link main}.
+ *
+ * This cannot be read from `process.env` at *runtime* the way `packages/site/vite.config.ts`
+ * reads `GITHUB_REPOSITORY` for the Pages base path: a site rebuilds and redeploys on every
+ * push, but an installed Electron app is a binary sitting on someone's disk with no
+ * `GITHUB_REPOSITORY` anywhere near it. Whatever this function returns during `node
+ * build.mjs` is what every future launch of that binary asks, until the person reinstalls it
+ * or sets `MATERIAL_BLUEMAP_UPDATE_FEED` (`src/main/update/feed.ts`'s `FEED_URL_VARIABLE`), the
+ * runtime override that needs no rebuild and is exactly what a rename leans on.
+ *
+ * That permanence is exactly why this refuses rather than guesses. 114 installers already
+ * shipped with the repository hardcoded as a string literal at the call site; a value that
+ * is merely *wrong* here reproduces that exact defect one layer down, and does it silently -
+ * a client asking a dead or wrong feed does not error, it just never hears about an update
+ * again. So:
+ *
+ *  - An explicit `MATERIAL_BLUEMAP_BUILD_REPOSITORY` always wins, for a fork or a staging
+ *    build that wants to publish somewhere other than where CI would guess.
+ *  - Otherwise, GitHub Actions' own `GITHUB_REPOSITORY` is trusted, because every job GitHub
+ *    runs sets it unconditionally - this is the same signal `vite.config.ts` and
+ *    `scripts/shared.mjs` already use for the same "which repo published this" question.
+ *  - Outside CI, with neither set, {@link DEFAULT_REPOSITORY} lets a local `pnpm build` /
+ *    `pnpm run make` keep working the way it always did.
+ *  - **Inside CI** (`CI` or `GITHUB_ACTIONS` is set) **with `GITHUB_REPOSITORY` missing or
+ *    malformed, this throws instead of falling back.** GitHub Actions setting that variable
+ *    is not optional, so its absence there means something is wrong with the job - a
+ *    workflow that scrubs the environment, a runner outside GitHub's own infrastructure - and
+ *    the fallback would be a wrong value baked into a real release rather than a convenience
+ *    for a developer's laptop. A build that cannot determine its repository says so at build
+ *    time, in a log a release fails loudly on, instead of shipping a binary that asks the
+ *    wrong address forever.
+ */
+export function resolveBuildRepository(env) {
+    const explicit = env["MATERIAL_BLUEMAP_BUILD_REPOSITORY"]?.trim();
+    if (explicit !== undefined && explicit !== "") {
+        if (!REPOSITORY_PATTERN.test(explicit)) {
+            throw new Error(
+                `MATERIAL_BLUEMAP_BUILD_REPOSITORY="${explicit}" is not a well-formed "owner/repo" value, so ` +
+                    "the bundle cannot be given it as the update feed's repository.",
+            );
+        }
+        return explicit;
+    }
+
+    const fromCi = env["GITHUB_REPOSITORY"]?.trim();
+    if (fromCi !== undefined && fromCi !== "") {
+        if (!REPOSITORY_PATTERN.test(fromCi)) {
+            throw new Error(
+                `GITHUB_REPOSITORY="${fromCi}" is not a well-formed "owner/repo" value, so the bundle cannot be ` +
+                    "given it as the update feed's repository. This is what GitHub Actions itself set - report it " +
+                    "as a workflow bug rather than working around it here.",
+            );
+        }
+        return fromCi;
+    }
+
+    if (env["GITHUB_ACTIONS"] === "true" || env["CI"] === "true") {
+        throw new Error(
+            "This build is running inside CI (CI or GITHUB_ACTIONS is set) but GITHUB_REPOSITORY is missing or " +
+                "empty, so there is no way to know which repository this build's shipped update feed should ask. " +
+                `Refusing to fall back to ${DEFAULT_REPOSITORY}: a wrong repository baked into a real release is ` +
+                "invisible until an update silently stops arriving, which is exactly the failure this check " +
+                "exists to catch. Set GITHUB_REPOSITORY (GitHub Actions does this automatically for every job) " +
+                "or MATERIAL_BLUEMAP_BUILD_REPOSITORY explicitly, then rebuild.",
+        );
+    }
+
+    return DEFAULT_REPOSITORY;
+}
+
 async function main() {
+    const repository = resolveBuildRepository(process.env);
+    console.log(`app build: update feed repository = ${repository}`);
+
     /** Main process: ESM (Electron ≥28 supports ESM entry points). */
     await build({
         entryPoints: ["src/main/index.ts"],
@@ -94,6 +182,10 @@ async function main() {
         external: ["electron"],
         sourcemap: true,
         banner: { js: nodeBuiltinRequireShimBanner },
+        // Textual substitution: every occurrence of this identifier in the bundled source
+        // becomes this JSON string literal. `src/main/globals.d.ts` declares the identifier
+        // for TypeScript; `src/main/index.ts` is the only place that reads it.
+        define: { __MATERIAL_BLUEMAP_REPOSITORY__: JSON.stringify(repository) },
     });
 
     copyZstdWasmAsset("dist/main");
