@@ -1,5 +1,11 @@
 import type { Article } from "../types.js";
-import { repoFile, ACTIONS_URL, RELEASES_URL, CI_WORKFLOW_URL, PAGES_WORKFLOW_URL } from "../links.js";
+import {
+    repoFile,
+    ACTIONS_URL,
+    RELEASES_URL,
+    CI_WORKFLOW_URL,
+    PAGES_WORKFLOW_URL,
+} from "../links.js";
 
 export const releasePipeline: Article = {
     id: "release-pipeline",
@@ -19,8 +25,9 @@ export const releasePipeline: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "One workflow runs on every push and every pull request, in four jobs. Nothing downstream ",
-                        "starts until the checks pass, so a release exists only because the tests passed first.",
+                        "One workflow runs on every push and manual dispatch, with separate lint, build, Java, ",
+                        "packaging, render, screenshot and release jobs. Nothing downstream starts until its ",
+                        "required checks pass, so a release exists only because the full gate passed first.",
                     ],
                 },
                 {
@@ -30,23 +37,23 @@ export const releasePipeline: Article = {
                     rows: [
                         [
                             { code: "check" },
-                            "Ubuntu",
+                            "Self-hosted Linux",
                             "Installs from the frozen lockfile, then lint, build and the full test suite across the workspace.",
                         ],
                         [
                             { code: "package" },
-                            "Windows",
+                            "Self-hosted Windows",
                             "Builds the workspace, then the Squirrel.Windows installer, and fails loudly if no installer artefact was produced.",
                         ],
                         [
                             { code: "screenshots" },
-                            "Ubuntu",
+                            "Self-hosted Linux",
                             "Launches the real app under a virtual framebuffer and captures it, uploading the images even when the capture failed.",
                         ],
                         [
                             { code: "release" },
-                            "Ubuntu",
-                            "Only on the default branch, and only when it is not a pull request. Tags, composes notes and publishes.",
+                            "Self-hosted Linux",
+                            "Only on the default branch. Tags, composes notes and publishes after every required job passes.",
                         ],
                     ],
                 },
@@ -90,6 +97,16 @@ export const releasePipeline: Article = {
                         "carries the project subpath before deploying.",
                     ],
                 },
+                {
+                    kind: "paragraph",
+                    content: [
+                        "Every self-hosted job selects an explicit check-first dependency profile. OS packages ",
+                        "are installed only when their command or library is absent; actionlint, shellcheck and ",
+                        "the GitHub CLI are checksum-pinned job-local downloads; Node, pnpm and Java follow the ",
+                        "workspace and upstream pins. A hand-written ten-job inventory fails when a job is added ",
+                        "without a profile.",
+                    ],
+                },
             ],
         },
         {
@@ -102,7 +119,7 @@ export const releasePipeline: Article = {
                         {
                             term: "Triggers",
                             description:
-                                "Push and pull request for the checks, plus manual dispatch. The release job additionally requires the default branch and a non-pull-request event.",
+                                "Push and manual dispatch. Pull requests cannot start these public-repository self-hosted jobs, because that would let untrusted fork code execute on project-owned machines.",
                         },
                         {
                             term: "Concurrency",
@@ -113,6 +130,11 @@ export const releasePipeline: Article = {
                             term: "Token",
                             description:
                                 "Resolved as an optional repository-scoped token, then the organisation token, then the workflow token. Publishing needs more than the ephemeral workflow token is always granted.",
+                        },
+                        {
+                            term: "Dependency profiles",
+                            description:
+                                "Each self-hosted job names one profile. The Linux profiles support apt, dnf/yum and pacman families; Windows packaging uses PowerShell and can install pinned MinGit without changing the machine-wide Git installation.",
                         },
                         {
                             term: "Release code name",
@@ -144,6 +166,11 @@ export const releasePipeline: Article = {
                             term: "A test fails",
                             description:
                                 "Nothing downstream runs, so there is no installer and no release. A push that produces no release because tests failed is the pipeline working.",
+                        },
+                        {
+                            term: "A runner dependency is missing",
+                            description:
+                                "The job installs it non-interactively from the distribution package manager or a checksum-pinned canonical release. If no supported package manager or passwordless elevation is available, the failure names the exact dependency instead of opening a prompt.",
                         },
                         {
                             term: "The packager produced no installer",
@@ -181,7 +208,9 @@ export const releasePipeline: Article = {
                 {
                     kind: "list",
                     items: [
-                        "Every job runs on a GitHub-hosted runner. No self-hosted runner is attached, so no workflow trigger can put code on a machine somebody else depends on.",
+                        "Project CI and Pages jobs use self-hosted runners, so their workflow files have no pull_request trigger. Push and manual dispatch require repository write access.",
+                        "The render workflows copied into users' repositories stay on GitHub-hosted runners; they never depend on a project-owned runner being online.",
+                        "Downloaded command-line tools come from their canonical release pages, are pinned to exact versions and SHA-256 digests, and live only under the job's temporary directory.",
                         "The default permission is read. Only the release job asks for write, and only to contents.",
                         "Tokens are passed through the standard environment convention and never echoed, logged or written into release notes.",
                         "Installers are unsigned today. Windows SmartScreen will warn on first run, and that is the honest state rather than something to work around.",
@@ -209,6 +238,8 @@ export const releasePipeline: Article = {
                     kind: "list",
                     items: [
                         "The pipeline has published tagged releases carrying a Squirrel installer, its execution stub, the package and the release manifest.",
+                        "The self-hosted policy test compares every literal self-hosted runner job to a hand-written workflow/job/OS/profile inventory and proves both bootstrap scripts through fake-missing dry runs.",
+                        "Workflow lint runs only after the bootstrap has placed shellcheck on PATH, so actionlint checks every run block instead of silently skipping shell analysis.",
                         "The release job reads back the published release and fails on a draft, so publication is proved rather than assumed.",
                         "The line counter self-checks its own arithmetic and fails the job on a mismatch.",
                         "The site deploy asserts the built output carries the project subpath, because a site that deploys green and 404s on every page is the failure this catches.",
@@ -247,6 +278,10 @@ export const releasePipeline: Article = {
     sources: [
         { label: ".github/workflows/ci.yml", href: CI_WORKFLOW_URL },
         { label: ".github/workflows/pages.yml", href: PAGES_WORKFLOW_URL },
+        {
+            label: "docs/self-hosted-ci-bootstrap.md",
+            href: repoFile("docs/self-hosted-ci-bootstrap.md"),
+        },
         { label: "scripts/count-lines.mjs", href: repoFile("scripts/count-lines.mjs") },
         {
             label: "packages/app/electron-builder.config.cjs",

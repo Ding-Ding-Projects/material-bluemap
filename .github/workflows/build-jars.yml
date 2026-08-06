@@ -47,6 +47,16 @@ jobs:
       version: ${{ steps.upstream.outputs.version }}
       upstream-commit: ${{ steps.upstream.outputs.commit }}
     steps:
+      # Seed checkout: makes the repository-owned bootstrap action available. If Git
+      # itself is absent, checkout can use its REST fallback; the java-build profile
+      # then installs Git before the history/submodule checkout below needs it.
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap this self-hosted job
+        uses: ./.github/actions/bootstrap-self-hosted
+        with:
+          profile: java-build
+
       # fetch-depth: 0 is not optional here. Upstream derives its version from
       # `git describe`, and BlueMap carries its own BlueMapAPI submodule at api/ that
       # the build includes, so both the full history and the recursive checkout are

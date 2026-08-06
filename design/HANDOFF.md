@@ -1,5 +1,30 @@
 # Handoff
 
+## Update, 2026-08-06 — every self-hosted CI job now bootstraps its own dependencies
+
+The self-hosted migration in decision D19 had accumulated correct but disconnected fixes:
+one job installed `shellcheck`, two installed `zip`, screenshots installed Xvfb and GTK in
+separate blocks, and Pages called `gh` with no installer at all. That shape is now replaced by
+one local composite action and OS-specific, profile-scoped scripts. All ten self-hosted jobs in
+`ci.yml`, `build-jars.yml`, and `pages.yml` select an explicit profile; the render templates
+remain on hosted runners.
+
+Linux profiles check before installing, batch only missing OS packages, support apt/dnf/yum/
+pacman families, and fail with the dependency names when non-interactive elevation or a package
+manager is unavailable. `actionlint` 1.7.12, `shellcheck` 0.11.0, and `gh` 2.97.0 are installed
+job-locally from their canonical releases only when the pinned version is absent, with committed
+SHA-256 verification. Windows packaging no longer needs Git Bash: the three Bash helpers are now
+PowerShell, and the Windows profile can provision checksum-pinned MinGit into `RUNNER_TEMP`.
+Node 22, pnpm 10.33.0, Temurin 8/25, Electron, Playwright, and other manifest dependencies still
+come from their official setup actions and the frozen workspace lockfile.
+
+The hand-written inventory in `packages/shared/src/selfHostedCiPolicy.test.ts` is the guard:
+workflow/job, OS, and profile must match every literal self-hosted runner entry, no self-hosted
+workflow may grow a `pull_request` trigger, and the four user-repository render templates must
+stay hosted. Both bootstrap scripts expose fake-missing dry runs so installation branches can be
+proved without mutating a workstation. See `docs/self-hosted-ci-bootstrap.md` for the full table
+and honest runtime-evidence boundary.
+
 ## Plain-language summary (start here)
 
 This section is written in short, plain sentences on purpose. It defines every term it

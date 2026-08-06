@@ -39,6 +39,11 @@ jobs:
       # this build reads, so it is deliberately not checked out.
       - uses: actions/checkout@v4
 
+      - name: Bootstrap this self-hosted job
+        uses: ./.github/actions/bootstrap-self-hosted
+        with:
+          profile: pages-build
+
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in ci.yml's `check` job for why.
       - uses: pnpm/action-setup@v4
@@ -118,5 +123,15 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
+      # The deploy action itself has no external executable dependency, but this
+      # checkout makes the explicit action-only profile available so the inventory
+      # guard covers this self-hosted job just like every command-running job.
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap this self-hosted job
+        uses: ./.github/actions/bootstrap-self-hosted
+        with:
+          profile: action-only
+
       - id: deployment
         uses: actions/deploy-pages@v4

@@ -265,3 +265,20 @@ nobody re-investigates them:
   included) runs `node design/packages/<pkg>/dist/cli.js` by explicit path, and `pnpm build` produces
   that file a few steps later in the same job (confirmed in the log: `packages/render-actions build:
   Done` after `tsc -p tsconfig.json`). No fix was needed.
+
+**Follow-up, 2026-08-06: dependency installation is now one guarded system rather than a
+collection of job-local anecdotes.** Every self-hosted job in `ci.yml`, `pages.yml`, and
+`build-jars.yml` calls `.github/actions/bootstrap-self-hosted` with one explicit profile.
+Linux profiles check commands and shared libraries, batch only the missing distribution packages,
+and install pinned `actionlint`, `shellcheck`, and `gh` release archives into `RUNNER_TEMP` after
+SHA-256 verification. The Windows package job now uses PowerShell for its staging and collection
+steps, so Git Bash is no longer a hidden build dependency; a missing Git installation is repaired
+with checksum-pinned MinGit in the job directory. Official setup actions still provide the
+manifest-pinned Node/pnpm and upstream-pinned Temurin toolchains.
+
+`design/packages/shared/src/selfHostedCiPolicy.test.ts` is the completeness boundary: a
+hand-written ten-job inventory is compared to every literal self-hosted `runs-on` entry, each job
+must call its declared profile, and any `pull_request` trigger on those workflow files fails the
+test. The Pages deploy job is explicitly inventoried as `action-only`; it has no external command
+to install, which is a declared empty dependency set rather than an unexamined omission. See
+`docs/self-hosted-ci-bootstrap.md` for the profile table, failure modes, and dry-run proof.

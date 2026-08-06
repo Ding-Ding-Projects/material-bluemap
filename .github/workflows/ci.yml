@@ -67,6 +67,15 @@ jobs:
       # always the commit to lint. The old override existed only to prefer a pull
       # request's real head over GitHub's synthetic merge commit; there is no merge commit
       # to avoid once `pull_request` cannot start this workflow at all.
+      # Seed checkout makes the repository-owned bootstrap action available. The
+      # profile installs Git if checkout had to use its REST fallback.
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap this self-hosted job
+        uses: ./.github/actions/bootstrap-self-hosted
+        with:
+          profile: workflow-lint
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -86,42 +95,16 @@ jobs:
       # which teaches people to ignore a red X rather than to keep the changelog current.
       # Regenerate with `node scripts/build-changelog.mjs` when cutting a release.
 
-      # actionlint shells out to a tool called shellcheck to check every `run:` block;
-      # without it on PATH, actionlint reports a clean pass while silently skipping all of
-      # that (see the note on the actionlint step below for why that matters here
-      # specifically). GitHub's hosted ubuntu-latest image ships it already; this job runs
-      # on a self-hosted machine now, which is not guaranteed to, so this checks first and
-      # only fetches it when genuinely absent - into a directory added to PATH for this
-      # job alone, never system-wide, and without administrator rights.
-      - name: Ensure shellcheck is on PATH
-        run: |
-          set -euo pipefail
-          if command -v shellcheck >/dev/null 2>&1; then
-            echo "already present: $(shellcheck --version | tr '\n' ' ')"
-          else
-            version=0.11.0
-            mkdir -p "$RUNNER_TEMP/shellcheck-bin"
-            curl -fsSL --retry 3 \
-              "https://github.com/koalaman/shellcheck/releases/download/v${version}/shellcheck-v${version}.linux.x86_64.tar.gz" \
-              | tar -xz -C "$RUNNER_TEMP/shellcheck-bin" --strip-components=1 "shellcheck-v${version}/shellcheck"
-            echo "$RUNNER_TEMP/shellcheck-bin" >> "$GITHUB_PATH"
-            echo "installed shellcheck $version"
-          fi
-
       - name: actionlint
         run: |
           set -euo pipefail
-          version=1.7.7
-          curl -fsSL --retry 3 \
-            "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz" \
-            | tar -xz actionlint
-          # The step above put shellcheck on PATH before this one runs (self-hosted
-          # runners are not guaranteed to ship it the way GitHub's hosted image does), so
-          # the `run:` blocks get checked here too, not only the workflow YAML shape.
+          # The profile above pins both actionlint and shellcheck, verifies their
+          # release-asset digests, and puts them on this job's PATH. shellcheck must be
+          # present before actionlint starts or every run block is silently skipped.
           # (This note deliberately never starts a line with the word shellcheck: a
           # comment starting "# shellcheck" is parsed as a shellcheck *directive*, and a
           # malformed one fails the very lint step this comment sits in.)
-          ./actionlint -color
+          actionlint -color
 
   check:
     name: Lint, build, test
@@ -148,6 +131,15 @@ jobs:
       # is passed explicitly because actions/checkout applies that same depth to the
       # submodule fetch: this pulls the one commit's tree rather than the submodule's
       # full history, which matters because that tree is 500+ MB.
+      # Seed checkout makes the repository-owned bootstrap action available before
+      # the real checkout asks Git to initialise the vendor submodule.
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap this self-hosted job
+        uses: ./.github/actions/bootstrap-self-hosted
+        with:
+          profile: workspace
+
       - uses: actions/checkout@v4
         with:
           submodules: true
@@ -230,36 +222,12 @@ jobs:
       group: ci-package-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      # Three steps below declare `shell: bash`, and on a self-hosted Windows machine that
-      # is not enough on its own. The runner resolves `bash` from PATH, where Windows ships
-      # `C:\Windows\System32\bash.exe` - the WSL launcher, not a shell. With no WSL
-      # distribution installed it exits 1 having printed instructions for installing one,
-      # which is exactly what failed "Stage the CLI jar to bundle" the first time this job
-      # ever ran on this runner. GitHub's own windows-latest image hides the problem by
-      # putting Git Bash ahead of System32; this machine does not.
-      #
-      # Git for Windows is present (the checkout below runs its git.exe), so the fix is to
-      # put its bin directory on PATH before any bash step runs. Entries written to
-      # $GITHUB_PATH are PREPENDED, so this beats System32 for every later step in the job.
-      # Fails loudly with the real reason rather than letting the same WSL error reappear
-      # three steps later wearing a different step name.
-      - name: Put Git Bash ahead of WSL on PATH
-        shell: pwsh
-        run: |
-          $candidates = @(
-            (Join-Path $env:ProgramFiles 'Git\bin'),
-            (Join-Path ${env:ProgramFiles(x86)} 'Git\bin'),
-            (Join-Path $env:LOCALAPPDATA 'Programs\Git\bin')
-          )
-          $found = $candidates | Where-Object { $_ -and (Test-Path (Join-Path $_ 'bash.exe')) } | Select-Object -First 1
-          if (-not $found) {
-            Write-Host "::error::No Git Bash found on this runner. Every 'shell: bash' step in this job would fall through to WSL's bash.exe, which is not a shell. Install Git for Windows here."
-            exit 1
-          }
-          Write-Host "Using Git Bash from $found"
-          $found | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
       - uses: actions/checkout@v4
+
+      - name: Bootstrap this self-hosted job
+        uses: ./.github/actions/bootstrap-self-hosted
+        with:
+          profile: windows-package
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
@@ -293,19 +261,18 @@ jobs:
       # directory there - the same directory `tools/build-jars.mjs` stages into on a
       # workstation, so a packaged build and a local checkout resolve the CLI jar the
       # same way. actions/upload-artifact does not guarantee the jar lands at the
-      # artifact's top level, so `find` locates it rather than assuming a path.
+      # artifact's top level, so the recursive search locates it rather than assuming a path.
       - name: Stage the CLI jar to bundle
-        shell: bash
+        shell: pwsh
         run: |
-          set -euo pipefail
-          mkdir -p tools/oracle/out/jars
-          jar=$(find jar-download -name '*.jar' | head -1)
-          if [ -z "$jar" ]; then
-            echo "::error::the bluemap-jar-cli artifact contained no .jar file"
+          New-Item -ItemType Directory -Force -Path tools/oracle/out/jars | Out-Null
+          $jar = Get-ChildItem -LiteralPath jar-download -Recurse -File -Filter '*.jar' | Select-Object -First 1
+          if (-not $jar) {
+            Write-Host '::error::the bluemap-jar-cli artifact contained no .jar file'
             exit 1
-          fi
-          cp "$jar" tools/oracle/out/jars/
-          ls -la tools/oracle/out/jars
+          }
+          Copy-Item -LiteralPath $jar.FullName -Destination tools/oracle/out/jars/
+          Get-ChildItem -LiteralPath tools/oracle/out/jars
 
       # Every build must carry a version Squirrel can order, or installing a newer
       # release over an older one silently does nothing: same version, nothing to do,
@@ -313,42 +280,41 @@ jobs:
       # is valid NuGet, which Squirrel requires.
       - name: Stamp this build's version
         id: version
-        shell: bash
+        shell: pwsh
         working-directory: design/packages/app
         run: |
-          set -euo pipefail
-          base=$(node -p "require('./package.json').version.split('.').slice(0,2).join('.')")
-          version="${base}.${GITHUB_RUN_NUMBER}"
-          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,4)+String.fromCharCode(10));" "$version"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "building installer version $version"
+          $base = node -p "require('./package.json').version.split('.').slice(0,2).join('.')"
+          $version = "$base.$env:GITHUB_RUN_NUMBER"
+          node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,4)+String.fromCharCode(10));" $version
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "building installer version $version"
 
       - name: Build Squirrel.Windows installer
         working-directory: design/packages/app
         run: pnpm run make
 
       - name: Collect installer artifacts
-        shell: bash
+        shell: pwsh
         working-directory: design/packages/app
         run: |
-          set -euo pipefail
-          mkdir -p "$GITHUB_WORKSPACE/installer-out"
-          found=0
+          $output = Join-Path $env:GITHUB_WORKSPACE 'installer-out'
+          New-Item -ItemType Directory -Force -Path $output | Out-Null
+          $found = @()
           # Only the Squirrel output directory. A plain `*.exe` sweep also picks up
           # `win-unpacked/Material BlueMap.exe`, which is the unpacked binary: 204 MB,
           # useless on its own, and the largest thing in the release.
-          for dir in release/squirrel-windows dist/squirrel-windows ../../release/squirrel-windows; do
-            [ -d "$dir" ] || continue
-            while IFS= read -r f; do
-              cp "$f" "$GITHUB_WORKSPACE/installer-out/"
-              found=1
-            done < <(find "$dir" -maxdepth 1 -type f \( -name '*Setup.exe' -o -name '*.nupkg' -o -name 'RELEASES' -o -name 'Squirrel.exe' \))
-          done
-          if [ "$found" -eq 0 ]; then
-            echo "::error::no installer artifacts were produced by electron-builder"
+          foreach ($directory in @('release/squirrel-windows', 'dist/squirrel-windows', '../../release/squirrel-windows')) {
+            if (-not (Test-Path -LiteralPath $directory -PathType Container)) { continue }
+            $found += Get-ChildItem -LiteralPath $directory -File | Where-Object {
+              $_.Name -like '*Setup.exe' -or $_.Extension -eq '.nupkg' -or $_.Name -in @('RELEASES', 'Squirrel.exe')
+            }
+          }
+          if ($found.Count -eq 0) {
+            Write-Host '::error::no installer artifacts were produced by electron-builder'
             exit 1
-          fi
-          ls -la "$GITHUB_WORKSPACE/installer-out"
+          }
+          $found | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $output }
+          Get-ChildItem -LiteralPath $output
 
       - uses: actions/upload-artifact@v4
         with:
@@ -398,6 +364,11 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
+
+      - name: Bootstrap this self-hosted job
+        uses: ./.github/actions/bootstrap-self-hosted
+        with:
+          profile: java-roundtrip
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
@@ -462,21 +433,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # `zip` (used below to package the generated world) ships on GitHub's hosted
-      # ubuntu-latest image but is not guaranteed on this self-hosted machine. Check
-      # first and only install what's missing - this needs the OS package manager and
-      # therefore sudo, unlike the toolchains below which install into their own
-      # per-job tool cache without touching anything system-wide.
-      - name: Ensure zip is present
-        run: |
-          set -euo pipefail
-          if command -v zip >/dev/null 2>&1; then
-            echo "zip already present: $(zip --version | head -2 | tail -1)"
-          else
-            echo "zip missing, installing via apt-get (requires sudo on this self-hosted runner)"
-            sudo apt-get update
-            sudo apt-get install -y zip
-          fi
+      - name: Bootstrap this self-hosted job
+        uses: ./.github/actions/bootstrap-self-hosted
+        with:
+          profile: test-world
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
@@ -590,6 +550,13 @@ jobs:
       group: ci-screenshots-${{ github.ref }}
       cancel-in-progress: true
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap this self-hosted job
+        uses: ./.github/actions/bootstrap-self-hosted
+        with:
+          profile: screenshots
+
       # This machine is not thrown away between runs the way a hosted VM is. A crashed or
       # timed-out capture in an earlier run can leave an Electron process running under a
       # stale Xvfb display, which would otherwise sit there wasting resources at best and
@@ -600,27 +567,6 @@ jobs:
       - name: Stop any Electron processes left running from a previous run
         continue-on-error: true
         run: pkill -f "design/packages/app" || true
-
-      - uses: actions/checkout@v4
-
-      # `unzip` (to unpack the rendered world below) and `xvfb-run`/Xvfb (to give
-      # Electron a display with no real desktop session) both ship on GitHub's hosted
-      # ubuntu-latest image but are not guaranteed on this self-hosted machine. Check
-      # first and only install what's missing, the same reasoning as the zip check in
-      # the `test-world` job.
-      - name: Ensure unzip and xvfb are present
-        run: |
-          set -euo pipefail
-          missing=()
-          command -v unzip >/dev/null 2>&1 || missing+=(unzip)
-          command -v xvfb-run >/dev/null 2>&1 || missing+=(xvfb)
-          if [ "${#missing[@]}" -eq 0 ]; then
-            echo "unzip and xvfb-run already present"
-          else
-            echo "installing: ${missing[*]} (requires sudo on this self-hosted runner)"
-            sudo apt-get update
-            sudo apt-get install -y "${missing[@]}"
-          fi
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
@@ -740,40 +686,6 @@ jobs:
         working-directory: design/packages/app
         run: pnpm exec playwright install-deps chromium
 
-      # Playwright's dry run above only ever asks about headless *Chromium's* own
-      # dependencies. Electron is not just a wrapper around that Chromium - its own
-      # main process links against GTK for native dialogs and the tray icon - and
-      # that is a real, separate dependency Playwright never asked about and never
-      # installs. This is exactly what broke this job on 2026-08-06 (CI run
-      # 31076054310): the Chromium-deps step above reported everything satisfied,
-      # then the Capture step's untruncated error read
-      #   error while loading shared libraries: libgtk-3.so.0: cannot open shared
-      #   object file: No such file or directory
-      # with electron.launch() exiting 127 as a result - "command not found" is
-      # apt/exec's phrasing for this, but the dynamic loader was the thing that
-      # actually failed to resolve a dependency; the electron binary itself was
-      # present and had already been assigned a pid. `ldconfig -p`, not
-      # `command -v`, is the correct check for a shared library rather than an
-      # executable - same check-first, install-only-if-missing shape as the
-      # unzip/xvfb step above, so a warm runner that already has it skips the
-      # install.
-      - name: Ensure Electron's own GTK runtime library is present
-        run: |
-          set -euo pipefail
-          if ldconfig -p | grep -q 'libgtk-3\.so\.0'; then
-            echo "libgtk-3.so.0 already resolvable"
-          else
-            echo "libgtk-3.so.0 missing; installing (requires sudo on this self-hosted runner)"
-            sudo apt-get update
-            # Debian trixie (this runner's OS - see the apt sources in the Chromium
-            # deps step above) renamed this package with a "t64" suffix as part of
-            # the 64-bit time_t transition, the same pattern already visible in that
-            # step's own install list (libatk1.0-0t64, libasound2t64, libcups2t64).
-            # Try the current name first and fall back to the pre-transition name so
-            # this keeps working if the runner's Debian version ever changes.
-            sudo apt-get install -y libgtk-3-0t64 || sudo apt-get install -y libgtk-3-0
-          fi
-
       # Electron needs a display. xvfb gives it one without a desktop session.
       # `local` mode serves the map this run rendered, so the captures are
       # self-contained and reproducible, and the network guard fails the job if the
@@ -853,53 +765,18 @@ jobs:
     steps:
       # The line counter attributes surviving lines with `git blame`, so it
       # needs the full history rather than a shallow clone.
+      # Seed checkout makes the repository-owned bootstrap action available before
+      # the line-count checkout asks Git for the complete history.
+      - uses: actions/checkout@v4
+
+      - name: Bootstrap this self-hosted job
+        uses: ./.github/actions/bootstrap-self-hosted
+        with:
+          profile: release
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      # `zip` (used below to package the server plugins and the extras archive) ships
-      # on GitHub's hosted ubuntu-latest image but is not guaranteed on this self-hosted
-      # machine. Check first and only install what's missing - see the identical check
-      # in the `test-world` job for why this needs sudo and the others do not.
-      - name: Ensure zip is present
-        run: |
-          set -euo pipefail
-          if command -v zip >/dev/null 2>&1; then
-            echo "zip already present: $(zip --version | head -2 | tail -1)"
-          else
-            echo "zip missing, installing via apt-get (requires sudo on this self-hosted runner)"
-            sudo apt-get update
-            sudo apt-get install -y zip
-          fi
-
-      # This job calls `gh` nine times - to check the tag is free, count existing releases
-      # for the code-name ordinal, create the release and upload its assets - and GitHub's
-      # hosted ubuntu-latest image ships the CLI already. This machine does not, and the
-      # symptom was not a helpful "gh: not found": `set -euo pipefail` turns the failed
-      # command substitution `count=$(gh release list ...)` into the whole step exiting 127,
-      # which reads like a missing file rather than a missing tool. The `if gh release view`
-      # line above it fails silently too, because a failing condition is not an error under
-      # `set -e`, so the first half of the step appears to succeed on its way to a confusing
-      # exit code.
-      #
-      # Fetched into a job-local directory rather than installed with apt: nothing about
-      # this needs to persist on the machine or be administered, and it mirrors the
-      # shellcheck step in the `workflows` job above. Checks first, so a runner that already
-      # has it pays nothing.
-      - name: Ensure the GitHub CLI is on PATH
-        run: |
-          set -euo pipefail
-          if command -v gh >/dev/null 2>&1; then
-            echo "gh already present: $(gh --version | head -1)"
-          else
-            version=2.62.0
-            mkdir -p "$RUNNER_TEMP/gh-bin"
-            curl -fsSL --retry 3 \
-              "https://github.com/cli/cli/releases/download/v${version}/gh_${version}_linux_amd64.tar.gz" \
-              | tar -xz -C "$RUNNER_TEMP/gh-bin" --strip-components=2 "gh_${version}_linux_amd64/bin/gh"
-            echo "$RUNNER_TEMP/gh-bin" >> "$GITHUB_PATH"
-            echo "installed gh $version"
-          fi
 
       # pnpm before setup-node, so the node cache can key off the lockfile. Version
       # pinned via design/package.json's own `packageManager` field - see the comment on

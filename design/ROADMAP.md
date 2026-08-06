@@ -1,5 +1,17 @@
 # Roadmap
 
+## Self-hosted CI dependency closure (2026-08-06)
+
+**Done locally; real-runner verification follows when this branch is integrated.** Every one of
+the ten Linux/Windows self-hosted jobs now selects a check-first dependency profile through the
+same composite action. The profile scripts cover workflow linting, workspace build/test, Java
+jars, the real Java round trip, test-world generation, Electron screenshots, release publishing,
+Pages build/deploy, and Windows Squirrel packaging. A hand-written guard fails if a self-hosted job
+is missing, has the wrong OS/profile, or becomes reachable from `pull_request`. See
+`../docs/self-hosted-ci-bootstrap.md`; fake-missing dry runs and the focused Vitest policy suite
+are the local proof, while package-manager access on the actual runners remains an external
+runtime boundary until the integrated workflow runs.
+
 Phases from `../plan.md`; status is updated as each phase lands on the branch. Read
 `docs/decisions.md` first: decisions **D17** and **D18** (2026-08-03) changed which engine
 renders, and that change reorders some of what follows.
