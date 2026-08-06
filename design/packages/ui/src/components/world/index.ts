@@ -20,6 +20,7 @@ export { default as WorldScreen } from "./WorldScreen.vue";
 export { default as WorldWizard } from "./WorldWizard.vue";
 export { default as WorldFolderStep } from "./WorldFolderStep.vue";
 export { default as SshWorldSourcePanel } from "./SshWorldSourcePanel.vue";
+export { default as DockerWorldSourcePanel } from "./DockerWorldSourcePanel.vue";
 export { default as MapIdentityStep } from "./MapIdentityStep.vue";
 export { default as MapOptionsStep } from "./MapOptionsStep.vue";
 export { default as MapStorageStep } from "./MapStorageStep.vue";
@@ -69,6 +70,22 @@ export type {
     SshWorldSourceBridge,
     SshWorldSourceEvent,
 } from "./sshWorldSourceBridge.js";
+export { resolveDockerWorldSourceBridge } from "./dockerWorldSourceBridge.js";
+export type {
+    DockerContainerDetail,
+    DockerContainerSummary,
+    DockerMount,
+    DockerSourceRequest,
+    DockerVolumeDetail,
+    DockerVolumeSummary,
+    DockerWorldEvent,
+    DockerWorldFailure,
+    DockerWorldFailureCode,
+    DockerWorldFingerprint,
+    DockerWorldFingerprintResult,
+    DockerWorldListAnswer,
+    DockerWorldSourceBridge,
+} from "./dockerWorldSourceBridge.js";
 export type {
     EngineDescription,
     InterruptedRenderMap,
@@ -127,7 +144,19 @@ export {
     formatDuration,
     phaseLabel,
 } from "./renderRun.js";
-export type { FailureAdvice, FailureKind, FailureRemedy, RenderLogLine, RenderRun, RunState } from "./renderRun.js";
+export type {
+    FailureAdvice,
+    FailureKind,
+    FailureRemedy,
+    RenderLogLine,
+    RenderRun,
+    RunState,
+} from "./renderRun.js";
 
-export { createResumeOffers, describeInterruption, describeProgress, describeRefusal } from "./resumeOffers.js";
+export {
+    createResumeOffers,
+    describeInterruption,
+    describeProgress,
+    describeRefusal,
+} from "./resumeOffers.js";
 export type { ResumeOffers } from "./resumeOffers.js";

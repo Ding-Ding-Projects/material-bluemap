@@ -2,8 +2,13 @@ import { describe, expect, it, afterEach, beforeEach } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { copyRemoteBindMount, dockerCopyToStaging, localIncrementalCopy, volumeCopyToStaging } from "./copy.js";
-import type { CommandOutput, CommandRunner } from "../runtime/command.js";
+import {
+    copyRemoteBindMount,
+    dockerCopyToStaging,
+    localIncrementalCopy,
+    volumeCopyToStaging,
+} from "./copy.js";
+import type { CommandOptions, CommandOutput, CommandRunner } from "../runtime/command.js";
 import type { FileTransfer, TransferOptions } from "../remote/transfer.js";
 
 function output(partial: Partial<CommandOutput>): CommandOutput {
@@ -40,7 +45,9 @@ describe("localIncrementalCopy", () => {
         const result = await localIncrementalCopy(source, destination);
         expect(result).toEqual({ filesCopied: 2, filesUnchanged: 0 });
         expect(await readFile(join(destination, "level.dat"), "utf8")).toBe("level");
-        expect(await readFile(join(destination, "region", "r.0.0.mca"), "utf8")).toBe("region-bytes");
+        expect(await readFile(join(destination, "region", "r.0.0.mca"), "utf8")).toBe(
+            "region-bytes",
+        );
     });
 
     it("touches nothing on a second run when nothing changed", async () => {
@@ -61,7 +68,9 @@ describe("localIncrementalCopy", () => {
         await writeFile(join(source, "level.dat"), "a longer level file than before");
         const result = await localIncrementalCopy(source, destination);
         expect(result).toEqual({ filesCopied: 1, filesUnchanged: 0 });
-        expect(await readFile(join(destination, "level.dat"), "utf8")).toBe("a longer level file than before");
+        expect(await readFile(join(destination, "level.dat"), "utf8")).toBe(
+            "a longer level file than before",
+        );
     });
 
     it("re-copies a same-size file whose modification time moved well outside the tolerance window", async () => {
@@ -105,11 +114,15 @@ describe("localIncrementalCopy", () => {
         await writeFile(join(source, "level.dat"), "level");
         const controller = new AbortController();
         controller.abort();
-        await expect(localIncrementalCopy(source, destination, undefined, controller.signal)).rejects.toThrow();
+        await expect(
+            localIncrementalCopy(source, destination, undefined, controller.signal),
+        ).rejects.toThrow();
     });
 });
 
-function fakeRunner(handler: (command: string, args: readonly string[]) => CommandOutput): CommandRunner {
+function fakeRunner(
+    handler: (command: string, args: readonly string[]) => CommandOutput,
+): CommandRunner {
     return (command, args) => Promise.resolve(handler(command, args));
 }
 
@@ -120,22 +133,52 @@ describe("dockerCopyToStaging", () => {
             seen = { command, args };
             return output({ ok: true, exitCode: 0 });
         });
-        const failure = await dockerCopyToStaging("abc123", "/data/world", "/tmp/staging", { runner });
+        const failure = await dockerCopyToStaging("abc123", "/data/world", "/tmp/staging", {
+            runner,
+        });
         expect(failure).toBeNull();
-        expect(seen).toEqual({ command: "docker", args: ["cp", "abc123:/data/world/.", "/tmp/staging"] });
+        expect(seen).toEqual({
+            command: "docker",
+            args: ["cp", "abc123:/data/world/.", "/tmp/staging"],
+        });
     });
 
     it("reports Docker not being installed", async () => {
         const runner = fakeRunner(() => output({ spawnError: "ENOENT" }));
-        const failure = await dockerCopyToStaging("abc123", "/data/world", "/tmp/staging", { runner });
+        const failure = await dockerCopyToStaging("abc123", "/data/world", "/tmp/staging", {
+            runner,
+        });
         expect(failure?.code).toBe("not-installed");
     });
 
     it("reports a copy failure with Docker's own words", async () => {
-        const runner = fakeRunner(() => output({ exitCode: 1, stderr: "Error: No such container:path: abc123:/data/world" }));
-        const failure = await dockerCopyToStaging("abc123", "/data/world", "/tmp/staging", { runner });
+        const runner = fakeRunner(() =>
+            output({ exitCode: 1, stderr: "Error: No such container:path: abc123:/data/world" }),
+        );
+        const failure = await dockerCopyToStaging("abc123", "/data/world", "/tmp/staging", {
+            runner,
+        });
         expect(failure?.code).toBe("copy-failed");
         expect(failure?.detail).toContain("No such container:path");
+    });
+
+    it("removes the short-probe timeout and forwards cancellation to docker cp", async () => {
+        const controller = new AbortController();
+        let seen: CommandOptions | undefined;
+        const runner: CommandRunner = (_command, _args, options) => {
+            seen = options;
+            return Promise.resolve(output({ ok: true, exitCode: 0 }));
+        };
+
+        await dockerCopyToStaging(
+            "abc123",
+            "/data/world",
+            "/tmp/staging",
+            { runner },
+            controller.signal,
+        );
+
+        expect(seen).toEqual({ timeoutMs: 0, signal: controller.signal });
     });
 });
 
@@ -165,9 +208,24 @@ describe("volumeCopyToStaging", () => {
     });
 
     it("reports a failed helper container run", async () => {
-        const runner = fakeRunner(() => output({ exitCode: 125, stderr: "docker: Error response from daemon." }));
+        const runner = fakeRunner(() =>
+            output({ exitCode: 125, stderr: "docker: Error response from daemon." }),
+        );
         const failure = await volumeCopyToStaging("mc-world", "/tmp/staging", { runner });
         expect(failure?.code).toBe("copy-failed");
+    });
+
+    it("removes the short-probe timeout and forwards cancellation to the helper container", async () => {
+        const controller = new AbortController();
+        let seen: CommandOptions | undefined;
+        const runner: CommandRunner = (_command, _args, options) => {
+            seen = options;
+            return Promise.resolve(output({ ok: true, exitCode: 0 }));
+        };
+
+        await volumeCopyToStaging("mc-world", "/tmp/staging", { runner }, controller.signal);
+
+        expect(seen).toEqual({ timeoutMs: 0, signal: controller.signal });
     });
 });
 
@@ -178,7 +236,11 @@ describe("copyRemoteBindMount", () => {
             uploadDirectory: () => Promise.reject(new Error("not used")),
             uploadFile: () => Promise.reject(new Error("not used")),
             downloadDirectory: (remotePath, localPath, options) => {
-                calls.push({ remotePath, localPath, ...(options === undefined ? {} : { options }) });
+                calls.push({
+                    remotePath,
+                    localPath,
+                    ...(options === undefined ? {} : { options }),
+                });
                 return Promise.resolve();
             },
             makeRemoteDirectory: () => Promise.reject(new Error("not used")),

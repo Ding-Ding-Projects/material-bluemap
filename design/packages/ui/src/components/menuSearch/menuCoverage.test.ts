@@ -62,7 +62,12 @@ interface MenuRegistryEntry {
 }
 
 /** Every component that embeds a search field usable inside a `<v-menu>`, by name. */
-const DEFAULT_SEARCH_MARKERS = ["ConfigSearchField", "MenuSearchList", "TabMenuList", "MenuSearchField"] as const;
+const DEFAULT_SEARCH_MARKERS = [
+    "ConfigSearchField",
+    "MenuSearchList",
+    "TabMenuList",
+    "MenuSearchField",
+] as const;
 
 /**
  * The pinned inventory.
@@ -267,6 +272,12 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
         menu: "Context menu of the guided SSH world-source panel (Edit/Reset appearance).",
         status: "has-search",
     },
+    {
+        file: "world/DockerWorldSourcePanel.vue",
+        builtVia: "AppearanceTarget",
+        menu: "Context menu of the guided local Docker world-source panel (Edit/Reset appearance).",
+        status: "has-search",
+    },
 
     /* ---------------------------------------------------------------------- */
     /* Confirmed to have no context menu of any kind today                    */
@@ -300,7 +311,10 @@ interface DirentLike {
 }
 
 function listVueFiles(root: string): readonly string[] {
-    const entries = readdirSync(root, { recursive: true, withFileTypes: true }) as unknown as readonly DirentLike[];
+    const entries = readdirSync(root, {
+        recursive: true,
+        withFileTypes: true,
+    }) as unknown as readonly DirentLike[];
     const files: string[] = [];
     for (const entry of entries) {
         if (!entry.isFile() || !entry.name.endsWith(".vue")) continue;
@@ -329,7 +343,9 @@ const SWEPT_V_MENU = new Set(VUE_FILES.filter((file) => /<v-menu\b/i.test(conten
  */
 const APPEARANCE_TARGET_USERS = new Set(
     VUE_FILES.filter(
-        (file) => file !== "appearance/AppearanceTarget.vue" && /<AppearanceTarget\b/.test(contentOf(file)),
+        (file) =>
+            file !== "appearance/AppearanceTarget.vue" &&
+            /<AppearanceTarget\b/.test(contentOf(file)),
     ),
 );
 
@@ -359,7 +375,9 @@ describe("menuCoverage.ts: the list half", () => {
 
     it("registers every file the sweep finds wrapped in <AppearanceTarget>", () => {
         const unregistered = [...SWEPT_APPEARANCE_TARGET].filter(
-            (file) => !registryByFile.has(file) || registryByFile.get(file)?.builtVia !== "AppearanceTarget",
+            (file) =>
+                !registryByFile.has(file) ||
+                registryByFile.get(file)?.builtVia !== "AppearanceTarget",
         );
         expect(
             unregistered,
@@ -374,7 +392,10 @@ describe("menuCoverage.ts: the list half", () => {
 
     it("never lists a 'v-menu' entry for a file the live sweep no longer finds one in", () => {
         const stale = REGISTRY.filter(
-            (entry) => entry.builtVia === "v-menu" && entry.status !== "no-menu" && !SWEPT_V_MENU.has(entry.file),
+            (entry) =>
+                entry.builtVia === "v-menu" &&
+                entry.status !== "no-menu" &&
+                !SWEPT_V_MENU.has(entry.file),
         );
         expect(
             stale.map((entry) => entry.file),
@@ -384,14 +405,17 @@ describe("menuCoverage.ts: the list half", () => {
 
     it("never lists an 'AppearanceTarget' entry for a file that no longer wraps one", () => {
         const stale = REGISTRY.filter(
-            (entry) => entry.builtVia === "AppearanceTarget" && !APPEARANCE_TARGET_USERS.has(entry.file),
+            (entry) =>
+                entry.builtVia === "AppearanceTarget" && !APPEARANCE_TARGET_USERS.has(entry.file),
         );
         expect(stale.map((entry) => entry.file)).toEqual([]);
     });
 
     it("confirms every 'no-menu' entry is still genuinely menu-free", () => {
         const nowHasOne = REGISTRY.filter(
-            (entry) => entry.status === "no-menu" && (SWEPT_V_MENU.has(entry.file) || APPEARANCE_TARGET_USERS.has(entry.file)),
+            (entry) =>
+                entry.status === "no-menu" &&
+                (SWEPT_V_MENU.has(entry.file) || APPEARANCE_TARGET_USERS.has(entry.file)),
         );
         expect(
             nowHasOne.map((entry) => entry.file),
@@ -437,7 +461,9 @@ describe("menuCoverage.ts: the rule half", () => {
             // overrides it (e.g. `NotificationCentre.vue`, whose search lives one level
             // deeper, in the child panel it mounts).
             const defaultMarkers =
-                entry.builtVia === "AppearanceTarget" ? (["AppearanceTarget"] as const) : DEFAULT_SEARCH_MARKERS;
+                entry.builtVia === "AppearanceTarget"
+                    ? (["AppearanceTarget"] as const)
+                    : DEFAULT_SEARCH_MARKERS;
             const markers = entry.markers ?? defaultMarkers;
             const source = contentOf(entry.file);
             const found = markers.some((marker) => source.includes(marker));
@@ -455,7 +481,8 @@ describe("menuCoverage.ts: the rule half", () => {
         // unclassifiable entry cannot silently carry a stray owner/reason left over from a
         // status that was later corrected.
         const inconsistent = REGISTRY.filter((entry) => {
-            if (entry.status === "has-search") return entry.owner !== undefined || entry.reason !== undefined;
+            if (entry.status === "has-search")
+                return entry.owner !== undefined || entry.reason !== undefined;
             return false;
         });
         expect(inconsistent.map((entry) => entry.file)).toEqual([]);

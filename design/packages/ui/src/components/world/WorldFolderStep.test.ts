@@ -23,6 +23,7 @@ import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import WorldFolderStep from "./WorldFolderStep.vue";
 import WorldScreen from "./WorldScreen.vue";
+import DockerWorldSourcePanel from "./DockerWorldSourcePanel.vue";
 import { uncheckedWorld } from "./worldFolder.js";
 import type { DownloadBridge, DownloadEvent, DownloadResult } from "../downloads/downloadBridge.js";
 
@@ -63,7 +64,14 @@ function fakePreload() {
                 tag: "v1.4.0",
                 name: "Har Gow",
                 htmlUrl: "https://github.com/owner/repo/releases/tag/v1.4.0",
-                downloads: [{ name: "test-world-seed-1739.zip", split: true, parts: 3, bytes: 4_030_000_000 }],
+                downloads: [
+                    {
+                        name: "test-world-seed-1739.zip",
+                        split: true,
+                        parts: 3,
+                        bytes: 4_030_000_000,
+                    },
+                ],
             },
         }),
         startDownload: async () => await new Promise<DownloadResult>(() => undefined),
@@ -100,7 +108,8 @@ function fakePreload() {
             this.emit({
                 type: "finished",
                 downloadId: "world-abc",
-                archive: "/var/maps/downloads/test-world-seed-1739-zip-6640a521/test-world-seed-1739.zip",
+                archive:
+                    "/var/maps/downloads/test-world-seed-1739-zip-6640a521/test-world-seed-1739.zip",
                 content: CONTENT,
                 bytes: 4_030_000_000,
                 sha256: "6640a521a88283195b790c8bdf6ca176e480c2f9399a8163153d02a2c5b72083",
@@ -128,7 +137,12 @@ function i18n() {
 function button(wrapper: VueWrapper, text: string) {
     const found = wrapper.findAll("button").find((candidate) => candidate.text().includes(text));
     if (found === undefined) {
-        throw new Error(`no button says "${text}". Buttons: ${wrapper.findAll("button").map((b) => b.text()).join(" | ")}`);
+        throw new Error(
+            `no button says "${text}". Buttons: ${wrapper
+                .findAll("button")
+                .map((b) => b.text())
+                .join(" | ")}`,
+        );
     }
     return found;
 }
@@ -206,7 +220,9 @@ describe("the folder step's way out for somebody with no world", () => {
 
         await button(wrapper, "Download one from a release").trigger("click");
         await flushPromises();
-        expect(button(wrapper, "Hide the release downloads").attributes("aria-expanded")).toBe("true");
+        expect(button(wrapper, "Hide the release downloads").attributes("aria-expanded")).toBe(
+            "true",
+        );
 
         fake.finish();
         await nextTick();
@@ -217,6 +233,27 @@ describe("the folder step's way out for somebody with no world", () => {
         // several worlds gets the same sentence as a `saves` directory picked by hand.
         expect(wrapper.emitted("inspect")).toEqual([[CONTENT]]);
 
+        wrapper.unmount();
+    });
+
+    it("takes a Docker-fetched folder through the same ordinary inspection handoff", async () => {
+        const wrapper = mount(WorldFolderStep, {
+            props: {
+                modelValue: "",
+                inspection: uncheckedWorld(""),
+                inspecting: false,
+                canInspect: true,
+                downloadBridge: null,
+            },
+            global: { plugins: [vuetify, i18n()] },
+        });
+        const destination = "C:\\Maps\\docker-world";
+
+        wrapper.findComponent(DockerWorldSourcePanel).vm.$emit("use", destination);
+        await nextTick();
+
+        expect(wrapper.emitted("update:modelValue")).toEqual([[destination]]);
+        expect(wrapper.emitted("inspect")).toEqual([[destination]]);
         wrapper.unmount();
     });
 
@@ -236,9 +273,11 @@ describe("the folder step's way out for somebody with no world", () => {
         await flushPromises();
 
         expect(wrapper.text()).toContain("This build cannot download releases");
-        expect(wrapper.findAll("button").some((candidate) => candidate.text().includes("See what it offers"))).toBe(
-            false,
-        );
+        expect(
+            wrapper
+                .findAll("button")
+                .some((candidate) => candidate.text().includes("See what it offers")),
+        ).toBe(false);
 
         wrapper.unmount();
     });

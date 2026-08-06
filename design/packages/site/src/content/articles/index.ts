@@ -58,6 +58,7 @@ import { contractSuperConfirmation } from "./contract-super-confirmation.js";
 import { renderConsole } from "./render-console.js";
 import { publishingToPages } from "./publishing-to-pages.js";
 import { dockerAndLocal } from "./docker-and-local.js";
+import { dockerWorldSource } from "./docker-world-source.js";
 import { remoteRender } from "./remote-render.js";
 import { sshWorldSources } from "./ssh-world-sources.js";
 import { remoteHosting } from "./remote-hosting.js";
@@ -92,6 +93,7 @@ export const articles: readonly Article[] = [
     bedrockWorlds,
     javaRenderPath,
     dockerAndLocal,
+    dockerWorldSource,
     sshWorldSources,
     remoteRender,
     remoteHosting,

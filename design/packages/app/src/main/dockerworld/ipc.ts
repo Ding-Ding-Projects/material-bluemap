@@ -40,6 +40,9 @@ import type { RegionFingerprint, WorldFingerprint } from "./change.js";
 import * as failures from "./failure.js";
 import type { DockerWorldFailure } from "./failure.js";
 
+/** Renderer broadcast carrying the fetcher's real progress and terminal events. */
+export const DOCKERWORLD_EVENT_CHANNEL = "dockerworld:event" as const;
+
 /** Every channel this module registers, so `dispose` cannot drift from `register`. */
 export const DOCKERWORLD_CHANNELS = [
     "dockerworld:list",
@@ -53,7 +56,11 @@ export const DOCKERWORLD_CHANNELS = [
 ] as const;
 
 export type DockerWorldListAnswer =
-    | { readonly ok: true; readonly containers: readonly DockerContainerSummary[]; readonly volumes: readonly DockerVolumeSummary[] }
+    | {
+          readonly ok: true;
+          readonly containers: readonly DockerContainerSummary[];
+          readonly volumes: readonly DockerVolumeSummary[];
+      }
     | { readonly ok: false; readonly failure: DockerWorldFailure };
 
 export type DockerContainerAnswer =
@@ -138,17 +145,28 @@ function asFingerprint(value: unknown): WorldFingerprint {
     };
 }
 
-export function registerDockerWorldHandlers(ipcMain: IpcMain, options: DockerWorldIpcOptions = {}): DockerWorldIpc {
+export function registerDockerWorldHandlers(
+    ipcMain: IpcMain,
+    options: DockerWorldIpcOptions = {},
+): DockerWorldIpc {
     const fetcher = options.fetcher ?? new DockerWorldFetcher(options);
     // Threaded into every inventory call below so a test can inject a runner rather than
     // this handler reaching for the real `docker` binary on whatever machine runs it - the
     // same reason `fetcher` itself is injectable.
-    const inventoryOptions = { ...(options.runner === undefined ? {} : { runner: options.runner }), ...(options.docker === undefined ? {} : { docker: options.docker }) };
+    const inventoryOptions = {
+        ...(options.runner === undefined ? {} : { runner: options.runner }),
+        ...(options.docker === undefined ? {} : { docker: options.docker }),
+    };
 
     ipcMain.handle("dockerworld:list", async (): Promise<DockerWorldListAnswer> => {
         try {
-            const [containers, volumes]: [InventoryResult<readonly DockerContainerSummary[]>, InventoryResult<readonly DockerVolumeSummary[]>] =
-                await Promise.all([listContainers(inventoryOptions), listVolumes(inventoryOptions)]);
+            const [containers, volumes]: [
+                InventoryResult<readonly DockerContainerSummary[]>,
+                InventoryResult<readonly DockerVolumeSummary[]>,
+            ] = await Promise.all([
+                listContainers(inventoryOptions),
+                listVolumes(inventoryOptions),
+            ]);
             if (!containers.ok) return { ok: false, failure: containers.failure };
             if (!volumes.ok) return { ok: false, failure: volumes.failure };
             return { ok: true, containers: containers.value, volumes: volumes.value };
@@ -165,11 +183,16 @@ export function registerDockerWorldHandlers(ipcMain: IpcMain, options: DockerWor
         "dockerworld:inspectContainer",
         async (_event: IpcMainInvokeEvent, id: unknown): Promise<DockerContainerAnswer> => {
             if (typeof id !== "string" || id === "") {
-                return { ok: false, failure: failures.invalidRequest("A container id is required.") };
+                return {
+                    ok: false,
+                    failure: failures.invalidRequest("A container id is required."),
+                };
             }
             try {
                 const result = await inspectContainer(id, inventoryOptions);
-                return result.ok ? { ok: true, detail: result.value } : { ok: false, failure: result.failure };
+                return result.ok
+                    ? { ok: true, detail: result.value }
+                    : { ok: false, failure: result.failure };
             } catch (error) {
                 return { ok: false, failure: failures.unusable(describe(error)) };
             }
@@ -180,11 +203,16 @@ export function registerDockerWorldHandlers(ipcMain: IpcMain, options: DockerWor
         "dockerworld:inspectVolume",
         async (_event: IpcMainInvokeEvent, name: unknown): Promise<DockerVolumeAnswer> => {
             if (typeof name !== "string" || name === "") {
-                return { ok: false, failure: failures.invalidRequest("A volume name is required.") };
+                return {
+                    ok: false,
+                    failure: failures.invalidRequest("A volume name is required."),
+                };
             }
             try {
                 const result = await inspectVolume(name, inventoryOptions);
-                return result.ok ? { ok: true, detail: result.value } : { ok: false, failure: result.failure };
+                return result.ok
+                    ? { ok: true, detail: result.value }
+                    : { ok: false, failure: result.failure };
             } catch (error) {
                 return { ok: false, failure: failures.unusable(describe(error)) };
             }
@@ -199,7 +227,9 @@ export function registerDockerWorldHandlers(ipcMain: IpcMain, options: DockerWor
                 return {
                     ok: false,
                     fetchId: "",
-                    failure: failures.invalidRequest("A container or volume, and a destination folder, are required."),
+                    failure: failures.invalidRequest(
+                        "A container or volume, and a destination folder, are required.",
+                    ),
                 };
             }
             try {
@@ -210,8 +240,10 @@ export function registerDockerWorldHandlers(ipcMain: IpcMain, options: DockerWor
         },
     );
 
-    ipcMain.handle("dockerworld:cancel", (_event: IpcMainInvokeEvent, fetchId: unknown) =>
-        typeof fetchId === "string" && fetcher.cancel(fetchId),
+    ipcMain.handle(
+        "dockerworld:cancel",
+        (_event: IpcMainInvokeEvent, fetchId: unknown) =>
+            typeof fetchId === "string" && fetcher.cancel(fetchId),
     );
 
     ipcMain.handle("dockerworld:active", () => fetcher.activeFetchIds());
@@ -224,10 +256,16 @@ export function registerDockerWorldHandlers(ipcMain: IpcMain, options: DockerWor
      */
     ipcMain.handle(
         "dockerworld:fingerprint",
-        async (_event: IpcMainInvokeEvent, request: unknown): Promise<DockerWorldFingerprintResult> => {
+        async (
+            _event: IpcMainInvokeEvent,
+            request: unknown,
+        ): Promise<DockerWorldFingerprintResult> => {
             const source = readSource(request);
             if (source === null) {
-                return { ok: false, failure: failures.invalidRequest("A container or volume is required.") };
+                return {
+                    ok: false,
+                    failure: failures.invalidRequest("A container or volume is required."),
+                };
             }
             try {
                 return await fetcher.fingerprint(source);

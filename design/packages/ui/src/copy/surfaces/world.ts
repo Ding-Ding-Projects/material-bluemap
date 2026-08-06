@@ -8,7 +8,7 @@
  * in the directory, plus the four lower-case helper modules whose own functions build the
  * strings some of those components display, in the directory's own alphabetical order:
  *
- *   InterruptedRenders.vue, MapIdentityStep.vue, MapOptionsStep.vue, MapStorageStep.vue,
+ *   DockerWorldSourcePanel.vue, InterruptedRenders.vue, MapIdentityStep.vue, MapOptionsStep.vue, MapStorageStep.vue,
  *   MinecraftWorldList.vue, RenderRunPanel.vue, SshWorldSourcePanel.vue,
  *   WizardReviewStep.vue, WorldFolderStep.vue, WorldScreen.vue, WorldWizard.vue,
  *   renderRun.ts, resumeOffers.ts, worldCatalog.ts,
@@ -92,7 +92,108 @@ function sshVoice(en: string, yue: string): VoicedString {
     };
 }
 
+/** Five tellings that keep Docker's read-only, locality and live-copy safety facts intact. */
+function dockerVoice(en: string, yue: string): VoicedString {
+    return {
+        en: [
+            en,
+            en,
+            `${en} Docker keeps the receipts.`,
+            `${en} The container does not get to freestyle the facts.`,
+            `${en} Docker keeps the receipts, and the container is not allowed to improvise a mystery percentage.`,
+        ],
+        yue: [
+            yue,
+            yue,
+            `${yue} Docker 有單有據。`,
+            `${yue} 個 container 唔准自己亂作故仔。`,
+            `${yue} Docker 有單有據，個 container 更加唔准即興亂作神秘百分比。`,
+        ],
+    };
+}
+
 export const WORLD_VOICED = {
+    /* DockerWorldSourcePanel.vue */
+    "world.docker.blurb": dockerVoice(
+        "This reads the Docker daemon on this computer only. Choose a container mount or named volume Docker actually reports, copy it read-only into a browsed local folder, then let the ordinary wizard validate that folder.",
+        "呢度只會讀呢部電腦嘅 Docker daemon。揀 Docker 真正報出嚟嘅 container mount 或 named volume，以唯讀方式複製去瀏覽揀好嘅本機資料夾，再交畀原本個精靈驗證個資料夾。",
+    ),
+    "world.docker.noMatch": dockerVoice(
+        "No Docker-world control matches that search. Clear it to show the guided flow again.",
+        "冇 Docker 世界控制符合呢個搜尋。清空佢就會再次顯示引導流程。",
+    ),
+    "world.docker.unavailable": dockerVoice(
+        "Fetching a Docker world needs the desktop app's complete Docker-world bridge, including progress and cancellation.",
+        "下載 Docker 世界需要桌面程式完整嘅 Docker 世界橋接，包括進度同取消。",
+    ),
+    "world.docker.noContainers": dockerVoice(
+        "Docker reports no containers, running or stopped. Create or restore the server container first, or use a named volume.",
+        "Docker 報告冇任何運行中或者已停止嘅 container。先建立或還原伺服器 container，或者改用 named volume。",
+    ),
+    "world.docker.noMounts": dockerVoice(
+        "This container reports no bind mounts or named-volume mounts. A tmpfs or pipe cannot be used as a persistent Minecraft world.",
+        "呢個 container 冇報出 bind mount 或 named-volume mount。tmpfs 或 pipe 唔可以當成持久 Minecraft 世界。",
+    ),
+    "world.docker.noVolumes": dockerVoice(
+        "Docker reports no named volumes. Choose a container mount, or create the server volume first.",
+        "Docker 報告冇 named volume。請揀 container mount，或者先建立伺服器 volume。",
+    ),
+    "world.docker.volumeDetail": dockerVoice(
+        "Driver: {driver}. Docker's own host mountpoint is {mountpoint}; this app does not read that privileged path directly.",
+        "Driver：{driver}。Docker 自己嘅主機 mountpoint 係 {mountpoint}；呢個程式唔會直接讀嗰條特權路徑。",
+    ),
+    "world.docker.fingerprintNoneVolume": dockerVoice(
+        "This named-volume copy has no cheap fingerprint. Docker must read the volume to know whether it changed.",
+        "呢條 named-volume 複製路線冇平價 fingerprint。Docker 必須讀個 volume 先知有冇變。",
+    ),
+    "world.docker.fingerprintNoneContainer": dockerVoice(
+        "This container-copy route has no cheap fingerprint. Docker must read the mount to know whether it changed.",
+        "呢條 container-copy 路線冇平價 fingerprint。Docker 必須讀個 mount 先知有冇變。",
+    ),
+    "world.docker.fingerprintBind": dockerVoice(
+        "This bind mount is directly readable. Its cheap metadata fingerprint covers {regions} region files without copying world contents.",
+        "呢個 bind mount 可以直接讀。平價 metadata fingerprint 涵蓋 {regions} 個 region 檔案，唔使複製世界內容。",
+    ),
+    "world.docker.waiting": dockerVoice(
+        "Wait for the current Docker check to finish.",
+        "等而家個 Docker 檢查完成先。",
+    ),
+    "world.docker.chooseMountReason": dockerVoice(
+        "Choose a real container and one of its bind or volume mounts first.",
+        "先揀一個真實 container 同佢其中一個 bind 或 volume mount。",
+    ),
+    "world.docker.chooseVolumeReason": dockerVoice(
+        "Choose one of Docker's real named volumes first.",
+        "先揀 Docker 真正報出嚟嘅其中一個 named volume。",
+    ),
+    "world.docker.destinationReason": dockerVoice(
+        "Choose the exact local folder the fetched world should become.",
+        "揀準下載返嚟嘅世界要成為邊個本機資料夾。",
+    ),
+    "world.docker.ackReason": dockerVoice(
+        "Read and acknowledge the live-container warning for this fetch.",
+        "閱讀並確認今次下載嘅 live-container 警告。",
+    ),
+    "world.docker.additive": dockerVoice(
+        "The fetch is additive and read-only at the source. It adds or updates local files and never deletes a local file that disappeared from Docker.",
+        "下載對來源只讀而且只會增量加入。佢會新增或更新本機檔案，Docker 入面消失咗嘅檔案亦永遠唔會令本機副本被刪。",
+    ),
+    "world.docker.liveRisk": dockerVoice(
+        "{name} is running and may be writing region files now. A live copy can capture a torn .mca region file. Stop the server first, choose a known-good backup instead, or explicitly accept this exact risk for this fetch only.",
+        "{name} 運行緊，依家可能寫緊 region 檔案。即時複製可能會擷取到撕裂嘅 .mca region 檔案。先停止伺服器、改揀已知正常嘅備份，或者只為今次下載明確接受呢個確切風險。",
+    ),
+    "world.docker.cancelMiss": dockerVoice(
+        "That fetch ended before cancellation reached it.",
+        "個下載喺取消趕到之前已經完咗。",
+    ),
+    "world.docker.fetchedNotice": dockerVoice(
+        "The Docker world was fetched to {folder} and is ready for the wizard to inspect.",
+        "Docker 世界已下載去 {folder}，準備好畀精靈檢查。",
+    ),
+    "world.docker.fetched": dockerVoice(
+        "Fetched and validated {folder}. The ordinary wizard is inspecting that local folder now.",
+        "已下載並驗證 {folder}。原本個精靈而家檢查緊嗰個本機資料夾。",
+    ),
     /* SshWorldSourcePanel.vue */
     "world.ssh.blurb": sshVoice(
         "Choose a saved key-only SSH machine, inspect its real folders, review an unknown fingerprint, then fetch one world into a folder on this computer. Nothing is written to the other machine.",
@@ -1906,6 +2007,67 @@ export const WORLD_VOICED = {
 /* -------------------------------------------------------------------------- */
 
 export const WORLD_FIXED = {
+    /* DockerWorldSourcePanel.vue */
+    "world.docker.title": { en: "World in local Docker", yue: "本機 Docker 入面嘅世界" },
+    "world.docker.show": {
+        en: "World in a local Docker container or volume",
+        yue: "本機 Docker container 或 volume 入面嘅世界",
+    },
+    "world.docker.hide": { en: "Hide Docker worlds", yue: "收起 Docker 世界" },
+    "world.docker.search": {
+        en: "Search this Docker world setup",
+        yue: "搜尋呢個 Docker 世界設定",
+    },
+    "world.docker.refresh": {
+        en: "Check Docker and refresh the lists",
+        yue: "檢查 Docker 並更新清單",
+    },
+    "world.docker.source": { en: "1. Choose the Docker source", yue: "1. 揀 Docker 來源" },
+    "world.docker.container": { en: "Container", yue: "Container" },
+    "world.docker.volume": { en: "Named volume", yue: "Named volume" },
+    "world.docker.containerPicker": {
+        en: "Container Docker reports",
+        yue: "Docker 報出嚟嘅 container",
+    },
+    "world.docker.mount": {
+        en: "World mount inside the container",
+        yue: "Container 入面嘅世界 mount",
+    },
+    "world.docker.readOnly": { en: "read only", yue: "唯讀" },
+    "world.docker.writableAtSource": {
+        en: "source is writable by the container",
+        yue: "container 可以寫個來源",
+    },
+    "world.docker.running": { en: "Running", yue: "運行中" },
+    "world.docker.stopped": { en: "Stopped", yue: "已停止" },
+    "world.docker.volumePicker": {
+        en: "Named volume Docker reports",
+        yue: "Docker 報出嚟嘅 named volume",
+    },
+    "world.docker.destinationStep": {
+        en: "2. Choose the exact local destination",
+        yue: "2. 揀準本機目的地",
+    },
+    "world.docker.destinationField": {
+        en: "the local Docker-world destination folder",
+        yue: "本機 Docker 世界目的地資料夾",
+    },
+    "world.docker.destination": { en: "Local destination folder", yue: "本機目的地資料夾" },
+    "world.docker.acknowledge": {
+        en: "I accept the exact torn-region-file risk for this fetch from {name} only.",
+        yue: "我只為今次由 {name} 下載，接受確切嘅 region 檔案撕裂風險。",
+    },
+    "world.docker.fetchStep": { en: "3. Fetch and validate", yue: "3. 下載並驗證" },
+    "world.docker.fetch": { en: "Fetch this world", yue: "下載呢個世界" },
+    "world.docker.cancel": { en: "Cancel the fetch", yue: "取消下載" },
+    "world.docker.starting": {
+        en: "Starting the Docker-world fetch...",
+        yue: "開始緊 Docker 世界下載……",
+    },
+    "world.docker.filesProgress": {
+        en: "{done} of {total} files checked",
+        yue: "已檢查 {done}/{total} 個檔案",
+    },
     /* SshWorldSourcePanel.vue */
     "world.ssh.title": { en: "World on an SSH machine", yue: "SSH 機器上嘅世界" },
     "world.ssh.show": { en: "World on another machine over SSH", yue: "經 SSH 揀另一部機嘅世界" },
@@ -1945,7 +2107,10 @@ export const WORLD_FIXED = {
     /* ContainerOffers.vue */
     "world.containers.title": { en: "Containers left running", yue: "仲運行緊嘅容器" },
     "world.containers.searchLabel": { en: "Search these containers", yue: "搜尋呢啲容器" },
-    "world.containers.searchHint": { en: "a container name, or where it is running", yue: "容器名，或者喺邊度運行" },
+    "world.containers.searchHint": {
+        en: "a container name, or where it is running",
+        yue: "容器名，或者喺邊度運行",
+    },
     "world.containers.pickUp": { en: "Pick this up", yue: "攞返嚟" },
     "world.containers.notNow": { en: "Not now", yue: "而家唔要" },
     "world.containers.stop": { en: "Stop it", yue: "停止佢" },
@@ -1971,8 +2136,14 @@ export const WORLD_FIXED = {
     },
 
     /* MapIdentityStep.vue */
-    "world.identity.customDimension": { en: "Added by a mod or datapack", yue: "由 mod 或者 datapack 加入嘅" },
-    "world.identity.regionCount": { en: "{n} region files on disk", yue: "磁碟上有 {n} 個區域檔案" },
+    "world.identity.customDimension": {
+        en: "Added by a mod or datapack",
+        yue: "由 mod 或者 datapack 加入嘅",
+    },
+    "world.identity.regionCount": {
+        en: "{n} region files on disk",
+        yue: "磁碟上有 {n} 個區域檔案",
+    },
     "world.identity.notChecked": { en: "Not checked", yue: "未檢查" },
     "world.identity.name": { en: "Map name", yue: "地圖名稱" },
     "world.identity.namePlaceholder": { en: "shown in the viewer", yue: "會喺檢視器顯示" },
@@ -1983,7 +2154,10 @@ export const WORLD_FIXED = {
 
     /* DimensionSelection.vue, mounted inside MapIdentityStep.vue - see WORLD_VOICED above
      * for this component's own blurb and "no match" state. */
-    "world.identity.dimensionsTitle": { en: "Also render these dimensions", yue: "仲要一齊算呢啲維度" },
+    "world.identity.dimensionsTitle": {
+        en: "Also render these dimensions",
+        yue: "仲要一齊算呢啲維度",
+    },
     "world.identity.dimensionsOnlyOverworld": {
         en: "This world only has the Overworld. There is nothing else to include.",
         yue: "呢個世界淨係得 Overworld。冇第二樣嘢可以加。",
@@ -1997,8 +2171,14 @@ export const WORLD_FIXED = {
         en: "Showing {shown} of {total}",
         yue: "顯示緊 {total} 個入面嘅 {shown} 個",
     },
-    "world.identity.dimensionsIncludeShown": { en: "Include {n} shown", yue: "剔埋顯示緊嘅 {n} 個" },
-    "world.identity.dimensionsExcludeShown": { en: "Exclude {n} shown", yue: "剔走顯示緊嘅 {n} 個" },
+    "world.identity.dimensionsIncludeShown": {
+        en: "Include {n} shown",
+        yue: "剔埋顯示緊嘅 {n} 個",
+    },
+    "world.identity.dimensionsExcludeShown": {
+        en: "Exclude {n} shown",
+        yue: "剔走顯示緊嘅 {n} 個",
+    },
     "world.identity.dimensionsInvert": { en: "Invert shown", yue: "反選顯示緊嘅" },
     "world.identity.dimensionsVanillaBadge": { en: "Vanilla dimension", yue: "原版維度" },
     "world.identity.dimensionsExternalBadge": {
@@ -2023,14 +2203,23 @@ export const WORLD_FIXED = {
     "world.wizard.step.options": { en: "Options", yue: "選項" },
 
     /* MapStorageStep.vue */
-    "world.storage.pick": { en: "Choose where rendered maps are written", yue: "揀算好嘅地圖寫去邊" },
+    "world.storage.pick": {
+        en: "Choose where rendered maps are written",
+        yue: "揀算好嘅地圖寫去邊",
+    },
     "world.wizard.step.storage": { en: "Where it goes", yue: "去邊度" },
     "world.storage.title": { en: "Where the map is written", yue: "地圖寫去邊" },
     "world.storage.folder": { en: "Folder for rendered maps", yue: "算好嘅地圖放喺邊個資料夾" },
     "world.storage.browse": { en: "Browse", yue: "瀏覽" },
     "world.storage.useDefault": { en: "Use the default", yue: "用返預設值" },
-    "world.storage.applying": { en: "Pointing rendering at that folder...", yue: "轉緊算圖去嗰個資料夾..." },
-    "world.storage.settingTitle": { en: "The map's own storage setting", yue: "地圖自己嘅儲存設定" },
+    "world.storage.applying": {
+        en: "Pointing rendering at that folder...",
+        yue: "轉緊算圖去嗰個資料夾...",
+    },
+    "world.storage.settingTitle": {
+        en: "The map's own storage setting",
+        yue: "地圖自己嘅儲存設定",
+    },
 
     /* MinecraftWorldList.vue */
     "world.mounts.pick": {
@@ -2046,10 +2235,19 @@ export const WORLD_FIXED = {
     "world.mounts.worldCount": { en: "{n} worlds", yue: "{n} 個世界" },
     "world.mounts.rename": { en: "Rename {label}", yue: "重新命名 {label}" },
     "world.mounts.unmount": { en: "Unmount", yue: "卸載" },
-    "world.mounts.add": { en: "Mount another Minecraft folder", yue: "掛載多一個 Minecraft 資料夾" },
+    "world.mounts.add": {
+        en: "Mount another Minecraft folder",
+        yue: "掛載多一個 Minecraft 資料夾",
+    },
     "world.list.searchLabel": { en: "Search these worlds", yue: "搜尋呢啲世界" },
-    "world.list.searchHint": { en: "a name, a version, a folder", yue: "一個名、一個版本，或者一個資料夾" },
-    "world.list.scanning": { en: "Reading your Minecraft folders...", yue: "讀緊你嘅 Minecraft 資料夾..." },
+    "world.list.searchHint": {
+        en: "a name, a version, a folder",
+        yue: "一個名、一個版本，或者一個資料夾",
+    },
+    "world.list.scanning": {
+        en: "Reading your Minecraft folders...",
+        yue: "讀緊你嘅 Minecraft 資料夾...",
+    },
     "world.list.listbox": {
         en: "Worlds found on this computer, most recently played first",
         yue: "呢部電腦搵到嘅世界，最近玩過嘅排先",
@@ -2127,7 +2325,10 @@ export const WORLD_FIXED = {
         yue: "揀個世界資料夾，即係有 level.dat 嗰個",
     },
     "world.folder.label": { en: "World folder", yue: "世界資料夾" },
-    "world.folder.placeholder": { en: "the folder that contains level.dat", yue: "有 level.dat 嘅資料夾" },
+    "world.folder.placeholder": {
+        en: "the folder that contains level.dat",
+        yue: "有 level.dat 嘅資料夾",
+    },
     "world.folder.browse": { en: "Browse", yue: "瀏覽" },
     "world.folder.recheck": { en: "Check this folder again", yue: "再檢查呢個資料夾" },
     "world.folder.recheckShort": { en: "Check again", yue: "再檢查" },
@@ -2200,7 +2401,10 @@ export const WORLD_FIXED = {
     "world.list.seed": { en: "seed {seed}", yue: "種子 {seed}" },
     "world.list.folder": { en: "in {folder}", yue: "喺 {folder}" },
     "world.list.fromMount": { en: "from {mount}", yue: "嚟自 {mount}" },
-    "world.list.unreadableDetails": { en: "its level.dat could not be read", yue: "level.dat 讀唔到" },
+    "world.list.unreadableDetails": {
+        en: "its level.dat could not be read",
+        yue: "level.dat 讀唔到",
+    },
     "world.mounts.origin.appdata": {
         en: "the default Minecraft folder under %APPDATA%",
         yue: "%APPDATA% 底下嘅預設 Minecraft 資料夾",
@@ -2245,6 +2449,74 @@ export const WORLD_FIXED = {
 /* -------------------------------------------------------------------------- */
 
 export const WORLD_FACTS = {
+    "world.docker.blurb": {
+        en: ["this computer only", "Docker actually reports", "read-only", "ordinary wizard"],
+        yue: ["呢部電腦", "真正報出嚟", "唯讀", "原本個精靈"],
+    },
+    "world.docker.noMatch": {
+        en: ["No Docker-world control", "Clear it"],
+        yue: ["冇 Docker 世界控制", "清空佢"],
+    },
+    "world.docker.unavailable": {
+        en: ["desktop app", "progress", "cancellation"],
+        yue: ["桌面程式", "進度", "取消"],
+    },
+    "world.docker.noContainers": {
+        en: ["no containers", "running or stopped"],
+        yue: ["冇任何", "運行中或者已停止"],
+    },
+    "world.docker.noMounts": {
+        en: ["no bind mounts", "tmpfs", "persistent"],
+        yue: ["冇報出 bind mount", "tmpfs", "持久"],
+    },
+    "world.docker.noVolumes": {
+        en: ["no named volumes", "create"],
+        yue: ["冇 named volume", "建立"],
+    },
+    "world.docker.volumeDetail": {
+        en: ["{driver}", "{mountpoint}", "does not read"],
+        yue: ["{driver}", "{mountpoint}", "唔會直接讀"],
+    },
+    "world.docker.fingerprintNoneVolume": {
+        en: ["no cheap fingerprint", "must read"],
+        yue: ["冇平價 fingerprint", "必須讀"],
+    },
+    "world.docker.fingerprintNoneContainer": {
+        en: ["no cheap fingerprint", "must read"],
+        yue: ["冇平價 fingerprint", "必須讀"],
+    },
+    "world.docker.fingerprintBind": {
+        en: ["directly readable", "{regions}", "without copying"],
+        yue: ["可以直接讀", "{regions}", "唔使複製"],
+    },
+    "world.docker.waiting": { en: ["Wait", "finish"], yue: ["等", "完成"] },
+    "world.docker.chooseMountReason": {
+        en: ["real container", "bind or volume mounts"],
+        yue: ["真實 container", "bind 或 volume mount"],
+    },
+    "world.docker.chooseVolumeReason": {
+        en: ["Docker's real named volumes"],
+        yue: ["Docker 真正報出嚟"],
+    },
+    "world.docker.destinationReason": { en: ["exact local folder"], yue: ["揀準", "本機資料夾"] },
+    "world.docker.ackReason": { en: ["acknowledge", "this fetch"], yue: ["確認", "今次下載"] },
+    "world.docker.additive": {
+        en: ["additive", "read-only", "never deletes"],
+        yue: ["增量加入", "只讀", "永遠唔會"],
+    },
+    "world.docker.liveRisk": {
+        en: ["{name}", "torn .mca region file", "Stop", "backup", "this fetch only"],
+        yue: ["{name}", "撕裂嘅 .mca region 檔案", "停止", "備份", "只為今次下載"],
+    },
+    "world.docker.cancelMiss": { en: ["ended", "cancellation"], yue: ["取消", "已經完"] },
+    "world.docker.fetchedNotice": {
+        en: ["{folder}", "ready", "inspect"],
+        yue: ["{folder}", "準備好", "檢查"],
+    },
+    "world.docker.fetched": {
+        en: ["{folder}", "validated", "ordinary wizard"],
+        yue: ["{folder}", "驗證", "原本個精靈"],
+    },
     "world.ssh.blurb": {
         en: ["key-only SSH machine", "unknown fingerprint", "Nothing is written"],
         yue: ["只用金鑰嘅 SSH 機器", "未見過嘅指紋", "唔會寫任何嘢"],
@@ -2338,7 +2610,13 @@ export const WORLD_FACTS = {
     },
     "world.identity.presetNote": { en: ["BlueMap's own template"], yue: ["BlueMap 自己嘅範本"] },
     "world.identity.presetDetail": {
-        en: ["sky colour", "void colour", "ambient light", "cave removal", "keeps every option you have changed"],
+        en: [
+            "sky colour",
+            "void colour",
+            "ambient light",
+            "cave removal",
+            "keeps every option you have changed",
+        ],
         yue: ["天空顏色", "虛空顏色", "環境光", "洞穴清除", "保留你自己改過嘅每一個選項"],
     },
     "world.identity.dimensionsBlurb": {
@@ -2349,7 +2627,10 @@ export const WORLD_FACTS = {
         en: ["Clearing it brings", "back"],
         yue: ["清空", "攞返"],
     },
-    "world.options.badPattern": { en: ["not valid", "nothing is shown"], yue: ["唔合法", "唔會顯示"] },
+    "world.options.badPattern": {
+        en: ["not valid", "nothing is shown"],
+        yue: ["唔合法", "唔會顯示"],
+    },
     "world.options.matches": { en: ["{shown}", "{total}"], yue: ["{shown}", "{total}"] },
     "world.options.allShown": { en: ["{total}"], yue: ["{total}"] },
     "world.options.blurb": {
@@ -2386,7 +2667,11 @@ export const WORLD_FACTS = {
         yue: ["已經喺清單入面", "{label}"],
     },
     "world.mounts.unmounted": {
-        en: ["{label}", "Nothing on your disk was changed", "mounting it again brings it straight back"],
+        en: [
+            "{label}",
+            "Nothing on your disk was changed",
+            "mounting it again brings it straight back",
+        ],
         yue: ["{label}", "磁碟上冇任何嘢改變過", "重新掛載就會即刻返嚟"],
     },
     "world.mounts.unmountOne": {
@@ -2436,7 +2721,11 @@ export const WORLD_FACTS = {
         yue: ["Mojang", "下載重未接受", "未開始就會停低"],
     },
     "world.review.noEngine": {
-        en: ["cannot render locally", "map config below can be copied out", "needs the desktop app"],
+        en: [
+            "cannot render locally",
+            "map config below can be copied out",
+            "needs the desktop app",
+        ],
         yue: ["本機算唔到圖", "地圖設定檔", "桌面程式"],
     },
     "world.review.forceHint": {
@@ -2488,11 +2777,19 @@ export const WORLD_FACTS = {
         yue: ["開始唔到算圖", "本機算圖要用桌面程式"],
     },
     "world.screen.runningBlurb": {
-        en: ["being drawn on this machine", "not waiting to be carried on", "would only be refused"],
+        en: [
+            "being drawn on this machine",
+            "not waiting to be carried on",
+            "would only be refused",
+        ],
         yue: ["呢部機正在畫緊", "唔係等緊被繼續", "只會俾人拒絕"],
     },
     "world.screen.wroteProject": {
-        en: ["project at the root of that world", "repeated without setting anything up again", "editor"],
+        en: [
+            "project at the root of that world",
+            "repeated without setting anything up again",
+            "editor",
+        ],
         yue: ["項目", "世界嘅根目錄", "唔使再設定", "編輯器"],
     },
     "world.screen.projectFailed": {
@@ -2500,7 +2797,13 @@ export const WORLD_FACTS = {
         yue: ["算圖照樣繼續", "項目檔案寫唔入", "{message}"],
     },
     "world.screen.blurb": {
-        en: ["Minecraft world", "five short steps", "writes a project", "answers are kept", "Projects tab"],
+        en: [
+            "Minecraft world",
+            "five short steps",
+            "writes a project",
+            "answers are kept",
+            "Projects tab",
+        ],
         yue: ["Minecraft 世界", "五個簡短步驟", "寫低一個項目", "答案會保留低", "Projects 分頁"],
     },
 
@@ -2545,7 +2848,10 @@ export const WORLD_FACTS = {
         yue: ["喺運行之前就被拒絕", "乜都未寫過"],
     },
     "world.run.fail.nothing": {
-        en: ["ran and finished without rendering a single map", "dimension chosen has no region files"],
+        en: [
+            "ran and finished without rendering a single map",
+            "dimension chosen has no region files",
+        ],
         yue: ["一張地圖都冇算出過", "維度喺呢個世界冇任何區域檔案"],
     },
     "world.run.fail.cancelled": {
@@ -2553,7 +2859,10 @@ export const WORLD_FACTS = {
         yue: ["你停止咗佢", "已經算好嘅圖磚全部保留", "由停低嗰度接住做"],
     },
     "world.run.fail.engine": {
-        en: ["started and then stopped with an error", "last few lines are usually the ones that say why"],
+        en: [
+            "started and then stopped with an error",
+            "last few lines are usually the ones that say why",
+        ],
         yue: ["開始咗，但係之後以錯誤停低", "最後幾行就會講原因"],
     },
 
@@ -2576,7 +2885,11 @@ export const WORLD_FACTS = {
     },
     "world.resume.progress": { en: ["{percent}"], yue: ["{percent}"] },
     "world.resume.refused.configChanged": {
-        en: ["settings moved", "half the map drawn with the old settings and half with the new", "refused"],
+        en: [
+            "settings moved",
+            "half the map drawn with the old settings and half with the new",
+            "refused",
+        ],
         yue: ["設定改咗", "一半用舊設定畫、一半用新設定畫", "拒絕"],
     },
     "world.resume.refused.alreadyRunning": {
@@ -2606,7 +2919,10 @@ export const WORLD_FACTS = {
         en: ["Minecraft installation", "{path}"],
         yue: ["Minecraft 安裝", "{path}"],
     },
-    "world.mounts.resolvedSaves": { en: ["saves folder", "{path}"], yue: ["saves 資料夾", "{path}"] },
+    "world.mounts.resolvedSaves": {
+        en: ["saves folder", "{path}"],
+        yue: ["saves 資料夾", "{path}"],
+    },
 
     /* worldFolder.ts */
     "world.folder.empty": { en: ["No world folder chosen"], yue: ["重未揀世界資料夾"] },

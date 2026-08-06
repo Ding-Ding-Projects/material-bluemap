@@ -35,6 +35,7 @@ interface DockerWorldBridgeUnderTest {
         active(): Promise<readonly string[]>;
         fingerprint(source: unknown): Promise<unknown>;
         fingerprintsEqual(a: unknown, b: unknown): Promise<boolean>;
+        onDockerWorldEvent(listener: (event: unknown) => void): () => void;
     };
 }
 
@@ -62,13 +63,19 @@ describe("window.materialBluemap.dockerWorld routes to dockerworld:*", () => {
     it("inspectContainer(id) sends the bare id", async () => {
         await bridge.dockerWorld.inspectContainer("c0ffee123456");
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);
-        expect(ipcRenderer.invoke).toHaveBeenCalledWith("dockerworld:inspectContainer", "c0ffee123456");
+        expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+            "dockerworld:inspectContainer",
+            "c0ffee123456",
+        );
     });
 
     it("inspectVolume(name) sends the bare name", async () => {
         await bridge.dockerWorld.inspectVolume("minecraft_world");
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);
-        expect(ipcRenderer.invoke).toHaveBeenCalledWith("dockerworld:inspectVolume", "minecraft_world");
+        expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+            "dockerworld:inspectVolume",
+            "minecraft_world",
+        );
     });
 
     it("fetch(request) sends the whole request object as one argument", async () => {
@@ -84,7 +91,10 @@ describe("window.materialBluemap.dockerWorld routes to dockerworld:*", () => {
     it("cancel(fetchId) sends the bare id", async () => {
         await bridge.dockerWorld.cancel("volume:minecraft_world");
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);
-        expect(ipcRenderer.invoke).toHaveBeenCalledWith("dockerworld:cancel", "volume:minecraft_world");
+        expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+            "dockerworld:cancel",
+            "volume:minecraft_world",
+        );
     });
 
     it("active() asks dockerworld:active with no argument", async () => {
@@ -94,7 +104,11 @@ describe("window.materialBluemap.dockerWorld routes to dockerworld:*", () => {
     });
 
     it("fingerprint(source) sends the bare source", async () => {
-        const source = { kind: "container", containerId: "c0ffee123456", mountDestination: "/data" };
+        const source = {
+            kind: "container",
+            containerId: "c0ffee123456",
+            mountDestination: "/data",
+        };
         await bridge.dockerWorld.fingerprint(source);
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);
         expect(ipcRenderer.invoke).toHaveBeenCalledWith("dockerworld:fingerprint", source);
@@ -106,5 +120,24 @@ describe("window.materialBluemap.dockerWorld routes to dockerworld:*", () => {
         await bridge.dockerWorld.fingerprintsEqual(a, b);
         expect(ipcRenderer.invoke).toHaveBeenCalledTimes(1);
         expect(ipcRenderer.invoke).toHaveBeenCalledWith("dockerworld:fingerprintsEqual", a, b);
+    });
+
+    it("onDockerWorldEvent forwards the event and removes exactly its own listener", () => {
+        const listener = vi.fn();
+        const stop = bridge.dockerWorld.onDockerWorldEvent(listener);
+        expect(ipcRenderer.on).toHaveBeenCalledWith("dockerworld:event", expect.any(Function));
+
+        const forward = vi.mocked(ipcRenderer.on).mock.calls.at(-1)?.[1] as
+            ((event: unknown, payload: unknown) => void) | undefined;
+        forward?.({}, { type: "progress", fetchId: "volume:world", filesDone: 1, filesTotal: 2 });
+        expect(listener).toHaveBeenCalledWith({
+            type: "progress",
+            fetchId: "volume:world",
+            filesDone: 1,
+            filesTotal: 2,
+        });
+
+        stop();
+        expect(ipcRenderer.off).toHaveBeenCalledWith("dockerworld:event", forward);
     });
 });

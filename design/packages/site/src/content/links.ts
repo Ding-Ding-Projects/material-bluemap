@@ -71,6 +71,7 @@ export const RENDER_CONSOLE_DOC_URL = repoFile("docs/render-console.md");
 export const PUBLISHING_TO_PAGES_DOC_URL = repoFile("docs/pages-hosting.md");
 export const AUTOMATIC_UPDATES_DOC_URL = repoFile("docs/automatic-updates.md");
 export const DOCKER_AND_LOCAL_DOC_URL = repoFile("docs/docker-and-local.md");
+export const DOCKER_WORLD_SOURCE_DOC_URL = repoFile("docs/docker-world-source.md");
 export const REMOTE_RENDER_DOC_URL = repoFile("docs/remote-render.md");
 export const REMOTE_HOSTING_DOC_URL = repoFile("docs/remote-hosting.md");
 export const AUTOMATIC_REPAIR_DOC_URL = repoFile("docs/automatic-repair.md");

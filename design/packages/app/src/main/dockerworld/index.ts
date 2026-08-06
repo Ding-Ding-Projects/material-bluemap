@@ -91,6 +91,7 @@ export {
 
 export {
     DOCKERWORLD_CHANNELS,
+    DOCKERWORLD_EVENT_CHANNEL,
     registerDockerWorldHandlers,
     type DockerContainerAnswer,
     type DockerVolumeAnswer,

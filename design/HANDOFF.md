@@ -1,5 +1,31 @@
 # Handoff
 
+## Update, 2026-08-06 — local Docker worlds are reachable from the map wizard
+
+The `dockerworld:*` main-process module is no longer a fully tested seam with no user route.
+The World step now mounts `DockerWorldSourcePanel.vue`. It checks the existing five-state Docker
+runtime guidance, lists actual local containers and named volumes, inspects a selected
+container's actual bind/volume mounts, and makes the destination the shared browsable
+`PathField`. A running container names the torn-`.mca` risk and refuses to fetch until that one
+attempt is acknowledged; the acknowledgement is consumed after the attempt and never becomes a
+standing preference. Success returns the exact local destination through the wizard's ordinary
+world-inspection path.
+
+The copy path remains read-only and additive. Bind-direct copies expose actual file counts from
+the beginning. `docker cp` and a read-only helper-container copy stay indeterminate while Docker
+offers no honest total, then report real file counts during local placement. Cancellation now
+reaches those child processes through the abort signal. The renderer receives progress through
+the context-isolated preload event seam, not a guessed timer.
+
+Focused evidence covers main-process fetch/IPC, preload subscribe/unsubscribe, mounted
+container/volume/mount selection, the per-attempt live gate, null fingerprints, progress,
+cancellation, wizard handoff, search/regex, appearance/menu, path, overlay and additive-safety
+inventories. App/UI typechecks and the production workspace build pass. **This is still
+`ported-unverified` against a real Docker source:** Docker Desktop client 29.6.1 was present, but
+its `desktop-linux` named pipe did not exist (`npipe:////./pipe/dockerDesktopLinuxEngine`), so no
+container, volume or mount could be listed and no successful runtime fetch is claimed. The cheap
+hidden compact proof verifies the real built daemon-down surface only.
+
 ## Update, 2026-08-06 — every self-hosted CI job now bootstraps its own dependencies
 
 The self-hosted migration in decision D19 had accumulated correct but disconnected fixes:

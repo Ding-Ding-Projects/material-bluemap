@@ -1,4 +1,13 @@
-import { app, autoUpdater, BrowserWindow, ipcMain, session, clipboard, dialog, shell } from "electron";
+import {
+    app,
+    autoUpdater,
+    BrowserWindow,
+    ipcMain,
+    session,
+    clipboard,
+    dialog,
+    shell,
+} from "electron";
 import {
     acceptDownload,
     completeFirstRun,
@@ -57,7 +66,11 @@ import {
 import type { WorldSourceIpc, WorldSourceSshIpc } from "./worldsource/index.js";
 import { RemoteRenderOrchestrator, registerRemoteHandlers } from "./remote/index.js";
 import type { RemoteIpc } from "./remote/index.js";
-import { RemoteHostingOrchestrator, REMOTE_HOSTING_EVENT_CHANNEL, registerRemoteHostingHandlers } from "./remote/index.js";
+import {
+    RemoteHostingOrchestrator,
+    REMOTE_HOSTING_EVENT_CHANNEL,
+    registerRemoteHostingHandlers,
+} from "./remote/index.js";
 import type { RemoteHostingIpc } from "./remote/index.js";
 import { DOWNLOAD_EVENT_CHANNEL } from "./download/ipc.js";
 import { RENDER_EVENT_CHANNEL } from "./render/ipc.js";
@@ -69,9 +82,13 @@ import { installPreviewIpc, PreviewNetworkStore, PREVIEW_EVENT_CHANNEL } from ".
 import type { PreviewIpc } from "./preview/index.js";
 import { installWorldRepoIpc, WORLD_REPO_EVENT_CHANNEL } from "./worldrepo/index.js";
 import type { WorldRepoIpc } from "./worldrepo/index.js";
-import { registerDockerWorldHandlers } from "./dockerworld/index.js";
+import { DOCKERWORLD_EVENT_CHANNEL, registerDockerWorldHandlers } from "./dockerworld/index.js";
 import type { DockerWorldIpc } from "./dockerworld/index.js";
-import { PROJECT_AUTOSAVE_EVENT_CHANNEL, registerProjectHandlers, wireAutosaveQuitFlush } from "./project/index.js";
+import {
+    PROJECT_AUTOSAVE_EVENT_CHANNEL,
+    registerProjectHandlers,
+    wireAutosaveQuitFlush,
+} from "./project/index.js";
 import type { AutosaveOutcome, ProjectIpc } from "./project/index.js";
 import { installBackupIpc } from "./backup/ipc.js";
 import type { BackupIpc } from "./backup/ipc.js";
@@ -174,7 +191,7 @@ function hardenSession(baseUrl: string): void {
                     Authorization: `Bearer ${authToken}`,
                 },
             });
-        }
+        },
     );
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
         const headers = { ...details.responseHeaders };
@@ -216,7 +233,11 @@ function registerIpc(): void {
         const known = new Set<string>();
         for (const profile of profiles) {
             if (typeof profile.id !== "string" || typeof profile.baseUrl !== "string") continue;
-            remoteProxy.setProfile({ id: profile.id, name: profile.name, baseUrl: profile.baseUrl });
+            remoteProxy.setProfile({
+                id: profile.id,
+                name: profile.name,
+                baseUrl: profile.baseUrl,
+            });
             known.add(profile.id);
         }
         for (const existing of remoteProxy.getProfiles()) {
@@ -436,7 +457,8 @@ function startJavaDiscovery(): JavaIpc {
         ensure: ensureJava,
         broadcast: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
-                if (!window.isDestroyed()) window.webContents.send(JAVA_PROVISION_EVENT_CHANNEL, event);
+                if (!window.isDestroyed())
+                    window.webContents.send(JAVA_PROVISION_EVENT_CHANNEL, event);
             }
         },
     });
@@ -461,7 +483,8 @@ function startSysdepInstaller(): SysdepIpc {
         run: spawnProcessRunner,
         broadcast: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
-                if (!window.isDestroyed()) window.webContents.send(SYSDEP_INSTALL_EVENT_CHANNEL, event);
+                if (!window.isDestroyed())
+                    window.webContents.send(SYSDEP_INSTALL_EVENT_CHANNEL, event);
             }
         },
     });
@@ -554,7 +577,8 @@ function startProjects(): ProjectIpc {
             // the one place the fact exists before it crosses the bridge.
             onAutosave: (outcome: AutosaveOutcome) => {
                 for (const window of BrowserWindow.getAllWindows()) {
-                    if (!window.isDestroyed()) window.webContents.send(PROJECT_AUTOSAVE_EVENT_CHANNEL, outcome);
+                    if (!window.isDestroyed())
+                        window.webContents.send(PROJECT_AUTOSAVE_EVENT_CHANNEL, outcome);
                 }
             },
         },
@@ -578,13 +602,17 @@ let appSettingsHistoryIpc: AppSettingsHistoryIpc | null = null;
 
 function startProfilesHistory(): ProfilesHistoryIpc {
     if (profilesHistoryIpc !== null) return profilesHistoryIpc;
-    profilesHistoryIpc = registerProfilesHistoryHandlers(ipcMain, { dataDir: app.getPath("userData") });
+    profilesHistoryIpc = registerProfilesHistoryHandlers(ipcMain, {
+        dataDir: app.getPath("userData"),
+    });
     return profilesHistoryIpc;
 }
 
 function startAppSettingsHistory(): AppSettingsHistoryIpc {
     if (appSettingsHistoryIpc !== null) return appSettingsHistoryIpc;
-    appSettingsHistoryIpc = registerAppSettingsHistoryHandlers(ipcMain, { dataDir: app.getPath("userData") });
+    appSettingsHistoryIpc = registerAppSettingsHistoryHandlers(ipcMain, {
+        dataDir: app.getPath("userData"),
+    });
     return appSettingsHistoryIpc;
 }
 
@@ -676,7 +704,11 @@ function startFileAccess(render: RenderIpc): RenderMemoryStore {
         memory,
         downloadConcurrency: concurrency,
         roots: () => [
-            { id: "maps", label: "the folder rendered maps go in", path: render.storageDirectory() },
+            {
+                id: "maps",
+                label: "the folder rendered maps go in",
+                path: render.storageDirectory(),
+            },
             { id: "data", label: "this app's own data folder", path: app.getPath("userData") },
         ],
     });
@@ -718,7 +750,10 @@ function startCiRenders(render: RenderIpc, github: GitHubIpc, backup: BackupIpc)
             if (accountId === undefined || accountId === "") {
                 return github.session.status().account?.login ?? null;
             }
-            return github.accounts.listAccounts().accounts.find((entry) => entry.id === accountId)?.login ?? null;
+            return (
+                github.accounts.listAccounts().accounts.find((entry) => entry.id === accountId)
+                    ?.login ?? null
+            );
         },
         mounts: localMaps,
         broadcast: (event) => {
@@ -862,7 +897,11 @@ function startWorldRepoHosting(): WorldRepoIpc {
  */
 let worldSourceIpc: WorldSourceIpc | null = null;
 
-function startWorldSources(render: RenderIpc, downloads: DownloadIpc, github: GitHubIpc): WorldSourceIpc {
+function startWorldSources(
+    render: RenderIpc,
+    downloads: DownloadIpc,
+    github: GitHubIpc,
+): WorldSourceIpc {
     if (worldSourceIpc !== null) return worldSourceIpc;
     worldSourceIpc = registerWorldSourceHandlers(ipcMain, {
         storageDir: () => render.storageDirectory(),
@@ -896,7 +935,8 @@ function startSshWorldSources(): WorldSourceSshIpc {
         userKnownHostsFile: join(homedir(), ".ssh", "known_hosts"),
         onEvent: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
-                if (!window.isDestroyed()) window.webContents.send(WORLD_SOURCE_SSH_EVENT_CHANNEL, event);
+                if (!window.isDestroyed())
+                    window.webContents.send(WORLD_SOURCE_SSH_EVENT_CHANNEL, event);
             }
         },
     });
@@ -909,14 +949,21 @@ function startSshWorldSources(): WorldSourceSshIpc {
  * Registered once, for the same reason everything above it is. The local daemon only -
  * see `dockerworld/ipc.ts`'s own doc comment for why a remote Docker host reached over SSH
  * is not wired to a button yet even though `DockerWorldFetcher` already supports one, and
- * for why no `broadcast` is wired here: every channel this registers is invoke-and-await,
- * so there is no progress stream for a picker to miss by not subscribing to one.
+ * Fetch results still resolve through invoke-and-await. The fetcher's actual phase and file
+ * progress is also broadcast so the wizard never has to invent a percentage while waiting.
  */
 let dockerWorldIpc: DockerWorldIpc | null = null;
 
 function startDockerWorld(): DockerWorldIpc {
     if (dockerWorldIpc !== null) return dockerWorldIpc;
-    dockerWorldIpc = registerDockerWorldHandlers(ipcMain);
+    dockerWorldIpc = registerDockerWorldHandlers(ipcMain, {
+        onEvent: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed())
+                    window.webContents.send(DOCKERWORLD_EVENT_CHANNEL, event);
+            }
+        },
+    });
     return dockerWorldIpc;
 }
 
@@ -1034,7 +1081,8 @@ function startRemoteHosting(render: RenderIpc): RemoteHostingIpc {
         }),
         onEvent: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
-                if (!window.isDestroyed()) window.webContents.send(REMOTE_HOSTING_EVENT_CHANNEL, event);
+                if (!window.isDestroyed())
+                    window.webContents.send(REMOTE_HOSTING_EVENT_CHANNEL, event);
             }
         },
         knownHostsFile,
@@ -1224,7 +1272,7 @@ async function launch(): Promise<void> {
         dialog.showErrorBox(
             "Material BlueMap could not start",
             `${message}\n\nThis is a bug. Please report it with this message at\n` +
-                `https://github.com/Ding-Ding-Projects/material-bluemap/issues`
+                `https://github.com/Ding-Ding-Projects/material-bluemap/issues`,
         );
         app.exit(1);
     }

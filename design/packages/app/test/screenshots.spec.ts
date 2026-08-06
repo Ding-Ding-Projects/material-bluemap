@@ -413,7 +413,10 @@ async function pointAppAtNoMap(): Promise<void> {
         // tab's centre is a coin toss between selecting it and closing it - and when the
         // close button wins, Playwright reports a thirty-second click timeout on a locator
         // it had already resolved, which reads like a hung application.
-        await wizardTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+        await wizardTab
+            .locator(".mb-tabs-strip__label")
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
     }
     await page.waitForSelector(".mb-world-wizard", { timeout: 30_000 });
     mapArea = "none";
@@ -482,7 +485,10 @@ async function openShellTab(label: RegExp): Promise<void> {
 
     if (directlyVisible) {
         if ((await direct.getAttribute("aria-selected")) !== "true") {
-            await direct.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+            await direct
+                .locator(".mb-tabs-strip__label")
+                .first()
+                .click({ timeout: ELEMENT_TIMEOUT });
         }
         return;
     }
@@ -830,7 +836,9 @@ async function ensureFirstRunClosed(): Promise<void> {
     await page
         .evaluate(async () => {
             const bridge = (
-                window as unknown as { materialBluemap?: { completeFirstRun?: () => Promise<unknown> } }
+                window as unknown as {
+                    materialBluemap?: { completeFirstRun?: () => Promise<unknown> };
+                }
             ).materialBluemap;
             await bridge?.completeFirstRun?.();
         })
@@ -1312,7 +1320,10 @@ test("captures the backup screen", async () => {
  */
 async function openSettingsSection(anchor: string, title: string): Promise<void> {
     if (!(await visible(".mb-settings"))) {
-        await page.locator('.mb-shell-fab[aria-label="Settings"]').first().click({ timeout: ELEMENT_TIMEOUT });
+        await page
+            .locator('.mb-shell-fab[aria-label="Settings"]')
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
         await page.waitForSelector(".mb-settings", { state: "visible", timeout: ELEMENT_TIMEOUT });
     }
     const searchInput = page.locator(".mb-settings__search input").first();
@@ -1649,7 +1660,9 @@ test("captures the remaining first-class screens", async () => {
 
     await attempt("History", async () => {
         await ensureOptionsEditor();
-        const historyTab = page.locator('.mb-config-screen__tabs [role="tab"]', { hasText: "History" }).first();
+        const historyTab = page
+            .locator('.mb-config-screen__tabs [role="tab"]', { hasText: "History" })
+            .first();
         await historyTab.click({ timeout: ELEMENT_TIMEOUT });
         // A fresh profile has no folder yet, so the panel deliberately renders its
         // truthful "save this config set to one first" state rather than a fake timeline.
@@ -1677,7 +1690,10 @@ test("captures the remaining first-class screens", async () => {
         const projectsTab = page.locator('[role="tab"]', { hasText: /^Projects$/i }).first();
         await projectsTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         if ((await projectsTab.getAttribute("aria-selected")) !== "true") {
-            await projectsTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+            await projectsTab
+                .locator(".mb-tabs-strip__label")
+                .first()
+                .click({ timeout: ELEMENT_TIMEOUT });
         }
         const projects = page.locator(".mb-projects-screen");
         await projects.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
@@ -1693,7 +1709,10 @@ test("captures the remaining first-class screens", async () => {
         const ciTab = page.locator('[role="tab"]', { hasText: /GitHub runners/i }).first();
         await ciTab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         if ((await ciTab.getAttribute("aria-selected")) !== "true") {
-            await ciTab.locator(".mb-tabs-strip__label").first().click({ timeout: ELEMENT_TIMEOUT });
+            await ciTab
+                .locator(".mb-tabs-strip__label")
+                .first()
+                .click({ timeout: ELEMENT_TIMEOUT });
         }
         const ci = page.locator(".ci-render-screen");
         await ci.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
@@ -1820,7 +1839,11 @@ test("captures the command palette", async () => {
         await shoot(
             "palette-search",
             "The command palette filtered by a search, with a setting row that carries its own live control - changing it here changes the real setting, the same way changing it on its own page would",
-            { crop: page.locator(".mb-palette__card"), cropped: "the command palette", mapArea: "covered" },
+            {
+                crop: page.locator(".mb-palette__card"),
+                cropped: "the command palette",
+                mapArea: "covered",
+            },
         );
 
         await dismiss();
@@ -1875,8 +1898,14 @@ test("captures the tab strip, its context menu, the tab finder and the bulk-clos
     });
 
     await attempt("Tab finder", async () => {
-        await shellTabs.locator('[aria-label="Find a tab"]').first().click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForSelector(".mb-tabs-finder", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await shellTabs
+            .locator('[aria-label="Find a tab"]')
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-tabs-finder", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
         await page.waitForTimeout(400);
         // `.first()`, not a bare locator: the finder's own `v-menu` carries `eager`, so its
         // content mounts immediately rather than only when opened - and the settings
@@ -1944,7 +1973,9 @@ test("captures the appearance editor, its context menu, typography and the infin
         // no matter whether this run has a map or a server profile to show elsewhere.
         // Scoped to the shell's own tab bar for the same reason the tab-strip test is:
         // the settings surface carries a second, normally-invisible `TabbedNavigation`.
-        const tab = page.locator('.mb-shell-tabs [role="tab"]', { hasText: /maps and servers/i }).first();
+        const tab = page
+            .locator('.mb-shell-tabs [role="tab"]', { hasText: /maps and servers/i })
+            .first();
         await tab.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
         // The label, not the tab: a tab carries its own close button over part of its
         // area, and a right-click aimed at the tab's centre is a coin toss between the
@@ -2025,8 +2056,14 @@ test("captures the appearance editor, its context menu, typography and the infin
         // six report `isVisible() === false` with a `null` bounding box; only the two
         // Surface-tab swatches, last in DOM order, are actually reachable. `:visible`
         // scopes the selector to the ones a click can actually land on.
-        await page.locator(".mb-color-field__swatch:visible").first().click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForSelector(".mb-color-picker", { state: "visible", timeout: ELEMENT_TIMEOUT });
+        await page
+            .locator(".mb-color-field__swatch:visible")
+            .first()
+            .click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector(".mb-color-picker", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
         await page.waitForTimeout(500);
         await shoot(
             "infinite-colour-picker",
@@ -2104,6 +2141,25 @@ test("captures the make-a-map wizard at every step", async () => {
             {
                 crop: page.locator("#mb-ssh-world-panel"),
                 cropped: "the SSH world-source checklist",
+            },
+        );
+        await opener.click({ timeout: ELEMENT_TIMEOUT });
+    });
+
+    await attempt("Wizard, Docker world source", async () => {
+        const opener = page.locator('[data-test="docker-open"]');
+        await opener.click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector("#mb-docker-world-panel", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
+        await page.waitForTimeout(500);
+        await shoot(
+            "wizard-docker-world-source",
+            "The local Docker world-source checklist inside the first wizard step: Docker's real state, actual containers and volumes, a browsed local destination, live-copy risk acknowledgement, and honest progress",
+            {
+                crop: page.locator("#mb-docker-world-panel"),
+                cropped: "the local Docker world-source checklist",
             },
         );
         await opener.click({ timeout: ELEMENT_TIMEOUT });

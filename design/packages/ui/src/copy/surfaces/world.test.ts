@@ -81,7 +81,9 @@ describe("world.ts: the module's own shape", () => {
 
     it("has no empty string anywhere", () => {
         for (const entry of everyString()) {
-            expect(entry.text.trim(), `${entry.key} ${entry.language} L${entry.level}`).not.toBe("");
+            expect(entry.text.trim(), `${entry.key} ${entry.language} L${entry.level}`).not.toBe(
+                "",
+            );
         }
     });
 
@@ -170,9 +172,10 @@ describe("world.ts: no level drops a value out of a sentence", () => {
             const expected = sorted(placeholdersIn(WORLD_VOICED[key].en[0]));
             for (const language of LANGUAGES) {
                 WORLD_VOICED[key][language].forEach((text, index) => {
-                    expect(sorted(placeholdersIn(text)), `${key} ${language} L${index + 1}`).toEqual(
-                        expected,
-                    );
+                    expect(
+                        sorted(placeholdersIn(text)),
+                        `${key} ${language} L${index + 1}`,
+                    ).toEqual(expected);
                 });
             }
         }
@@ -197,6 +200,7 @@ const COVERED_FILES = new Set([
     "BedrockConversionNote.vue",
     "ContainerOffers.vue",
     "DimensionSelection.vue",
+    "DockerWorldSourcePanel.vue",
     "InterruptedRenders.vue",
     "MapIdentityStep.vue",
     "MapOptionsStep.vue",
@@ -306,14 +310,17 @@ describe("world.ts: answers the call sites in the covered files", () => {
         const wrong: string[] = [];
         for (const [key, expected] of sites) {
             const mine = placeholdersIn(
-                (WORLD_VOICED as Record<string, { en: readonly string[] } | undefined>)[key]?.en[0] ??
+                (WORLD_VOICED as Record<string, { en: readonly string[] } | undefined>)[key]
+                    ?.en[0] ??
                     (WORLD_FIXED as Record<string, { en: string } | undefined>)[key]?.en ??
                     "",
             );
             const a = sorted(expected);
             const b = sorted(mine);
             if (a.join() !== b.join()) {
-                wrong.push(`${key}: call site passes [${a.join(", ")}], catalogue has [${b.join(", ")}]`);
+                wrong.push(
+                    `${key}: call site passes [${a.join(", ")}], catalogue has [${b.join(", ")}]`,
+                );
             }
         }
         expect(wrong).toEqual([]);
@@ -344,7 +351,8 @@ describe("world.ts: no level stops saying what the message is for", () => {
 
     it("names a fact for every voiced key, so nothing is quietly exempt", () => {
         const unguarded = voicedKeys.filter((key) => {
-            const entry = WORLD_FACTS[key] as { en: readonly string[]; yue: readonly string[] } | undefined;
+            const entry = WORLD_FACTS[key] as
+                { en: readonly string[]; yue: readonly string[] } | undefined;
             return entry === undefined || entry.en.length === 0 || entry.yue.length === 0;
         });
         expect(unguarded).toEqual([]);

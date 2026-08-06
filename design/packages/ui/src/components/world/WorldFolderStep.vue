@@ -14,6 +14,7 @@ import { VAlert, VBtn, VChip, VIcon, VProgressCircular, VTextField } from "vueti
 import { useConfigHost } from "../config/configHost.js";
 import { ReleaseDownloads, type DownloadBridge } from "../downloads/index.js";
 import BedrockConversionNote from "./BedrockConversionNote.vue";
+import DockerWorldSourcePanel from "./DockerWorldSourcePanel.vue";
 import MinecraftWorldList from "./MinecraftWorldList.vue";
 import SshWorldSourcePanel from "./SshWorldSourcePanel.vue";
 import {
@@ -80,7 +81,9 @@ const path = computed<string>({
     set: (value) => emit("update:modelValue", value),
 });
 
-const problems = computed(() => props.inspection.problems.map((problem) => describeWorldProblem(problem, t)));
+const problems = computed(() =>
+    props.inspection.problems.map((problem) => describeWorldProblem(problem, t)),
+);
 const summary = computed(() => describeWorld(props.inspection, t));
 const good = computed(() => props.inspection.ok && !props.inspection.unchecked);
 
@@ -123,6 +126,12 @@ function useConverted(folder: string): void {
 
 /** A fetched SSH world rejoins the ordinary local-folder path, including its real inspection. */
 function useSshWorld(folder: string): void {
+    emit("update:modelValue", folder);
+    emit("inspect", folder);
+}
+
+/** A fetched Docker world rejoins the same real local-folder inspection path. */
+function useDockerWorld(folder: string): void {
     emit("update:modelValue", folder);
     emit("inspect", folder);
 }
@@ -300,7 +309,14 @@ function onDrop(event: DragEvent): void {
             </span>
         </div>
 
-        <v-alert v-if="dropFailure" type="warning" density="compact" variant="tonal" class="mt-2" role="alert">
+        <v-alert
+            v-if="dropFailure"
+            type="warning"
+            density="compact"
+            variant="tonal"
+            class="mt-2"
+            role="alert"
+        >
             {{ dropFailure }}
         </v-alert>
 
@@ -337,7 +353,14 @@ function onDrop(event: DragEvent): void {
                 }}
             </v-alert>
 
-            <v-alert v-if="good" type="success" density="compact" variant="tonal" class="mt-3" role="status">
+            <v-alert
+                v-if="good"
+                type="success"
+                density="compact"
+                variant="tonal"
+                class="mt-3"
+                role="status"
+            >
                 <div class="mb-world-step__found">
                     <span>{{ summary }}</span>
                     <v-chip
@@ -349,7 +372,13 @@ function onDrop(event: DragEvent): void {
                     >
                         {{ dimension.label }}
                         <span class="mb-world-step__count">
-                            {{ t("world.folder.regionCount", { n: dimension.regionFiles }, "{n} regions") }}
+                            {{
+                                t(
+                                    "world.folder.regionCount",
+                                    { n: dimension.regionFiles },
+                                    "{n} regions",
+                                )
+                            }}
                         </span>
                     </v-chip>
                 </div>
@@ -361,6 +390,8 @@ function onDrop(event: DragEvent): void {
         <MinecraftWorldList :model-value="modelValue" :bridge="catalog" @choose="chooseWorld" />
 
         <SshWorldSourcePanel @use="useSshWorld" />
+
+        <DockerWorldSourcePanel @use="useDockerWorld" />
 
         <div class="mb-world-step__downloads">
             <v-btn
@@ -375,7 +406,10 @@ function onDrop(event: DragEvent): void {
                 {{
                     downloadsOpen
                         ? t("world.folder.hideDownloads", "Hide the release downloads")
-                        : t("world.folder.showDownloads", "No world on this machine? Download one from a release")
+                        : t(
+                              "world.folder.showDownloads",
+                              "No world on this machine? Download one from a release",
+                          )
                 }}
             </v-btn>
 

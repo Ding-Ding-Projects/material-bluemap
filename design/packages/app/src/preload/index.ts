@@ -192,12 +192,10 @@ export interface SavesScan {
 }
 
 export type FolderScanResult =
-    | { ok: true; scan: SavesScan }
-    | { ok: false; folderId: string; message: string };
+    { ok: true; scan: SavesScan } | { ok: false; folderId: string; message: string };
 
 export type MountFolderResult =
-    | { ok: true; folder: MinecraftFolder; alreadyMounted: boolean }
-    | { ok: false; message: string };
+    { ok: true; folder: MinecraftFolder; alreadyMounted: boolean } | { ok: false; message: string };
 
 /* -------------------------------------------------------------------------- */
 /* Rendering                                                                  */
@@ -393,8 +391,7 @@ export interface ResumeRefused {
 }
 
 export type ResumeResult =
-    | { started: true; result: RenderResult }
-    | { started: false; refusal: ResumeRefused };
+    { started: true; result: RenderResult } | { started: false; refusal: ResumeRefused };
 
 export interface RenderSummary {
     renderId: string;
@@ -623,9 +620,7 @@ export type SysdepManagerId = "winget" | "chocolatey";
 export type SysdepElevation = "required" | "possible" | "none" | "unknown";
 
 export type SysdepProgress =
-    | { kind: "determinate"; percent: number }
-    | { kind: "indeterminate" }
-    | { kind: "none" };
+    { kind: "determinate"; percent: number } | { kind: "indeterminate" } | { kind: "none" };
 
 export type SysdepPreviewRoute =
     | { kind: "package-manager"; manager: SysdepManagerId; packageId: string }
@@ -671,7 +666,13 @@ export interface SysdepInstallEvent {
  * swallows the interesting ones.
  */
 export type SysdepOutcome =
-    | { kind: "installed"; dependency: string; manager: SysdepManagerId; verified: boolean; verifiedOutput: string | null }
+    | {
+          kind: "installed";
+          dependency: string;
+          manager: SysdepManagerId;
+          verified: boolean;
+          verifiedOutput: string | null;
+      }
     | {
           kind: "already-installed";
           dependency: string;
@@ -679,7 +680,12 @@ export type SysdepOutcome =
           verified: boolean;
           verifiedOutput: string | null;
       }
-    | { kind: "declined-elevation"; dependency: string; manager: SysdepManagerId; exitCode: number | null }
+    | {
+          kind: "declined-elevation";
+          dependency: string;
+          manager: SysdepManagerId;
+          exitCode: number | null;
+      }
     | { kind: "not-found"; dependency: string; manager: SysdepManagerId; packageId: string }
     | { kind: "network-failure"; dependency: string; manager: SysdepManagerId; message: string }
     | {
@@ -828,7 +834,8 @@ export interface HistoryFileChange {
 }
 
 /** The word the history panel derives its action filter from. Never a fixed list there. */
-export type HistoryAction = "started" | "created" | "changed" | "deleted" | "mixed" | "restored" | "pruned";
+export type HistoryAction =
+    "started" | "created" | "changed" | "deleted" | "mixed" | "restored" | "pruned";
 
 export interface HistoryRevision {
     id: string;
@@ -890,8 +897,10 @@ export interface HistoryDiffFile {
     patch: string;
 }
 
-export type HistoryFilesResult = { ok: true; files: HistoryRevisionFile[] } | { ok: false; message: string };
-export type HistoryDiffResult = { ok: true; files: HistoryDiffFile[] } | { ok: false; message: string };
+export type HistoryFilesResult =
+    { ok: true; files: HistoryRevisionFile[] } | { ok: false; message: string };
+export type HistoryDiffResult =
+    { ok: true; files: HistoryDiffFile[] } | { ok: false; message: string };
 
 export interface HistoryComparisonFile extends HistoryDiffFile {
     /** The file's whole text at the older end, or null when absent or withheld. */
@@ -1092,7 +1101,9 @@ export interface ProjectBridge {
      */
     listProjects(): Promise<ProjectListing>;
     /** The same shape the screen wants, over `read`. */
-    readProject(world: string): Promise<
+    readProject(
+        world: string,
+    ): Promise<
         | { ok: true; project: ProjectFileContents; file: string }
         | { ok: false; failure: ProjectReadFailure }
     >;
@@ -1100,7 +1111,13 @@ export interface ProjectBridge {
         world: string,
         project: ProjectFileContents,
     ): Promise<
-        | { ok: true; file: string; historyOk: boolean; historyMessage: string; revision: HistoryRevision | null }
+        | {
+              ok: true;
+              file: string;
+              historyOk: boolean;
+              historyMessage: string;
+              revision: HistoryRevision | null;
+          }
         | { ok: false; message: string }
     >;
 }
@@ -1403,8 +1420,7 @@ export interface WorldRepoRemoveReport {
 
 /** Mirrors `WorldRepoRemoveResult` in `main/worldrepo/repo.ts`. */
 export type WorldRepoRemoveResult =
-    | { ok: true; report: WorldRepoRemoveReport }
-    | { ok: false; failure: WorldRepoFailure };
+    { ok: true; report: WorldRepoRemoveReport } | { ok: false; failure: WorldRepoFailure };
 
 /** Mirrors `WorldRepoEvent` in `main/worldrepo/repo.ts`, broadcast on `worldrepo:event`. */
 export type WorldRepoEvent =
@@ -1621,8 +1637,7 @@ export interface SshRemoteTarget {
 
 /** Mirrors `SshValidateAnswer` in `main/worldsource/sshIpc.ts`. */
 export type SshValidateAnswer =
-    | { ok: true; target: SshRemoteTarget; summary: string }
-    | { ok: false; message: string };
+    { ok: true; target: SshRemoteTarget; summary: string } | { ok: false; message: string };
 
 /** Mirrors `HostKeyOffer` in `main/remote/hostkey.ts`. */
 export interface SshHostKeyOffer {
@@ -1739,7 +1754,11 @@ export interface WorldSourceSshBridge {
     /** Is the given remote path even shaped like a path on that kind of host. */
     checkPath(path: string, kind: SshRemoteHostKind): Promise<SshRemoteWorldPathCheck>;
     /** Lists every file under a remote world, with its size and modification time. No bytes moved. */
-    survey(target: SshRemoteTargetInput, path: string, kind: SshRemoteHostKind): Promise<SshSurveyAnswer>;
+    survey(
+        target: SshRemoteTargetInput,
+        path: string,
+        kind: SshRemoteHostKind,
+    ): Promise<SshSurveyAnswer>;
     /** Compares two surveys by path, size and modification time. Pure; no network. */
     diff(
         previous: readonly SshRemoteWorldEntry[],
@@ -1822,18 +1841,20 @@ export interface DockerVolumeDetail extends DockerVolumeSummary {
 
 /** Mirrors `DockerWorldListAnswer` in `main/dockerworld/ipc.ts`. */
 export type DockerWorldListAnswer =
-    | { ok: true; containers: readonly DockerContainerSummary[]; volumes: readonly DockerVolumeSummary[] }
+    | {
+          ok: true;
+          containers: readonly DockerContainerSummary[];
+          volumes: readonly DockerVolumeSummary[];
+      }
     | { ok: false; failure: DockerWorldFailure };
 
 /** Mirrors `DockerContainerAnswer` in `main/dockerworld/ipc.ts`. */
 export type DockerContainerAnswer =
-    | { ok: true; detail: DockerContainerDetail }
-    | { ok: false; failure: DockerWorldFailure };
+    { ok: true; detail: DockerContainerDetail } | { ok: false; failure: DockerWorldFailure };
 
 /** Mirrors `DockerVolumeAnswer` in `main/dockerworld/ipc.ts`. */
 export type DockerVolumeAnswer =
-    | { ok: true; detail: DockerVolumeDetail }
-    | { ok: false; failure: DockerWorldFailure };
+    { ok: true; detail: DockerVolumeDetail } | { ok: false; failure: DockerWorldFailure };
 
 /** Mirrors `DockerSourceRequest` in `main/dockerworld/fetch.ts`. */
 export type DockerSourceRequest =
@@ -1859,6 +1880,24 @@ export interface DockerWorldFetchRequest {
 export type DockerWorldFetchResult =
     | { ok: true; fetchId: string; filesCopied: number; filesUnchanged: number }
     | { ok: false; fetchId: string; failure: DockerWorldFailure };
+
+/** Mirrors `DockerWorldEvent` in `main/dockerworld/fetch.ts`. */
+export type DockerWorldEvent =
+    | { type: "started"; fetchId: string; route: string; at: string }
+    | { type: "log"; fetchId: string; level: "info" | "warning"; message: string; at: string }
+    | {
+          type: "progress";
+          fetchId: string;
+          phase: "source-copy" | "placement" | "validation";
+          filesDone: number | null;
+          filesTotal: number | null;
+          currentFile: string | null;
+          message: string;
+          at: string;
+      }
+    | { type: "finished"; fetchId: string; filesCopied: number; filesUnchanged: number; at: string }
+    | { type: "failed"; fetchId: string; failure: DockerWorldFailure; at: string }
+    | { type: "cancelled"; fetchId: string; at: string };
 
 /** Mirrors `RegionFingerprint` in `main/dockerworld/change.ts`. */
 export interface DockerWorldRegionFingerprint {
@@ -1890,9 +1929,8 @@ export type DockerWorldFingerprintResult =
  * A namespace for the same reason `bedrock` and `repair` are: the picker feature-detects
  * the whole capability at once. No method here rejects: every possible answer, including
  * "Docker is not installed", is a sentence the picker has to show, never a stack trace.
- * There is no `onDockerWorldEvent`: every channel here is invoke-and-await, because
- * `main/dockerworld/ipc.ts` registers no broadcast for it (see `startDockerWorld` in
- * `main/index.ts`) - `fetch` resolves once the copy has ended, whichever way it ended.
+ * `fetch` resolves once the copy has ended. `onDockerWorldEvent` separately carries the
+ * fetcher's real phase and file-count events so a long operation can report honestly.
  */
 export interface DockerWorldBridge {
     /** Every container and volume Docker knows about, running or not. */
@@ -1911,6 +1949,8 @@ export interface DockerWorldBridge {
     fingerprint(source: DockerSourceRequest): Promise<DockerWorldFingerprintResult>;
     /** The pure half of the change check: no Docker daemon and no network. */
     fingerprintsEqual(a: DockerWorldFingerprint, b: DockerWorldFingerprint): Promise<boolean>;
+    /** Real fetch phase/progress events; returns the exact unsubscribe function. */
+    onDockerWorldEvent(listener: (event: DockerWorldEvent) => void): () => void;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -2028,7 +2068,8 @@ export type GitHubRepositoryAccess =
           };
       };
 
-export type GitHubSignInResult = { ok: true; account: GitHubAccount } | { ok: false; failure: GitHubFailure };
+export type GitHubSignInResult =
+    { ok: true; account: GitHubAccount } | { ok: false; failure: GitHubFailure };
 
 export interface GitHubSignOutResult {
     signedOut: boolean;
@@ -2189,7 +2230,8 @@ export /**
  */
 type BackupRepositoryChoice = RepositoryChoice;
 type BackupRepositoryReport = RepositoryReport;
-type BackupAnswer<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
+type BackupAnswer<T> =
+    { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
 /**
  * `backup:createRepository`'s own envelope, carrying a distinguishable failure code -
  * `main/backup/ipc.ts` keeps this private for the same reason it keeps `BackupAnswer`
@@ -2523,10 +2565,7 @@ interface MaterialBlueMapBridge {
         owner: string;
         repo: string;
         tag?: string;
-    }): Promise<
-        | { ok: true; release: DiscoveredRelease }
-        | { ok: false; message: string }
-    >;
+    }): Promise<{ ok: true; release: DiscoveredRelease } | { ok: false; message: string }>;
 
     /**
      * Downloads one asset, rejoins it if it was split, and unpacks it.
@@ -2857,11 +2896,15 @@ interface MaterialBlueMapBridge {
      */
     browseRemoteDirectory(target: unknown, path: string): Promise<unknown>;
 
-    ciRenderPreflight(request: CiSyncRequest): Promise<{ ok: true; value: CiPreflight } | { ok: false; message: string }>;
+    ciRenderPreflight(
+        request: CiSyncRequest,
+    ): Promise<{ ok: true; value: CiPreflight } | { ok: false; message: string }>;
     startCiRender(request: CiSyncRequest): Promise<CiSyncResult>;
     /** Polls a recorded run without starting anything. Resuming and starting are one call. */
     checkCiRender(syncId: string): Promise<CiSyncResult>;
-    listCiRenders(): Promise<{ ok: true; value: readonly CiSyncState[] } | { ok: false; message: string }>;
+    listCiRenders(): Promise<
+        { ok: true; value: readonly CiSyncState[] } | { ok: false; message: string }
+    >;
     cancelCiRender(syncId: string): Promise<boolean>;
     /**
      * Syncs this process is actively driving right now, whether or not they have written a
@@ -2884,7 +2927,10 @@ interface MaterialBlueMapBridge {
     /** A world or map name, sanitized to a name GitHub's own rules will accept. Pure; no network. */
     suggestCiRepoName(sourceName: string): Promise<string>;
     /** Whether `owner/repo` is free. `"unknown"` rather than a guess when it could not be told. */
-    checkCiRepoName(request: { owner: string; repo: string }): Promise<CiRepositoryNameAvailability>;
+    checkCiRepoName(request: {
+        owner: string;
+        repo: string;
+    }): Promise<CiRepositoryNameAvailability>;
 
     /**
      * Scheduled re-rendering's current status for one repository: on or off, its cadence,
@@ -3028,11 +3074,20 @@ interface MaterialBlueMapBridge {
         private: boolean;
     }): Promise<BackupCreateRepositoryAnswer>;
     /** Reads a repository so the surface can warn about a PUBLIC one before packing. */
-    inspectBackupRepository(request: { owner: string; repo: string }): Promise<BackupAnswer<BackupRepositoryReport>>;
+    inspectBackupRepository(request: {
+        owner: string;
+        repo: string;
+    }): Promise<BackupAnswer<BackupRepositoryReport>>;
     /** Reads a folder well enough to say what backing it up would involve. */
-    inspectBackupSource(request: { kind: BackupSourceKind; folder: string }): Promise<BackupAnswer<BackupSourceReport>>;
+    inspectBackupSource(request: {
+        kind: BackupSourceKind;
+        folder: string;
+    }): Promise<BackupAnswer<BackupSourceReport>>;
     /** Backups already on a repository, read from each release's own small assets. */
-    listBackups(request: { owner: string; repo: string }): Promise<BackupAnswer<readonly BackupListing[]>>;
+    listBackups(request: {
+        owner: string;
+        repo: string;
+    }): Promise<BackupAnswer<readonly BackupListing[]>>;
     /**
      * Packs, splits, publishes and uploads. Takes as long as the world is big; watch
      * `onBackupEvent` for progress. Never rejects: a refusal is `ok: false` with a code.
@@ -3093,7 +3148,8 @@ const bridge: MaterialBlueMapBridge = {
 
     startRender: (request) => ipcRenderer.invoke("render:start", request),
     cancelRender: (renderId) => ipcRenderer.invoke("render:cancel", renderId),
-    adjustRenderSpeed: (renderId, level) => ipcRenderer.invoke("render:adjustSpeed", renderId, level),
+    adjustRenderSpeed: (renderId, level) =>
+        ipcRenderer.invoke("render:adjustSpeed", renderId, level),
     activeRenders: () => ipcRenderer.invoke("render:active"),
     listRenders: () => ipcRenderer.invoke("render:list"),
     interruptedRenders: () => ipcRenderer.invoke("render:interrupted"),
@@ -3108,7 +3164,8 @@ const bridge: MaterialBlueMapBridge = {
     acceptJavaDownloadConsent: () => ipcRenderer.invoke("java:acceptDownloadConsent"),
     provisionJavaRuntime: () => ipcRenderer.invoke("java:provision"),
     onJavaProvisionEvent: (listener) => {
-        const forward = (_event: IpcRendererEvent, payload: JavaProvisionEvent): void => listener(payload);
+        const forward = (_event: IpcRendererEvent, payload: JavaProvisionEvent): void =>
+            listener(payload);
         ipcRenderer.on("java:provisionEvent", forward);
         return () => {
             ipcRenderer.off("java:provisionEvent", forward);
@@ -3119,7 +3176,8 @@ const bridge: MaterialBlueMapBridge = {
     installSysdeps: (ids) => ipcRenderer.invoke("sysdeps:install", ids),
     cancelSysdepInstall: () => ipcRenderer.invoke("sysdeps:cancel"),
     onSysdepInstallEvent: (listener) => {
-        const forward = (_event: IpcRendererEvent, payload: SysdepInstallEvent): void => listener(payload);
+        const forward = (_event: IpcRendererEvent, payload: SysdepInstallEvent): void =>
+            listener(payload);
         ipcRenderer.on("sysdeps:installEvent", forward);
         return () => {
             ipcRenderer.off("sysdeps:installEvent", forward);
@@ -3145,7 +3203,10 @@ const bridge: MaterialBlueMapBridge = {
     // `DownloadRecord` shape into the same on-disk workspace layout, so it already reads
     // back a checksum-list download with no change of its own.
     discoverRelease: async (request) => {
-        const answer = (await ipcRenderer.invoke("worldsource:discover", request)) as WorldSourceDiscoverAnswer;
+        const answer = (await ipcRenderer.invoke(
+            "worldsource:discover",
+            request,
+        )) as WorldSourceDiscoverAnswer;
         return toBridgeDiscoveryResult(answer);
     },
     startDownload: (request) => ipcRenderer.invoke("worldsource:fetch", request),
@@ -3223,7 +3284,8 @@ const bridge: MaterialBlueMapBridge = {
         adoptionProbe: (request) => ipcRenderer.invoke("worldrepo:adoptionProbe", request),
         adoptionPlan: (request) => ipcRenderer.invoke("worldrepo:adoptionPlan", request),
         onWorldRepoEvent: (listener) => {
-            const forward = (_event: IpcRendererEvent, payload: WorldRepoEvent): void => listener(payload);
+            const forward = (_event: IpcRendererEvent, payload: WorldRepoEvent): void =>
+                listener(payload);
             ipcRenderer.on("worldrepo:event", forward);
             return () => {
                 ipcRenderer.off("worldrepo:event", forward);
@@ -3237,13 +3299,15 @@ const bridge: MaterialBlueMapBridge = {
         trustHostKey: (target, fingerprint) =>
             ipcRenderer.invoke("worldsource:ssh:trustHostKey", target, fingerprint),
         checkPath: (path, kind) => ipcRenderer.invoke("worldsource:ssh:checkPath", path, kind),
-        survey: (target, path, kind) => ipcRenderer.invoke("worldsource:ssh:survey", target, path, kind),
+        survey: (target, path, kind) =>
+            ipcRenderer.invoke("worldsource:ssh:survey", target, path, kind),
         diff: (previous, current) => ipcRenderer.invoke("worldsource:ssh:diff", previous, current),
         fetch: (request) => ipcRenderer.invoke("worldsource:ssh:fetch", request),
         cancel: (id) => ipcRenderer.invoke("worldsource:ssh:cancel", id),
         active: () => ipcRenderer.invoke("worldsource:ssh:active"),
         onSshWorldSourceEvent: (listener) => {
-            const forward = (_event: IpcRendererEvent, payload: SshWorldSourceEvent): void => listener(payload);
+            const forward = (_event: IpcRendererEvent, payload: SshWorldSourceEvent): void =>
+                listener(payload);
             ipcRenderer.on("worldsource:ssh:event", forward);
             return () => {
                 ipcRenderer.off("worldsource:ssh:event", forward);
@@ -3260,6 +3324,14 @@ const bridge: MaterialBlueMapBridge = {
         active: () => ipcRenderer.invoke("dockerworld:active"),
         fingerprint: (source) => ipcRenderer.invoke("dockerworld:fingerprint", source),
         fingerprintsEqual: (a, b) => ipcRenderer.invoke("dockerworld:fingerprintsEqual", a, b),
+        onDockerWorldEvent: (listener) => {
+            const forward = (_event: IpcRendererEvent, payload: DockerWorldEvent): void =>
+                listener(payload);
+            ipcRenderer.on("dockerworld:event", forward);
+            return () => {
+                ipcRenderer.off("dockerworld:event", forward);
+            };
+        },
     },
 
     dockerRuntime: () => ipcRenderer.invoke("runtime:docker"),
@@ -3270,7 +3342,10 @@ const bridge: MaterialBlueMapBridge = {
     dismissContainer: (renderId) => ipcRenderer.invoke("runtime:dismissContainer", renderId),
 
     parseWorldSource: async (text) => {
-        const reference = (await ipcRenderer.invoke("worldsource:parse", text)) as WorldSourceReferenceAnswer | null;
+        const reference = (await ipcRenderer.invoke(
+            "worldsource:parse",
+            text,
+        )) as WorldSourceReferenceAnswer | null;
         return toBridgeCoordinates(reference);
     },
 
@@ -3287,7 +3362,8 @@ const bridge: MaterialBlueMapBridge = {
     refreshRemoteHosting: (hostingId) => ipcRenderer.invoke("hosting:refresh", hostingId),
     stopRemoteHosting: (hostingId) => ipcRenderer.invoke("hosting:stop", hostingId),
     onRemoteHostingEvent: (listener) => {
-        const forward = (_event: IpcRendererEvent, payload: RemoteHostEvent): void => listener(payload);
+        const forward = (_event: IpcRendererEvent, payload: RemoteHostEvent): void =>
+            listener(payload);
         ipcRenderer.on("hosting:event", forward);
         return () => {
             ipcRenderer.off("hosting:event", forward);
@@ -3321,7 +3397,8 @@ const bridge: MaterialBlueMapBridge = {
     bootstrapCiRepository: (owner, repo, accountId, prefer) =>
         ipcRenderer.invoke("cirender:bootstrap", { owner, repo, accountId, prefer }),
     onCiBootstrapEvent: (listener) => {
-        const forward = (_event: IpcRendererEvent, payload: CiBootstrapEvent): void => listener(payload);
+        const forward = (_event: IpcRendererEvent, payload: CiBootstrapEvent): void =>
+            listener(payload);
         ipcRenderer.on("cirender:bootstrapEvent", forward);
         return () => {
             ipcRenderer.off("cirender:bootstrapEvent", forward);
@@ -3355,7 +3432,8 @@ const bridge: MaterialBlueMapBridge = {
     setPreviewNetworkDefault: (allowNetwork: boolean) =>
         ipcRenderer.invoke("preview:setNetworkDefault", allowNetwork),
     onPreviewEvent: (listener) => {
-        const forward = (_event: IpcRendererEvent, payload: PreviewEvent): void => listener(payload);
+        const forward = (_event: IpcRendererEvent, payload: PreviewEvent): void =>
+            listener(payload);
         ipcRenderer.on("preview:event", forward);
         return () => {
             ipcRenderer.off("preview:event", forward);
@@ -3381,7 +3459,8 @@ const bridge: MaterialBlueMapBridge = {
     renderMemory: () => ipcRenderer.invoke("files:renderMemory"),
     setRenderMemory: (setting) => ipcRenderer.invoke("files:setRenderMemory", setting),
     downloadConcurrency: () => ipcRenderer.invoke("files:downloadConcurrency"),
-    setDownloadConcurrency: (workers) => ipcRenderer.invoke("files:setDownloadConcurrency", workers),
+    setDownloadConcurrency: (workers) =>
+        ipcRenderer.invoke("files:setDownloadConcurrency", workers),
 
     project: {
         read: (worldFolder) => ipcRenderer.invoke("project:read", worldFolder),
@@ -3391,12 +3470,15 @@ const bridge: MaterialBlueMapBridge = {
             ipcRenderer.invoke("project:save", worldFolder, project, replaceUnreadable === true),
         history: (worldFolder, limit) => ipcRenderer.invoke("project:history", worldFolder, limit),
         restore: (worldFolder, id) => ipcRenderer.invoke("project:restore", worldFolder, id),
-        discardOlderRevisions: (worldFolder, keep) => ipcRenderer.invoke("project:discardOlder", worldFolder, keep),
+        discardOlderRevisions: (worldFolder, keep) =>
+            ipcRenderer.invoke("project:discardOlder", worldFolder, keep),
         notifyAutosaveChange: (worldFolder, project) =>
             ipcRenderer.invoke("project:autosaveNotify", worldFolder, project),
-        flushAutosave: (worldFolder, reason) => ipcRenderer.invoke("project:autosaveFlush", worldFolder, reason),
+        flushAutosave: (worldFolder, reason) =>
+            ipcRenderer.invoke("project:autosaveFlush", worldFolder, reason),
         onAutosaveEvent: (listener) => {
-            const forward = (_event: IpcRendererEvent, payload: ProjectAutosaveEvent): void => listener(payload);
+            const forward = (_event: IpcRendererEvent, payload: ProjectAutosaveEvent): void =>
+                listener(payload);
             ipcRenderer.on("project:autosaveEvent", forward);
             return () => {
                 ipcRenderer.off("project:autosaveEvent", forward);
@@ -3463,7 +3545,12 @@ const bridge: MaterialBlueMapBridge = {
                 : { ok: false as const, failure: outcome.failure };
         },
         writeProject: async (world, project) => {
-            const saved = (await ipcRenderer.invoke("project:save", world, project, false)) as ProjectSaveResult;
+            const saved = (await ipcRenderer.invoke(
+                "project:save",
+                world,
+                project,
+                false,
+            )) as ProjectSaveResult;
             // `historyOk`/`historyMessage`/`revision` travel through rather than being
             // dropped here: a save that wrote the file but could not keep a record of it is
             // still a save the interface must be able to tell apart from one that kept both
@@ -3489,9 +3576,11 @@ const bridge: MaterialBlueMapBridge = {
         diff: (folder, id) => ipcRenderer.invoke("history:diff", folder, id),
         restore: (folder, id) => ipcRenderer.invoke("history:restore", folder, id),
         label: (folder, id, label) => ipcRenderer.invoke("history:label", folder, id, label),
-        discardOlderRevisions: (folder, keep) => ipcRenderer.invoke("history:discardOlder", folder, keep),
+        discardOlderRevisions: (folder, keep) =>
+            ipcRenderer.invoke("history:discardOlder", folder, keep),
         compare: (folder, from, to) => ipcRenderer.invoke("history:compare", folder, from, to),
-        restoreFiles: (folder, id, paths) => ipcRenderer.invoke("history:restoreFiles", folder, id, paths),
+        restoreFiles: (folder, id, paths) =>
+            ipcRenderer.invoke("history:restoreFiles", folder, id, paths),
         restoreSettings: (folder, id, files, keys) =>
             ipcRenderer.invoke("history:restoreSettings", folder, id, files, keys),
     },
@@ -3513,14 +3602,16 @@ const bridge: MaterialBlueMapBridge = {
     },
 
     bedrock: {
-        detect: (folder, sizeBytes) => ipcRenderer.invoke("bedrock:detect", folder, sizeBytes ?? null),
+        detect: (folder, sizeBytes) =>
+            ipcRenderer.invoke("bedrock:detect", folder, sizeBytes ?? null),
         chunkerStatus: () => ipcRenderer.invoke("bedrock:chunker"),
         fetchChunker: () => ipcRenderer.invoke("bedrock:fetchChunker"),
         convert: (request) => ipcRenderer.invoke("bedrock:convert", request),
         cancel: (conversionId) => ipcRenderer.invoke("bedrock:cancel", conversionId),
         record: (world) => ipcRenderer.invoke("bedrock:record", world),
         onBedrockEvent: (listener) => {
-            const forward = (_event: IpcRendererEvent, payload: ConversionProgressEvent): void => listener(payload);
+            const forward = (_event: IpcRendererEvent, payload: ConversionProgressEvent): void =>
+                listener(payload);
             ipcRenderer.on("bedrock:event", forward);
             return () => {
                 ipcRenderer.off("bedrock:event", forward);

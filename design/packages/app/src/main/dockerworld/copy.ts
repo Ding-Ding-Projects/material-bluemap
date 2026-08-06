@@ -69,7 +69,9 @@ export async function localIncrementalCopy(
 
         const [sourceStat, destStat] = await Promise.all([stat(from), statOrNull(to)]);
         const unchanged =
-            destStat !== null && destStat.size === sourceStat.size && sameModTime(destStat.mtimeMs, sourceStat.mtimeMs);
+            destStat !== null &&
+            destStat.size === sourceStat.size &&
+            sameModTime(destStat.mtimeMs, sourceStat.mtimeMs);
         if (unchanged) {
             filesUnchanged += 1;
             continue;
@@ -135,7 +137,10 @@ export async function copyRemoteBindMount(
     signal?: AbortSignal,
 ): Promise<void> {
     await mkdir(destination, { recursive: true });
-    await transfer.downloadDirectory(remotePath, destination, { ...(onLine === undefined ? {} : { onLine }), ...(signal === undefined ? {} : { signal }) });
+    await transfer.downloadDirectory(remotePath, destination, {
+        ...(onLine === undefined ? {} : { onLine }),
+        ...(signal === undefined ? {} : { signal }),
+    });
 }
 
 export interface DockerReadOptions {
@@ -155,16 +160,26 @@ export async function dockerCopyToStaging(
     containerPath: string,
     stagingPath: string,
     options: DockerReadOptions,
+    signal?: AbortSignal,
 ): Promise<DockerWorldFailure | null> {
     const docker = options.docker ?? "docker";
     // A trailing "/." copies the *contents* of containerPath into staging, matching the
     // contract every other copy in this module keeps: the source becomes the destination
     // rather than nesting one level inside it.
     const source = `${containerId}:${containerPath.endsWith("/") ? containerPath : `${containerPath}/`}.`;
-    const output = await options.runner(docker, ["cp", source, stagingPath], {});
+    const output = await options.runner(docker, ["cp", source, stagingPath], {
+        // A world copy is deliberately not a short probe. Cancellation, not the probe's
+        // fifteen-second ceiling, owns how long this child may live.
+        timeoutMs: 0,
+        ...(signal === undefined ? {} : { signal }),
+    });
     if (output.ok) return null;
-    if (output.spawnError !== null) return failures.notInstalled(`There is no '${docker}' command to copy with.`);
-    return failures.copyFailed(`'docker cp' could not read ${containerPath} from ${containerId}.`, firstLine(output.stderr));
+    if (output.spawnError !== null)
+        return failures.notInstalled(`There is no '${docker}' command to copy with.`);
+    return failures.copyFailed(
+        `'docker cp' could not read ${containerPath} from ${containerId}.`,
+        firstLine(output.stderr),
+    );
 }
 
 /**
@@ -178,6 +193,7 @@ export async function volumeCopyToStaging(
     volumeName: string,
     stagingPath: string,
     options: DockerReadOptions & { readonly image?: string },
+    signal?: AbortSignal,
 ): Promise<DockerWorldFailure | null> {
     const docker = options.docker ?? "docker";
     const image = options.image ?? DEFAULT_DOCKER_IMAGE;
@@ -195,11 +211,18 @@ export async function volumeCopyToStaging(
             "-c",
             "cp -a /mb-source/. /mb-staging/",
         ],
-        {},
+        {
+            timeoutMs: 0,
+            ...(signal === undefined ? {} : { signal }),
+        },
     );
     if (output.ok) return null;
-    if (output.spawnError !== null) return failures.notInstalled(`There is no '${docker}' command to copy with.`);
-    return failures.copyFailed(`Copying the volume '${volumeName}' failed.`, firstLine(output.stderr));
+    if (output.spawnError !== null)
+        return failures.notInstalled(`There is no '${docker}' command to copy with.`);
+    return failures.copyFailed(
+        `Copying the volume '${volumeName}' failed.`,
+        firstLine(output.stderr),
+    );
 }
 
 function firstLine(text: string): string | null {

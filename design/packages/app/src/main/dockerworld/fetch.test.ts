@@ -29,7 +29,13 @@ async function writeFixtureWorld(dir: string): Promise<void> {
 }
 
 function containerJson(
-    mounts: readonly { Type: string; Source: string; Name?: string; Destination: string; RW: boolean }[],
+    mounts: readonly {
+        Type: string;
+        Source: string;
+        Name?: string;
+        Destination: string;
+        RW: boolean;
+    }[],
     running: boolean,
 ): string {
     return JSON.stringify([
@@ -37,7 +43,11 @@ function containerJson(
             Id: "abc123",
             Name: "/mc-server",
             Config: { Image: "itzg/minecraft-server" },
-            State: { Running: running, StartedAt: running ? "2026-08-04T00:00:00Z" : "0001-01-01T00:00:00Z", Status: running ? "running" : "exited" },
+            State: {
+                Running: running,
+                StartedAt: running ? "2026-08-04T00:00:00Z" : "0001-01-01T00:00:00Z",
+                Status: running ? "running" : "exited",
+            },
             Mounts: mounts,
         },
     ]);
@@ -58,10 +68,18 @@ afterEach(async () => {
 describe("no Docker daemon", () => {
     it("fails inspect() and fetch() without touching the destination", async () => {
         const runner: CommandRunner = () =>
-            Promise.resolve(output({ exitCode: 1, stderr: "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?" }));
+            Promise.resolve(
+                output({
+                    exitCode: 1,
+                    stderr: "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?",
+                }),
+            );
         const fetcher = new DockerWorldFetcher({ runner });
 
-        const result = await fetcher.fetch({ source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" }, destination });
+        const result = await fetcher.fetch({
+            source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" },
+            destination,
+        });
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.failure.code).toBe("daemon-unreachable");
     });
@@ -70,10 +88,18 @@ describe("no Docker daemon", () => {
 describe("permission denied", () => {
     it("reports 'refused' rather than 'daemon-unreachable'", async () => {
         const runner: CommandRunner = () =>
-            Promise.resolve(output({ exitCode: 1, stderr: "Got permission denied while trying to connect to the Docker daemon socket" }));
+            Promise.resolve(
+                output({
+                    exitCode: 1,
+                    stderr: "Got permission denied while trying to connect to the Docker daemon socket",
+                }),
+            );
         const fetcher = new DockerWorldFetcher({ runner });
 
-        const result = await fetcher.fetch({ source: { kind: "volume", volumeName: "mc-world" }, destination });
+        const result = await fetcher.fetch({
+            source: { kind: "volume", volumeName: "mc-world" },
+            destination,
+        });
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.failure.code).toBe("refused");
     });
@@ -83,10 +109,15 @@ describe("volume not found", () => {
     it("reports not-found rather than a generic failure", async () => {
         const runner: CommandRunner = (command, args) => {
             if (args[0] === "version") return Promise.resolve(DOCKER_VERSION_OK);
-            return Promise.resolve(output({ exitCode: 1, stderr: "Error: No such volume: mystery" }));
+            return Promise.resolve(
+                output({ exitCode: 1, stderr: "Error: No such volume: mystery" }),
+            );
         };
         const fetcher = new DockerWorldFetcher({ runner });
-        const result = await fetcher.fetch({ source: { kind: "volume", volumeName: "mystery" }, destination });
+        const result = await fetcher.fetch({
+            source: { kind: "volume", volumeName: "mystery" },
+            destination,
+        });
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.failure.code).toBe("not-found");
     });
@@ -104,7 +135,17 @@ describe("a stopped container's bind-mounted world", () => {
                     output({
                         ok: true,
                         exitCode: 0,
-                        stdout: containerJson([{ Type: "bind", Source: worldDir, Destination: "/data/world", RW: false }], false),
+                        stdout: containerJson(
+                            [
+                                {
+                                    Type: "bind",
+                                    Source: worldDir,
+                                    Destination: "/data/world",
+                                    RW: false,
+                                },
+                            ],
+                            false,
+                        ),
                     }),
                 );
             }
@@ -113,14 +154,30 @@ describe("a stopped container's bind-mounted world", () => {
 
         const events: DockerWorldEvent[] = [];
         const fetcher = new DockerWorldFetcher({ runner, onEvent: (event) => events.push(event) });
-        const result = await fetcher.fetch({ source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" }, destination });
+        const result = await fetcher.fetch({
+            source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" },
+            destination,
+        });
 
         expect(result.ok).toBe(true);
         if (result.ok) expect(result.filesCopied).toBeGreaterThan(0);
         expect(await readFile(join(destination, "level.dat"), "utf8")).toContain("level.dat");
         expect(events.some((event) => event.type === "started")).toBe(true);
+        const progress = events.filter((event) => event.type === "progress");
+        expect(progress.length).toBeGreaterThan(0);
+        expect(
+            progress.some(
+                (event) =>
+                    event.type === "progress" &&
+                    event.phase === "source-copy" &&
+                    event.filesDone !== null &&
+                    event.filesTotal !== null,
+            ),
+        ).toBe(true);
         expect(events.some((event) => event.type === "finished")).toBe(true);
-        expect(events.some((event) => event.type === "log" && event.level === "warning")).toBe(false);
+        expect(events.some((event) => event.type === "log" && event.level === "warning")).toBe(
+            false,
+        );
     });
 });
 
@@ -133,7 +190,17 @@ describe("a running container's bind-mounted world", () => {
                     output({
                         ok: true,
                         exitCode: 0,
-                        stdout: containerJson([{ Type: "bind", Source: worldDir, Destination: "/data/world", RW: false }], true),
+                        stdout: containerJson(
+                            [
+                                {
+                                    Type: "bind",
+                                    Source: worldDir,
+                                    Destination: "/data/world",
+                                    RW: false,
+                                },
+                            ],
+                            true,
+                        ),
                     }),
                 );
             }
@@ -146,7 +213,10 @@ describe("a running container's bind-mounted world", () => {
         await writeFixtureWorld(worldDir);
         const fetcher = new DockerWorldFetcher({ runner: runnerFor(worldDir) });
 
-        const result = await fetcher.fetch({ source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" }, destination });
+        const result = await fetcher.fetch({
+            source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" },
+            destination,
+        });
         expect(result.ok).toBe(false);
         if (!result.ok) {
             expect(result.failure.code).toBe("live-world-not-acknowledged");
@@ -159,7 +229,10 @@ describe("a running container's bind-mounted world", () => {
         const worldDir = join(workDir, "world");
         await writeFixtureWorld(worldDir);
         const events: DockerWorldEvent[] = [];
-        const fetcher = new DockerWorldFetcher({ runner: runnerFor(worldDir), onEvent: (event) => events.push(event) });
+        const fetcher = new DockerWorldFetcher({
+            runner: runnerFor(worldDir),
+            onEvent: (event) => events.push(event),
+        });
 
         const result = await fetcher.fetch({
             source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" },
@@ -183,14 +256,31 @@ describe("a copied-out path that is not a world", () => {
             if (args[0] === "version") return Promise.resolve(DOCKER_VERSION_OK);
             if (args[0] === "inspect") {
                 return Promise.resolve(
-                    output({ ok: true, exitCode: 0, stdout: containerJson([{ Type: "bind", Source: notAWorld, Destination: "/data/world", RW: false }], false) }),
+                    output({
+                        ok: true,
+                        exitCode: 0,
+                        stdout: containerJson(
+                            [
+                                {
+                                    Type: "bind",
+                                    Source: notAWorld,
+                                    Destination: "/data/world",
+                                    RW: false,
+                                },
+                            ],
+                            false,
+                        ),
+                    }),
                 );
             }
             return Promise.resolve(output({ exitCode: 1, stderr: "unexpected call" }));
         };
 
         const fetcher = new DockerWorldFetcher({ runner });
-        const result = await fetcher.fetch({ source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" }, destination });
+        const result = await fetcher.fetch({
+            source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" },
+            destination,
+        });
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.failure.code).toBe("not-a-world");
     });
@@ -209,7 +299,17 @@ describe("a container-copy route (host path not directly reachable)", () => {
                         // A path that certainly does not exist on this test machine, so
                         // `resolve.ts`'s default local directoryExists check answers false
                         // and the fetch takes the container-copy route.
-                        stdout: containerJson([{ Type: "bind", Source: "/this/path/does/not/exist/on/this/machine", Destination: "/data/world", RW: false }], false),
+                        stdout: containerJson(
+                            [
+                                {
+                                    Type: "bind",
+                                    Source: "/this/path/does/not/exist/on/this/machine",
+                                    Destination: "/data/world",
+                                    RW: false,
+                                },
+                            ],
+                            false,
+                        ),
                     }),
                 );
             }
@@ -222,10 +322,35 @@ describe("a container-copy route (host path not directly reachable)", () => {
     }
 
     it("stages through `docker cp` and places the result into the destination", async () => {
-        const fetcher = new DockerWorldFetcher({ runner: runnerWithFakeCp() });
-        const result = await fetcher.fetch({ source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" }, destination });
+        const events: DockerWorldEvent[] = [];
+        const fetcher = new DockerWorldFetcher({
+            runner: runnerWithFakeCp(),
+            onEvent: (event) => events.push(event),
+        });
+        const result = await fetcher.fetch({
+            source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" },
+            destination,
+        });
         expect(result.ok).toBe(true);
         expect(await readFile(join(destination, "level.dat"), "utf8")).toContain("level.dat");
+        expect(
+            events.some(
+                (event) =>
+                    event.type === "progress" &&
+                    event.phase === "source-copy" &&
+                    event.filesDone === null &&
+                    event.filesTotal === null,
+            ),
+        ).toBe(true);
+        expect(
+            events.some(
+                (event) =>
+                    event.type === "progress" &&
+                    event.phase === "placement" &&
+                    event.filesDone !== null &&
+                    event.filesTotal !== null,
+            ),
+        ).toBe(true);
     });
 
     it("cleans up its own staging directory afterwards", async () => {
@@ -234,7 +359,21 @@ describe("a container-copy route (host path not directly reachable)", () => {
             if (args[0] === "version") return Promise.resolve(DOCKER_VERSION_OK);
             if (args[0] === "inspect") {
                 return Promise.resolve(
-                    output({ ok: true, exitCode: 0, stdout: containerJson([{ Type: "bind", Source: "/nope", Destination: "/data/world", RW: false }], false) }),
+                    output({
+                        ok: true,
+                        exitCode: 0,
+                        stdout: containerJson(
+                            [
+                                {
+                                    Type: "bind",
+                                    Source: "/nope",
+                                    Destination: "/data/world",
+                                    RW: false,
+                                },
+                            ],
+                            false,
+                        ),
+                    }),
                 );
             }
             if (args[0] === "cp") {
@@ -244,7 +383,10 @@ describe("a container-copy route (host path not directly reachable)", () => {
             return Promise.resolve(output({ exitCode: 1 }));
         };
         const fetcher = new DockerWorldFetcher({ runner });
-        await fetcher.fetch({ source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" }, destination });
+        await fetcher.fetch({
+            source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" },
+            destination,
+        });
         if (stagingPath === null) throw new Error("the fake 'cp' handler never ran");
         await expect(readFile(join(stagingPath, "level.dat"))).rejects.toThrow();
     });
@@ -256,19 +398,35 @@ describe("a volume-copy route", () => {
             if (args[0] === "version") return Promise.resolve(DOCKER_VERSION_OK);
             if (args[0] === "volume" && args[1] === "inspect") {
                 return Promise.resolve(
-                    output({ ok: true, exitCode: 0, stdout: JSON.stringify([{ Name: "mc-world", Driver: "local", Mountpoint: "/var/lib/docker/volumes/mc-world/_data" }]) }),
+                    output({
+                        ok: true,
+                        exitCode: 0,
+                        stdout: JSON.stringify([
+                            {
+                                Name: "mc-world",
+                                Driver: "local",
+                                Mountpoint: "/var/lib/docker/volumes/mc-world/_data",
+                            },
+                        ]),
+                    }),
                 );
             }
             if (args[0] === "run") {
                 const bindArg = args.find((entry) => entry.includes(":/mb-staging"));
                 const staging = bindArg?.split(":/mb-staging")[0] ?? null;
-                if (staging === null) return Promise.resolve(output({ exitCode: 1, stderr: "no staging bind found" }));
+                if (staging === null)
+                    return Promise.resolve(
+                        output({ exitCode: 1, stderr: "no staging bind found" }),
+                    );
                 return writeFixtureWorld(staging).then(() => output({ ok: true, exitCode: 0 }));
             }
             return Promise.resolve(output({ exitCode: 1, stderr: "unexpected call" }));
         };
         const fetcher = new DockerWorldFetcher({ runner });
-        const result = await fetcher.fetch({ source: { kind: "volume", volumeName: "mc-world" }, destination });
+        const result = await fetcher.fetch({
+            source: { kind: "volume", volumeName: "mc-world" },
+            destination,
+        });
         expect(result.ok).toBe(true);
         expect(await readFile(join(destination, "level.dat"), "utf8")).toContain("level.dat");
     });
@@ -284,7 +442,21 @@ describe("fingerprint", () => {
             if (args[0] === "version") return Promise.resolve(DOCKER_VERSION_OK);
             if (args[0] === "inspect") {
                 return Promise.resolve(
-                    output({ ok: true, exitCode: 0, stdout: containerJson([{ Type: "bind", Source: worldDir, Destination: "/data/world", RW: false }], false) }),
+                    output({
+                        ok: true,
+                        exitCode: 0,
+                        stdout: containerJson(
+                            [
+                                {
+                                    Type: "bind",
+                                    Source: worldDir,
+                                    Destination: "/data/world",
+                                    RW: false,
+                                },
+                            ],
+                            false,
+                        ),
+                    }),
                 );
             }
             if (args[0] === "cp") copyCalled = true;
@@ -292,12 +464,20 @@ describe("fingerprint", () => {
         };
         const fetcher = new DockerWorldFetcher({ runner });
 
-        const result = await fetcher.fingerprint({ kind: "container", containerId: "abc123", mountDestination: "/data/world" });
+        const result = await fetcher.fingerprint({
+            kind: "container",
+            containerId: "abc123",
+            mountDestination: "/data/world",
+        });
         expect(result.ok).toBe(true);
         if (result.ok) {
             expect(result.fingerprint).not.toBeNull();
             expect(result.fingerprint?.regions).toEqual([
-                { path: join("region", "r.0.0.mca"), bytes: "region bytes".length, modifiedAt: expect.any(Number) },
+                {
+                    path: join("region", "r.0.0.mca"),
+                    bytes: "region bytes".length,
+                    modifiedAt: expect.any(Number),
+                },
             ]);
         }
         expect(copyCalled).toBe(false);
@@ -308,14 +488,32 @@ describe("fingerprint", () => {
             if (args[0] === "version") return Promise.resolve(DOCKER_VERSION_OK);
             if (args[0] === "inspect") {
                 return Promise.resolve(
-                    output({ ok: true, exitCode: 0, stdout: containerJson([{ Type: "bind", Source: "/nope-not-reachable", Destination: "/data/world", RW: false }], false) }),
+                    output({
+                        ok: true,
+                        exitCode: 0,
+                        stdout: containerJson(
+                            [
+                                {
+                                    Type: "bind",
+                                    Source: "/nope-not-reachable",
+                                    Destination: "/data/world",
+                                    RW: false,
+                                },
+                            ],
+                            false,
+                        ),
+                    }),
                 );
             }
             return Promise.resolve(output({ exitCode: 1, stderr: "unexpected call" }));
         };
         const fetcher = new DockerWorldFetcher({ runner });
 
-        const result = await fetcher.fingerprint({ kind: "container", containerId: "abc123", mountDestination: "/data/world" });
+        const result = await fetcher.fingerprint({
+            kind: "container",
+            containerId: "abc123",
+            mountDestination: "/data/world",
+        });
         expect(result.ok).toBe(true);
         if (result.ok) expect(result.fingerprint).toBeNull();
     });
@@ -323,12 +521,19 @@ describe("fingerprint", () => {
     it("surfaces the same resolve failure inspect() would, for a container that does not exist", async () => {
         const runner: CommandRunner = (command, args) => {
             if (args[0] === "version") return Promise.resolve(DOCKER_VERSION_OK);
-            if (args[0] === "inspect") return Promise.resolve(output({ exitCode: 1, stderr: "Error: No such container: abc123" }));
+            if (args[0] === "inspect")
+                return Promise.resolve(
+                    output({ exitCode: 1, stderr: "Error: No such container: abc123" }),
+                );
             return Promise.resolve(output({ exitCode: 1, stderr: "unexpected call" }));
         };
         const fetcher = new DockerWorldFetcher({ runner });
 
-        const result = await fetcher.fingerprint({ kind: "container", containerId: "abc123", mountDestination: "/data/world" });
+        const result = await fetcher.fingerprint({
+            kind: "container",
+            containerId: "abc123",
+            mountDestination: "/data/world",
+        });
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.failure.code).toBe("not-found");
     });
@@ -343,7 +548,21 @@ describe("cancellation", () => {
             if (args[0] === "version") return Promise.resolve(DOCKER_VERSION_OK);
             if (args[0] === "inspect") {
                 return Promise.resolve(
-                    output({ ok: true, exitCode: 0, stdout: containerJson([{ Type: "bind", Source: "/nope-not-reachable", Destination: "/data/world", RW: false }], false) }),
+                    output({
+                        ok: true,
+                        exitCode: 0,
+                        stdout: containerJson(
+                            [
+                                {
+                                    Type: "bind",
+                                    Source: "/nope-not-reachable",
+                                    Destination: "/data/world",
+                                    RW: false,
+                                },
+                            ],
+                            false,
+                        ),
+                    }),
                 );
             }
             if (args[0] === "cp") {
@@ -351,7 +570,9 @@ describe("cancellation", () => {
                 // Slow enough that the test below can call cancel() before it resolves.
                 return new Promise((resolve) => {
                     setTimeout(() => {
-                        writeFixtureWorld(staging).then(() => resolve(output({ ok: true, exitCode: 0 })));
+                        writeFixtureWorld(staging).then(() =>
+                            resolve(output({ ok: true, exitCode: 0 })),
+                        );
                     }, 40);
                 });
             }
@@ -359,7 +580,11 @@ describe("cancellation", () => {
         };
 
         const fetcher = new DockerWorldFetcher({ runner });
-        const source = { kind: "container" as const, containerId: "abc123", mountDestination: "/data/world" };
+        const source = {
+            kind: "container" as const,
+            containerId: "abc123",
+            mountDestination: "/data/world",
+        };
         const fetchId = dockerWorldFetchId(source);
 
         const pending = fetcher.fetch({ source, destination });

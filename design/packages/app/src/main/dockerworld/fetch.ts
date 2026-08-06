@@ -34,14 +34,28 @@ import { execFileCommandRunner, type CommandRunner } from "../runtime/command.js
 import type { FileTransfer } from "../remote/transfer.js";
 import * as failures from "./failure.js";
 import type { DockerWorldFailure } from "./failure.js";
-import { copyRemoteBindMount, dockerCopyToStaging, localIncrementalCopy, volumeCopyToStaging } from "./copy.js";
-import { livenessWarning, remoteDirectoryExists, resolveContainerMount, resolveVolume } from "./resolve.js";
+import {
+    copyRemoteBindMount,
+    dockerCopyToStaging,
+    localIncrementalCopy,
+    volumeCopyToStaging,
+} from "./copy.js";
+import {
+    livenessWarning,
+    remoteDirectoryExists,
+    resolveContainerMount,
+    resolveVolume,
+} from "./resolve.js";
 import type { DockerWorldCandidate } from "./resolve.js";
 import { dockerWorldFingerprint } from "./change.js";
 import type { WorldFingerprint } from "./change.js";
 
 export type DockerSourceRequest =
-    | { readonly kind: "container"; readonly containerId: string; readonly mountDestination: string }
+    | {
+          readonly kind: "container";
+          readonly containerId: string;
+          readonly mountDestination: string;
+      }
     | { readonly kind: "volume"; readonly volumeName: string };
 
 export interface DockerWorldFetchRequest {
@@ -58,14 +72,52 @@ export interface DockerWorldFetchRequest {
 }
 
 export type DockerWorldEvent =
-    | { readonly type: "started"; readonly fetchId: string; readonly route: string; readonly at: string }
-    | { readonly type: "log"; readonly fetchId: string; readonly level: "info" | "warning"; readonly message: string; readonly at: string }
-    | { readonly type: "finished"; readonly fetchId: string; readonly filesCopied: number; readonly filesUnchanged: number; readonly at: string }
-    | { readonly type: "failed"; readonly fetchId: string; readonly failure: DockerWorldFailure; readonly at: string }
+    | {
+          readonly type: "started";
+          readonly fetchId: string;
+          readonly route: string;
+          readonly at: string;
+      }
+    | {
+          readonly type: "log";
+          readonly fetchId: string;
+          readonly level: "info" | "warning";
+          readonly message: string;
+          readonly at: string;
+      }
+    | {
+          readonly type: "progress";
+          readonly fetchId: string;
+          readonly phase: "source-copy" | "placement" | "validation";
+          /** Null means this phase exposes no honest total; the UI must stay indeterminate. */
+          readonly filesDone: number | null;
+          readonly filesTotal: number | null;
+          readonly currentFile: string | null;
+          readonly message: string;
+          readonly at: string;
+      }
+    | {
+          readonly type: "finished";
+          readonly fetchId: string;
+          readonly filesCopied: number;
+          readonly filesUnchanged: number;
+          readonly at: string;
+      }
+    | {
+          readonly type: "failed";
+          readonly fetchId: string;
+          readonly failure: DockerWorldFailure;
+          readonly at: string;
+      }
     | { readonly type: "cancelled"; readonly fetchId: string; readonly at: string };
 
 export type DockerWorldFetchResult =
-    | { readonly ok: true; readonly fetchId: string; readonly filesCopied: number; readonly filesUnchanged: number }
+    | {
+          readonly ok: true;
+          readonly fetchId: string;
+          readonly filesCopied: number;
+          readonly filesUnchanged: number;
+      }
     | { readonly ok: false; readonly fetchId: string; readonly failure: DockerWorldFailure };
 
 /**
@@ -129,12 +181,23 @@ export class DockerWorldFetcher {
     }
 
     /** What this source offers, and whether it is safe to read right now - without copying anything. */
-    async inspect(source: DockerSourceRequest): Promise<{ readonly ok: true; readonly candidate: DockerWorldCandidate } | { readonly ok: false; readonly failure: DockerWorldFailure }> {
+    async inspect(
+        source: DockerSourceRequest,
+    ): Promise<
+        | { readonly ok: true; readonly candidate: DockerWorldCandidate }
+        | { readonly ok: false; readonly failure: DockerWorldFailure }
+    > {
         const resolved =
             source.kind === "container"
-                ? await resolveContainerMount(source.containerId, source.mountDestination, this.resolveOptions())
+                ? await resolveContainerMount(
+                      source.containerId,
+                      source.mountDestination,
+                      this.resolveOptions(),
+                  )
                 : await resolveVolume(source.volumeName, this.resolveOptions());
-        return resolved.ok ? { ok: true, candidate: resolved.value } : { ok: false, failure: resolved.failure };
+        return resolved.ok
+            ? { ok: true, candidate: resolved.value }
+            : { ok: false, failure: resolved.failure };
     }
 
     /**
@@ -162,7 +225,10 @@ export class DockerWorldFetcher {
     async fetch(request: DockerWorldFetchRequest): Promise<DockerWorldFetchResult> {
         const fetchId = dockerWorldFetchId(request.source);
         if (this.active.has(fetchId)) {
-            return this.fail(fetchId, failures.invalidRequest(`A fetch of '${fetchId}' is already running.`));
+            return this.fail(
+                fetchId,
+                failures.invalidRequest(`A fetch of '${fetchId}' is already running.`),
+            );
         }
 
         const resolved = await this.inspect(request.source);
@@ -171,7 +237,10 @@ export class DockerWorldFetcher {
 
         const warning = livenessWarning(candidate);
         if (warning !== null && request.acknowledgeLiveRisk !== true) {
-            return this.fail(fetchId, failures.liveWorldNotAcknowledged(candidate.containerName ?? "The container"));
+            return this.fail(
+                fetchId,
+                failures.liveWorldNotAcknowledged(candidate.containerName ?? "The container"),
+            );
         }
 
         const controller = new AbortController();
@@ -192,7 +261,13 @@ export class DockerWorldFetcher {
     ): Promise<DockerWorldFetchResult> {
         this.emit({ type: "started", fetchId, route: candidate.route, at: this.timestamp() });
         if (warning !== null) {
-            this.emit({ type: "log", fetchId, level: "warning", message: warning, at: this.timestamp() });
+            this.emit({
+                type: "log",
+                fetchId,
+                level: "warning",
+                message: warning,
+                at: this.timestamp(),
+            });
         }
 
         let staging: string | null = null;
@@ -214,7 +289,12 @@ export class DockerWorldFetcher {
                 filesUnchanged: result.filesUnchanged,
                 at: this.timestamp(),
             });
-            return { ok: true, fetchId, filesCopied: result.filesCopied, filesUnchanged: result.filesUnchanged };
+            return {
+                ok: true,
+                fetchId,
+                filesCopied: result.filesCopied,
+                filesUnchanged: result.filesUnchanged,
+            };
         } catch (error) {
             if (controller.signal.aborted) {
                 this.emit({ type: "cancelled", fetchId, at: this.timestamp() });
@@ -240,15 +320,31 @@ export class DockerWorldFetcher {
 
         if (candidate.route === "bind-direct") {
             if (candidate.hostPath === null) {
-                throw new Error("resolve.ts promised a host path for a bind-direct route and did not supply one.");
+                throw new Error(
+                    "resolve.ts promised a host path for a bind-direct route and did not supply one.",
+                );
             }
             if (remote) {
                 const transfer = this.options.transfer;
                 if (transfer === undefined) {
-                    throw copyFailure("A remote Docker host was given without a way to bring files back.");
+                    throw copyFailure(
+                        "A remote Docker host was given without a way to bring files back.",
+                    );
                 }
-                this.emit({ type: "log", fetchId, level: "info", message: `Fetching ${candidate.hostPath} directly.`, at: this.timestamp() });
-                await copyRemoteBindMount(transfer, candidate.hostPath, request.destination, undefined, controller.signal);
+                this.emit({
+                    type: "log",
+                    fetchId,
+                    level: "info",
+                    message: `Fetching ${candidate.hostPath} directly.`,
+                    at: this.timestamp(),
+                });
+                await copyRemoteBindMount(
+                    transfer,
+                    candidate.hostPath,
+                    request.destination,
+                    undefined,
+                    controller.signal,
+                );
                 // A remote transfer does not report a copied/unchanged split the way the
                 // local incremental copy does - rsync and scp both report lines, not counts
                 // this module can total honestly. Reporting zero for both would read as
@@ -256,8 +352,25 @@ export class DockerWorldFetcher {
                 // inventing a number.
                 return { filesCopied: -1, filesUnchanged: -1 };
             }
-            this.emit({ type: "log", fetchId, level: "info", message: `Fetching ${candidate.hostPath} directly.`, at: this.timestamp() });
-            return await localIncrementalCopy(candidate.hostPath, request.destination, undefined, controller.signal);
+            this.emit({
+                type: "log",
+                fetchId,
+                level: "info",
+                message: `Fetching ${candidate.hostPath} directly.`,
+                at: this.timestamp(),
+            });
+            return await localIncrementalCopy(
+                candidate.hostPath,
+                request.destination,
+                (progress) =>
+                    this.copyProgress(
+                        fetchId,
+                        "source-copy",
+                        progress,
+                        "Reading the bind-mounted world directly.",
+                    ),
+                controller.signal,
+            );
         }
 
         const staging = await this.stagingDirectory(fetchId);
@@ -265,29 +378,78 @@ export class DockerWorldFetcher {
         const runner = this.runnerFor();
         const docker = this.options.docker;
 
-        const readFailure =
-            candidate.route === "container-copy"
-                ? await dockerCopyToStaging(candidate.containerId as string, candidate.containerPath, staging, {
-                      runner,
-                      ...(docker === undefined ? {} : { docker }),
-                  })
-                : await volumeCopyToStaging(candidate.volumeName as string, staging, {
-                      runner,
-                      ...(docker === undefined ? {} : { docker }),
-                      ...(this.options.image === undefined ? {} : { image: this.options.image }),
-                  });
+        let readFailure: DockerWorldFailure | null;
+        if (candidate.route === "container-copy") {
+            this.indeterminateProgress(
+                fetchId,
+                "source-copy",
+                "Docker is copying the selected container mount into a temporary read-only staging folder.",
+            );
+            readFailure = await dockerCopyToStaging(
+                candidate.containerId as string,
+                candidate.containerPath,
+                staging,
+                {
+                    runner,
+                    ...(docker === undefined ? {} : { docker }),
+                },
+                controller.signal,
+            );
+        } else {
+            this.indeterminateProgress(
+                fetchId,
+                "source-copy",
+                "Docker is copying the selected named volume through a temporary read-only helper container.",
+            );
+            readFailure = await volumeCopyToStaging(
+                candidate.volumeName as string,
+                staging,
+                {
+                    runner,
+                    ...(docker === undefined ? {} : { docker }),
+                    ...(this.options.image === undefined ? {} : { image: this.options.image }),
+                },
+                controller.signal,
+            );
+        }
         if (readFailure !== null) throw new StagedFailure(readFailure);
         controller.signal.throwIfAborted();
 
-        this.emit({ type: "log", fetchId, level: "info", message: `Placing ${staging} into ${request.destination}.`, at: this.timestamp() });
+        this.emit({
+            type: "log",
+            fetchId,
+            level: "info",
+            message: `Placing ${staging} into ${request.destination}.`,
+            at: this.timestamp(),
+        });
 
         if (remote) {
             const transfer = this.options.transfer;
-            if (transfer === undefined) throw copyFailure("A remote Docker host was given without a way to bring files back.");
-            await copyRemoteBindMount(transfer, staging, request.destination, undefined, controller.signal);
+            if (transfer === undefined)
+                throw copyFailure(
+                    "A remote Docker host was given without a way to bring files back.",
+                );
+            await copyRemoteBindMount(
+                transfer,
+                staging,
+                request.destination,
+                undefined,
+                controller.signal,
+            );
             return { filesCopied: -1, filesUnchanged: -1 };
         }
-        return await localIncrementalCopy(staging, request.destination, undefined, controller.signal);
+        return await localIncrementalCopy(
+            staging,
+            request.destination,
+            (progress) =>
+                this.copyProgress(
+                    fetchId,
+                    "placement",
+                    progress,
+                    "Placing the fetched world into its chosen local folder.",
+                ),
+            controller.signal,
+        );
     }
 
     private async stagingDirectory(fetchId: string): Promise<string> {
@@ -300,13 +462,19 @@ export class DockerWorldFetcher {
         return await mkdtemp(join(tmpdir(), `mb-dockerworld-${sanitise(fetchId)}-`));
     }
 
-    private resolveOptions(): { readonly runner?: CommandRunner; readonly docker?: string; readonly directoryExists?: (path: string) => Promise<boolean> } {
+    private resolveOptions(): {
+        readonly runner?: CommandRunner;
+        readonly docker?: string;
+        readonly directoryExists?: (path: string) => Promise<boolean>;
+    } {
         const runner = this.options.runner;
         const remote = this.options.remote === true;
         return {
             ...(runner === undefined ? {} : { runner }),
             ...(this.options.docker === undefined ? {} : { docker: this.options.docker }),
-            ...(remote && runner !== undefined ? { directoryExists: remoteDirectoryExists(runner) } : {}),
+            ...(remote && runner !== undefined
+                ? { directoryExists: remoteDirectoryExists(runner) }
+                : {}),
         };
     }
 
@@ -316,6 +484,36 @@ export class DockerWorldFetcher {
 
     private emit(event: DockerWorldEvent): void {
         this.options.onEvent?.(event);
+    }
+
+    private indeterminateProgress(
+        fetchId: string,
+        phase: "source-copy" | "placement" | "validation",
+        message: string,
+    ): void {
+        this.emit({
+            type: "progress",
+            fetchId,
+            phase,
+            filesDone: null,
+            filesTotal: null,
+            currentFile: null,
+            message,
+            at: this.timestamp(),
+        });
+    }
+
+    private copyProgress(
+        fetchId: string,
+        phase: "source-copy" | "placement",
+        progress: {
+            readonly filesDone: number;
+            readonly filesTotal: number;
+            readonly currentFile: string | null;
+        },
+        message: string,
+    ): void {
+        this.emit({ type: "progress", fetchId, phase, ...progress, message, at: this.timestamp() });
     }
 
     private timestamp(): string {
@@ -330,7 +528,8 @@ export class DockerWorldFetcher {
     private describe(error: unknown, destination: string): DockerWorldFailure {
         if (error instanceof StagedFailure) return error.failure;
         if (error instanceof CopyFailure) return failures.copyFailed(error.message);
-        if (error instanceof WorldValidationError) return failures.notAWorld(destination, error.message);
+        if (error instanceof WorldValidationError)
+            return failures.notAWorld(destination, error.message);
         const message = error instanceof Error ? error.message : String(error);
         return failures.copyFailed("The copy failed.", message);
     }
@@ -354,7 +553,9 @@ function copyFailure(message: string): CopyFailure {
 
 /** The stable id a fetch of this source is tracked under - deterministic, so a caller can compute it before starting one. */
 export function dockerWorldFetchId(source: DockerSourceRequest): string {
-    return source.kind === "container" ? `container:${source.containerId}:${source.mountDestination}` : `volume:${source.volumeName}`;
+    return source.kind === "container"
+        ? `container:${source.containerId}:${source.mountDestination}`
+        : `volume:${source.volumeName}`;
 }
 
 function sanitise(value: string): string {

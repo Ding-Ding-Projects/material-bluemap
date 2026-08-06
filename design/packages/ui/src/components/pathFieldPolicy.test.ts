@@ -112,12 +112,12 @@ const WIRED_PATH_FIELDS: readonly WiredField[] = [
     },
     {
         file: "components/config/MapsScreen.vue",
-        describes: "\"World folder\" in the New Map create dialog",
+        describes: '"World folder" in the New Map create dialog',
         needle: "config.maps.world",
     },
     {
         file: "components/config/StoragesScreen.vue",
-        describes: "\"Folder for rendered tiles\" in the New Storage create dialog",
+        describes: '"Folder for rendered tiles" in the New Storage create dialog',
         needle: "config.storages.root",
     },
     {
@@ -149,8 +149,15 @@ const WIRED_PATH_FIELDS: readonly WiredField[] = [
     },
     {
         file: "components/worldrepo/WorldRepoScreen.vue",
-        describes: "World folder (worldrepo.field.worldPath), the world being synced or adopted into",
+        describes:
+            "World folder (worldrepo.field.worldPath), the world being synced or adopted into",
         needle: "worldrepo.field.worldPath",
+    },
+    {
+        file: "components/world/DockerWorldSourcePanel.vue",
+        describes:
+            "Local destination folder for a world fetched from Docker (world.docker.destination)",
+        needle: "world.docker.destination",
     },
 ];
 
@@ -391,7 +398,10 @@ describe("every path-shaped text field either carries the affordance or names wh
             // A stale exemption is how this guard starts covering less than it says.
             const stillThere = pathLikeFields(source).some((field) => field.key === key);
             expect(stillThere, `${exemptKey} no longer matches a path-shaped field`).toBe(true);
-            expect(note.length, `${exemptKey} needs a real reason, not a placeholder`).toBeGreaterThan(40);
+            expect(
+                note.length,
+                `${exemptKey} needs a real reason, not a placeholder`,
+            ).toBeGreaterThan(40);
         }
     });
 
@@ -415,17 +425,17 @@ describe("every path-shaped text field either carries the affordance or names wh
 
     it("catches a fabricated gap, and does not accuse an ordinary field", () => {
         // The detector is the whole test, so it is exercised rather than trusted.
-        const gap = pathLikeFields('<v-text-field :label="t(\'x.y\', \'Folder to render into\')" />');
+        const gap = pathLikeFields("<v-text-field :label=\"t('x.y', 'Folder to render into')\" />");
         expect(gap).toHaveLength(1);
         expect(gap[0]?.key).toBe("x.y");
 
-        const pascal = pathLikeFields('<VTextField :label="t(\'x.z\', \'World folder\')" />');
+        const pascal = pathLikeFields("<VTextField :label=\"t('x.z', 'World folder')\" />");
         expect(pascal).toHaveLength(1);
 
-        const innocent = pathLikeFields('<v-text-field :label="t(\'x.y\', \'Display name\')" />');
+        const innocent = pathLikeFields("<v-text-field :label=\"t('x.y', 'Display name')\" />");
         expect(innocent).toHaveLength(0);
 
-        const notAField = pathLikeFields('<v-select :label="t(\'x.y\', \'Folder\')" />');
+        const notAField = pathLikeFields("<v-select :label=\"t('x.y', 'Folder')\" />");
         expect(notAField).toHaveLength(0);
     });
 });

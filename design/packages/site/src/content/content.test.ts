@@ -66,7 +66,11 @@ function blockStrings(block: Block): string[] {
                 ...block.rows.flatMap((row) => row.flatMap(contentStrings)),
             ];
         case "code":
-            return [block.language, block.code, ...(block.caption === undefined ? [] : [block.caption])];
+            return [
+                block.language,
+                block.code,
+                ...(block.caption === undefined ? [] : [block.caption]),
+            ];
         case "definitions":
             return block.items.flatMap((item) => [item.term, ...contentStrings(item.description)]);
         case "callout":
@@ -79,7 +83,10 @@ function articleStrings(article: Article): string[] {
         article.title,
         article.summary,
         article.statusNote,
-        ...article.sections.flatMap((section) => [section.title, ...section.blocks.flatMap(blockStrings)]),
+        ...article.sections.flatMap((section) => [
+            section.title,
+            ...section.blocks.flatMap(blockStrings),
+        ]),
         ...article.suggested.map((suggestion) => suggestion.reason),
         ...article.sources.map((source) => source.label),
     ];
@@ -142,7 +149,9 @@ describe("articles", () => {
         for (const article of articles) {
             const sectionIds = article.sections.map((section) => section.id);
             for (const required of REQUIRED_SECTION_IDS) {
-                expect(sectionIds, `${article.id} is missing the ${required} section`).toContain(required);
+                expect(sectionIds, `${article.id} is missing the ${required} section`).toContain(
+                    required,
+                );
             }
         }
     });
@@ -150,7 +159,10 @@ describe("articles", () => {
     it("never leaves a section empty", () => {
         for (const article of articles) {
             for (const section of article.sections) {
-                expect(section.blocks.length, `${article.id}/${section.id} has no content`).toBeGreaterThan(0);
+                expect(
+                    section.blocks.length,
+                    `${article.id}/${section.id} has no content`,
+                ).toBeGreaterThan(0);
             }
         }
     });
@@ -161,7 +173,7 @@ describe("articles", () => {
             for (const suggestion of article.suggested) {
                 expect(
                     findArticle(suggestion.articleId),
-                    `${article.id} suggests ${suggestion.articleId}, which does not exist`
+                    `${article.id} suggests ${suggestion.articleId}, which does not exist`,
                 ).toBeDefined();
                 expect(suggestion.articleId).not.toBe(article.id);
                 expect(suggestion.reason.length).toBeGreaterThan(0);
@@ -208,7 +220,7 @@ describe("articles", () => {
                 .filter((block) => block.kind === "callout")
                 .map((block) => block.tone);
             expect(tones, `${article.id} is badged shipped and calls itself unbuilt`).not.toContain(
-                "not-implemented"
+                "not-implemented",
             );
         }
     });
@@ -226,7 +238,7 @@ describe("articles", () => {
         for (const article of articles.filter((a) => a.status === "shipped")) {
             expect(
                 article.statusNote.trim().length,
-                `${article.id} is badged shipped and explains nothing`
+                `${article.id} is badged shipped and explains nothing`,
             ).toBeGreaterThan(100);
         }
     });
@@ -240,7 +252,11 @@ describe("articles", () => {
         // uses one of them. A future status value added to the type without a matching FIXED
         // entry, or a content author reaching for a typo'd string that TypeScript's structural
         // typing happened to let through, fails here rather than rendering an empty badge.
-        const KNOWN_STATUSES: readonly FeatureStatus[] = ["shipped", "ported-unverified", "specified"];
+        const KNOWN_STATUSES: readonly FeatureStatus[] = [
+            "shipped",
+            "ported-unverified",
+            "specified",
+        ];
         const STATUS_FIXED_KEYS: Readonly<Record<FeatureStatus, string>> = {
             shipped: "status.shipped",
             "ported-unverified": "status.portedUnverified",
@@ -248,17 +264,21 @@ describe("articles", () => {
         };
         for (const status of KNOWN_STATUSES) {
             const key = STATUS_FIXED_KEYS[status];
-            expect(Object.prototype.hasOwnProperty.call(FIXED, key), `FIXED has no "${key}" entry`).toBe(true);
+            expect(
+                Object.prototype.hasOwnProperty.call(FIXED, key),
+                `FIXED has no "${key}" entry`,
+            ).toBe(true);
         }
         for (const article of articles) {
-            expect(KNOWN_STATUSES, `${article.id} has an unrecognised status "${article.status}"`).toContain(
-                article.status
-            );
+            expect(
+                KNOWN_STATUSES,
+                `${article.id} has an unrecognised status "${article.status}"`,
+            ).toContain(article.status);
         }
         for (const feature of homeFeatures) {
             expect(
                 KNOWN_STATUSES,
-                `"${feature.title}" has an unrecognised status "${feature.status}"`
+                `"${feature.title}" has an unrecognised status "${feature.status}"`,
             ).toContain(feature.status);
         }
     });
@@ -303,7 +323,7 @@ describe("articles", () => {
             for (const phrase of NEVER_RAN_PHRASES) {
                 expect(
                     haystack.includes(phrase),
-                    `${article.id} is badged shipped but its own text says "${phrase}"`
+                    `${article.id} is badged shipped but its own text says "${phrase}"`,
                 ).toBe(false);
             }
         }
@@ -319,7 +339,10 @@ describe("articles", () => {
         const remoteMode = findArticle("viewer-remote-mode");
         const javaRenderPath = findArticle("java-render-path");
         expect(remoteMode).toBeDefined();
-        expect(javaRenderPath, "java-render-path is gone; viewer-remote-mode has nothing to agree with").toBeDefined();
+        expect(
+            javaRenderPath,
+            "java-render-path is gone; viewer-remote-mode has nothing to agree with",
+        ).toBeDefined();
         expect(javaRenderPath?.status).not.toBe("specified");
 
         const claims = [
@@ -368,7 +391,11 @@ describe("copy rules", () => {
         ...homeSections.flatMap((section) => [section.title, section.lede]),
         ...home.stats.flatMap((stat) => [stat.value, stat.label, stat.detail]),
         ...contentStrings(home.statsNote),
-        ...home.engines.flatMap((engine) => [engine.name, engine.role, ...contentStrings(engine.body)]),
+        ...home.engines.flatMap((engine) => [
+            engine.name,
+            engine.role,
+            ...contentStrings(engine.body),
+        ]),
         ...contentStrings(home.enginesNote),
         home.showcaseCaveat,
         home.showcaseMoreLabel,
@@ -379,7 +406,11 @@ describe("copy rules", () => {
         ...home.intro.flatMap(blockStrings),
         ...home.gettingStarted.flatMap(blockStrings),
         ...home.buildIt.flatMap(blockStrings),
-        ...home.phases.flatMap((phase) => [phase.phase, phase.scope, ...(phase.note === undefined ? [] : [phase.note])]),
+        ...home.phases.flatMap((phase) => [
+            phase.phase,
+            phase.scope,
+            ...(phase.note === undefined ? [] : [phase.note]),
+        ]),
         ...contentStrings(home.phaseNote),
         ...contentPages.flatMap((page) => [page.title, page.description]),
         ...repoCaptures.flatMap((capture) => [capture.title, capture.configuration, capture.alt]),
@@ -416,7 +447,7 @@ describe("landing page", () => {
         for (const feature of homeFeatures) {
             expect(
                 findArticle(feature.articleId),
-                `the "${feature.title}" card points at ${feature.articleId}, which does not exist`
+                `the "${feature.title}" card points at ${feature.articleId}, which does not exist`,
             ).toBeDefined();
         }
     });
@@ -435,7 +466,7 @@ describe("landing page", () => {
             if (article === undefined) continue;
             expect(
                 rank[feature.status],
-                `the "${feature.title}" card says ${feature.status} while ${article.id} says ${article.status}`
+                `the "${feature.title}" card says ${feature.status} while ${article.id} says ${article.status}`,
             ).toBeLessThanOrEqual(rank[article.status]);
         }
     });
@@ -462,7 +493,9 @@ describe("landing page", () => {
             }
         }
 
-        const orphans = articles.filter((article) => !reached.has(article.id)).map((article) => article.id);
+        const orphans = articles
+            .filter((article) => !reached.has(article.id))
+            .map((article) => article.id);
         expect(orphans, "these articles cannot be walked to from the landing page").toEqual([]);
     });
 
@@ -485,7 +518,10 @@ describe("landing page", () => {
 
     it("explains every status badge it prints", () => {
         for (const feature of homeFeatures) {
-            expect(feature.statusNote.trim().length, `${feature.title} shows a badge and explains nothing`).toBeGreaterThan(20);
+            expect(
+                feature.statusNote.trim().length,
+                `${feature.title} shows a badge and explains nothing`,
+            ).toBeGreaterThan(20);
         }
     });
 
@@ -493,7 +529,10 @@ describe("landing page", () => {
         expect(home.stats.length).toBeGreaterThan(0);
         for (const stat of home.stats) {
             expect(stat.value.trim().length).toBeGreaterThan(0);
-            expect(stat.detail.trim().length, `the "${stat.label}" figure cites nothing`).toBeGreaterThan(20);
+            expect(
+                stat.detail.trim().length,
+                `the "${stat.label}" figure cites nothing`,
+            ).toBeGreaterThan(20);
         }
     });
 
@@ -503,7 +542,10 @@ describe("landing page", () => {
         const running = home.engines.filter((engine) => engine.runsToday);
         expect(running.map((engine) => engine.id)).toEqual(["java"]);
         for (const engine of home.engines) {
-            expect(findArticle(engine.articleId), `${engine.id} points at a missing article`).toBeDefined();
+            expect(
+                findArticle(engine.articleId),
+                `${engine.id} points at a missing article`,
+            ).toBeDefined();
         }
     });
 
@@ -512,14 +554,19 @@ describe("landing page", () => {
         expect(home.furtherReading.length).toBeGreaterThan(0);
         for (const link of homeLinks) {
             expect(link.label.trim().length).toBeGreaterThan(0);
-            expect(link.href.startsWith("https://"), `${link.label} points at ${link.href}`).toBe(true);
+            expect(link.href.startsWith("https://"), `${link.label} points at ${link.href}`).toBe(
+                true,
+            );
         }
     });
 
     it("mirrors the phase table without inventing a status", () => {
         const allowed = new Set(["done", "in-progress", "pending"]);
         for (const phase of home.phases) {
-            expect(allowed.has(phase.status), `phase ${phase.phase} has status ${phase.status}`).toBe(true);
+            expect(
+                allowed.has(phase.status),
+                `phase ${phase.phase} has status ${phase.status}`,
+            ).toBe(true);
         }
     });
 });
@@ -541,7 +588,9 @@ describe("committed captures", () => {
 
     it("gives every capture alt text that names the surface", () => {
         for (const capture of repoCaptures) {
-            expect(capture.alt.length, `${capture.file} has no usable alt text`).toBeGreaterThan(40);
+            expect(capture.alt.length, `${capture.file} has no usable alt text`).toBeGreaterThan(
+                40,
+            );
             expect(capture.configuration.trim().length).toBeGreaterThan(0);
         }
     });
@@ -555,10 +604,13 @@ describe("committed captures", () => {
     it("uses only aspect ratios the stylesheet can actually reserve", () => {
         // The ratio is applied by an attribute selector, so a ratio the stylesheet has no
         // rule for silently loses its reserved box and the gallery shifts as it loads.
-        const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "content.css"), "utf8");
+        const css = readFileSync(
+            resolve(dirname(fileURLToPath(import.meta.url)), "content.css"),
+            "utf8",
+        );
         for (const ratio of new Set(repoCaptures.map((capture) => capture.aspectRatio))) {
             expect(css, `content.css has no rule for the ${ratio} ratio`).toContain(
-                `[data-ratio="${ratio}"]`
+                `[data-ratio="${ratio}"]`,
             );
         }
     });
@@ -694,13 +746,36 @@ describe("ssh-world-sources article", () => {
     });
 });
 
+describe("docker-world-source article", () => {
+    // Completeness guard: fetching a world out of Docker is distinct from running the
+    // renderer in Docker. The article and feature card must remain reachable together.
+    const article = findArticle("docker-world-source");
+
+    it("exists", () => {
+        expect(article).toBeDefined();
+    });
+
+    it("is reachable from a landing-page feature card", () => {
+        const carded = new Set(homeFeatures.map((feature) => feature.articleId));
+        expect(carded.has("docker-world-source")).toBe(true);
+    });
+
+    it("cites the canonical Docker world-source documentation", () => {
+        const labels = article!.sources.map((source) => source.label);
+        expect(labels).toContain("docs/docker-world-source.md");
+    });
+});
+
 /* -------------------------------------------------------------------------- */
 /* Search                                                                     */
 /* -------------------------------------------------------------------------- */
 
 describe("search index", () => {
     it("indexes every article and every section", () => {
-        const expected = articles.reduce((total, article) => total + 1 + article.sections.length, 0);
+        const expected = articles.reduce(
+            (total, article) => total + 1 + article.sections.length,
+            0,
+        );
         expect(searchIndex.length).toBe(expected);
     });
 
@@ -740,9 +815,11 @@ describe("screenshot helpers", () => {
 
     it("keeps the project base path on every image URL", () => {
         expect(screenshotUrl("screenshots", "shell-1280x800.png")).toBe(
-            "/material-bluemap/screenshots/shell-1280x800.png"
+            "/material-bluemap/screenshots/shell-1280x800.png",
         );
-        expect(screenshotUrl("/screenshots/", "a.png", "/elsewhere")).toBe("/elsewhere/screenshots/a.png");
+        expect(screenshotUrl("/screenshots/", "a.png", "/elsewhere")).toBe(
+            "/elsewhere/screenshots/a.png",
+        );
     });
 
     it("drops no capture when grouping", () => {
@@ -777,8 +854,15 @@ describe("generated content", () => {
         // and the gallery would render ten broken images. This is the guard for that.
         if (!screenshotAvailability.available) return;
         for (const capture of screenshotAvailability.captures) {
-            const path = resolve(siteRoot, "public", screenshotAvailability.publicPath, capture.file);
-            expect(existsSync(path), `${capture.file} is claimed but not present at ${path}`).toBe(true);
+            const path = resolve(
+                siteRoot,
+                "public",
+                screenshotAvailability.publicPath,
+                capture.file,
+            );
+            expect(existsSync(path), `${capture.file} is claimed but not present at ${path}`).toBe(
+                true,
+            );
         }
     });
 
@@ -824,7 +908,9 @@ describe("roadmap mirror", () => {
         // docs/automatic-updates.md. home.ts mirrored the same stale line verbatim.
         const phaseIRow = roadmapText.split("\n").find((line) => /^\|\s*I\s*\|/.test(line));
         expect(phaseIRow, "ROADMAP.md has no Phase I row").toBeDefined();
-        expect(phaseIRow ?? "").not.toBe("| I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending |");
+        expect(phaseIRow ?? "").not.toBe(
+            "| I | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging | Pending |",
+        );
         expect(phaseIRow ?? "").toMatch(/update checker/i);
 
         expect(phaseI, "home.ts has no Phase I row").toBeDefined();

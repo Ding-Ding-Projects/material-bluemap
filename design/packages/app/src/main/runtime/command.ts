@@ -37,6 +37,8 @@ export interface CommandOutput {
 export interface CommandOptions {
     readonly timeoutMs?: number;
     readonly env?: NodeJS.ProcessEnv;
+    /** Cancels the child process without waiting for its ordinary timeout. */
+    readonly signal?: AbortSignal;
 }
 
 /** Runs `command` with `args` and reports what came back. Never rejects. */
@@ -72,6 +74,7 @@ export const execFileCommandRunner: CommandRunner = (command, args, options) =>
                 // world folder called `my world & rm -rf` into two commands.
                 windowsHide: true,
                 ...(options?.env === undefined ? {} : { env: options.env }),
+                ...(options?.signal === undefined ? {} : { signal: options.signal }),
             },
             (error, stdout, stderr) => {
                 const out = typeof stdout === "string" ? stdout : "";

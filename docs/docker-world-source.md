@@ -147,29 +147,42 @@ the GitHub Actions scheduled-render workflow.
 
 ## Using it in the desktop application
 
-> [!WARNING]
-> **This section describes `main/dockerworld/`, which is fully built and tested (see
-> Verification below) but is not yet reachable from the desktop app's own UI or its IPC preload
-> bridge.** `main/dockerworld/ipc.ts` registers eight channels
-> (`dockerworld:list`/`inspectContainer`/`inspectVolume`/`fetch`/`cancel`/`active`/`fingerprint`/`fingerprintsEqual`)
-> exactly like `worldsource/ipc.ts` does for a release-hosted world, but nothing in
-> `design/packages/app/src/preload` or `design/packages/ui` calls any of them yet, and no picker
-> lists the containers or volumes actually present the way the guided-forms rule requires. This
-> is the same gap [`world-sources.md`](./world-sources.md) records for the cross-repository
-> release path, and it exists here for the same reason: the module and its 83 tests prove the
-> *logic* is correct against fakes, independent of whether a button exists to reach it yet.
-> Wiring the preload bridge, a container/volume picker component, and the copy-catalogue entries
-> its strings need is the next piece of work on this feature, and it is deliberately not rushed
-> into the same task that landed the logic while several other lanes were mid-edit on the exact
-> preload and copy-catalogue files it would need to touch.
+The ordinary map wizard's **World** step now mounts a guided **World in local Docker** panel. It
+uses only this computer's local IPC registration; it does not claim that a remote Docker daemon
+is reachable. The flow is deliberately made of real pickers rather than identifier boxes:
 
-Once wired, the intended flow follows this project's guided-forms rule throughout: the picker
-lists the containers and volumes Docker actually reports (`dockerworld:list`) rather than asking
-for an id to be typed, a chosen container's mounts come from `dockerworld:inspectContainer` so the
-world's own mount is picked from a real list rather than guessed, and a running container's
-**Fetch** action is disabled with the exact torn-region-file sentence from
-[the refusal above](#the-refusal-a-running-container-earns) until the risk is explicitly accepted
-— never a plain greyed-out button with no reason attached.
+1. **Check Docker and refresh.** The existing five-state Docker explanation distinguishes an
+   absent command, a stopped daemon, a refused daemon socket, an unusable answer and a working
+   daemon. The container and volume lists come from `dockerworld:list` on every refresh.
+2. **Choose a source.** Container mode lists every running and stopped container, then calls
+   `dockerworld:inspectContainer` and offers only its real bind and named-volume mounts. Volume
+   mode lists Docker's real named volumes and inspects the chosen one. No container id, volume
+   name or mount path is invented or accepted as free text.
+3. **Review liveness and the route.** Running/stopped state is refreshed from Docker. A directly
+   readable bind mount shows the real cheap metadata fingerprint and region count. Container-copy
+   and volume-copy routes say that their fingerprint is `null` because Docker must read them to
+   know whether they changed.
+4. **Choose a local destination.** The shared `PathField` provides both free text and the native
+   folder browser. This is the exact folder the fetched world becomes, not an implicit child
+   whose name the interface guesses.
+5. **Fetch and validate.** A stopped container or volume can start immediately. A running
+   container requires the fresh, exact torn-`.mca` acknowledgement described above. The checkbox
+   is consumed by one attempt and is never persisted. Success is then handed to the wizard's
+   ordinary local inspection path, which reads `level.dat` and the actual region data before the
+   wizard can continue.
+
+The fetch button states its disabled reason beside it. The submitting handler refuses re-entry,
+the button stays disabled during the operation, and cancellation reaches the child `docker cp`
+or helper-container process through an abort signal. Progress is honest about the seam's actual
+knowledge: Docker's source-copy phase is indeterminate because `docker cp` and `cp -a` expose no
+file total, while the local additive-placement phase reports the real number of files checked and
+the current relative path. A directly readable bind mount reports those real file counts from the
+first phase. No timer-shaped percentage is presented as work completed.
+
+This operation is not destructive, so the destructive-action super-confirmation gate does not
+apply: the source side is read-only, the volume helper mounts `/mb-source:ro`, and local placement
+only adds or updates. It never deletes a destination file. The running-container acknowledgement
+is a different safety decision and remains mandatory per fetch.
 
 ## Failure modes
 
@@ -213,7 +226,8 @@ or not — it holds nothing a person asked to keep.
 
 ## Verification
 
-`design/packages/app/src/main/dockerworld/` has 83 tests, none of which need a Docker
+`design/packages/app/src/main/dockerworld/` plus the preload/UI seam have focused tests, none of
+which need a Docker
 installation, a daemon, or a network connection:
 
 | File | What it proves |
@@ -224,13 +238,19 @@ installation, a daemon, or a network connection:
 | `fetch.test.ts` | no daemon, permission denied, a volume that does not exist, a stopped container's world fetched with no acknowledgement needed, a running container refused and confirmed to leave the destination untouched, the same container fetched successfully once the risk is accepted (with the warning event proven present), a copied-out folder that is not a world, both the `container-copy` and `volume-copy` staging routes with their staging directories proven cleaned up afterward, a cancellation proven to leave the destination without the copy it interrupted, and `fingerprint()` reading the bind-direct fingerprint with no copy invoked, answering `null` for a container-copy candidate, and surfacing the same resolve failure `inspect()` would |
 | `change.test.ts` | the local and remote fingerprints agree on the same content; a size change is detected; `container-copy`/`volume-copy` candidates answer `null` rather than a guess; a remote fingerprint with no runner also answers `null` |
 | `ipc.test.ts` | the eight channels register and `dispose` exactly; a malformed request is refused rather than reaching the fetcher; the fetcher's own throw is turned into a reported failure rather than a rejection; `list` and `inspect*` thread an injected runner rather than reaching for whatever `docker` happens to be on the test machine; `dockerworld:fingerprint` refuses a sourceless request, passes a well-formed one through, and never rejects on a fetcher throw; `dockerworld:fingerprintsEqual` compares order-independently and treats malformed input as an empty fingerprint rather than throwing |
+| `dockerWorldBridge.test.ts` | all eight invokes use the exact channel and argument shape, and the event listener forwards `dockerworld:event` and removes only its own listener |
+| `DockerWorldSourcePanel.test.ts` | mounted pickers receive real container/volume/mount data; a live fetch is refused until the fresh exact acknowledgement and consumes it after one attempt; a volume reports a null fingerprint honestly; real progress events render and cancellation reaches the active id |
+| policy inventories | the surface's search opens the anchored full regex builder; its AppearanceTarget supplies the searchable context menu and editor; the destination is in the PathField inventory; overlays are bounded; copy facts are guarded at every funny level; the read-only/additive path is explicitly recorded as not destructive |
 
 Run them with `npx vitest run packages/app/src/main/dockerworld` from `design/`.
 
-**Not verified**: against a real Docker daemon, a real Docker Desktop VM-path bind mount, or a
-real remote host over SSH. Everything above is proven against fakes that behave the way real
-Docker and a real `CommandRunner` are documented to behave; none of it has been run against the
-genuine article yet.
+**Not verified against a real source in this pass.** The host had Docker Desktop client 29.6.1,
+but its `desktop-linux` daemon pipe did not exist: `docker version` returned a real client and
+`Server: null`, then `docker ps` failed at
+`npipe:////./pipe/dockerDesktopLinuxEngine`. No real container, volume or mount could be listed,
+so no runtime fetch was simulated or claimed. A real Docker Desktop VM-path bind mount and a real
+remote host over SSH also remain unverified. The cheap hidden UI proof separately verifies the
+real built panel and the daemon-down guidance, not a successful source copy.
 
 ## Related reading
 

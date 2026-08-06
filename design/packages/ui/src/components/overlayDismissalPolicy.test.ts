@@ -202,7 +202,9 @@ function vBindKeyExpression(objectLiteral: string, key: string): string | null {
 function hasDynamicActivator(tag: string): boolean {
     const direct = /:activator=(["'])([\s\S]*?)\1/.exec(tag);
     const expression =
-        direct !== null ? (direct[2]?.trim() ?? "") : vBindKeyExpression(vBindObjectLiteral(tag) ?? "{}", "activator");
+        direct !== null
+            ? (direct[2]?.trim() ?? "")
+            : vBindKeyExpression(vBindObjectLiteral(tag) ?? "{}", "activator");
     if (expression === null) return false;
     return expression !== "'parent'" && expression !== '"parent"';
 }
@@ -241,7 +243,9 @@ function usesAppearanceTarget(source: string): boolean {
 /** Every file wrapping content in `<AppearanceTarget>`, other than the primitive itself. */
 const APPEARANCE_TARGET_USERS = new Set(
     VUE_FILES.filter(
-        (file) => file !== "components/appearance/AppearanceTarget.vue" && usesAppearanceTarget(read(file)),
+        (file) =>
+            file !== "components/appearance/AppearanceTarget.vue" &&
+            usesAppearanceTarget(read(file)),
     ),
 );
 
@@ -289,8 +293,8 @@ const REGISTRY: readonly OverlayEntry[] = [
     {
         file: "App.vue",
         surface:
-            "Two AppearanceTarget wrappers: id=\"app.titleBar\" (the whole title bar) and " +
-            "id=\"app.tabBar\" (the whole tab bar and every page under it) -- the highest-blast-" +
+            'Two AppearanceTarget wrappers: id="app.titleBar" (the whole title bar) and ' +
+            'id="app.tabBar" (the whole tab bar and every page under it) -- the highest-blast-' +
             "radius instance of the defect, and very likely the exact reproduction reported.",
         ownVMenu: false,
         wrapsAppearanceTarget: true,
@@ -312,7 +316,8 @@ const REGISTRY: readonly OverlayEntry[] = [
     },
     {
         file: "components/project/DiscoveredWorldsPanel.vue",
-        surface: "Context menu of a discovered-but-not-yet-a-project world row (Edit/Reset appearance).",
+        surface:
+            "Context menu of a discovered-but-not-yet-a-project world row (Edit/Reset appearance).",
         ownVMenu: false,
         wrapsAppearanceTarget: true,
         status: "clean",
@@ -326,7 +331,8 @@ const REGISTRY: readonly OverlayEntry[] = [
     },
     {
         file: "components/settings/DependencyInstallerPanel.vue",
-        surface: "Context menu of a system-dependency row (git/GitHub CLI/Docker Desktop/rsync) in the winget/Chocolatey installer.",
+        surface:
+            "Context menu of a system-dependency row (git/GitHub CLI/Docker Desktop/rsync) in the winget/Chocolatey installer.",
         ownVMenu: false,
         wrapsAppearanceTarget: true,
         status: "clean",
@@ -348,7 +354,7 @@ const REGISTRY: readonly OverlayEntry[] = [
     {
         file: "components/settings/DockedSurface.vue",
         surface:
-            "Its own placement-chooser <v-menu> (activator=\"parent\" on a small icon button -- " +
+            'Its own placement-chooser <v-menu> (activator="parent" on a small icon button -- ' +
             "always clean) PLUS an AppearanceTarget wrapper around the panel title, which " +
             "inherits AppearanceTarget.vue's wiring.",
         ownVMenu: true,
@@ -425,7 +431,7 @@ const REGISTRY: readonly OverlayEntry[] = [
         file: "components/history/HistoryPanel.vue",
         surface:
             "The whole history panel's own toolbar 'Export' format picker, PLUS an " +
-            "AppearanceTarget wrapper (id=\"history.panel\") around the whole panel, which " +
+            'AppearanceTarget wrapper (id="history.panel") around the whole panel, which ' +
             "inherits AppearanceTarget.vue's wiring.",
         ownVMenu: true,
         wrapsAppearanceTarget: true,
@@ -435,7 +441,7 @@ const REGISTRY: readonly OverlayEntry[] = [
         file: "components/history/SimpleHistoryList.vue",
         surface:
             "The compact history list's own 'Export' format picker, opened from its toolbar " +
-            "button. `activator=\"parent\"` on that one small button, with no `:target` " +
+            'button. `activator="parent"` on that one small button, with no `:target` ' +
             "alongside it, so there is nothing for the outside-click include list to collide " +
             "with.",
         ownVMenu: true,
@@ -446,7 +452,7 @@ const REGISTRY: readonly OverlayEntry[] = [
         file: "components/history/SimpleHistoryPanel.vue",
         surface:
             "The filterable history panel's own 'Export' format picker. Same safe shape as " +
-            "SimpleHistoryList.vue above: `activator=\"parent\"` scoped to the toolbar button, " +
+            'SimpleHistoryList.vue above: `activator="parent"` scoped to the toolbar button, ' +
             "never a dynamic `:activator` paired with a `:target`.",
         ownVMenu: true,
         wrapsAppearanceTarget: false,
@@ -455,9 +461,9 @@ const REGISTRY: readonly OverlayEntry[] = [
     {
         file: "components/home/HomeScreen.vue",
         surface:
-            "Four AppearanceTarget wrappers on the landing tab: id=\"home.page\" (the whole " +
-            "page), id=\"home.intro\" (the newcomer explanation), id=\"home.continue\" (the " +
-            "returning-user row) and id=\"home.capabilities\" (the grouped capability grid) -- " +
+            'Four AppearanceTarget wrappers on the landing tab: id="home.page" (the whole ' +
+            'page), id="home.intro" (the newcomer explanation), id="home.continue" (the ' +
+            'returning-user row) and id="home.capabilities" (the grouped capability grid) -- ' +
             "no v-menu of its own, so all four inherit AppearanceTarget.vue's wiring wholesale.",
         ownVMenu: false,
         wrapsAppearanceTarget: true,
@@ -474,7 +480,7 @@ const REGISTRY: readonly OverlayEntry[] = [
         file: "components/menu/MenuSearchField.vue",
         surface:
             "The regex builder popover anchored to BlueMap's own in-viewer menu search field. " +
-            "`:activator=\"anchor\"` alone, no `:target` -- Vuetify's own `target` computed falls " +
+            '`:activator="anchor"` alone, no `:target` -- Vuetify\'s own `target` computed falls ' +
             "back to `activatorEl` when `:target` is unset, so the popover's position and its " +
             "click-outside inclusion agree: clicking anywhere inside this one small field while " +
             "its builder is open is deliberately treated as 'inside', not the broad-wrapper defect.",
@@ -492,9 +498,9 @@ const REGISTRY: readonly OverlayEntry[] = [
     {
         file: "components/worldrepo/WorldRepoScreen.vue",
         surface:
-            "Four AppearanceTarget wrappers: id=\"worldrepo.page\" (the whole screen), one per " +
-            "sync-in-progress row (id=\"worldrepo.row.<key>\"), one per tracked-world row " +
-            "(id=\"worldrepo.record.<key>\") and id=\"worldrepo.adoption\" (the adoption " +
+            'Four AppearanceTarget wrappers: id="worldrepo.page" (the whole screen), one per ' +
+            'sync-in-progress row (id="worldrepo.row.<key>"), one per tracked-world row ' +
+            '(id="worldrepo.record.<key>") and id="worldrepo.adoption" (the adoption ' +
             "section) - no v-menu of its own, so all four inherit AppearanceTarget.vue's " +
             "wiring wholesale.",
         ownVMenu: false,
@@ -511,10 +517,19 @@ const REGISTRY: readonly OverlayEntry[] = [
         status: "clean",
     },
     {
+        file: "components/world/DockerWorldSourcePanel.vue",
+        surface:
+            "The local Docker world-source panel's AppearanceTarget context menu and anchored " +
+            "editor; its container, mount and volume pickers are bounded Vuetify selects.",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
         file: "components/tabs/TabStrip.vue",
         surface:
             "The tab menu and group menu (:target only, no :activator), the new-tab picker, " +
-            "the overflow list and the tab finder popover (activator=\"parent\" on their own " +
+            'the overflow list and the tab finder popover (activator="parent" on their own ' +
             "small trigger buttons, no :target).",
         ownVMenu: true,
         wrapsAppearanceTarget: false,
@@ -593,27 +608,35 @@ describe("overlayDismissalPolicy.ts: the mechanism sweep", () => {
         expect(isPersistent('<v-menu v-model="open" persistent activator="parent">')).toBe(true);
         expect(isPersistent('<v-menu v-model="open" activator="parent">')).toBe(false);
 
-        expect(vMenuTags('<v-menu v-model="a" activator="parent">\n  x\n</v-menu>')).toHaveLength(1);
+        expect(vMenuTags('<v-menu v-model="a" activator="parent">\n  x\n</v-menu>')).toHaveLength(
+            1,
+        );
         expect(vMenuTags("no menu here")).toHaveLength(0);
     });
 
-    it("catches the same collision when :activator/:target are single-quoted -- Vue's compiler " +
-        "accepts either quote character identically, so a detector that only matched double " +
-        "quotes would let the exact reported-bug shape back in under a different punctuation mark", () => {
-        const singleQuotedBoth = "<v-menu v-model=\"open\" :activator='root' :target=\"pos\">";
-        expect(hasDynamicActivator(singleQuotedBoth) && hasExplicitTarget(singleQuotedBoth)).toBe(true);
+    it(
+        "catches the same collision when :activator/:target are single-quoted -- Vue's compiler " +
+            "accepts either quote character identically, so a detector that only matched double " +
+            "quotes would let the exact reported-bug shape back in under a different punctuation mark",
+        () => {
+            const singleQuotedBoth = '<v-menu v-model="open" :activator=\'root\' :target="pos">';
+            expect(
+                hasDynamicActivator(singleQuotedBoth) && hasExplicitTarget(singleQuotedBoth),
+            ).toBe(true);
 
-        const singleQuotedActivatorOnly = "<v-menu v-model=\"open\" :activator='root'>";
-        expect(hasDynamicActivator(singleQuotedActivatorOnly)).toBe(true);
-        expect(hasExplicitTarget(singleQuotedActivatorOnly)).toBe(false);
+            const singleQuotedActivatorOnly = "<v-menu v-model=\"open\" :activator='root'>";
+            expect(hasDynamicActivator(singleQuotedActivatorOnly)).toBe(true);
+            expect(hasExplicitTarget(singleQuotedActivatorOnly)).toBe(false);
 
-        const singleQuotedTargetOnly = "<v-menu v-model=\"open\" :target='pos'>";
-        expect(hasExplicitTarget(singleQuotedTargetOnly)).toBe(true);
-        expect(hasDynamicActivator(singleQuotedTargetOnly)).toBe(false);
+            const singleQuotedTargetOnly = "<v-menu v-model=\"open\" :target='pos'>";
+            expect(hasExplicitTarget(singleQuotedTargetOnly)).toBe(true);
+            expect(hasDynamicActivator(singleQuotedTargetOnly)).toBe(false);
 
-        const singleQuotedLiteralParent = "<v-menu v-model=\"open\" :activator=\"'parent'\" :target='pos'>";
-        expect(hasDynamicActivator(singleQuotedLiteralParent)).toBe(false);
-    });
+            const singleQuotedLiteralParent =
+                "<v-menu v-model=\"open\" :activator=\"'parent'\" :target='pos'>";
+            expect(hasDynamicActivator(singleQuotedLiteralParent)).toBe(false);
+        },
+    );
 
     it("does not truncate the tag at a literal '>' inside an earlier attribute's quoted value", () => {
         // `:style="{ opacity: level > 2 ? 1 : 0.5 }"` is an ordinary bound comparison -- a
@@ -642,93 +665,111 @@ describe("overlayDismissalPolicy.ts: the mechanism sweep", () => {
         expect(targetOnlyTags[0]).toBe(
             '<v-menu v-model="open" :style="{ opacity: level > 2 ? 1 : 0.5 }" :target="pos">',
         );
-        expect(hasDynamicActivator(onlyTag(targetOnlyTags)) && hasExplicitTarget(onlyTag(targetOnlyTags))).toBe(
-            false,
-        );
+        expect(
+            hasDynamicActivator(onlyTag(targetOnlyTags)) &&
+                hasExplicitTarget(onlyTag(targetOnlyTags)),
+        ).toBe(false);
     });
 
-    it("recognises <appearance-target> (kebab-case) exactly like <AppearanceTarget> (PascalCase) -- " +
-        "Vue's SFC compiler resolves a locally-imported component by either spelling, so a page " +
-        "written with the kebab-case tag is just as real an AppearanceTarget consumer as one " +
-        "written PascalCase, and must not be invisible to the completeness guard below", () => {
-        const pascal = '<AppearanceTarget id="new.page" :label="t(\'newPage\')">\n  content\n</AppearanceTarget>';
-        expect(usesAppearanceTarget(pascal)).toBe(true);
+    it(
+        "recognises <appearance-target> (kebab-case) exactly like <AppearanceTarget> (PascalCase) -- " +
+            "Vue's SFC compiler resolves a locally-imported component by either spelling, so a page " +
+            "written with the kebab-case tag is just as real an AppearanceTarget consumer as one " +
+            "written PascalCase, and must not be invisible to the completeness guard below",
+        () => {
+            const pascal =
+                '<AppearanceTarget id="new.page" :label="t(\'newPage\')">\n  content\n</AppearanceTarget>';
+            expect(usesAppearanceTarget(pascal)).toBe(true);
 
-        const kebab = '<appearance-target id="new.page" :label="t(\'newPage\')">\n  content\n</appearance-target>';
-        expect(usesAppearanceTarget(kebab)).toBe(true);
+            const kebab =
+                '<appearance-target id="new.page" :label="t(\'newPage\')">\n  content\n</appearance-target>';
+            expect(usesAppearanceTarget(kebab)).toBe(true);
 
-        // A near-miss identifier must not false-positive the sweep either way.
-        expect(usesAppearanceTarget('<AppearanceTargetSomethingElse>')).toBe(false);
-        expect(usesAppearanceTarget('<appearance-target-something-else>')).toBe(false);
-        expect(usesAppearanceTarget('no wrapper here')).toBe(false);
-    });
+            // A near-miss identifier must not false-positive the sweep either way.
+            expect(usesAppearanceTarget("<AppearanceTargetSomethingElse>")).toBe(false);
+            expect(usesAppearanceTarget("<appearance-target-something-else>")).toBe(false);
+            expect(usesAppearanceTarget("no wrapper here")).toBe(false);
+        },
+    );
 
-    it("recognises <VMenu> (PascalCase) exactly like <v-menu> (kebab-case) -- Vue's SFC compiler " +
-        "resolves both spellings to the same locally-imported component, so a scanner that only " +
-        "matches the hyphenated form lets a PascalCase collision through undetected", () => {
-        // Sanity: the two spellings really do refer to the same component under Vue's own rules.
-        // `AppearanceTarget.vue` imports it as `VMenu` and every template in this package happens
-        // to write `<v-menu>` -- that is a convention, not something Vue enforces.
-        expect(read(APPEARANCE_TARGET_FILE)).toMatch(
-            /import\s*\{[^}]*\bVMenu\b[^}]*\}\s*from\s*"vuetify\/components"/,
-        );
+    it(
+        "recognises <VMenu> (PascalCase) exactly like <v-menu> (kebab-case) -- Vue's SFC compiler " +
+            "resolves both spellings to the same locally-imported component, so a scanner that only " +
+            "matches the hyphenated form lets a PascalCase collision through undetected",
+        () => {
+            // Sanity: the two spellings really do refer to the same component under Vue's own rules.
+            // `AppearanceTarget.vue` imports it as `VMenu` and every template in this package happens
+            // to write `<v-menu>` -- that is a convention, not something Vue enforces.
+            expect(read(APPEARANCE_TARGET_FILE)).toMatch(
+                /import\s*\{[^}]*\bVMenu\b[^}]*\}\s*from\s*"vuetify\/components"/,
+            );
 
-        const pascalPlain = '<VMenu v-model="a" activator="parent">\n  x\n</VMenu>';
-        expect(vMenuTags(pascalPlain)).toHaveLength(1);
+            const pascalPlain = '<VMenu v-model="a" activator="parent">\n  x\n</VMenu>';
+            expect(vMenuTags(pascalPlain)).toHaveLength(1);
 
-        const pascalCollision = '<VMenu v-model="open" :activator="root ?? undefined" :target="pos">';
-        const tags = vMenuTags(pascalCollision);
-        expect(tags).toHaveLength(1);
-        expect(hasDynamicActivator(onlyTag(tags)) && hasExplicitTarget(onlyTag(tags))).toBe(true);
+            const pascalCollision =
+                '<VMenu v-model="open" :activator="root ?? undefined" :target="pos">';
+            const tags = vMenuTags(pascalCollision);
+            expect(tags).toHaveLength(1);
+            expect(hasDynamicActivator(onlyTag(tags)) && hasExplicitTarget(onlyTag(tags))).toBe(
+                true,
+            );
 
-        // Camel-case (`<vMenu>`) and shout-case (`<V-MENU>`) are edge cases Vue's own resolver
-        // also accepts; the scanner should not need updating the day someone writes one.
-        expect(vMenuTags('<vMenu :activator="root" :target="pos">')).toHaveLength(1);
-        expect(vMenuTags('<V-MENU :activator="root" :target="pos">')).toHaveLength(1);
-    });
+            // Camel-case (`<vMenu>`) and shout-case (`<V-MENU>`) are edge cases Vue's own resolver
+            // also accepts; the scanner should not need updating the day someone writes one.
+            expect(vMenuTags('<vMenu :activator="root" :target="pos">')).toHaveLength(1);
+            expect(vMenuTags('<V-MENU :activator="root" :target="pos">')).toHaveLength(1);
+        },
+    );
 
-    it("catches a colliding activator/target written via v-bind object-spread, not only the literal " +
-        ":activator=/:target= attribute syntax", () => {
-        // Vue (and every Vuetify component prop, activator/target included) treats
-        // `v-bind="{ ... }"` object-spread identically to spelling each key as its own
-        // `:key="value"` binding. `v-bind="{ activator: root, target: pos }"` on <v-menu>
-        // resolves activator/target exactly as `:activator="root" :target="pos"` would,
-        // reproducing the exact "menu does not close on outside click" bug -- and this idiom
-        // is already used elsewhere in this package (ProfileManager.vue, ProjectList.vue,
-        // App.vue, ...), so it is a realistic, not contrived, way to reintroduce it.
-        const spreadCollision = '<v-menu v-model="open" v-bind="{ activator: root, target: pos }">';
-        const spreadTags = vMenuTags(spreadCollision);
-        expect(spreadTags).toHaveLength(1);
-        expect(hasDynamicActivator(onlyTag(spreadTags)) && hasExplicitTarget(onlyTag(spreadTags))).toBe(true);
+    it(
+        "catches a colliding activator/target written via v-bind object-spread, not only the literal " +
+            ":activator=/:target= attribute syntax",
+        () => {
+            // Vue (and every Vuetify component prop, activator/target included) treats
+            // `v-bind="{ ... }"` object-spread identically to spelling each key as its own
+            // `:key="value"` binding. `v-bind="{ activator: root, target: pos }"` on <v-menu>
+            // resolves activator/target exactly as `:activator="root" :target="pos"` would,
+            // reproducing the exact "menu does not close on outside click" bug -- and this idiom
+            // is already used elsewhere in this package (ProfileManager.vue, ProjectList.vue,
+            // App.vue, ...), so it is a realistic, not contrived, way to reintroduce it.
+            const spreadCollision =
+                '<v-menu v-model="open" v-bind="{ activator: root, target: pos }">';
+            const spreadTags = vMenuTags(spreadCollision);
+            expect(spreadTags).toHaveLength(1);
+            expect(
+                hasDynamicActivator(onlyTag(spreadTags)) && hasExplicitTarget(onlyTag(spreadTags)),
+            ).toBe(true);
 
-        // :target alone via v-bind, no activator key at all, is exactly as safe as the
-        // direct-attribute form -- the fix must not overcorrect into flagging every v-bind.
-        const spreadTargetOnly = '<v-menu v-model="open" v-bind="{ target: pos }">';
-        const targetOnlyTag = onlyTag(vMenuTags(spreadTargetOnly));
-        expect(hasExplicitTarget(targetOnlyTag)).toBe(true);
-        expect(hasDynamicActivator(targetOnlyTag)).toBe(false);
+            // :target alone via v-bind, no activator key at all, is exactly as safe as the
+            // direct-attribute form -- the fix must not overcorrect into flagging every v-bind.
+            const spreadTargetOnly = '<v-menu v-model="open" v-bind="{ target: pos }">';
+            const targetOnlyTag = onlyTag(vMenuTags(spreadTargetOnly));
+            expect(hasExplicitTarget(targetOnlyTag)).toBe(true);
+            expect(hasDynamicActivator(targetOnlyTag)).toBe(false);
 
-        // A literal 'parent' activator spread via v-bind stays exactly as safe as
-        // :activator="'parent'" does.
-        const spreadLiteralParent =
-            "<v-menu v-model=\"open\" v-bind=\"{ activator: 'parent', target: pos }\">";
-        expect(hasDynamicActivator(onlyTag(vMenuTags(spreadLiteralParent)))).toBe(false);
+            // A literal 'parent' activator spread via v-bind stays exactly as safe as
+            // :activator="'parent'" does.
+            const spreadLiteralParent =
+                '<v-menu v-model="open" v-bind="{ activator: \'parent\', target: pos }">';
+            expect(hasDynamicActivator(onlyTag(vMenuTags(spreadLiteralParent)))).toBe(false);
 
-        // A v-bind that spreads unrelated props (no activator/target keys, and near-miss
-        // identifiers that merely contain "activator"/"target" as a substring) must not be
-        // treated as a collision just because v-bind is present on the tag.
-        const spreadUnrelated =
-            '<v-menu v-model="open" v-bind="{ maxWidth: 320, deactivator: 1, retarget: 2 }" activator="parent">';
-        const unrelatedTag = onlyTag(vMenuTags(spreadUnrelated));
-        expect(hasDynamicActivator(unrelatedTag)).toBe(false);
-        expect(hasExplicitTarget(unrelatedTag)).toBe(false);
+            // A v-bind that spreads unrelated props (no activator/target keys, and near-miss
+            // identifiers that merely contain "activator"/"target" as a substring) must not be
+            // treated as a collision just because v-bind is present on the tag.
+            const spreadUnrelated =
+                '<v-menu v-model="open" v-bind="{ maxWidth: 320, deactivator: 1, retarget: 2 }" activator="parent">';
+            const unrelatedTag = onlyTag(vMenuTags(spreadUnrelated));
+            expect(hasDynamicActivator(unrelatedTag)).toBe(false);
+            expect(hasExplicitTarget(unrelatedTag)).toBe(false);
 
-        // Mixing forms -- a direct :activator attribute alongside a v-bind that separately
-        // supplies :target -- is the same collision under a different disguise.
-        const mixedForms = '<v-menu v-model="open" :activator="root" v-bind="{ target: pos }">';
-        const mixedTag = onlyTag(vMenuTags(mixedForms));
-        expect(hasDynamicActivator(mixedTag) && hasExplicitTarget(mixedTag)).toBe(true);
-    });
+            // Mixing forms -- a direct :activator attribute alongside a v-bind that separately
+            // supplies :target -- is the same collision under a different disguise.
+            const mixedForms = '<v-menu v-model="open" :activator="root" v-bind="{ target: pos }">';
+            const mixedTag = onlyTag(vMenuTags(mixedForms));
+            expect(hasDynamicActivator(mixedTag) && hasExplicitTarget(mixedTag)).toBe(true);
+        },
+    );
 });
 
 /* -------------------------------------------------------------------------- */
@@ -749,7 +790,9 @@ describe("overlayDismissalPolicy.ts: the declared inventory", () => {
 
     it("registers every file the sweep finds wrapped in <AppearanceTarget>", () => {
         const unregistered = [...APPEARANCE_TARGET_USERS].filter(
-            (file) => !registryByFile.has(file) || registryByFile.get(file)?.wrapsAppearanceTarget !== true,
+            (file) =>
+                !registryByFile.has(file) ||
+                registryByFile.get(file)?.wrapsAppearanceTarget !== true,
         );
         expect(
             unregistered,
@@ -812,7 +855,9 @@ describe("overlayDismissalPolicy.ts: the declared inventory", () => {
     });
 
     it("promotes a 'pending' entry the moment its fix actually lands, rather than trusting the label", () => {
-        const stalePending = REGISTRY.filter((entry) => entry.status === "pending" && !isBroken(entry));
+        const stalePending = REGISTRY.filter(
+            (entry) => entry.status === "pending" && !isBroken(entry),
+        );
         expect(
             stalePending.map((entry) => entry.file),
             "this entry is still marked 'pending' but the live sweep no longer finds it broken. " +

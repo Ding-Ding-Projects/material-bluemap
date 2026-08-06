@@ -29,6 +29,7 @@ import {
     DECISIONS_URL,
     DEVIATIONS_URL,
     DOCKER_AND_LOCAL_DOC_URL,
+    DOCKER_WORLD_SOURCE_DOC_URL,
     DOCS_INDEX_URL,
     HANDOFF_URL,
     ISSUES_URL,
@@ -56,7 +57,8 @@ import {
 
 export const home: HomeContent = {
     title: "material-bluemap",
-    tagline: "A from-scratch TypeScript port of BlueMap, the Minecraft world renderer and 3D web map.",
+    tagline:
+        "A from-scratch TypeScript port of BlueMap, the Minecraft world renderer and 3D web map.",
     summary:
         "Render a Minecraft world into a 3D map from a desktop application, or from a GitHub Actions run with nothing installed at all, and browse it in an interface rebuilt from the ground up in Material Design 3.",
 
@@ -319,7 +321,9 @@ export const home: HomeContent = {
                     statusNote:
                         "The probe, the mount planning and the reattachment machinery are built with 126 tests in CI, none needing Docker installed. Nobody has rendered a world through this path against a real, installed Docker from a packaged build.",
                     articleId: "docker-and-local",
-                    reading: [{ label: "docs/docker-and-local.md", href: DOCKER_AND_LOCAL_DOC_URL }],
+                    reading: [
+                        { label: "docs/docker-and-local.md", href: DOCKER_AND_LOCAL_DOC_URL },
+                    ],
                 },
                 {
                     title: "Or send it to a machine over SSH",
@@ -339,7 +343,10 @@ export const home: HomeContent = {
                     articleId: "render-in-actions",
                     reading: [
                         { label: "docs/render-in-actions.md", href: RENDER_IN_ACTIONS_DOC_URL },
-                        { label: ".github/workflows/render-world.yml", href: RENDER_WORLD_WORKFLOW_URL },
+                        {
+                            label: ".github/workflows/render-world.yml",
+                            href: RENDER_WORLD_WORKFLOW_URL,
+                        },
                     ],
                 },
                 {
@@ -349,7 +356,9 @@ export const home: HomeContent = {
                     statusNote:
                         "Proved against an unsharded render of the same world: 961 of 961 hires tiles byte-identical, and zero differences across 6,024,024 lowres pixels, for both a two-shard and a four-shard split. One world, one machine.",
                     articleId: "render-in-actions",
-                    reading: [{ label: "docs/render-in-actions.md", href: RENDER_IN_ACTIONS_DOC_URL }],
+                    reading: [
+                        { label: "docs/render-in-actions.md", href: RENDER_IN_ACTIONS_DOC_URL },
+                    ],
                 },
                 {
                     title: "Renders that survive being interrupted",
@@ -358,7 +367,9 @@ export const home: HomeContent = {
                     statusNote:
                         "The cache keys, the completion markers and the wave batching are built and unit tested in CI. The desktop half of the same idea is documented alongside it.",
                     articleId: "render-in-actions",
-                    reading: [{ label: "docs/resumable-renders.md", href: RESUMABLE_RENDERS_DOC_URL }],
+                    reading: [
+                        { label: "docs/resumable-renders.md", href: RESUMABLE_RENDERS_DOC_URL },
+                    ],
                 },
                 {
                     title: "A world to render, with no Minecraft installed",
@@ -377,7 +388,10 @@ export const home: HomeContent = {
                     articleId: "render-in-actions",
                     reading: [
                         { label: "docs/private-world-rendering.md", href: PRIVATE_WORLD_DOC_URL },
-                        { label: ".github/workflows/render-private-world.yml", href: RENDER_PRIVATE_WORKFLOW_URL },
+                        {
+                            label: ".github/workflows/render-private-world.yml",
+                            href: RENDER_PRIVATE_WORKFLOW_URL,
+                        },
                     ],
                 },
             ],
@@ -466,6 +480,17 @@ export const home: HomeContent = {
                     ],
                 },
                 {
+                    title: "Fetch a world from a local Docker container or volume",
+                    body: "The World step lists Docker's actual containers and named volumes, inspects a container's real mounts, requires a fresh warning acknowledgement before reading a live server, copies read-only into an exact browsed folder, and then rejoins the ordinary local-world validation path.",
+                    status: "ported-unverified",
+                    statusNote:
+                        "The complete main/preload/wizard seam, cancellation and honest determinate-or-indeterminate progress are covered by focused mounted and policy tests plus a production build. Docker Desktop's client was present during verification, but its local daemon pipe was absent, so no real container or volume fetch is claimed.",
+                    articleId: "docker-world-source",
+                    reading: [
+                        { label: "docs/docker-world-source.md", href: DOCKER_WORLD_SOURCE_DOC_URL },
+                    ],
+                },
+                {
                     title: "Sign in to GitHub, only when something private needs it",
                     body: "A device flow that shows the code large and verbatim, counts down only from what the main process actually said, and keeps its four endings apart. A pasted token is the other way in. The credential never reaches the interface at all.",
                     status: "ported-unverified",
@@ -485,14 +510,16 @@ export const home: HomeContent = {
                     title: "A localhost server nothing else can reach",
                     body: "The embedded server binds the loopback address on an ephemeral port and refuses every request that does not carry the token minted for that launch, so another process on the same machine cannot read your map.",
                     status: "shipped",
-                    statusNote: "Built and tested, including the refusal paths, and running in every launch of the app.",
+                    statusNote:
+                        "Built and tested, including the refusal paths, and running in every launch of the app.",
                     articleId: "embedded-server",
                 },
                 {
                     title: "An Electron shell that assumes the worst",
                     body: "Sandbox on, node integration off, context isolation on, a Content-Security-Policy without unsafe-eval, and navigation locked to the embedded server's own origin. A remote map server is treated as a stranger, because that is what it is.",
                     status: "shipped",
-                    statusNote: "Built and tested, and the policy is asserted rather than assumed to have been configured.",
+                    statusNote:
+                        "Built and tested, and the policy is asserted rather than assumed to have been configured.",
                     articleId: "electron-security",
                 },
                 {
@@ -517,7 +544,9 @@ export const home: HomeContent = {
                     statusNote:
                         "On the default branch and mounted by the shell, with six test files in CI covering the ordering rules, the four searches, the close plans, storage, the menus and the mounted strip. Per-tab appearance beyond a group colour is deliberately absent.",
                     articleId: "tabbed-shell",
-                    reading: [{ label: "docs/tabbed-navigation.md", href: TABBED_NAVIGATION_DOC_URL }],
+                    reading: [
+                        { label: "docs/tabbed-navigation.md", href: TABBED_NAVIGATION_DOC_URL },
+                    ],
                 },
                 {
                     title: "One shortcut over every command and setting",
@@ -535,7 +564,9 @@ export const home: HomeContent = {
                     statusNote:
                         "On the default branch inside the notification corner the shell already had, with four test files in CI, two of them mounting the real components. There is no committed capture of the panel with messages in it.",
                     articleId: "notification-centre",
-                    reading: [{ label: "docs/notification-centre.md", href: NOTIFICATION_CENTRE_DOC_URL }],
+                    reading: [
+                        { label: "docs/notification-centre.md", href: NOTIFICATION_CENTRE_DOC_URL },
+                    ],
                 },
                 {
                     title: "A render console that does not throw away the useful line",
@@ -553,7 +584,9 @@ export const home: HomeContent = {
                     statusNote:
                         "The generator and the viewer are on the default branch with four test files in CI, one of which checks every referenced commit against the repository. Generation aborts rather than emitting a reference to a commit that cannot be resolved.",
                     articleId: "changelog-viewer",
-                    reading: [{ label: "docs/changelog-viewer.md", href: CHANGELOG_VIEWER_DOC_URL }],
+                    reading: [
+                        { label: "docs/changelog-viewer.md", href: CHANGELOG_VIEWER_DOC_URL },
+                    ],
                 },
                 {
                     title: "Two keys and a slider before anything irreversible",
@@ -562,7 +595,9 @@ export const home: HomeContent = {
                     statusNote:
                         "One state machine behind two presentations, in front of seven actions, with three test files in CI including a source inventory of every destructive call site. Two of those call sites are declared as gaps rather than gated, and the card links to where that is written down.",
                     articleId: "destructive-action-gate",
-                    reading: [{ label: "docs/super-confirmation.md", href: SUPER_CONFIRMATION_DOC_URL }],
+                    reading: [
+                        { label: "docs/super-confirmation.md", href: SUPER_CONFIRMATION_DOC_URL },
+                    ],
                 },
                 {
                     title: "Appearance, down to the element",
@@ -571,7 +606,9 @@ export const home: HomeContent = {
                     statusNote:
                         "The machinery is on the default branch with nine test files in CI. It is wrapped around four elements today: the title bar, the tab bar, each server profile row, and the editor's own chrome. The contract asks for every element, and the article says so.",
                     articleId: "appearance-editor",
-                    reading: [{ label: "docs/appearance-editors.md", href: APPEARANCE_EDITORS_DOC_URL }],
+                    reading: [
+                        { label: "docs/appearance-editors.md", href: APPEARANCE_EDITORS_DOC_URL },
+                    ],
                 },
                 {
                     title: "A regex builder on every search bar, kept there by a test",
@@ -589,7 +626,9 @@ export const home: HomeContent = {
                     statusNote:
                         "The store, both sliders, the settings row and the catalogue are on the default branch with five test files in CI. The catalogue answers roughly a hundred keys today; every other key still renders its English fallback, which the article states plainly.",
                     articleId: "language-and-tone",
-                    reading: [{ label: "docs/language-and-tone.md", href: LANGUAGE_AND_TONE_DOC_URL }],
+                    reading: [
+                        { label: "docs/language-and-tone.md", href: LANGUAGE_AND_TONE_DOC_URL },
+                    ],
                 },
             ],
         },
@@ -634,7 +673,8 @@ export const home: HomeContent = {
                     title: "Releases that carry their own evidence",
                     body: "Every passing push publishes a uniquely tagged release with a real Windows installer. CI counts the project's lines at the tagged commit, attributes them per surviving line rather than by summing a changelog, and publishes that table beside the installer.",
                     status: "shipped",
-                    statusNote: "Running on every push to the default branch. A failed test publishes no release.",
+                    statusNote:
+                        "Running on every push to the default branch. A failed test publishes no release.",
                     articleId: "release-pipeline",
                 },
                 {
@@ -661,7 +701,12 @@ export const home: HomeContent = {
                     statusNote:
                         "The reusable workflow is on the default branch and runs as CI's jars job on every push, confirmed green alongside the real render test-world does (run 31042450590). The command line renderer has been built and driven by hand, and now also through the app's own orchestrator - see the java-render-path article. What remains unverified is a different, larger claim this card does not make: no server plugin (fabric, forge, neoforge, paper, spigot, sponge) has been loaded by a real Minecraft server.",
                     articleId: "java-render-path",
-                    reading: [{ label: ".github/workflows/build-jars.yml", href: BUILD_JARS_WORKFLOW_URL }],
+                    reading: [
+                        {
+                            label: ".github/workflows/build-jars.yml",
+                            href: BUILD_JARS_WORKFLOW_URL,
+                        },
+                    ],
                 },
             ],
         },
@@ -742,7 +787,11 @@ export const home: HomeContent = {
             status: "in-progress",
             note: "Unblocked early by the Java render path, because it writes BlueMap's own configuration and invokes the renderer rather than needing the TypeScript render manager. The editor now opens from the application and edits a real folder, and the exit check against the upstream Java server has now run: a config edited by hand through a packaged build and saved into a folder the real Java CLI generated was loaded by that same CLI and read back correctly. It has not yet run as a standing part of CI.",
         },
-        { phase: "G", scope: "Docker hosting GUI for managing BlueMap server containers", status: "pending" },
+        {
+            phase: "G",
+            scope: "Docker hosting GUI for managing BlueMap server containers",
+            status: "pending",
+        },
         {
             phase: "H",
             scope: "SQL storages, command palette, marker editor, JavaScript addon system, static export, three.js upgrade",
@@ -849,10 +898,16 @@ export const home: HomeContent = {
         { label: "Rendering a world in GitHub Actions", href: RENDER_IN_ACTIONS_DOC_URL },
         { label: "Rendering that survives being interrupted", href: RESUMABLE_RENDERS_DOC_URL },
         { label: "Large worlds and rendered maps", href: LARGE_WORLDS_DOC_URL },
-        { label: "Rendering a world that lives in a private repository", href: PRIVATE_WORLD_DOC_URL },
+        {
+            label: "Rendering a world that lives in a private repository",
+            href: PRIVATE_WORLD_DOC_URL,
+        },
         { label: "The port plan", href: PLAN_URL },
         { label: "The roadmap", href: ROADMAP_URL },
-        { label: "Decisions, including the two that changed which engine renders", href: DECISIONS_URL },
+        {
+            label: "Decisions, including the two that changed which engine renders",
+            href: DECISIONS_URL,
+        },
         { label: "Deviations from upstream", href: DEVIATIONS_URL },
         { label: "Porting conventions", href: CONVENTIONS_URL },
         { label: "The five product contracts", href: CONTRACTS_URL },
