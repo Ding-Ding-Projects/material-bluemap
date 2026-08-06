@@ -207,7 +207,6 @@ export const GHCLIACCOUNTS_FIXED = {
         en: "gh can only refresh the active account's scopes, so switch to this account first if it is not already active.",
         yue: "gh 淨係可以幫使用緊嘅帳戶補權限，如果呢個帳戶未係使用緊，就要先切換去佢。",
     },
-    "settings.github.ghCli.field.host": { en: "Host", yue: "主機" },
     "settings.github.ghCli.field.source": { en: "Signed in with", yue: "用咩登入" },
     "settings.github.ghCli.field.protocol": { en: "Git protocol", yue: "Git 協議" },
     "settings.github.ghCli.field.scopes": { en: "Permissions", yue: "權限" },
