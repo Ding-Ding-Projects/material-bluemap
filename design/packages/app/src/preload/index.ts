@@ -1580,6 +1580,180 @@ export interface WorldRepoBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* A world already on a machine the person owns, fetched over SSH             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A remote target as the settings screen already stores it, restated from `RemoteTarget` in
+ * `main/remote/target.ts` rather than imported. Every field is optional here because
+ * `worldsource:ssh:*` fills in the same defaults `remote:validate` does - a missing port
+ * becomes 22, a missing `docker` becomes `"docker"` - and refuses only what genuinely
+ * cannot be defaulted, reported in `SshValidateAnswer.message`. `image`, `docker` and
+ * `keepRemoteFiles` exist on the type because it is the same `RemoteTarget` the remote
+ * -render lane uses; a world fetch never reads them.
+ */
+export interface SshRemoteTargetInput {
+    id?: string;
+    label?: string;
+    host?: string;
+    port?: number;
+    user?: string;
+    identityFile?: string | null;
+    workDir?: string;
+    image?: string;
+    docker?: string;
+    keepRemoteFiles?: boolean;
+}
+
+/** `RemoteTarget`, checked and defaulted. What `validate`/`detect` answer back. */
+export interface SshRemoteTarget {
+    id: string;
+    label: string;
+    host: string;
+    port: number;
+    user: string;
+    identityFile: string | null;
+    workDir: string;
+    image: string;
+    docker: string;
+    keepRemoteFiles: boolean;
+}
+
+/** Mirrors `SshValidateAnswer` in `main/worldsource/sshIpc.ts`. */
+export type SshValidateAnswer =
+    | { ok: true; target: SshRemoteTarget; summary: string }
+    | { ok: false; message: string };
+
+/** Mirrors `HostKeyOffer` in `main/remote/hostkey.ts`. */
+export interface SshHostKeyOffer {
+    /** `ssh-ed25519`, `ecdsa-sha2-nistp256`, `ssh-rsa`, ... */
+    type: string;
+    /** The key blob, base64, exactly as `ssh-keyscan` printed it. */
+    base64: string;
+    /** `SHA256:...`, in OpenSSH's own spelling, so it can be compared by eye. */
+    fingerprint: string;
+    /** The whole `known_hosts` line, ready to be written if it is approved. */
+    line: string;
+}
+
+/** Mirrors `RemoteHostKind` in `main/remote/worldsource.ts`. */
+export type SshRemoteHostKind = "posix" | "windows" | "unknown";
+
+/** Mirrors `SshDetectAnswer` in `main/worldsource/sshIpc.ts`. */
+export type SshDetectAnswer =
+    | { ok: true; kind: SshRemoteHostKind; detail: string | null }
+    | { ok: false; message: string; hostKeys: readonly SshHostKeyOffer[] };
+
+/** Mirrors `SshTrustAnswer` in `main/worldsource/sshIpc.ts`. */
+export interface SshTrustAnswer {
+    ok: boolean;
+    message: string;
+}
+
+/** Mirrors `RemoteWorldPathCheck` in `main/remote/worldsource.ts`. */
+export type SshRemoteWorldPathCheck = { ok: true; path: string } | { ok: false; reason: string };
+
+/** Mirrors `RemoteWorldEntry` in `main/remote/worldsource.ts`. */
+export interface SshRemoteWorldEntry {
+    /** Relative to the world's root, forward-slash separated regardless of the remote OS. */
+    path: string;
+    size: number;
+    mtimeMs: number;
+}
+
+/** Mirrors `SshSurveyAnswer` in `main/worldsource/sshIpc.ts`. */
+export type SshSurveyAnswer =
+    | { ok: true; kind: SshRemoteHostKind; entries: readonly SshRemoteWorldEntry[] }
+    | { ok: false; message: string };
+
+/**
+ * Mirrors `RemoteWorldChanges` in `main/remote/worldsource.ts`, plus the `anyChange` field
+ * the `worldsource:ssh:diff` handler adds on top of it.
+ */
+export interface SshRemoteWorldChanges {
+    added: readonly string[];
+    changed: readonly string[];
+    removed: readonly string[];
+    unchanged: number;
+    anyChange: boolean;
+}
+
+/**
+ * A `RenderFailure` with the SSH-specific reason attached. Mirrors `RemoteFailure` in
+ * `main/remote/failure.ts`, which is why it extends the same {@link RenderFailure} this file
+ * already restates for local and remote rendering.
+ */
+export interface SshRemoteFailure extends RenderFailure {
+    remoteCode: string;
+    /** The target this is about, as `user@host:port`, for a message. Never a key path. */
+    target: string | null;
+}
+
+/** Mirrors `RemoteWorldFetchResult` in `main/remote/worldsource.ts`. */
+export type SshRemoteWorldFetchResult =
+    | { ok: true; kind: SshRemoteHostKind; transfer: "rsync" | "scp"; message: string }
+    | { ok: false; failure: SshRemoteFailure; hostKeys: readonly SshHostKeyOffer[] };
+
+/** What `worldsource:ssh:fetch` answers with: the fetcher's own id, plus its result. */
+export interface SshFetchAnswer {
+    id: string;
+    result: SshRemoteWorldFetchResult;
+}
+
+/** What `fetch` takes. Mirrors `SshWorldSourceRequest` in `main/worldsource/sshFetcher.ts`. */
+export interface SshFetchRequest {
+    target: SshRemoteTargetInput;
+    remotePath: string;
+    localPath: string;
+}
+
+/** Mirrors `SshWorldSourceEvent` in `main/worldsource/sshFetcher.ts`, broadcast on `worldsource:ssh:event`. */
+export type SshWorldSourceEvent =
+    | { kind: "line"; id: string; message: string }
+    | { kind: "finished"; id: string; result: SshRemoteWorldFetchResult };
+
+/**
+ * Fetching a world from a machine the person already owns, reached over SSH - Linux or
+ * Windows. Mirrors `main/worldsource/sshIpc.ts`'s nine channels, plus
+ * `worldsource:ssh:event` for progress.
+ *
+ * The guided shape that module's own doc comment describes: `validate` is offline,
+ * `detect` connects and says which kind of host answered, `trustHostKey` is the one
+ * decision this bridge never makes silently, `checkPath`/`survey`/`diff` are the cheap
+ * change check, and `fetch`/`cancel`/`active` are the transfer itself. No method here
+ * rejects - every answer, including "this host key has changed", is a sentence a wizard
+ * step has to show.
+ */
+export interface WorldSourceSshBridge {
+    /** Checks a target's shape, entirely offline. There is no password field, here or anywhere. */
+    validate(target: SshRemoteTargetInput): Promise<SshValidateAnswer>;
+    /** Connects, checks the host key, and says which kind of host answered. */
+    detect(target: SshRemoteTargetInput): Promise<SshDetectAnswer>;
+    /**
+     * Records a host key the person has just been shown and accepted.
+     *
+     * The main process re-scans and writes only a key it offered, so this cannot be used to
+     * put a line of its own choosing into a trust store.
+     */
+    trustHostKey(target: SshRemoteTargetInput, fingerprint: string): Promise<SshTrustAnswer>;
+    /** Is the given remote path even shaped like a path on that kind of host. */
+    checkPath(path: string, kind: SshRemoteHostKind): Promise<SshRemoteWorldPathCheck>;
+    /** Lists every file under a remote world, with its size and modification time. No bytes moved. */
+    survey(target: SshRemoteTargetInput, path: string, kind: SshRemoteHostKind): Promise<SshSurveyAnswer>;
+    /** Compares two surveys by path, size and modification time. Pure; no network. */
+    diff(
+        previous: readonly SshRemoteWorldEntry[],
+        current: readonly SshRemoteWorldEntry[],
+    ): Promise<SshRemoteWorldChanges>;
+    /** Fetches the world. Progress arrives on `onSshWorldSourceEvent`, not the return value alone. */
+    fetch(request: SshFetchRequest): Promise<SshFetchAnswer>;
+    cancel(id: string): Promise<boolean>;
+    active(): Promise<readonly string[]>;
+    /** Subscribes to fetch progress. Returns the unsubscribe function. */
+    onSshWorldSourceEvent(listener: (event: SshWorldSourceEvent) => void): () => void;
+}
+
+/* -------------------------------------------------------------------------- */
 /* The profile list's and the application settings' own version history      */
 /* -------------------------------------------------------------------------- */
 
@@ -2405,6 +2579,12 @@ interface MaterialBlueMapBridge {
     worldRepo: WorldRepoBridge;
 
     /**
+     * Fetching a world from a machine the person already owns, reached over SSH. See
+     * {@link WorldSourceSshBridge}.
+     */
+    sshWorldSource: WorldSourceSshBridge;
+
+    /**
      * A world's own record of how it should be rendered, and the history of it.
      *
      * The world list uses `discoverMany` to show which worlds carry a project. A `present`
@@ -2907,6 +3087,26 @@ const bridge: MaterialBlueMapBridge = {
             ipcRenderer.on("worldrepo:event", forward);
             return () => {
                 ipcRenderer.off("worldrepo:event", forward);
+            };
+        },
+    },
+
+    sshWorldSource: {
+        validate: (target) => ipcRenderer.invoke("worldsource:ssh:validate", target),
+        detect: (target) => ipcRenderer.invoke("worldsource:ssh:detect", target),
+        trustHostKey: (target, fingerprint) =>
+            ipcRenderer.invoke("worldsource:ssh:trustHostKey", target, fingerprint),
+        checkPath: (path, kind) => ipcRenderer.invoke("worldsource:ssh:checkPath", path, kind),
+        survey: (target, path, kind) => ipcRenderer.invoke("worldsource:ssh:survey", target, path, kind),
+        diff: (previous, current) => ipcRenderer.invoke("worldsource:ssh:diff", previous, current),
+        fetch: (request) => ipcRenderer.invoke("worldsource:ssh:fetch", request),
+        cancel: (id) => ipcRenderer.invoke("worldsource:ssh:cancel", id),
+        active: () => ipcRenderer.invoke("worldsource:ssh:active"),
+        onSshWorldSourceEvent: (listener) => {
+            const forward = (_event: IpcRendererEvent, payload: SshWorldSourceEvent): void => listener(payload);
+            ipcRenderer.on("worldsource:ssh:event", forward);
+            return () => {
+                ipcRenderer.off("worldsource:ssh:event", forward);
             };
         },
     },
