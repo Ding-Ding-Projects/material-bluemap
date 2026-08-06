@@ -660,7 +660,18 @@ export class WorldRepoHost {
         };
     }
 
-    private async readRepository(
+    /**
+     * The repository's own state and its marker on one branch: exists, writable, and
+     * whether that branch already carries this application's mark.
+     *
+     * Public rather than a `preflight()`-only implementation detail because it is also the
+     * one honest signal `worldrepo/adopt.ts` has for "does this repository look like one
+     * this application already prepared" - the same question asked here for a sync about to
+     * happen is asked there for a repository picked from a list on a computer that has
+     * never synced anything. Reused rather than duplicated, so the two can never disagree
+     * about what counts as "ours".
+     */
+    async readRepository(
         owner: string,
         repo: string,
         branch: string,

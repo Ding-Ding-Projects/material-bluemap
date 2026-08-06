@@ -145,3 +145,44 @@ describe("remoteTip", () => {
         expect(result.ok).toBe(false);
     });
 });
+
+describe("adoptionProbe and adoptionPlan", () => {
+    it("adoptionProbe refuses a request with no candidate list", async () => {
+        const { ipcMain } = install();
+        const probe = ipcMain.handlers.get("worldrepo:adoptionProbe");
+        const result = (await probe?.(noEvent, { branch: "world" })) as { ok: boolean };
+        expect(result.ok).toBe(false);
+    });
+
+    it("adoptionProbe answers one signal per candidate, honestly reporting the network as unreachable rather than guessing 'not prepared'", async () => {
+        const { ipcMain } = install();
+        const probe = ipcMain.handlers.get("worldrepo:adoptionProbe");
+        const result = (await probe?.(noEvent, {
+            candidates: [{ owner: "octocat", repo: "worlds" }],
+        })) as { ok: boolean; value?: readonly { status: string }[] };
+        expect(result.ok).toBe(true);
+        expect(result.value).toHaveLength(1);
+        // `gh` is not installed in this fake, so this is a genuine "could not be checked",
+        // never folded into the same "not-prepared" a real, confident no would report.
+        expect(result.value?.[0]?.status).toBe("unknown");
+    });
+
+    it("adoptionPlan refuses a request missing an owner or a repository", async () => {
+        const { ipcMain } = install();
+        const plan = ipcMain.handlers.get("worldrepo:adoptionPlan");
+        const result = (await plan?.(noEvent, { owner: "octocat" })) as { ok: boolean };
+        expect(result.ok).toBe(false);
+    });
+
+    it("adoptionPlan reports an unreachable repository rather than inventing a plan for it", async () => {
+        const { ipcMain } = install();
+        const plan = ipcMain.handlers.get("worldrepo:adoptionPlan");
+        const result = (await plan?.(noEvent, { owner: "octocat", repo: "worlds" })) as {
+            ok: boolean;
+            value?: { ok: boolean; reason?: string };
+        };
+        expect(result.ok).toBe(true);
+        expect(result.value?.ok).toBe(false);
+        expect(result.value?.reason).toBe("repository-unreadable");
+    });
+});

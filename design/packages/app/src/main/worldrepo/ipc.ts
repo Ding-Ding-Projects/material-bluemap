@@ -8,6 +8,9 @@
  */
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
+import { nodeProcessRunner } from "../cirender/gh.js";
+import { buildAdoptionPlan, probeAdoptionCandidates } from "./adopt.js";
+import type { AdoptionCandidateInput, AdoptionPlan, AdoptionSignal } from "./adopt.js";
 import { WorldRepoHost } from "./repo.js";
 import type {
     WorldRepoEvent,
@@ -35,6 +38,8 @@ export const WORLD_REPO_CHANNELS = [
     "worldrepo:records",
     "worldrepo:resume",
     "worldrepo:remoteTip",
+    "worldrepo:adoptionProbe",
+    "worldrepo:adoptionPlan",
 ] as const;
 
 export type Answer<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
@@ -50,10 +55,13 @@ export interface WorldRepoIpc {
 }
 
 export function installWorldRepoIpc(options: WorldRepoIpcOptions): WorldRepoIpc {
+    // Adoption reads through the same runner `host` itself spawns `git`/`gh` with, so a test
+    // that injects one sees adoption's own `gh api` calls exactly as it sees a sync's.
+    const runner = options.runner ?? nodeProcessRunner();
     const host = new WorldRepoHost({
         workRoot: options.workRoot,
         onEvent: options.broadcast,
-        ...(options.runner === undefined ? {} : { runner: options.runner }),
+        runner,
         ...(options.now === undefined ? {} : { now: options.now }),
         ...(options.committer === undefined ? {} : { committer: options.committer }),
         ...(options.remoteUrl === undefined ? {} : { remoteUrl: options.remoteUrl }),
@@ -178,6 +186,61 @@ export function installWorldRepoIpc(options: WorldRepoIpcOptions): WorldRepoIpc 
         },
     );
 
+    /**
+     * Recognising, in a repository list, which ones this application has likely already
+     * prepared - see `adopt.ts`'s own doc comment for what "prepared" means and why it is
+     * never reported as a certainty. Bounded by `probeAdoptionCandidates` itself, so a long
+     * list of candidates never turns into an unbounded number of round trips just because
+     * the renderer asked about all of them at once.
+     */
+    options.ipcMain.handle(
+        "worldrepo:adoptionProbe",
+        async (_event: IpcMainInvokeEvent, request: unknown): Promise<Answer<readonly AdoptionSignal[]>> => {
+            const parsed = readAdoptionProbeRequest(request);
+            if (parsed === null) {
+                return { ok: false, message: "A list of repositories to check is required." };
+            }
+            try {
+                return {
+                    ok: true,
+                    value: await probeAdoptionCandidates(host, runner, parsed.candidates, {
+                        ...(parsed.branch === null ? {} : { branch: parsed.branch }),
+                        ...(parsed.maxProbes === null ? {} : { maxProbes: parsed.maxProbes }),
+                    }),
+                };
+            } catch (error) {
+                return { ok: false, message: sentence(error) };
+            }
+        },
+    );
+
+    /**
+     * What adopting one repository would restore - or an honest refusal, including the
+     * `ci-bootstrap-only` case where the repository is recognisable but carries no project
+     * to restore, and the `project-too-new` case where it carries one this build cannot
+     * safely read. Never writes anything; see `adopt.ts`'s own doc comment.
+     */
+    options.ipcMain.handle(
+        "worldrepo:adoptionPlan",
+        async (_event: IpcMainInvokeEvent, request: unknown): Promise<Answer<AdoptionPlan>> => {
+            const row = typeof request === "object" && request !== null ? (request as Record<string, unknown>) : null;
+            const owner = readText(row?.["owner"]);
+            const repo = readText(row?.["repo"]);
+            const branch = readText(row?.["branch"]);
+            if (owner === null || repo === null) {
+                return { ok: false, message: "A repository owner and a name are required." };
+            }
+            try {
+                return {
+                    ok: true,
+                    value: await buildAdoptionPlan(host, runner, { owner, repo, ...(branch === null ? {} : { branch }) }),
+                };
+            } catch (error) {
+                return { ok: false, message: sentence(error) };
+            }
+        },
+    );
+
     return {
         host,
         dispose(): void {
@@ -189,6 +252,31 @@ export function installWorldRepoIpc(options: WorldRepoIpcOptions): WorldRepoIpc 
 /* -------------------------------------------------------------------------- */
 /* Reading a request                                                          */
 /* -------------------------------------------------------------------------- */
+
+interface AdoptionProbeRequest {
+    readonly candidates: readonly AdoptionCandidateInput[];
+    readonly branch: string | null;
+    readonly maxProbes: number | null;
+}
+
+function readAdoptionProbeRequest(value: unknown): AdoptionProbeRequest | null {
+    if (typeof value !== "object" || value === null) return null;
+    const row = value as Record<string, unknown>;
+    if (!Array.isArray(row["candidates"])) return null;
+    const candidates: AdoptionCandidateInput[] = [];
+    for (const entry of row["candidates"]) {
+        if (typeof entry !== "object" || entry === null) continue;
+        const owner = readText((entry as Record<string, unknown>)["owner"]);
+        const repo = readText((entry as Record<string, unknown>)["repo"]);
+        if (owner !== null && repo !== null) candidates.push({ owner, repo });
+    }
+    const maxProbesRaw = row["maxProbes"];
+    return {
+        candidates,
+        branch: readText(row["branch"]),
+        maxProbes: typeof maxProbesRaw === "number" && Number.isFinite(maxProbesRaw) ? maxProbesRaw : null,
+    };
+}
 
 function readTarget(value: unknown): WorldRepoTarget | null {
     if (typeof value !== "object" || value === null) return null;
