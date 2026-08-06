@@ -643,16 +643,41 @@ jobs:
           ls -la "$world"
 
       # `install-deps` shells out to the OS package manager (apt-get, with sudo) to
-      # install the system libraries headless Chromium needs. On a hosted runner that
-      # mutated a disposable VM; on this self-hosted machine it mutates the developer's
-      # own real system package set, every single run, whether or not anything is
-      # missing - unlike the checks above, this step was not written for that
-      # distinction and does not skip when the libraries are already there. Left as
-      # upstream Playwright wrote it rather than reimplemented here, but flagged: if
-      # this machine should not have its system packages touched by CI, pre-provision
-      # the Chromium dependencies once by hand and this step becomes a fast no-op only
-      # once Playwright itself learns to check first.
-      - name: Install Playwright browsers
+      # install the system libraries headless Chromium (and therefore Electron, which
+      # bundles it) needs. On a hosted runner that mutated a disposable VM once; on this
+      # self-hosted machine, calling it unconditionally would mutate the developer's own
+      # real system package set on every single run forever, whether or not anything is
+      # actually missing - the same class of waste the `zip`/`unzip`/`xvfb` checks above
+      # exist to avoid.
+      #
+      # Playwright itself now provides the check we need: `install-deps --dry-run` does
+      # not touch the system at all, it simulates the install via `apt-get install -s`
+      # against the exact package list this installed Playwright version currently
+      # requires, and exits non-zero the moment anything is missing (`playwright
+      # install-deps --help` documents this precisely). That live re-derivation is what
+      # keeps this cheap-and-safe rather than cheap-and-stale: if a future Playwright
+      # bump needs one more library than this machine has, the dry run recomputes its
+      # requirement list from that new version and correctly reports it missing - it is
+      # never comparing against a list we wrote down once and forgot to update. Any
+      # dry-run failure, for that reason or any other (an unpopulated apt cache, for
+      # instance), falls through to the real install below rather than being treated as
+      # "probably fine"; the only thing this check is trusted to say is "yes, already
+      # satisfied", never "no, and therefore skip".
+      - name: Check whether Playwright's Chromium OS dependencies are already satisfied
+        id: playwright-deps
+        working-directory: design/packages/app
+        run: |
+          set -euo pipefail
+          if pnpm exec playwright install-deps chromium --dry-run; then
+            echo "All Chromium OS dependencies are already present; skipping the real install."
+            echo "satisfied=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Chromium OS dependencies are missing or the dry run could not confirm them; installing for real."
+            echo "satisfied=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Playwright browsers' OS dependencies
+        if: steps.playwright-deps.outputs.satisfied != 'true'
         working-directory: design/packages/app
         run: pnpm exec playwright install-deps chromium
 

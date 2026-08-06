@@ -192,3 +192,24 @@ step in `build-jars.yml`), so the fix lives entirely in the workflow's own `-D` 
 toolchains. The rest of `ci.yml` and `pages.yml` were re-audited at the same time for the same class
 of "assumed the hosted image" failure and found already covered by the bullet list above; no other
 job invokes a build plugin that provisions its own JDK.
+
+The user separately authorised a scoped fallback for the `jars` job specifically, if the fix above
+does not hold after a genuine attempt on the real runner: move `runs-on` for that one job only back
+to `ubuntu-latest`, leaving every other job on the self-hosted labels. That fallback is not taken
+unless the pushed fix is actually observed failing on the runner - this paragraph exists so the
+condition and its scope are recorded before, not after, that observation.
+
+**Same follow-up: `ci.yml`'s `screenshots` job's `Install Playwright browsers` step was already
+flagged above (bullet list, "Nothing is preinstalled") as calling `apt-get`, with `sudo`,
+unconditionally on every run - a known gap left for later because, at the time, Playwright's own
+`install-deps` command does not check current system state before running `apt-get update && apt-get
+install`. The later fix is not "skip it sometimes" but a genuine, cheap, self-updating check ahead of
+it: `playwright install-deps chromium --dry-run` is an official, documented Playwright CLI mode that
+touches nothing and simulates the install via `apt-get install -s` against whatever package list
+*this installed Playwright version* currently requires, exiting non-zero the instant one package is
+missing. Because that requirement list is recomputed from the live Playwright version on every run
+rather than copied into this workflow once, a future Playwright upgrade that needs one more library
+than this machine has is caught correctly - the dry run reports it missing, the real `install-deps`
+step (gated on the dry run's result) runs and installs it. Any dry-run failure, for that reason or
+any other, is treated as "not confirmed satisfied" and falls through to the real install, so the
+check can only ever skip work it has verified is unnecessary, never the reverse.
