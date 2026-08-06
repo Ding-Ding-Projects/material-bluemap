@@ -4,12 +4,14 @@ import { useI18n } from "vue-i18n";
 import { VAlert, VDivider, VIcon } from "vuetify/components";
 import { mdiOpenInNew } from "@mdi/js";
 import { githubSectionCopy } from "../settings/settingsCopy.js";
+import GhCliAccountsList from "./GhCliAccountsList.vue";
 import GitHubAccountsList from "./GitHubAccountsList.vue";
 import GitHubDeviceFlowPanel from "./GitHubDeviceFlowPanel.vue";
 import GitHubStatusRow from "./GitHubStatusRow.vue";
 import GitHubTokenForm from "./GitHubTokenForm.vue";
 import type { GitHubAccountState } from "./githubAccount.js";
 import { createGitHubAccountsList } from "./githubAccountsStore.js";
+import { createGhCliAccountsStore } from "./ghCliAccountsStore.js";
 
 /**
  * The GitHub sign-in section of the settings surface.
@@ -32,9 +34,24 @@ import { createGitHubAccountsList } from "./githubAccountsStore.js";
  */
 const props = defineProps<{ account: GitHubAccountState }>();
 
+const emit = defineEmits<{
+    /** Bubbled up so a settings screen can jump to its own System dependencies section. */
+    "open-dependencies": [];
+}>();
+
 const { t } = useI18n();
 
 const state = props.account;
+
+/**
+ * The `gh` command-line tool's OWN accounts - a completely separate store from `state`
+ * above. Loaded independently and shown as its own section further down, never merged into
+ * the list above it.
+ */
+const ghCli = createGhCliAccountsStore();
+onMounted(() => {
+    if (ghCli.canList) void ghCli.load();
+});
 
 /**
  * Every stored account, on top of `state` rather than instead of it.
@@ -255,6 +272,20 @@ const report = computed(() => state.signOutReport.value);
 
                 <GitHubTokenForm v-if="state.canUseToken" :account="state" />
             </template>
+
+            <!--
+                A second, deliberately separate section: the gh command-line tool's OWN
+                accounts, not this application's. `ghCli.canList` is its own feature
+                detection - a build whose preload predates this support simply omits the
+                section, the same rule `GitHubAccountsList` above already follows.
+            -->
+            <v-divider class="mb-github__divider" />
+            <GhCliAccountsList
+                v-if="ghCli.canList"
+                class="mb-github__ghcli"
+                :list="ghCli"
+                @open-dependencies="emit('open-dependencies')"
+            />
         </template>
     </div>
 </template>
@@ -299,5 +330,9 @@ const report = computed(() => state.signOutReport.value);
 
 .mb-github__accounts {
     margin-block-end: 4px;
+}
+
+.mb-github__ghcli {
+    margin-block-start: 4px;
 }
 </style>

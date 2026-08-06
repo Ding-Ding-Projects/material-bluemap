@@ -754,7 +754,10 @@ function onDrawer(value: boolean): void {
                         :title="copy['github-account'].title"
                         :description="copy['github-account'].description"
                     >
-                        <GitHubAccountRow :account="github" />
+                        <GitHubAccountRow
+                            :account="github"
+                            @open-dependencies="goToSection('system-dependencies')"
+                        />
                     </SettingsSection>
                 </template>
 

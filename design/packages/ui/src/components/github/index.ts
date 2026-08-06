@@ -16,6 +16,7 @@ export { default as GitHubAccountsList } from "./GitHubAccountsList.vue";
 export { default as GitHubStatusRow } from "./GitHubStatusRow.vue";
 export { default as GitHubDeviceFlowPanel } from "./GitHubDeviceFlowPanel.vue";
 export { default as GitHubTokenForm } from "./GitHubTokenForm.vue";
+export { default as GhCliAccountsList } from "./GhCliAccountsList.vue";
 
 export {
     classifyAuthFailure,
@@ -38,6 +39,26 @@ export type {
     GitHubAccountsListState,
     RemovalReport,
 } from "./githubAccountsStore.js";
+
+export { ghCliAccountSearchText, createGhCliAccountsStore } from "./ghCliAccountsStore.js";
+export type {
+    GhCliAccountsStoreOptions,
+    GhCliAccountsStoreState,
+    GhCliSwitchReport,
+} from "./ghCliAccountsStore.js";
+
+export {
+    canListGhCliAccounts,
+    canSwitchGhCliAccount,
+    resolveGhCliBridge,
+} from "./ghCliBridge.js";
+export type {
+    GhCliAccountReadout,
+    GhCliAccountsStatusReadout,
+    GhCliAvailabilityReadout,
+    GhCliBridge,
+    GhCliSwitchReadout,
+} from "./ghCliBridge.js";
 
 export {
     canCancelSignIn,
