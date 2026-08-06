@@ -85,6 +85,17 @@ function fakeBridge(record: RenderSummary | null = null) {
     const bridge: WorldBridge = {
         startRender: () => new Promise<RenderResult>(() => undefined),
         cancelRender: async () => true,
+        adjustRenderSpeed: async (renderId, level) => ({
+            ok: true,
+            renderId,
+            level,
+            route: "local",
+            appliedNow: true,
+            needsRestart: true,
+            reason: "applied",
+            message: "applied",
+            detail: null,
+        }),
         listRenders: async () => [],
         renderEngine: async () => record,
         activeRenders: async () => [],

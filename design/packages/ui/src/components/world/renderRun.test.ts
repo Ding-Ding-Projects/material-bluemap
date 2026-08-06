@@ -15,6 +15,8 @@ import type {
     RenderFailure,
     RenderResult,
     RenderSummary,
+    SpeedAdjustmentResult,
+    SpeedLevelNumber,
     WorldBridge,
 } from "./worldBridge.js";
 import type { Translate } from "./worldFolder.js";
@@ -81,6 +83,19 @@ function fakeBridge(
             return outcome;
         },
         cancelRender: vi.fn(async () => true),
+        adjustRenderSpeed: vi.fn(
+            async (renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult> => ({
+                ok: true,
+                renderId,
+                level,
+                route: "local",
+                appliedNow: true,
+                needsRestart: true,
+                reason: "applied",
+                message: "applied",
+                detail: null,
+            }),
+        ),
         listRenders: async () => [],
         renderEngine: async () => options.record ?? null,
         activeRenders: async () => [],
@@ -820,6 +835,149 @@ describe("real bytes for what went up, an honest gap for what comes back", () =>
 
         expect(run.progress.value.transfers).toEqual([]);
         expect(run.progress.value.notes.some((note) => note.key === "progress.note.stagedNotBytes")).toBe(true);
+        run.dispose();
+    });
+});
+
+describe("renderThreads: the one raw fact a live control can name honestly", () => {
+    it("records exactly what the request named, before any event arrives", () => {
+        const fake = fakeBridge(OK, { resolveNow: false });
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }], renderThreads: -1 });
+        expect(run.renderThreads.value).toBe(-1);
+        run.dispose();
+    });
+
+    it("is null when the request never named one, rather than a guessed-at number", () => {
+        const fake = fakeBridge(OK, { resolveNow: false });
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        expect(run.renderThreads.value).toBeNull();
+        run.dispose();
+    });
+
+    it("clears back to null on reset, once the run has ended", async () => {
+        const fake = fakeBridge(OK, { resolveNow: true });
+        const run = createRenderRun(fake.bridge);
+        await run.start({ maps: [{ id: "survival", world: "/srv/world" }], renderThreads: 2 });
+        expect(run.renderThreads.value).toBe(2);
+        run.reset();
+        expect(run.renderThreads.value).toBeNull();
+        run.dispose();
+    });
+});
+
+describe("adjustSpeed: reaching the main process about a live render", () => {
+    it("does nothing and reports null when no render has an id yet", async () => {
+        const fake = fakeBridge(OK, { resolveNow: false });
+        const run = createRenderRun(fake.bridge);
+        const result = await run.adjustSpeed(4);
+        expect(result).toBeNull();
+        expect(fake.bridge.adjustRenderSpeed).not.toHaveBeenCalled();
+        run.dispose();
+    });
+
+    it("calls the bridge with this render's own id, once it has one", async () => {
+        const fake = fakeBridge(OK, { resolveNow: false });
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+
+        const result = await run.adjustSpeed(2);
+        expect(fake.bridge.adjustRenderSpeed).toHaveBeenCalledWith("world-abc", 2);
+        expect(result?.ok).toBe(true);
+        run.dispose();
+    });
+
+    it("reports the exact outcome the bridge returned, applied or blocked, unedited", async () => {
+        const fake = fakeBridge(OK, { resolveNow: false });
+        const blocked: SpeedAdjustmentResult = {
+            ok: true,
+            renderId: "world-abc",
+            level: 5,
+            route: "docker",
+            appliedNow: false,
+            needsRestart: true,
+            reason: "not-running",
+            message: "Docker cannot boost a container above its ordinary share.",
+            detail: null,
+        };
+        fake.bridge.adjustRenderSpeed = vi.fn(async () => blocked);
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+
+        const result = await run.adjustSpeed(5);
+        expect(result).toEqual(blocked);
+        run.dispose();
+    });
+
+    it("turns a broken bridge promise into a refusal rather than an unhandled rejection", async () => {
+        const fake = fakeBridge(OK, { resolveNow: false });
+        fake.bridge.adjustRenderSpeed = vi.fn(async () => {
+            throw new Error("ipc broke");
+        });
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+
+        const result = await run.adjustSpeed(3);
+        expect(result?.ok).toBe(false);
+        expect(result?.message).toContain("ipc broke");
+        run.dispose();
+    });
+});
+
+describe("restartWithLevel: the explicit choice that actually changes the thread count", () => {
+    it("starts a fresh render with the level's own thread count when nothing is running", async () => {
+        const fake = fakeBridge(OK, { resolveNow: true });
+        const run = createRenderRun(fake.bridge);
+        await run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        run.reset();
+
+        await run.restartWithLevel(5);
+        // Level 5's own documented threadCount, from speedLevels.ts.
+        expect(run.renderThreads.value).toBe(4);
+    });
+
+    it("cancels the running render first, waits for it to actually end, then restarts", async () => {
+        const fake = fakeBridge(OK, { resolveNow: false });
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        expect(run.active.value).toBe(true);
+
+        const restarted = run.restartWithLevel(1);
+
+        // The restart must not proceed until the render has genuinely ended - it only asked
+        // to be cancelled so far, and the underlying process has not confirmed anything yet.
+        await Promise.resolve();
+        expect(run.state.value).toBe("running");
+        expect(fake.bridge.cancelRender).toHaveBeenCalledWith("world-abc");
+
+        fake.emit({ type: "cancelled", renderId: "world-abc", at: "t1" });
+
+        // Draining several microtask ticks rather than guessing exactly one: `await cancel()`
+        // and `await stopped` are each their own promise chain, and the restart's own second
+        // `startRender()` call only happens once both have genuinely unwound. `fake.finish()`
+        // must land on *that* call, not on the abandoned first one whose own promise nobody
+        // is waiting on any more.
+        for (let tick = 0; tick < 20 && run.state.value !== "starting"; tick++) {
+            await Promise.resolve();
+        }
+        expect(run.state.value).toBe("starting");
+        fake.finish();
+
+        await restarted;
+        // Level 1's own documented threadCount, from speedLevels.ts.
+        expect(run.renderThreads.value).toBe(-2);
+    });
+
+    it("does nothing and reports null when no render has ever been started", async () => {
+        const fake = fakeBridge(OK, { resolveNow: false });
+        const run = createRenderRun(fake.bridge);
+        const result = await run.restartWithLevel(3);
+        expect(result).toBeNull();
         run.dispose();
     });
 });

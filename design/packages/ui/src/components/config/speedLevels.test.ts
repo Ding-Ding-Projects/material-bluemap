@@ -1,7 +1,7 @@
 import { coreConfigDescriptor } from "@material-bluemap/config";
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_SPEED_LEVEL, SPEED_LEVELS, speedLevelByNumber, speedLevelFor } from "./speedLevels.js";
+import { DEFAULT_SPEED_LEVEL, SPEED_LEVELS, matchThreadCount, speedLevelByNumber, speedLevelFor } from "./speedLevels.js";
 
 function coreDefault(path: string): unknown {
     const field = coreConfigDescriptor.fields.find((candidate) => candidate.path === path);
@@ -87,5 +87,29 @@ describe("speedLevelFor: round-trip detection", () => {
         // "closest level" heuristic would round this to something. The real answer is Custom,
         // because the raw values were never actually set to any one level's pair.
         expect(speedLevelFor(2, 3)).toBeNull();
+    });
+});
+
+describe("matchThreadCount: the live-render control's coarser question", () => {
+    it("reports 'automatic' for null or undefined, never a level and never Custom", () => {
+        expect(matchThreadCount(null)).toEqual({ kind: "automatic" });
+        expect(matchThreadCount(undefined)).toEqual({ kind: "automatic" });
+    });
+
+    it("matches every level from its thread count alone, ignoring priority entirely", () => {
+        for (const level of SPEED_LEVELS) {
+            expect(matchThreadCount(level.threadCount)).toEqual({ kind: "level", level });
+        }
+    });
+
+    it("reports 'custom' with the exact number for a count that matches no level", () => {
+        expect(matchThreadCount(3)).toEqual({ kind: "custom", threadCount: 3 });
+        expect(matchThreadCount(-7)).toEqual({ kind: "custom", threadCount: -7 });
+    });
+
+    it("never confuses a request that named zero with one that named nothing", () => {
+        // 0 is a real, if unusual, thread count a request could carry; only null/undefined
+        // mean "nobody set this".
+        expect(matchThreadCount(0)).toEqual({ kind: "custom", threadCount: 0 });
     });
 });

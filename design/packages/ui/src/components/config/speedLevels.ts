@@ -91,3 +91,27 @@ export function speedLevelFor(threadCount: unknown, threadPriority: unknown): Sp
     if (typeof threadCount !== "number" || typeof threadPriority !== "number") return null;
     return SPEED_LEVELS.find((candidate) => candidate.threadCount === threadCount && candidate.threadPriority === threadPriority) ?? null;
 }
+
+/**
+ * Which level a request's own `renderThreads` matches, by thread count alone.
+ *
+ * A **coarser** question than {@link speedLevelFor}, and a deliberately different one: a
+ * render started from the world wizard carries at most one raw number,
+ * `RenderRequest.renderThreads` -- `render-thread-priority` is never set by that path at all
+ * (it stays behind the Advanced config editor's own `core.conf`, a different file for a
+ * different render), so there is no pair to match here, only a count. `null` covers two
+ * different reasons, same as {@link speedLevelFor}'s own `null`: the request never named a
+ * count at all (`kind: "automatic"`, this machine's own default applies), or it named one
+ * that matches none of the five levels (`kind: "custom"`). Both are real, distinct states a
+ * live-render surface has to say plainly rather than fold into one "unknown".
+ */
+export type ThreadCountMatch =
+    | { readonly kind: "automatic" }
+    | { readonly kind: "level"; readonly level: SpeedLevel }
+    | { readonly kind: "custom"; readonly threadCount: number };
+
+export function matchThreadCount(threadCount: number | null | undefined): ThreadCountMatch {
+    if (threadCount === null || threadCount === undefined) return { kind: "automatic" };
+    const level = SPEED_LEVELS.find((candidate) => candidate.threadCount === threadCount);
+    return level === undefined ? { kind: "custom", threadCount } : { kind: "level", level };
+}

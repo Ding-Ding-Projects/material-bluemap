@@ -58,8 +58,11 @@ import type {
     RenderSummary,
     RenderTaskProgress,
     SettingsTarget,
+    SpeedAdjustmentResult,
+    SpeedLevelNumber,
     WorldBridge,
 } from "./worldBridge.js";
+import { speedLevelByNumber } from "../config/speedLevels.js";
 import type { Translate } from "./worldFolder.js";
 
 export type RunState = "idle" | "starting" | "running" | "finished" | "failed" | "cancelled";
@@ -452,6 +455,17 @@ export interface RenderRun {
     readonly active: ComputedRef<boolean>;
     /** True when this build cannot render at all. */
     readonly available: boolean;
+    /**
+     * The `renderThreads` this render was actually asked to start with, or `null` when the
+     * request never named one and this machine's own automatic default applied instead.
+     *
+     * This is the one raw fact a live speed control has to show honestly as "not moving
+     * mid-render": `render-thread-count` is read by the JVM once, at startup, and there is no
+     * `render-thread-priority` anywhere on this path at all - see `speedLevels.ts`'s own
+     * `matchThreadCount` for why that makes this a coarser question than the pre-render
+     * dial's exact-pair match.
+     */
+    readonly renderThreads: Ref<number | null>;
 
     start(request: RenderRequest): Promise<RenderResult | null>;
     /**
@@ -465,6 +479,24 @@ export interface RenderRun {
     /** Applies a final result, for a render whose events said nothing at all. */
     settle(result: RenderResult): void;
     cancel(): Promise<boolean>;
+    /**
+     * Changes this render's speed while it is running, applying whatever its route can
+     * genuinely change right now. `null` when there is no render to address at all -
+     * never a guessed-at result the interface would have to treat as real.
+     */
+    adjustSpeed(level: SpeedLevelNumber): Promise<SpeedAdjustmentResult | null>;
+    /**
+     * Restarts this render at a chosen level, so the thread count baked into its launch
+     * genuinely changes rather than staying stuck until whenever the next render happens
+     * to be. Stops the current run first when one is active and waits for it to actually
+     * end - BlueMap's own incremental storage means nothing already drawn is lost - then
+     * starts again with the same maps and the level's own thread count.
+     *
+     * Never happens on its own: this is only ever called from an explicit choice the
+     * person made, per the standing rule that a restart is offered, not performed behind
+     * anybody's back.
+     */
+    restartWithLevel(level: SpeedLevelNumber): Promise<RenderResult | null>;
     /** Clears the finished, failed or cancelled state so another render can be started. */
     reset(): void;
     /** Stops listening. Called when the surface holding this goes away. */
@@ -526,6 +558,17 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
     const logDropped = ref(0);
     const cancelling = ref(false);
     const startedAt = ref<string | null>(null);
+    const renderThreads = ref<number | null>(null);
+
+    /** The request the current or most recent render actually started with, for a restart. */
+    let lastRequest: RenderRequest | null = null;
+    /**
+     * Resolved the moment this run genuinely stops being active - see `noteEnd`, the single
+     * funnel every ending path (event-driven and the `settle()` backstop alike) already goes
+     * through. `restartWithLevel` is the only reader: it needs to know the *real* end of the
+     * process it just asked to cancel, not merely that the request to cancel was acknowledged.
+     */
+    let inactiveWaiters: Array<() => void> = [];
 
     /**
      * The maps the engine has actually worked on, in the order it first named each.
@@ -898,6 +941,9 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         if (ended) return;
         ended = true;
         signal(text);
+        const waiters = inactiveWaiters;
+        inactiveWaiters = [];
+        for (const resolve of waiters) resolve();
     }
 
     /** How a failure ends the narrative: with the engine's exit code when it ran. */
@@ -1059,6 +1105,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         logDropped.value = 0;
         cancelling.value = false;
         startedAt.value = null;
+        renderThreads.value = null;
         observedMaps.value = [];
         startedAtMs.value = null;
         lastEventAtMs.value = null;
@@ -1122,8 +1169,10 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
     async function start(request: RenderRequest): Promise<RenderResult | null> {
         if (bridge === null || active.value) return null;
 
+        lastRequest = request;
         reset();
         state.value = "starting";
+        renderThreads.value = request.renderThreads ?? null;
         adopting = true;
         // The engine's own `started` event overwrites this with the moment it really began.
         // Until it arrives - which for a render that has to fetch a Java runtime first can
@@ -1171,6 +1220,67 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         }
     }
 
+    async function adjustSpeed(level: SpeedLevelNumber): Promise<SpeedAdjustmentResult | null> {
+        const id = renderId.value;
+        if (bridge === null || id === null) return null;
+        // Optional on `WorldBridge` itself - see that field's own doc comment - because a
+        // caller reached through `resolveWorldBridge` never sees it missing, only a fake
+        // built directly (as some still are, elsewhere in this package) predating it might.
+        if (bridge.adjustRenderSpeed === undefined) {
+            return {
+                ok: false,
+                renderId: id,
+                level,
+                route: "unsupported",
+                appliedNow: false,
+                needsRestart: false,
+                reason: "not-running",
+                message: "This build cannot adjust a render's speed while it is running yet.",
+                detail: null,
+            };
+        }
+        try {
+            return await bridge.adjustRenderSpeed(id, level);
+        } catch (error) {
+            // The bridge is documented never to reject; this mirrors `start()`'s own
+            // treatment of that promise breaking its own contract, as a refusal the
+            // caller can show rather than an unhandled rejection three frames up.
+            return {
+                ok: false,
+                renderId: id,
+                level,
+                route: "unsupported",
+                appliedNow: false,
+                needsRestart: false,
+                reason: "not-running",
+                message: error instanceof Error ? error.message : String(error),
+                detail: null,
+            };
+        }
+    }
+
+    async function restartWithLevel(level: SpeedLevelNumber): Promise<RenderResult | null> {
+        if (bridge === null || lastRequest === null) return null;
+
+        if (active.value) {
+            let waiter: (() => void) | null = null;
+            const stopped = new Promise<void>((resolve) => {
+                waiter = resolve;
+                inactiveWaiters.push(resolve);
+            });
+            const acknowledged = await cancel();
+            if (!acknowledged) {
+                // Nothing was actually asked to stop - drop the waiter rather than hang
+                // forever waiting for an ending that was never set in motion.
+                if (waiter !== null) inactiveWaiters = inactiveWaiters.filter((entry) => entry !== waiter);
+            } else {
+                await stopped;
+            }
+        }
+
+        return await start({ ...lastRequest, renderThreads: speedLevelByNumber(level).threadCount });
+    }
+
     function dispose(): void {
         unsubscribe();
     }
@@ -1193,12 +1303,15 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         logDropped,
         cancelling,
         startedAt,
+        renderThreads,
         active,
         available: bridge !== null,
         start,
         expect,
         settle,
         cancel,
+        adjustSpeed,
+        restartWithLevel,
         reset,
         dispose,
     };

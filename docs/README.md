@@ -36,6 +36,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 | [Automatic updates](./automatic-updates.md) | The Squirrel feed the installer always emitted and nothing consumed, the persistent restart banner, and the render in flight that holds it — plus opening a folder the app wrote, keeping tiles out of OneDrive, and a memory ceiling for the render JVM. |
 | [Render console](./render-console.md) | The bounded, searchable render log: level text beside colour, detached-scroll state, advice links, copy/export, and an honest dropped-line count. |
 | [Renders in progress](./renders-in-progress.md) | Every render this application knows about across all three routes in one list, including a container found running from an earlier launch and a render on GitHub's runners entirely independent of this window - with a live count in the tab strip so navigating away never again means losing sight of one. |
+| [Adjusting a render's speed while it runs](./live-render-speed.md) | A second 1-5 dial, beside a render that is already going: real OS process priority locally, a running container's real CPU quota under Docker, disabled with its exact reason on GitHub's runners, live throughput evidence beside it, and an explicit restart offer for the thread count that can never move without one. |
 
 ## Rendering
 

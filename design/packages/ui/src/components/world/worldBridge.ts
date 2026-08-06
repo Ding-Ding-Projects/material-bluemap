@@ -219,11 +219,18 @@ export interface WorldBridge {
     /**
      * Adjusts a render's speed while it is running, applying exactly what its route can
      * genuinely change right now -- see `main/render/orchestrator.ts`'s own `adjustSpeed`
-     * doc comment. Optional on the underlying preload; a build without it always resolves
-     * the `"not-running"` shape below rather than throwing, so a caller can show the same
-     * "this build cannot do that yet" state it would show for any other missing capability.
+     * doc comment.
+     *
+     * Optional on this interface itself, unlike most of it -- deliberately, and only
+     * because this is the newest capability here: every existing caller across the package
+     * that builds its own `WorldBridge` fake predates it, and marking this required would
+     * break every one of them for a field they have no reason to know about yet. A caller
+     * reached through {@link resolveWorldBridge} never sees it missing: the wrapper below
+     * always fills in the same `"not-running"`-shaped refusal a genuinely unsupported build
+     * would report, so `renderRun.ts`'s own `adjustSpeed` never has to branch on whether
+     * this method exists versus whether it merely refused.
      */
-    adjustRenderSpeed(renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult>;
+    adjustRenderSpeed?(renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult>;
     listRenders(): Promise<readonly RenderSummary[]>;
     renderEngine(renderId: string): Promise<RenderSummary | null>;
     /**
@@ -314,7 +321,7 @@ export function resolveWorldBridge(): WorldBridge | null {
         cancelRender: (renderId) => complete.cancelRender(renderId),
         adjustRenderSpeed: (renderId, level) =>
             isFunction(host.adjustRenderSpeed)
-                ? complete.adjustRenderSpeed(renderId, level)
+                ? host.adjustRenderSpeed(renderId, level)
                 : Promise.resolve({
                       ok: false,
                       renderId,

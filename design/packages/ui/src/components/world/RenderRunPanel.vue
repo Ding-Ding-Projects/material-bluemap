@@ -22,6 +22,7 @@ import {
 } from "vuetify/components";
 import RenderConsole from "../console/RenderConsole.vue";
 import RenderProgressDetail from "../progress/RenderProgressDetail.vue";
+import LiveSpeedControl from "./LiveSpeedControl.vue";
 import { LOG_LIMIT, adviseOnFailure, formatDuration, phaseLabel } from "./renderRun.js";
 import type { RenderRun } from "./renderRun.js";
 import type { SettingsTarget } from "./worldBridge.js";
@@ -176,6 +177,13 @@ function openMap(): void {
                     anything is still happening. See `components/progress/`.
                 -->
                 <RenderProgressDetail :facts="run.progress.value" :now="now ?? null" />
+
+                <!--
+                    The 1-5 dial that reaches a render already going, drawn right where it is
+                    being watched rather than only before it starts. See
+                    `LiveSpeedControl.vue`'s own header for exactly what it can and cannot move.
+                -->
+                <LiveSpeedControl :run="run" />
 
                 <v-btn
                     :prepend-icon="mdiStopCircleOutline"

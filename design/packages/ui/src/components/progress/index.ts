@@ -16,6 +16,7 @@
  */
 
 export { default as RenderProgressDetail } from "./RenderProgressDetail.vue";
+export { default as RenderThroughput } from "./RenderThroughput.vue";
 
 export {
     EMPTY_FACTS,
@@ -58,6 +59,9 @@ export {
     formatRate,
     formatTransfer,
 } from "./format.js";
+
+export { DEFAULT_WINDOW_MS, MIN_SPAN_MS, NO_THROUGHPUT, createThroughputTracker } from "./throughputModel.js";
+export type { ThroughputReading, ThroughputSample, ThroughputTracker } from "./throughputModel.js";
 
 export { CI_PHASES, ciPhaseText, ciProgressFacts, plannedShards, shardFromJob } from "./ciProgress.js";
 export type { CiProgressInput } from "./ciProgress.js";
