@@ -1246,6 +1246,340 @@ export interface RepairBridge {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Keeping a Minecraft world in a git repository ("worldrepo")                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Every type below is restated rather than imported from `main/worldrepo/`, the same way
+ * `worldSourceBridge.ts` restates `main/worldsource/`'s own types: importing a main-process
+ * module - even only for its types - pulls its whole graph, Node built-ins included, into
+ * what a bundler has to reason about for the renderer. A doc comment names the real type
+ * each one mirrors, so a drift between the two is something a reviewer can actually check.
+ */
+
+/** Mirrors `WorldRepoOwner` in `main/worldrepo/repo.ts`. */
+export interface WorldRepoOwner {
+    login: string;
+    kind: "user" | "organization";
+}
+
+/** Mirrors `WorldRepoFailure` in `main/worldrepo/repo.ts`. */
+export interface WorldRepoFailure {
+    code: string;
+    message: string;
+    detail: string | null;
+    /** True when running `gh auth login` in a terminal is what would fix it. */
+    needsGhSignIn: boolean;
+}
+
+/** Mirrors `WorldRepoTarget` in `main/worldrepo/repo.ts`. */
+export interface WorldRepoTarget {
+    /** Absolute path to the world folder on disk. Never copied; the git work-tree itself. */
+    worldPath: string;
+    owner: string;
+    repo: string;
+    /** Defaults to `"world"` when left out. */
+    branch?: string;
+}
+
+/** Mirrors `WorldRepoSyncRequest` in `main/worldrepo/repo.ts`. */
+export interface WorldRepoSyncRequest extends WorldRepoTarget {
+    visibility?: "public" | "private";
+    /** Set by the surface once the person has seen the preflight. Refused without it. */
+    acknowledgeSync?: boolean;
+}
+
+/** Mirrors `WorldRepoReport` in `main/worldrepo/repo.ts`. */
+export interface WorldRepoReport {
+    fileCount: number;
+    bytes: number;
+    oversizedFiles: { path: string; bytes: number }[];
+    /** False when nothing under the folder looked like a Minecraft world (a `level.dat`). */
+    looksLikeWorld: boolean;
+    overSoftLimit: boolean;
+    overHeavyLimit: boolean;
+}
+
+/** Mirrors `WorldRepoMarker` in `main/worldrepo/repo.ts`. */
+export interface WorldRepoMarker {
+    tool: string;
+    version: number;
+    branch: string;
+    updatedAt: string;
+}
+
+/** Mirrors `GhStatus` in `main/cirender/gh.ts`, read here through `WorldRepoPreflight.gh`. */
+export interface WorldRepoGhStatus {
+    availability: "not-installed" | "signed-out" | "ready";
+    /** `gh version 2.62.0 ...`, first line only, or null when it is not installed. */
+    version: string | null;
+    /** The account `gh auth status` named, when it named one. Never a token. */
+    account: string | null;
+    /** The host it is signed in to. `github.com` for nearly everybody. */
+    host: string | null;
+    /** The scopes `gh auth status` named for the active token, or null when it did not say. */
+    scopes: string[] | null;
+    /** One sentence naming the situation and what would change it. */
+    message: string;
+}
+
+/** Mirrors `WorldRepoRepositoryReport` in `main/worldrepo/repo.ts`. */
+export interface WorldRepoRepositoryReport {
+    fullName: string;
+    exists: boolean;
+    private: boolean | null;
+    canWrite: boolean | null;
+    htmlUrl: string | null;
+    branchExists: boolean;
+    branchIsOurs: boolean | null;
+    branchMarker: WorldRepoMarker | null;
+    /** The branch's current commit, when it has one. The cheap change check other lanes want. */
+    branchSha: string | null;
+    failure: string | null;
+}
+
+/** Mirrors `WorldRepoPreflight` in `main/worldrepo/repo.ts`. */
+export interface WorldRepoPreflight {
+    worldPath: string;
+    owner: string;
+    repo: string;
+    branch: string;
+    world: WorldRepoReport | null;
+    worldFailure: string | null;
+    gh: WorldRepoGhStatus;
+    gitVersion: string | null;
+    repository: WorldRepoRepositoryReport | null;
+    /** Anything that would stop a sync. Non-empty means the button must not be pressed. */
+    blockers: string[];
+    /** True, expensive or surprising, but not a refusal. */
+    warnings: string[];
+    published: WorldRepoRecord | null;
+}
+
+/** What this computer remembers about a world it synced. Mirrors `WorldRepoRecord` in `main/worldrepo/repo.ts`. */
+export interface WorldRepoRecord {
+    version: number;
+    worldPath: string;
+    owner: string;
+    repo: string;
+    branch: string;
+    stage: string;
+    commit: string | null;
+    pushVerified: boolean;
+    bytes: number;
+    fileCount: number;
+    syncedAt: string;
+}
+
+/** Mirrors `WorldRepoSyncReport` in `main/worldrepo/repo.ts`. */
+export interface WorldRepoSyncReport {
+    worldPath: string;
+    owner: string;
+    repo: string;
+    branch: string;
+    repositoryUrl: string;
+    /** The commit that was pushed, read back from git rather than assumed. */
+    commit: string;
+    /** True only once GitHub reported that branch's head as this commit. */
+    pushVerified: boolean;
+    bytes: number;
+    fileCount: number;
+    notes: string[];
+}
+
+/** Mirrors `WorldRepoSyncResult` in `main/worldrepo/repo.ts`. */
+export type WorldRepoSyncResult =
+    | { ok: true; report: WorldRepoSyncReport; durationMs: number }
+    | { ok: false; failure: WorldRepoFailure };
+
+/** Mirrors `WorldRepoRemoveReport` in `main/worldrepo/repo.ts`. */
+export interface WorldRepoRemoveReport {
+    owner: string;
+    repo: string;
+    branch: string;
+    branchDeleted: boolean;
+    notes: string[];
+}
+
+/** Mirrors `WorldRepoRemoveResult` in `main/worldrepo/repo.ts`. */
+export type WorldRepoRemoveResult =
+    | { ok: true; report: WorldRepoRemoveReport }
+    | { ok: false; failure: WorldRepoFailure };
+
+/** Mirrors `WorldRepoEvent` in `main/worldrepo/repo.ts`, broadcast on `worldrepo:event`. */
+export type WorldRepoEvent =
+    | { type: "started"; key: string; target: string; at: string }
+    | { type: "phase"; key: string; phase: string; at: string }
+    | {
+          type: "progress";
+          key: string;
+          phase: string;
+          description: string;
+          done: number;
+          total: number;
+          at: string;
+      }
+    | { type: "log"; key: string; level: "info" | "warning" | "error"; message: string; at: string }
+    | { type: "finished"; key: string; report: WorldRepoSyncReport; durationMs: number; at: string }
+    | { type: "failed"; key: string; failure: WorldRepoFailure; at: string }
+    | { type: "cancelled"; key: string; at: string };
+
+/** Mirrors `CiBootstrapMarker` in `main/cirender/bootstrap.ts`, read through an adoption signal or plan. */
+export interface WorldRepoCiBootstrapMarker {
+    tool: string;
+    version: number;
+    /** Identifies the shipped template set that produced the files this marker lists. */
+    templateVersion: string;
+    files: string[];
+    preparedAt: string;
+}
+
+/** Mirrors `AdoptionSignal` in `main/worldrepo/adopt.ts`. */
+export interface WorldRepoAdoptionSignal {
+    fullName: string;
+    /** The world-repo branch this signal checked. */
+    branch: string;
+    status: "prepared" | "prepared-newer-version" | "not-prepared" | "not-checked" | "unknown";
+    /** The world-repo marker, when found - the one whose branch also carries a project. */
+    marker: WorldRepoMarker | null;
+    /** The CI-bootstrap marker, when found - recognised, but with nothing to restore. */
+    bootstrapMarker: WorldRepoCiBootstrapMarker | null;
+    /** One sentence, hedged with "looks like" rather than asserted as certain. */
+    message: string;
+}
+
+/** One repository to check, exactly as much as the check needs. Mirrors `AdoptionCandidateInput`. */
+export interface WorldRepoAdoptionCandidate {
+    owner: string;
+    repo: string;
+}
+
+/** Mirrors `AdoptionAttentionItem` in `main/worldrepo/adopt.ts`. */
+export interface WorldRepoAdoptionAttentionItem {
+    id: "world-folder" | "dependencies" | "remote-host" | "output-folder" | "linked-world";
+    /** The map this concerns, for `linked-world`; null for every project-wide item. */
+    mapId: string | null;
+    message: string;
+}
+
+/** Mirrors `AdoptionRestoreSummary` in `main/worldrepo/adopt.ts`. */
+export interface WorldRepoAdoptionRestoreSummary {
+    projectName: string;
+    /** True when the project was never opened in the full editor. */
+    fromWizard: boolean;
+    maps: { id: string; name: string; dimension: string }[];
+    storageIds: string[];
+    /** Short, human sentences naming the non-default render options this project set. */
+    renderNotes: string[];
+    coreCustomized: boolean;
+    webappCustomized: boolean;
+    webserverCustomized: boolean;
+    pluginCustomized: boolean;
+}
+
+/** A local project already bound to the same repository, so adoption never duplicates it. Mirrors `AdoptionAlreadyLocal`. */
+export interface WorldRepoAdoptionAlreadyLocal {
+    worldPath: string;
+    branch: string;
+    syncedAt: string;
+}
+
+/** Mirrors `AdoptionPlan` in `main/worldrepo/adopt.ts`. */
+export type WorldRepoAdoptionPlan =
+    | {
+          ok: true;
+          owner: string;
+          repo: string;
+          branch: string;
+          marker: WorldRepoMarker;
+          bootstrapMarker: WorldRepoCiBootstrapMarker | null;
+          preparedByNewerMarkerVersion: boolean;
+          /** The restored project, in the same shape `project.read()` already answers with. */
+          project: ProjectFileContents;
+          restoring: WorldRepoAdoptionRestoreSummary;
+          needsAttention: WorldRepoAdoptionAttentionItem[];
+          alreadyLocal: WorldRepoAdoptionAlreadyLocal | null;
+      }
+    | {
+          ok: false;
+          owner: string;
+          repo: string;
+          branch: string;
+          reason:
+              | "repository-unreadable"
+              | "not-prepared"
+              | "project-absent"
+              | "project-unreadable"
+              | "project-too-new"
+              | "ci-bootstrap-only";
+          message: string;
+          /** Present whenever a world marker was found, even alongside a later refusal. */
+          marker: WorldRepoMarker | null;
+          /** Present whenever a CI-bootstrap marker was found, including for `ci-bootstrap-only`. */
+          bootstrapMarker: WorldRepoCiBootstrapMarker | null;
+          /** Set only for `project-too-new`. */
+          foundFormatVersion: number | null;
+      };
+
+/** The IPC envelope most `worldrepo:*` channels answer with, for a call that can genuinely throw. */
+type WorldRepoAnswer<T> = { ok: true; value: T } | { ok: false; message: string };
+
+/**
+ * Keeping a Minecraft world in a git repository, so a render never has to re-zip it and a
+ * later sync only ever sends what changed. Mirrors `main/worldrepo/ipc.ts`'s eleven
+ * channels, plus `worldrepo:event` for progress.
+ *
+ * A namespace for the same reason `bedrock` and `repair` are: the surface feature-detects
+ * the whole capability at once, because a screen offering Sync on a bridge that has no
+ * `sync` is a button that throws. Every write method here (`sync`, `remove`, `resume`)
+ * resolves with a value rather than rejecting, so a refusal - a missing sign-in, a branch
+ * this application did not make, a push GitHub rejected - is a sentence the screen renders,
+ * never a stack trace.
+ */
+export interface WorldRepoBridge {
+    /** The signed-in GitHub account plus every organisation it can write to. */
+    owners(): Promise<WorldRepoAnswer<readonly WorldRepoOwner[]>>;
+    /** What a sync would do, before it does any of it. */
+    preflight(target: WorldRepoTarget): Promise<WorldRepoAnswer<WorldRepoPreflight>>;
+    /** Pushes the world folder itself as one commit, force-replacing the branch each time. */
+    sync(request: WorldRepoSyncRequest): Promise<WorldRepoSyncResult>;
+    /** Deletes the branch this application made for a world. Never touches the world folder. */
+    remove(target: WorldRepoTarget): Promise<WorldRepoRemoveResult>;
+    /** Stops a running sync or remove by its key. False when nothing was running under it. */
+    cancel(key: string): Promise<boolean>;
+    /** Keys of every sync or remove in flight right now. */
+    active(): Promise<readonly string[]>;
+    /** Every world this computer remembers syncing, newest first. */
+    records(): Promise<WorldRepoAnswer<readonly WorldRepoRecord[]>>;
+    /** Continues a sync whose durable stage marker says it was interrupted. */
+    resume(target: WorldRepoTarget): Promise<WorldRepoSyncResult>;
+    /** The branch's current commit on GitHub, without touching the local git directory. */
+    remoteTip(
+        owner: string,
+        repo: string,
+        branch?: string,
+    ): Promise<WorldRepoAnswer<{ exists: boolean; sha: string | null }>>;
+    /**
+     * Which repositories in a list look like ones this application already prepared.
+     * Bounded - see `main/worldrepo/adopt.ts` - so a long list never becomes an unbounded
+     * number of round trips just because the picker asked about all of them at once.
+     */
+    adoptionProbe(request: {
+        candidates: readonly WorldRepoAdoptionCandidate[];
+        branch?: string;
+        maxProbes?: number;
+    }): Promise<WorldRepoAnswer<readonly WorldRepoAdoptionSignal[]>>;
+    /** What adopting one repository would restore, or an honest refusal naming why not. */
+    adoptionPlan(request: {
+        owner: string;
+        repo: string;
+        branch?: string;
+    }): Promise<WorldRepoAnswer<WorldRepoAdoptionPlan>>;
+    /** Subscribes to sync/remove progress. Returns the unsubscribe function. */
+    onWorldRepoEvent(listener: (event: WorldRepoEvent) => void): () => void;
+}
+
+/* -------------------------------------------------------------------------- */
 /* The profile list's and the application settings' own version history      */
 /* -------------------------------------------------------------------------- */
 
@@ -2065,6 +2399,12 @@ interface MaterialBlueMapBridge {
     repair: RepairBridge;
 
     /**
+     * Keeping a Minecraft world in a git repository, so a render never has to re-zip it.
+     * See {@link WorldRepoBridge}.
+     */
+    worldRepo: WorldRepoBridge;
+
+    /**
      * A world's own record of how it should be rendered, and the history of it.
      *
      * The world list uses `discoverMany` to show which worlds carry a project. A `present`
@@ -2547,6 +2887,28 @@ const bridge: MaterialBlueMapBridge = {
     dialog: {
         pickFolder: (options) => ipcRenderer.invoke("dialog:pickFolder", options),
         pickFile: (options) => ipcRenderer.invoke("dialog:pickFile", options),
+    },
+
+    worldRepo: {
+        owners: () => ipcRenderer.invoke("worldrepo:owners"),
+        preflight: (target) => ipcRenderer.invoke("worldrepo:preflight", target),
+        sync: (request) => ipcRenderer.invoke("worldrepo:sync", request),
+        remove: (target) => ipcRenderer.invoke("worldrepo:remove", target),
+        cancel: (key) => ipcRenderer.invoke("worldrepo:cancel", key),
+        active: () => ipcRenderer.invoke("worldrepo:active"),
+        records: () => ipcRenderer.invoke("worldrepo:records"),
+        resume: (target) => ipcRenderer.invoke("worldrepo:resume", target),
+        remoteTip: (owner, repo, branch) =>
+            ipcRenderer.invoke("worldrepo:remoteTip", { owner, repo, branch }),
+        adoptionProbe: (request) => ipcRenderer.invoke("worldrepo:adoptionProbe", request),
+        adoptionPlan: (request) => ipcRenderer.invoke("worldrepo:adoptionPlan", request),
+        onWorldRepoEvent: (listener) => {
+            const forward = (_event: IpcRendererEvent, payload: WorldRepoEvent): void => listener(payload);
+            ipcRenderer.on("worldrepo:event", forward);
+            return () => {
+                ipcRenderer.off("worldrepo:event", forward);
+            };
+        },
     },
 
     dockerRuntime: () => ipcRenderer.invoke("runtime:docker"),
