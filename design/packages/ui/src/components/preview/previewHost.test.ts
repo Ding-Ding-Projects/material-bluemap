@@ -5,7 +5,6 @@ import type {
     PreviewBridge,
     PreviewEvent,
     PreviewNetworkReadout,
-    PreviewRenderOption,
     PreviewStartAnswer,
     PreviewStatus,
 } from "./previewBridge.js";

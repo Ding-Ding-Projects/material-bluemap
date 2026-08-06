@@ -8,7 +8,6 @@ import {
     installPreviewIpc,
     type PreviewAvailability,
     type PreviewEvent,
-    type PreviewIpc,
     type PreviewNetworkReadout,
     type PreviewStartAnswer,
     type PreviewStatusAnswer,

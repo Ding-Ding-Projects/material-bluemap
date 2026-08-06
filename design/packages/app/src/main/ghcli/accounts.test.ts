@@ -43,7 +43,7 @@ function fakeRunner(answers: Readonly<Record<string, Partial<ProcessResult>>>): 
             const found = answers[key];
             return Promise.resolve({ started: true, code: 0, stdout: "", stderr: "", ...found });
         },
-        runToFile(_command, args, destination): Promise<ProcessToFileResult> {
+        runToFile(_command, args, _destination): Promise<ProcessToFileResult> {
             calls.push({ args: [...args] });
             return Promise.resolve({ started: true, code: 0, bytes: 0, stderr: "" });
         },
