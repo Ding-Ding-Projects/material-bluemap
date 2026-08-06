@@ -418,6 +418,27 @@ const REGISTRY: readonly OverlayEntry[] = [
         status: "clean",
     },
     {
+        file: "components/history/SimpleHistoryList.vue",
+        surface:
+            "The compact history list's own 'Export' format picker, opened from its toolbar " +
+            "button. `activator=\"parent\"` on that one small button, with no `:target` " +
+            "alongside it, so there is nothing for the outside-click include list to collide " +
+            "with.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/history/SimpleHistoryPanel.vue",
+        surface:
+            "The filterable history panel's own 'Export' format picker. Same safe shape as " +
+            "SimpleHistoryList.vue above: `activator=\"parent\"` scoped to the toolbar button, " +
+            "never a dynamic `:activator` paired with a `:target`.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
         file: "components/home/HomeScreen.vue",
         surface:
             "Four AppearanceTarget wrappers on the landing tab: id=\"home.page\" (the whole " +
@@ -480,6 +501,23 @@ function isBroken(entry: OverlayEntry): boolean {
 /* -------------------------------------------------------------------------- */
 
 describe("overlayDismissalPolicy.ts: the mechanism sweep", () => {
+    /**
+     * The single swept tag from a fragment that must contain exactly one.
+     *
+     * Indexing returns `string | undefined` under this package's strict index checking, and
+     * quietly tolerating the `undefined` would be the worst possible shortcut here: these are
+     * the tests that prove the detector SEES a collision, so an assertion handed `undefined`
+     * would report a detector that found nothing at all as working perfectly. Throwing names
+     * the real problem -- the sweep returned the wrong number of tags -- instead.
+     */
+    function onlyTag(tags: readonly string[]): string {
+        const tag = tags[0];
+        if (tag === undefined) {
+            throw new Error(`expected exactly one swept <v-menu> tag, got ${tags.length}`);
+        }
+        return tag;
+    }
+
     it("finds the surfaces it is supposed to be watching", () => {
         expect(VUE_FILES.length).toBeGreaterThan(40);
         expect(SWEPT_V_MENU.size).toBeGreaterThan(10);
@@ -556,7 +594,7 @@ describe("overlayDismissalPolicy.ts: the mechanism sweep", () => {
         // The captured tag must run all the way to the real closing '>', not the one inside
         // :style -- proven by both trailing attributes still being present in the fragment.
         expect(tags[0]).toBe(source);
-        expect(hasDynamicActivator(tags[0]) && hasExplicitTarget(tags[0])).toBe(true);
+        expect(hasDynamicActivator(onlyTag(tags)) && hasExplicitTarget(onlyTag(tags))).toBe(true);
 
         // The same shape with no real collision (:target only, positioned by hand-wired ARIA)
         // must still be read past the embedded '>' rather than accidentally swallowing the
@@ -569,7 +607,9 @@ describe("overlayDismissalPolicy.ts: the mechanism sweep", () => {
         expect(targetOnlyTags[0]).toBe(
             '<v-menu v-model="open" :style="{ opacity: level > 2 ? 1 : 0.5 }" :target="pos">',
         );
-        expect(hasDynamicActivator(targetOnlyTags[0]) && hasExplicitTarget(targetOnlyTags[0])).toBe(false);
+        expect(hasDynamicActivator(onlyTag(targetOnlyTags)) && hasExplicitTarget(onlyTag(targetOnlyTags))).toBe(
+            false,
+        );
     });
 
     it("recognises <appearance-target> (kebab-case) exactly like <AppearanceTarget> (PascalCase) -- " +
@@ -604,7 +644,7 @@ describe("overlayDismissalPolicy.ts: the mechanism sweep", () => {
         const pascalCollision = '<VMenu v-model="open" :activator="root ?? undefined" :target="pos">';
         const tags = vMenuTags(pascalCollision);
         expect(tags).toHaveLength(1);
-        expect(hasDynamicActivator(tags[0]) && hasExplicitTarget(tags[0])).toBe(true);
+        expect(hasDynamicActivator(onlyTag(tags)) && hasExplicitTarget(onlyTag(tags))).toBe(true);
 
         // Camel-case (`<vMenu>`) and shout-case (`<V-MENU>`) are edge cases Vue's own resolver
         // also accepts; the scanner should not need updating the day someone writes one.
@@ -624,12 +664,12 @@ describe("overlayDismissalPolicy.ts: the mechanism sweep", () => {
         const spreadCollision = '<v-menu v-model="open" v-bind="{ activator: root, target: pos }">';
         const spreadTags = vMenuTags(spreadCollision);
         expect(spreadTags).toHaveLength(1);
-        expect(hasDynamicActivator(spreadTags[0]) && hasExplicitTarget(spreadTags[0])).toBe(true);
+        expect(hasDynamicActivator(onlyTag(spreadTags)) && hasExplicitTarget(onlyTag(spreadTags))).toBe(true);
 
         // :target alone via v-bind, no activator key at all, is exactly as safe as the
         // direct-attribute form -- the fix must not overcorrect into flagging every v-bind.
         const spreadTargetOnly = '<v-menu v-model="open" v-bind="{ target: pos }">';
-        const targetOnlyTag = vMenuTags(spreadTargetOnly)[0];
+        const targetOnlyTag = onlyTag(vMenuTags(spreadTargetOnly));
         expect(hasExplicitTarget(targetOnlyTag)).toBe(true);
         expect(hasDynamicActivator(targetOnlyTag)).toBe(false);
 
@@ -637,21 +677,21 @@ describe("overlayDismissalPolicy.ts: the mechanism sweep", () => {
         // :activator="'parent'" does.
         const spreadLiteralParent =
             "<v-menu v-model=\"open\" v-bind=\"{ activator: 'parent', target: pos }\">";
-        expect(hasDynamicActivator(vMenuTags(spreadLiteralParent)[0])).toBe(false);
+        expect(hasDynamicActivator(onlyTag(vMenuTags(spreadLiteralParent)))).toBe(false);
 
         // A v-bind that spreads unrelated props (no activator/target keys, and near-miss
         // identifiers that merely contain "activator"/"target" as a substring) must not be
         // treated as a collision just because v-bind is present on the tag.
         const spreadUnrelated =
             '<v-menu v-model="open" v-bind="{ maxWidth: 320, deactivator: 1, retarget: 2 }" activator="parent">';
-        const unrelatedTag = vMenuTags(spreadUnrelated)[0];
+        const unrelatedTag = onlyTag(vMenuTags(spreadUnrelated));
         expect(hasDynamicActivator(unrelatedTag)).toBe(false);
         expect(hasExplicitTarget(unrelatedTag)).toBe(false);
 
         // Mixing forms -- a direct :activator attribute alongside a v-bind that separately
         // supplies :target -- is the same collision under a different disguise.
         const mixedForms = '<v-menu v-model="open" :activator="root" v-bind="{ target: pos }">';
-        const mixedTag = vMenuTags(mixedForms)[0];
+        const mixedTag = onlyTag(vMenuTags(mixedForms));
         expect(hasDynamicActivator(mixedTag) && hasExplicitTarget(mixedTag)).toBe(true);
     });
 });

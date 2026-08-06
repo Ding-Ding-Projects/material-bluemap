@@ -132,7 +132,12 @@ function focusIntoPopup(edge: "first" | "last"): void {
     const container = menuOpen.value ? menuContent.value : editorOpen.value ? editorContent.value : null;
     const items = focusableIn(container);
     if (items.length === 0) return;
-    (edge === "first" ? items[0] : items[items.length - 1]).focus();
+    // The emptiness check above already proves both ends exist, but strict index checking
+    // cannot see that through the ternary. Bind it first and step over a missing element
+    // rather than asserting: if this ever were undefined, leaving focus where the user put
+    // it is the right degradation, and far better than throwing inside a keydown handler.
+    const target = edge === "first" ? items[0] : items[items.length - 1];
+    target?.focus();
 }
 
 /**
