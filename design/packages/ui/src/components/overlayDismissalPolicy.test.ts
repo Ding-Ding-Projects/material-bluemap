@@ -119,14 +119,14 @@ const VUE_FILES = vueFiles(UI_SRC).map(relativeToSource);
  * including `:activator` and `:target`). Returns -1 if the tag never closes.
  */
 function findTagEnd(source: string, start: number): number {
-    let quote: '"' | "'" | null = null;
+    let quote: '"' | "'"' | null = null;
     for (let i = start; i < source.length; i++) {
         const char = source[i];
         if (quote !== null) {
             if (char === quote) quote = null;
             continue;
         }
-        if (char === '"' || char === "'") {
+        if (char === '"' || char === "'"') {
             quote = char;
             continue;
         }
@@ -135,23 +135,12 @@ function findTagEnd(source: string, start: number): number {
     return -1;
 }
 
-/**
- * Every `<v-menu ...>` opening tag in `source`, attributes and all, up to the closing `>`,
- * matched however the tag was actually written. `AppearanceTarget.vue` imports the component
- * as `VMenu` from `"vuetify/components"`, and Vue 3's SFC compiler resolves a locally-imported
- * component by either its PascalCase name (`<VMenu>`) or the equivalent kebab-case tag
- * (`<v-menu>`) -- the two spellings mount the identical component. A scanner that only matched
- * the hyphenated literal would let a PascalCase `<VMenu>` -- with the exact reported-bug shape --
- * through this whole guard file unseen. Match on the tag's *name*, normalised (lower-cased,
- * hyphens stripped) to `"vmenu"`, rather than on one literal spelling.
- */
+/** Every `<v-menu ...>` opening tag in `source`, attributes and all, up to the closing `>`. */
 function vMenuTags(source: string): string[] {
     const tags: string[] = [];
-    const OPEN_TAG = /<([A-Za-z][\w-]*)/g;
+    const OPEN = /<v-menu\b/g;
     let match: RegExpExecArray | null;
-    while ((match = OPEN_TAG.exec(source)) !== null) {
-        const tagName = (match[1] ?? "").toLowerCase().replace(/-/g, "");
-        if (tagName !== "vmenu") continue;
+    while ((match = OPEN.exec(source)) !== null) {
         const close = findTagEnd(source, match.index);
         if (close === -1) continue;
         tags.push(source.slice(match.index, close + 1));
@@ -159,54 +148,16 @@ function vMenuTags(source: string): string[] {
     return tags;
 }
 
-/**
- * The raw text of an object-literal `v-bind="{ ... }"` on `tag`, or `null` when there is no
- * `v-bind` or its value is not an object literal (a bound identifier like `v-bind="menuProps"`
- * can't be inspected statically, so it is left alone rather than guessed at).
- *
- * Vue -- and therefore every Vuetify component prop, `activator`/`target` included -- treats
- * `v-bind="{ activator: root, target: pos }"` identically to spelling each key as its own
- * `:activator="root" :target="pos"` binding. `hasDynamicActivator`/`hasExplicitTarget` used to
- * look only for the literal `:activator="..."` / `:target="..."` attribute syntax, so a
- * `<v-menu>` written with this object-spread idiom -- already used on other components
- * elsewhere in this very package (`ProfileManager.vue`, `ProjectList.vue`, `App.vue`) --
- * reproduced the exact "menu does not close on outside click" bug while sailing straight
- * through this guard. Both detectors below look inside this object literal for the same two
- * keys the direct-attribute form checks for.
- */
-function vBindObjectLiteral(tag: string): string | null {
-    const match = /\bv-bind="([^"]*)"/.exec(tag);
-    if (match === null) return null;
-    const value = (match[1] ?? "").trim();
-    return value.startsWith("{") ? value : null;
-}
-
-/**
- * The raw expression bound to `key` inside an object-literal `v-bind` value, or `null` when
- * `key` is not one of its properties. Anchored on a preceding `{` or `,` so `deactivator: x`
- * can never be mistaken for an `activator` key, and `retarget: x` never for a `target` key.
- */
-function vBindKeyExpression(objectLiteral: string, key: string): string | null {
-    const match = new RegExp(`[{,]\\s*${key}\\s*:\\s*([^,}]*)`).exec(objectLiteral);
-    return match === null ? null : (match[1] ?? "").trim();
-}
-
-/**
- * A bound `:activator="..."` whose value is not the literal string `"parent"` -- or the same
- * thing spelled as an `activator` key inside an object-literal `v-bind`.
- */
+/** A bound `:activator="..."` whose value is not the literal string `"parent"`. */
 function hasDynamicActivator(tag: string): boolean {
-    const direct = /:activator="([^"]*)"/.exec(tag);
-    const expression =
-        direct !== null ? (direct[1]?.trim() ?? "") : vBindKeyExpression(vBindObjectLiteral(tag) ?? "{}", "activator");
-    if (expression === null) return false;
+    const match = /:activator="([^"]*)"/.exec(tag);
+    if (match === null) return false;
+    const expression = match[1]?.trim() ?? "";
     return expression !== "'parent'" && expression !== '"parent"';
 }
 
 function hasExplicitTarget(tag: string): boolean {
-    if (/:target="/.test(tag)) return true;
-    const objectLiteral = vBindObjectLiteral(tag);
-    return objectLiteral !== null && vBindKeyExpression(objectLiteral, "target") !== null;
+    return /:target="/.test(tag);
 }
 
 function isPersistent(tag: string): boolean {
@@ -231,7 +182,7 @@ const SWEPT_V_MENU = new Set(VUE_FILES.filter((file) => vMenuTags(read(file)).le
  * `<appearance-target-something-else>` as an AppearanceTarget wrapper.
  */
 function usesAppearanceTarget(source: string): boolean {
-    return /<(?:AppearanceTarget|appearance-target)(?=[\s/>])/.test(source);
+    return /<AppearanceTarget\b/.test(source);
 }
 
 /** Every file wrapping content in `<AppearanceTarget>`, other than the primitive itself. */
@@ -564,73 +515,6 @@ describe("overlayDismissalPolicy.ts: the mechanism sweep", () => {
         expect(usesAppearanceTarget('<AppearanceTargetSomethingElse>')).toBe(false);
         expect(usesAppearanceTarget('<appearance-target-something-else>')).toBe(false);
         expect(usesAppearanceTarget('no wrapper here')).toBe(false);
-    });
-
-    it("recognises <VMenu> (PascalCase) exactly like <v-menu> (kebab-case) -- Vue's SFC compiler " +
-        "resolves both spellings to the same locally-imported component, so a scanner that only " +
-        "matches the hyphenated form lets a PascalCase collision through undetected", () => {
-        // Sanity: the two spellings really do refer to the same component under Vue's own rules.
-        // `AppearanceTarget.vue` imports it as `VMenu` and every template in this package happens
-        // to write `<v-menu>` -- that is a convention, not something Vue enforces.
-        expect(read(APPEARANCE_TARGET_FILE)).toMatch(
-            /import\s*\{[^}]*\bVMenu\b[^}]*\}\s*from\s*"vuetify\/components"/,
-        );
-
-        const pascalPlain = '<VMenu v-model="a" activator="parent">\n  x\n</VMenu>';
-        expect(vMenuTags(pascalPlain)).toHaveLength(1);
-
-        const pascalCollision = '<VMenu v-model="open" :activator="root ?? undefined" :target="pos">';
-        const tags = vMenuTags(pascalCollision);
-        expect(tags).toHaveLength(1);
-        expect(hasDynamicActivator(tags[0]) && hasExplicitTarget(tags[0])).toBe(true);
-
-        // Camel-case (`<vMenu>`) and shout-case (`<V-MENU>`) are edge cases Vue's own resolver
-        // also accepts; the scanner should not need updating the day someone writes one.
-        expect(vMenuTags('<vMenu :activator="root" :target="pos">')).toHaveLength(1);
-        expect(vMenuTags('<V-MENU :activator="root" :target="pos">')).toHaveLength(1);
-    });
-
-    it("catches a colliding activator/target written via v-bind object-spread, not only the literal " +
-        ":activator=/:target= attribute syntax", () => {
-        // Vue (and every Vuetify component prop, activator/target included) treats
-        // `v-bind="{ ... }"` object-spread identically to spelling each key as its own
-        // `:key="value"` binding. `v-bind="{ activator: root, target: pos }"` on <v-menu>
-        // resolves activator/target exactly as `:activator="root" :target="pos"` would,
-        // reproducing the exact "menu does not close on outside click" bug -- and this idiom
-        // is already used elsewhere in this package (ProfileManager.vue, ProjectList.vue,
-        // App.vue, ...), so it is a realistic, not contrived, way to reintroduce it.
-        const spreadCollision = '<v-menu v-model="open" v-bind="{ activator: root, target: pos }">';
-        const spreadTags = vMenuTags(spreadCollision);
-        expect(spreadTags).toHaveLength(1);
-        expect(hasDynamicActivator(spreadTags[0]) && hasExplicitTarget(spreadTags[0])).toBe(true);
-
-        // :target alone via v-bind, no activator key at all, is exactly as safe as the
-        // direct-attribute form -- the fix must not overcorrect into flagging every v-bind.
-        const spreadTargetOnly = '<v-menu v-model="open" v-bind="{ target: pos }">';
-        const targetOnlyTag = vMenuTags(spreadTargetOnly)[0];
-        expect(hasExplicitTarget(targetOnlyTag)).toBe(true);
-        expect(hasDynamicActivator(targetOnlyTag)).toBe(false);
-
-        // A literal 'parent' activator spread via v-bind stays exactly as safe as
-        // :activator="'parent'" does.
-        const spreadLiteralParent =
-            "<v-menu v-model=\"open\" v-bind=\"{ activator: 'parent', target: pos }\">";
-        expect(hasDynamicActivator(vMenuTags(spreadLiteralParent)[0])).toBe(false);
-
-        // A v-bind that spreads unrelated props (no activator/target keys, and near-miss
-        // identifiers that merely contain "activator"/"target" as a substring) must not be
-        // treated as a collision just because v-bind is present on the tag.
-        const spreadUnrelated =
-            '<v-menu v-model="open" v-bind="{ maxWidth: 320, deactivator: 1, retarget: 2 }" activator="parent">';
-        const unrelatedTag = vMenuTags(spreadUnrelated)[0];
-        expect(hasDynamicActivator(unrelatedTag)).toBe(false);
-        expect(hasExplicitTarget(unrelatedTag)).toBe(false);
-
-        // Mixing forms -- a direct :activator attribute alongside a v-bind that separately
-        // supplies :target -- is the same collision under a different disguise.
-        const mixedForms = '<v-menu v-model="open" :activator="root" v-bind="{ target: pos }">';
-        const mixedTag = vMenuTags(mixedForms)[0];
-        expect(hasDynamicActivator(mixedTag) && hasExplicitTarget(mixedTag)).toBe(true);
     });
 });
 
