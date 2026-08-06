@@ -644,6 +644,22 @@ export const APP_VOICED = {
             "由 Adoptium 自己嘅伺服器攞返 Eclipse Temurin（大約 140 MB），靜靜雞收埋喺呢個程式自己嗰個資料夾，成部機第度乜痕跡都冇。唔會裝到成部機都係，PATH 一條毛都冇郁過，管理員權限更加一個都冇問過你要。",
         ],
     },
+    "settings.dependencies.description": {
+        en: [
+            "Install git, the GitHub CLI, Docker Desktop and rsync through Windows's own package managers, winget or Chocolatey. Each one is real system software, not a private copy for this app alone, so most of them will ask Windows for administrator permission, always disclosed here before the button is pressed.",
+            "Install git, the GitHub CLI, Docker Desktop and rsync through Windows's own package managers, winget or Chocolatey. Each one is real system software, not a private copy for this app alone, so most of them will ask Windows for administrator permission, always disclosed here before the button is pressed.",
+            "Install git, the GitHub CLI, Docker Desktop and rsync through Windows's own package managers, winget or Chocolatey. Each one is real system software rather than a private copy for this app alone, so most of them ask Windows for administrator permission, always disclosed here before the button is pressed.",
+            "Install git, the GitHub CLI, Docker Desktop and rsync the proper way, through Windows's own winget or Chocolatey rather than a private copy nothing else could use. Most of them ask Windows for administrator permission along the way, and that is always disclosed here before the button is pressed.",
+            "Install git, the GitHub CLI, Docker Desktop and rsync the honest way, through Windows's own winget or Chocolatey, not a private stash nothing else on the machine could touch. Most of them get Windows asking about administrator permission, and that conversation always happens here before the button is pressed.",
+        ],
+        yue: [
+            "透過 Windows 自己嘅套件管理員（winget 或者 Chocolatey）裝 git、GitHub CLI、Docker Desktop 同 rsync。個個都係真.系統軟件，唔係淨係呢個app私家用嘅一份，所以大部分都會問Windows攞管理員權限，一定喺撳掣之前講清楚。",
+            "透過 Windows 自己嘅套件管理員（winget 或者 Chocolatey）裝 git、GitHub CLI、Docker Desktop 同 rsync。個個都係真.系統軟件，唔係淨係呢個app私家用嘅一份，所以大部分都會問Windows攞管理員權限，一定喺撳掣之前講清楚。",
+            "透過 Windows 自己嘅winget或者Chocolatey裝返git、GitHub CLI、Docker Desktop同rsync。個個都係真.系統軟件，唔係私家版本，所以大部分都會問Windows攞管理員權限，一定喺撳掣之前講咗先。",
+            "行正路用返Windows自己嘅winget或者Chocolatey裝git、GitHub CLI、Docker Desktop同rsync，唔係第啲用唔到嘅私家版本。大部分都會惹到Windows問攞管理員權限，而呢段對話一定喺撳掣之前傾晒。",
+            "老老實實用返Windows自己嘅winget或者Chocolatey裝git、GitHub CLI、Docker Desktop同rsync，唔係呢部機第度乜都摸唔到嘅私家貨。大部分都會引到Windows埋嚟問攞管理員權限，而呢段對話一定喺撳掣之前就傾完。",
+        ],
+    },
     "settings.storage.description": {
         en: [
             "The folder every rendered map is written into. It must be a full path from the top of a drive, and it can hold a great many gigabytes of tiles.",
@@ -1004,6 +1020,7 @@ export const APP_FIXED = {
     "settings.java.provisioning": { en: "Downloading Java…", yue: "落載緊 Java……" },
     "settings.storage.title": { en: "Where rendered maps go", yue: "算好嘅地圖去邊度" },
     "settings.github.title": { en: "GitHub account", yue: "GitHub 帳戶" },
+    "settings.dependencies.title": { en: "System dependencies", yue: "系統嘅依賴" },
     // Deliberately the same words as `language.settingsTitle` in the first-run catalogue,
     // because it names the same section: the settings surface and the setup flow are two
     // routes to one panel, and a heading that renamed itself depending on which route was
@@ -1179,6 +1196,10 @@ export const FACTS = {
     "settings.java.provisionExplain": {
         en: ["140 MB", "Adoptium", "system-wide", "administrator"],
         yue: ["140 MB", "Adoptium", "成部機", "管理員"],
+    },
+    "settings.dependencies.description": {
+        en: ["administrator permission", "before the button is pressed"],
+        yue: ["管理員權限", "撳掣之前"],
     },
     "settings.storage.description": {
         en: ["full path", "gigabytes"],
