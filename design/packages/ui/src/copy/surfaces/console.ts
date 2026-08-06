@@ -333,6 +333,28 @@ export const CONSOLE_VOICED = {
             "你向上捲嗰陣個主控台就特登停咗跟，唔會喺你睇到一半嗰陣扯走個畫面。撳呢個會返去最新嗰行，然後再開始跟。",
         ],
     },
+    /*
+     * The auto-scroll checkbox's own tooltip. It has to say three things at once - what
+     * ticking it does, that scrolling up pauses it without unticking it, and how to get back
+     * - or a reader who only reads the first clause comes away thinking the checkbox lies to
+     * them the first time they scroll up mid-render.
+     */
+    "world.console.autoScrollHint": {
+        en: [
+            "Keeps the console scrolled to the newest line as the engine prints it. Scrolling up pauses that without turning this off; scroll back down, or use Newest lines, to pick it up again.",
+            "Keeps the console scrolled to the newest line as the engine prints it. Scrolling up pauses that without turning this off; scroll back down, or use Newest lines, to pick it up again.",
+            "Keeps the console scrolled to the newest line as the engine prints it. Scrolling up pauses that without turning this off, so nothing needs re-ticking; scroll back to the bottom, or use Newest lines, to resume it.",
+            "Keeps the console scrolled to the newest line. Scrolling up to read something pauses it too, without turning this off - scroll back down, or hit Newest lines, when you are ready to resume.",
+            "Keeps the console glued to the newest line. Scroll up and it lets go on its own, without turning this off - scroll back to the bottom, or hit Newest lines, and it glues itself back on.",
+        ],
+        yue: [
+            "跟住引擎印緊嘅最新一行，將主控台捲落去。你向上捲會令佢暫停，但唔會關呢個掣；捲返落底，或者撳「最新嘅行」，就會再繼續跟。",
+            "跟住引擎印緊嘅最新一行，將主控台捲落去。你向上捲會令佢暫停，但唔會關呢個掣；捲返落底，或者撳「最新嘅行」，就會再繼續跟。",
+            "跟住引擎印緊嘅最新一行，將主控台捲落去。你向上捲嗰陣佢會暫停，但唔會關呢個剔掣；捲返去底，或者撳「最新嘅行」，就會再開始跟。",
+            "呢個掣負責將主控台跟住最新一行捲。你向上捲去睇嘢，佢自己會暫停，唔會關呢個剔掣；捲返落底，或者撳「最新嘅行」，準備好就繼續跟。",
+            "呢個掣負責將主控台黐實最新一行。你向上捲，佢會自動鬆手，唔會關呢個剔；捲返落底，或者撳「最新嘅行」，佢又會黐返實。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const CONSOLE_FIXED = {
@@ -367,6 +389,8 @@ export const CONSOLE_FIXED = {
     "world.console.speaker": { en: "Material BlueMap", yue: "Material BlueMap" },
     "world.console.openSetting": { en: "Open the setting", yue: "開嗰個設定" },
     "world.console.toBottom": { en: "Newest lines", yue: "最新嘅行" },
+    /* The auto-scroll checkbox's own label - on by default for this surface, see RenderConsole.vue. */
+    "world.console.autoScroll": { en: "Follow new lines", yue: "跟住新增嘅行" },
     /*
      * The `#` header line an exported console log opens with, so the file says which
      * application wrote it. "Material BlueMap" is a product name and stays untranslated for
@@ -423,6 +447,13 @@ export const CONSOLE_FACTS = {
     "world.console.toBottomHint": {
         en: ["scrolled up", "newest line", "following"],
         yue: ["向上捲", "最新嗰行", "跟"],
+    },
+    // The three facts a shorter level cannot lose: what it does, that pausing does not
+    // untick it, and how to get back. Drop the middle one and level 5 reads as a bug report
+    // the first time somebody scrolls up mid-render.
+    "world.console.autoScrollHint": {
+        en: ["newest line", "without turning this off", "Newest lines"],
+        yue: ["最新一行", "唔會關", "最新嘅行"],
     },
 } as const satisfies Record<
     keyof typeof CONSOLE_VOICED,

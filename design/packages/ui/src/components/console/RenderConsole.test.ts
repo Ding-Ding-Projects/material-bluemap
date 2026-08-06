@@ -15,7 +15,7 @@
  * would pass a stubbed translator and ship a sentence with a hole in it.
  */
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
@@ -44,6 +44,35 @@ beforeAll(() => {
         removeEventListener: () => {},
         dispatchEvent: () => false,
     })) as unknown as typeof globalThis.matchMedia;
+
+    /*
+     * This jsdom is started without a storage file, so `localStorage` is genuinely absent -
+     * `CommandPalette.test.ts` hits the same gap and fixes it the same way. The auto-scroll
+     * checkbox needs somewhere real for its preference to land and be read back from.
+     * `defineProperty` rather than assignment because jsdom declares the property.
+     */
+    const cells = new Map<string, string>();
+    Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        value: {
+            getItem: (key: string) => cells.get(key) ?? null,
+            setItem: (key: string, value: string) => {
+                cells.set(key, value);
+            },
+            removeItem: (key: string) => {
+                cells.delete(key);
+            },
+            clear: () => cells.clear(),
+            key: (index: number) => [...cells.keys()][index] ?? null,
+            get length() {
+                return cells.size;
+            },
+        } as unknown as Storage,
+    });
+});
+
+beforeEach(() => {
+    localStorage.clear();
 });
 
 const vuetify = createVuetify();
@@ -86,11 +115,19 @@ function appLine(key: string, fallback: string): ConsoleLine {
     };
 }
 
-function render(lines: readonly ConsoleLine[], dropped = 0) {
+function render(lines: readonly ConsoleLine[], dropped = 0, options: { attachTo?: HTMLElement } = {}) {
     return mount(RenderConsole, {
         props: { lines, dropped, cap: CONSOLE_LINE_CAP },
         global: { plugins: [vuetify, i18n()] },
+        ...(options.attachTo === undefined ? {} : { attachTo: options.attachTo }),
     });
+}
+
+/** Sets the three numbers `isAtBottom` reads. jsdom computes no layout, so they are supplied by hand. */
+function setScrollMetrics(el: HTMLElement, scrollHeight: number, clientHeight: number, scrollTop: number): void {
+    Object.defineProperty(el, "scrollHeight", { value: scrollHeight, configurable: true });
+    Object.defineProperty(el, "clientHeight", { value: clientHeight, configurable: true });
+    el.scrollTop = scrollTop;
 }
 
 describe("what the console shows", () => {
@@ -277,5 +314,156 @@ describe("the scrolling region", () => {
 
         expect(wrapper.find(".mb-console__jump").exists()).toBe(true);
         wrapper.unmount();
+    });
+});
+
+describe("the auto-scroll checkbox", () => {
+    it("is on by default, with a real accessible name", () => {
+        const wrapper = render([engineLine("Loading resources...")]);
+        const checkbox = wrapper.find('[data-test="console-autoscroll"] input[type="checkbox"]');
+
+        expect(checkbox.exists()).toBe(true);
+        expect((checkbox.element as HTMLInputElement).checked).toBe(true);
+        expect(checkbox.attributes("aria-label")).toBe("Follow new lines");
+        wrapper.unmount();
+    });
+
+    it("follows new output while checked", async () => {
+        const wrapper = render([engineLine("Loading resources...")]);
+        const scroller = wrapper.find(".mb-console__scroll");
+        const element = scroller.element as HTMLElement;
+        setScrollMetrics(element, 1000, 400, 600); // already at the bottom
+
+        setScrollMetrics(element, 1400, 400, 600); // more content is about to arrive
+        await wrapper.setProps({ lines: [engineLine("Loading resources..."), engineLine("Stopping...")] });
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(element.scrollTop).toBe(1400);
+        wrapper.unmount();
+    });
+
+    it("does not move the view once unchecked", async () => {
+        const wrapper = render([engineLine("Loading resources...")]);
+        const checkbox = wrapper.find('[data-test="console-autoscroll"] input[type="checkbox"]');
+        await checkbox.setValue(false);
+
+        const scroller = wrapper.find(".mb-console__scroll");
+        const element = scroller.element as HTMLElement;
+        setScrollMetrics(element, 1000, 400, 600);
+        setScrollMetrics(element, 1400, 400, 600);
+        await wrapper.setProps({ lines: [engineLine("Loading resources..."), engineLine("Stopping...")] });
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(element.scrollTop).toBe(600);
+        wrapper.unmount();
+    });
+
+    it("scrolling away pauses following without unticking the checkbox", async () => {
+        const wrapper = render([engineLine("Loading resources...")]);
+        const scroller = wrapper.find(".mb-console__scroll");
+        const element = scroller.element as HTMLElement;
+        setScrollMetrics(element, 1000, 400, 100); // scrolled well away from the bottom
+        await scroller.trigger("scroll");
+
+        expect(wrapper.find(".mb-console__jump").exists()).toBe(true);
+        const checkbox = wrapper.find('[data-test="console-autoscroll"] input[type="checkbox"]');
+        expect((checkbox.element as HTMLInputElement).checked).toBe(true);
+        wrapper.unmount();
+    });
+
+    it("resumes, and the jump control disappears, once the reader scrolls back to the bottom", async () => {
+        const wrapper = render([engineLine("Loading resources...")]);
+        const scroller = wrapper.find(".mb-console__scroll");
+        const element = scroller.element as HTMLElement;
+        setScrollMetrics(element, 1000, 400, 100);
+        await scroller.trigger("scroll");
+        expect(wrapper.find(".mb-console__jump").exists()).toBe(true);
+
+        setScrollMetrics(element, 1000, 400, 600); // back at the bottom, by hand
+        await scroller.trigger("scroll");
+
+        expect(wrapper.find(".mb-console__jump").exists()).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("the jump control itself scrolls to the newest line and clears the pause", async () => {
+        const wrapper = render([engineLine("Loading resources...")]);
+        const scroller = wrapper.find(".mb-console__scroll");
+        const element = scroller.element as HTMLElement;
+        setScrollMetrics(element, 1000, 400, 100);
+        await scroller.trigger("scroll");
+
+        await wrapper.find(".mb-console__jump").trigger("click");
+
+        expect(element.scrollTop).toBe(1000);
+        expect(wrapper.find(".mb-console__jump").exists()).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("does not scroll away from an active text selection inside the console", async () => {
+        // The same line object, not a freshly built one, so its `id` - and therefore its
+        // DOM node under `v-for`'s `:key` - survives the props update below. A selection
+        // anchored on a node that gets replaced would prove nothing about the guard.
+        const firstLine = engineLine("Loading resources...");
+        const wrapper = render([firstLine]);
+        const scroller = wrapper.find(".mb-console__scroll");
+        const element = scroller.element as HTMLElement;
+        setScrollMetrics(element, 1000, 400, 600);
+
+        const line = wrapper.find(".mb-console__text").element;
+        const spy = vi
+            .spyOn(document, "getSelection")
+            .mockReturnValue({ isCollapsed: false, anchorNode: line } as unknown as Selection);
+
+        setScrollMetrics(element, 1400, 400, 600);
+        await wrapper.setProps({ lines: [firstLine, engineLine("Stopping...")] });
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(element.scrollTop).toBe(600); // untouched
+        spy.mockRestore();
+        wrapper.unmount();
+    });
+
+    it("does not move keyboard focus when it follows new output", async () => {
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const wrapper = render([engineLine("Loading resources...")], 0, { attachTo: host });
+
+        const input = document.createElement("input");
+        document.body.appendChild(input);
+        input.focus();
+        expect(document.activeElement).toBe(input);
+
+        const scroller = wrapper.find(".mb-console__scroll");
+        const element = scroller.element as HTMLElement;
+        setScrollMetrics(element, 1000, 400, 600);
+        setScrollMetrics(element, 1400, 400, 600);
+        await wrapper.setProps({ lines: [engineLine("Loading resources..."), engineLine("Stopping...")] });
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(document.activeElement).toBe(input);
+        wrapper.unmount();
+        host.remove();
+        input.remove();
+    });
+
+    it("remembers the preference across a fresh mount", async () => {
+        const first = render([engineLine("Loading resources...")]);
+        const checkbox = first.find('[data-test="console-autoscroll"] input[type="checkbox"]');
+        await checkbox.setValue(false);
+        first.unmount();
+
+        const second = render([engineLine("Loading resources...")]);
+        const secondCheckbox = second.find('[data-test="console-autoscroll"] input[type="checkbox"]');
+        expect((secondCheckbox.element as HTMLInputElement).checked).toBe(false);
+        second.unmount();
     });
 });

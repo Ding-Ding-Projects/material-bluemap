@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiArrowDownBoldBoxOutline,
@@ -8,9 +8,10 @@ import {
     mdiLightbulbOnOutline,
     mdiAlertOutline,
 } from "@mdi/js";
-import { VBtn, VChip, VChipGroup, VIcon, VTooltip } from "vuetify/components";
+import { VBtn, VCheckbox, VChip, VChipGroup, VIcon, VTooltip } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
+import { useStickyScroll } from "../scroll/stickyScroll.js";
 import type { ConsoleAnnotation } from "./annotations.js";
 import {
     CONSOLE_LEVELS,
@@ -19,7 +20,6 @@ import {
     consoleText,
     countByLevel,
     describeSlice,
-    isAtBottom,
     selectRows,
     type ConsoleLevel,
     type ConsoleLine,
@@ -46,13 +46,15 @@ import type { SettingsTarget } from "../world/worldBridge.js";
  * because the default warning amber is under 3:1 on a light surface and a warning nobody
  * can read is not a warning.
  *
- * **The view follows only when it is already at the bottom.** A console that scrolls on
- * every new line cannot be read while it is running: you scroll up to look at an error,
- * the engine prints its next progress tick a second later, and you are back at the
- * bottom. `isAtBottom` decides it, from three numbers, and is tested on its own. When the
- * view is detached a control appears to get back, so being detached is a visible state
- * rather than a stuck one.
+ * **Following is a checkbox, and scrolling up pauses it without touching that checkbox.**
+ * A console that scrolls on every new line cannot be read while it is running: you scroll
+ * up to look at an error, the engine prints its next progress tick a second later, and you
+ * are back at the bottom. So scrolling away pauses following on its own, the checkbox stays
+ * ticked exactly as the reader left it, and a "Newest lines" control appears so getting back
+ * is one click rather than a scrollbar drag. `components/scroll/stickyScroll.ts` is the
+ * shared mechanism behind this, the backup log's, and the download log's follow behaviour.
  *
+
  * **The cap is stated.** Ten thousand lines are kept and the count that were dropped is
  * printed under the log. A ring that quietly forgets its own beginning looks exactly like
  * a complete log, which is the worse failure of the two.
@@ -88,13 +90,32 @@ const chosenLevels = ref<ConsoleLevel[]>([]);
 
 const scroller = ref<HTMLElement | null>(null);
 /**
- * Whether the view is riding the bottom.
+ * Sticky-scroll following, shared with the backup and download logs via
+ * `components/scroll/stickyScroll.ts` - see that module's own doc comment for how a
+ * reader's own scroll is told apart from a programmatic one, why the checkbox and "paused"
+ * are two different pieces of state, and how a selection is never fought.
  *
- * Starts true so an empty console begins attached; it is recomputed from the container
- * on every scroll, so the first time somebody scrolls away it becomes false and stays
- * false until they come back.
+ * Following is ON by default for this surface specifically: somebody who opened the render
+ * console opened it to watch a render happen, and following the output is what "watch a
+ * render happen" means. The backup and download logs default the same way for the same
+ * reason - see their own components for why - but each surface keeps its own persisted
+ * choice under its own name (`"renderConsole"` here), so turning it off in one never
+ * touches another.
  */
-const following = ref(true);
+const autoScroll = useStickyScroll({
+    surface: "renderConsole",
+    defaultEnabled: true,
+    container: scroller,
+    length: () => props.lines.length,
+});
+/*
+ * `autoScroll` itself is a plain object, not `reactive()`, so `autoScroll.enabled` and
+ * `autoScroll.paused` in the template would bind the raw `Ref`/`ComputedRef` rather than
+ * its value - the template only auto-unwraps a *top-level* setup binding that is itself a
+ * ref, not a nested property read off a plain object. Destructuring here gives the template
+ * exactly that: two real top-level ref bindings, correctly unwrapped.
+ */
+const { enabled: autoScrollEnabled, paused: autoScrollPaused } = autoScroll;
 const copyState = ref("");
 
 /** What each line reads as, with this app's own status lines translated. */
@@ -162,56 +183,11 @@ const levelLabels = computed<Readonly<Record<ConsoleLevel, string>>>(() => ({
     tip: t("world.console.level.tip", "Tips"),
 }));
 
-/* -------------------------------------------------------------------------- */
-/* Scrolling                                                                  */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Instant when the reader has asked for less motion.
- *
- * `matchMedia` is feature-detected rather than assumed: jsdom does not implement it, and
- * a console that throws on mount in the test environment is a console nobody can test.
- */
-function smoothAllowed(): boolean {
-    const query = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)");
-    return query === undefined ? true : !query.matches;
-}
-
-function scrollToBottom(): void {
-    const element = scroller.value;
-    if (element === null) return;
-    const top = element.scrollHeight;
-    // `scrollTo` with options is missing in jsdom, so the assignment is the fallback
-    // rather than the exception: without it the whole follow behaviour throws in tests.
-    if (typeof element.scrollTo === "function") {
-        element.scrollTo({ top, behavior: smoothAllowed() ? "smooth" : "auto" });
-    } else {
-        element.scrollTop = top;
-    }
-    following.value = true;
-}
-
-function onScroll(): void {
-    const element = scroller.value;
-    if (element === null) return;
-    following.value = isAtBottom({
-        scrollTop: element.scrollTop,
-        scrollHeight: element.scrollHeight,
-        clientHeight: element.clientHeight,
-    });
-}
-
-// The line count rather than the array, because the array is replaced on every append
-// and watching it deeply would walk ten thousand objects per engine line.
-watch(
-    () => props.lines.length,
-    () => {
-        if (!following.value) return;
-        void nextTick(() => scrollToBottom());
-    },
-);
-
-onMounted(() => scrollToBottom());
+// The initial position only. Whether a *later* append moves the view again is
+// `useStickyScroll`'s own decision, driven by `props.lines.length` above - conflating the
+// two would auto-scroll a reader who has not asked for it straight past wherever an
+// already-long console happened to mount.
+onMounted(() => autoScroll.scrollToBottom());
 
 /* -------------------------------------------------------------------------- */
 /* Taking it away                                                             */
@@ -335,6 +311,25 @@ function openSetting(target: SettingsTarget): void {
             </fieldset>
 
             <div class="mb-console__actions">
+                <v-checkbox
+                    v-model="autoScrollEnabled"
+                    class="mb-console__autoScroll"
+                    :label="t('world.console.autoScroll', 'Follow new lines')"
+                    density="compact"
+                    hide-details
+                    data-test="console-autoscroll"
+                >
+                    <v-tooltip
+                        activator="parent"
+                        location="top"
+                        :text="
+                            t(
+                                'world.console.autoScrollHint',
+                                'Keeps the console scrolled to the newest line as the engine prints it. Scrolling up pauses that without turning this off; scroll back down, or use Newest lines, to pick it up again.',
+                            )
+                        "
+                    />
+                </v-checkbox>
                 <v-btn :prepend-icon="mdiContentCopy" size="small" variant="text" density="comfortable" @click="copyAll">
                     {{ t("world.console.copy", "Copy what is shown") }}
                 </v-btn>
@@ -353,20 +348,26 @@ function openSetting(target: SettingsTarget): void {
 
         <div class="mb-console__frame">
             <!--
-                `role="log"` rather than a plain list: assistive technology then announces
-                the lines that arrive rather than re-reading the whole console, which for
-                a render that has printed three thousand lines is the difference between
-                a usable surface and one that has to be muted. `tabindex` makes the region
-                keyboard-scrollable, which is the only way to read it without a mouse.
+                `role="log"` names what this region is to assistive technology, but it is
+                deliberately not left to announce on its own: `role="log"` carries an implicit
+                `aria-live="polite"`, and a render prints lines by the thousand, which turns
+                into a screen reader narrating every single one as it arrives - the exact
+                "actively hostile" failure mode a genuinely live log can fall into. `aria-live`
+                is set to "off" here for that reason: the region is still reachable, still
+                readable line by line with the keyboard (`tabindex` makes it scrollable without
+                a mouse), and a reader chooses when to read it rather than having it read at
+                them. The "Newest lines" control below is how a reader who has scrolled away
+                gets back, discoverable in the normal tab order rather than announced.
             -->
             <ol
                 ref="scroller"
                 class="mb-console__scroll"
                 :style="{ height: props.height }"
                 role="log"
+                aria-live="off"
                 tabindex="0"
                 :aria-label="t('world.console.output', 'The engine\'s output')"
-                @scroll="onScroll"
+                @scroll="autoScroll.onScroll"
             >
                 <li v-for="row in visible" :key="row.line.id" :class="`mb-console__line mb-console__line--${row.line.level}`">
                     <span class="mb-console__clock">{{ clockText(row.line.at) }}</span>
@@ -419,17 +420,20 @@ function openSetting(target: SettingsTarget): void {
             </ol>
 
             <!--
-                Only while detached. A permanent button would be a button that does
-                nothing for the whole of a render somebody is watching from the bottom.
+                Only while paused: following is on and the view has been scrolled away from
+                the bottom. A permanent button would be a button that does nothing for the
+                whole of a render somebody is watching from the bottom, and it never appears
+                at all with the checkbox off - there is nothing to "get back to following"
+                when following was never asked for.
             -->
             <v-btn
-                v-if="!following"
+                v-if="autoScrollPaused"
                 class="mb-console__jump"
                 :prepend-icon="mdiArrowDownBoldBoxOutline"
                 size="small"
                 variant="flat"
                 color="primary"
-                @click="scrollToBottom"
+                @click="autoScroll.scrollToBottom"
             >
                 {{ t("world.console.toBottom", "Newest lines") }}
                 <v-tooltip
@@ -486,7 +490,21 @@ function openSetting(target: SettingsTarget): void {
 .mb-console__actions {
     display: flex;
     flex-wrap: wrap;
+    align-items: center;
     gap: 4px;
+}
+
+/*
+ * `hide-details` still leaves Vuetify's own selection-control padding, which is taller than
+ * the small text buttons beside it. Trimmed to the same row height rather than to a fixed
+ * pixel value, so it still grows correctly at 200% display scale.
+ */
+.mb-console__autoScroll {
+    flex: 0 0 auto;
+}
+
+.mb-console__autoScroll :deep(.v-selection-control) {
+    min-height: unset;
 }
 
 .mb-console__meta {
