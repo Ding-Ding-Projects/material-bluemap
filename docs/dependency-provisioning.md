@@ -14,6 +14,7 @@ cannot be installed this way.
 - [The Java runtime](#the-java-runtime)
 - [Chunker, for Bedrock world conversion](#chunker-for-bedrock-world-conversion)
 - [System dependencies via winget/Chocolatey](#system-dependencies-via-wingetchocolatey)
+- [The one-button settings screen](#the-one-button-settings-screen)
 - [What is not auto-installed, and why](#what-is-not-auto-installed-and-why)
 - [Configuration](#configuration)
 - [Failure modes](#failure-modes)
@@ -105,6 +106,39 @@ matching `/git version/i`, and so on) — the same discipline `java/probe.ts` ap
 discovered JVM, because a package manager reporting success is not proof the tool works. Every
 fresh install gets the identical check before it is reported as installed.
 
+## The one-button settings screen
+
+Everything in the section above is the engine room; **Settings → System dependencies** is
+where a person actually presses a button. `DependencyInstallerPanel.vue` calls
+`sysdeps:preview` the moment it mounts and renders the whole table it gets back — route,
+elevation and current-install state — *before* a single dependency is selected, so the
+disclosure the previous section describes is not a promise kept only in source comments: it
+is the first thing on screen. Rows already installed are excluded from the default
+selection automatically, because installing something again is not a change the button
+should claim credit for.
+
+Pressing **Install {n} selected** calls `sysdeps:install` once for the whole batch and
+subscribes to `sysdeps:installEvent` for the rest of the run. Progress is rendered exactly
+as truthfully as the engine reports it — a determinate bar for Chocolatey's real
+percentages, an indeterminate one for winget's phase-only stdout, and no bar at all for a
+phase with no percentage concept (`resolving`, `checking-existing`, the elevation notice
+itself). Nothing here ever interpolates a percentage the package manager did not print.
+**Cancel** aborts the real child process through `sysdeps:cancel`; whatever was mid-install
+at that moment comes back `"cancelled"`, not folded into a generic failure, and whatever had
+already finished stays reported as finished — the button's own summary states the honest
+split rather than a single pass/fail verdict for the whole batch.
+
+The rest of the panel is the same shared contract every collection surface in this app
+carries, reused rather than reinvented: `ConfigSearchField` gives the row list its own
+anchored regex-builder search; bulk select-all/invert/none report an honest count of rows
+that would actually change (excluding anything already installed); each row is wrapped in
+`AppearanceTarget`, which is what supplies the per-row context menu with its own search,
+displayed keyboard shortcuts, and Shift+right-click straight to the appearance editor;
+outcomes and the batch summary are raised through the shared notification queue
+(`raiseNotice`), so they show up as non-blocking toasts and stay in the notification
+centre's history afterward; and the full event log — every stage, every manager, every real
+percentage, every outcome — exports as JSON, Markdown or plain text.
+
 ## What is not auto-installed, and why
 
 Some dependencies stay in the honest-degradation bucket, either because installing them this way
@@ -163,6 +197,7 @@ would not remove the remaining manual step:
 cd design
 npx vitest run packages/app/src/main/java packages/app/src/main/bedrock packages/app/src/main/sysdeps
 npx vitest run packages/ui/src/components/settings packages/ui/src/components/world
+npx vitest run packages/ui/src/copy/surfaces/dependencies.test.ts packages/ui/src/copy/appCopy.test.ts packages/ui/src/copy/catalogueCoverage.test.ts
 npx tsc -p packages/app --noEmit
 (cd packages/ui && npx vue-tsc -p tsconfig.json --noEmit)
 ```
@@ -179,7 +214,25 @@ this is the rest:
 - **`packages/app/src/main/sysdeps/`** — the preview's package-manager presence check; the install
   pass re-verifying a believed-present tool by actually running it before skipping; elevation
   disclosure per dependency; a declined elevation prompt; both package managers absent; and a
-  fresh install verified by running it, the same as an already-present one.
+  fresh install verified by running it, the same as an already-present one. `ipc.ts`'s own suite
+  additionally covers the three-channel contract: `sysdeps:preview` never touches the install
+  path, `sysdeps:install` broadcasts real progress on `sysdeps:installEvent` and folds a second
+  concurrent call into the first rather than racing it, and `sysdeps:cancel` reports honestly
+  whether anything was actually running to cancel.
+- **`packages/ui/src/components/settings/dependencyInstaller.test.ts`** — the state machine behind
+  the button: the preview pre-selects only what would actually change, bulk selection stays
+  scoped to installable rows, a real Chocolatey percentage and a real winget indeterminate state
+  both render without either one inventing a number, a failed row carries its real exit code, and
+  a cancelled batch reports exactly what finished and what did not.
+- **`packages/ui/src/components/settings/DependencyInstallerPanel.test.ts`** — the same claims,
+  against the mounted component: the elevation disclosure names the real dependencies before the
+  button is pressed, an unsupported build says so instead of showing a dead button, the Cancel
+  button replaces Install while a batch is running, and the search bar actually filters the rows
+  on screen.
+- **`packages/ui/src/copy/surfaces/dependencies.test.ts`** — every voiced outcome message keeps
+  its pinned fact (the real exit code, "administrator permission", "cannot be undone"-equivalent
+  language for a cancellation) at all five funny levels, in both languages, and no level invents
+  or drops a placeholder.
 
 ## Related reading
 
