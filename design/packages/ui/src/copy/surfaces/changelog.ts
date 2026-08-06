@@ -6,7 +6,7 @@
  *
  * This surface is a record, and a record has one job. Version numbers, dates and commit SHAs
  * are values the app renders around, never words it rewrites, so they arrive as
- * `{placeholder}` and leave unchanged in both languages at all five levels. `changelogData.ts`
+ * `{placeholder}` and leave unchanged in both languages at all five levels. `changelogData.generated.ts`
  * is generated from the repository's own history, so an entry this catalogue invented would be
  * a claim about a commit that never happened.
  *

@@ -37,6 +37,11 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import {
+    GENERATED_STATIC_DATA_BANNER,
+    isGeneratedStaticDataSource,
+} from "../generatedStaticDataPolicy.js";
+
 /** `packages/ui/src`, two levels above this file. */
 const uiSource = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -669,7 +674,15 @@ const KNOWN_GAPS: readonly string[] = [];
 /* -------------------------------------------------------------------------- */
 
 describe("every destructive action is declared with where it stands", () => {
-    const files = sourceFiles(uiSource, [".ts", ".vue"]).filter((file) => !file.endsWith(".test.ts"));
+    const allFiles = sourceFiles(uiSource, [".ts", ".vue"]);
+    const generatedStaticFiles = allFiles.filter((file) =>
+        isGeneratedStaticDataSource(relativeToSource(file), readFileSync(file, "utf8")),
+    );
+    const files = allFiles.filter(
+        (file) =>
+            !file.endsWith(".test.ts") &&
+            !isGeneratedStaticDataSource(relativeToSource(file), readFileSync(file, "utf8")),
+    );
 
     const found = new Map<string, number>();
     for (const file of files) {
@@ -680,6 +693,29 @@ describe("every destructive action is declared with where it stands", () => {
     it("finds the call sites it is supposed to be watching", () => {
         expect(files.length).toBeGreaterThan(40);
         expect(found.size).toBeGreaterThan(10);
+    });
+
+    it("excludes generated static data only when its filename and generator banner agree", () => {
+        const paths = generatedStaticFiles.map(relativeToSource);
+        const changelog = "components/changelog/changelogData.generated.ts";
+
+        expect(paths).toContain(changelog);
+        expect(files.map(relativeToSource)).not.toContain(changelog);
+        expect(destructiveHits(read(changelog))).toBeGreaterThan(0);
+        expect(
+            isGeneratedStaticDataSource(
+                "components/example.generated.ts",
+                "const quotedHistory = 'deleteMap(id)';",
+            ),
+            "a suffix alone must not hide executable code",
+        ).toBe(false);
+        expect(
+            isGeneratedStaticDataSource(
+                "components/example.ts",
+                `/** ${GENERATED_STATIC_DATA_BANNER} */\nconst quotedHistory = 'deleteMap(id)';`,
+            ),
+            "a banner alone must not hide an ordinary source file",
+        ).toBe(false);
     });
 
     it("has no destructive call site that is not declared", () => {

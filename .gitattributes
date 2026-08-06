@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Generated text is deterministic LF on every platform. The generator's --check also
+# normalizes legacy CRLF checkouts so this policy can repair them without a false stale result.
+CHANGELOG.md text eol=lf
+design/packages/ui/src/components/changelog/changelogData.generated.ts text eol=lf

@@ -3,7 +3,7 @@
  *
  * Mount {@link ChangelogViewer} anywhere a reader would look for "what changed" - this port's
  * About surface is the intended home. It needs no props: the data is compiled in from
- * `./changelogData.ts`, which `scripts/build-changelog.mjs` generates from this repository's
+ * `./changelogData.generated.ts`, which `scripts/build-changelog.mjs` generates from this repository's
  * git history and release tags and validates against `git cat-file` before writing. The props
  * exist so a test can mount the viewer over a fixture instead of over 86 real commits.
  *
@@ -20,7 +20,7 @@ export {
     CHANGELOG_REPOSITORY_URL,
     CHANGELOG_UNRELEASED,
     CHANGELOG_VERSIONS,
-} from "./changelogData.js";
+} from "./changelogData.generated.js";
 
 export {
     CHANGELOG_CATEGORIES,

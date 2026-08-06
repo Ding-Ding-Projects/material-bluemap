@@ -14,7 +14,11 @@ import { createSettingMatcher } from "../config/regexEngine.js";
 import MenuSearchList, { type MenuSearchItem } from "../menuSearch/MenuSearchList.vue";
 import ChangelogDateFilter from "./ChangelogDateFilter.vue";
 import ChangelogEntryRow from "./ChangelogEntryRow.vue";
-import { CHANGELOG_REPOSITORY_URL, CHANGELOG_UNRELEASED, CHANGELOG_VERSIONS } from "./changelogData.js";
+import {
+    CHANGELOG_REPOSITORY_URL,
+    CHANGELOG_UNRELEASED,
+    CHANGELOG_VERSIONS,
+} from "./changelogData.generated.js";
 import { type DayKey, formatDay } from "./changelogDates.js";
 import {
     type ChangelogCategory,

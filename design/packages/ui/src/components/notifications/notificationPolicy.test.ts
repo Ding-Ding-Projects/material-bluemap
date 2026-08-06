@@ -29,6 +29,11 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import {
+    GENERATED_STATIC_DATA_BANNER,
+    isGeneratedStaticDataSource,
+} from "../generatedStaticDataPolicy.js";
+
 /** `packages/ui/src`, two levels above this file. */
 const uiSource = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -125,6 +130,12 @@ const BLOCKING_SURFACES: Record<string, BlockingSurface> = {
             "folder on that machine to use as the work directory, or cancel and keep the typed " +
             "value. The user opens it themselves and closes it with Cancel, Escape, or by " +
             "choosing a folder - it never appears on its own.",
+    },
+    "components/world/SshWorldSourcePanel.vue": {
+        count: 1,
+        decision:
+            "Choose the world folder on that SSH machine, or cancel and keep the current path. " +
+            "The browser opens only after the user presses Browse and never interrupts startup.",
     },
 };
 
@@ -238,11 +249,42 @@ describe("this application never asks the user for anything it does not need", (
      * of reports itself. Shipped copy lives in `.vue` and non-test `.ts`, which is what is
      * scanned, so nothing a user can read is left out by the exclusion.
      */
-    const files = sourceFiles(uiSource, [".ts", ".vue"]).filter((file) => !file.endsWith(".test.ts"));
+    const allFiles = sourceFiles(uiSource, [".ts", ".vue"]);
+    const generatedStaticFiles = allFiles.filter((file) =>
+        isGeneratedStaticDataSource(relativeToSource(file), readFileSync(file, "utf8")),
+    );
+    const files = allFiles.filter(
+        (file) =>
+            !file.endsWith(".test.ts") &&
+            !isGeneratedStaticDataSource(relativeToSource(file), readFileSync(file, "utf8")),
+    );
 
     it("scans the whole package rather than one folder", () => {
         expect(files.length).toBeGreaterThan(40);
         expect(files.map(relativeToSource)).toContain("App.vue");
+    });
+
+    it("keeps passive generated history while scanning every executable source file", () => {
+        const paths = generatedStaticFiles.map(relativeToSource);
+        const changelog = "components/changelog/changelogData.generated.ts";
+
+        expect(paths).toContain(changelog);
+        expect(files.map(relativeToSource)).not.toContain(changelog);
+        expect(read(changelog)).toContain("sponsorship");
+        expect(
+            isGeneratedStaticDataSource(
+                "components/example.generated.ts",
+                "export const prompt = 'Sponsor this project';",
+            ),
+            "a suffix alone must not exempt real prompt copy",
+        ).toBe(false);
+        expect(
+            isGeneratedStaticDataSource(
+                "components/example.ts",
+                `/** ${GENERATED_STATIC_DATA_BANNER} */\nexport const prompt = 'Sponsor this project';`,
+            ),
+            "a banner alone must not exempt an ordinary source file",
+        ).toBe(false);
     });
 
     it("has no prompt for payment, sponsorship, a rating, a subscription or an upgrade", () => {
