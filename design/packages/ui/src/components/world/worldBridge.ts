@@ -13,7 +13,13 @@
  * that works and says plainly what the other half needs.
  */
 
-import { inspectWorldFolder, uncheckedWorld, unreadableWorld, type WorldInspection } from "./worldFolder.js";
+import {
+    inspectWorldFolder,
+    uncheckedWorld,
+    unreadableWorld,
+    type ServerSiblingDimension,
+    type WorldInspection,
+} from "./worldFolder.js";
 
 /* -------------------------------------------------------------------------- */
 /* Rendering                                                                  */
@@ -120,6 +126,37 @@ export type RenderResult =
       }
     | { ok: false; renderId: string; failure: RenderFailure };
 
+/** Mirrors `SpeedLevelNumber` in `main/runtime/speedControl.ts` -- the live speed dial's range. */
+export type SpeedLevelNumber = 1 | 2 | 3 | 4 | 5;
+
+/**
+ * What one live speed-adjustment request did, and what it did not.
+ *
+ * Mirrors `SpeedAdjustmentResult` in `main/render/orchestrator.ts` -- see that interface's own
+ * doc comment for why `appliedNow` and `needsRestart` are two separate booleans rather than
+ * one this bridge's caller would have to infer from `route` or `reason`. Both can be true at
+ * once: a local priority change lands immediately, and the thread count and thread priority
+ * baked into this render's launch still do not move until the render is restarted.
+ */
+export interface SpeedAdjustmentResult {
+    readonly ok: boolean;
+    readonly renderId: string;
+    readonly level: SpeedLevelNumber;
+    readonly route: "local" | "docker" | "unsupported";
+    readonly appliedNow: boolean;
+    readonly needsRestart: boolean;
+    readonly reason:
+        | "applied"
+        | "priority-refused"
+        | "process-exited"
+        | "container-stopped"
+        | "not-running"
+        | "invalid-level";
+    /** One sentence for a person, naming exactly what changed and what did not. */
+    readonly message: string;
+    readonly detail: string | null;
+}
+
 export interface InterruptedRenderMap {
     readonly id: string;
     readonly world: string;
@@ -155,6 +192,15 @@ export interface RenderSummary {
     readonly outcome: "running" | "finished" | "failed" | "cancelled";
     readonly engine: string;
     readonly engineId: "upstream-java" | "typescript";
+    /**
+     * Where the engine ran, or null when the record does not say - a render written before
+     * this field existed, or one whose record could not be read in full.
+     *
+     * Restated from `render/ipc.ts`'s own `RenderSummary` rather than imported, for the same
+     * reason every other type on this bridge is: this package compiles and runs in three
+     * places and only one of them has a preload.
+     */
+    readonly runtime?: "local" | "docker" | null;
     readonly maps: readonly { id: string; name: string; world: string; dimension: string }[];
     readonly startedAt: string;
     readonly finishedAt: string | null;
@@ -170,6 +216,14 @@ export interface RenderSummary {
 export interface WorldBridge {
     startRender(request: RenderRequest): Promise<RenderResult>;
     cancelRender(renderId: string): Promise<boolean>;
+    /**
+     * Adjusts a render's speed while it is running, applying exactly what its route can
+     * genuinely change right now -- see `main/render/orchestrator.ts`'s own `adjustSpeed`
+     * doc comment. Optional on the underlying preload; a build without it always resolves
+     * the `"not-running"` shape below rather than throwing, so a caller can show the same
+     * "this build cannot do that yet" state it would show for any other missing capability.
+     */
+    adjustRenderSpeed(renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult>;
     listRenders(): Promise<readonly RenderSummary[]>;
     renderEngine(renderId: string): Promise<RenderSummary | null>;
     /**
@@ -222,6 +276,7 @@ export interface WorldProbeBridge {
         folder: string;
         entries: readonly { path: string; directory: boolean }[];
         regionFiles: Readonly<Record<string, number>>;
+        serverSiblings?: Readonly<Record<string, ServerSiblingDimension>>;
     }>;
 }
 
@@ -257,6 +312,20 @@ export function resolveWorldBridge(): WorldBridge | null {
     return {
         startRender: (request) => complete.startRender(request),
         cancelRender: (renderId) => complete.cancelRender(renderId),
+        adjustRenderSpeed: (renderId, level) =>
+            isFunction(host.adjustRenderSpeed)
+                ? complete.adjustRenderSpeed(renderId, level)
+                : Promise.resolve({
+                      ok: false,
+                      renderId,
+                      level,
+                      route: "unsupported",
+                      appliedNow: false,
+                      needsRestart: false,
+                      reason: "not-running",
+                      message: "This build cannot adjust a render's speed while it is running yet.",
+                      detail: null,
+                  }),
         listRenders: () => complete.listRenders(),
         renderEngine: (renderId) =>
             isFunction(host.renderEngine) ? complete.renderEngine(renderId) : Promise.resolve(null),

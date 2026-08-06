@@ -22,6 +22,7 @@ import {
     mdiMapOutline,
     mdiMapPlus,
     mdiPalette,
+    mdiProgressClock,
     mdiServerNetwork,
     mdiTabSearch,
     mdiWeb,
@@ -283,6 +284,19 @@ const capabilities = computed<HomeCapability[]>(() => {
             icon: mdiCloudSyncOutline,
             keywords: ["github", "actions", "ci", "cloud", "remote render"],
             action: () => emit("reveal-page", "cirender"),
+            remedyAction: null,
+        }),
+        tile({
+            id: "renders",
+            group: t("home.section.makeAndManage", "Make and manage maps"),
+            title: t("tabs.page.renders", "Renders"),
+            description: t(
+                "rendersInProgress.homeTile",
+                "Every render going on right now, on this computer, in a container or on GitHub's runners - including one this app did not start this session.",
+            ),
+            icon: mdiProgressClock,
+            keywords: ["in progress", "running", "container", "docker", "reattach", "github runners", "cancel"],
+            action: () => emit("reveal-page", "renders"),
             remedyAction: null,
         }),
 

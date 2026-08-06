@@ -5,6 +5,7 @@ import {
     mdiCloudSyncOutline,
     mdiCloudUploadOutline,
     mdiCog,
+    mdiEye,
     mdiFileCogOutline,
     mdiFileDocumentOutline,
     mdiFolderMultipleOutline,
@@ -13,6 +14,7 @@ import {
     mdiHomeOutline,
     mdiMapOutline,
     mdiMapPlus,
+    mdiProgressClock,
     mdiServerNetwork,
     mdiWeb,
 } from "@mdi/js";
@@ -44,12 +46,18 @@ import { EulaSurface } from "./components/eula/index.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
 import { CiRenderScreen } from "./components/cirender/index.js";
+import { createCiRenders } from "./components/cirender/ciRenders.js";
+import { resolveCiRenderBridge } from "./components/cirender/ciRenderBridge.js";
+import RendersScreen from "./components/renders/RendersScreen.vue";
+import { createActiveRenders } from "./components/renders/activeRenders.js";
+import type { ConsoleTarget } from "./components/renders/activeRenders.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
 import type { PaletteConfigTarget } from "./components/palette/index.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
 import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
 import PagesScreen from "./components/pages/PagesScreen.vue";
+import PreviewScreen from "./components/preview/PreviewScreen.vue";
 import { DocsPage } from "./components/docs/index.js";
 import { UpdateBanner, createUpdates } from "./components/update/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
@@ -95,10 +103,38 @@ const PAGE_MAP = "map";
 const PAGE_WORLD = "world";
 const PAGE_PROJECTS = "projects";
 const PAGE_CIRENDER = "cirender";
+const PAGE_RENDERS = "renders";
 const PAGE_SERVERS = "servers";
 const PAGE_BACKUPS = "backups";
 const PAGE_PAGES = "pages";
+const PAGE_PREVIEW = "preview";
 const PAGE_DOCS = "docs";
+
+/**
+ * A count of everything in progress, kept alive for the whole life of the shell rather than
+ * only while the Renders page happens to be the active tab.
+ *
+ * `TabbedNavigation` renders only the active page's slot - see `DocsPage.vue`'s own comment
+ * on the same mechanism - so a counter built inside `RendersScreen.vue` itself would go dark
+ * the instant somebody navigated to another tab, which is exactly the discoverability gap
+ * this indicator exists to close. This is a second mount of `createActiveRenders`, not a
+ * second implementation of it: the tab label below and the page itself both read the same
+ * three routes through the same aggregator, so the count in the tab strip can never disagree
+ * with the list it leads to.
+ */
+const renderIndicator = createActiveRenders({ ciRenders: createCiRenders(resolveCiRenderBridge()) });
+onMounted(() => {
+    void renderIndicator.reconcile();
+});
+onUnmounted(() => {
+    renderIndicator.dispose();
+});
+const runningRenderCount = computed(
+    () =>
+        renderIndicator.rows.value.filter(
+            (row) => row.state === "starting" || row.state === "running" || row.state === "offer",
+        ).length,
+);
 
 const pages = computed<TabPage[]>(() => [
     // First in the strip and pinned on a fresh install (see the `pinned-page-ids` binding
@@ -119,9 +155,30 @@ const pages = computed<TabPage[]>(() => [
     // watched job by job - and the guide's "where it runs" card links straight to it, so all
     // four places are named in one list without four screens to discover separately.
     { id: PAGE_CIRENDER, label: t("tabs.page.ciRender", "GitHub runners"), icon: mdiCloudSyncOutline },
+    // The label itself carries the count, which is what makes this the persistent,
+    // unobtrusive indicator the contract asks for: it says something is going wherever the
+    // tab strip is drawn, without a toast, a badge dot with no number, or a second surface
+    // fighting for attention. Zero renders in progress reads as a perfectly ordinary tab.
+    {
+        id: PAGE_RENDERS,
+        label:
+            runningRenderCount.value > 0
+                ? t(
+                      "tabs.page.rendersCounted",
+                      { count: String(runningRenderCount.value) },
+                      "Renders ({count})",
+                  )
+                : t("tabs.page.renders", "Renders"),
+        icon: mdiProgressClock,
+    },
     { id: PAGE_SERVERS, label: t("tabs.page.servers", "Maps and servers"), icon: mdiServerNetwork },
     { id: PAGE_BACKUPS, label: t("tabs.page.backups", "Backups"), icon: mdiCloudUploadOutline },
     { id: PAGE_PAGES, label: t("tabs.page.pages", "Publish to Pages"), icon: mdiWeb },
+    // The local twin of the Pages tab above: that one puts a render on somebody else's
+    // static host, this one serves it straight off this computer's own disk so it can be
+    // watched in a browser while it is still being rendered. See `PreviewScreen.vue`'s own
+    // doc comment for the tile-caching caveat that stays on screen the whole time.
+    { id: PAGE_PREVIEW, label: t("tabs.page.preview", "Watch it live"), icon: mdiEye },
     // Full-text, in-app documentation, bundled with no network needed to read it. Its own
     // tab rather than only the Info page fold the changelog uses, because unlike the
     // changelog this is a browsable, searchable set of 25-odd articles that deserves the
@@ -141,6 +198,36 @@ const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
  */
 function revealPage(pageId: string): void {
     tabs.value?.revealPage(pageId);
+}
+
+/**
+ * The render id `WorldScreen.vue`'s own `focusRenderId` prop watches, set the moment "Renders
+ * in progress" asks to open a local or container render's console.
+ *
+ * Cleared back to null immediately after the world page reads it, so a second **Open
+ * console** for the same render - or a page revisit through the tab strip - fires the watch
+ * again rather than being ignored as "no change" by Vue's own equality check on the prop.
+ */
+const worldFocusRenderId = ref<string | null>(null);
+
+/**
+ * "Renders in progress"'s own **Open console** action, resolved into real navigation.
+ *
+ * A CI render already shows on `CiRenderScreen` the moment it is reconciled - see that
+ * screen's own `reconcile()`/`loadKnown()` - so revealing the page is the whole route. A
+ * local or container render additionally needs `WorldScreen.vue` told which one to watch,
+ * because unlike the CI screen it draws exactly one render at a time.
+ */
+function onOpenConsole(target: ConsoleTarget): void {
+    if (target.page === "cirender") {
+        revealPage(PAGE_CIRENDER);
+        return;
+    }
+    worldFocusRenderId.value = target.focusRenderId;
+    revealPage(PAGE_WORLD);
+    void nextTick(() => {
+        worldFocusRenderId.value = null;
+    });
 }
 
 /**
@@ -755,6 +842,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                 <WorldScreen
                                     :settings-epoch="settingsEpoch"
                                     :can-open-ci="true"
+                                    :focus-render-id="worldFocusRenderId"
                                     @consent="openSettings('mojang-download-consent')"
                                     @settings="revealSetting"
                                     @open-map="openRenderedMap"
@@ -810,6 +898,22 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         </template>
 
                         <!--
+                            Every render this application knows about, on any of its three
+                            routes, including one this app did not start this session - a
+                            container found running from an earlier launch, or a render on
+                            GitHub's runners entirely independent of this window. Its own page
+                            rather than folded into the world guide, so navigating away from
+                            wherever a render was started never again means losing sight of
+                            it: this page, and the tab label's own live count above, are both
+                            reachable regardless of which screen a render was watched from.
+                        -->
+                        <template #renders>
+                            <div class="mb-world-host mb-interactive">
+                                <RendersScreen @open-console="onOpenConsole" />
+                            </div>
+                        </template>
+
+                        <!--
                             The list is a card rather than a full-width screen, so it is
                             centred in its page instead of stretched across it. Its Close
                             button now goes back to the map, which is the only thing "close"
@@ -847,6 +951,22 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <div class="mb-world-host mb-interactive">
                                 <div class="mb-shell-centre">
                                     <PagesScreen @open="openInBrowser" />
+                                </div>
+                            </div>
+                        </template>
+
+                        <!--
+                            The local twin of the Pages tab above. `PreviewScreen.vue` drives
+                            its own bridge and IPC channel directly - there is no URL for the
+                            shell to open externally here, because opening a loopback address
+                            through the same https-only door Pages uses would silently do
+                            nothing (see `main/preview/ipc.ts`'s own `openExternal` doc
+                            comment), so this screen calls the main process itself instead.
+                        -->
+                        <template #preview>
+                            <div class="mb-world-host mb-interactive">
+                                <div class="mb-shell-centre">
+                                    <PreviewScreen />
                                 </div>
                             </div>
                         </template>

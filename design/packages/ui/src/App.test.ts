@@ -212,7 +212,7 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("separates the shell into nine pages behind one persistent strip", () => {
+    it("separates the shell into ten pages behind one persistent strip", () => {
         shell();
 
         expect(tabLabels()).toEqual([
@@ -224,6 +224,10 @@ describe("the tab strip", () => {
             "Make a map",
             "Projects",
             "GitHub runners",
+            // No count in the label: nothing in this shell's fake bridges reports a render in
+            // flight, so the always-mounted indicator behind this label reads zero, exactly
+            // as it should for a shell with nothing running.
+            "Renders",
             "Maps and servers",
             "Backups",
             "Publish to Pages",

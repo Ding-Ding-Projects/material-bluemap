@@ -98,6 +98,18 @@ const props = withDefaults(
          * than offering a Pick this up button that would throw.
          */
         containerOffersBridge?: ContainerOffersBridge | null;
+        /**
+         * A render id somebody outside this screen wants watched the moment it opens.
+         *
+         * The "Renders in progress" page's own **Open console** action is what this exists
+         * for: without it, landing here after following that button meant a second click on
+         * whichever row this screen's own "renders going on right now" list happened to draw
+         * for the same render, rather than the one click the button promised. Read once on
+         * mount and again on every change - the shell clears it back to null once it has been
+         * consumed, so re-arriving here for a different render fires it again rather than
+         * being ignored as "no change".
+         */
+        focusRenderId?: string | null;
     }>(),
     { settingsEpoch: 0, canOpenCi: false },
 );
@@ -314,6 +326,24 @@ function watchRender(renderId: string): void {
     if (run.active.value) return;
     run.expect(renderId);
 }
+
+/**
+ * `focusRenderId`, followed the moment it names one.
+ *
+ * `immediate: true` so arriving here already carrying a focus request - the ordinary case,
+ * since the shell sets it and reveals this page in the same action - watches it without
+ * waiting for a second change. A request for the render this screen is already showing is
+ * left alone rather than restarted.
+ */
+watch(
+    () => props.focusRenderId,
+    (renderId) => {
+        if (renderId === undefined || renderId === null || renderId === "") return;
+        if (run.renderId.value === renderId) return;
+        watchRender(renderId);
+    },
+    { immediate: true },
+);
 
 /**
  * Every moment the consent record can have changed under this screen.
