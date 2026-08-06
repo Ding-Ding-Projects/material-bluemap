@@ -27,6 +27,14 @@ import type {
     PagesStopResult,
     PagesTarget,
 } from "../main/pages/index.js";
+import type {
+    PreviewAvailability,
+    PreviewEvent,
+    PreviewNetworkReadout,
+    PreviewStartAnswer,
+    PreviewStartRequest,
+    PreviewStatusAnswer,
+} from "../main/preview/index.js";
 import type { RemoteHostEvent } from "../main/remote/index.js";
 import type {
     DownloadConcurrencyReadout,
@@ -2285,6 +2293,22 @@ interface MaterialBlueMapBridge {
     refreshPagesStatus(renderId: string): Promise<PagesAnswer<PagesRecord>>;
     onPagesEvent(listener: (event: PagesEvent) => void): () => void;
 
+    /* ---- Watching a render live, in a real browser tab -------------------- */
+
+    /** Whether this render id can be hosted right now, and why not when it cannot. */
+    previewAvailability(renderId: string): Promise<PreviewAvailability>;
+    /** Starts serving one render's output. Loopback unless `allowNetwork` is explicitly true. */
+    startPreview(request: PreviewStartRequest): Promise<PreviewStartAnswer>;
+    /** Stops the currently hosted render, if any. False when nothing was running. */
+    stopPreview(): Promise<boolean>;
+    previewStatus(): Promise<PreviewStatusAnswer>;
+    /** Opens the currently hosted preview in the system browser. Never takes a URL - see `main/preview/ipc.ts`. */
+    openPreviewInBrowser(): Promise<boolean>;
+    /** The persisted default the network-exposure checkbox starts at - never a bypass of it. */
+    previewNetworkDefault(): Promise<PreviewNetworkReadout>;
+    setPreviewNetworkDefault(allowNetwork: boolean): Promise<PreviewNetworkReadout>;
+    onPreviewEvent(listener: (event: PreviewEvent) => void): () => void;
+
     updateState(): Promise<UpdateState>;
     checkForUpdates(): Promise<UpdateState>;
     /**
@@ -2610,6 +2634,22 @@ const bridge: MaterialBlueMapBridge = {
         ipcRenderer.on("pages:event", forward);
         return () => {
             ipcRenderer.off("pages:event", forward);
+        };
+    },
+
+    previewAvailability: (renderId) => ipcRenderer.invoke("preview:availability", renderId),
+    startPreview: (request: PreviewStartRequest) => ipcRenderer.invoke("preview:start", request),
+    stopPreview: () => ipcRenderer.invoke("preview:stop"),
+    previewStatus: () => ipcRenderer.invoke("preview:status"),
+    openPreviewInBrowser: () => ipcRenderer.invoke("preview:openInBrowser"),
+    previewNetworkDefault: () => ipcRenderer.invoke("preview:networkDefault"),
+    setPreviewNetworkDefault: (allowNetwork: boolean) =>
+        ipcRenderer.invoke("preview:setNetworkDefault", allowNetwork),
+    onPreviewEvent: (listener) => {
+        const forward = (_event: IpcRendererEvent, payload: PreviewEvent): void => listener(payload);
+        ipcRenderer.on("preview:event", forward);
+        return () => {
+            ipcRenderer.off("preview:event", forward);
         };
     },
 

@@ -65,6 +65,8 @@ import { installCiRenderIpc } from "./cirender/ipc.js";
 import type { CiRenderIpc } from "./cirender/ipc.js";
 import { installPagesIpc, PAGES_EVENT_CHANNEL } from "./pages/index.js";
 import type { PagesIpc } from "./pages/index.js";
+import { installPreviewIpc, PreviewNetworkStore, PREVIEW_EVENT_CHANNEL } from "./preview/index.js";
+import type { PreviewIpc } from "./preview/index.js";
 import { installWorldRepoIpc, WORLD_REPO_EVENT_CHANNEL } from "./worldrepo/index.js";
 import type { WorldRepoIpc } from "./worldrepo/index.js";
 import { PROJECT_AUTOSAVE_EVENT_CHANNEL, registerProjectHandlers, wireAutosaveQuitFlush } from "./project/index.js";
@@ -755,6 +757,62 @@ function startPagesHosting(render: RenderIpc): PagesIpc {
 }
 
 /**
+ * Watching a render live, in a real browser tab, while it is still running - on this
+ * machine by default, and on another device on this network only on an explicit opt-in
+ * given fresh every time the render screen offers it. See `main/preview/` for the server,
+ * the loopback-by-default binding, and the one persisted setting this feature has (which
+ * default the opt-in checkbox starts at, never whether exposure happens at all).
+ *
+ * Registered once, for the same reason everything above it is. `activeRenderIds` is read
+ * through the orchestrator on every call rather than captured, so a hosted page's live-
+ * status banner keeps tracking a render that is still writing tiles. `githubActiveRenderIds`
+ * is the CI-render subsystem's own answer to "is this actually on this machine yet", which
+ * is what lets `preview:availability` refuse the one route that genuinely cannot work -
+ * nothing a GitHub Actions render writes is on this computer until it has been downloaded -
+ * rather than showing a control that would sit there doing nothing.
+ */
+let previewIpc: PreviewIpc | null = null;
+let previewNetworkStore: PreviewNetworkStore | null = null;
+
+function getPreviewNetworkStore(): PreviewNetworkStore {
+    previewNetworkStore ??= new PreviewNetworkStore({ dataDir: app.getPath("userData") });
+    return previewNetworkStore;
+}
+
+function startPreviewHosting(render: RenderIpc, ciRender: CiRenderIpc): PreviewIpc {
+    if (previewIpc !== null) return previewIpc;
+    previewIpc = installPreviewIpc({
+        ipcMain,
+        storageDir: () => render.storageDirectory(),
+        activeRenderIds: () => render.orchestrator.activeRenderIds(),
+        githubActiveRenderIds: () => ciRender.sync.activeSyncIds(),
+        network: getPreviewNetworkStore(),
+        broadcast: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed()) window.webContents.send(PREVIEW_EVENT_CHANNEL, event);
+            }
+        },
+        // Deliberately not `openExternalHttps` from `github/external.ts` - that door is
+        // https-only by design, and a loopback preview is `http://` on purpose. Safe here
+        // regardless: see `preview/ipc.ts`'s own doc comment on `openExternal` for why this
+        // channel never opens anything but its own server's own URL.
+        openExternal: async (url) => {
+            try {
+                await shell.openExternal(url);
+                return true;
+            } catch {
+                return false;
+            }
+        },
+    });
+    // Async, like every other dispose queued on `will-quit` here (see `startPagesHosting`
+    // and `startEmbeddedServer` just above) - the point is that the listener is asked to
+    // close rather than left orphaned holding its port, not that quitting waits for it.
+    app.on("will-quit", () => void previewIpc?.dispose());
+    return previewIpc;
+}
+
+/**
  * Keeping a Minecraft world in a git repository, so a render never has to re-zip it.
  *
  * Registered the same way `startPagesHosting` is, and for the same reason: `workRoot` is
@@ -1043,8 +1101,9 @@ async function createWindow(): Promise<void> {
     const github = startGitHubSignIn();
     const downloads = startDownloads(render, github);
     startBackups(render, github);
-    startCiRenders(render, github, startBackups(render, github));
+    const ciRender = startCiRenders(render, github, startBackups(render, github));
     startPagesHosting(render);
+    startPreviewHosting(render, ciRender);
     startWorldRepoHosting();
     startWorldSources(render, downloads, github);
     startSshWorldSources();
