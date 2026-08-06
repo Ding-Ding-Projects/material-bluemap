@@ -222,6 +222,12 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
             "(the whole page, the intro, the continue row, the capability grid).",
         status: "has-search",
     },
+    {
+        file: "settings/DependencyInstallerPanel.vue",
+        builtVia: "AppearanceTarget",
+        menu: "Context menu of a dependency row in the winget/Chocolatey installer list (Edit/Reset appearance).",
+        status: "has-search",
+    },
 
     /* ---------------------------------------------------------------------- */
     /* Confirmed to have no context menu of any kind today                    */
