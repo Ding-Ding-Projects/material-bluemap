@@ -26,15 +26,24 @@ concurrency:
 jobs:
   build:
     name: Build site
-    runs-on: ubuntu-latest
+    # See design/docs/decisions.md D19 for why this moved off a hosted runner. No
+    # additional job-level concurrency added here on top of the workflow-level `pages`
+    # group above: that group already serialises every run of this whole workflow one at
+    # a time (queuing rather than cancelling, so a deployment already in flight is never
+    # interrupted), which already prevents the runner pileup a job-level group would
+    # otherwise exist to fix - adding a second, differently-scoped group would only
+    # compete with it, not help it.
+    runs-on: [self-hosted, Linux, X64]
     steps:
       # The vendored BlueMap submodule is a large Java reference tree that nothing in
       # this build reads, so it is deliberately not checked out.
       - uses: actions/checkout@v4
 
+      # Version pinned via design/package.json's own `packageManager` field - see the
+      # comment on the same step in ci.yml's `check` job for why.
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          package_json_file: design/package.json
 
       - uses: actions/setup-node@v4
         with:
@@ -104,7 +113,7 @@ jobs:
   deploy:
     name: Deploy to Pages
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

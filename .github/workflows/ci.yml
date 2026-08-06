@@ -2,25 +2,42 @@ name: CI
 
 on:
   push:
-  pull_request:
   workflow_dispatch:
+  # `pull_request` was removed on 2026-08-05 (decision D19, design/docs/decisions.md) when
+  # this workflow moved onto this developer's own two self-hosted runners. A self-hosted
+  # runner on a public repository is a documented attack path: anyone who can cause a
+  # workflow to run can execute code on the machine behind it, and `pull_request` is
+  # exactly that trigger for anyone who can open one - including from a fork, with
+  # whatever workflow content the fork carries. `push` and `workflow_dispatch` both
+  # require write access to this repository, which is the actual mitigation. Do not
+  # restore `pull_request` here without first moving these jobs back to hosted runners, or
+  # switching every checkout to a hard-pinned ref under `pull_request_target` with no
+  # secrets in scope - and understanding exactly what that reintroduces before doing it.
 
-# No workflow-level concurrency: a run is never cancelled by a later one.
+# No *workflow*-level concurrency group: a run is never wholesale-cancelled by a later one.
 #
-# There used to be a group here with `cancel-in-progress` switched off for main, and it did
-# not hold. Over one afternoon of frequent pushes, every single run on main was cancelled at
-# the exact second the next one was created, and the branch went a long stretch with no green
-# and no red at all - which reads as "verified" to anybody glancing at it, and is worse than
-# a failure, because a failure is at least visible.
+# There used to be a workflow-level group here with `cancel-in-progress` switched off, and
+# it did not hold. Over one afternoon of frequent pushes, every single run on main was
+# cancelled at the exact second the next one was created, and the branch went a long stretch
+# with no green and no red at all - which reads as "verified" to anybody glancing at it, and
+# is worse than a failure, because a failure is at least visible. A shared group also holds
+# **one** pending run, so a third arrival evicts the queued middle one even with cancellation
+# switched off - avoided the same way, by not sharing a group at all.
 #
-# Two things can cancel a run in a shared group, and only one of them is the setting: a group
-# also holds **one** pending run, so a third arrival evicts the queued middle one. Both are
-# avoided the same way, by not sharing a group, so this does not depend on working out which
-# was at fault here. Runners are free on a public repository; a verdict on every commit is
-# worth far more than the minutes saved by superseding one.
+# That history does not change here, but the situation it was written for has: this workflow
+# now runs on two self-hosted machines (see the `runs-on` labels below) instead of disposable
+# hosted VMs, and on 2026-08-04 a burst of pushes queued 26 runs against those two machines at
+# once. Runners used to be free and disposable on a public repository; now they are this
+# developer's own two computers, and unbounded pileup is a real cost again - just a different
+# one than the workflow-level group above caused.
 #
-# What still has to be serialised is publishing, and that is a job-level group on `release`
-# below rather than a whole-workflow one - see the reason there.
+# The fix below is a `concurrency` block on each job except `release`, not on the workflow.
+# A job-level group only supersedes that same job across runs - it can never cancel a
+# *different* job in the *same* run the way a shared workflow-level group would, so jobs
+# meant to run in parallel (`workflows`, `check` and `jars` all start together below) still
+# do. `release` deliberately carries none of these new groups: it already has its own
+# job-level group further down with `cancel-in-progress: false`, for the reason recorded
+# there - a queued publish waits, it is never dropped, and nothing above cancels it either.
 
 permissions:
   contents: read
@@ -36,18 +53,23 @@ jobs:
   # checkout of anything but the workflows and no toolchain at all.
   workflows:
     name: Lint the workflow files
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
+    concurrency:
+      group: ci-workflows-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       # Full history and every tag: the changelog check below derives its versions from
       # the tags and its entries from the commits, and a depth-1 checkout would report a
       # changelog covering one version as current.
+      #
+      # No explicit `ref:` here: this workflow no longer triggers on `pull_request` (see
+      # the trigger comment above), so `github.sha` - actions/checkout's own default - is
+      # always the commit to lint. The old override existed only to prefer a pull
+      # request's real head over GitHub's synthetic merge commit; there is no merge commit
+      # to avoid once `pull_request` cannot start this workflow at all.
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # Pull requests are otherwise checked out at GitHub's synthetic merge
-          # commit. The generated changelog follows the branch history, so lint
-          # the actual PR head instead of inventing an unlisted merge entry.
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       # There is deliberately NO changelog freshness check here, and the reason is worth
       # recording so nobody adds one back without solving it first.
@@ -64,6 +86,28 @@ jobs:
       # which teaches people to ignore a red X rather than to keep the changelog current.
       # Regenerate with `node scripts/build-changelog.mjs` when cutting a release.
 
+      # actionlint shells out to a tool called shellcheck to check every `run:` block;
+      # without it on PATH, actionlint reports a clean pass while silently skipping all of
+      # that (see the note on the actionlint step below for why that matters here
+      # specifically). GitHub's hosted ubuntu-latest image ships it already; this job runs
+      # on a self-hosted machine now, which is not guaranteed to, so this checks first and
+      # only fetches it when genuinely absent - into a directory added to PATH for this
+      # job alone, never system-wide, and without administrator rights.
+      - name: Ensure shellcheck is on PATH
+        run: |
+          set -euo pipefail
+          if command -v shellcheck >/dev/null 2>&1; then
+            echo "already present: $(shellcheck --version | tr '\n' ' ')"
+          else
+            version=0.11.0
+            mkdir -p "$RUNNER_TEMP/shellcheck-bin"
+            curl -fsSL --retry 3 \
+              "https://github.com/koalaman/shellcheck/releases/download/v${version}/shellcheck-v${version}.linux.x86_64.tar.gz" \
+              | tar -xz -C "$RUNNER_TEMP/shellcheck-bin" --strip-components=1 "shellcheck-v${version}/shellcheck"
+            echo "$RUNNER_TEMP/shellcheck-bin" >> "$GITHUB_PATH"
+            echo "installed shellcheck $version"
+          fi
+
       - name: actionlint
         run: |
           set -euo pipefail
@@ -71,15 +115,20 @@ jobs:
           curl -fsSL --retry 3 \
             "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz" \
             | tar -xz actionlint
-          # The runner already ships shellcheck, so the `run:` blocks get checked too.
-          # (That sentence must not begin with the word shellcheck: a comment starting
-          # "# shellcheck" is parsed as a shellcheck *directive*, and a malformed one
-          # fails the very lint step this comment sits in.)
+          # The step above put shellcheck on PATH before this one runs (self-hosted
+          # runners are not guaranteed to ship it the way GitHub's hosted image does), so
+          # the `run:` blocks get checked here too, not only the workflow YAML shape.
+          # (This note deliberately never starts a line with the word shellcheck: a
+          # comment starting "# shellcheck" is parsed as a shellcheck *directive*, and a
+          # malformed one fails the very lint step this comment sits in.)
           ./actionlint -color
 
   check:
     name: Lint, build, test
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
+    concurrency:
+      group: ci-check-${{ github.ref }}
+      cancel-in-progress: true
     defaults:
       run:
         working-directory: design
@@ -104,10 +153,21 @@ jobs:
           submodules: true
           fetch-depth: 1
 
+      # No `version:` input: the workspace pins the exact pnpm build it wants
+      # (`packageManager: "pnpm@10.33.0"` in design/package.json), and pnpm/action-setup
+      # reads that field itself when pointed at the file - `package_json_file` because the
+      # manifest lives in `design/`, not at the repository root the action defaults to.
+      # This installs the pinned version regardless of whatever pnpm (if any) is already
+      # on this self-hosted machine, without hand-duplicating the version number here for
+      # it to drift out of sync with the manifest later.
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          package_json_file: design/package.json
 
+      # Matches design/package.json's `"engines": { "node": ">=22" }`. Kept as an explicit
+      # version rather than a range lookup: setup-node's own version-file resolution is
+      # documented for exact pins and `.nvmrc`-style files, not proven here for a bare
+      # `>=` range, and 22 is already the exact floor the manifest declares.
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -144,13 +204,18 @@ jobs:
     # installer, but every local render in that installer fails immediately with
     # "The BlueMap engine is not installed" - see jars.ts and orchestrator.ts.
     needs: [check, jars]
-    runs-on: windows-latest
+    runs-on: [self-hosted, Windows, X64]
+    concurrency:
+      group: ci-package-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
+      # Version pinned via design/package.json's own `packageManager` field - see the
+      # comment on the same step in the `check` job above for why.
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          package_json_file: design/package.json
 
       - uses: actions/setup-node@v4
         with:
@@ -251,6 +316,12 @@ jobs:
   jars:
     name: BlueMap jars
     uses: ./.github/workflows/build-jars.yml
+    # A job-level group works the same on a job that calls a reusable workflow as on any
+    # other job - see the top-of-file comment for why this is per-job rather than a single
+    # workflow-level group.
+    concurrency:
+      group: ci-jars-${{ github.ref }}
+      cancel-in-progress: true
 
   # packages/config/test/javaRoundTrip.test.ts is the one test that proves the whole
   # point of the HOCON reader/writer: it generates a config set, edits real values
@@ -271,13 +342,18 @@ jobs:
   config-java-roundtrip:
     name: Config / real Java CLI round trip
     needs: [jars]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
+    concurrency:
+      group: ci-config-java-roundtrip-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
+      # Version pinned via design/package.json's own `packageManager` field - see the
+      # comment on the same step in the `check` job above for why.
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          package_json_file: design/package.json
 
       - uses: actions/setup-node@v4
         with:
@@ -329,13 +405,34 @@ jobs:
   test-world:
     name: Generate and render a test world
     needs: [check, jars]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
+    concurrency:
+      group: ci-test-world-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
 
+      # `zip` (used below to package the generated world) ships on GitHub's hosted
+      # ubuntu-latest image but is not guaranteed on this self-hosted machine. Check
+      # first and only install what's missing - this needs the OS package manager and
+      # therefore sudo, unlike the toolchains below which install into their own
+      # per-job tool cache without touching anything system-wide.
+      - name: Ensure zip is present
+        run: |
+          set -euo pipefail
+          if command -v zip >/dev/null 2>&1; then
+            echo "zip already present: $(zip --version | head -2 | tail -1)"
+          else
+            echo "zip missing, installing via apt-get (requires sudo on this self-hosted runner)"
+            sudo apt-get update
+            sudo apt-get install -y zip
+          fi
+
+      # Version pinned via design/package.json's own `packageManager` field - see the
+      # comment on the same step in the `check` job above for why.
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          package_json_file: design/package.json
 
       - uses: actions/setup-node@v4
         with:
@@ -438,13 +535,48 @@ jobs:
   screenshots:
     name: Screenshots
     needs: [check, test-world]
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
+    concurrency:
+      group: ci-screenshots-${{ github.ref }}
+      cancel-in-progress: true
     steps:
+      # This machine is not thrown away between runs the way a hosted VM is. A crashed or
+      # timed-out capture in an earlier run can leave an Electron process running under a
+      # stale Xvfb display, which would otherwise sit there wasting resources at best and
+      # colliding with this run's own capture at worst - the exact "poisoned by the
+      # previous run" failure mode self-hosted runners are prone to and hosted ones are
+      # not. Best-effort and never fatal: it must not turn a clean runner into a failed
+      # job, so nothing here is allowed to fail the step.
+      - name: Stop any Electron processes left running from a previous run
+        continue-on-error: true
+        run: pkill -f "design/packages/app" || true
+
       - uses: actions/checkout@v4
 
+      # `unzip` (to unpack the rendered world below) and `xvfb-run`/Xvfb (to give
+      # Electron a display with no real desktop session) both ship on GitHub's hosted
+      # ubuntu-latest image but are not guaranteed on this self-hosted machine. Check
+      # first and only install what's missing, the same reasoning as the zip check in
+      # the `test-world` job.
+      - name: Ensure unzip and xvfb are present
+        run: |
+          set -euo pipefail
+          missing=()
+          command -v unzip >/dev/null 2>&1 || missing+=(unzip)
+          command -v xvfb-run >/dev/null 2>&1 || missing+=(xvfb)
+          if [ "${#missing[@]}" -eq 0 ]; then
+            echo "unzip and xvfb-run already present"
+          else
+            echo "installing: ${missing[*]} (requires sudo on this self-hosted runner)"
+            sudo apt-get update
+            sudo apt-get install -y "${missing[@]}"
+          fi
+
+      # Version pinned via design/package.json's own `packageManager` field - see the
+      # comment on the same step in the `check` job above for why.
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          package_json_file: design/package.json
 
       - uses: actions/setup-node@v4
         with:
@@ -489,6 +621,16 @@ jobs:
           echo "CAPTURE_WORLD=$world" >> "$GITHUB_ENV"
           ls -la "$world"
 
+      # `install-deps` shells out to the OS package manager (apt-get, with sudo) to
+      # install the system libraries headless Chromium needs. On a hosted runner that
+      # mutated a disposable VM; on this self-hosted machine it mutates the developer's
+      # own real system package set, every single run, whether or not anything is
+      # missing - unlike the checks above, this step was not written for that
+      # distinction and does not skip when the libraries are already there. Left as
+      # upstream Playwright wrote it rather than reimplemented here, but flagged: if
+      # this machine should not have its system packages touched by CI, pre-provision
+      # the Chromium dependencies once by hand and this step becomes a fast no-op only
+      # once Playwright itself learns to check first.
       - name: Install Playwright browsers
         working-directory: design/packages/app
         run: pnpm exec playwright install-deps chromium
@@ -544,7 +686,13 @@ jobs:
     # input it is blocked on - it is done long before the others are.
     needs: [check, package, jars, test-world, config-java-roundtrip]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, X64]
+    # This job deliberately carries no `ci-release-*-cancel-in-progress-true` group like
+    # the other jobs in this file now do (see the top-of-file comment): that pattern
+    # exists to clear a pileup of *stale* work, and a publish already in flight is never
+    # stale. The group below is the one that already existed for a different reason and
+    # is unrelated to the self-hosted switch - kept exactly as it was.
+    #
     # The one thing that genuinely cannot run twice at once, and not for the reason it
     # looks like. The tag is `v<version>-build.<run number>`, which is unique per run, so
     # two releases could never collide on it.
@@ -570,10 +718,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      # pnpm before setup-node, so the node cache can key off the lockfile.
+      # `zip` (used below to package the server plugins and the extras archive) ships
+      # on GitHub's hosted ubuntu-latest image but is not guaranteed on this self-hosted
+      # machine. Check first and only install what's missing - see the identical check
+      # in the `test-world` job for why this needs sudo and the others do not.
+      - name: Ensure zip is present
+        run: |
+          set -euo pipefail
+          if command -v zip >/dev/null 2>&1; then
+            echo "zip already present: $(zip --version | head -2 | tail -1)"
+          else
+            echo "zip missing, installing via apt-get (requires sudo on this self-hosted runner)"
+            sudo apt-get update
+            sudo apt-get install -y zip
+          fi
+
+      # pnpm before setup-node, so the node cache can key off the lockfile. Version
+      # pinned via design/package.json's own `packageManager` field - see the comment on
+      # the same step in the `check` job above for why.
       - uses: pnpm/action-setup@v4
         with:
-          version: 10
+          package_json_file: design/package.json
 
       - uses: actions/setup-node@v4
         with:

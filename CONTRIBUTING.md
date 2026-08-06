@@ -45,9 +45,20 @@ npx tsc -p packages/engine/tsconfig.json --noEmit
 ```
 
 CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs `pnpm lint`, then `pnpm build`,
-then `pnpm test` on Ubuntu with Node 22, on every push to `main` or a `claude/**` branch and on
-every pull request. **Lint runs before the type check**, so a single unused variable fails the
-job before tsc ever reports the real type errors underneath it. Run lint first locally too.
+then `pnpm typecheck` and `pnpm test:ci` (among other jobs — the Windows installer, the vendored
+Java engine build, a real rendered-world screenshot pass) on every push and on manual dispatch.
+**Lint runs before the type check**, so a single unused variable fails the job before tsc ever
+reports the real type errors underneath it. Run lint first locally too.
+
+**This project's CI runs on this developer's own self-hosted runners, not GitHub-hosted VMs, and
+does not run on pull requests.** The repository is public, and a self-hosted runner on a public
+repository is a documented attack path — anyone who can cause a workflow to run can execute code
+on the machine behind it. `push` and `workflow_dispatch` both require write access, which is the
+mitigation; see decision D19 in
+[`design/docs/decisions.md`](design/docs/decisions.md) for the full reasoning, including why
+`pull_request` was dropped rather than merely restricted, and how each job now installs its own
+Node, pnpm, Java and a handful of OS tools instead of relying on a hosted image's preinstalled
+toolset.
 
 > **Fixed: the Windows build that built nothing.** The `build` script used to quote its
 > workspace filter with single quotes. `cmd.exe` does not strip those, and npm-scripts on

@@ -103,3 +103,57 @@ Since D17 puts a real JVM in the product, those adapters are no longer inert: th
 produces the renderer produces them, and a user running a Minecraft server can take the plugin
 for their platform from the same release. What was excluded as unusable is now a shipping
 artifact.
+
+## D19 — Project CI moved to self-hosted runners; `pull_request` dropped from `ci.yml`
+
+**Decided 2026-08-05.**
+
+`ci.yml`, `pages.yml` and `build-jars.yml` — the workflows that build and test **this repository
+itself** — now run on two of this developer's own machines, registered as GitHub Actions
+self-hosted runners (`CLAUDE`, labelled `self-hosted, Linux, X64`, and `CLAUDE-Windows`, labelled
+`self-hosted, X64, Windows`), targeted by their label sets rather than `ubuntu-latest` /
+`windows-latest`. This is scoped to this project's own CI only. The render templates this
+application commits into *users'* own repositories — `render-world.yml`, `render-shard-wave.yml`,
+`render-private-world.yml`, `scheduled-render.yml` — stay on GitHub-hosted runners; pointing a
+user's render queue at a runner only this developer owns would break rendering for everyone else
+the moment this developer's machine is offline, and was never the intent of this change.
+
+This repository is public, and a self-hosted runner on a public repository is a documented attack
+path: anyone who can cause a workflow to run can execute code on the machine behind it. `ci.yml`
+therefore no longer triggers on `pull_request` — that trigger is exactly the one reachable by
+anyone who can open a PR, including from a fork with arbitrary workflow content, without needing
+write access to this repository. `push` and `workflow_dispatch` both require write access, which
+is the actual mitigation; see the trigger comment at the top of `ci.yml` for the fuller version.
+`pages.yml` and `build-jars.yml` were audited for the same problem and found already clean: both
+were already gated to `push`/`workflow_call`/`workflow_dispatch` with no `pull_request` trigger.
+
+Two consequences follow directly and are handled in the workflows themselves rather than by a
+separate document:
+
+- **Nothing is preinstalled.** GitHub's hosted images arrive with Node, Java, pnpm, `shellcheck`,
+  `zip`/`unzip` and `xvfb` already on them; a self-hosted machine has whatever it happens to have.
+  Every changed job now installs what it needs — Node and pnpm at the exact versions
+  `design/package.json` pins (`engines.node` and `packageManager`), Temurin where a job already
+  needed Java, and a check-first, install-only-if-missing step for `shellcheck`, `zip`, `unzip`
+  and `xvfb` where a job's existing steps assumed the hosted image's toolset. `shellcheck`
+  installs into a per-job directory added to `PATH` with no `sudo`; the OS-packaged tools
+  (`zip`/`unzip`/`xvfb`) go through `apt-get`, which does need `sudo` on this machine and is
+  flagged as such at each call site — the genuinely canonical distribution channel for an OS
+  utility, unlike a tool with its own upstream binary releases.
+- **The workspace is not clean between runs.** `actions/checkout@v4`'s default `clean: true`
+  (`git clean -ffdx && git reset --hard HEAD`) already wipes untracked and ignored files — stray
+  `node_modules`, build output — from the checked-out tree at the start of every job, which covers
+  most of this. What it does not cover: state outside `$GITHUB_WORKSPACE` (a stuck Electron
+  process from a crashed capture, a stale Xvfb display), which the `screenshots` job now clears
+  defensively at the start of its own run rather than assuming a fresh machine.
+
+Tonight's push burst also queued 26 simultaneous runs against these same two machines — harmless
+on free, disposable hosted runners, a real pileup against two real computers. `ci.yml` gained a
+`concurrency` block on every job except `release` (`cancel-in-progress: true`, keyed per job on
+`github.ref`), so a burst of pushes cancels each job's own stale predecessor rather than queuing
+all of them. This is deliberately **not** a single workflow-level group: `ci.yml` tried that once
+before (see the comment above `permissions:` in that file) and a shared group evicted queued runs
+in a way that left long stretches of `main` with no verdict at all. `release` keeps its
+pre-existing job-level group (`cancel-in-progress: false`) untouched — a queued publish should
+wait, never be dropped, and a workflow-level group could have cancelled a release job mid-publish,
+which is exactly the failure this decision must not reintroduce.

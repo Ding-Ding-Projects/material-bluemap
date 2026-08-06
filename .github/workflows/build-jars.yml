@@ -33,7 +33,12 @@ permissions:
 jobs:
   build:
     name: Build the seven implementations
-    runs-on: ubuntu-latest
+    # See design/docs/decisions.md D19 for why this moved off a hosted runner. The
+    # caller (ci.yml's `jars` job) already carries the `cancel-in-progress: true` group
+    # that keeps a burst of pushes from piling up here; no separate group is added in
+    # this file for a job that is only ever reached through that call, since a direct
+    # `workflow_dispatch` of this file is rare enough on its own not to need one.
+    runs-on: [self-hosted, Linux, X64]
     # A cold cache has to fetch Minecraft, Forge, NeoForge, Fabric and Paper artefacts
     # and decompile against them. A warm one does none of that. The ceiling is generous
     # so a first run on a new cache key is not killed halfway through populating it.
