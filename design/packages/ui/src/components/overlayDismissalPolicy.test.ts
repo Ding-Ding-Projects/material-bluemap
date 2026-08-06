@@ -502,6 +502,15 @@ const REGISTRY: readonly OverlayEntry[] = [
         status: "clean",
     },
     {
+        file: "components/world/SshWorldSourcePanel.vue",
+        surface:
+            "The SSH world-source panel's AppearanceTarget context menu and anchored editor; " +
+            "the remote file browser itself opens in a bounded v-dialog, not a v-menu.",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
         file: "components/tabs/TabStrip.vue",
         surface:
             "The tab menu and group menu (:target only, no :activator), the new-tab picker, " +

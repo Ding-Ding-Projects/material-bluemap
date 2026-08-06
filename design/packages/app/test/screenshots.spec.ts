@@ -2090,6 +2090,25 @@ test("captures the make-a-map wizard at every step", async () => {
         );
     });
 
+    await attempt("Wizard, SSH world source", async () => {
+        const opener = page.locator('[data-test="ssh-open"]');
+        await opener.click({ timeout: ELEMENT_TIMEOUT });
+        await page.waitForSelector("#mb-ssh-world-panel", {
+            state: "visible",
+            timeout: ELEMENT_TIMEOUT,
+        });
+        await page.waitForTimeout(500);
+        await shoot(
+            "wizard-ssh-world-source",
+            "The SSH world-source checklist inside the first wizard step: saved key-only machines, explicit host-key review, remote-world inspection, and a local fetch destination",
+            {
+                crop: page.locator("#mb-ssh-world-panel"),
+                cropped: "the SSH world-source checklist",
+            },
+        );
+        await opener.click({ timeout: ELEMENT_TIMEOUT });
+    });
+
     const world = captureWorldFolder();
     if (world === null) {
         skip(

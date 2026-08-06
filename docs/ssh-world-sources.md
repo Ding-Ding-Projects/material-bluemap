@@ -128,8 +128,10 @@ find out.
 ## Verification
 
 `design/packages/app/src/main/remote/worldsource.ts`, `windowsShell.ts`, and
-`design/packages/app/src/main/worldsource/sshFetcher.ts` / `sshIpc.ts` have **64 tests**, all
-of them against fake SSH and process runners:
+`design/packages/app/src/main/worldsource/sshFetcher.ts` / `sshIpc.ts` have **64 main-process
+tests**, all of them against fake SSH and process runners. The reachable wizard path adds
+**15 focused UI/preload tests** (three renderer seam/likelihood tests, two mounted guided-flow
+tests, and the existing ten preload channel tests):
 
 | File | What it proves |
 |---|---|
@@ -137,6 +139,9 @@ of them against fake SSH and process runners:
 | `worldsource.test.ts` | host detection (POSIX, Windows, unknown), path grammar per host kind, the POSIX and PowerShell survey parsers, survey diffing, and the full fetch orchestration — an unreachable host, a host-key mismatch, a Windows host falling back to scp, a partial/interrupted transfer, permission denied, an invalid path for the detected host, and cancellation |
 | `sshFetcher.test.ts` | id assignment, active-fetch tracking, and that cancelling aborts the signal the transfer is actually awaiting |
 | `sshIpc.test.ts` | the nine channels register and dispose exactly, no handler rejects, and a host key is only ever trusted by re-scanned fingerprint |
+| `sshWorldSourceBridge.test.ts` | the renderer resolves the real nested `window.materialBluemap.sshWorldSource` namespace only when all ten methods exist, and a survey needs both `level.dat` and a real region file before it is called a world |
+| `SshWorldSourcePanel.test.ts` | mounted unknown-key review, explicit trust, POSIX detection, survey, transfer events, local destination calculation and the final handoff into the ordinary wizard path |
+| `preload/sshWorldSourceBridge.test.ts` | all nine invoke channels and the event listener keep the exact positional shape the main-process handlers read |
 
 Run them with `npx vitest run packages/app` from `design/`.
 
@@ -149,9 +154,19 @@ Windows-specific probe and survey scripts in `windowsShell.ts` have not had that
 pass yet.
 
 The desktop application registers this at startup (`startSshWorldSources()` in
-`main/index.ts`), so the IPC surface is reachable; no wizard step in `packages/ui` calls it
-yet, which is the same gap [worlds from somebody else's release](./world-sources.md#using-one-in-the-desktop-application)
-was built with and has not yet closed.
+`main/index.ts`) and the map wizard's World step now reaches it through
+`SshWorldSourcePanel.vue`. The panel deliberately reuses the same saved-target editor and
+Explorer-style remote browser as remote rendering: one list of SSH machines, actual directory
+data, the same host-key trust store, and the same world-likelihood signals. An unknown key shows
+the offered fingerprints and records only the exact one the person reviewed; a changed key stays
+refused with no trust action. A surveyed and fetched folder rejoins the existing local-folder
+inspection path instead of creating a second kind of wizard world.
+
+The focused UI suite and a real production UI build prove that preload-to-renderer seam and the
+mounted interactions. A cheap headless run also opened the built panel at 390 CSS pixels and
+200% scale with zero horizontal overflow, viewport escapes, or clipped buttons. The real-host
+limitation above still stands: neither a Linux nor Windows host has completed this whole path
+through a packaged build yet.
 
 ## Related reading
 

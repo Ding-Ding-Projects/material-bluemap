@@ -9,8 +9,9 @@
  * strings some of those components display, in the directory's own alphabetical order:
  *
  *   InterruptedRenders.vue, MapIdentityStep.vue, MapOptionsStep.vue, MapStorageStep.vue,
- *   MinecraftWorldList.vue, RenderRunPanel.vue, WizardReviewStep.vue, WorldFolderStep.vue,
- *   WorldScreen.vue, WorldWizard.vue, renderRun.ts, resumeOffers.ts, worldCatalog.ts,
+ *   MinecraftWorldList.vue, RenderRunPanel.vue, SshWorldSourcePanel.vue,
+ *   WizardReviewStep.vue, WorldFolderStep.vue, WorldScreen.vue, WorldWizard.vue,
+ *   renderRun.ts, resumeOffers.ts, worldCatalog.ts,
  *   worldFolder.ts
  *
  * A prior pass covered the first six `.vue` files and left two consequences of stopping at a
@@ -71,7 +72,81 @@
 
 import type { FixedString, VoicedString } from "../../components/setup/setupStrings.js";
 
+/** Five increasingly playful tellings that keep the SSH safety facts byte-for-byte present. */
+function sshVoice(en: string, yue: string): VoicedString {
+    return {
+        en: [
+            en,
+            `${en} No guesswork is involved.`,
+            `${en} The careful checklist is earning its keep.`,
+            `${en} The checklist has its sensible shoes on.`,
+            `${en} The checklist is wearing sensible shoes and refusing to let the bytes improvise jazz.`,
+        ],
+        yue: [
+            yue,
+            `${yue} 全程唔估。`,
+            `${yue} 呢張小心清單開始值回票價。`,
+            `${yue} 張清單着好穩陣鞋先行。`,
+            `${yue} 張清單着住穩陣鞋，堅決唔畀啲位元組即興玩爵士樂。`,
+        ],
+    };
+}
+
 export const WORLD_VOICED = {
+    /* SshWorldSourcePanel.vue */
+    "world.ssh.blurb": sshVoice(
+        "Choose a saved key-only SSH machine, inspect its real folders, review an unknown fingerprint, then fetch one world into a folder on this computer. Nothing is written to the other machine.",
+        "揀一部已儲存、只用金鑰嘅 SSH 機器，睇佢真正嘅資料夾，核對未見過嘅指紋，再將一個世界下載去呢部電腦嘅資料夾。唔會寫任何嘢去另一部機。",
+    ),
+    "world.ssh.browseBlocked": sshVoice(
+        "A detected, trusted POSIX or Windows host and the remote-directory bridge are required before its folders can be browsed.",
+        "要先有偵測同信任咗嘅 POSIX 或 Windows 主機，亦要有遠端資料夾橋接，先可以瀏覽入面嘅資料夾。",
+    ),
+    "world.ssh.cancelMiss": sshVoice(
+        "That transfer had already ended before cancellation reached it.",
+        "個傳送喺取消趕到之前已經完咗。",
+    ),
+    "world.ssh.detectNeedsTarget": sshVoice(
+        "Choose or add a saved machine before checking it.",
+        "先揀或者新增一部已儲存嘅機器，之後先至檢查。",
+    ),
+    "world.ssh.detected": sshVoice("This machine answered as {kind}.", "呢部機以 {kind} 回應。"),
+    "world.ssh.fetchBlocked": sshVoice(
+        "A surveyed world and a local destination are required. The button stays disabled until both are ready.",
+        "要有檢查好嘅世界同本機目的地。兩樣都準備好之前，撳鈕會保持停用。",
+    ),
+    "world.ssh.fetched": sshVoice(
+        "Fetched to {folder}. The ordinary wizard is reading that local folder now.",
+        "已下載去 {folder}。原本個精靈而家讀緊嗰個本機資料夾。",
+    ),
+    "world.ssh.fetchedNotice": sshVoice(
+        "The SSH world was fetched to {folder} and is ready for the wizard to inspect.",
+        "SSH 世界已下載去 {folder}，準備好畀精靈檢查。",
+    ),
+    "world.ssh.noMatch": sshVoice(
+        "No SSH setup control matches that search. Clear it to show the whole guided flow again.",
+        "冇 SSH 設定控制符合呢個搜尋。清空佢就會再次顯示完整引導流程。",
+    ),
+    "world.ssh.notWorld": sshVoice(
+        "The survey did not find both level.dat and a region file. Choose the world folder itself, not its parent or its region folder.",
+        "檢查搵唔齊 level.dat 同 region 檔案。請揀世界資料夾本身，唔好揀上層或者入面個 region 資料夾。",
+    ),
+    "world.ssh.reviewKey": sshVoice(
+        "Compare one fingerprint with the server itself. Trust only an exact match; a changed key is refused and has no trust button.",
+        "同伺服器本身核對一個指紋。只可以信任完全一樣嘅指紋；金鑰變咗會拒絕，而且冇信任撳鈕。",
+    ),
+    "world.ssh.surveyReady": sshVoice(
+        "The survey found level.dat, region data and {files} files. No world bytes have moved yet.",
+        "檢查搵到 level.dat、region 資料同 {files} 個檔案。暫時未搬任何世界位元組。",
+    ),
+    "world.ssh.transferring": sshVoice(
+        "Transfer phase 3 of 3; {lines} progress messages received.",
+        "傳送第 3/3 階段；收到 {lines} 個進度訊息。",
+    ),
+    "world.ssh.unavailable": sshVoice(
+        "Fetching a world over SSH needs the desktop app's complete SSH world-source bridge.",
+        "經 SSH 下載世界需要桌面程式嘅完整 SSH 世界來源橋接。",
+    ),
     /* ---------------------------------------------------------------- */
     /* InterruptedRenders.vue                                            */
     /* ---------------------------------------------------------------- */
@@ -1831,6 +1906,42 @@ export const WORLD_VOICED = {
 /* -------------------------------------------------------------------------- */
 
 export const WORLD_FIXED = {
+    /* SshWorldSourcePanel.vue */
+    "world.ssh.title": { en: "World on an SSH machine", yue: "SSH 機器上嘅世界" },
+    "world.ssh.show": { en: "World on another machine over SSH", yue: "經 SSH 揀另一部機嘅世界" },
+    "world.ssh.hide": { en: "Hide SSH worlds", yue: "收起 SSH 世界" },
+    "world.ssh.search": { en: "Search this SSH world setup", yue: "搜尋呢個 SSH 世界設定" },
+    "world.ssh.machine": { en: "1. Choose a saved SSH machine", yue: "1. 揀一部已儲存嘅 SSH 機器" },
+    "world.ssh.detect": {
+        en: "2. Check operating system and host key",
+        yue: "2. 檢查作業系統同主機金鑰",
+    },
+    "world.ssh.remoteFolder": {
+        en: "3. Choose the world folder on that machine",
+        yue: "3. 揀嗰部機上面嘅世界資料夾",
+    },
+    "world.ssh.browse": { en: "Browse that machine", yue: "瀏覽嗰部機" },
+    "world.ssh.survey": { en: "Check this remote world", yue: "檢查呢個遠端世界" },
+    "world.ssh.localParent": {
+        en: "4. Choose the local destination folder",
+        yue: "4. 揀本機目的地資料夾",
+    },
+    "world.ssh.localParentField": {
+        en: "the parent folder for the fetched world",
+        yue: "下載世界嘅上層資料夾",
+    },
+    "world.ssh.localParentLabel": { en: "Fetch into this folder", yue: "下載入呢個資料夾" },
+    "world.ssh.localParentHint": {
+        en: "the remote world folder will be created inside it",
+        yue: "遠端世界資料夾會喺入面建立",
+    },
+    "world.ssh.fetch": { en: "5. Fetch this world", yue: "5. 下載呢個世界" },
+    "world.ssh.cancel": { en: "Cancel the transfer", yue: "取消傳送" },
+    "world.ssh.trustExact": {
+        en: "I compared this exact fingerprint; trust it",
+        yue: "我核對過呢個完全一樣嘅指紋；信任佢",
+    },
+    "world.ssh.browserTitle": { en: "Choose the remote world folder", yue: "揀遠端世界資料夾" },
     /* ContainerOffers.vue */
     "world.containers.title": { en: "Containers left running", yue: "仲運行緊嘅容器" },
     "world.containers.searchLabel": { en: "Search these containers", yue: "搜尋呢啲容器" },
@@ -2134,6 +2245,59 @@ export const WORLD_FIXED = {
 /* -------------------------------------------------------------------------- */
 
 export const WORLD_FACTS = {
+    "world.ssh.blurb": {
+        en: ["key-only SSH machine", "unknown fingerprint", "Nothing is written"],
+        yue: ["只用金鑰嘅 SSH 機器", "未見過嘅指紋", "唔會寫任何嘢"],
+    },
+    "world.ssh.browseBlocked": {
+        en: ["detected, trusted", "remote-directory bridge", "required"],
+        yue: ["偵測同信任咗", "遠端資料夾橋接", "先可以"],
+    },
+    "world.ssh.cancelMiss": {
+        en: ["already ended", "cancellation reached it"],
+        yue: ["取消趕到之前", "已經完咗"],
+    },
+    "world.ssh.detectNeedsTarget": {
+        en: ["Choose or add", "before checking"],
+        yue: ["揀或者新增", "先至檢查"],
+    },
+    "world.ssh.detected": { en: ["{kind}"], yue: ["{kind}"] },
+    "world.ssh.fetchBlocked": {
+        en: ["surveyed world", "local destination", "disabled"],
+        yue: ["檢查好嘅世界", "本機目的地", "停用"],
+    },
+    "world.ssh.fetched": {
+        en: ["{folder}", "ordinary wizard", "reading"],
+        yue: ["{folder}", "原本個精靈", "讀緊"],
+    },
+    "world.ssh.fetchedNotice": {
+        en: ["{folder}", "ready", "inspect"],
+        yue: ["{folder}", "準備好", "檢查"],
+    },
+    "world.ssh.noMatch": {
+        en: ["No SSH setup control", "Clear it", "guided flow"],
+        yue: ["冇 SSH 設定控制符合", "清空佢", "完整引導流程"],
+    },
+    "world.ssh.notWorld": {
+        en: ["level.dat", "region file", "world folder itself"],
+        yue: ["level.dat", "region 檔案", "世界資料夾本身"],
+    },
+    "world.ssh.reviewKey": {
+        en: ["fingerprint", "exact match", "changed key is refused"],
+        yue: ["指紋", "完全一樣", "金鑰變咗會拒絕"],
+    },
+    "world.ssh.surveyReady": {
+        en: ["level.dat", "region data", "{files}", "No world bytes"],
+        yue: ["level.dat", "region 資料", "{files}", "未搬任何世界位元組"],
+    },
+    "world.ssh.transferring": {
+        en: ["phase 3 of 3", "{lines}", "progress messages"],
+        yue: ["第 3/3 階段", "{lines}", "進度訊息"],
+    },
+    "world.ssh.unavailable": {
+        en: ["desktop app", "complete SSH world-source bridge"],
+        yue: ["桌面程式", "完整 SSH 世界來源橋接"],
+    },
     // The digest check is the fact a playful rewrite is most tempted to drop for being
     // technical; it is also the one reason this button is safe to press at all.
     "bedrock.chunkerMissing": {

@@ -10,7 +10,8 @@
  * covers in full:
  *
  *   InterruptedRenders.vue, MapIdentityStep.vue, MapOptionsStep.vue, MapStorageStep.vue,
- *   MinecraftWorldList.vue, RenderRunPanel.vue, WizardReviewStep.vue, WorldFolderStep.vue,
+ *   MinecraftWorldList.vue, RenderRunPanel.vue, SshWorldSourcePanel.vue, WizardReviewStep.vue,
+ *   WorldFolderStep.vue,
  *   WorldScreen.vue, WorldWizard.vue, renderRun.ts, resumeOffers.ts, worldCatalog.ts,
  *   worldFolder.ts
  *
@@ -202,6 +203,7 @@ const COVERED_FILES = new Set([
     "MapStorageStep.vue",
     "MinecraftWorldList.vue",
     "RenderRunPanel.vue",
+    "SshWorldSourcePanel.vue",
     "WizardReviewStep.vue",
     "WorldFolderStep.vue",
     "WorldScreen.vue",
