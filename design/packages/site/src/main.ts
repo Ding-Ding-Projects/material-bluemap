@@ -68,7 +68,10 @@ import { TabsController } from "./tabs/index.js";
 import { ThemeController } from "./theme/ThemeController.js";
 import { createCommandPalette, type PaletteCommand } from "./shell/commandPalette.js";
 import { articlePaletteCommands } from "./shell/articleCommands.js";
-import { registerAppearanceTarget } from "./appearance/editor/contextMenu.js";
+import {
+    installRovingAppearanceFocus,
+    registerAppearanceTarget,
+} from "./appearance/editor/contextMenu.js";
 import { appearanceElements } from "./appearance/editor/coverage.js";
 import { setSearchLocale } from "./search/strings.js";
 import { createSearchSurface } from "./search/searchSurface.js";
@@ -1367,6 +1370,10 @@ function createShellFooter(i18n: I18n, appearance: AppearanceController): HTMLEl
         { kind: "card", instance: "footer", instanceLabel: "Site footer" },
         appearance,
     );
+    // A lone `<footer>` is not natively focusable, so `ensureFocusable` above leaves it
+    // `tabindex="-1"` -- reachable only by script, never by Tab. A group of one still needs
+    // a real entry point for the same reason `decoratePage`'s larger groups do.
+    installRovingAppearanceFocus([footer]);
     return footer;
 }
 
@@ -1379,6 +1386,7 @@ function decoratePage(host: HTMLElement, pageId: string, appearance: AppearanceC
     // as well as controls. The registration is idempotent for elements already decorated by
     // a feature-specific editor (tabs, settings and the palette).
     const candidates = appearanceElements(target);
+    const registered: HTMLElement[] = [];
     candidates.forEach((element, index) => {
         if (element.dataset.mbKind !== undefined) return;
         const readable =
@@ -1396,7 +1404,14 @@ function decoratePage(host: HTMLElement, pageId: string, appearance: AppearanceC
             },
             appearance,
         );
+        registered.push(element);
     });
+    // `ensureFocusable` deliberately keeps every one of these out of the natural Tab order
+    // (tabindex="-1" is for focus RETURN, not entry); without this, a keyboard-only visitor
+    // has no way to Tab to a plain heading, paragraph, table cell or card in the first place,
+    // let alone reach its ContextMenu/Shift+F10 handler. This gives the page one real Tab
+    // stop into the group and arrow-key roving across the rest of it.
+    installRovingAppearanceFocus(registered);
 }
 
 function createShellPalette(options: {

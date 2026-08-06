@@ -69,6 +69,79 @@ function ensureFocusable(element: HTMLElement): void {
 }
 
 /**
+ * Give a batch of elements that `ensureFocusable` made `tabindex="-1"` a real way in for a
+ * keyboard-only visitor, the same roving-tabindex idiom the tab strip already uses for its
+ * own arrow-key navigation.
+ *
+ * `tabindex="-1"` alone is correct for what it was built for -- focus RETURN once a menu
+ * opened by mouse closes -- but it is deliberately absent from the Tab order (that is the
+ * whole point of `-1`), so a heading, paragraph, table cell or card that has no other
+ * focusable ancestor or sibling is otherwise permanently unreachable by keyboard: nothing
+ * ever tabs to it, so its own `ContextMenu`/Shift+F10 handler (which only fires when
+ * `event.target === element`) never gets a chance to run. Call this once with the group of
+ * elements a page just registered (`decoratePage`'s traversal, for example) and exactly one
+ * of them joins the Tab order for real; ArrowDown/ArrowRight, ArrowUp/ArrowLeft, Home and End
+ * roving-focus across the rest, so every element in the group becomes reachable without
+ * turning an entire article into a wall of meaningless Tab stops.
+ *
+ * Elements that are already natively focusable, or that already carry their own explicit
+ * `tabindex`, are left alone -- they already have (or deliberately opted out of) a Tab stop
+ * of their own and do not need to borrow this group's.
+ */
+export function installRovingAppearanceFocus(elements: readonly HTMLElement[]): () => void {
+    const group = elements.filter(
+        (element) =>
+            element.getAttribute("tabindex") === "-1" &&
+            !NATIVELY_FOCUSABLE.includes(element.tagName)
+    );
+    const first = group[0];
+    if (first === undefined) return () => {};
+
+    let activeIndex = 0;
+    first.tabIndex = 0;
+
+    const setActive = (index: number, focus: boolean): void => {
+        const previous = group[activeIndex];
+        if (previous !== undefined) previous.tabIndex = -1;
+        activeIndex = index;
+        const next = group[activeIndex];
+        if (next === undefined) return;
+        next.tabIndex = 0;
+        if (focus) next.focus();
+    };
+
+    const onKeyDown = (event: KeyboardEvent): void => {
+        if (!(event.target instanceof HTMLElement)) return;
+        const index = group.indexOf(event.target);
+        if (index < 0) return;
+        let next = -1;
+        if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+            next = (index + 1) % group.length;
+        } else if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+            next = (index - 1 + group.length) % group.length;
+        } else if (event.key === "Home") {
+            next = 0;
+        } else if (event.key === "End") {
+            next = group.length - 1;
+        } else {
+            return;
+        }
+        event.preventDefault();
+        setActive(next, true);
+    };
+
+    for (const element of group) {
+        element.addEventListener("keydown", onKeyDown);
+    }
+
+    return () => {
+        for (const element of group) {
+            element.removeEventListener("keydown", onKeyDown);
+        }
+    };
+}
+
+/**
  * Mark an element as an appearance target and give it a menu.
  *
  * The data attributes are what the managed stylesheet's selectors match, so an

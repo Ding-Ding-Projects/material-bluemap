@@ -16,7 +16,11 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AppearanceController } from "../controller.js";
 import { AppearanceStore } from "../store.js";
 import { Preferences } from "../../platform/Preferences.js";
-import { openElementMenu, registerAppearanceTarget } from "./contextMenu.js";
+import {
+    installRovingAppearanceFocus,
+    openElementMenu,
+    registerAppearanceTarget,
+} from "./contextMenu.js";
 
 const cells = new Map<string, string>();
 
@@ -209,5 +213,135 @@ describe("registerAppearanceTarget keeps every registered element focusable", ()
         registerAppearanceTarget(div, { kind: "card" }, controller());
 
         expect(div.getAttribute("tabindex")).toBe("0");
+    });
+});
+
+/**
+ * Regression guard for the actual keyboard-reachability gap left behind by `tabindex="-1"`
+ * alone: it fixes focus RETURN (see the describe block above) but is deliberately excluded
+ * from the Tab order by spec, so nothing ever tabs a keyboard-only visitor onto a plain
+ * heading, paragraph, table cell or card in the first place -- the element's own
+ * `ContextMenu`/Shift+F10 handler only runs when it already has focus, and there was no route
+ * to get it there. `installRovingAppearanceFocus` is the fix: it takes the group of elements
+ * a page just registered and gives exactly one of them a real Tab stop, with arrow keys,
+ * Home and End roving focus across the rest -- the same idiom the tab strip already uses for
+ * its own keyboard navigation.
+ */
+describe("installRovingAppearanceFocus gives a registered group a real keyboard entry point", () => {
+    beforeEach(() => {
+        cells.clear();
+        document.body.replaceChildren();
+    });
+
+    function controller(): AppearanceController {
+        return new AppearanceController(new Preferences(null), new AppearanceStore());
+    }
+
+    function registeredHeading(text: string): HTMLHeadingElement {
+        const heading = document.createElement("h2");
+        heading.textContent = text;
+        document.body.append(heading);
+        registerAppearanceTarget(heading, { kind: "card" }, controller());
+        return heading;
+    }
+
+    it("promotes exactly one element of the group into the real Tab order", () => {
+        const first = registeredHeading("First");
+        const second = registeredHeading("Second");
+        const third = registeredHeading("Third");
+
+        // Before the fix is wired in, every registered element is tabindex=-1 and none of
+        // them is reachable by Tab at all -- this is the defect itself, reproduced.
+        expect(first.getAttribute("tabindex")).toBe("-1");
+        expect(second.getAttribute("tabindex")).toBe("-1");
+        expect(third.getAttribute("tabindex")).toBe("-1");
+
+        installRovingAppearanceFocus([first, second, third]);
+
+        expect(
+            first.getAttribute("tabindex"),
+            "no element in the group became a real Tab stop, so a keyboard-only visitor still has no way in",
+        ).toBe("0");
+        expect(second.getAttribute("tabindex")).toBe("-1");
+        expect(third.getAttribute("tabindex")).toBe("-1");
+    });
+
+    it("moves the Tab stop and real focus with ArrowDown, reaching an element Tab alone never could", () => {
+        const first = registeredHeading("First");
+        const second = registeredHeading("Second");
+        installRovingAppearanceFocus([first, second]);
+
+        first.focus();
+        expect(document.activeElement).toBe(first);
+
+        first.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }),
+        );
+
+        expect(
+            document.activeElement,
+            "ArrowDown did not move real keyboard focus onto the next registered element",
+        ).toBe(second);
+        expect(
+            second.getAttribute("tabindex"),
+            "the newly-focused element did not become the group's real Tab stop",
+        ).toBe("0");
+        expect(
+            first.getAttribute("tabindex"),
+            "the previously-focused element kept a Tab stop, which would put two elements in the Tab order at once",
+        ).toBe("-1");
+    });
+
+    it("wraps ArrowUp from the first element back to the last", () => {
+        const first = registeredHeading("First");
+        const second = registeredHeading("Second");
+        const third = registeredHeading("Third");
+        installRovingAppearanceFocus([first, second, third]);
+
+        first.focus();
+        first.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true }),
+        );
+
+        expect(document.activeElement).toBe(third);
+        expect(third.getAttribute("tabindex")).toBe("0");
+    });
+
+    it("jumps to the last element on End and back to the first on Home", () => {
+        const first = registeredHeading("First");
+        const second = registeredHeading("Second");
+        const third = registeredHeading("Third");
+        installRovingAppearanceFocus([first, second, third]);
+
+        first.focus();
+        first.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "End", bubbles: true, cancelable: true }),
+        );
+        expect(document.activeElement).toBe(third);
+
+        third.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Home", bubbles: true, cancelable: true }),
+        );
+        expect(document.activeElement).toBe(first);
+    });
+
+    it("leaves a natively focusable element out of the roving group entirely", () => {
+        const button = document.createElement("button");
+        button.type = "button";
+        document.body.append(button);
+        registerAppearanceTarget(button, { kind: "tab" }, controller());
+        const heading = registeredHeading("Only real roving member");
+
+        installRovingAppearanceFocus([button, heading]);
+
+        // The button never had a tabindex attribute at all (see the describe block above);
+        // installRovingAppearanceFocus must not add one, since the button already has its
+        // own native Tab stop and does not need to borrow the group's.
+        expect(button.hasAttribute("tabindex")).toBe(false);
+        expect(heading.getAttribute("tabindex")).toBe("0");
+    });
+
+    it("does nothing when the group is empty", () => {
+        expect(() => installRovingAppearanceFocus([])).not.toThrow();
     });
 });
