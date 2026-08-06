@@ -146,6 +146,18 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
         status: "has-search",
     },
     {
+        file: "history/SimpleHistoryList.vue",
+        builtVia: "v-menu",
+        menu: "The narrow list-and-restore host's own 'Export' format picker.",
+        status: "has-search",
+    },
+    {
+        file: "history/SimpleHistoryPanel.vue",
+        builtVia: "v-menu",
+        menu: "The searchable, date-filterable history panel's own 'Export' format picker.",
+        status: "has-search",
+    },
+    {
         file: "markers/MarkerSearchField.vue",
         builtVia: "v-menu",
         menu: "The regex builder popover anchored to the in-viewer marker search field.",
@@ -212,6 +224,18 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
         file: "project/ProjectList.vue",
         builtVia: "AppearanceTarget",
         menu: "Context menu of a project/world row (Edit/Reset appearance).",
+        status: "has-search",
+    },
+    {
+        file: "project/DiscoveredWorldsPanel.vue",
+        builtVia: "AppearanceTarget",
+        menu: "Context menu of a discovered-but-not-yet-a-project world row (Edit/Reset appearance).",
+        status: "has-search",
+    },
+    {
+        file: "renders/RendersScreen.vue",
+        builtVia: "AppearanceTarget",
+        menu: "Context menu of a render-in-progress row (Edit/Reset appearance).",
         status: "has-search",
     },
     {
