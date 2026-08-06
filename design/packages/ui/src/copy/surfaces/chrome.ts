@@ -396,6 +396,13 @@ export const CHROME_FIXED = {
         yue: "訊息、詳情、等級或者時間",
     },
     "notices.centre.levelChip": { en: "{level} ({count})", yue: "{level}（{count}）" },
+    /*
+     * The toggle for the collapsible row holding the date range and the level chips. Starts
+     * collapsed, the same as `HistoryPanel.vue`'s own filter row, so the badge beside it is
+     * what keeps a collapsed row from hiding an active filter silently.
+     */
+    "notices.centre.filters": { en: "Filters", yue: "篩選" },
+    "notices.centre.clearFilters": { en: "Clear every filter", yue: "清走所有篩選" },
 } as const satisfies Record<string, FixedString>;
 
 export const CHROME_FACTS = {

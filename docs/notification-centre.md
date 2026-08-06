@@ -38,19 +38,34 @@ already showing says so rather than offering a button that would do nothing.
 
 ### Finding one again
 
-- **Filter chips, one per level**, in severity order: error, warning, success, information.
-  Somebody opening the centre after something went wrong is looking for the failure, and a row
-  that leads with information makes them read past three chips to reach it. Each chip carries its
-  count, and **every level is present even at zero**, because a control that vanishes when its
-  count reaches zero is a control the user cannot find again when it stops being zero. Nothing
-  selected means every level, because a filter row with nothing pressed is a user who has not
-  filtered rather than one who asked to see nothing.
 - **A search bar**, which is the settings editor's own `ConfigSearchField` with the regex builder
-  anchored beside it. Reusing it is not only less code: it is the only way a pattern built here
-  is guaranteed to behave the way one built in the options search behaves, because it is the same
-  field over the same engine.
-- **The two compose** rather than one overriding the other, and the count line above the list
-  says how many of how many are showing.
+  anchored beside it, always visible above the rest of the filters because it is the control most
+  people reach for first. Reusing it is not only less code: it is the only way a pattern built
+  here is guaranteed to behave the way one built in the options search behaves, because it is the
+  same field over the same engine.
+- **A collapsible Filters row**, starting collapsed the same way `HistoryPanel.vue`'s own filter
+  row does — it describes the history rather than changing it until somebody opens it, and a
+  badge on the toggle names how many of the three filters (search, date range, level) are active,
+  so a collapsed row never hides an active filter silently. Opening it reveals:
+  - **A date range**, the same anchored `ChangelogDateFilter` calendar the changelog viewer and
+    the config-folder history panel both use: month and year jump, range selection, named
+    presets, and two typed fields that accept the locale's date format and a plain ISO date
+    alongside it. An invalid or partial typed date is reported inline without discarding what was
+    typed, and typing and the calendar stay in step.
+  - **Filter chips, one per level**, in severity order: error, warning, success, information.
+    Somebody opening the centre after something went wrong is looking for the failure, and a row
+    that leads with information makes them read past three chips to reach it. Each chip carries
+    its count, and **every level is present even at zero**, because a control that vanishes when
+    its count reaches zero is a control the user cannot find again when it stops being zero.
+    Nothing selected means every level, because a filter row with nothing pressed is a user who
+    has not filtered rather than one who asked to see nothing.
+  - **A Clear every filter button**, shown only once a filter is active, that resets the search,
+    the levels and the date range together.
+- **All three compose** rather than one overriding another - narrowing the date range never
+  clears the search, pressing a level chip never clears the date range, and the reverse - and the
+  count line above the list says how many of how many are showing. The empty state names all
+  three: "No notification matches this search, these levels and this date range," never a bare
+  "no results" that leaves a stale filter invisible.
 
 A search is tested against the level name, the timestamp, the title, the body, the detail and
 every action label, joined into one line per notice. The level name is in because "error" is what
@@ -58,7 +73,10 @@ somebody types before they notice the chips; the timestamp is in because `2026-0
 session gets narrowed to an afternoon without a date picker in the way; the detail is in because
 a stack trace is often the only place a file name appears. That same one-line-per-notice text is
 what the regex builder previews against, so what the builder highlights is literally what the
-filter tests.
+filter tests. The date range reads a notice's own timestamp in the reader's local timezone
+(`noticeCentre.ts`'s `noticeDay`), the same way `historyModel.ts`'s `revisionDay` does for the
+version-history panels, and a notice whose timestamp cannot be read is kept rather than hidden by
+a date filter that was never meant to be the only way to find it again.
 
 ### Copying it out
 
@@ -122,8 +140,8 @@ reduced-motion preference.
 
 | Test | What it holds |
 |---|---|
-| `noticeCentre.test.ts` | What a search reads, that one notice stays one line, that an empty level selection means everything, that the filters compose rather than override, that an uncompilable pattern matches nothing, that every level is counted even at zero, and that the export carries level and timestamp and honours the filter. |
-| `NoticeCentrePanel.test.ts` | Mounted: the history newest first with its actions intact, search over body and detail with an honest count line, the shared search field rather than a rebuilt one, the builder previewing against real history, no-match distinguished from nothing-to-show, level chips with counts and pressed state, restoring a notice with its id and actions, and the region, group and control labelling. |
+| `noticeCentre.test.ts` | What a search reads, that one notice stays one line, that an empty level selection means everything, that the filters compose rather than override, that an uncompilable pattern matches nothing, that every level is counted even at zero, that the export carries level and timestamp and honours the filter, and (new) that the date range narrows to the days inside it, composes with the search and the levels, keeps a notice whose timestamp cannot be read, and reads the same local day `noticeDay`/`daysWithNotices`/`noticeHistorySpan` mark on the calendar. |
+| `NoticeCentrePanel.test.ts` | Mounted: the history newest first with its actions intact, search over body and detail with an honest count line, the shared search field rather than a rebuilt one, the builder previewing against real history, no-match distinguished from nothing-to-show, level chips with counts and pressed state, restoring a notice with its id and actions, the region/group/control labelling, and (new) the Filters row starting collapsed with an honest badge, the date calendar narrowing the list and composing with an active search without clearing it, the three-filter empty state, and one button clearing search, levels and dates together. |
 | `notificationContract.test.ts` | Mounted: every level reaches the corner and none reaches a dialog, information and success take themselves away while warning and error do not, several stack as siblings, a dismissed notice stays in the history, and the bell is present with the history behind it. |
 | `notificationPolicy.test.ts` | Source policy: every blocking surface in the package is declared with the decision it asks for, the notification path itself holds none of them, nothing in the package asks for payment, sponsorship, a rating, a subscription or an upgrade, and the corner's layout guarantees are read out of the stylesheet. |
 
@@ -133,5 +151,9 @@ Run them with `npx vitest run packages/ui/src/components/notifications` from `de
 
 - [The regex builder and the search bars it reaches](./regex-builder.md), which supplies this
   panel's search.
+- [Changelog and the in-app changelog viewer](./changelog-viewer.md), which supplies this panel's
+  date range - the same anchored calendar, reused rather than rebuilt.
+- [Local version history for config folders](./config-history.md), whose own filter row -
+  search, date range, action chips, all composing - this one was modelled on.
 - [The command palette](./command-palette.md), the other route to something whose name you know.
 - [Super confirmation](./super-confirmation.md), for the opposite rule: what does block, and why.

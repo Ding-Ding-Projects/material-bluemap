@@ -14,8 +14,11 @@ import { createNoticeState, notify, type Notice, type NoticeLevel } from "../con
 import {
     NOTICE_LEVELS,
     countByLevel,
+    daysWithNotices,
     filterNotices,
     formatNoticesAsMarkdown,
+    noticeDay,
+    noticeHistorySpan,
     noticeSampleText,
     noticeSearchText,
 } from "./noticeCentre.js";
@@ -127,6 +130,77 @@ describe("searching with a regular expression", () => {
 
         expect(matcher.error).not.toBeNull();
         expect(filterNotices(history, { levels: ALL_LEVELS, matcher })).toEqual([]);
+    });
+});
+
+/** A notice at an exact timestamp, built directly rather than through `notify()`'s `now`. */
+function noticeAt(partial: Partial<Notice> & { id: number; at: string }): Notice {
+    return {
+        level: "info",
+        message: "something happened",
+        timeout: null,
+        ...partial,
+    };
+}
+
+describe("filtering by a date range", () => {
+    // No timezone offset on purpose, matching `HistoryPanel.test.ts`'s own fixtures:
+    // `noticeDay` reads local-time getters, so a timestamp already written in local time is
+    // read back on the same day on every machine this suite runs on, offset or not.
+    const history: Notice[] = [
+        noticeAt({ id: 3, at: "2026-03-10T09:00:00", message: "the newest one" }),
+        noticeAt({ id: 2, at: "2026-03-05T09:00:00", message: "the middle one" }),
+        noticeAt({ id: 1, at: "2026-03-01T09:00:00", message: "the oldest one" }),
+    ];
+
+    it("keeps everything when no range is given, the same as before this filter existed", () => {
+        const matches = filterNotices(history, { levels: ALL_LEVELS, matcher: plain("") });
+        expect(matches).toHaveLength(3);
+    });
+
+    it("narrows to the days inside the range, inclusive of both ends", () => {
+        const matches = filterNotices(history, {
+            levels: ALL_LEVELS,
+            matcher: plain(""),
+            range: { from: "2026-03-05", to: "2026-03-10" },
+        });
+        expect(matches.map((notice) => notice.id)).toEqual([3, 2]);
+    });
+
+    it("composes with the search and the level filter rather than overriding either", () => {
+        const matches = filterNotices(history, {
+            levels: ALL_LEVELS,
+            matcher: plain("middle"),
+            range: { from: "2026-03-01", to: "2026-03-31" },
+        });
+        expect(matches.map((notice) => notice.id)).toEqual([2]);
+
+        const excluded = filterNotices(history, {
+            levels: ALL_LEVELS,
+            matcher: plain("middle"),
+            range: { from: "2026-03-06", to: "2026-03-31" },
+        });
+        expect(excluded).toEqual([]);
+    });
+
+    it("keeps a notice whose timestamp cannot be read, rather than hiding it from a date filter", () => {
+        const broken = [noticeAt({ id: 9, at: "not a real date", message: "unparseable" })];
+        const matches = filterNotices(broken, {
+            levels: ALL_LEVELS,
+            matcher: plain(""),
+            range: { from: "2026-01-01", to: "2026-01-02" },
+        });
+        expect(matches).toHaveLength(1);
+    });
+
+    it("reads the local day a notice falls on, for the calendar's own marks and span", () => {
+        expect(noticeDay(history[0] as Notice)).toBe("2026-03-10");
+        expect(daysWithNotices(history)).toEqual(new Set(["2026-03-10", "2026-03-05", "2026-03-01"]));
+        expect(noticeHistorySpan(history)).toEqual({ earliest: "2026-03-01", latest: "2026-03-10" });
+    });
+
+    it("reports null for a notice whose timestamp cannot be read", () => {
+        expect(noticeDay(noticeAt({ id: 9, at: "not a real date" }))).toBeNull();
     });
 });
 

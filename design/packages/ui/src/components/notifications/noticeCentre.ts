@@ -17,8 +17,17 @@
  * {@link createSettingMatcher}, so the pattern a user builds in the centre behaves exactly
  * as one built in the options search bar: ECMAScript `RegExp`, evaluated locally, bounded,
  * plain text by default with regex an explicit opt-in.
+ *
+ * A date range joins the search and the level chips as a third filter, narrowing what the
+ * other two left rather than replacing either - the same composition
+ * `components/history/historyModel.ts` and `components/changelog/changelogModel.ts` already
+ * use, read through the same `ChangelogDateFilter.vue` calendar. `noticeDay` reads the day a
+ * notice's own `at` falls on in the reader's local timezone, for the same reason
+ * `historyModel.ts`'s `revisionDay` does: a notice raised at eleven at night belongs under
+ * that evening's date, not tomorrow's because the reader's offset happens to be positive.
  */
 
+import { type DayKey, type DayRange, dayKey, inRange } from "../changelog/changelogDates.js";
 import type { Notice, NoticeLevel } from "../config/notifications.js";
 import type { SettingMatcher } from "../config/regexEngine.js";
 
@@ -75,16 +84,58 @@ export interface NoticeFilter {
     readonly levels: readonly NoticeLevel[];
     /** The search predicate, plain text or regex, from `createSettingMatcher`. */
     readonly matcher: SettingMatcher;
+    /**
+     * Optional so every existing caller - and every existing test - keeps compiling and
+     * keeps meaning exactly what it always meant: no range at all, which excludes nothing.
+     */
+    readonly range?: DayRange;
 }
 
 /** The history a filter leaves visible, in the order the history already holds. */
 export function filterNotices(history: readonly Notice[], filter: NoticeFilter): Notice[] {
     const levels = new Set(filter.levels);
-    return history.filter(
-        (notice) =>
-            (levels.size === 0 || levels.has(notice.level)) &&
-            filter.matcher.test(noticeSearchText(notice)),
-    );
+    const range = filter.range ?? { from: null, to: null };
+    return history.filter((notice) => {
+        if (levels.size > 0 && !levels.has(notice.level)) return false;
+        if (!filter.matcher.test(noticeSearchText(notice))) return false;
+        if (range.from !== null || range.to !== null) {
+            const day = noticeDay(notice);
+            // A notice whose timestamp cannot be read is kept rather than hidden: it is a
+            // real notice, and a date filter is not the control that should be the one way
+            // to find it again.
+            if (day !== null && !inRange(day, range)) return false;
+        }
+        return true;
+    });
+}
+
+/**
+ * The day one notice's own timestamp falls on, in the reader's local timezone. Null when
+ * `at` cannot be parsed, which the date filter treats as "keep it" rather than "hide it".
+ */
+export function noticeDay(notice: Notice): DayKey | null {
+    const date = new Date(notice.at);
+    if (Number.isNaN(date.getTime())) return null;
+    return dayKey(date.getFullYear(), date.getMonth() + 1, date.getDate());
+}
+
+/** The days that actually carry a notice, which the calendar marks. */
+export function daysWithNotices(history: readonly Notice[]): Set<string> {
+    const days = new Set<string>();
+    for (const notice of history) {
+        const day = noticeDay(notice);
+        if (day !== null) days.add(day);
+    }
+    return days;
+}
+
+/** The oldest and newest day the history covers, which bound the calendar's year jump. */
+export function noticeHistorySpan(history: readonly Notice[]): {
+    earliest: DayKey | null;
+    latest: DayKey | null;
+} {
+    const days = [...daysWithNotices(history)].sort();
+    return { earliest: days[0] ?? null, latest: days[days.length - 1] ?? null };
 }
 
 /**

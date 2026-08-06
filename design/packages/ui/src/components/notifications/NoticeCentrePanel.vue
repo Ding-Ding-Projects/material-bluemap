@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiAlertCircleOutline,
@@ -7,19 +7,24 @@ import {
     mdiCheckCircleOutline,
     mdiClose,
     mdiContentCopy,
+    mdiFilterVariant,
     mdiInformationOutline,
     mdiOpenInNew,
     mdiRestore,
 } from "@mdi/js";
-import { VBtn, VCard, VDivider, VIcon } from "vuetify/components";
+import { VBtn, VCard, VChip, VDivider, VIcon } from "vuetify/components";
+import ChangelogDateFilter from "../changelog/ChangelogDateFilter.vue";
+import { type DayKey } from "../changelog/changelogDates.js";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { restore, type Notice, type NoticeLevel, type NoticeState } from "../config/notifications.js";
 import {
     NOTICE_LEVELS,
     countByLevel,
+    daysWithNotices,
     filterNotices,
     formatNoticesAsMarkdown,
+    noticeHistorySpan,
     noticeSampleText,
 } from "./noticeCentre.js";
 import { noticeSummary, rangeSelection, toggleSelection, type SelectionSet } from "./noticeBulk.js";
@@ -46,12 +51,24 @@ import NoticeBulkToolbar from "../NoticeBulkToolbar.vue";
  * code: it is the only way the pattern a user builds here can be guaranteed to behave the
  * way one built in the options search behaves, because it is literally the same field over
  * the same engine.
+ *
+ * The date range beside the level chips is `ChangelogDateFilter`, the same anchored calendar
+ * the changelog viewer and the config-folder history panel both use - month and year jump,
+ * range selection, named presets, a typed date that keeps what was typed on an invalid entry.
+ * It joins the level chips behind one collapsible **Filters** row, which starts collapsed the
+ * same way `HistoryPanel.vue`'s own filter row does: it describes the history rather than
+ * changing it until somebody opens it, and the badge on the toggle is what keeps a collapsed
+ * row from hiding an active filter silently. The search field stays outside that row and
+ * always visible, because it is the control most people reach for first.
  */
 const props = defineProps<{ state: NoticeState }>();
 
 const emit = defineEmits<{ close: [] }>();
 
 const { t } = useI18n();
+
+/** Unique per mounted instance, so two open panels never fight over one `aria-controls`. */
+const filtersId = `mb-notice-centre-filters-${useId()}`;
 
 const query = ref("");
 const regex = ref(false);
@@ -62,6 +79,12 @@ const flags = ref("i");
  * itself in and out, so the first press narrows to one level rather than excluding one.
  */
 const selectedLevels = ref<NoticeLevel[]>([]);
+
+const from = ref<DayKey | null>(null);
+const to = ref<DayKey | null>(null);
+
+/** Starts collapsed; see the class doc comment above for why. */
+const filtersOpen = ref(false);
 
 const copied = ref(false);
 
@@ -81,8 +104,34 @@ const counts = computed(() => countByLevel(props.state.history));
 
 const matcher = computed(() => createSettingMatcher(query.value, regex.value, flags.value));
 
+const dateRange = computed(() => ({ from: from.value, to: to.value }));
+const dateActive = computed(() => from.value !== null || to.value !== null);
+const span = computed(() => noticeHistorySpan(props.state.history));
+const markedDays = computed(() => daysWithNotices(props.state.history));
+
+/** How many of the three filters are doing something, for the collapsed toggle's own badge. */
+const activeFilterCount = computed(() => {
+    let count = 0;
+    if (query.value !== "") count += 1;
+    if (dateActive.value) count += 1;
+    count += selectedLevels.value.length;
+    return count;
+});
+
+function clearFilters(): void {
+    query.value = "";
+    regex.value = false;
+    selectedLevels.value = [];
+    from.value = null;
+    to.value = null;
+}
+
 const visible = computed(() =>
-    filterNotices(props.state.history, { levels: selectedLevels.value, matcher: matcher.value }),
+    filterNotices(props.state.history, {
+        levels: selectedLevels.value,
+        matcher: matcher.value,
+        range: dateRange.value,
+    }),
 );
 
 /** Display order, for a shift-click range: only what is actually on screen right now. */
@@ -210,24 +259,61 @@ async function copyVisible(): Promise<void> {
                 :summary="summary"
             />
 
-            <div
-                class="mb-notice-centre__levels"
-                role="group"
-                :aria-label="t('notices.centre.filterLevels', 'Filter by level')"
-            >
+            <div class="mb-notice-centre__filterbar">
                 <v-btn
-                    v-for="level in NOTICE_LEVELS"
-                    :key="level"
-                    class="mb-notice-centre__level"
-                    :variant="isSelected(level) ? 'tonal' : 'outlined'"
-                    :color="isSelected(level) ? 'primary' : undefined"
-                    :aria-pressed="isSelected(level) ? 'true' : 'false'"
+                    :prepend-icon="mdiFilterVariant"
+                    variant="text"
                     size="small"
                     density="comfortable"
-                    @click="toggleLevel(level)"
+                    :aria-expanded="filtersOpen ? 'true' : 'false'"
+                    :aria-controls="filtersId"
+                    @click="filtersOpen = !filtersOpen"
                 >
-                    {{ t("notices.centre.levelChip", { level: levelLabel(level), count: counts[level] }, "{level} ({count})") }}
+                    {{ t("notices.centre.filters", "Filters") }}
+                    <v-chip v-if="activeFilterCount > 0" size="x-small" class="ms-1" label>
+                        {{ activeFilterCount }}
+                    </v-chip>
                 </v-btn>
+
+                <v-btn
+                    v-if="activeFilterCount > 0"
+                    variant="text"
+                    size="small"
+                    density="comfortable"
+                    @click="clearFilters"
+                >
+                    {{ t("notices.centre.clearFilters", "Clear every filter") }}
+                </v-btn>
+            </div>
+
+            <div v-show="filtersOpen" :id="filtersId" class="mb-notice-centre__filters">
+                <ChangelogDateFilter
+                    v-model:from="from"
+                    v-model:to="to"
+                    :earliest="span.earliest"
+                    :latest="span.latest"
+                    :days-with-entries="markedDays"
+                />
+
+                <div
+                    class="mb-notice-centre__levels"
+                    role="group"
+                    :aria-label="t('notices.centre.filterLevels', 'Filter by level')"
+                >
+                    <v-btn
+                        v-for="level in NOTICE_LEVELS"
+                        :key="level"
+                        class="mb-notice-centre__level"
+                        :variant="isSelected(level) ? 'tonal' : 'outlined'"
+                        :color="isSelected(level) ? 'primary' : undefined"
+                        :aria-pressed="isSelected(level) ? 'true' : 'false'"
+                        size="small"
+                        density="comfortable"
+                        @click="toggleLevel(level)"
+                    >
+                        {{ t("notices.centre.levelChip", { level: levelLabel(level), count: counts[level] }, "{level} ({count})") }}
+                    </v-btn>
+                </div>
             </div>
         </div>
 
@@ -253,7 +339,12 @@ async function copyVisible(): Promise<void> {
             {{ t("notices.centre.empty", "Nothing has been reported yet. Messages appear here after they leave the corner.") }}
         </p>
         <p v-else-if="visible.length === 0" class="mb-notice-centre__empty">
-            {{ t("notices.centre.noMatch", "No notification matches this search and these levels.") }}
+            {{
+                t(
+                    "notices.centre.noMatch",
+                    "No notification matches this search, these levels and this date range.",
+                )
+            }}
         </p>
         <ul v-else class="mb-notice-centre__list">
             <li v-for="notice in visible" :key="notice.id" class="mb-notice-centre__item">
@@ -368,6 +459,20 @@ async function copyVisible(): Promise<void> {
     flex-direction: column;
     gap: 8px;
     padding: 8px 16px 12px;
+}
+
+.mb-notice-centre__filterbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.mb-notice-centre__filters {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-block-start: 4px;
 }
 
 .mb-notice-centre__levels {

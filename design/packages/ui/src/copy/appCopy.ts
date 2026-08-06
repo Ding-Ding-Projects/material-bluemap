@@ -455,18 +455,18 @@ export const APP_VOICED = {
     },
     "notices.centre.noMatch": {
         en: [
-            "No notification matches this search and these levels.",
-            "No notification matches this search and these levels.",
-            "No notification matches this search and these levels together.",
-            "Nothing matches this search and these levels at the same time.",
-            "Nothing at all matches this search and these levels at the same time. Widen one of them.",
+            "No notification matches this search, these levels and this date range.",
+            "No notification matches this search, these levels and this date range.",
+            "No notification matches this search, these levels and this date range, all together.",
+            "Nothing matches this search, these levels and this date range at the same time.",
+            "Nothing at all matches this search, these levels and this date range at the same time. Widen one of them.",
         ],
         yue: [
-            "冇通知同時符合呢個搜尋同呢啲等級。",
-            "冇通知同時符合呢個搜尋同呢啲等級。",
-            "冇通知可以同時符合呢個搜尋同埋呢啲等級。",
-            "冇一個通知可以同時過到呢個搜尋同呢啲等級呢兩關。",
-            "冇一個通知可以同時過到呢個搜尋同呢啲等級呢兩關。放寬其中一樣啦。",
+            "冇通知同時符合呢個搜尋、呢啲等級同埋呢個日期範圍。",
+            "冇通知同時符合呢個搜尋、呢啲等級同埋呢個日期範圍。",
+            "冇通知可以同時符合呢個搜尋、呢啲等級同埋呢個日期範圍。",
+            "冇一個通知可以同時過到呢個搜尋、呢啲等級同呢個日期範圍呢三關。",
+            "冇一個通知可以同時過到呢個搜尋、呢啲等級同呢個日期範圍呢三關。放寬其中一樣啦。",
         ],
     },
 
@@ -1156,7 +1156,7 @@ export const FACTS = {
     "world.run.finishedLine": { en: ["{duration}", "{root}"], yue: ["{duration}", "{root}"] },
 
     "notices.centre.empty": { en: ["corner"], yue: ["角落"] },
-    "notices.centre.noMatch": { en: ["search"], yue: ["搜尋"] },
+    "notices.centre.noMatch": { en: ["search", "date range"], yue: ["搜尋", "日期範圍"] },
 
     "world.options.someHidden": {
         en: ["{shown}", "{total}", "{hidden}", "advanced"],

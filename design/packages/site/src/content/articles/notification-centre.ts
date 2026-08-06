@@ -54,9 +54,19 @@ export const notificationCentre: Article = {
                             "filter row with nothing pressed is somebody who has not filtered.",
                         ],
                         [
-                            { strong: "The search and the filter compose." },
-                            " Both are named in the count line above the list, so a surprising result is explained ",
-                            "by reading one sentence rather than by clearing controls one at a time.",
+                            { strong: "A date range joins the levels, behind one collapsible Filters row." },
+                            " The same anchored calendar the changelog viewer and the config-folder history panel ",
+                            "both use - month and year jump, range selection, named presets, and a typed date that ",
+                            "keeps what was typed on an invalid entry. The row starts collapsed, describing the ",
+                            "history rather than changing it until somebody opens it, with a badge naming how many ",
+                            "of the three filters are active so a collapsed row never hides one silently.",
+                        ],
+                        [
+                            { strong: "All three filters compose." },
+                            " Search, level and date range narrow the same list together; setting a date never ",
+                            "clears the search, and a level chip never clears the date range. All three are named ",
+                            "in the count line and the empty state, so a surprising result is explained by reading ",
+                            "one sentence rather than by clearing controls one at a time.",
                         ],
                     ],
                 },
@@ -148,11 +158,11 @@ export const notificationCentre: Article = {
                     rows: [
                         [
                             { code: "noticeCentre.test.ts" },
-                            "What a search reads, one notice staying one line, an empty level selection meaning everything, the filters composing, an uncompilable pattern matching nothing, every level counted even at zero, and the export carrying level and timestamp while honouring the filter.",
+                            "What a search reads, one notice staying one line, an empty level selection meaning everything, the filters composing, an uncompilable pattern matching nothing, every level counted even at zero, the export carrying level and timestamp while honouring the filter, and the date range narrowing to the days inside it, composing with search and level, and keeping a notice whose timestamp cannot be read rather than hiding it.",
                         ],
                         [
                             { code: "NoticeCentrePanel.test.ts" },
-                            "Mounted: the history newest first with its actions intact, search over body and detail with an honest count, the shared search field rather than a rebuilt one, the builder previewing against real history, no-match distinguished from nothing-to-show, chips with counts and pressed state, restoring a notice with its id and actions, and the region, group and control naming.",
+                            "Mounted: the history newest first with its actions intact, search over body and detail with an honest count, the shared search field rather than a rebuilt one, the builder previewing against real history, no-match distinguished from nothing-to-show, chips with counts and pressed state, restoring a notice with its id and actions, the region, group and control naming, the Filters row starting collapsed with an honest badge, the date calendar narrowing the list without clearing an active search, the three-filter empty state, and one button clearing search, levels and dates together.",
                         ],
                         [
                             { code: "notificationContract.test.ts" },
@@ -183,6 +193,14 @@ export const notificationCentre: Article = {
         {
             articleId: "regex-builder-surfaces",
             reason: "The search field and anchored builder the panel uses.",
+        },
+        {
+            articleId: "changelog-viewer",
+            reason: "The anchored calendar this panel's date range reuses rather than rebuilds.",
+        },
+        {
+            articleId: "config-history",
+            reason: "The version-history panel this filter row was modelled on: search, date range and action chips, all composing.",
         },
         {
             articleId: "destructive-action-gate",

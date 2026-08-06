@@ -22,6 +22,7 @@ import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
 import NoticeCentrePanel from "./NoticeCentrePanel.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import ChangelogDateFilter from "../changelog/ChangelogDateFilter.vue";
 import { createNoticeState, dismissAll, notify, type NoticeState } from "../config/notifications.js";
 
 beforeAll(() => {
@@ -189,7 +190,7 @@ describe("finding one again", () => {
         await type(view, "nothing matches this");
 
         expect(rows(view)).toHaveLength(0);
-        expect(view.text()).toContain("No notification matches this search and these levels.");
+        expect(view.text()).toContain("No notification matches this search, these levels and this date range.");
         expect(view.text()).not.toContain("Nothing has been reported yet.");
     });
 });
@@ -229,11 +230,137 @@ describe("filtering by level", () => {
         fillHistory();
         const view = open();
         await type(view, "rendered again");
+        await openFilters(view);
         await view.findAll(".mb-notice-centre__level")[0]?.trigger("click");
         await nextTick();
 
         expect(rows(view)).toHaveLength(0);
-        expect(view.text()).toContain("No notification matches this search and these levels.");
+        expect(view.text()).toContain("No notification matches this search, these levels and this date range.");
+    });
+});
+
+/* -------------------------------------------------------------------------- */
+/* The collapsible filters row: the date range and the level chips together   */
+/* -------------------------------------------------------------------------- */
+
+/** Presses the Filters toggle, opening the row that holds the date range and the levels. */
+async function openFilters(view: VueWrapper<Host>): Promise<void> {
+    const toggle = view.findAll("button").find((button) => button.text().includes("Filters"));
+    await toggle?.trigger("click");
+    await nextTick();
+}
+
+/** A history spread across three distinct days, for the date-range tests below. */
+function fillHistoryOverDays(): void {
+    const first = notify(state, "info", "the oldest one");
+    const second = notify(state, "warning", "the middle one");
+    const third = notify(state, "error", "the newest one");
+    Object.assign(first, { at: "2026-03-01T09:00:00" });
+    Object.assign(second, { at: "2026-03-05T09:00:00" });
+    Object.assign(third, { at: "2026-03-10T09:00:00" });
+    dismissAll(state);
+}
+
+describe("the filters row starts collapsed", () => {
+    it("hides the date range and the level chips until Filters is pressed", async () => {
+        fillHistory();
+        const view = open();
+        await nextTick();
+
+        expect(view.findComponent(ChangelogDateFilter).exists()).toBe(true);
+        const filtersRow = view.find(".mb-notice-centre__filters");
+        expect(filtersRow.isVisible()).toBe(false);
+
+        const toggle = view.findAll("button").find((button) => button.text().includes("Filters"));
+        expect(toggle?.attributes("aria-expanded")).toBe("false");
+
+        await openFilters(view);
+
+        expect(filtersRow.isVisible()).toBe(true);
+        expect(toggle?.attributes("aria-expanded")).toBe("true");
+    });
+
+    it("keeps the search bar outside the collapsed row, always visible", async () => {
+        fillHistory();
+        const view = open();
+        await nextTick();
+
+        expect(view.findComponent(ConfigSearchField).exists()).toBe(true);
+        expect(view.findComponent(ConfigSearchField).element.closest(".mb-notice-centre__filters")).toBeNull();
+    });
+
+    it("shows a badge naming how many filters are active, search included", async () => {
+        fillHistory();
+        const view = open();
+        await type(view, "overworld");
+
+        const toggle = view.findAll("button").find((button) => button.text().includes("Filters"));
+        expect(toggle?.text()).toContain("1");
+    });
+
+    it("clears every filter - search, levels and dates - with one button", async () => {
+        fillHistory();
+        const view = open();
+        await type(view, "overworld");
+        await openFilters(view);
+        await view.findAll(".mb-notice-centre__level")[0]?.trigger("click");
+        await nextTick();
+
+        const clear = view.findAll("button").find((button) => button.text().includes("Clear every filter"));
+        expect(clear).toBeDefined();
+        await clear?.trigger("click");
+        await nextTick();
+
+        expect(rows(view)).toHaveLength(4);
+        expect((view.find("input").element as HTMLInputElement).value).toBe("");
+    });
+});
+
+describe("filtering by a date range", () => {
+    it("narrows to the days inside the range, and composes with the search already active", async () => {
+        fillHistoryOverDays();
+        const view = open();
+        await openFilters(view);
+
+        await view.findComponent(ChangelogDateFilter).vm.$emit("update:from", "2026-03-05");
+        await view.findComponent(ChangelogDateFilter).vm.$emit("update:to", "2026-03-05");
+        await nextTick();
+
+        expect(rows(view)).toHaveLength(1);
+        expect(view.text()).toContain("the middle one");
+        expect(view.text()).not.toContain("the newest one");
+        expect(view.text()).not.toContain("the oldest one");
+    });
+
+    it("says no notification matches this search, these levels and this date range together", async () => {
+        fillHistoryOverDays();
+        const view = open();
+        await openFilters(view);
+
+        await view.findComponent(ChangelogDateFilter).vm.$emit("update:from", "1999-01-01");
+        await view.findComponent(ChangelogDateFilter).vm.$emit("update:to", "1999-01-02");
+        await nextTick();
+
+        expect(rows(view)).toHaveLength(0);
+        expect(view.text()).toContain(
+            "No notification matches this search, these levels and this date range.",
+        );
+    });
+
+    it("setting a date does not silently clear the search, nor the reverse", async () => {
+        fillHistoryOverDays();
+        const view = open();
+        await type(view, "middle");
+        await openFilters(view);
+
+        await view.findComponent(ChangelogDateFilter).vm.$emit("update:from", "2026-03-01");
+        await view.findComponent(ChangelogDateFilter).vm.$emit("update:to", "2026-03-10");
+        await nextTick();
+
+        // The query survives setting a date.
+        expect((view.find("input").element as HTMLInputElement).value).toBe("middle");
+        expect(rows(view)).toHaveLength(1);
+        expect(view.text()).toContain("the middle one");
     });
 });
 
