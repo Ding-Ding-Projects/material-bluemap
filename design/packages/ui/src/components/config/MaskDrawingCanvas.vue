@@ -484,6 +484,17 @@ const hasShape = computed(() => {
     return true;
 });
 
+/**
+ * The value a screen reader announces for a handle -- `role="slider"` promises a current
+ * value, and an aria-label alone ("Resize corner se") never says what "se" is currently
+ * at. Read after every drag frame and every keyboard nudge, same as the visible position.
+ */
+function boxCornerValueText(corner: BoxCorner, current: BoxShape): string {
+    const x = corner === "nw" || corner === "sw" ? current.minX : current.maxX;
+    const z = corner === "nw" || corner === "ne" ? current.minZ : current.maxZ;
+    return `X ${x}, Z ${z}`;
+}
+
 /* -------------------------------------------------------------------------- */
 /* Polygon point add/remove                                                   */
 /* -------------------------------------------------------------------------- */
@@ -705,6 +716,7 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         tabindex="0"
                         role="slider"
                         :aria-label="t('config.maskCanvas.handleMove', 'Move the whole shape')"
+                        :aria-valuetext="`X ${shape.minX}..${shape.maxX}, Z ${shape.minZ}..${shape.maxZ}`"
                         @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'move' }, event)"
                         @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'move' }, event)"
                         @focus="selectHandle('move')"
@@ -720,6 +732,7 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         tabindex="0"
                         role="slider"
                         :aria-label="t('config.maskCanvas.handleCorner', { corner }, 'Resize corner {corner}')"
+                        :aria-valuetext="boxCornerValueText(corner, shape)"
                         @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'box-corner', corner }, event)"
                         @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'box-corner', corner }, event)"
                         @focus="selectHandle(`corner:${corner}`)"
@@ -736,6 +749,7 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         tabindex="0"
                         role="slider"
                         :aria-label="t('config.maskCanvas.handleMove', 'Move the whole shape')"
+                        :aria-valuetext="`X ${shape.centerX}, Z ${shape.centerZ}`"
                         @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'move' }, event)"
                         @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'move' }, event)"
                         @focus="selectHandle('move')"
@@ -748,6 +762,7 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         tabindex="0"
                         role="slider"
                         :aria-label="t('config.maskCanvas.handleRadius', 'Resize radius')"
+                        :aria-valuetext="`${shape.radius} blocks`"
                         @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'circle-radius' }, event)"
                         @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'circle-radius' }, event)"
                         @focus="selectHandle('circle-radius')"
@@ -765,6 +780,7 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         tabindex="0"
                         role="slider"
                         :aria-label="t('config.maskCanvas.handleMove', 'Move the whole shape')"
+                        :aria-valuetext="`X ${shape.centerX}, Z ${shape.centerZ}`"
                         @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'move' }, event)"
                         @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'move' }, event)"
                         @focus="selectHandle('move')"
@@ -777,6 +793,7 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         tabindex="0"
                         role="slider"
                         :aria-label="t('config.maskCanvas.handleRadiusX', 'Resize the X radius')"
+                        :aria-valuetext="`${shape.radiusX} blocks`"
                         @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'ellipse-radius-x' }, event)"
                         @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'ellipse-radius-x' }, event)"
                         @focus="selectHandle('ellipse-radius-x')"
@@ -789,6 +806,7 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         tabindex="0"
                         role="slider"
                         :aria-label="t('config.maskCanvas.handleRadiusZ', 'Resize the Z radius')"
+                        :aria-valuetext="`${shape.radiusZ} blocks`"
                         @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'ellipse-radius-z' }, event)"
                         @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'ellipse-radius-z' }, event)"
                         @focus="selectHandle('ellipse-radius-z')"
@@ -809,6 +827,7 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         tabindex="0"
                         role="slider"
                         :aria-label="t('config.maskCanvas.handlePoint', { index: index + 1 }, 'Move vertex {index}')"
+                        :aria-valuetext="`X ${point.x}, Z ${point.z}`"
                         @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'polygon-point', index }, event)"
                         @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'polygon-point', index }, event)"
                         @focus="selectHandle(`point:${index}`)"

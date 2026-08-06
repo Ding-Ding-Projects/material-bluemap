@@ -169,6 +169,9 @@ describe("keyboard creation and adjustment", () => {
         const wrapper = mountCanvas({ modelValue: boxRecord(), shapeKind: "box" });
         const corner = wrapper.find('[aria-label="Resize corner se"]');
         expect(corner.exists()).toBe(true);
+        // A role="slider" handle has to announce a current value, not just its name -- a
+        // screen reader user hearing only "Resize corner se" has no idea where "se" is.
+        expect(corner.attributes("aria-valuetext")).toBe("X 100, Z 50");
 
         // Default snap is "chunk", so the ordinary step is one chunk (16 blocks).
         await corner.trigger("keydown", { key: "ArrowRight" });
@@ -176,6 +179,8 @@ describe("keyboard creation and adjustment", () => {
         const record = lastEmitted(wrapper);
         expect(record?.["max-x"]).toBe(116);
         expect(record?.["max-z"]).toBe(50); // The Z axis was not touched by a purely-X nudge.
+        // And the announced value moved with it.
+        expect(corner.attributes("aria-valuetext")).toBe("X 116, Z 50");
     });
 
     it("nudges further with the large step (Shift+Arrow) than the ordinary step", async () => {
