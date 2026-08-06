@@ -217,6 +217,13 @@ const REGISTRY: readonly OverlayEntry[] = [
         status: "clean",
     },
     {
+        file: "components/settings/DependencyInstallerPanel.vue",
+        surface: "Context menu of a system-dependency row (git/GitHub CLI/Docker Desktop/rsync) in the winget/Chocolatey installer.",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
         file: "components/controlbar/ControlBar.vue",
         surface: "Context menu of the whole map control bar.",
         ownVMenu: false,
@@ -313,6 +320,17 @@ const REGISTRY: readonly OverlayEntry[] = [
             "AppearanceTarget wrapper (id=\"history.panel\") around the whole panel, which " +
             "inherits AppearanceTarget.vue's wiring.",
         ownVMenu: true,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/home/HomeScreen.vue",
+        surface:
+            "Four AppearanceTarget wrappers on the landing tab: id=\"home.page\" (the whole " +
+            "page), id=\"home.intro\" (the newcomer explanation), id=\"home.continue\" (the " +
+            "returning-user row) and id=\"home.capabilities\" (the grouped capability grid) -- " +
+            "no v-menu of its own, so all four inherit AppearanceTarget.vue's wiring wholesale.",
+        ownVMenu: false,
         wrapsAppearanceTarget: true,
         status: "clean",
     },
