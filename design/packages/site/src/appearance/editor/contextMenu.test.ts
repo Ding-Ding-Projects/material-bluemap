@@ -116,6 +116,45 @@ describe("the appearance editor's context menu search", () => {
         regexToggle!.dispatchEvent(new Event("change", { bubbles: true }));
         expect(labelsOf().length).toBe(0);
     });
+
+    /**
+     * Regression guard for the menu closing itself the instant its own regex builder is
+     * interacted with.
+     *
+     * `openElementMenu`'s `AnchoredPanel` uses the default `dismissBoundary` (the zero-size
+     * pointer-anchor span), and the search field's builder opens through its own, independent
+     * `AnchoredPanel` whose popover is appended straight to `document.body` -- never nested
+     * inside the menu's own `panel.element`. A pointerdown inside that popover therefore lands
+     * outside both "the menu's own element" and "the pointer-anchor span", so without the
+     * dismissal primitive recognising that the popover was opened from a control living inside
+     * the menu's own content, the menu's document-level pointerdown listener (registered first,
+     * since the menu opens before its builder does) would close the whole menu and leave the
+     * builder popover open and orphaned.
+     */
+    it("stays open when its own regex builder popover is clicked into, instead of closing under it", () => {
+        const panel = openMenu();
+        const builderButton = panel.querySelector<HTMLButtonElement>(".mbm-search__builder")!;
+        builderButton.click();
+
+        const patternInput = document.querySelector<HTMLInputElement>("input.mbm-input--code");
+        expect(patternInput, "the regex builder popover never opened").not.toBeNull();
+        expect(panel.hidden, "the menu closed itself merely from opening the builder").toBe(false);
+
+        // The reported failure: a pointerdown landing inside the builder's own popover, not
+        // inside the menu's element and not inside its pointer-anchor span.
+        patternInput!.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+        patternInput!.value = "abc";
+        patternInput!.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(
+            panel.hidden,
+            "the menu closed itself when its own builder popover was interacted with",
+        ).toBe(false);
+        expect(
+            document.querySelector("input.mbm-input--code"),
+            "the builder popover was left open and orphaned by the menu closing under it",
+        ).not.toBeNull();
+    });
 });
 
 /**

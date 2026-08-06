@@ -25,6 +25,18 @@ const FOCUSABLE = [
 
 let panelCounter = 0;
 
+/**
+ * Every currently-open panel, regardless of which caller created it.
+ *
+ * This is what lets a panel opened *from inside* another panel's content -- a colour
+ * swatch's picker, a font trigger's list, both anchored to a `<button>` that lives
+ * inside the appearance editor's own DOM -- avoid closing the panel it was opened
+ * from, even though every `AnchoredPanel.element` is (see `show()` below) always a
+ * fresh top-level child of `document.body`, never a descendant of whatever opened
+ * it. See `isInsideNestedPanel` for the mechanism.
+ */
+const OPEN_PANELS = new Set<AnchoredPanel>();
+
 export interface AnchoredPanelOptions {
     /** The control the panel hangs off, usually the builder button inside the search field. */
     readonly anchor: HTMLElement;
@@ -44,6 +56,15 @@ export interface AnchoredPanelOptions {
      * that whole element as "inside" the panel is exactly the bug where a menu or popover
      * refuses to close because almost every click on the page lands somewhere within the
      * surface it was anchored to.
+     *
+     * `null` here does not mean every click inside a nested popover closes this panel: a
+     * separate mechanism (`isInsideNestedPanel`, using the module-level `OPEN_PANELS`
+     * registry) already recognises a popover that was itself opened from a control inside
+     * this panel's own rendered content -- a colour swatch's picker, a font trigger's list
+     * -- and does not treat a click inside it as "outside". That is a narrower, dynamic
+     * exemption scoped to whichever controls actually opened a child popover, not a static
+     * grant to a whole wrapper element, so it does not reintroduce the bug this option
+     * exists to fix.
      */
     readonly dismissBoundary?: HTMLElement | null;
 }
@@ -102,6 +123,7 @@ export class AnchoredPanel {
         }
         this.element.hidden = false;
         this.open = true;
+        OPEN_PANELS.add(this);
         this.options.anchor.setAttribute("aria-expanded", "true");
 
         const sheet = this.isNarrow();
@@ -127,6 +149,7 @@ export class AnchoredPanel {
             return;
         }
         this.open = false;
+        OPEN_PANELS.delete(this);
         this.element.hidden = true;
         this.element.replaceChildren();
         this.options.anchor.setAttribute("aria-expanded", "false");
@@ -144,7 +167,17 @@ export class AnchoredPanel {
             this.frame = 0;
         }
 
-        this.options.returnFocusTo.focus();
+        // Returning focus is not optional: without it, closing a panel drops the visitor at
+        // the top of the document with no idea where they were. But the element this panel was
+        // opened for can have been removed from the DOM while the panel was still open (a page
+        // re-render, the row it belonged to being closed by some other action) -- calling
+        // .focus() on a disconnected node is a silent no-op per the HTML spec, and combined with
+        // `this.element.hidden = true` just above dropping focus from whatever was focused
+        // inside the panel, that leaves focus stranded on <body>. Mirrors the identical guard in
+        // Overlay.close() (../platform/Overlay.ts).
+        if (this.options.returnFocusTo.isConnected) {
+            this.options.returnFocusTo.focus();
+        }
         this.options.onClose?.();
     }
 
@@ -169,6 +202,25 @@ export class AnchoredPanel {
 
     private handleKeydown(event: KeyboardEvent): void {
         if (event.key === "Escape") {
+            // Escape must dismiss only the topmost popover, not every AnchoredPanel whose
+            // listener happens to share this dispatch. Every panel's "keydown" listener is
+            // registered on the same `document` node in the capture phase (see `show()`
+            // below), and per the DOM spec listeners on the same node run in registration
+            // order regardless of which panel is visually on top -- an outer panel (a
+            // context menu, say) is always shown, and so always registered, before a
+            // popover it goes on to host (that menu's own regex-builder button, opened
+            // later from inside its content). Without this guard the outer listener would
+            // fire first, close the outer panel, and cascade-close the inner one with it
+            // via `onClose`, before the inner listener ever got its turn -- one Escape
+            // press meant to dismiss just the nested popover instead discarded the whole
+            // menu. Defer to a still-open panel that was opened from a control living
+            // inside this panel's own content -- the same anchor-containment test
+            // `isInsideNestedPanel` already uses for pointerdown -- so only the actual
+            // topmost popover reacts, and an outer panel's own Escape handling still runs
+            // normally once nothing is nested inside it anymore.
+            if (this.hasOpenNestedPanel()) {
+                return;
+            }
             event.stopPropagation();
             event.preventDefault();
             this.close();
@@ -209,7 +261,70 @@ export class AnchoredPanel {
         if (this.dismissBoundary !== null && this.dismissBoundary.contains(target)) {
             return;
         }
+        if (this.isInsideNestedPanel(target)) {
+            return;
+        }
         this.close();
+    }
+
+    /**
+     * True when `target` lands inside some other currently-open panel that was itself
+     * opened from a control living inside THIS panel's own content -- a colour swatch's
+     * picker, a font trigger's list, both anchored to a `<button>` the appearance editor
+     * rendered as part of its own DOM.
+     *
+     * Every `AnchoredPanel.element` is, per `show()` above, always appended as a fresh
+     * top-level child of `document.body` -- never nested inside whatever caller opened
+     * it. So a click inside a nested popover is never literally "inside `this.element`"
+     * and, when this panel's own `dismissBoundary` is `null` (as it must be for a large
+     * position-only anchor like the appearance editor's), nothing above would stop this
+     * panel from closing itself out from under the very popover it was hosting -- the
+     * reported bug. The fix is not to widen `dismissBoundary` back into a large wrapper
+     * (that reintroduces the original "menu never closes" bug this file exists to
+     * prevent); it is to recognise the nested popover for what it is by walking the
+     * chain of open panels from whichever one owns the click, through each panel's own
+     * anchor, until an anchor lands inside this panel's element or the chain runs out.
+     * Capped at a handful of hops so a pathological cycle cannot loop forever.
+     */
+    private isInsideNestedPanel(target: Node): boolean {
+        let node: Node = target;
+        for (let hop = 0; hop < 8; hop += 1) {
+            const owner = AnchoredPanel.findOpenOwner(node);
+            if (owner === null || owner === this) {
+                return false;
+            }
+            if (this.element.contains(owner.options.anchor)) {
+                return true;
+            }
+            node = owner.options.anchor;
+        }
+        return false;
+    }
+
+    /**
+     * True when some other currently-open panel was itself opened from a control living
+     * inside THIS panel's own rendered content -- i.e. this panel is not the topmost one
+     * right now, and should let that other (nested) panel handle Escape instead of closing
+     * itself out from under it. Mirrors `isInsideNestedPanel`'s anchor-containment test,
+     * just checked against every open panel instead of a single click target.
+     */
+    private hasOpenNestedPanel(): boolean {
+        for (const panel of OPEN_PANELS) {
+            if (panel !== this && this.element.contains(panel.options.anchor)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The currently-open panel (if any) whose own element contains `node`. */
+    private static findOpenOwner(node: Node): AnchoredPanel | null {
+        for (const panel of OPEN_PANELS) {
+            if (panel.element.contains(node)) {
+                return panel;
+            }
+        }
+        return null;
     }
 
     private scheduleReposition(): void {
