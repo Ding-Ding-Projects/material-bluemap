@@ -210,6 +210,22 @@ describe("the honest empty states, told apart", () => {
     });
 });
 
+describe("a folder that has gone missing or cannot be read", () => {
+    it("keeps its row and says so, rather than silently dropping it from the list", async () => {
+        const bridge = fakeBridge({
+            folders: [folder({ id: "mount:gone", label: "External drive", state: "missing" })],
+        });
+        const view = panel(bridge);
+        await flushPromises();
+
+        // Reused, unmodified: `describeFolderState` (worldCatalog.ts) is the exact function
+        // MinecraftWorldList.vue already renders this same sentence with.
+        expect(view.text()).toContain("External drive");
+        expect(view.text()).toMatch(/nothing at .* right now/);
+        view.unmount();
+    });
+});
+
 describe("one-click route into starting a project", () => {
     it("emits use with the world path when a row is clicked", async () => {
         const bridge = fakeBridge({ worlds: { "default:home": [world()] } });
