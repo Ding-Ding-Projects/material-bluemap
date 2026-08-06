@@ -14,6 +14,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 
 | Document | What it covers |
 |---|---|
+| [Home](./home.md) | The pinned landing tab: every capability this app has, weighted so a newcomer sees the one obvious next step and a returning user sees what they were doing last - and every card an opener onto the same handler the command palette already uses, never a link that leaves you to work it out. |
 | [Glossary](./glossary.md) | Every term this application's own interface uses - map, world, storage, tile, project, config folder and the rest - defined against what the code actually does, and linked from an info button beside each term wherever it appears. |
 | [Command palette](./command-palette.md) | One shortcut over every command, setting and destination, with the live control on the row rather than a link to it. |
 | [Notification centre](./notification-centre.md) | The bell, the reviewable history behind it, and its filters, search and export. |
@@ -35,7 +36,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 
 | Document | What it covers |
 |---|---|
-| [Automatic dependency provisioning](./dependency-provisioning.md) | The Java and Chunker downloads the app fetches for itself, winget/Chocolatey for `git`/`gh`/Docker/`rsync`, and what stays honestly manual and why. |
+| [Fetching a Java runtime for itself](./java-runtime-provisioning.md) | The Download Java button, the consent it is gated behind, and the real Adoptium download that proves the pipeline behind it actually works. |
 | [Running the engine on this computer, or in a container](./docker-and-local.md) | Local by default and Docker by choice, with the same progress, logs and cancellation either way — and an honest account of what a container does and does not change. |
 | [Automatic repair when a render or the web server fails to start](./automatic-repair.md) | Eight known failures diagnosed by code with no AI at all, a local coding agent for what is left, and the guardrails that keep it to config files it can undo. |
 | [Rendering a world in GitHub Actions](./render-in-actions.md) | Rendering on GitHub's runners for computers that cannot do it themselves — the CI render sync loop, its trade-offs, sharding across a matrix, merging it back, and verifying the result. |
