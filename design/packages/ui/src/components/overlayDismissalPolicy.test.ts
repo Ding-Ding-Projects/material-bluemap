@@ -311,6 +311,20 @@ const REGISTRY: readonly OverlayEntry[] = [
         status: "clean",
     },
     {
+        file: "components/project/DiscoveredWorldsPanel.vue",
+        surface: "Context menu of a discovered-but-not-yet-a-project world row (Edit/Reset appearance).",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/renders/RendersScreen.vue",
+        surface: "Context menu of a render-in-progress row (Edit/Reset appearance).",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
         file: "components/settings/DependencyInstallerPanel.vue",
         surface: "Context menu of a system-dependency row (git/GitHub CLI/Docker Desktop/rsync) in the winget/Chocolatey installer.",
         ownVMenu: false,
