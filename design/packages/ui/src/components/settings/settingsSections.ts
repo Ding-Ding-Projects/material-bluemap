@@ -84,6 +84,15 @@ export type SettingsAnchor = (typeof SETTINGS_ANCHORS)[number];
  * download could honestly point here from. It sits beside the other two "already sensible,
  * here is where you'd change it" rows for the same reason they sit together.
  *
+ * System dependencies is next: installing git, the GitHub CLI, Docker Desktop and rsync
+ * through winget/Chocolatey, per `main/sysdeps/`. Not an anchor for the same reason
+ * download concurrency is not one — a render or a world source that needs one of these
+ * missing reports that failure in its own words, not as a typed `SettingsTarget` this
+ * screen could honestly point here from. It sits beside download concurrency because both
+ * are "here is a real system capability, and here is exactly what installing it costs" —
+ * this one costs an administrator-permission prompt for most of what it installs, and the
+ * section says so before the one button here is pressed, never after.
+ *
  * Updates is next for the same reason GitHub sign-in and language-and-tone are not
  * anchors: no render stops for the want of an update, so nothing in the bridge's
  * `SettingsTarget` could honestly point at it. It is the one place the installed version,
@@ -112,6 +121,7 @@ export const SETTINGS_SECTIONS = [
     "render-memory",
     "notification-duration",
     "download-concurrency",
+    "system-dependencies",
     "updates",
     "history",
     "diagnostics",

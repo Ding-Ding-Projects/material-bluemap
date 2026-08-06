@@ -82,6 +82,12 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["4"],
     },
     {
+        anchor: "system-dependencies",
+        title: "System dependencies",
+        description: "Install git, the GitHub CLI, Docker Desktop and rsync through winget or Chocolatey.",
+        values: ["git", "Docker Desktop", "winget"],
+    },
+    {
         anchor: "updates",
         title: "Updates",
         description: "Whether this build is up to date, when it last checked, and where updates come from.",
@@ -162,6 +168,7 @@ describe("every section the surface renders", () => {
             "render-memory",
             "notification-duration",
             "download-concurrency",
+            "system-dependencies",
             "updates",
             "history",
             "diagnostics",
@@ -207,8 +214,12 @@ describe("every section the surface renders", () => {
         expect(filterSections(SECTIONS, createSettingMatcher("octocat", false, "im"))).toEqual([
             "github-account",
         ]);
+        // "github" also matches system-dependencies now: its own description names
+        // "the GitHub CLI", a real dependency this installer can fetch. Both are
+        // genuine matches, not noise - the search matches what is really on screen.
         expect(filterSections(SECTIONS, createSettingMatcher("github", false, "im"))).toEqual([
             "github-account",
+            "system-dependencies",
         ]);
     });
 

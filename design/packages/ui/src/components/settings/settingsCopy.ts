@@ -111,6 +111,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "How many release-asset parts a download fetches at once. More at a time can finish a fast connection sooner; fewer means a dropped connection costs less and the disk is not asked to write several parts at the same time.",
             ),
         },
+        "system-dependencies": {
+            title: t("settings.dependencies.title", "System dependencies"),
+            description: t(
+                "settings.dependencies.description",
+                "Install git, the GitHub CLI, Docker Desktop and rsync through Windows's own package managers, winget or Chocolatey. Each one is real system software, not a private copy for this app alone, so most of them will ask Windows for administrator permission - always disclosed here before the button is pressed.",
+            ),
+        },
         "updates": {
             title: t("settings.updates.title", "Updates"),
             description: t(

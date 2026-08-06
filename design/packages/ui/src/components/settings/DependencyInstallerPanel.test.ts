@@ -18,7 +18,12 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import DependencyInstallerPanel from "./DependencyInstallerPanel.vue";
-import type { DependencyInstallerBridge, SysdepInstallEvent, SysdepPreviewRow } from "./dependencyBridge.js";
+import type {
+    DependencyInstallerBridge,
+    SysdepBatchResult,
+    SysdepInstallEvent,
+    SysdepPreviewRow,
+} from "./dependencyBridge.js";
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -212,12 +217,12 @@ describe("running the batch", () => {
     });
 
     it("shows a Cancel button while running, and hides the Install button", async () => {
-        let resolveInstall: (() => void) | null = null;
+        const deferred: { resolve: (() => void) | undefined } = { resolve: undefined };
         const wrapper = panel(
             fakeBridge({
                 installSysdeps: () =>
-                    new Promise((resolve) => {
-                        resolveInstall = () => resolve({ outcomes: [], cancelled: false });
+                    new Promise<SysdepBatchResult>((resolve) => {
+                        deferred.resolve = () => resolve({ outcomes: [], cancelled: false });
                     }),
             }),
         );
@@ -230,7 +235,7 @@ describe("running the batch", () => {
         expect(wrapper.findAll("button").some((btn) => btn.text().includes("Cancel"))).toBe(true);
         expect(wrapper.findAll("button").some((btn) => btn.text().includes("Install"))).toBe(false);
 
-        resolveInstall?.();
+        deferred.resolve?.();
         await flushPromises();
     });
 });

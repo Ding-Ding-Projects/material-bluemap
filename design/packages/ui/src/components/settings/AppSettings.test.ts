@@ -55,6 +55,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "render-memory": "Render memory",
     "notification-duration": "Notification duration",
     "download-concurrency": "Download concurrency",
+    "system-dependencies": "System dependencies",
     "updates": "Updates",
     "history": "Version history",
     "diagnostics": "Diagnostics",
@@ -504,7 +505,14 @@ describe("the GitHub account", () => {
         await field?.setValue("GitHub");
         await settle();
 
-        expect(resultTitles()).toEqual([SECTION_TITLE["github-account"]]);
+        // "GitHub" now genuinely appears on two sections' screens: the account sign-in
+        // row, and the "GitHub CLI" dependency the winget/Chocolatey installer can fetch.
+        // Both are real matches, not noise - the search matches what is actually on
+        // screen, exactly as `settingsSections.ts` documents it should.
+        expect(resultTitles()).toEqual([
+            SECTION_TITLE["github-account"],
+            SECTION_TITLE["system-dependencies"],
+        ]);
 
         await clickResult("github-account");
 

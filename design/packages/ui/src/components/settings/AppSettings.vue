@@ -12,6 +12,7 @@ import { languageSearchLabels } from "../setup/languageSearch.js";
 import { defaultMapStorageDir } from "../setup/mapStorage.js";
 import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import DockedSurface from "./DockedSurface.vue";
+import DependencyInstallerPanel from "./DependencyInstallerPanel.vue";
 import JavaRuntimeRow from "./JavaRuntimeRow.vue";
 import SettingsSection from "./SettingsSection.vue";
 import StorageSettingRow from "./StorageSettingRow.vue";
@@ -153,6 +154,7 @@ const placementSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const renderMemorySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const noticeDurationSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const downloadConcurrencySection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const systemDependenciesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const historySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const diagnosticsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -328,6 +330,15 @@ const sections = computed<SettingsSectionText[]>(() => {
                           downloadConcurrency.readout.value.explanation,
                       ],
         },
+        // The winget/Chocolatey rules everyone can already read: the dependency names and
+        // the two package managers, so typing "docker" or "chocolatey" finds this tab even
+        // before the live preview has resolved anything from the main process.
+        {
+            anchor: "system-dependencies",
+            title: text["system-dependencies"].title,
+            description: text["system-dependencies"].description,
+            values: ["git", "GitHub CLI", "Docker Desktop", "rsync", "winget", "Chocolatey"],
+        },
         // The installed and staged versions, the last check and the feed, plus the row's
         // own words for whatever it is currently saying (checking, up to date, failed,
         // unsupported) - the same "search what is actually on screen" rule every other
@@ -436,6 +447,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return noticeDurationSection.value;
         case "download-concurrency":
             return downloadConcurrencySection.value;
+        case "system-dependencies":
+            return systemDependenciesSection.value;
         case "updates":
             return updatesSection.value;
         case "history":
@@ -834,6 +847,23 @@ function onDrawer(value: boolean): void {
                         :description="copy['download-concurrency'].description"
                     >
                         <DownloadConcurrencyRow :setting="downloadConcurrency" />
+                    </SettingsSection>
+                </template>
+
+                <!--
+                    git, the GitHub CLI, Docker Desktop and rsync, through winget/Chocolatey.
+                    The panel resolves its own bridge and its own preview - nothing about which
+                    dependency is missing or what it would cost to install is known here, on
+                    purpose, so this section stays as thin as every other one on this screen.
+                -->
+                <template #system-dependencies>
+                    <SettingsSection
+                        ref="systemDependenciesSection"
+                        anchor="system-dependencies"
+                        :title="copy['system-dependencies'].title"
+                        :description="copy['system-dependencies'].description"
+                    >
+                        <DependencyInstallerPanel />
                     </SettingsSection>
                 </template>
 
