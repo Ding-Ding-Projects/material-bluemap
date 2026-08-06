@@ -28,6 +28,7 @@ import { HomeScreen } from "./components/home/index.js";
 import ProfileManager from "./components/ProfileManager.vue";
 import { BackupScreen } from "./components/backup/index.js";
 import PagesScreen from "./components/pages/PagesScreen.vue";
+import WorldRepoScreen from "./components/worldrepo/WorldRepoScreen.vue";
 import PreviewScreen from "./components/preview/PreviewScreen.vue";
 import { CiRenderScreen } from "./components/cirender/index.js";
 import { RunLocationCard } from "./components/remote/index.js";
@@ -253,7 +254,7 @@ afterEach(() => {
 });
 
 describe("the tab strip", () => {
-    it("separates the shell into eleven pages behind one persistent strip", () => {
+    it("separates the shell into twelve pages behind one persistent strip", () => {
         shell();
 
         expect(tabLabels()).toEqual([
@@ -272,6 +273,10 @@ describe("the tab strip", () => {
             "Maps and servers",
             "Backups",
             "Publish to Pages",
+            // A world synced into a git repository, and a repository this application already
+            // prepared on another computer recognised and adopted - see
+            // WorldRepoScreen.vue's own doc comment.
+            "World repository",
             // The local twin of Pages: no address for a fake bridge-less shell to have
             // started hosting, so this always mounts as an ordinary, unhosted tab.
             "Watch it live",
@@ -485,6 +490,45 @@ describe("the tab strip", () => {
         await settle();
 
         expect(app.findComponent(PagesScreen).exists()).toBe(true);
+    });
+
+    it("reaches the world-repository surface through its tab, rather than leaving it in the bundle", async () => {
+        // The eighth feature this project built - a full sync-and-adopt engine and eleven
+        // working IPC channels - and left with no door at all.
+        const app = shell();
+        expect(app.findComponent(WorldRepoScreen).exists()).toBe(false);
+
+        tabButton("World repository").click();
+        await settle();
+
+        expect(app.findComponent(WorldRepoScreen).exists()).toBe(true);
+    });
+
+    it("takes an adopted repository's project to the Projects page, open at that world", async () => {
+        const app = shell();
+        tabButton("World repository").click();
+        await settle();
+
+        app.findComponent(WorldRepoScreen).vm.$emit("adopted", "/worlds/andyville");
+        await settle();
+
+        expect(tabLabels().some((label) => label !== null && label.startsWith("Projects"))).toBe(true);
+        const projects = app.findComponent(ProjectsScreen);
+        expect(projects.exists()).toBe(true);
+        expect(projects.props("openWorld")).toBe("/worlds/andyville");
+    });
+
+    it("routes the world-repository screen's Settings request to the dependency anchor it names", async () => {
+        const app = shell();
+        tabButton("World repository").click();
+        await settle();
+
+        app.findComponent(WorldRepoScreen).vm.$emit("open-settings", "java-runtime");
+        await settle();
+
+        const settings = app.findComponent(AppSettings);
+        expect(settings.props("open")).toBe(true);
+        expect(settings.props("anchor")).toBe("java-runtime");
     });
 
     it("reaches the live-preview surface through its tab, rather than leaving it in the bundle", async () => {

@@ -247,6 +247,13 @@ const PAGE_NOTES: Record<string, { description: [string, string]; keywords: read
         ],
         keywords: ["publish", "github pages", "website", "host", "deploy", "share"],
     },
+    worldrepo: {
+        description: [
+            "palette.page.worldRepo",
+            "Keeping a world in a git repository so it updates incrementally, and adopting a repository this application already prepared on another computer.",
+        ],
+        keywords: ["git", "repository", "sync", "world repo", "adopt", "adoption", "clone", "marker", "incremental"],
+    },
 };
 
 /**

@@ -16,6 +16,7 @@ import {
     mdiMapPlus,
     mdiProgressClock,
     mdiServerNetwork,
+    mdiSourceRepository,
     mdiWeb,
 } from "@mdi/js";
 import type { MenuPage } from "@material-bluemap/viewer";
@@ -57,6 +58,7 @@ import { AppearanceTarget } from "./components/appearance/index.js";
 import { TabbedNavigation, type TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
 import PagesScreen from "./components/pages/PagesScreen.vue";
+import WorldRepoScreen from "./components/worldrepo/WorldRepoScreen.vue";
 import PreviewScreen from "./components/preview/PreviewScreen.vue";
 import { DocsPage } from "./components/docs/index.js";
 import { UpdateBanner, createUpdates } from "./components/update/index.js";
@@ -107,6 +109,7 @@ const PAGE_RENDERS = "renders";
 const PAGE_SERVERS = "servers";
 const PAGE_BACKUPS = "backups";
 const PAGE_PAGES = "pages";
+const PAGE_WORLDREPO = "worldrepo";
 const PAGE_PREVIEW = "preview";
 const PAGE_DOCS = "docs";
 
@@ -174,6 +177,10 @@ const pages = computed<TabPage[]>(() => [
     { id: PAGE_SERVERS, label: t("tabs.page.servers", "Maps and servers"), icon: mdiServerNetwork },
     { id: PAGE_BACKUPS, label: t("tabs.page.backups", "Backups"), icon: mdiCloudUploadOutline },
     { id: PAGE_PAGES, label: t("tabs.page.pages", "Publish to Pages"), icon: mdiWeb },
+    // A world, rather than a render, going the other direction: kept in a git repository so
+    // it updates incrementally instead of being re-zipped whole, and recognised again on a
+    // second computer that has never touched it - see WorldRepoScreen.vue's own doc comment.
+    { id: PAGE_WORLDREPO, label: t("tabs.page.worldRepo", "World repository"), icon: mdiSourceRepository },
     // The local twin of the Pages tab above: that one puts a render on somebody else's
     // static host, this one serves it straight off this computer's own disk so it can be
     // watched in a browser while it is still being rendered. See `PreviewScreen.vue`'s own
@@ -951,6 +958,25 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <div class="mb-world-host mb-interactive">
                                 <div class="mb-shell-centre">
                                     <PagesScreen @open="openInBrowser" />
+                                </div>
+                            </div>
+                        </template>
+
+                        <!--
+                            A world going the other direction, incrementally: synced into a
+                            git repository rather than re-zipped whole, and recognised again
+                            on a second computer that never touched it. `adopted` lands on the
+                            same Projects page a finished guide run does, open at the world
+                            just written - the natural next step once a project exists there.
+                        -->
+                        <template #worldrepo>
+                            <div class="mb-world-host mb-interactive">
+                                <div class="mb-shell-centre">
+                                    <WorldRepoScreen
+                                        @open="openInBrowser"
+                                        @open-settings="(anchor) => openSettings(anchor)"
+                                        @adopted="openProject"
+                                    />
                                 </div>
                             </div>
                         </template>

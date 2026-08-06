@@ -429,20 +429,6 @@ async function probeChosen(): Promise<void> {
     await wr.probeAdoption(list, adoptBranch.value.trim() || DEFAULT_WORLD_BRANCH);
 }
 
-const STATUS_LABEL: Record<WorldRepoAdoptionStatus, string> = {
-    prepared: "worldrepo.status.prepared",
-    "prepared-newer-version": "worldrepo.status.preparedNewer",
-    "not-prepared": "worldrepo.status.notPrepared",
-    "not-checked": "worldrepo.status.notChecked",
-    unknown: "worldrepo.status.unknown",
-};
-const STATUS_FALLBACK: Record<WorldRepoAdoptionStatus, string> = {
-    prepared: "Looks like yours",
-    "prepared-newer-version": "Looks like yours (newer version)",
-    "not-prepared": "Not one of yours",
-    "not-checked": "Not checked",
-    unknown: "Could not tell",
-};
 const STATUS_TONE: Record<WorldRepoAdoptionStatus, "success" | "warning" | "default" | "info"> = {
     prepared: "success",
     "prepared-newer-version": "success",
@@ -451,8 +437,28 @@ const STATUS_TONE: Record<WorldRepoAdoptionStatus, "success" | "warning" | "defa
     unknown: "warning",
 };
 
+/**
+ * Every call written out literally, one per status, rather than a dictionary lookup keyed by
+ * a variable. `catalogueCoverage.test.ts`'s own `CALL_TO_T` scanner - and `appCopy.test.ts`'s
+ * "every catalogue key has a call site" guard - both read the source text for a literal,
+ * quoted first argument to a `t` call; a computed key such as a lookup table indexed by
+ * `status` is invisible to both, which is precisely how these five keys would end up looking
+ * unused and untranslatable at once. Five literal calls cost nothing and stay visible to
+ * every guard in the package.
+ */
 function statusLabel(status: WorldRepoAdoptionStatus): string {
-    return t(STATUS_LABEL[status], STATUS_FALLBACK[status]);
+    switch (status) {
+        case "prepared":
+            return t("worldrepo.status.prepared", "Looks like yours");
+        case "prepared-newer-version":
+            return t("worldrepo.status.preparedNewer", "Looks like yours (newer version)");
+        case "not-prepared":
+            return t("worldrepo.status.notPrepared", "Not one of yours");
+        case "not-checked":
+            return t("worldrepo.status.notChecked", "Not checked");
+        case "unknown":
+            return t("worldrepo.status.unknown", "Could not tell");
+    }
 }
 
 function canView(signal: WorldRepoAdoptionSignal): boolean {
