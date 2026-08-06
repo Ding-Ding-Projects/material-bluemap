@@ -2803,29 +2803,6 @@ interface MaterialBlueMapBridge {
      * repository, which a field mid-keystroke does far more often than it names one.
      */
     parseWorldSource(text: string): Promise<BridgeReleaseCoordinates | null>;
-    /**
-     * What that release actually holds: one archive, or parts and their checksums.
-     *
-     * The raw answer, carrying each source's `kind` and how it is verified.
-     * `discoverRelease` above is what the downloads panel actually calls; this is the
-     * channel underneath it, kept typed and callable on its own for whatever wants the
-     * distinction `discoverRelease` deliberately flattens away.
-     */
-    discoverWorldSource(request: {
-        owner: string;
-        repo: string;
-        tag?: string;
-    }): Promise<WorldSourceDiscoverAnswer>;
-    /** Fetches it. Progress arrives on the ordinary download events, not a second stream. */
-    fetchWorldSource(request: {
-        owner: string;
-        repo: string;
-        tag?: string;
-        asset?: string;
-        extract?: boolean;
-    }): Promise<DownloadResult>;
-    cancelWorldSource(id: string): Promise<boolean>;
-    activeWorldSources(): Promise<readonly string[]>;
 
     /* ---- Handing a render to a Linux machine over SSH --------------------- */
 
@@ -3296,10 +3273,6 @@ const bridge: MaterialBlueMapBridge = {
         const reference = (await ipcRenderer.invoke("worldsource:parse", text)) as WorldSourceReferenceAnswer | null;
         return toBridgeCoordinates(reference);
     },
-    discoverWorldSource: (request) => ipcRenderer.invoke("worldsource:discover", request),
-    fetchWorldSource: (request) => ipcRenderer.invoke("worldsource:fetch", request),
-    cancelWorldSource: (id) => ipcRenderer.invoke("worldsource:cancel", id),
-    activeWorldSources: () => ipcRenderer.invoke("worldsource:active"),
 
     validateRemoteTarget: (target) => ipcRenderer.invoke("remote:validate", target),
     describeRemoteTarget: (target) => ipcRenderer.invoke("remote:describe", target),
