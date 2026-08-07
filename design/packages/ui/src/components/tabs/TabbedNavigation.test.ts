@@ -220,20 +220,20 @@ describe("selecting", () => {
         expect(view.find(".page-map").exists()).toBe(false);
     });
 
-    it("walks the strip with the arrow keys and stops at the ends", async () => {
+    it("walks the default left strip with Up and Down and stops at the ends", async () => {
         const view = open();
         await nextTick();
 
-        await tabs(view)[0]?.trigger("keydown", { key: "ArrowRight" });
+        await tabs(view)[0]?.trigger("keydown", { key: "ArrowDown" });
         await nextTick();
         expect(tabs(view)[1]?.attributes("aria-selected")).toBe("true");
 
-        await tabs(view)[1]?.trigger("keydown", { key: "ArrowLeft" });
+        await tabs(view)[1]?.trigger("keydown", { key: "ArrowUp" });
         await nextTick();
         expect(tabs(view)[0]?.attributes("aria-selected")).toBe("true");
 
-        // Clamped, not wrapped: the left edge nudged left again stays put.
-        await tabs(view)[0]?.trigger("keydown", { key: "ArrowLeft" });
+        // Clamped, not wrapped: the top item nudged upward again stays put.
+        await tabs(view)[0]?.trigger("keydown", { key: "ArrowUp" });
         await nextTick();
         expect(tabs(view)[0]?.attributes("aria-selected")).toBe("true");
     });
@@ -263,12 +263,12 @@ describe("the keyboard commands the context menu advertises", () => {
         expect(tabs(view).map((tab) => tab.attributes("title"))).toEqual(["Map", "Servers"]);
     });
 
-    it("reorders the focused tab on the reorder chord, without moving the selection", async () => {
+    it("reorders the focused tab downward on the default vertical chord without moving selection", async () => {
         const view = open();
         await nextTick();
 
         await tabs(view)[0]?.trigger("keydown", {
-            key: "ArrowRight",
+            key: "ArrowDown",
             ctrlKey: true,
             shiftKey: true,
         });
@@ -1270,6 +1270,28 @@ describe("four-edge tab-strip placement", () => {
         await second?.trigger("keydown", { key: "ArrowRight" });
         await settle();
         expect(view.findAll('[role="tab"]')[2]?.attributes("aria-selected")).toBe("true");
+        view.unmount();
+    });
+
+    it("reorders on Left and Right after the strip moves to the top edge", async () => {
+        const view = openDirect();
+        await settle();
+        await choosePlacement(view, "Top edge");
+
+        await view.findAll('[role="tab"]')[0]?.trigger("keydown", {
+            key: "ArrowRight",
+            ctrlKey: true,
+            shiftKey: true,
+        });
+        await settle();
+
+        const rows = view.findAll('[role="tab"]');
+        expect(rows.map((tab) => tab.attributes("title"))).toEqual([
+            "Make a map",
+            "Map",
+            "Servers",
+        ]);
+        expect(rows[1]?.attributes("aria-selected")).toBe("true");
         view.unmount();
     });
 
