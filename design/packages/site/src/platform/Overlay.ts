@@ -38,7 +38,7 @@ export class Overlay {
     private readonly onKeyDown: (event: KeyboardEvent) => void;
     private readonly onReflow: () => void;
     private isOpen = false;
-    private readonly geometry: PanelGeometryController | null;
+    private readonly geometry: PanelGeometryController;
     /**
      * Elements whose contents never count as "outside" this overlay, beyond `this.element`
      * and `this.anchor` themselves. A menu can open its own further popover -- the regex
@@ -58,14 +58,11 @@ export class Overlay {
         this.element.className = "md-surface-overlay";
         this.element.setAttribute("role", options.role ?? "dialog");
         this.element.setAttribute("aria-label", options.label);
-        this.geometry =
-            options.role === "menu"
-                ? null
-                : attachPanelGeometry(this.element, {
-                      id: options.geometryId ?? `overlay.${options.label}`,
-                      floating: true,
-                      onReset: () => this.onReflow(),
-                  });
+        this.geometry = attachPanelGeometry(this.element, {
+            id: options.geometryId ?? `overlay.${options.role ?? "dialog"}.${options.label}`,
+            floating: true,
+            onReset: () => this.onReflow(),
+        });
 
         this.onDocumentPointerDown = (event) => {
             const target = event.target;
@@ -86,7 +83,7 @@ export class Overlay {
 
         this.onReflow = () => {
             if (!this.isOpen) return;
-            if (this.geometry?.detached === true) this.geometry.constrain();
+            if (this.geometry.detached) this.geometry.constrain();
             else positionOverlay(this.element, this.anchor, this.options);
         };
     }
@@ -98,10 +95,10 @@ export class Overlay {
     show(): void {
         if (this.isOpen) return;
         this.isOpen = true;
-        this.geometry?.mountToolbar();
+        this.geometry.mountToolbar();
         document.body.append(this.element);
-        this.geometry?.restore();
-        if (this.geometry?.detached === true) this.geometry.constrain();
+        this.geometry.restore();
+        if (this.geometry.detached) this.geometry.constrain();
         else positionOverlay(this.element, this.anchor, this.options);
 
         // Pointerdown rather than click: a click that starts inside and ends outside should

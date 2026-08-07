@@ -12,18 +12,20 @@ The documentation site now carries a hand-written inventory of 41 shared require
 rows cover scheduled language/appearance rules with local, bounded JSON API and Home Assistant
 boolean sources, plus one shared geometry controller for settings panels, tab panels, anchored
 panels and interactive overlays. Rules are versioned and bounded, preserve base-value recovery and
-history, validate timezone/cross-midnight/equal-endpoint behaviour, store only credential-vault
-references, and fail closed with reviewable notifications. Panels resize, floating panels drag,
-stay viewport-bounded, persist per surface, reset visibly and expose keyboard move/resize paths.
+history, validate timezone/cross-midnight/equal-endpoint behaviour, keep Home Assistant tokens only
+in page-session memory, let `off` fall through to the next matching rule, and fail closed on
+unavailable/authentication responses. Panels resize, every transient panel including menus drags,
+stays viewport-bounded, persists per surface, resets visibly and exposes keyboard move/resize paths.
 
-Eighteen exact headless records and fourteen genuine captures cover ten routes: Home, Settings,
+Eighteen exact schema-v2 headless records and fourteen genuine captures cover ten routes: Home, Settings,
 Schedules/external sources, Search/regex, command-palette teleport, appearance, notification
 history, changelog/date filtering, tab/group menus and exports/bulk actions. The driver no longer
 truncates overflow candidates; it classifies every one as accidental or an intentional internal
-scroller and fails accidental clipping, an undersized target, broken `aria-controls`, a missing
-toggle, or an incorrect final navigation state. The runtime pass also corrected the expanded
-compact rail width, startup-surprise dismiss target, button/search/tab targets and scheduled
-checkbox rows. See `../docs/pages-feature-parity.md`,
+scroller and fails accidental clipping, an undersized target, broken `aria-controls`, missing
+toggle inversion or localized label change, a missing scenario, or an incorrect final navigation
+state. A committed guard rejects legacy/incomplete records. The runtime pass also corrected the
+expanded compact rail width, appearance-editor width and wrapping, startup-surprise dismiss target,
+button/search/tab targets and scheduled checkbox rows. See `../docs/pages-feature-parity.md`,
 `../docs/scheduled-settings-and-external-sources.md`, `../docs/panel-geometry.md` and issue #92.
 
 Focused schedule, geometry and content-policy tests plus site typecheck/build are green locally.

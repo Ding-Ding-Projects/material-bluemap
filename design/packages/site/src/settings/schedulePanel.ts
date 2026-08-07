@@ -4,6 +4,7 @@ import { fillPhrase, t } from "./i18n.js";
 import {
     ScheduleRepository,
     ScheduledSettingsController,
+    SessionSecretProvider,
     defaultRule,
     supportedTimezones,
     validateRule,
@@ -18,6 +19,7 @@ export interface SchedulePanelOptions {
     readonly store: SettingsStore;
     readonly repository: ScheduleRepository;
     readonly controller: ScheduledSettingsController;
+    readonly secrets: SessionSecretProvider;
     readonly confirmDelete: (message: string) => Promise<boolean>;
     readonly notify?: ((message: string, error: boolean) => void) | undefined;
 }
@@ -68,6 +70,10 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
     const refreshButton = actionButton("schedule.refreshNow", "md-button md-button--outlined");
     const exportButton = actionButton("schedule.export", "md-button md-button--outlined");
     const importButton = actionButton("schedule.import", "md-button md-button--outlined");
+    const clearSessionTokens = actionButton(
+        "schedule.clearSessionTokens",
+        "md-button md-button--outlined",
+    );
     const sourceHelp = phrase("schedule.credentialHelp", "p", "md-field__help mb-help");
     const historyHeading = phrase("schedule.history", "h3", "mb-section-title");
     const historyList = el("div", { class: "mb-schedule-history" });
@@ -86,7 +92,14 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
     );
     sourcesElement.append(
         sourceHelp,
-        el("div", { class: "mb-button-row" }, refreshButton, exportButton, importButton),
+        el(
+            "div",
+            { class: "mb-button-row" },
+            refreshButton,
+            exportButton,
+            importButton,
+            clearSessionTokens,
+        ),
         status,
         historyHeading,
         historyList,
@@ -132,6 +145,11 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
                 options.notify?.(t("schedule.importFailed"), true);
             }
         })();
+    });
+    clearSessionTokens.addEventListener("click", () => {
+        options.secrets.clearAll();
+        options.notify?.(t("schedule.sessionTokensCleared"), false);
+        render();
     });
     disposers.push(options.controller.subscribe(renderStatus));
 
@@ -259,7 +277,7 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
                                 kind: "home-assistant",
                                 baseUrl: "https://",
                                 entityId: "input_boolean.",
-                                credentialKey: "ha-main",
+                                credentialKey: `ha-${current.id}`,
                                 refreshMinutes: 15,
                             };
             }
@@ -293,12 +311,56 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
                 const entity = inputField("schedule.haEntity", "text", current.source.entityId, {
                     placeholder: "input_boolean.site_theme",
                 });
-                const credential = inputField(
-                    "schedule.credentialKey",
-                    "text",
-                    current.source.credentialKey,
-                    { placeholder: "ha-main" },
+                const credentialKey = current.source.credentialKey;
+                const token = inputField("schedule.sessionToken", "password", "", {
+                    placeholder: t("schedule.sessionTokenPlaceholder"),
+                    autocomplete: "new-password",
+                    spellcheck: "false",
+                });
+                const tokenStatus = phrase(
+                    options.secrets.hasToken(credentialKey)
+                        ? "schedule.sessionTokenLoaded"
+                        : "schedule.sessionTokenMissing",
+                    "p",
+                    "mb-capability-note mb-session-token-status",
                 );
+                const useToken = actionButton(
+                    "schedule.useSessionToken",
+                    "md-button md-button--tonal",
+                );
+                const clearToken = actionButton(
+                    "schedule.clearSessionToken",
+                    "md-button md-button--outlined",
+                );
+                clearToken.disabled = !options.secrets.hasToken(credentialKey);
+                const setTokenStatus = (
+                    key:
+                        | "schedule.sessionTokenLoaded"
+                        | "schedule.sessionTokenMissing"
+                        | "schedule.sessionTokenEmpty",
+                ): void => {
+                    tokenStatus.dataset["i18nKey"] = key;
+                    fillPhrase(tokenStatus, key);
+                };
+                useToken.addEventListener("click", () => {
+                    if (!options.secrets.setToken(credentialKey, token.input.value)) {
+                        setTokenStatus("schedule.sessionTokenEmpty");
+                        token.input.focus();
+                        return;
+                    }
+                    token.input.value = "";
+                    setTokenStatus("schedule.sessionTokenLoaded");
+                    clearToken.disabled = false;
+                    options.notify?.(t("schedule.sessionTokenAccepted"), false);
+                    void applyNow();
+                });
+                clearToken.addEventListener("click", () => {
+                    options.secrets.clearToken(credentialKey);
+                    token.input.value = "";
+                    setTokenStatus("schedule.sessionTokenMissing");
+                    clearToken.disabled = true;
+                    options.notify?.(t("schedule.sessionTokenCleared"), false);
+                });
                 const refresh = inputField(
                     "schedule.refresh",
                     "number",
@@ -313,13 +375,6 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
                     if (current.source.kind === "home-assistant")
                         current.source = { ...current.source, entityId: entity.input.value };
                 });
-                credential.input.addEventListener("input", () => {
-                    if (current.source.kind === "home-assistant")
-                        current.source = {
-                            ...current.source,
-                            credentialKey: credential.input.value,
-                        };
-                });
                 refresh.input.addEventListener("input", () => {
                     if (current.source.kind === "home-assistant")
                         current.source = {
@@ -330,7 +385,9 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
                 sourceFields.append(
                     baseUrl.element,
                     entity.element,
-                    credential.element,
+                    token.element,
+                    tokenStatus,
+                    el("div", { class: "mb-button-row" }, useToken, clearToken),
                     refresh.element,
                     phrase("schedule.credentialHelp", "p", "md-field__help mb-help"),
                 );
@@ -607,6 +664,7 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
         destinations,
         refresh: refreshCopy,
         destroy(): void {
+            options.secrets.clearAll();
             for (const dispose of disposers) dispose();
         },
     };

@@ -1,5 +1,6 @@
 {
-  "generatedAt": "2026-08-07T09:09:31.764Z",
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-07T10:48:25.115Z",
   "requested": {
     "width": 1024,
     "height": 768,
@@ -41,7 +42,7 @@
     "viewport": {
       "width": 1024,
       "height": 768,
-      "scale": 1
+      "scale": 1.0000000298023224
     },
     "compact": false,
     "documentOverflowX": 0,
@@ -63,8 +64,43 @@
       "englishNodes": 77,
       "cantoneseNodes": 0
     },
+    "scenarioTarget": {
+      "present": true,
+      "horizontalOverflow": 8,
+      "outOfBounds": [
+        {
+          "tag": "DIV",
+          "id": "",
+          "className": "mb-panel-geometry-toolbar",
+          "left": 274.22918701171875,
+          "right": 969.9479370117188,
+          "targetLeft": 282.22918701171875,
+          "targetRight": 961.9479370117188
+        }
+      ]
+    },
     "clippedControls": [],
     "undersized": [],
-    "overflowingElements": []
+    "overflowingElements": [],
+    "overflowSummary": {
+      "total": 0,
+      "classified": 0,
+      "accidental": 0,
+      "intentionalHorizontalScroller": 0
+    }
+  },
+  "verification": {
+    "toggleTransitions": {
+      "firstInverted": true,
+      "secondInverted": true,
+      "firstLabelChanged": true,
+      "secondLabelChanged": true
+    },
+    "focusRetained": true,
+    "finalStateMatched": true,
+    "ariaControlsValid": true,
+    "scenarioMatched": true,
+    "overflowClassificationComplete": true,
+    "failures": []
   }
 }

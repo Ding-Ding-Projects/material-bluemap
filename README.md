@@ -40,10 +40,13 @@ persists an explicit visitor choice; the hand-written
 [Pages feature-parity inventory](docs/pages-feature-parity.md) names implementation and verification
 evidence for every applicable shared requirement and states each browser-only boundary. Scheduled
 language and appearance rules can use local time windows, bounded JSON APIs, or Home Assistant
-boolean entities, while every settings, tab, anchored and overlay panel shares viewport-bounded,
-persisted resize/drag controls. These surfaces are assembled in `design/packages/site/src/main.ts`
+boolean entities. Home Assistant tokens stay only in page-session memory and `off` falls through to
+the next matching rule. Every settings, tab, anchored, dialog and menu panel shares
+viewport-bounded, persisted resize/drag controls. These surfaces are assembled in `design/packages/site/src/main.ts`
 and verified with the site type checker, Vitest suite, Vite production build, and exact compact
-headless metrics at 360, 390 and 414 CSS pixels plus a desktop viewport.
+headless metrics at 360, 390 and 414 CSS pixels plus a desktop viewport. All 18 proof records use a
+guarded schema that checks scenario identity, ARIA state, focus, both toggle label/state changes and
+complete overflow classification.
 
 Every push to the default branch that passes lint, build and the full test suite publishes a real
 Squirrel.Windows installer with its own uniquely tagged release. Read what it can and cannot do

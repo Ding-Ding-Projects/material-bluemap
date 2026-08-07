@@ -741,6 +741,18 @@
     background: var(--md-sys-color-surface-container);
 }
 
+.mb-element-item > .md-button,
+.mb-preset-item > .md-button {
+    flex: 1 1 150px;
+    max-width: 100%;
+    height: auto;
+    min-height: var(--md-comp-button-height);
+    padding-block: var(--md-sys-spacing-2);
+    overflow: visible;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .mb-element-meta,
 .mb-preset-meta {
     display: flex;
@@ -826,15 +838,19 @@
 /* ---- Appearance editor ------------------------------------------------------------- */
 
 .mb-appearance-editor {
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     gap: 12px;
-    min-width: min(420px, calc(100vw - 32px));
     /* The panel bounds its own height; this makes the content scroll inside it
        rather than being cut off past the bound with no scrollbar to say so. */
     max-height: 100%;
     padding: 16px;
-    overflow: hidden auto;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .mb-editor-head {
@@ -842,6 +858,7 @@
     align-items: start;
     justify-content: space-between;
     gap: 8px;
+    min-width: 0;
 }
 
 .mb-editor-title {
@@ -873,12 +890,14 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
+    min-width: 0;
 }
 
 .mb-editor-section {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 0;
 }
 
 .mb-editor-section-title {
@@ -892,6 +911,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
 }
 
 .mb-editor-group-title {
@@ -1304,6 +1324,35 @@
 /* Narrow widths: the longest copy this site renders is bilingual, so these are the
    layouts to check first. Nothing is hidden; rows stack instead. */
 @media (max-width: 719px) {
+    .mb-appearance-editor {
+        padding: 12px;
+    }
+
+    .mb-appearance-editor input,
+    .mb-appearance-editor select,
+    .mb-appearance-editor textarea,
+    .mb-appearance-editor button,
+    .mb-editor-preview,
+    .mb-editor-foot,
+    .mb-scope {
+        max-width: 100%;
+        min-width: 0;
+    }
+
+    .mb-editor-head,
+    .mb-editor-preview,
+    .mb-editor-foot {
+        flex-wrap: wrap;
+    }
+
+    .mb-editor-title,
+    .mb-editor-section-title,
+    .mb-editor-group-title,
+    .mb-editor-preview,
+    .mb-property-row {
+        overflow-wrap: anywhere;
+    }
+
     .mb-color-row,
     .mb-slider-row {
         grid-template-columns: 1fr;

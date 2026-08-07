@@ -951,7 +951,9 @@ textarea {
 
 /* Every interactive panel can be resized; floating panels also drag by this toolbar. */
 .mb-resizable-panel {
-    min-width: min(280px, calc(100vw - 24px));
+    box-sizing: border-box;
+    min-width: min(280px, 100%);
+    max-width: 100%;
     min-height: min(180px, calc(100vh - 24px));
     resize: both;
     overflow: auto;
@@ -993,7 +995,7 @@ textarea {
 
 @media (width <= 719px) {
     .mb-resizable-panel {
-        min-width: min(240px, calc(100vw - 16px));
+        min-width: min(240px, 100%);
         min-height: min(160px, calc(100vh - 16px));
     }
 }

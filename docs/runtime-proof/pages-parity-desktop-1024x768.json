@@ -1,11 +1,13 @@
 {
-  "generatedAt": "2026-08-07T07:13:56.156Z",
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-07T10:48:18.953Z",
   "requested": {
     "width": 1024,
     "height": 768,
     "scale": 1,
     "mode": "english",
-    "finalState": "expanded"
+    "finalState": "expanded",
+    "scenario": "home"
   },
   "interaction": {
     "available": true,
@@ -22,13 +24,25 @@
       "expanded": "true",
       "label": "Pack the side navigation into its tiny suitcase",
       "focusStayed": true
+    },
+    "final": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase",
+      "focusStayed": true
     }
+  },
+  "scenario": {
+    "scenario": "home",
+    "opened": true,
+    "selector": "#panel-home",
+    "targetPresent": true,
+    "targetVisible": true
   },
   "metrics": {
     "viewport": {
       "width": 1024,
       "height": 768,
-      "scale": 1
+      "scale": 1.0000000298023224
     },
     "compact": false,
     "documentOverflowX": 0,
@@ -42,15 +56,51 @@
       "toggleVisible": true,
       "expanded": "true",
       "label": "Pack the side navigation into its tiny suitcase",
-      "controls": "site-primary-navigation"
+      "controls": "site-primary-navigation",
+      "controlledElementExists": true
     },
     "language": {
       "mode": "en",
-      "englishNodes": 514,
+      "englishNodes": 530,
       "cantoneseNodes": 0
+    },
+    "scenarioTarget": {
+      "present": true,
+      "horizontalOverflow": 8,
+      "outOfBounds": [
+        {
+          "tag": "DIV",
+          "id": "",
+          "className": "mb-panel-geometry-toolbar",
+          "left": 243.5104217529297,
+          "right": 1000.6666717529297,
+          "targetLeft": 251.5104217529297,
+          "targetRight": 992.6666717529297
+        }
+      ]
     },
     "clippedControls": [],
     "undersized": [],
-    "overflowingElements": []
+    "overflowingElements": [],
+    "overflowSummary": {
+      "total": 0,
+      "classified": 0,
+      "accidental": 0,
+      "intentionalHorizontalScroller": 0
+    }
+  },
+  "verification": {
+    "toggleTransitions": {
+      "firstInverted": true,
+      "secondInverted": true,
+      "firstLabelChanged": true,
+      "secondLabelChanged": true
+    },
+    "focusRetained": true,
+    "finalStateMatched": true,
+    "ariaControlsValid": true,
+    "scenarioMatched": true,
+    "overflowClassificationComplete": true,
+    "failures": []
   }
 }

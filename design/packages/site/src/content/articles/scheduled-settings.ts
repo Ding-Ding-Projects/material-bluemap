@@ -31,7 +31,8 @@ export const scheduledSettings: Article = {
                     items: [
                         "Open Settings → Schedules and add a rule; all targets come from the live settings schema.",
                         "Local rules use the values in the form. Versioned JSON API rules read a version 1 values object.",
-                        "Home Assistant rules accept input_boolean or binary_sensor entities. On applies the rule values; off restores the base.",
+                        "Home Assistant rules accept input_boolean or binary_sensor entities. On applies the rule values; off makes that rule a non-match and evaluation continues with the next lower-priority matching rule.",
+                        "Enter a Home Assistant token in the password field for the current page session. It stays only in memory; reload, page close, Clear this token, or Clear all session tokens removes it.",
                         "Export and import use validated UTF-8 JSON. The bounded history restores an earlier complete document as a new revision.",
                     ],
                 },
@@ -58,7 +59,7 @@ export const scheduledSettings: Article = {
                 {
                     kind: "paragraph",
                     content:
-                        "A Home Assistant rule stores only a stable credential-vault key. Tokens are absent from the schema, form, browser storage, exports, history, logs and errors. Requests omit ambient credentials, refuse redirects, cap time and size, and apply only setting IDs allowlisted by the real site schema.",
+                        "A Home Assistant rule stores only a stable non-secret lookup key. Its token is held in a page-lifetime memory map and is absent from local/session storage, the rule schema, exports, history, URLs, logs and errors. Requests omit ambient credentials, refuse redirects, cap time and size, and apply only setting IDs allowlisted by the real site schema.",
                 },
             ],
         },
@@ -69,7 +70,7 @@ export const scheduledSettings: Article = {
                 {
                     kind: "paragraph",
                     content:
-                        "The model and source suite covers matching, precedence, versioning, history, bounds, API and Home Assistant states, cancellation and base recovery. The page suite covers guided controls, save/history, search teleport and rendered theme. The compact driver opens a real rule form at 390×844 bilingual and checks every visible control and overflow classification.",
+                        "The model suite covers matching, precedence, versioning, history, bounds, API states, cancellation and base recovery. A real loopback Home Assistant server verifies on, off fallthrough, unavailable and authentication paths plus token non-persistence/export/logging. The page suite covers the session-only password controls. The compact driver opens a real rule form at 390×844 bilingual and checks every visible control and overflow classification.",
                 },
             ],
         },

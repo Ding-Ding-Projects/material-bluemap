@@ -1,7 +1,7 @@
-/** Hand-written completeness inventory: a missing panel class must fail a test. */
+/** Hand-written transient-owner inventory: every entry is instantiated by the coverage test. */
 export const PANEL_GEOMETRY_SURFACES = [
-    { id: "anchored-panels", owner: "search/anchoredPanel.ts", floating: true },
-    { id: "interactive-overlays", owner: "platform/Overlay.ts", floating: true },
-    { id: "site-tab-panels", owner: "tabs/TabStrip.ts", floating: false },
-    { id: "settings-tab-panels", owner: "settings/page.ts", floating: false },
+    { id: "anchored-popover", owner: "AnchoredPanel", floating: true },
+    { id: "dialog-overlay", owner: "Overlay:dialog", floating: true },
+    { id: "menu-overlay", owner: "Overlay:menu", floating: true },
+    { id: "command-menu", owner: "Menu", floating: true },
 ] as const;

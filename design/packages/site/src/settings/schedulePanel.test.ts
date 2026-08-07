@@ -120,7 +120,7 @@ describe("scheduled settings page", () => {
         view.destroy();
     });
 
-    it("stores only a Home Assistant credential key, never a token value", () => {
+    it("accepts a session-only Home Assistant token and never stores it", async () => {
         const { prefs, view } = page();
         view.activateTab("automation");
         view.element
@@ -132,11 +132,23 @@ describe("scheduled settings page", () => {
         if (source === undefined) throw new Error("missing source picker");
         source.value = "home-assistant";
         source.dispatchEvent(new Event("change", { bubbles: true }));
-        expect(view.element.querySelector("input[type='password']")).toBeNull();
-        expect(view.element.textContent).toContain(
-            "never stores or exports a Home Assistant token",
+        const token = view.element.querySelector<HTMLInputElement>("input[type='password']");
+        expect(token).toBeInstanceOf(HTMLInputElement);
+        expect(token?.getAttribute("autocomplete")).toBe("new-password");
+        expect(view.element.textContent).toContain("only in memory for the current page session");
+        token!.value = "top-secret-session-value";
+        view.element
+            .querySelector<HTMLButtonElement>("button[data-i18n-key='schedule.useSessionToken']")
+            ?.click();
+        await vi.waitFor(() => expect(token!.value).toBe(""));
+        expect(prefs.read("scheduled-settings.rules", "")).not.toContain(
+            "top-secret-session-value",
         );
-        expect(prefs.read("scheduled-settings.rules", "")).not.toContain("token");
+        expect(view.element.textContent).toContain("loaded in memory");
+        view.element
+            .querySelector<HTMLButtonElement>("button[data-i18n-key='schedule.clearSessionToken']")
+            ?.click();
+        expect(view.element.textContent).toContain("No token is loaded");
         view.destroy();
     });
 });

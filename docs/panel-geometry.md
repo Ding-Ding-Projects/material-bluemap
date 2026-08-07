@@ -6,10 +6,10 @@ and operable without a pointer.
 
 ## Behaviour
 
-The shared `PanelGeometry` controller covers four explicit classes: settings tab panels, ordinary
-site page panels, anchored interactive panels, and interactive overlays. Docked panels resize.
-Floating panels resize and move. Menus remain anchored command lists rather than pretending to be
-free-floating windows.
+The shared `PanelGeometry` controller covers docked page/settings panels and every declared
+transient owner: anchored popovers, dialog overlays, menu overlays, and command menus. Docked panels
+resize. Every transient surface resizes and moves, including `role="menu"`; there is no menu-only
+null-controller exemption.
 
 The toolbar exposes wider, taller, smaller, and reset controls with 44-pixel targets. Dragging the
 toolbar detaches a floating panel from its anchor for the visit. <kbd>Alt</kbd>+Arrow moves a
@@ -41,8 +41,10 @@ arbitrary selector or execute code.
 
 - `PanelGeometry.test.ts` proves visible controls, keyboard move/resize, persistence, restoration,
   viewport bounds and reset.
-- `panelGeometryCoverage.ts` is a hand-written four-surface inventory. The test reads every owning
-  source file and fails if the shared controller is not actually attached.
+- `panelGeometryCoverage.ts` is a hand-written transient-owner inventory. The test instantiates
+  every owner, including both Overlay roles and Menu itself, then fails on a null controller,
+  non-floating geometry, or missing toolbar. It does not accept source-string presence as runtime
+  evidence.
 - Compact captures of the schedule editor and appearance editor show the toolbar and bounded
   internal scrolling at 390 and 414 CSS pixels.
 

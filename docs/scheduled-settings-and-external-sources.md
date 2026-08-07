@@ -1,8 +1,9 @@
 # Scheduled settings and external sources
 
 The documentation site can temporarily apply its real language and appearance settings from a
-versioned schedule. A rule never rewrites the visitor's underlying preference: when the rule stops
-matching, fails, or is switched off by an external source, the stored base value returns.
+versioned schedule. A rule never rewrites the visitor's underlying preference: when it stops
+matching, the next lower-priority match is evaluated, and the stored base returns only when no
+candidate applies or an external lookup fails closed.
 
 ## Behaviour
 
@@ -24,8 +25,9 @@ one or more real settings. Choose one source per rule:
 - **Versioned JSON API** expects `{ "version": 1, "values": { ... } }` from an HTTPS URL (loopback
   HTTP is allowed for local development). Unknown or invalid setting IDs are not applied.
 - **Home Assistant boolean entity** reads an `input_boolean.*` or `binary_sensor.*`. `on` applies
-  the rule's values and `off` restores the base values. The form stores a credential-vault key,
-  never a token.
+  the rule's values. `off` means that rule does not match, so evaluation falls through to the next
+  lower-priority matching rule. Enter the token in the password field for the current page session;
+  it lives only in memory and can be cleared per rule or all at once.
 
 Rules export as UTF-8 JSON, import through the same validator, and retain a bounded 100-entry local
 history. Restoring creates another history entry rather than rewriting the previous record.
@@ -41,13 +43,14 @@ history. Restoring creates another history entry rather than rewriting the previ
   newer rule result.
 - External failures restore the base layer, show a persistent non-blocking error notification, and
   leave **Refresh and apply now** beside the failing configuration.
-- The static Pages origin has no credential vault of its own. A Home Assistant rule therefore
-  reports `missing-token` until an approved companion supplies the token for its stable key.
+- A reload, page close, **Clear this token**, or **Clear all session tokens** removes the in-memory
+  token. The rule then reports `missing-token` until the visitor enters it again.
 
 ## Security considerations
 
-Tokens are absent from the rule schema, browser exports, history, logs, URLs, and user-facing error
-text. Requests omit credentials, use manual redirect handling and a bounded body, and accept only
+Tokens are held only in a page-lifetime JavaScript map. They are absent from local storage, session
+storage, the rule schema, browser exports, history, logs, URLs, and user-facing error text. Requests
+omit ambient credentials, use manual redirect handling and a bounded body, and accept only
 allowlisted setting IDs validated against the site's real schema. Schedule data remains in the
 site's namespaced browser storage and is not transmitted unless the visitor configures an external
 source.
@@ -57,8 +60,12 @@ source.
 - `schedule.test.ts` covers dates, timezones, weekdays, cross-midnight and full-day windows,
   precedence, versioning, rule-count bounds, history/restore, API and Home Assistant validation,
   response bounds, cancellation, and base-value recovery.
+- `scheduleHomeAssistant.integration.test.ts` drives a real loopback HTTP server for `on`, `off`
+  fallthrough, unavailable and authentication responses, and proves the token is absent from
+  persistence, export data and console output.
 - `schedulePanel.test.ts` covers the real Schedules tab, guided controls, save/history, search and
-  teleport destinations, rendered scheduled theme, and the absence of a token input.
+  teleport destinations, rendered scheduled theme, the password input, clearing, and the
+  session-only disclosure.
 - `compact-proof.mjs` opens the built schedule editor at `390×844` bilingual, adds a rule, and fails
   on accidental overflow, clipped controls, undersized targets, a missing surface, or incorrect
   compact navigation state.

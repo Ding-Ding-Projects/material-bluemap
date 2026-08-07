@@ -2,10 +2,11 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Preferences } from "./Preferences.js";
-import { attachPanelGeometry } from "./PanelGeometry.js";
+import { attachPanelGeometry, panelGeometryFor } from "./PanelGeometry.js";
 import { PANEL_GEOMETRY_SURFACES } from "./panelGeometryCoverage.js";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { AnchoredPanel } from "../search/anchoredPanel.js";
+import { Menu } from "./Menu.js";
+import { Overlay } from "./Overlay.js";
 
 class MemoryStorage implements Storage {
     private readonly values = new Map<string, string>();
@@ -30,8 +31,14 @@ class MemoryStorage implements Storage {
 }
 
 beforeEach(() => {
+    document.body.replaceChildren();
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 800 });
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 600 });
+    window.matchMedia = vi.fn().mockReturnValue({
+        matches: false,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+    });
 });
 
 function panel(): HTMLElement {
@@ -122,25 +129,65 @@ describe("panel geometry", () => {
         controller.destroy();
     });
 
-    it("keeps the explicit inventory complete and unique", () => {
+    it("instantiates every explicit transient owner and proves real geometry is attached", () => {
         expect(PANEL_GEOMETRY_SURFACES.map((surface) => surface.id)).toEqual([
-            "anchored-panels",
-            "interactive-overlays",
-            "site-tab-panels",
-            "settings-tab-panels",
+            "anchored-popover",
+            "dialog-overlay",
+            "menu-overlay",
+            "command-menu",
         ]);
         expect(new Set(PANEL_GEOMETRY_SURFACES.map((surface) => surface.owner)).size).toBe(
             PANEL_GEOMETRY_SURFACES.length,
         );
-        expect(PANEL_GEOMETRY_SURFACES.filter((surface) => surface.floating)).toHaveLength(2);
+        expect(PANEL_GEOMETRY_SURFACES.every((surface) => surface.floating)).toBe(true);
         for (const surface of PANEL_GEOMETRY_SURFACES) {
-            const source = readFileSync(
-                resolve(process.cwd(), "packages/site/src", surface.owner),
-                "utf8",
-            );
-            expect(source, `${surface.owner} must attach the shared geometry controller`).toContain(
-                "attachPanelGeometry(",
-            );
+            const anchor = document.createElement("button");
+            document.body.append(anchor);
+            let element: HTMLElement;
+            let close: () => void;
+            if (surface.id === "anchored-popover") {
+                const owner = new AnchoredPanel({
+                    anchor,
+                    returnFocusTo: anchor,
+                    title: "Coverage popover",
+                    geometryId: "coverage-anchored",
+                });
+                owner.show(document.createElement("button"));
+                element = owner.element;
+                close = () => owner.destroy();
+            } else if (surface.id === "command-menu") {
+                const owner = new Menu(anchor, {
+                    label: "Coverage menu",
+                    geometryId: "coverage-command-menu",
+                    entries: [
+                        {
+                            render: (label) => (label.textContent = "Command"),
+                            onSelect: () => undefined,
+                        },
+                    ],
+                });
+                owner.show();
+                element = owner.element;
+                close = () => owner.close();
+            } else {
+                const owner = new Overlay(anchor, {
+                    label: surface.id,
+                    role: surface.id === "menu-overlay" ? "menu" : "dialog",
+                    geometryId: `coverage-${surface.id}`,
+                });
+                owner.element.append(document.createElement("button"));
+                owner.show();
+                element = owner.element;
+                close = () => owner.close();
+            }
+            const controller = panelGeometryFor(element);
+            expect(controller, `${surface.owner} returned no geometry controller`).not.toBeNull();
+            expect(controller?.floating, `${surface.owner} is not draggable`).toBe(true);
+            expect(element.dataset["panelGeometry"]).toBe("floating");
+            expect(element.querySelector(".mb-panel-geometry-toolbar")).not.toBeNull();
+            close();
+            element.remove();
+            anchor.remove();
         }
     });
 });

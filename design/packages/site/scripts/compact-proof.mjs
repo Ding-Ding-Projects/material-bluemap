@@ -3,6 +3,9 @@
 import { writeFile } from "node:fs/promises";
 import process from "node:process";
 
+const PROOF_SCHEMA_VERSION = 2;
+const OVERFLOW_CLASSIFICATIONS = ["accidental", "intentional-horizontal-scroller"];
+
 const [
     widthText,
     heightText,
@@ -16,6 +19,7 @@ const width = Number.parseInt(widthText ?? "", 10);
 const height = Number.parseInt(heightText ?? "", 10);
 const scale = Number.parseFloat(scaleText ?? "");
 const cdpPort = Number.parseInt(process.env.PAGES_PROOF_CDP_PORT ?? "49229", 10);
+const screenshotOutput = process.env.PAGES_PROOF_SCREENSHOT;
 
 if (
     !Number.isFinite(width) ||
@@ -189,6 +193,10 @@ const scenarioResult = await evaluate(`(() => {
         exports: "#mb-panel-data",
     };
     const target = document.querySelector(selectors[selected]);
+    document.querySelectorAll("[data-compact-proof-target]").forEach((element) => {
+        delete element.dataset.compactProofTarget;
+    });
+    if (target instanceof HTMLElement) target.dataset.compactProofTarget = "true";
     target?.scrollIntoView({ block: "start", inline: "nearest" });
     return {
         scenario: selected,
@@ -274,6 +282,39 @@ const metrics = await evaluate(`(() => {
             scrollOwner,
         }];
     });
+    const scenarioTarget = document.querySelector("[data-compact-proof-target='true']");
+    const targetBounds =
+        scenarioTarget instanceof HTMLElement ? scenarioTarget.getBoundingClientRect() : null;
+    const targetOutOfBounds =
+        scenarioTarget instanceof HTMLElement && targetBounds !== null
+            ? [...scenarioTarget.querySelectorAll("*")].flatMap((element) => {
+                  if (!(element instanceof HTMLElement) || !visible(element)) return [];
+                  const rect = element.getBoundingClientRect();
+                  if (rect.left >= targetBounds.left - 1 && rect.right <= targetBounds.right + 1)
+                      return [];
+                  return [{
+                      tag: element.tagName,
+                      id: element.id,
+                      className: element.className,
+                      left: rect.left,
+                      right: rect.right,
+                      targetLeft: targetBounds.left,
+                      targetRight: targetBounds.right,
+                  }];
+              })
+            : [];
+    const overflowSummary = {
+        total: overflowingElements.length,
+        classified: overflowingElements.filter((element) =>
+            ["accidental", "intentional-horizontal-scroller"].includes(element.classification),
+        ).length,
+        accidental: overflowingElements.filter(
+            (element) => element.classification === "accidental",
+        ).length,
+        intentionalHorizontalScroller: overflowingElements.filter(
+            (element) => element.classification === "intentional-horizontal-scroller",
+        ).length,
+    };
     const toggle = document.querySelector(".mb-sidebar-toggle");
     const navigation = document.querySelector("#site-primary-navigation");
     const workspace = document.querySelector(".mb-shell-workspace");
@@ -305,21 +346,20 @@ const metrics = await evaluate(`(() => {
                 : false,
         },
         language: { mode: document.documentElement.dataset.language ?? null, englishNodes, cantoneseNodes },
+        scenarioTarget: {
+            present: scenarioTarget instanceof HTMLElement,
+            horizontalOverflow:
+                scenarioTarget instanceof HTMLElement
+                    ? scenarioTarget.scrollWidth - scenarioTarget.clientWidth
+                    : null,
+            outOfBounds: targetOutOfBounds,
+        },
         clippedControls,
         undersized,
         overflowingElements,
+        overflowSummary,
     };
 })()`);
-
-const proof = {
-    generatedAt: new Date().toISOString(),
-    requested: { width, height, scale, mode, finalState, scenario },
-    interaction,
-    scenario: scenarioResult,
-    metrics,
-};
-await writeFile(output, `${JSON.stringify(proof, null, 2)}\n`, "utf8");
-socket.close();
 
 const failures = [];
 if (
@@ -335,6 +375,15 @@ if (metrics.clippedControls.length !== 0) failures.push("clipped-controls");
 if (metrics.undersized.length !== 0) failures.push("undersized-controls");
 if (metrics.overflowingElements.some((element) => element.classification === "accidental"))
     failures.push("accidental-offscreen-elements");
+if (
+    metrics.overflowSummary.total !== metrics.overflowSummary.classified ||
+    metrics.overflowingElements.some(
+        (element) =>
+            !OVERFLOW_CLASSIFICATIONS.includes(element.classification) ||
+            !Object.hasOwn(element, "scrollOwner"),
+    )
+)
+    failures.push("incomplete-overflow-classification");
 if (width <= 720 && !interaction.available) failures.push("sidebar-toggle-missing");
 if (width <= 720 && metrics.navigation.toggleVisible !== true)
     failures.push("sidebar-toggle-hidden");
@@ -343,6 +392,18 @@ if (
     (interaction.afterFirst.focusStayed !== true || interaction.afterSecond.focusStayed !== true)
 )
     failures.push("focus-return");
+if (
+    interaction.available &&
+    (interaction.afterFirst.expanded === interaction.initial.expanded ||
+        interaction.afterSecond.expanded === interaction.afterFirst.expanded)
+)
+    failures.push("sidebar-toggle-did-not-invert");
+if (
+    interaction.available &&
+    (interaction.afterFirst.label === interaction.initial.label ||
+        interaction.afterSecond.label === interaction.afterFirst.label)
+)
+    failures.push("sidebar-toggle-label-did-not-change");
 if (
     interaction.available &&
     interaction.final.expanded !== (finalState === "expanded" ? "true" : "false")
@@ -359,10 +420,71 @@ if (
 if (!scenarioResult.opened || !scenarioResult.targetPresent || !scenarioResult.targetVisible)
     failures.push(`scenario-${scenario}`);
 if (
+    scenario === "appearance" &&
+    (metrics.scenarioTarget.horizontalOverflow !== 0 ||
+        metrics.scenarioTarget.outOfBounds.length !== 0)
+)
+    failures.push("appearance-panel-horizontal-clipping");
+if (
     mode === "bilingual" &&
     (metrics.language.englishNodes === 0 || metrics.language.cantoneseNodes === 0)
 )
     failures.push("bilingual-nodes");
+
+const proof = {
+    schemaVersion: PROOF_SCHEMA_VERSION,
+    generatedAt: new Date().toISOString(),
+    requested: { width, height, scale, mode, finalState, scenario },
+    interaction,
+    scenario: scenarioResult,
+    metrics,
+    verification: {
+        toggleTransitions: {
+            firstInverted:
+                !interaction.available ||
+                interaction.afterFirst.expanded !== interaction.initial.expanded,
+            secondInverted:
+                !interaction.available ||
+                interaction.afterSecond.expanded !== interaction.afterFirst.expanded,
+            firstLabelChanged:
+                !interaction.available ||
+                interaction.afterFirst.label !== interaction.initial.label,
+            secondLabelChanged:
+                !interaction.available ||
+                interaction.afterSecond.label !== interaction.afterFirst.label,
+        },
+        focusRetained:
+            !interaction.available ||
+            (interaction.afterFirst.focusStayed === true &&
+                interaction.afterSecond.focusStayed === true &&
+                interaction.final.focusStayed === true),
+        finalStateMatched:
+            !interaction.available ||
+            interaction.final.expanded === (finalState === "expanded" ? "true" : "false"),
+        ariaControlsValid:
+            !interaction.available ||
+            (metrics.navigation.controls === "site-primary-navigation" &&
+                metrics.navigation.controlledElementExists),
+        scenarioMatched:
+            scenarioResult.scenario === scenario &&
+            scenarioResult.opened &&
+            scenarioResult.targetPresent &&
+            scenarioResult.targetVisible,
+        overflowClassificationComplete:
+            metrics.overflowSummary.total === metrics.overflowSummary.classified,
+        failures,
+    },
+};
+await writeFile(output, `${JSON.stringify(proof, null, 2)}\n`, "utf8");
+if (screenshotOutput !== undefined && screenshotOutput !== "") {
+    const screenshot = await send("Page.captureScreenshot", {
+        format: "png",
+        fromSurface: true,
+        captureBeyondViewport: false,
+    });
+    await writeFile(screenshotOutput, Buffer.from(screenshot.data, "base64"));
+}
+socket.close();
 if (failures.length > 0)
     throw new Error(`Compact proof failed: ${failures.join(", ")}. See ${output}.`);
 

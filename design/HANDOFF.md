@@ -17,9 +17,25 @@ longer writes a false user override. Top/bottom tabs remain horizontal; `aria-ex
 The hand-written inventory now has 41 categories. Scheduled language and appearance rules cover
 date, time, weekday, timezone, cross-midnight and full-day equal-endpoint windows; priority and
 later-rule precedence; base recovery; bounded history; local, HTTPS/loopback JSON API and Home
-Assistant boolean sources; vault-key-only credentials; import/export; and fail-safe notifications.
-Settings/tab panels resize, floating anchored/overlay panels also drag, and all four panel classes
-share viewport clamping, per-surface persistence, a visible reset path and keyboard controls.
+Assistant boolean sources; page-session-only credentials; import/export; and fail-safe
+notifications. Settings/tab panels resize, every transient surface including menus also drags, and
+the shared controller provides viewport clamping, per-surface persistence, a visible reset path and
+keyboard controls.
+
+The rejected proof follow-up removes the imaginary companion-vault dependency. The static site now
+accepts a Home Assistant token through a password field and holds it only in a page-lifetime memory
+map, with per-rule and clear-all actions. A real loopback server covers `on`, `off` fallthrough to a
+lower-priority rule, unavailable and authentication responses; a separate assertion proves the
+token never enters persistence, exports, URLs or console output. The `role="menu"` geometry
+exemption is gone: the coverage test now constructs AnchoredPanel, dialog Overlay, menu Overlay and
+Menu, and rejects a null/non-floating controller.
+
+All 18 compact records now use schema version 2. The driver proves both `aria-expanded` inversions,
+both localized label changes, focus retention, `aria-controls`, scenario identity, final state and
+complete overflow classification; `compactProofSchema.test.ts` rejects legacy or incomplete
+records. At 414×844 bilingual, the appearance editor reports zero internal horizontal overflow and
+zero out-of-bounds descendants. Its fresh genuine headless capture is
+`docs/screenshots/pages-parity-appearance-414x844-bilingual.png`.
 
 The first branch workflow, run `31156076304`, failed after lint, build and typecheck passed because
 two documentation-policy checks were exact: the new article was absent from `docs/README.md`, and a

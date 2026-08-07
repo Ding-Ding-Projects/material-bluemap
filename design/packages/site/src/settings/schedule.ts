@@ -67,6 +67,40 @@ export interface SecretProvider {
     tokenFor(credentialKey: string): Promise<string | null>;
 }
 
+/**
+ * Browser-safe Home Assistant credentials for the static Pages application.
+ *
+ * Tokens live only in this JavaScript object. They never enter Preferences,
+ * local/session storage, exports, URLs or logs, and a reload necessarily drops
+ * them because there is deliberately no persistence layer behind this map.
+ */
+export class SessionSecretProvider implements SecretProvider {
+    private readonly tokens = new Map<string, string>();
+
+    async tokenFor(credentialKey: string): Promise<string | null> {
+        return this.tokens.get(credentialKey) ?? null;
+    }
+
+    setToken(credentialKey: string, token: string): boolean {
+        const value = token.trim();
+        if (value === "") return false;
+        this.tokens.set(credentialKey, value);
+        return true;
+    }
+
+    hasToken(credentialKey: string): boolean {
+        return this.tokens.has(credentialKey);
+    }
+
+    clearToken(credentialKey: string): void {
+        this.tokens.delete(credentialKey);
+    }
+
+    clearAll(): void {
+        this.tokens.clear();
+    }
+}
+
 export interface ExternalClientOptions {
     readonly fetcher?: typeof fetch;
     readonly secrets?: SecretProvider;
@@ -205,6 +239,18 @@ export function winningRule(
         }
     }
     return winner === null ? null : winner.rule;
+}
+
+/** Matching rules in the exact order the controller evaluates them. */
+export function matchingRules(
+    rules: readonly ScheduledSettingsRule[],
+    now: Date,
+): readonly ScheduledSettingsRule[] {
+    return rules
+        .map((rule, index) => ({ rule, index }))
+        .filter(({ rule }) => ruleMatches(rule, now))
+        .sort((left, right) => right.rule.priority - left.rule.priority || right.index - left.index)
+        .map(({ rule }) => rule);
 }
 
 export class ScheduleRepository {
@@ -366,38 +412,53 @@ export class ScheduledSettingsController {
         const generation = this.generation;
         this.abort?.abort();
         this.abort = new AbortController();
-        const rule = winningRule(this.repository.load().rules, now);
-        if (rule === null) {
+        const candidates = matchingRules(this.repository.load().rules, now);
+        if (candidates.length === 0) {
             this.store.replaceScheduledOverrides({});
             return this.setStatus({ kind: "idle", message: "No matching rule." });
         }
-        try {
-            const refreshMinutes = rule.source.kind === "local" ? 0 : rule.source.refreshMinutes;
-            const cached = this.externalCache.get(rule.id);
-            const canReuse =
-                cached !== undefined && now.getTime() - cached.at < refreshMinutes * 60_000;
-            const resolved = canReuse
-                ? cached
-                : await this.client.values(rule, this.store, this.abort.signal);
-            if (generation !== this.generation) return this.statusValue;
-            if (!canReuse && rule.source.kind !== "local") {
-                this.externalCache.set(rule.id, {
-                    at: now.getTime(),
-                    values: resolved.values,
-                    off: resolved.off,
-                });
-            }
-            if (resolved.off) {
+        let lastOff: ScheduledSettingsRule | null = null;
+        for (const rule of candidates) {
+            try {
+                const refreshMinutes =
+                    rule.source.kind === "local" ? 0 : rule.source.refreshMinutes;
+                const cached = this.externalCache.get(rule.id);
+                const canReuse =
+                    cached !== undefined && now.getTime() - cached.at < refreshMinutes * 60_000;
+                const resolved = canReuse
+                    ? cached
+                    : await this.client.values(rule, this.store, this.abort.signal);
+                if (generation !== this.generation) return this.statusValue;
+                if (!canReuse && rule.source.kind !== "local") {
+                    this.externalCache.set(rule.id, {
+                        at: now.getTime(),
+                        values: resolved.values,
+                        off: resolved.off,
+                    });
+                }
+                // A Home Assistant boolean in `off` means this rule does not match.
+                // Keep evaluating lower-priority scheduled rules instead of clearing
+                // the whole schedule and hiding a valid fallback.
+                if (resolved.off) {
+                    lastOff = rule;
+                    continue;
+                }
+                const ids = this.store.replaceScheduledOverrides(resolved.values);
+                return this.setStatus({ kind: "applied", ruleId: rule.id, ids });
+            } catch (error) {
+                if (generation !== this.generation) return this.statusValue;
+                // Unavailable or refused external state is not an authoritative `off`.
+                // Fail closed to base values and report the exact failing rule rather
+                // than silently treating an outage as permission for a fallback rule.
                 this.store.replaceScheduledOverrides({});
-                return this.setStatus({ kind: "off", ruleId: rule.id });
+                return this.setStatus({ kind: "error", ruleId: rule.id, code: errorCode(error) });
             }
-            const ids = this.store.replaceScheduledOverrides(resolved.values);
-            return this.setStatus({ kind: "applied", ruleId: rule.id, ids });
-        } catch (error) {
-            if (generation !== this.generation) return this.statusValue;
-            this.store.replaceScheduledOverrides({});
-            return this.setStatus({ kind: "error", ruleId: rule.id, code: errorCode(error) });
         }
+        this.store.replaceScheduledOverrides({});
+        return this.setStatus({
+            kind: "off",
+            ruleId: lastOff?.id ?? candidates[0]?.id ?? "unknown",
+        });
     }
 
     start(): void {

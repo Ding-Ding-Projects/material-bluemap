@@ -9,7 +9,7 @@ export const panelGeometry: Article = {
     category: "application",
     status: "shipped",
     statusNote:
-        "The shared controller is attached to the four hand-written panel classes and covered by persistence, bounds, reset and keyboard tests plus compact runtime captures.",
+        "The shared controller covers docked panels and every hand-written transient owner, including menus, with persistence, bounds, reset and keyboard tests plus compact runtime captures.",
     sections: [
         {
             id: "behaviour",
@@ -18,7 +18,7 @@ export const panelGeometry: Article = {
                 {
                     kind: "paragraph",
                     content:
-                        "Settings panels and ordinary page panels resize in place. Anchored interactive panels and overlays also move by a visible drag toolbar. Geometry is versioned per stable surface ID, constrained to the current viewport and restored on the next visit.",
+                        "Settings panels and ordinary page panels resize in place. Anchored popovers, dialog overlays, menu overlays and command menus also move by a visible drag toolbar. Geometry is versioned per stable surface ID, constrained to the current viewport and restored on the next visit.",
                 },
             ],
         },
@@ -69,7 +69,7 @@ export const panelGeometry: Article = {
                 {
                     kind: "paragraph",
                     content:
-                        "PanelGeometry.test.ts covers controls, keyboard movement and resizing, persistence, restore, viewport bounds and reset. The explicit coverage list names anchored panels, overlays, site tab panels and settings tab panels and reads every owner to prove the shared controller is attached.",
+                        "PanelGeometry.test.ts covers controls, keyboard movement and resizing, persistence, restore, viewport bounds and reset. Its explicit transient-owner loop constructs AnchoredPanel, both Overlay roles and Menu itself, then proves each concrete element has a non-null floating controller and visible toolbar.",
                 },
             ],
         },

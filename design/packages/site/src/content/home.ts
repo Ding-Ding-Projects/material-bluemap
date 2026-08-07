@@ -571,7 +571,7 @@ export const home: HomeContent = {
                     body: "A versioned rule can apply the site's real language and appearance settings by date, time, weekday and timezone. Values can live in the rule, arrive from a bounded HTTPS JSON endpoint, or wait for a Home Assistant boolean entity; the stored base always returns when the rule is inactive or fails.",
                     status: "shipped",
                     statusNote:
-                        "The guided Schedules settings tab, precedence and cross-midnight engine, bounded history, import/export, API and Home Assistant safety boundaries, search destinations, tests and compact bilingual runtime proof are implemented. The static site stores only a credential-vault reference, never a Home Assistant token.",
+                        "The guided Schedules settings tab, precedence and cross-midnight engine, bounded history, import/export, API and Home Assistant safety boundaries, search destinations, tests and compact bilingual runtime proof are implemented. Home Assistant tokens live only in memory for the current page session, with per-rule and clear-all actions; they never enter storage, exports, URLs or logs.",
                     articleId: "scheduled-settings",
                     reading: [
                         {

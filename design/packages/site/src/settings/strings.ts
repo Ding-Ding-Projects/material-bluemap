@@ -219,10 +219,47 @@ export const SETTINGS_STRINGS: StringTable = {
         en: "Entity ID (binary_sensor or input_boolean)",
         yue: "實體 ID（binary_sensor 或 input_boolean）",
     },
-    "schedule.credentialKey": { en: "Credential-vault key", yue: "憑證保險庫索引" },
+    "schedule.sessionToken": {
+        en: "Home Assistant token for this browser session",
+        yue: "今次瀏覽器 session 用嘅 Home Assistant token",
+    },
+    "schedule.sessionTokenPlaceholder": {
+        en: "Paste token for this session",
+        yue: "貼上今次 session 嘅 token",
+    },
+    "schedule.useSessionToken": { en: "Use token this session", yue: "今次 session 使用 token" },
+    "schedule.clearSessionToken": { en: "Clear this token", yue: "清除呢個 token" },
+    "schedule.clearSessionTokens": {
+        en: "Clear all session tokens",
+        yue: "清除全部 session token",
+    },
+    "schedule.sessionTokenLoaded": {
+        en: "A token is loaded in memory for this rule until reload, clear, or page close.",
+        yue: "呢條規則嘅 token 已放喺記憶體；reload、清除或者閂頁就會消失。",
+    },
+    "schedule.sessionTokenMissing": {
+        en: "No token is loaded. Home Assistant checks cannot run until one is entered for this session.",
+        yue: "未載入 token；今次 session 未輸入之前，Home Assistant 檢查唔會跑到。",
+    },
+    "schedule.sessionTokenEmpty": {
+        en: "Enter a token before using it.",
+        yue: "要先輸入 token 先用得。",
+    },
+    "schedule.sessionTokenAccepted": {
+        en: "Session token loaded in memory only.",
+        yue: "Session token 只放咗喺記憶體。",
+    },
+    "schedule.sessionTokenCleared": {
+        en: "This rule's session token was cleared.",
+        yue: "呢條規則嘅 session token 已清除。",
+    },
+    "schedule.sessionTokensCleared": {
+        en: "All Home Assistant session tokens were cleared.",
+        yue: "全部 Home Assistant session token 已清除。",
+    },
     "schedule.credentialHelp": {
-        en: "This static site never stores or exports a Home Assistant token. A companion credential vault must provide the token for this key.",
-        yue: "呢個靜態網站永遠唔會儲存或匯出 Home Assistant token；要由配套憑證保險庫按呢個索引提供。",
+        en: "This static site keeps Home Assistant tokens only in memory for the current page session. Tokens are never stored, exported, placed in URLs, or logged; reload, page close, or Clear removes them, so you must enter them again next session.",
+        yue: "呢個靜態網站只會將 Home Assistant token 放喺今次頁面 session 嘅記憶體；唔會儲存、匯出、放入網址或者寫落 log。Reload、閂頁或者撳 Clear 就會清走，下次 session 要再輸入。",
     },
     "schedule.refresh": { en: "Refresh interval (minutes)", yue: "更新間隔（分鐘）" },
     "schedule.refreshNow": { en: "Refresh and apply now", yue: "立即更新並套用" },
@@ -235,8 +272,8 @@ export const SETTINGS_STRINGS: StringTable = {
         yue: "已套用 {rule}；暫時覆寫 {count} 項設定。",
     },
     "schedule.status.off": {
-        en: "{rule} is off at its external source; base settings are active.",
-        yue: "{rule} 嘅外部來源係 off；而家用返基礎設定。",
+        en: "{rule} and every lower candidate are off; stored base settings are active.",
+        yue: "{rule} 同全部較低候選都係 off；而家用返儲低嘅基礎設定。",
     },
     "schedule.status.error": {
         en: "{rule} could not be applied: {code}. Base settings were restored.",

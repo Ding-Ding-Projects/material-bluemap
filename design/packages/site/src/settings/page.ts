@@ -44,7 +44,12 @@ import {
     toggleRow,
 } from "../appearance/editor/controls.js";
 import { downloadFile, pickFile } from "./dom.js";
-import { ScheduleRepository, ScheduledSettingsController } from "./schedule.js";
+import {
+    ExternalSettingsClient,
+    ScheduleRepository,
+    ScheduledSettingsController,
+    SessionSecretProvider,
+} from "./schedule.js";
 import { createSchedulePanel } from "./schedulePanel.js";
 import { attachPanelGeometry } from "../platform/PanelGeometry.js";
 
@@ -109,11 +114,17 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
     store.register(SETTINGS);
     installBridges(store, options);
     const scheduleRepository = new ScheduleRepository(options.prefs, store);
-    const scheduleController = new ScheduledSettingsController(scheduleRepository, store);
+    const scheduleSecrets = new SessionSecretProvider();
+    const scheduleController = new ScheduledSettingsController(
+        scheduleRepository,
+        store,
+        new ExternalSettingsClient({ secrets: scheduleSecrets }),
+    );
     const scheduleView = createSchedulePanel({
         store,
         repository: scheduleRepository,
         controller: scheduleController,
+        secrets: scheduleSecrets,
         confirmDelete: confirmDestructive,
         notify: options.notify,
     });

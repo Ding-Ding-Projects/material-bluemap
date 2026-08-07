@@ -64,7 +64,7 @@ move/resize controls. See [Resizable and draggable panel geometry](panel-geometr
 - At compact widths the main page is allowed to shrink (`min-width: 0`) while cards, controls, and
   overlays wrap or scroll internally. The layout must not create document-level horizontal overflow.
 - A scheduled external source that times out, redirects outside its allowed boundary, exceeds the
-  response limit, returns malformed JSON, or loses its credential-vault reference fails closed. The
+  response limit, returns malformed JSON, or has no session token fails closed. The
   last safe base value remains active and a reviewable notification names the failed rule.
 - Corrupt or out-of-range stored panel geometry is clamped to the current viewport instead of
   restoring an unreachable handle or off-screen body.
@@ -79,11 +79,13 @@ queries.
 The feature-parity inventory contains source paths and public reasons only. It contains no host,
 credential, account, or private-infrastructure details.
 
-External schedule rules store only a credential-vault key, never a token. API sources are restricted
-to HTTPS or loopback, validate redirects and response size, apply an eight-second timeout, and bound
-their polling interval. Home Assistant sources accept only `input_boolean` and `binary_sensor`
-entities. Rules and history are versioned and bounded so an import cannot turn browser storage into
-an unbounded log.
+External schedule rules store only a stable non-secret lookup key. A Home Assistant token is entered
+through a password field, held only in memory for that page session, and cleared on reload, page
+close, or either clear action; it never enters storage, exports, URLs or logs. API sources are
+restricted to HTTPS or loopback, validate redirects and response size, apply an eight-second timeout,
+and bound their polling interval. Home Assistant sources accept only `input_boolean` and
+`binary_sensor` entities. An `off` entity falls through to the next matching rule; unavailable or
+authentication failures restore the base layer instead of silently granting fallback authority.
 
 ## Verification
 
@@ -102,16 +104,19 @@ an unbounded log.
   bilingual `390×844@2` states.
 - The driver records every candidate overflow element instead of truncating the list. Each one is
   classified as an accidental clip or a deliberate internal scroller; an accidental result fails
-  the run. It also checks the exact final collapse state, toggle visibility, hidden navigation state,
-  `aria-controls`, focus retention, minimum 44 CSS-pixel targets and the requested viewport.
+  the run. Schema version 2 also verifies both toggle inversions, both localized label changes, the
+  exact final collapse state, toggle visibility, hidden navigation state, `aria-controls`, focus
+  retention, minimum 44 CSS-pixel targets, scenario identity and the requested viewport.
 - Eighteen machine-readable records are under `docs/runtime-proof/pages-parity-*.json`; fourteen
   matching real rendered captures are under `docs/screenshots/pages-parity-*.png`. Every record
-  reports zero accidental clipping and zero undersized targets. Deliberate bounded scrollers, such
-  as the typography editor at a narrow bilingual width, remain visible in the record instead of
-  being misreported as document overflow.
-- `schedule.test.ts` covers 15 engine cases and `schedulePanel.test.ts` covers the guided editor.
-  `PanelGeometry.test.ts` covers persistence, viewport clamping, pointer and keyboard movement, and
-  `panelGeometryCoverage.test.ts` checks the hand-written list of all four panel classes.
+  reports zero accidental clipping and zero undersized targets. The two appearance records also
+  prove zero horizontal overflow and zero out-of-bounds descendants inside the editor itself.
+- `compactProofSchema.test.ts` validates all 18 committed records and proves that a legacy or
+  incomplete record is rejected.
+- `schedule.test.ts`, `scheduleHomeAssistant.integration.test.ts`, and `schedulePanel.test.ts`
+  cover the engine, real loopback Home Assistant states, secret non-persistence, and guided editor.
+  `PanelGeometry.test.ts` constructs every declared transient owner—including the `menu` role—and
+  rejects a null controller or non-floating geometry.
 - Publication is not proven by a local build. The integration owner records the exact default-branch
   commit, Pages workflow run, and live URL after deployment.
 

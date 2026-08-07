@@ -23,11 +23,19 @@ export interface PanelGeometryOptions {
 
 export interface PanelGeometryController {
     readonly detached: boolean;
+    readonly floating: boolean;
     mountToolbar(): void;
     restore(): void;
     constrain(): void;
     reset(): void;
     destroy(): void;
+}
+
+const ATTACHED_GEOMETRY = new WeakMap<HTMLElement, PanelGeometryController>();
+
+/** Runtime evidence that a concrete panel owner attached the shared controller. */
+export function panelGeometryFor(element: HTMLElement): PanelGeometryController | null {
+    return ATTACHED_GEOMETRY.get(element) ?? null;
 }
 
 /**
@@ -38,6 +46,9 @@ export function attachPanelGeometry(
     element: HTMLElement,
     options: PanelGeometryOptions,
 ): PanelGeometryController {
+    if (ATTACHED_GEOMETRY.has(element)) {
+        throw new Error(`Panel geometry is already attached to ${options.id}.`);
+    }
     const prefs = options.preferences ?? new Preferences();
     const key = `panel.geometry.v1.${safeId(options.id)}`;
     let value = prefs.readJson(key, reviveGeometry) ?? null;
@@ -223,18 +234,24 @@ export function attachPanelGeometry(
         window.removeEventListener("pointerup", onPointerUp);
         element.removeEventListener("keydown", onKeydown);
         element.removeEventListener("pointerdown", onPointerDown);
+        ATTACHED_GEOMETRY.delete(element);
+        delete element.dataset["panelGeometry"];
     }
 
-    return {
+    const controller: PanelGeometryController = {
         get detached() {
             return detached;
         },
+        floating: options.floating,
         mountToolbar,
         restore,
         constrain,
         reset,
         destroy,
     };
+    ATTACHED_GEOMETRY.set(element, controller);
+    element.dataset["panelGeometry"] = options.floating ? "floating" : "resizable";
+    return controller;
 }
 
 function reviveGeometry(value: unknown): StoredGeometry | undefined {

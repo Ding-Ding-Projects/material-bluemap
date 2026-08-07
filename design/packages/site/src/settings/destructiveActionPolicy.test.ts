@@ -243,16 +243,25 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "`await confirmDestructive(...)`, so one confirmation covers both.",
     },
     "settings/schedulePanel.ts": {
-        count: 2,
+        count: 4,
         destroys:
-            "one saved scheduled-settings rule and its future automatic changes to language or appearance",
-        standing: "gated",
-        gatedIn: "settings/page.ts",
+            "one saved scheduled-settings rule and its future automatic changes, or one/all in-memory Home Assistant session tokens",
+        standing: "reversible",
         note:
             "The detector sees both the delete button's `deleteRule(current)` call and the private " +
             "`deleteRule` function that performs the repository save. That function awaits the " +
             "injected `confirmDelete` callback before removing the rule; settings/page.ts injects " +
-            "the site's one `confirmDestructive` gate as that callback.",
+            "the site's one `confirmDestructive` gate as that callback, and the saved version " +
+            "remains restorable from bounded history. The other two calls clear one or all " +
+            "page-session tokens; the same password control immediately accepts the token again.",
+    },
+    "settings/schedule.ts": {
+        count: 1,
+        destroys: "one Home Assistant token held only in memory for the current page session",
+        standing: "reversible",
+        note:
+            "SessionSecretProvider.clearToken deletes one Map entry. The token was never persisted " +
+            "or exported, and the same Home Assistant password control accepts it again immediately.",
     },
     "settings/store.ts": {
         count: 1,
