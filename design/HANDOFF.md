@@ -26,7 +26,8 @@ paths, wrong asset origins and overlarge responses without echoing rejected valu
 `Content-Length` before reading, maintains the 50 MiB limit during streaming, and parses every PNG
 chunk and CRC, including IHDR combinations and indexed-palette bounds. Same-run SHA-256 records
 verify the packaged CLI, installer set and test-world bytes after artifact transport; they detect
-transport change, not a compromised producer. Focused Node tests pass 42/42. A read-only Ubuntu
+transport change, not a compromised producer. Focused Node tests pass 43/43 on Windows and Linux,
+including line-ending-independent adjacent-step fixtures. A read-only Ubuntu
 24.04 container ran checksum-verified actionlint 1.7.12 with real shellcheck across every workflow
 and exited 0. Windows actionlint's combined shellcheck bridge can block while writing the child's
 input before starting it, so Windows syntax-only actionlint is supplementary, not the combined proof.
@@ -34,8 +35,24 @@ input before starting it, so Windows syntax-only actionlint is supplementary, no
 The first branch run, `31147035262`, was red because two static Markdown formats triggered SC2016;
 the follow-up uses only two adjacent, explained suppressions. Exact `b2e4338` branch run
 `31149413047` was in progress when this handoff entry was written. No release was published and no
-workflow was manually dispatched. Issue #90 stays open until root integrates this branch and
-obtains exact-main CI, release-note, asset and published-record proof.
+workflow was manually dispatched. The reviewed phase is integrated at `e21aaee`; issue #90 stays
+open until exact-main CI, release-note, asset and published-record proof are terminal and read back.
+
+## Update, 2026-08-07 — screenshot harness no longer closes a tab it meant to select
+
+Runs `31145108097` and `31145929626` reached the real Options editor, captured seven of its
+eight tabs, then failed the required-surface gate. The app was not slow: the harness clicked the
+whole `[role="tab"]` element. Each browser-style tab contains a 44 px close button, and for the
+longer **Server plugin** label Playwright's default centre point landed on that nested button. The
+harness closed the tab, shortened its live locator from eight entries to seven, and then waited
+for an eighth entry it had removed itself.
+
+`packages/app/test/screenshots.spec.ts` now activates each Options editor tab through its
+`.mb-tabs-strip__label`, matching the safe interaction already used elsewhere in the harness.
+The required-surface inventory and every timeout remain unchanged. Local verification built all
+13 workspace packages; app typecheck, focused formatting and lint passed; and the app suite
+passed 2,625 tests across 173 files with seven opt-in tests skipped. Exact cloud screenshot proof
+ belongs to the branch workflow for the fix commit and must be checked before the issue closes.
 
 ## Update, 2026-08-06 — four-edge tabs, real Project Editor input and complete restart fields
 

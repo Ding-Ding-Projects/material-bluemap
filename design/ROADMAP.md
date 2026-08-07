@@ -18,9 +18,23 @@ assigned baseline at 19. The picker validates all 2,866 current catalog records,
 235-character longest alt, caps declared and streamed photo bytes, and verifies PNG chunk ordering,
 IHDR combinations, indexed-palette bounds and CRCs. Same-run digests also verify transported CLI,
 installer and test-world bytes without claiming the producer itself is trusted. Focused tests pass
-42/42; Ubuntu 24.04 actionlint 1.7.12 with real shellcheck passes locally over every workflow.
-Branch CI remains evidence-gated, and this phase does not publish a release or dispatch a workflow
-manually. See `../docs/release-workflow-security.md` and issue #90.
+43/43 on Windows and Linux; Ubuntu 24.04 actionlint 1.7.12 with real shellcheck passes locally over
+every workflow. The source is integrated at `e21aaee`; exact-main CI and release read-back remain
+evidence-gated. See `../docs/release-workflow-security.md` and issue #90.
+
+## Screenshot required-surface interaction repair (2026-08-07)
+
+**Implemented on `codex/phase-screenshot-ci-repair`; exact cloud screenshot verification is
+pending.** The Options editor capture loop now activates a tab through its visible label rather
+than clicking the parent tab's geometric centre. This prevents the longer **Server plugin** tab's
+nested 44 px close button from receiving what was intended as an activation click. The previous
+interaction removed one of eight tabs and made the following `innerText()` lookup wait for an
+entry the harness itself had deleted.
+
+The hard `REQUIRED_SURFACES` assertion is unchanged, as are the element and surface timeouts.
+Local workspace build, app typecheck, focused formatting/lint, and 2,625 app tests passed. The
+ phase is not complete until a GitHub-hosted cloud run captures all Options editor tabs and the
+ required-surface gate is green at the exact integrated commit.
 
 ## Four-edge tabs and nested-editor interaction repair (2026-08-06)
 
