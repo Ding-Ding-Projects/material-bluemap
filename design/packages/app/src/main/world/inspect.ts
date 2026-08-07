@@ -76,6 +76,7 @@
 
 import { lstat, opendir } from "node:fs/promises";
 import { basename, dirname, isAbsolute, join } from "node:path";
+import { readLevelDat } from "./levelDat.js";
 
 /** One file or directory found inside the chosen folder. */
 export interface WorldFolderEntry {
@@ -93,6 +94,14 @@ export interface ServerSiblingDimension {
     readonly worldFolder: string;
     /** Region files under its `DIM-1/region` or `DIM1/region`, counted the same way as everywhere else here. */
     readonly regionFiles: number;
+    readonly regionExtent: WorldBlockExtent | null;
+}
+
+export interface WorldBlockExtent {
+    readonly minX: number;
+    readonly maxX: number;
+    readonly minZ: number;
+    readonly maxZ: number;
 }
 
 /**
@@ -110,6 +119,11 @@ export interface WorldFolderListing {
     readonly folder: string;
     readonly entries: readonly WorldFolderEntry[];
     readonly regionFiles: Readonly<Record<string, number>>;
+    /** Block-coordinate extent derived only from real r.<x>.<z>.mca file names. */
+    readonly regionExtents: Readonly<Record<string, WorldBlockExtent>>;
+    /** Java world spawn from level.dat, or null when unreadable/absent. */
+    readonly spawn: { readonly x: number; readonly z: number } | null;
+    readonly spawnError: string | null;
     /**
      * LevelDB files counted under a `db` directory, or null when there was none to count.
      *
@@ -184,9 +198,11 @@ export async function inspectWorldFolder(folder: string): Promise<WorldFolderLis
 
     const entries: WorldFolderEntry[] = [];
     const regionFiles: Record<string, number> = {};
+    const regionExtents: Record<string, WorldBlockExtent> = {};
     const directories: string[] = [];
     let hasLevelDat = false;
     let rootRegionFiles = 0;
+    let rootRegionExtent: WorldBlockExtent | null = null;
 
     // Opened rather than read whole: a `region` directory picked by mistake holds tens
     // of thousands of names, and streaming them keeps the memory this uses the size of
@@ -208,6 +224,7 @@ export async function inspectWorldFolder(folder: string): Promise<WorldFolderLis
             if (!directory && isRegionFile(child.name)) {
                 // Counted, never listed. See the note at the top of the file.
                 rootRegionFiles += 1;
+                rootRegionExtent = includeRegion(rootRegionExtent, child.name);
                 continue;
             }
 
@@ -226,6 +243,7 @@ export async function inspectWorldFolder(folder: string): Promise<WorldFolderLis
     // Always present, even at zero: the empty key means the chosen folder itself, and
     // it is what tells the wizard somebody picked a `region` directory by mistake.
     regionFiles[""] = rootRegionFiles;
+    if (rootRegionExtent !== null) regionExtents[""] = rootRegionExtent;
 
     // The key is the canonical spelling rather than the one on disk. Windows opens
     // `Region` and `region` as the same directory, and the wizard's dimension table is
@@ -233,8 +251,11 @@ export async function inspectWorldFolder(folder: string): Promise<WorldFolderLis
     // arrive under the name the table knows or its dimension silently disappears.
     const region = findDirectory(directories, REGION);
     if (region !== null) {
-        const count = await countRegionFiles(join(root, region));
-        if (count !== null) regionFiles[REGION] = count;
+        const scan = await scanRegionFiles(join(root, region));
+        if (scan !== null) {
+            regionFiles[REGION] = scan.count;
+            if (scan.extent !== null) regionExtents[REGION] = scan.extent;
+        }
     }
 
     for (const dimension of VANILLA_DIMENSIONS) {
@@ -242,16 +263,17 @@ export async function inspectWorldFolder(folder: string): Promise<WorldFolderLis
         if (found === null) continue;
         const path = join(root, found, REGION);
         if (!(await isRealDirectory(path))) continue;
-        const count = await countRegionFiles(path);
-        if (count === null) continue;
+        const scan = await scanRegionFiles(path);
+        if (scan === null) continue;
         const key = `${dimension}/${REGION}`;
-        regionFiles[key] = count;
+        regionFiles[key] = scan.count;
+        if (scan.extent !== null) regionExtents[key] = scan.extent;
         entries.push({ path: key, directory: true });
     }
 
     const dimensions = findDirectory(directories, DIMENSIONS);
     if (dimensions !== null) {
-        await readCustomDimensions(join(root, dimensions), entries, regionFiles);
+        await readCustomDimensions(join(root, dimensions), entries, regionFiles, regionExtents);
     }
 
     // A Bedrock world's chunk database. Only opened when a real `db` directory is
@@ -271,7 +293,31 @@ export async function inspectWorldFolder(folder: string): Promise<WorldFolderLis
     // `saves` folder or a `region` folder picked by mistake would pay for nothing.
     const serverSiblings = hasLevelDat ? await readServerSiblings(root) : {};
 
-    return { folder: root, entries, regionFiles, leveldbFiles, serverSiblings };
+    let spawn: { x: number; z: number } | null = null;
+    let spawnError: string | null = null;
+    if (hasLevelDat) {
+        try {
+            const details = await readLevelDat(join(root, LEVEL_DAT));
+            if (details.spawnX !== null && details.spawnZ !== null) {
+                spawn = { x: details.spawnX, z: details.spawnZ };
+            } else {
+                spawnError = "level.dat does not carry both SpawnX and SpawnZ.";
+            }
+        } catch (error) {
+            spawnError = error instanceof Error ? error.message : String(error);
+        }
+    }
+
+    return {
+        folder: root,
+        entries,
+        regionFiles,
+        regionExtents,
+        spawn,
+        spawnError,
+        leveldbFiles,
+        serverSiblings,
+    };
 }
 
 /**
@@ -312,10 +358,14 @@ async function readServerSiblings(root: string): Promise<Record<string, ServerSi
 
         const regionPath = join(siblingRoot, sibling.dimension, REGION);
         if (!(await isRealDirectory(regionPath))) continue;
-        const count = await countRegionFiles(regionPath);
-        if (count === null) continue;
+        const scan = await scanRegionFiles(regionPath);
+        if (scan === null) continue;
 
-        result[sibling.key] = { worldFolder: siblingRoot, regionFiles: count };
+        result[sibling.key] = {
+            worldFolder: siblingRoot,
+            regionFiles: scan.count,
+            regionExtent: scan.extent,
+        };
     }
 
     return result;
@@ -332,6 +382,7 @@ async function readCustomDimensions(
     dimensionsRoot: string,
     entries: WorldFolderEntry[],
     regionFiles: Record<string, number>,
+    regionExtents: Record<string, WorldBlockExtent>,
 ): Promise<void> {
     let found = 0;
     for (const namespace of await listDirectories(dimensionsRoot, MAX_DIMENSION_NAMESPACES)) {
@@ -340,10 +391,11 @@ async function readCustomDimensions(
             if (found >= MAX_CUSTOM_DIMENSIONS) return;
             const path = join(namespaceRoot, name, REGION);
             if (!(await isRealDirectory(path))) continue;
-            const count = await countRegionFiles(path);
-            if (count === null) continue;
+            const scan = await scanRegionFiles(path);
+            if (scan === null) continue;
             const key = `${DIMENSIONS}/${namespace}/${name}/${REGION}`;
-            regionFiles[key] = count;
+            regionFiles[key] = scan.count;
+            if (scan.extent !== null) regionExtents[key] = scan.extent;
             entries.push({ path: key, directory: true });
             found += 1;
         }
@@ -377,18 +429,52 @@ async function probeWorldsInside(
  * or named in the result. Null rather than zero for a failure, because "unknown" and
  * "there is no terrain yet" lead somebody to two different places.
  */
-async function countRegionFiles(directory: string): Promise<number | null> {
+async function scanRegionFiles(
+    directory: string,
+): Promise<{ count: number; extent: WorldBlockExtent | null } | null> {
     let count = 0;
+    let extent: WorldBlockExtent | null = null;
     try {
         const dir = await opendir(directory);
         for await (const entry of dir) {
             if (entry.isDirectory()) continue;
-            if (isRegionFile(entry.name)) count += 1;
+            if (isRegionFile(entry.name)) {
+                count += 1;
+                extent = includeRegion(extent, entry.name);
+            }
         }
     } catch {
         return null;
     }
-    return count;
+    return { count, extent };
+}
+
+const REGION_NAME = /^r\.(-?\d+)\.(-?\d+)\.mca$/i;
+const REGION_BLOCKS = 512;
+
+function includeRegion(extent: WorldBlockExtent | null, name: string): WorldBlockExtent | null {
+    const match = REGION_NAME.exec(name);
+    const regionX = Number(match?.[1]);
+    const regionZ = Number(match?.[2]);
+    if (!Number.isSafeInteger(regionX) || !Number.isSafeInteger(regionZ)) return extent;
+    const minX = regionX * REGION_BLOCKS;
+    const maxX = (regionX + 1) * REGION_BLOCKS - 1;
+    const minZ = regionZ * REGION_BLOCKS;
+    const maxZ = (regionZ + 1) * REGION_BLOCKS - 1;
+    if (![minX, maxX, minZ, maxZ].every(Number.isSafeInteger)) return extent;
+    const candidate: WorldBlockExtent = {
+        minX,
+        maxX,
+        minZ,
+        maxZ,
+    };
+    if (extent === null) return candidate;
+    return {
+        minX: Math.min(extent.minX, candidate.minX),
+        maxX: Math.max(extent.maxX, candidate.maxX),
+        minZ: Math.min(extent.minZ, candidate.minZ),
+        maxZ: Math.max(extent.maxZ, candidate.maxZ),
+    };
 }
 
 /**

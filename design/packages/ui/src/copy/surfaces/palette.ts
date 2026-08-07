@@ -542,6 +542,38 @@ export const PALETTE_VOICED = {
             "選項編輯器每一組設定都各佔一個分頁，打開佢，直接殺去下面講嗰個分頁。",
         ],
     },
+    "palette.config.renderMaskDescription": {
+        en: [
+            "Draw boxes, circles, ellipses, polygons and nested blur masks, with exact local and Actions render semantics.",
+            "Draw boxes, circles, ellipses, polygons and nested blur masks, with exact local and Actions render semantics.",
+            "Draw boxes, circles, ellipses, polygons and nested blur masks; local and Actions renders apply the same exact semantics.",
+            "Draw boxes, circles, ellipses, polygons and nested blur masks, while local and Actions renders keep the exact same geometry rules.",
+            "Draw boxes, circles, ellipses, polygons and blur masks nested like geometry matryoshkas; local and Actions renders still apply the exact same rules.",
+        ],
+        yue: [
+            "畫 box、circle、ellipse、polygon 同巢狀 blur mask；本機同 Actions 算圖會套用完全相同嘅語義。",
+            "畫 box、circle、ellipse、polygon 同巢狀 blur mask；本機同 Actions 算圖會套用完全相同嘅語義。",
+            "畫 box、circle、ellipse、polygon 同巢狀 blur mask；本機同 Actions 算圖都會跟完全相同嘅語義。",
+            "畫 box、circle、ellipse、polygon 同巢狀 blur mask；本機同 Actions 算圖會守住完全相同嘅精確幾何規則。",
+            "畫 box、circle、ellipse、polygon，同俄羅斯娃娃咁套住嘅 blur mask；本機同 Actions 算圖照樣守完全相同嘅精確規則。",
+        ],
+    },
+    "palette.where.renderMask": {
+        en: [
+            "Opens the Maps tab, selects a map, reveals render-mask, and focuses its editor.",
+            "Opens the Maps tab, selects a map, reveals render-mask, and focuses its editor.",
+            "Opens Maps, selects a map, reveals render-mask, and focuses its editor.",
+            "Opens the Maps tab, picks a real map, reveals render-mask, and focuses directly on its editor.",
+            "Opens Maps, picks a real map, unfolds render-mask, and focuses the editor instead of dropping you at the lobby.",
+        ],
+        yue: [
+            "打開 Maps 分頁、揀一張地圖、顯示 render-mask，再將焦點放入編輯器。",
+            "打開 Maps 分頁、揀一張地圖、顯示 render-mask，再將焦點放入編輯器。",
+            "打開 Maps、揀一張地圖、顯示 render-mask，再將焦點送入編輯器。",
+            "打開 Maps 分頁、揀一張真地圖、顯示 render-mask，焦點直接落入編輯器。",
+            "打開 Maps、揀一張真地圖、攤開 render-mask，焦點直接泊入編輯器，唔會掟你喺大堂。",
+        ],
+    },
     "palette.config.historyDescription": {
         en: [
             "Every saved version of the open config folder, kept on this computer: browse them, see what each one changed, and put one back.",
@@ -1010,6 +1042,7 @@ export const PALETTE_FIXED = {
     /* The options editor's "everything" row and the appearance rows: names, not sentences. */
     "palette.config.allTitle": { en: "Every BlueMap setting", yue: "所有 BlueMap 設定" },
     "palette.config.historyTitle": { en: "Config folder history", yue: "設定資料夾歷史" },
+    "palette.config.renderMaskTitle": { en: "Render mask editor", yue: "算圖遮罩編輯器" },
     "palette.appearance.presetTitle": { en: "Appearance preset", yue: "外觀預設" },
     "palette.appearance.resetTitle": {
         en: "Reset every appearance customisation",
@@ -1064,6 +1097,10 @@ export const PALETTE_FACTS = {
         en: ["server configuration editor", "{tab}"],
         yue: ["伺服器設定編輯器", "{tab}"],
     },
+    "palette.where.renderMask": {
+        en: ["Maps", "render-mask", "focuses", "editor"],
+        yue: ["Maps", "render-mask", "焦點", "編輯器"],
+    },
     "palette.where.configHistoryRouted": {
         en: ["server configuration editor", "History"],
         yue: ["伺服器設定編輯器", "History"],
@@ -1113,6 +1150,10 @@ export const PALETTE_FACTS = {
     "palette.config.historyDescription": {
         en: ["config folder", "this computer"],
         yue: ["設定資料夾", "呢部電腦"],
+    },
+    "palette.config.renderMaskDescription": {
+        en: ["boxes", "circles", "ellipses", "polygons", "blur", "local", "Actions", "exact"],
+        yue: ["box", "circle", "ellipse", "polygon", "blur", "本機", "Actions", "完全相同"],
     },
 
     "palette.appearance.presetDescription": {

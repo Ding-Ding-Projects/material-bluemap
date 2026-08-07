@@ -21,6 +21,7 @@ import ConfigSearchField from "./ConfigSearchField.vue";
 import { filterFields, sampleTextFor } from "./configSearch.js";
 import { createSettingMatcher } from "./regexEngine.js";
 import type { EditableConfigFile } from "./configModel.js";
+import { UNKNOWN_WORLD, type WorldOrientation } from "./maskCanvas.js";
 
 /**
  * A whole config file, rendered from its descriptor.
@@ -40,8 +41,15 @@ const props = withDefaults(
         disabled?: boolean;
         /** A field path to reveal and mark, used when a search result is opened. */
         highlightPath?: string | null;
+        world?: WorldOrientation;
     }>(),
-    { title: "", subtitle: "", disabled: false, highlightPath: null },
+    {
+        title: "",
+        subtitle: "",
+        disabled: false,
+        highlightPath: null,
+        world: () => UNKNOWN_WORLD,
+    },
 );
 
 const emit = defineEmits<{
@@ -62,6 +70,7 @@ const regexMode = ref(false);
 const flags = ref("im");
 const showAdvanced = ref(false);
 const rawOpen = ref(false);
+const worldOrientation = computed<WorldOrientation>(() => props.world);
 const copyState = ref("");
 
 const descriptor = computed(() => props.file.descriptor);
@@ -266,6 +275,7 @@ async function copyText(): Promise<void> {
                             :file="file"
                             :disabled="disabled || file.readOnly"
                             :highlighted="highlightPath === field.path"
+                            :world="worldOrientation"
                             @set="(target, value) => emit('set', target, value)"
                             @clear="(target) => emit('clear', target)"
                             @consent="emit('consent')"

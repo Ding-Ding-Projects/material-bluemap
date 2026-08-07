@@ -92,7 +92,11 @@ export interface PaletteSettingsTarget {
  * has none. The editor's own `activeScreen` is typed exactly this way for the same reason, so
  * this is that type restated rather than a wider one invented here.
  */
-export type PaletteConfigTarget = ScreenId | "history" | null;
+export type PaletteConfigTarget =
+    | ScreenId
+    | "history"
+    | { readonly screen: ScreenId; readonly fieldPath: string }
+    | null;
 
 /** One page of the shell's tab strip, as much of it as the palette needs. */
 export interface PalettePageRef {
@@ -447,7 +451,7 @@ function configScreenItems(input: PaletteCatalogInput, group: string): PaletteIt
         ];
     }
 
-    return SCREENS.map(
+    const screens = SCREENS.map(
         (screen): PaletteItem => ({
             kind: "destination",
             id: `config.${screen.id}`,
@@ -463,6 +467,23 @@ function configScreenItems(input: PaletteCatalogInput, group: string): PaletteIt
             go: () => actions.openConfig(screen.id),
         }),
     );
+    screens.push({
+        kind: "destination",
+        id: "config.maps.render-mask",
+        group,
+        title: t("palette.config.renderMaskTitle", "Render mask editor"),
+        description: t(
+            "palette.config.renderMaskDescription",
+            "Draw boxes, circles, ellipses, polygons and nested blur masks, with exact local and Actions render semantics.",
+        ),
+        keywords: ["render mask", "draw mask", "circle", "ellipse", "polygon", "blur", "cloud"],
+        where: t(
+            "palette.where.renderMask",
+            "Opens the Maps tab, selects a map, reveals render-mask, and focuses its editor.",
+        ),
+        go: () => actions.openConfig({ screen: "maps", fieldPath: "render-mask" }),
+    });
+    return screens;
 }
 
 /**

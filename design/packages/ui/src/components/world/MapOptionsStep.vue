@@ -21,6 +21,7 @@ import { createSettingMatcher } from "../config/regexEngine.js";
 import type { EditableConfigFile } from "../config/configModel.js";
 import { defaultOpenGroups, optionFields, optionGroups, reachesRender } from "./wizardSteps.js";
 import type { MapOptionsStepExpose } from "./MapOptionsStep.expose.js";
+import { UNKNOWN_WORLD, type WorldOrientation } from "../config/maskCanvas.js";
 
 /**
  * Step three: every remaining setting BlueMap's map config has.
@@ -36,13 +37,17 @@ import type { MapOptionsStepExpose } from "./MapOptionsStep.expose.js";
  * and the advanced settings inside an everyday group are one switch away rather
  * than in a text editor.
  */
-const props = defineProps<{
-    file: EditableConfigFile;
-    /** Highlighted after a search result or the review sends somebody to a setting. */
-    highlightPath?: string | null;
-    /** How many settings the person has changed, for the reset control. */
-    changedCount: number;
-}>();
+const props = withDefaults(
+    defineProps<{
+        file: EditableConfigFile;
+        /** Highlighted after a search result or the review sends somebody to a setting. */
+        highlightPath?: string | null;
+        /** How many settings the person has changed, for the reset control. */
+        changedCount: number;
+        world?: WorldOrientation;
+    }>(),
+    { highlightPath: null, world: () => UNKNOWN_WORLD },
+);
 
 const emit = defineEmits<{
     set: [field: FieldMeta, value: PlainValue];
@@ -52,6 +57,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const worldOrientation = computed<WorldOrientation>(() => props.world);
 
 const query = ref("");
 const regexMode = ref(false);
@@ -283,6 +289,7 @@ defineExpose({ revealField } satisfies MapOptionsStepExpose);
                             :highlighted="
                                 highlightPath === field.path || teleportHighlightPath === field.path
                             "
+                            :world="worldOrientation"
                             @set="(target, value) => emit('set', target, value)"
                             @clear="(target) => emit('clear', target)"
                             @consent="emit('consent')"
