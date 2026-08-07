@@ -483,6 +483,16 @@ function applyPlan(
     flex-direction: row;
 }
 
+html[dir="rtl"] .mb-tabs--left,
+html[dir="rtl"] .mb-tabs--right {
+    direction: ltr;
+}
+
+html[dir="rtl"] .mb-tabs--left > *,
+html[dir="rtl"] .mb-tabs--right > * {
+    direction: rtl;
+}
+
 .mb-tabs--right .mb-tabs-strip-row,
 .mb-tabs--bottom .mb-tabs-strip-row {
     order: 2;

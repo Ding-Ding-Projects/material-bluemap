@@ -130,7 +130,7 @@ export class TabStrip {
         this.mainRegion = el("div", { class: "tab-strip__main", attrs: { role: "presentation" } });
         this.strip = el(
             "div",
-            { class: "tab-strip", attrs: { role: "tablist", "aria-orientation": "horizontal" } },
+            { class: "tab-strip", attrs: { role: "tablist" } },
             this.pinnedRegion,
             this.mainRegion,
         );
@@ -173,12 +173,30 @@ export class TabStrip {
         shortcuts.register({
             id: "tabs.moveLeft",
             parts: ["Shift", "Alt", "ArrowLeft"],
-            run: () => this.withActive((id) => model.moveTab(id, -1)),
+            run: () => {
+                if (!this.isVertical()) this.withActive((id) => model.moveTab(id, -1));
+            },
         });
         shortcuts.register({
             id: "tabs.moveRight",
             parts: ["Shift", "Alt", "ArrowRight"],
-            run: () => this.withActive((id) => model.moveTab(id, 1)),
+            run: () => {
+                if (!this.isVertical()) this.withActive((id) => model.moveTab(id, 1));
+            },
+        });
+        shortcuts.register({
+            id: "tabs.moveUp",
+            parts: ["Shift", "Alt", "ArrowUp"],
+            run: () => {
+                if (this.isVertical()) this.withActive((id) => model.moveTab(id, -1));
+            },
+        });
+        shortcuts.register({
+            id: "tabs.moveDown",
+            parts: ["Shift", "Alt", "ArrowDown"],
+            run: () => {
+                if (this.isVertical()) this.withActive((id) => model.moveTab(id, 1));
+            },
         });
         shortcuts.register({
             id: "tabs.pin",
@@ -216,6 +234,9 @@ export class TabStrip {
 
     render(): void {
         const { model } = this.deps;
+        const placement = model.placement;
+        this.bar.dataset["placement"] = placement;
+        this.strip.setAttribute("aria-orientation", this.isVertical() ? "vertical" : "horizontal");
         clear(this.pinnedRegion);
         clear(this.mainRegion);
 
@@ -468,16 +489,25 @@ export class TabStrip {
             return;
         }
 
-        const gap = Number.parseFloat(getComputedStyle(this.mainRegion).columnGap) || 0;
-        const widths = children.map((child) => child.getBoundingClientRect().width);
+        const style = getComputedStyle(this.mainRegion);
+        const gap = Number.parseFloat(this.isVertical() ? style.rowGap : style.columnGap) || 0;
+        const widths = children.map((child) => {
+            const bounds = child.getBoundingClientRect();
+            return this.isVertical() ? bounds.height : bounds.width;
+        });
         const total = widths.reduce((sum, width) => sum + width, 0) + gap * (children.length - 1);
-        if (total <= this.mainRegion.clientWidth + 0.5) return;
+        const available = this.isVertical()
+            ? this.mainRegion.clientHeight
+            : this.mainRegion.clientWidth;
+        if (total <= available + 0.5) return;
 
         // Something has to move into the menu, so make room for the button that opens it and
         // re-read the width the button leaves behind.
         this.overflowButton.hidden = false;
         this.syncOverflowLabel(children.length);
-        const budget = this.mainRegion.clientWidth;
+        const budget = this.isVertical()
+            ? this.mainRegion.clientHeight
+            : this.mainRegion.clientWidth;
 
         const activeIndex = children.findIndex(
             (child) =>
@@ -532,7 +562,11 @@ export class TabStrip {
     /** Below `COMPACT_TAB_STRIP_MAX_WIDTH`, scrollable tabs replace the overflow menu. */
     private isCompact(): boolean {
         const width = typeof window !== "undefined" ? window.innerWidth : Number.POSITIVE_INFINITY;
-        return width <= COMPACT_TAB_STRIP_MAX_WIDTH;
+        return !this.isVertical() && width <= COMPACT_TAB_STRIP_MAX_WIDTH;
+    }
+
+    private isVertical(): boolean {
+        return this.deps.model.placement === "left" || this.deps.model.placement === "right";
     }
 
     /**
@@ -589,13 +623,21 @@ export class TabStrip {
                 onSelect: () => this.togglePin(id),
             },
             {
-                render: (label) => i18n.bindText(label, "tabs.menu.moveLeft"),
-                shortcut: shortcuts.display("tabs.moveLeft"),
+                render: (label) =>
+                    i18n.bindText(
+                        label,
+                        this.isVertical() ? "tabs.menu.moveUp" : "tabs.menu.moveLeft",
+                    ),
+                shortcut: shortcuts.display(this.isVertical() ? "tabs.moveUp" : "tabs.moveLeft"),
                 onSelect: () => model.moveTab(id, -1),
             },
             {
-                render: (label) => i18n.bindText(label, "tabs.menu.moveRight"),
-                shortcut: shortcuts.display("tabs.moveRight"),
+                render: (label) =>
+                    i18n.bindText(
+                        label,
+                        this.isVertical() ? "tabs.menu.moveDown" : "tabs.menu.moveRight",
+                    ),
+                shortcut: shortcuts.display(this.isVertical() ? "tabs.moveDown" : "tabs.moveRight"),
                 onSelect: () => model.moveTab(id, 1),
             },
             { kind: "separator" },
@@ -701,13 +743,21 @@ export class TabStrip {
                 onSelect: () => this.promptRenameGroup(anchor, groupId, group.name),
             },
             {
-                render: (label) => i18n.bindText(label, "tabs.menu.moveLeft"),
-                shortcut: shortcuts.display("tabs.moveLeft"),
+                render: (label) =>
+                    i18n.bindText(
+                        label,
+                        this.isVertical() ? "tabs.menu.moveUp" : "tabs.menu.moveLeft",
+                    ),
+                shortcut: shortcuts.display(this.isVertical() ? "tabs.moveUp" : "tabs.moveLeft"),
                 onSelect: () => model.moveSegment(index, -1),
             },
             {
-                render: (label) => i18n.bindText(label, "tabs.menu.moveRight"),
-                shortcut: shortcuts.display("tabs.moveRight"),
+                render: (label) =>
+                    i18n.bindText(
+                        label,
+                        this.isVertical() ? "tabs.menu.moveDown" : "tabs.menu.moveRight",
+                    ),
+                shortcut: shortcuts.display(this.isVertical() ? "tabs.moveDown" : "tabs.moveRight"),
                 onSelect: () => model.moveSegment(index, 1),
             },
             { kind: "separator" },
@@ -1117,8 +1167,12 @@ export class TabStrip {
         if (current < 0) return;
 
         let next = -1;
-        if (event.key === "ArrowRight") next = (current + 1) % tabs.length;
-        else if (event.key === "ArrowLeft") next = (current - 1 + tabs.length) % tabs.length;
+        const rtl = !this.isVertical() && getComputedStyle(this.strip).direction === "rtl";
+        const backward = this.isVertical() ? "ArrowUp" : "ArrowLeft";
+        const forward = this.isVertical() ? "ArrowDown" : "ArrowRight";
+        if (event.key === forward) next = (current + (rtl ? -1 : 1) + tabs.length) % tabs.length;
+        else if (event.key === backward)
+            next = (current + (rtl ? 1 : -1) + tabs.length) % tabs.length;
         else if (event.key === "Home") next = 0;
         else if (event.key === "End") next = tabs.length - 1;
         else if (event.key === "Delete") {

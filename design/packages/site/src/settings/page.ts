@@ -18,6 +18,7 @@ import { fillPhrase, searchableText, setI18nState, subscribeI18n, t } from "./i1
 import type { FunnyLevel, LanguageMode } from "./i18n.js";
 import type { Preferences } from "../platform/Preferences.js";
 import type { ThemeController } from "../theme/ThemeController.js";
+import { TAB_PLACEMENTS, type TabModel, type TabPlacement } from "../tabs/TabModel.js";
 import { THEME_MODES, DENSITIES } from "../theme/ThemeController.js";
 import type { SearchableSetting, SettingControl, SettingsSearchHost } from "../search/contract.js";
 import { attachRegexBuilder } from "../search/attachBuilder.js";
@@ -72,6 +73,8 @@ export interface SettingsPageOptions {
     readonly appearance: AppearanceController;
     /** When supplied the theme setting drives this controller instead of storing a copy. */
     readonly theme?: ThemeController | undefined;
+    /** When supplied, the tab-placement row drives the real site strip. */
+    readonly tabs?: TabModel | undefined;
 }
 
 export interface SettingsPageView {
@@ -1353,6 +1356,20 @@ function installBridges(store: SettingsStore, options: SettingsPageOptions): voi
                 theme.setDensity("comfortable");
             },
             subscribe: (listener) => theme.subscribe(listener),
+        });
+    }
+
+    if (options.tabs !== undefined) {
+        const tabs = options.tabs;
+        store.bridge("tabs.placement", {
+            read: () => tabs.placement,
+            write: (value) => {
+                if ((TAB_PLACEMENTS as readonly string[]).includes(String(value))) {
+                    tabs.setPlacement(value as TabPlacement);
+                }
+            },
+            reset: () => tabs.setPlacement("left"),
+            subscribe: (listener) => tabs.subscribe(listener),
         });
     }
 

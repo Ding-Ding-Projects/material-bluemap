@@ -16,6 +16,7 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
         descriptionKey: "settings.tab.general.desc",
         groups: [
             { id: "theme", labelKey: "settings.group.theme" },
+            { id: "navigation", labelKey: "settings.group.navigation" },
             { id: "motion", labelKey: "settings.group.motion" },
         ],
     },
@@ -136,6 +137,22 @@ export const SETTINGS: readonly SettingDefinition[] = [
         labelKey: "set.surfaceTint",
         descriptionKey: "set.surfaceTint.desc",
         defaultValue: true,
+    },
+    {
+        id: "tabs.placement",
+        kind: "select",
+        tab: "general",
+        group: "navigation",
+        labelKey: "set.tabPlacement",
+        descriptionKey: "set.tabPlacement.desc",
+        keywords: ["tabs", "dock", "edge", "left", "right", "top", "bottom", "分頁", "邊"],
+        defaultValue: "left",
+        options: [
+            { value: "left", labelKey: "set.tabPlacement.left" },
+            { value: "right", labelKey: "set.tabPlacement.right" },
+            { value: "top", labelKey: "set.tabPlacement.top" },
+            { value: "bottom", labelKey: "set.tabPlacement.bottom" },
+        ],
     },
     {
         id: "motion.reduce",

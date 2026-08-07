@@ -487,7 +487,8 @@ function renderFeatures(host: HTMLElement, navigation: PageNavigation, i18n: I18
         groupEl.appendChild(el("p", "mb-section-lede", group.lede));
 
         const grid = el("div", "mb-card-grid");
-        for (const feature of group.features) grid.appendChild(featureCard(feature, navigation, i18n));
+        for (const feature of group.features)
+            grid.appendChild(featureCard(feature, navigation, i18n));
         groupEl.appendChild(grid);
 
         wrapper.appendChild(groupEl);
@@ -512,7 +513,11 @@ function renderPhases(host: HTMLElement, i18n: I18n): void {
 
     const thead = el("thead");
     const headRow = el("tr");
-    for (const key of ["content.phaseColumnPhase", "content.phaseColumnScope", "content.phaseColumnStatus"] as const) {
+    for (const key of [
+        "content.phaseColumnPhase",
+        "content.phaseColumnScope",
+        "content.phaseColumnStatus",
+    ] as const) {
         const th = el("th");
         th.scope = "col";
         i18n.bindText(th, key);
@@ -914,7 +919,7 @@ function boot(): void {
         appearance,
         confirmDestructive,
     });
-    const settingsView = createSettingsPage({ prefs, appearance, theme });
+    const settingsView = createSettingsPage({ prefs, appearance, theme, tabs: model });
     const tabLabelKey = {
         home: "site.homeTab",
         docs: "site.docsTab",
@@ -1235,8 +1240,12 @@ function boot(): void {
             view.appendChild(actions);
 
             updateSelectionToolbar();
-            const unsubscribeSelectionSync = search.field.model.subscribe(() => updateSelectionToolbar());
-            const unsubscribeNotifications = notifications.subscribe(() => updateSelectionToolbar());
+            const unsubscribeSelectionSync = search.field.model.subscribe(() =>
+                updateSelectionToolbar(),
+            );
+            const unsubscribeNotifications = notifications.subscribe(() =>
+                updateSelectionToolbar(),
+            );
 
             host.replaceChildren(view);
             decoratePage(host, "notifications", appearance);
@@ -1263,13 +1272,20 @@ function boot(): void {
     const topbar = el("div", "mb-shell-topbar");
     topbar.appendChild(createBrand(i18n, appearance, () => tabs.reveal("home")));
     topbar.appendChild(tabs.strip.bar);
-    root.appendChild(topbar);
     watchTopbarScrollShadow(topbar);
 
     const main = el("main", "mb-main");
     main.id = MAIN_CONTENT_ID;
     main.appendChild(tabs.strip.panels);
-    root.appendChild(main);
+    const workspace = el("div", "mb-shell-workspace");
+    const syncPlacement = (): void => {
+        workspace.dataset["tabPlacement"] = model.placement;
+        topbar.dataset["placement"] = model.placement;
+    };
+    syncPlacement();
+    model.subscribe(syncPlacement);
+    workspace.append(topbar, main);
+    root.appendChild(workspace);
 
     root.appendChild(createShellFooter(i18n, appearance));
 
