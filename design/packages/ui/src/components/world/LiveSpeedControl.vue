@@ -34,7 +34,7 @@ import type { SpeedAdjustmentResult, SpeedLevelNumber } from "./worldBridge.js";
  *
  * The thread count baked into this render's launch only changes when the render itself
  * restarts. `run.restartWithLevel` does that - stop, wait for the real end, start again
- * with the chosen level's own thread count - and it only ever runs from the explicit
+ * with the chosen level's own thread count and JVM thread priority - and it only ever runs from the explicit
  * "Restart at this level" button below, never automatically.
  */
 const props = defineProps<{ run: RenderRun }>();
@@ -183,7 +183,7 @@ async function restartNow(): Promise<void> {
                             t(
                                 "liveSpeed.currentLevel",
                                 { level: currentMatch.level.level },
-                                "This render started at level {level}. That number stays fixed for the life of this render.",
+                                "This render started at level {level}. Its thread count and JVM thread priority stay fixed for the life of this render.",
                             )
                         }}
                     </template>
@@ -266,7 +266,7 @@ async function restartNow(): Promise<void> {
                     t(
                         "liveSpeed.restartOffer",
                         { level: lastOutcome.level },
-                        "Restarting this render now would launch it fresh at level {level}, applying its thread count immediately rather than waiting for the next render. Already-drawn tiles are kept either way.",
+                        "Restarting this render now would launch it fresh at level {level}, applying its thread count and JVM thread priority immediately rather than waiting for the next render. Already-drawn tiles are kept either way.",
                     )
                 }}
             </p>

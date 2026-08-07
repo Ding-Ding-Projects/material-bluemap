@@ -466,6 +466,8 @@ export interface RenderRun {
      * dial's exact-pair match.
      */
     readonly renderThreads: Ref<number | null>;
+    /** The JVM thread priority this render started with, or null when BlueMap's default applies. */
+    readonly renderThreadPriority: Ref<number | null>;
 
     start(request: RenderRequest): Promise<RenderResult | null>;
     /**
@@ -559,6 +561,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
     const cancelling = ref(false);
     const startedAt = ref<string | null>(null);
     const renderThreads = ref<number | null>(null);
+    const renderThreadPriority = ref<number | null>(null);
 
     /** The request the current or most recent render actually started with, for a restart. */
     let lastRequest: RenderRequest | null = null;
@@ -1106,6 +1109,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         cancelling.value = false;
         startedAt.value = null;
         renderThreads.value = null;
+        renderThreadPriority.value = null;
         observedMaps.value = [];
         startedAtMs.value = null;
         lastEventAtMs.value = null;
@@ -1173,6 +1177,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         reset();
         state.value = "starting";
         renderThreads.value = request.renderThreads ?? null;
+        renderThreadPriority.value = request.renderThreadPriority ?? null;
         adopting = true;
         // The engine's own `started` event overwrites this with the moment it really began.
         // Until it arrives - which for a render that has to fetch a Java runtime first can
@@ -1278,7 +1283,12 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
             }
         }
 
-        return await start({ ...lastRequest, renderThreads: speedLevelByNumber(level).threadCount });
+        const speed = speedLevelByNumber(level);
+        return await start({
+            ...lastRequest,
+            renderThreads: speed.threadCount,
+            renderThreadPriority: speed.threadPriority,
+        });
     }
 
     function dispose(): void {
@@ -1304,6 +1314,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         cancelling,
         startedAt,
         renderThreads,
+        renderThreadPriority,
         active,
         available: bridge !== null,
         start,

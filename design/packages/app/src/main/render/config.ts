@@ -84,6 +84,8 @@ export interface RenderConfigOptions {
      * which leaves the machine usable while a render runs.
      */
     readonly renderThreads?: number;
+    /** JVM thread priority, 1 through 10. Defaults to BlueMap's own value of 5. */
+    readonly renderThreadPriority?: number;
     /**
      * Whether the engine may report anonymous usage to upstream's metrics endpoint.
      *
@@ -129,11 +131,13 @@ export function hoconString(value: string): string {
 
 function coreConf(options: RenderConfigOptions): string {
     const threads = options.renderThreads ?? defaultRenderThreads();
+    const priority = options.renderThreadPriority ?? 5;
     return [
         "# Written by Material BlueMap for a single render. Edits here are overwritten.",
         `accept-download: ${options.acceptDownload ? "true" : "false"}`,
         `data: ${hoconString(options.dataDir)}`,
         `render-thread-count: ${String(threads)}`,
+        `render-thread-priority: ${String(priority)}`,
         "scan-for-mod-resources: true",
         `metrics: ${options.metrics === true ? "true" : "false"}`,
         "log: {",
@@ -497,6 +501,16 @@ export async function writeRenderConfig(
     options: RenderConfigOptions,
 ): Promise<WrittenRenderConfig> {
     validateMaps(options.maps);
+    if (
+        options.renderThreadPriority !== undefined &&
+        (!Number.isInteger(options.renderThreadPriority) ||
+            options.renderThreadPriority < 1 ||
+            options.renderThreadPriority > 10)
+    ) {
+        throw new InvalidRenderRequestError(
+            "Render thread priority must be a whole number from 1 through 10.",
+        );
+    }
 
     const storageRoot = join(options.webRoot, "maps");
     const mapsDir = join(options.configDir, "maps");

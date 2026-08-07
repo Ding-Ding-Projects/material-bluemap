@@ -13,6 +13,7 @@ import type {
     EngineDescription,
     RenderEvent,
     RenderFailure,
+    RenderRequest,
     RenderResult,
     RenderSummary,
     SpeedAdjustmentResult,
@@ -74,14 +75,14 @@ function fakeBridge(
     let release: (() => void) | null = null;
 
     const bridge: WorldBridge = {
-        startRender: async () => {
+        startRender: vi.fn(async (_request: RenderRequest) => {
             if (options.resolveNow !== true) {
                 await new Promise<void>((resolve) => {
                     release = resolve;
                 });
             }
             return outcome;
-        },
+        }),
         cancelRender: vi.fn(async () => true),
         adjustRenderSpeed: vi.fn(
             async (renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult> => ({
@@ -928,8 +929,8 @@ describe("adjustSpeed: reaching the main process about a live render", () => {
     });
 });
 
-describe("restartWithLevel: the explicit choice that actually changes the thread count", () => {
-    it("starts a fresh render with the level's own thread count when nothing is running", async () => {
+describe("restartWithLevel: the explicit choice that changes the next JVM's thread settings", () => {
+    it("starts a fresh render with the level's own thread count and priority when nothing is running", async () => {
         const fake = fakeBridge(OK, { resolveNow: true });
         const run = createRenderRun(fake.bridge);
         await run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
@@ -938,6 +939,10 @@ describe("restartWithLevel: the explicit choice that actually changes the thread
         await run.restartWithLevel(5);
         // Level 5's own documented threadCount, from speedLevels.ts.
         expect(run.renderThreads.value).toBe(4);
+        expect(run.renderThreadPriority.value).toBe(10);
+        expect(fake.bridge.startRender).toHaveBeenLastCalledWith(
+            expect.objectContaining({ renderThreads: 4, renderThreadPriority: 10 }),
+        );
     });
 
     it("cancels the running render first, waits for it to actually end, then restarts", async () => {
@@ -971,6 +976,7 @@ describe("restartWithLevel: the explicit choice that actually changes the thread
         await restarted;
         // Level 1's own documented threadCount, from speedLevels.ts.
         expect(run.renderThreads.value).toBe(-2);
+        expect(run.renderThreadPriority.value).toBe(1);
     });
 
     it("does nothing and reports null when no render has ever been started", async () => {

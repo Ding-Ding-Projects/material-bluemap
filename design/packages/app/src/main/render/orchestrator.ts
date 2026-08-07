@@ -139,6 +139,8 @@ export interface RenderRequest {
     /** Turn on upstream's metrics reporting. Off unless asked for. */
     readonly metrics?: boolean;
     readonly renderThreads?: number;
+    /** `core.conf` render-thread-priority, applied when the JVM starts. */
+    readonly renderThreadPriority?: number;
 }
 
 /**
@@ -876,6 +878,9 @@ export class RenderOrchestrator {
                     ...(request.renderThreads === undefined
                         ? {}
                         : { renderThreads: request.renderThreads }),
+                    ...(request.renderThreadPriority === undefined
+                        ? {}
+                        : { renderThreadPriority: request.renderThreadPriority }),
                 });
             } else {
                 await this.writeContainerConfig(workspace, request);
@@ -1165,6 +1170,9 @@ export class RenderOrchestrator {
             ...(request.renderThreads === undefined
                 ? {}
                 : { renderThreads: request.renderThreads }),
+            ...(request.renderThreadPriority === undefined
+                ? {}
+                : { renderThreadPriority: request.renderThreadPriority }),
             // False, always. The engine's paths here are the container's, and a `mkdir` of
             // `/bluemap/web/maps` on Windows quietly produces `C:\bluemap\web\maps` - a
             // render that reports an empty output folder nobody can find.

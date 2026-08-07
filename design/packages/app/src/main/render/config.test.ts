@@ -109,6 +109,7 @@ describe("writeRenderConfig", () => {
         expect(core).toContain("accept-download: true");
         expect(core).toContain(`data: ${hoconString(join(root, "data"))}`);
         expect(core).toContain(`file: ${hoconString(join(root, "data", "logs", "cli.log"))}`);
+        expect(core).toContain("render-thread-priority: 5");
 
         const storage = await readFile(join(root, "config", "storages", "file.conf"), "utf8");
         expect(storage).toContain("storage-type: file");
@@ -139,6 +140,24 @@ describe("writeRenderConfig", () => {
         await rm(join(root, "config"), { recursive: true, force: true });
         const on = await writeRenderConfig({ ...options(), metrics: true });
         expect(await readFile(join(on.configDir, "core.conf"), "utf8")).toContain("metrics: true");
+    });
+
+    it("writes a chosen render thread count and priority into the next JVM's core.conf", async () => {
+        const written = await writeRenderConfig({
+            ...options(),
+            renderThreads: 4,
+            renderThreadPriority: 10,
+        });
+        const core = await readFile(join(written.configDir, "core.conf"), "utf8");
+        expect(core).toContain("render-thread-count: 4");
+        expect(core).toContain("render-thread-priority: 10");
+    });
+
+    it("refuses an out-of-range thread priority before writing a config directory", async () => {
+        await expect(
+            writeRenderConfig({ ...options(), renderThreadPriority: 11 }),
+        ).rejects.toThrow(/priority must be a whole number from 1 through 10/);
+        expect(existsSync(join(root, "config"))).toBe(false);
     });
 
     it("writes one config per map and keeps the declaration order", async () => {
