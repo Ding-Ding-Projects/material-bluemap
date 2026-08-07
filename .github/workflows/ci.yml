@@ -49,10 +49,21 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
           # Pull requests are otherwise checked out at GitHub's synthetic merge
           # commit. The generated changelog follows the branch history, so lint
           # the actual PR head instead of inventing an unlisted merge entry.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Guard executable workflow expressions and release metadata
+        run: |
+          set -euo pipefail
+          node --test scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs
+          node scripts/lint-workflows.mjs
 
       # There is deliberately NO changelog freshness check here, and the reason is worth
       # recording so nobody adds one back without solving it first.
@@ -672,6 +683,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # The release scripts only read local history. Leaving the write-scoped
+          # checkout credential in .git/config would give every later shell step a
+          # credential it neither declares nor needs.
+          persist-credentials: false
 
       # pnpm before setup-node, so the node cache can key off the lockfile. Version
       # pinned via design/package.json's own `packageManager` field - see the comment on
@@ -795,23 +810,36 @@ jobs:
 
       # Not a gate: a release must never be blocked because the photo catalog is
       # unavailable. A failure here is reported in the notes instead.
+      # Expressions stay in env mappings, never executable text: the catalog values
+      # come from another repository and Actions substitutes run-block expressions
+      # before bash parses them.
       - name: Resolve dim sum code name
         id: dish
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
-        run: node scripts/pick-dim-sum.mjs --ordinal "${{ steps.tag.outputs.ordinal }}" --out dim-sum-out
+          ORDINAL: ${{ steps.tag.outputs.ordinal }}
+        run: node scripts/pick-dim-sum.mjs --ordinal "$ORDINAL" --out dim-sum-out
 
       - name: Compose release notes
+        env:
+          DISH_NAME_EN: ${{ steps.dish.outputs.dish_name_en }}
+          DISH_NAME_ZH: ${{ steps.dish.outputs.dish_name_zh }}
+          DISH_ALT_EN: ${{ steps.dish.outputs.dish_alt_en }}
+          DISH_FILE_NAME: ${{ steps.dish.outputs.dish_file_name }}
+          DISH_VOLUME: ${{ steps.dish.outputs.dish_volume }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          SPLIT: ${{ steps.split.outputs.split }}
+          SPLIT_NAMES: ${{ steps.split.outputs.names }}
         run: |
           set -euo pipefail
           {
-            if [ -n "${{ steps.dish.outputs.dish_name_en }}" ]; then
-              echo "**Code name: ${{ steps.dish.outputs.dish_name_en }} · ${{ steps.dish.outputs.dish_name_zh }}**"
-              echo
-              echo "![${{ steps.dish.outputs.dish_alt_en }}](https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ steps.tag.outputs.tag }}/${{ steps.dish.outputs.dish_file_name }})"
-              echo
-              echo "Photo from the public \`Ding-Ding-Projects/dim-sum-photos\` catalog, volume \`${{ steps.dish.outputs.dish_volume }}\`, downloaded unchanged at release time and verified to decode. It is not stored in this repository."
+            if [ -n "$DISH_NAME_EN" ]; then
+              printf '**Code name: %s · %s**\n\n' "$DISH_NAME_EN" "$DISH_NAME_ZH"
+              printf '![%s](https://github.com/%s/releases/download/%s/%s)\n\n' \
+                "$DISH_ALT_EN" "$GITHUB_REPOSITORY" "$RELEASE_TAG" "$DISH_FILE_NAME"
+              printf 'Photo from the public `Ding-Ding-Projects/dim-sum-photos` catalog, volume `%s`, downloaded unchanged at release time and verified to decode. It is not stored in this repository.\n' \
+                "$DISH_VOLUME"
             else
               echo "> [!NOTE]"
               echo "> No dim sum photo is attached to this release: resolving one from the photo catalog failed. The \`Resolve dim sum code name\` step in the run log has the exact URL and status. No substitute was generated."
@@ -824,10 +852,11 @@ jobs:
             echo "The seven \`bluemap-*.jar\` files are a separate download and are not needed to install the desktop application. Take one only to run BlueMap on a Minecraft server or from a command line; the table below says which is which."
             echo
             cat jars-out/bluemap-jars.md
-            if [ "${{ steps.split.outputs.split }}" = "1" ]; then
+            if [ "$SPLIT" = "1" ]; then
               echo "## One download arrived in pieces"
               echo
-              echo "A GitHub release asset cannot be larger than 2 GB, and this one is: \`${{ steps.split.outputs.names }}\`. It is published as \`<name>.001\`, \`<name>.002\`, ... beside a \`<name>.parts.json\` that carries the size and SHA-256 of every part and of the whole file."
+              printf 'A GitHub release asset cannot be larger than 2 GB, and this one is: `%s`. It is published as `<name>.001`, `<name>.002`, ... beside a `<name>.parts.json` that carries the size and SHA-256 of every part and of the whole file.\n' \
+                "$SPLIT_NAMES"
               echo
               echo "**In the desktop application**, nothing has to be done: it finds the manifest, downloads every part with resume, checks each one, rejoins them and unpacks the result."
               echo
@@ -855,6 +884,8 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+          BLUEMAP_VERSION: ${{ needs.jars.outputs.version }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
           set -euo pipefail
           # An asset that was split has been removed from its own directory, so without
@@ -875,11 +906,11 @@ jobs:
           # than being buried inside a generic one. Somebody running a Paper server is
           # looking for exactly this and should not have to guess which download holds
           # it.
-          jars="bluemap-server-plugins-${{ needs.jars.outputs.version }}"
+          jars="bluemap-server-plugins-${BLUEMAP_VERSION}"
           mkdir -p "$jars"
           cp jars-out/bluemap-*.jar jars-out/bluemap-jars.sha256.txt jars-out/bluemap-jars.json "$jars/"
           cat > "$jars/README.txt" <<TXT
-          BlueMap ${{ needs.jars.outputs.version }} server plugins
+          BlueMap $BLUEMAP_VERSION server plugins
 
           One jar per Minecraft server platform, built from the upstream source
           vendored in this repository. Take only the one your server runs:
@@ -898,7 +929,7 @@ jobs:
           zip -qr "$jars.zip" "$jars"
 
           # Everything else that is not the installer and not the plugins.
-          extras="material-bluemap-${{ steps.tag.outputs.tag }}-extras"
+          extras="material-bluemap-${RELEASE_TAG}-extras"
           mkdir -p "$extras"/{test-world,update}
           cp world-out/*.zip "$extras/test-world/"
           # The .nupkg and RELEASES are the update set and must exist - an unmatched
@@ -912,7 +943,7 @@ jobs:
             cp installer-out/Squirrel.exe "$extras/update/"
           fi
           cat > "$extras/README.txt" <<TXT
-          material-bluemap ${{ steps.tag.outputs.tag }} - extras
+          material-bluemap $RELEASE_TAG - extras
 
           test-world/  A Minecraft save this project generated in anvil format, with
                        the seed in its file name. No Minecraft installation and no
@@ -949,10 +980,10 @@ jobs:
             echo "::error::no assets were resolved for the release"
             exit 1
           fi
-          gh release create "${{ steps.tag.outputs.tag }}" \
+          gh release create "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "material-bluemap ${{ steps.tag.outputs.tag }}" \
+            --title "material-bluemap $RELEASE_TAG" \
             --notes-file release-notes.md \
             "${assets[@]}"
 
@@ -986,15 +1017,15 @@ jobs:
             echo "- Workflow completed: $workflow_completed"
             echo "- Workflow duration: $workflow_duration"
           } >> release-notes.md
-          gh release edit "${{ steps.tag.outputs.tag }}" \
+          gh release edit "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --notes-file release-notes.md
-          published_notes=$(gh release view "${{ steps.tag.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
+          published_notes=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
           for required_timing in "Workflow started:" "Workflow completed:" "Workflow duration:"; do
             if ! grep -Fq "$required_timing" <<< "$published_notes"; then
               echo "::error::published release notes are missing $required_timing"
               exit 1
             fi
           done
-          gh release view "${{ steps.tag.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --json isDraft,assets \
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets \
             --jq 'if .isDraft then error("release was published as a draft") else "published with \(.assets | length) assets" end'
