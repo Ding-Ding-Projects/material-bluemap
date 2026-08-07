@@ -108,15 +108,19 @@ export function parseJarVersion(fileName: string, implementation: BlueMapImpleme
 /**
  * Walks up from `startDir` looking for the repository root.
  *
- * Anchored on `vendor/BlueMap/settings.gradle.kts` rather than on a fixed number of
- * `..` segments, because this module is compiled from `src/main/java` in development
- * and bundled into `dist/main` for packaging, and those are different depths. A
- * counted path works in exactly one of the two and fails silently in the other.
+ * Anchored on Git's repository marker rather than on a fixed number of `..` segments,
+ * because this module is compiled from `src/main/java` in development and bundled
+ * into `dist/main` for packaging, and those are different depths. `.git` is a
+ * directory in an ordinary checkout and a file in a linked worktree, so existence is
+ * deliberately the only requirement. The vendored-source marker remains a fallback
+ * for exported source trees that have no Git metadata.
  */
 export function findRepoRoot(startDir: string, exists: (path: string) => boolean = existsSync): string | null {
     let current = resolve(startDir);
     for (;;) {
-        if (exists(join(current, "vendor", "BlueMap", "settings.gradle.kts"))) return current;
+        const gitMarker = join(current, ".git");
+        const vendoredSourceMarker = join(current, "vendor", "BlueMap", "settings.gradle.kts");
+        if (exists(gitMarker) || exists(vendoredSourceMarker)) return current;
         const parent = dirname(current);
         if (parent === current) return null;
         current = parent;
