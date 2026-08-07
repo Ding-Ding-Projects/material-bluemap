@@ -26,6 +26,26 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "88fb85eb5240e33a2950fd00c5e5c6aac4f83191",
+        shortSha: "88fb85eb52",
+        date: "2026-08-07T11:06:12-04:00",
+        subject: "Fix cloud-safe Vue source assertions",
+        details: "Read the two component sources through Vite's stable raw-import path instead of asking an HTTP-flavoured import.meta.url to cosplay as a file URL. The CSS assertions now run on Windows and cloud runners without tripping over their own magnifying glass.\n\n兩個 CSS 測試改用 Vite 穩陣嘅 raw import，唔再逼個 HTTP 味 import.meta.url 扮本機檔案。今次放大鏡終於肯照程式碼，唔係先照爆自己。",
+        category: "interface",
+        areas: ["interface"],
+        files: 2,
+    },
+    {
+        sha: "ea97ee8aa020ea9d364879d8f534874d2e009a64",
+        shortSha: "ea97ee8aa0",
+        date: "2026-08-07T11:03:11-04:00",
+        subject: "Finalize the Worldlens repository identity",
+        details: "The repository, release-facing links, site runtime, policy files, and generated changelog now agree on the new Worldlens home. Seventeen old-name holdouts have surrendered their mismatched name badges.\n\n倉庫、發佈連結、網站執行層、政策文件同生成版更新記錄而家全部認 Worldlens 新屋企。十七個舊名釘子戶終於交返錯門牌。",
+        category: "site",
+        areas: ["site", "docs", "other", "interface", "shell", "build"],
+        files: 17,
+    },
+    {
         sha: "776c1f8fe80c8983583791403b2c16706f770bc9",
         shortSha: "776c1f8fe8",
         date: "2026-08-07T10:59:29-04:00",
