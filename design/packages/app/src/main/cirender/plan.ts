@@ -8,18 +8,14 @@
  * their dimensions. So the plan is read out of it, and syncing the same world twice
  * produces the same inputs without anybody remembering anything.
  *
- * ## What the workflow can carry, and what it cannot
+ * ## How the complete map configuration reaches the workflow
  *
  * `render-world.yml` takes nine `workflow_dispatch` inputs, and GitHub caps a workflow at
- * ten. A map's own `maps/<id>.conf` is ninety-odd settings of HOCON - ambient light, sky
- * colour, the y range, marker sets - and **none of it fits through that door**. The
- * workflow generates its own shard configs from the plan, so a CI render uses BlueMap's
- * defaults for everything the inputs do not name.
- *
- * That is a real limitation and this module's job is to say so *before* a dispatch rather
- * than leaving somebody to notice that their carefully tuned map came back looking
- * ordinary. {@link CiRenderPlan.notCarried} lists the settings the project holds that the
- * workflow will not see, read out of the map's own HOCON, so the surface can show them.
+ * ten. The map's ninety-odd settings do not travel through that narrow API at all. They
+ * already live in `material-bluemap.project.json`, inside the exact world archive this
+ * sync uploads. The runner reads the selected map's complete HOCON from that project and
+ * writes it before its runtime-owned path and shard overrides. This contract records that
+ * route explicitly so the app, workflow and UI cannot drift back to a guessed subset.
  *
  * ## The dimension is checked here, not by GitHub
  *
@@ -57,12 +53,12 @@ export interface CiRenderPlan {
     readonly dimension: string;
     /** Every `workflow_dispatch` input, as the strings GitHub takes. */
     readonly inputs: Readonly<Record<string, string>>;
-    /**
-     * Settings this project holds that the workflow has no input for.
-     *
-     * Informational, never used to decide anything. An empty list means the project's map
-     * carries no configuration beyond what the inputs already express.
-     */
+    readonly configuration: {
+        readonly route: "project-archive";
+        readonly complete: true;
+        readonly file: "material-bluemap.project.json";
+    };
+    /** Backward-compatible UI field. Complete project transport makes it always empty. */
     readonly notCarried: readonly string[];
 }
 
@@ -110,7 +106,10 @@ export async function readProjectAt(worldFolder: string): Promise<ProjectAtResul
 
     const parsed = parseProjectFile(raw);
     if (!parsed.ok) {
-        return { ok: false, failure: { code: "unreadable-project", message: describe(path, parsed.failure) } };
+        return {
+            ok: false,
+            failure: { code: "unreadable-project", message: describe(path, parsed.failure) },
+        };
     }
     return { ok: true, project: parsed.project };
 }
@@ -147,7 +146,10 @@ export type ChooseMapResult =
  * its dimension is one the workflow does not offer, after twenty gigabytes have gone up is
  * the failure this split exists to prevent.
  */
-export function chooseProjectMap(project: ProjectFile, mapId?: string | undefined): ChooseMapResult {
+export function chooseProjectMap(
+    project: ProjectFile,
+    mapId?: string | undefined,
+): ChooseMapResult {
     const maps = project.maps.filter((map) => map.enabled);
     if (maps.length === 0) {
         return {
@@ -227,7 +229,12 @@ export function planCiRender(input: PlanInput): CiPlanResult {
             mapId: chosen.id,
             mapName: chosen.name,
             dimension: chosen.dimension,
-            notCarried: settingsTheWorkflowCannotSee(chosen),
+            configuration: {
+                route: "project-archive",
+                complete: true,
+                file: PROJECT_FILE_NAME,
+            },
+            notCarried: [],
             inputs: {
                 "world-source": "release-asset",
                 world: `${input.releaseTag}/${input.assetName}`,
@@ -247,41 +254,4 @@ function positiveInteger(value: number | undefined, fallback: number): number {
     if (value === undefined || !Number.isFinite(value)) return fallback;
     const rounded = Math.floor(value);
     return rounded > 0 ? rounded : fallback;
-}
-
-/**
- * The top-level keys of a map's HOCON, minus the two the workflow does carry.
- *
- * A deliberately shallow read: top-level `key:`, `key =` and `key {` lines, with comments
- * and blank lines dropped. It is approximate, and it is allowed to be, because nothing
- * decides anything from it - it exists so a person can be told "these settings will not
- * travel" instead of finding out from the picture that came back. A parse that missed a
- * key would understate the warning, which is why the doc says the whole map config is
- * left behind rather than relying on this list being complete.
- */
-export function settingsTheWorkflowCannotSee(map: ProjectMap): readonly string[] {
-    const carried = new Set(["world", "dimension", "name", "sorting"]);
-    const found = new Set<string>();
-    // Brace depth, so a nested `value:` inside `min-inhabited-time { ... }` is part of
-    // that setting rather than a setting of its own. Counting braces is enough because
-    // HOCON's own nesting is what is being tracked, not string contents - and a `{` inside
-    // a quoted value would only ever over-count depth, which hides a key rather than
-    // inventing one.
-    let depth = 0;
-    for (const line of map.config.split(/\r?\n/)) {
-        const trimmed = line.trim();
-        const opens = (trimmed.match(/\{/g) ?? []).length;
-        const closes = (trimmed.match(/\}/g) ?? []).length;
-        if (trimmed.length === 0 || trimmed.startsWith("#") || trimmed.startsWith("//")) {
-            depth += opens - closes;
-            continue;
-        }
-        if (depth === 0) {
-            const match = /^"?([A-Za-z][\w-]*)"?\s*[:={]/.exec(trimmed);
-            const key = match?.[1];
-            if (key !== undefined && !carried.has(key)) found.add(key);
-        }
-        depth = Math.max(0, depth + opens - closes);
-    }
-    return [...found].sort();
 }

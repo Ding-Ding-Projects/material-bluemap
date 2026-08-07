@@ -31,7 +31,11 @@ import type {
     RouteReport,
 } from "./ciRenderBridge.js";
 import type { GitHubAccountSummaryReadout, GitHubBridge } from "../github/githubBridge.js";
-import type { MinecraftFolder, MinecraftWorldSummary, WorldCatalogBridge } from "../world/worldCatalog.js";
+import type {
+    MinecraftFolder,
+    MinecraftWorldSummary,
+    WorldCatalogBridge,
+} from "../world/worldCatalog.js";
 
 beforeAll(() => {
     // jsdom has no layout engine, and Vuetify's fields and overlays observe their own
@@ -105,6 +109,11 @@ function preflight(overrides: Partial<CiPreflight> = {}): CiPreflight {
             mapName: "World",
             dimension: "minecraft:overworld",
             inputs: {},
+            configuration: {
+                route: "project-archive",
+                complete: true,
+                file: "material-bluemap.project.json",
+            },
             notCarried: [],
         },
         planFailure: null,
@@ -126,7 +135,8 @@ function fakeBridge(
     overrides: Partial<CiRenderBridge> = {},
 ): CiRenderBridge {
     return {
-        ciRenderPreflight: () => Promise.resolve({ ok: true, value: report } as Answer<CiPreflight>),
+        ciRenderPreflight: () =>
+            Promise.resolve({ ok: true, value: report } as Answer<CiPreflight>),
         startCiRender: (request) => {
             started.push({
                 ok: false,
@@ -147,7 +157,13 @@ function fakeBridge(
             return Promise.resolve(started[started.length - 1] as CiSyncResult);
         },
         checkCiRender: () =>
-            Promise.resolve({ ok: true, syncId: "s", outcome: "running", run: null, state: null as never }),
+            Promise.resolve({
+                ok: true,
+                syncId: "s",
+                outcome: "running",
+                run: null,
+                state: null as never,
+            }),
         listCiRenders: () => Promise.resolve({ ok: true, value: [] }),
         cancelCiRender: () => Promise.resolve(true),
         activeCiRenders: () => Promise.resolve([]),
@@ -164,12 +180,16 @@ function fakeBridge(
  * A bridge that actually forwards events, so a test can drive the mounted rows the way the
  * main process really would - `started`, then `phase`, then `progress` and `run`.
  */
-function eventBridge(report: CiPreflight): { bridge: CiRenderBridge; emit: (event: CiSyncEvent) => void } {
+function eventBridge(report: CiPreflight): {
+    bridge: CiRenderBridge;
+    emit: (event: CiSyncEvent) => void;
+} {
     let listener: ((event: CiSyncEvent) => void) | null = null;
     return {
         emit: (event) => listener?.(event),
         bridge: {
-            ciRenderPreflight: () => Promise.resolve({ ok: true, value: report } as Answer<CiPreflight>),
+            ciRenderPreflight: () =>
+                Promise.resolve({ ok: true, value: report } as Answer<CiPreflight>),
             startCiRender: () =>
                 Promise.resolve({
                     ok: false,
@@ -188,7 +208,13 @@ function eventBridge(report: CiPreflight): { bridge: CiRenderBridge; emit: (even
                     },
                 }),
             checkCiRender: () =>
-                Promise.resolve({ ok: true, syncId: "s", outcome: "running", run: null, state: null as never }),
+                Promise.resolve({
+                    ok: true,
+                    syncId: "s",
+                    outcome: "running",
+                    run: null,
+                    state: null as never,
+                }),
             listCiRenders: () => Promise.resolve({ ok: true, value: [] }),
             cancelCiRender: () => Promise.resolve(true),
             activeCiRenders: () => Promise.resolve([]),
@@ -212,7 +238,12 @@ function mountScreen(bridge: CiRenderBridge | null, extraProps: Record<string, u
         global: {
             plugins: [
                 createVuetify(),
-                createI18n({ legacy: false, locale: "en", missingWarn: false, fallbackWarn: false }),
+                createI18n({
+                    legacy: false,
+                    locale: "en",
+                    missingWarn: false,
+                    fallbackWarn: false,
+                }),
             ],
         },
     });
@@ -270,13 +301,20 @@ function fakeCatalogBridge(
         scanMinecraftFolder: (id) =>
             Promise.resolve({
                 ok: true,
-                scan: { folderId: id, savesPath: "", worlds: worldsByFolder[id] ?? [], truncated: false },
+                scan: {
+                    folderId: id,
+                    savesPath: "",
+                    worlds: worldsByFolder[id] ?? [],
+                    truncated: false,
+                },
             }),
     };
 }
 
 /** A `GitHubAccountSummaryReadout`, filled with sane defaults so a test only names what it cares about. */
-function ghAccount(overrides: Partial<GitHubAccountSummaryReadout> = {}): GitHubAccountSummaryReadout {
+function ghAccount(
+    overrides: Partial<GitHubAccountSummaryReadout> = {},
+): GitHubAccountSummaryReadout {
     return {
         id: "acct",
         login: "octocat",
@@ -314,7 +352,10 @@ function fakeAccountsBridge(
             githubListAccounts: () => {
                 calls.push("list");
                 return Promise.resolve({
-                    accounts: accounts.map((account) => ({ ...account, active: account.id === active })),
+                    accounts: accounts.map((account) => ({
+                        ...account,
+                        active: account.id === active,
+                    })),
                     activeId: active,
                 });
             },
@@ -459,7 +500,8 @@ describe("which credential is in play is on screen before the button", () => {
                 preflight({
                     routeReport: routeReport({
                         route: "gh",
-                        describe: "Using the gh command-line tool (ghuser), because the sign-in in this application could not.",
+                        describe:
+                            "Using the gh command-line tool (ghuser), because the sign-in in this application could not.",
                         canUpload: false,
                     }),
                     uploadNeeded: false,
@@ -489,33 +531,36 @@ describe("which credential is in play is on screen before the button", () => {
         ],
         ["signed-out" as const, null, "nobody is signed in to it", "gh auth login"],
         ["ready" as const, "ghuser", "signed in as ghuser", "github.com"],
-    ])("keeps the gh state %s distinct, because the remedies differ", async (availability, account, said, remedy) => {
-        const wrapper = mountScreen(
-            fakeBridge(
-                preflight({
-                    routeReport: routeReport({
-                        route: availability === "ready" ? "gh" : "session",
-                        gh: {
-                            availability,
-                            version: null,
-                            account,
-                            host: "github.com",
-                            message: "",
-                            usable: availability === "ready",
-                            reason: null,
-                        },
+    ])(
+        "keeps the gh state %s distinct, because the remedies differ",
+        async (availability, account, said, remedy) => {
+            const wrapper = mountScreen(
+                fakeBridge(
+                    preflight({
+                        routeReport: routeReport({
+                            route: availability === "ready" ? "gh" : "session",
+                            gh: {
+                                availability,
+                                version: null,
+                                account,
+                                host: "github.com",
+                                message: "",
+                                usable: availability === "ready",
+                                reason: null,
+                            },
+                        }),
+                        uploadNeeded: false,
+                        worldChanged: false,
                     }),
-                    uploadNeeded: false,
-                    worldChanged: false,
-                }),
-            ),
-        );
-        await check(wrapper);
+                ),
+            );
+            await check(wrapper);
 
-        const text = wrapper.find('[data-test="route-gh"]').text();
-        expect(text).toContain(said);
-        expect(text).toContain(remedy);
-    });
+            const text = wrapper.find('[data-test="route-gh"]').text();
+            expect(text).toContain(said);
+            expect(text).toContain(remedy);
+        },
+    );
 
     it("says why the other sign-in was passed over, so a denial is actionable", async () => {
         const wrapper = mountScreen(
@@ -595,7 +640,8 @@ describe("which credential is in play is on screen before the button", () => {
                         route: null,
                         ready: false,
                         canUpload: false,
-                        describe: "octocat is not signed in to gh on github.com. Nothing was uploaded.",
+                        describe:
+                            "octocat is not signed in to gh on github.com. Nothing was uploaded.",
                         gh: {
                             availability: "ready",
                             version: "gh version 2.96.0",
@@ -637,7 +683,7 @@ describe("what it says about an upload", () => {
         expect(wrapper.find('[data-test="ack-upload"]').exists()).toBe(false);
     });
 
-    it("names the settings the workflow cannot carry, rather than letting them go quietly", async () => {
+    it("says that the complete project config, including the render mask, travels", async () => {
         const wrapper = mountScreen(
             fakeBridge(
                 preflight({
@@ -646,14 +692,23 @@ describe("what it says about an upload", () => {
                         mapName: "World",
                         dimension: "minecraft:overworld",
                         inputs: {},
-                        notCarried: ["ambient-light", "sky-color"],
+                        configuration: {
+                            route: "project-archive",
+                            complete: true,
+                            file: "material-bluemap.project.json",
+                        },
+                        notCarried: [],
                     },
                 }),
             ),
         );
         await check(wrapper);
-        expect(wrapper.text()).toContain("ambient-light, sky-color");
-        expect(wrapper.text()).toContain("BlueMap's defaults");
+        expect(wrapper.find('[data-test="config-transport"]').text()).toContain(
+            "material-bluemap.project.json",
+        );
+        expect(wrapper.find('[data-test="config-transport"]').text()).toContain(
+            "complete render mask",
+        );
     });
 });
 
@@ -663,7 +718,9 @@ describe("hosting the finished map on GitHub Pages", () => {
         // that put somebody's world on the open web the first time they pressed the
         // button would be wrong even in a repository that is already public.
         const started: CiSyncResult[] = [];
-        const wrapper = mountScreen(fakeBridge(preflight({ uploadNeeded: false, worldChanged: false }), started));
+        const wrapper = mountScreen(
+            fakeBridge(preflight({ uploadNeeded: false, worldChanged: false }), started),
+        );
         await check(wrapper);
 
         const box = wrapper.find('[data-test="publish-pages"] input');
@@ -671,21 +728,27 @@ describe("hosting the finished map on GitHub Pages", () => {
 
         await wrapper.find('[data-test="start"]').trigger("click");
         await flushPromises();
-        expect(JSON.parse(started[0]?.ok === false ? started[0].failure.message : "{}")).toMatchObject({
+        expect(
+            JSON.parse(started[0]?.ok === false ? started[0].failure.message : "{}"),
+        ).toMatchObject({
             output: "artifact",
         });
     });
 
     it("asks the workflow to publish when it is ticked", async () => {
         const started: CiSyncResult[] = [];
-        const wrapper = mountScreen(fakeBridge(preflight({ uploadNeeded: false, worldChanged: false }), started));
+        const wrapper = mountScreen(
+            fakeBridge(preflight({ uploadNeeded: false, worldChanged: false }), started),
+        );
         await check(wrapper);
 
         await wrapper.find('[data-test="publish-pages"] input').setValue(true);
         await wrapper.find('[data-test="start"]').trigger("click");
         await flushPromises();
 
-        expect(JSON.parse(started[0]?.ok === false ? started[0].failure.message : "{}")).toMatchObject({
+        expect(
+            JSON.parse(started[0]?.ok === false ? started[0].failure.message : "{}"),
+        ).toMatchObject({
             output: "artifact-and-pages",
         });
     });
@@ -694,7 +757,9 @@ describe("hosting the finished map on GitHub Pages", () => {
         // Two things somebody would otherwise find out afterwards: the map goes under the
         // documentation site rather than over it, and a world too big to assemble on one
         // runner cannot be hosted this way at all.
-        const wrapper = mountScreen(fakeBridge(preflight({ uploadNeeded: false, worldChanged: false })));
+        const wrapper = mountScreen(
+            fakeBridge(preflight({ uploadNeeded: false, worldChanged: false })),
+        );
         await check(wrapper);
         await wrapper.find('[data-test="publish-pages"] input').setValue(true);
 
@@ -720,7 +785,13 @@ describe("a running row shows the real numbers the main process actually sends",
         await flushPromises();
         expect(wrapper.find('[data-test="row-route"]').exists()).toBe(false);
 
-        emit({ type: "phase", syncId: "s", phase: "checking", route: "gh", at: "2026-08-04T10:00:01Z" });
+        emit({
+            type: "phase",
+            syncId: "s",
+            phase: "checking",
+            route: "gh",
+            at: "2026-08-04T10:00:01Z",
+        });
         await flushPromises();
         expect(wrapper.find('[data-test="row-route"]').text()).toContain("gh command-line tool");
     });
@@ -737,7 +808,13 @@ describe("a running row shows the real numbers the main process actually sends",
             worldFolder: "/w",
             at: "2026-08-04T10:00:00Z",
         });
-        emit({ type: "phase", syncId: "s", phase: "uploading", route: "session", at: "2026-08-04T10:00:01Z" });
+        emit({
+            type: "phase",
+            syncId: "s",
+            phase: "uploading",
+            route: "session",
+            at: "2026-08-04T10:00:01Z",
+        });
         emit({
             type: "progress",
             syncId: "s",
@@ -842,9 +919,9 @@ describe("the world folder: a picker of what this machine already knows about", 
         await option.trigger("click");
         await flushPromises();
 
-        expect((wrapper.find('[data-test="world-field"] input').element as HTMLInputElement).value).toBe(
-            "/mc/saves/My World",
-        );
+        expect(
+            (wrapper.find('[data-test="world-field"] input').element as HTMLInputElement).value,
+        ).toBe("/mc/saves/My World");
     });
 
     it("says plainly when nothing was found, and how to add a folder", async () => {
@@ -881,15 +958,19 @@ describe("the world folder: a picker of what this machine already knows about", 
     });
 
     it("fills the field from the shared browse affordance when this build carries it", async () => {
-        vi.stubGlobal("materialBluemap", { dialog: { pickFolder: () => Promise.resolve("/browsed/world") } });
+        vi.stubGlobal("materialBluemap", {
+            dialog: { pickFolder: () => Promise.resolve("/browsed/world") },
+        });
         try {
             const wrapper = mountScreen(fakeBridge(preflight()));
-            expect(wrapper.find('[data-test="world-browse"]').attributes("disabled")).toBeUndefined();
+            expect(
+                wrapper.find('[data-test="world-browse"]').attributes("disabled"),
+            ).toBeUndefined();
             await wrapper.find('[data-test="world-browse"]').trigger("click");
             await flushPromises();
-            expect((wrapper.find('[data-test="world-field"] input').element as HTMLInputElement).value).toBe(
-                "/browsed/world",
-            );
+            expect(
+                (wrapper.find('[data-test="world-field"] input').element as HTMLInputElement).value,
+            ).toBe("/browsed/world");
         } finally {
             vi.unstubAllGlobals();
         }
@@ -901,12 +982,18 @@ describe("the repository owner: chosen from the signed-in account, or typed", ()
         const bridgeWithOwners: CiRenderBridge = {
             ...fakeBridge(preflight()),
             listCiOwners: () =>
-                Promise.resolve({ ok: false, signedIn: false, message: "Nobody is signed in to GitHub." }),
+                Promise.resolve({
+                    ok: false,
+                    signedIn: false,
+                    message: "Nobody is signed in to GitHub.",
+                }),
         };
         const wrapper = mountScreen(bridgeWithOwners);
         await flushPromises();
 
-        expect(wrapper.find('[data-test="owner-signed-out"]').text()).toContain("Nobody is signed in");
+        expect(wrapper.find('[data-test="owner-signed-out"]').text()).toContain(
+            "Nobody is signed in",
+        );
         const signInButton = wrapper.find('[data-test="owner-signed-out"] button');
         expect(signInButton.exists()).toBe(true);
         await signInButton.trigger("click");
@@ -916,7 +1003,8 @@ describe("the repository owner: chosen from the signed-in account, or typed", ()
     it("offers a retry when somebody is signed in but the list itself could not be read", async () => {
         const bridgeWithOwners: CiRenderBridge = {
             ...fakeBridge(preflight()),
-            listCiOwners: () => Promise.resolve({ ok: false, signedIn: true, message: "GitHub answered 500." }),
+            listCiOwners: () =>
+                Promise.resolve({ ok: false, signedIn: true, message: "GitHub answered 500." }),
         };
         const wrapper = mountScreen(bridgeWithOwners);
         await flushPromises();
@@ -937,7 +1025,11 @@ describe("the repository owner: chosen from the signed-in account, or typed", ()
         const signedOut = mountScreen({
             ...fakeBridge(preflight()),
             listCiOwners: () =>
-                Promise.resolve({ ok: false, signedIn: false, message: "Nobody is signed in to GitHub." }),
+                Promise.resolve({
+                    ok: false,
+                    signedIn: false,
+                    message: "Nobody is signed in to GitHub.",
+                }),
         });
         await flushPromises();
         const signedOutAlert = signedOut.find('[data-test="owner-signed-out"]');
@@ -951,7 +1043,8 @@ describe("the repository owner: chosen from the signed-in account, or typed", ()
         // change under it.
         const loadFailed = mountScreen({
             ...fakeBridge(preflight()),
-            listCiOwners: () => Promise.resolve({ ok: false, signedIn: true, message: "GitHub answered 500." }),
+            listCiOwners: () =>
+                Promise.resolve({ ok: false, signedIn: true, message: "GitHub answered 500." }),
         });
         await flushPromises();
         const loadFailedAlert = loadFailed.find('[data-test="owner-load-failed"]');
@@ -997,7 +1090,9 @@ describe("render as: which stored GitHub account this render authenticates as", 
         const wrapper = mountScreen(fakeBridge(preflight()), { accountsBridge });
         await flushPromises();
 
-        expect(wrapper.find('[data-test="account-signed-out"]').text()).toContain("Nobody is signed in");
+        expect(wrapper.find('[data-test="account-signed-out"]').text()).toContain(
+            "Nobody is signed in",
+        );
         expect(wrapper.find('[data-test="account-select"]').exists()).toBe(false);
         const signInButton = wrapper.find('[data-test="account-signed-out"] button');
         expect(signInButton.exists()).toBe(true);
@@ -1006,7 +1101,10 @@ describe("render as: which stored GitHub account this render authenticates as", 
     });
 
     it("still shows exactly one signed-in account, disabled, naming why", async () => {
-        const { bridge: accountsBridge } = fakeAccountsBridge([ghAccount({ id: "a1", login: "octocat" })], "a1");
+        const { bridge: accountsBridge } = fakeAccountsBridge(
+            [ghAccount({ id: "a1", login: "octocat" })],
+            "a1",
+        );
         const wrapper = mountScreen(fakeBridge(preflight()), { accountsBridge });
         await flushPromises();
 
@@ -1093,7 +1191,9 @@ describe("render as: which stored GitHub account this render authenticates as", 
         const wrapper = mountScreen(fakeBridge(preflight()), { accountsBridge });
         await check(wrapper);
         expect(wrapper.find('[data-test="route"]').exists()).toBe(true);
-        expect((wrapper.find('[data-test="owner-field"] input').element as HTMLInputElement).value).toBe("o");
+        expect(
+            (wrapper.find('[data-test="owner-field"] input').element as HTMLInputElement).value,
+        ).toBe("o");
 
         const select = wrapper
             .findAllComponents(VSelect)
@@ -1101,7 +1201,9 @@ describe("render as: which stored GitHub account this render authenticates as", 
         await select?.vm.$emit("update:modelValue", "a2");
         await flushPromises();
 
-        expect((wrapper.find('[data-test="owner-field"] input').element as HTMLInputElement).value).toBe("");
+        expect(
+            (wrapper.find('[data-test="owner-field"] input').element as HTMLInputElement).value,
+        ).toBe("");
         // Nothing re-checks automatically: "Check before anything is sent" stays the one
         // deliberate action that reads a report, so the stale one is dropped rather than
         // silently re-fetched.
@@ -1141,7 +1243,9 @@ describe("render as: which stored GitHub account this render authenticates as", 
 
         await wrapper.find('[data-test="start"]').trigger("click");
         await flushPromises();
-        expect(JSON.parse(started[0]?.ok === false ? started[0].failure.message : "{}")).toMatchObject({
+        expect(
+            JSON.parse(started[0]?.ok === false ? started[0].failure.message : "{}"),
+        ).toMatchObject({
             accountId: "a2",
         });
     });
@@ -1151,14 +1255,15 @@ describe("render as: which stored GitHub account this render authenticates as", 
         // picker, has always sent - proven here rather than only asserted from behaviour,
         // because a stray `accountId: undefined` key would still pass a looser check.
         const started: CiSyncResult[] = [];
-        const wrapper = mountScreen(fakeBridge(preflight({ uploadNeeded: false, worldChanged: false }), started));
+        const wrapper = mountScreen(
+            fakeBridge(preflight({ uploadNeeded: false, worldChanged: false }), started),
+        );
         await check(wrapper);
         await wrapper.find('[data-test="start"]').trigger("click");
         await flushPromises();
-        const request = JSON.parse(started[0]?.ok === false ? started[0].failure.message : "{}") as Record<
-            string,
-            unknown
-        >;
+        const request = JSON.parse(
+            started[0]?.ok === false ? started[0].failure.message : "{}",
+        ) as Record<string, unknown>;
         expect("accountId" in request).toBe(false);
     });
 });
@@ -1188,15 +1293,19 @@ describe("an existing repository, offered because this flow never creates one", 
         const select = wrapper
             .findAllComponents(VSelect)
             .find((component) => component.props("label") === "One of your repositories");
-        expect(select?.props("items")).toEqual([{ title: "octocat/maps (private)", value: "octocat/maps" }]);
+        expect(select?.props("items")).toEqual([
+            { title: "octocat/maps (private)", value: "octocat/maps" },
+        ]);
 
         await select?.vm.$emit("update:modelValue", "octocat/maps");
         await flushPromises();
 
-        expect((wrapper.find('[data-test="owner-field"] input').element as HTMLInputElement).value).toBe(
-            "octocat",
-        );
-        expect((wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value).toBe("maps");
+        expect(
+            (wrapper.find('[data-test="owner-field"] input').element as HTMLInputElement).value,
+        ).toBe("octocat");
+        expect(
+            (wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value,
+        ).toBe("maps");
     });
 
     /**
@@ -1303,7 +1412,9 @@ describe("an existing repository, offered because this flow never creates one", 
             await vi.advanceTimersByTimeAsync(600);
             await flushPromises();
 
-            expect(wrapper.find('[data-test="repo-availability"]').text()).toContain("already exists");
+            expect(wrapper.find('[data-test="repo-availability"]').text()).toContain(
+                "already exists",
+            );
         } finally {
             vi.useRealTimers();
         }
@@ -1367,7 +1478,10 @@ describe("a repository that is not ready says why, without reading as a hard blo
                         htmlUrl: "https://github.test/o/r",
                         warning: null,
                     },
-                    routeReport: routeReport({ ready: false, describe: "Neither GitHub route can start a render on this repository." }),
+                    routeReport: routeReport({
+                        ready: false,
+                        describe: "Neither GitHub route can start a render on this repository.",
+                    }),
                 }),
             ),
         );
@@ -1391,7 +1505,10 @@ describe("a repository that is not ready says why, without reading as a hard blo
                 preflight({
                     repository: null,
                     repositoryFailure: "GitHub answered 404.",
-                    routeReport: routeReport({ ready: false, describe: "Neither GitHub route can start a render on this repository." }),
+                    routeReport: routeReport({
+                        ready: false,
+                        describe: "Neither GitHub route can start a render on this repository.",
+                    }),
                 }),
             ),
         );
@@ -1478,7 +1595,10 @@ describe("preparing a repository automatically, rather than sending somebody to 
                 htmlUrl: "https://github.test/o/r",
                 warning: null,
             },
-            routeReport: routeReport({ ready: false, describe: "Neither GitHub route can start a render on this repository." }),
+            routeReport: routeReport({
+                ready: false,
+                describe: "Neither GitHub route can start a render on this repository.",
+            }),
         });
     }
 
@@ -1503,7 +1623,10 @@ describe("preparing a repository automatically, rather than sending somebody to 
                 // The check button's own bridge answer, and the one a successful
                 // bootstrap re-triggers - the second call reports the repository as
                 // ready, exactly as it would be once the workflow actually landed.
-                return Promise.resolve({ ok: true, value: calls === 1 ? existingUnpreparedPreflight() : readyPreflight });
+                return Promise.resolve({
+                    ok: true,
+                    value: calls === 1 ? existingUnpreparedPreflight() : readyPreflight,
+                });
             },
             bootstrapCiRepository: (owner, repo) => {
                 expect(owner).toBe("o");
@@ -1515,10 +1638,19 @@ describe("preparing a repository automatically, rather than sending somebody to 
                         owner: "o",
                         repo: "r",
                         route: "session",
-                        credentialDescribe: "Using the GitHub sign-in in this application (octocat).",
+                        credentialDescribe:
+                            "Using the GitHub sign-in in this application (octocat).",
                         files: [
-                            { path: ".github/workflows/render-world.yml", action: "created", reason: null },
-                            { path: ".github/workflows/render-shard-wave.yml", action: "created", reason: null },
+                            {
+                                path: ".github/workflows/render-world.yml",
+                                action: "created",
+                                reason: null,
+                            },
+                            {
+                                path: ".github/workflows/render-shard-wave.yml",
+                                action: "created",
+                                reason: null,
+                            },
                         ],
                         markerWritten: true,
                         actionsEnabled: true,
@@ -1587,11 +1719,19 @@ describe("preparing a repository automatically, rather than sending somebody to 
                         owner: "o",
                         repo: "r",
                         route: "session",
-                        credentialDescribe: "Using the GitHub sign-in in this application (octocat).",
-                        files: [{ path: ".github/workflows/render-world.yml", action: "created", reason: null }],
+                        credentialDescribe:
+                            "Using the GitHub sign-in in this application (octocat).",
+                        files: [
+                            {
+                                path: ".github/workflows/render-world.yml",
+                                action: "created",
+                                reason: null,
+                            },
+                        ],
                         markerWritten: true,
                         actionsEnabled: false,
-                        actionsMessage: "GitHub Actions is turned off for o/r. Turn it on there before a render can run.",
+                        actionsMessage:
+                            "GitHub Actions is turned off for o/r. Turn it on there before a render can run.",
                         ready: false,
                         notes: [],
                     },
@@ -1616,7 +1756,8 @@ describe("the repository name: suggested once a world is chosen, checked live", 
         });
         const bridgeWithSuggest: CiRenderBridge = {
             ...fakeBridge(preflight()),
-            suggestCiRepoName: (sourceName) => Promise.resolve(sourceName.toLowerCase().replace(/\s+/g, "-")),
+            suggestCiRepoName: (sourceName) =>
+                Promise.resolve(sourceName.toLowerCase().replace(/\s+/g, "-")),
         };
         const wrapper = mountScreen(bridgeWithSuggest, { catalogBridge });
         await flushPromises();
@@ -1624,9 +1765,9 @@ describe("the repository name: suggested once a world is chosen, checked live", 
         await wrapper.find('[role="option"]').trigger("click");
         await flushPromises();
 
-        expect((wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value).toBe(
-            "my-world",
-        );
+        expect(
+            (wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value,
+        ).toBe("my-world");
     });
 
     it("never overwrites a repository name somebody already typed", async () => {
@@ -1644,16 +1785,24 @@ describe("the repository name: suggested once a world is chosen, checked live", 
         await wrapper.find('[role="option"]').trigger("click");
         await flushPromises();
 
-        expect((wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value).toBe(
-            "already-typed",
-        );
+        expect(
+            (wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value,
+        ).toBe("already-typed");
     });
 
     it("applies the suggestion for the world chosen last, not whichever round trip resolves first", async () => {
         const catalogBridge = fakeCatalogBridge([catalogFolder()], {
             f1: [
-                catalogWorld({ path: "/mc/saves/World A", directoryName: "World A", name: "World A" }),
-                catalogWorld({ path: "/mc/saves/World B", directoryName: "World B", name: "World B" }),
+                catalogWorld({
+                    path: "/mc/saves/World A",
+                    directoryName: "World A",
+                    name: "World A",
+                }),
+                catalogWorld({
+                    path: "/mc/saves/World B",
+                    directoryName: "World B",
+                    name: "World B",
+                }),
             ],
         });
 
@@ -1681,9 +1830,9 @@ describe("the repository name: suggested once a world is chosen, checked live", 
         await new Promise((resolve) => setTimeout(resolve, 80));
         await flushPromises();
 
-        expect((wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value).toBe(
-            "world-b",
-        );
+        expect(
+            (wrapper.find('[data-test="repo-field"] input').element as HTMLInputElement).value,
+        ).toBe("world-b");
     });
 
     it.each([
@@ -1694,36 +1843,50 @@ describe("the repository name: suggested once a world is chosen, checked live", 
         ],
         [
             "taken" as const,
-            { status: "taken", owner: "o", repo: "r", private: false, htmlUrl: null } as CiRepositoryNameAvailability,
+            {
+                status: "taken",
+                owner: "o",
+                repo: "r",
+                private: false,
+                htmlUrl: null,
+            } as CiRepositoryNameAvailability,
             "already exists",
         ],
         [
             "unknown" as const,
-            { status: "unknown", owner: "o", repo: "r", message: "offline" } as CiRepositoryNameAvailability,
+            {
+                status: "unknown",
+                owner: "o",
+                repo: "r",
+                message: "offline",
+            } as CiRepositoryNameAvailability,
             "Could not check",
         ],
-    ])("says the %s verdict in plain words, after a pause rather than on every keystroke", async (_label, answer, expected) => {
-        vi.useFakeTimers();
-        try {
-            const bridgeWithCheck: CiRenderBridge = {
-                ...fakeBridge(preflight()),
-                checkCiRepoName: () => Promise.resolve(answer),
-            };
-            const wrapper = mountScreen(bridgeWithCheck);
+    ])(
+        "says the %s verdict in plain words, after a pause rather than on every keystroke",
+        async (_label, answer, expected) => {
+            vi.useFakeTimers();
+            try {
+                const bridgeWithCheck: CiRenderBridge = {
+                    ...fakeBridge(preflight()),
+                    checkCiRepoName: () => Promise.resolve(answer),
+                };
+                const wrapper = mountScreen(bridgeWithCheck);
 
-            await wrapper.find('[data-test="owner-field"] input').setValue("o");
-            await wrapper.find('[data-test="repo-field"] input').setValue("r");
-            // Nothing yet: the check is debounced rather than fired on every keystroke.
-            expect(wrapper.find('[data-test="repo-availability"]').exists()).toBe(false);
+                await wrapper.find('[data-test="owner-field"] input').setValue("o");
+                await wrapper.find('[data-test="repo-field"] input').setValue("r");
+                // Nothing yet: the check is debounced rather than fired on every keystroke.
+                expect(wrapper.find('[data-test="repo-availability"]').exists()).toBe(false);
 
-            await vi.advanceTimersByTimeAsync(600);
-            await flushPromises();
+                await vi.advanceTimersByTimeAsync(600);
+                await flushPromises();
 
-            expect(wrapper.find('[data-test="repo-availability"]').text()).toContain(expected);
-        } finally {
-            vi.useRealTimers();
-        }
-    });
+                expect(wrapper.find('[data-test="repo-availability"]').text()).toContain(expected);
+            } finally {
+                vi.useRealTimers();
+            }
+        },
+    );
 
     it("marks both the checking and the settled availability text as a polite live region", async () => {
         // The paragraph used to carry no ARIA role at all, so "checking...", then "taken" or

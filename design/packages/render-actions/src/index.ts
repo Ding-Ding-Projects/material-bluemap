@@ -106,10 +106,16 @@ export {
 export {
     quoteConfigString,
     renderMaskEntry,
+    renderMaskSubtractions,
     writeShardConfig,
     type ShardConfigOptions,
     type WrittenShardConfig,
 } from "./config/renderConfig.js";
+export {
+    PROJECT_FILE_NAME,
+    readProjectMapConfig,
+    type ProjectMapConfigResult,
+} from "./config/projectMapConfig.js";
 
 // merging
 export { blankImage, decodePng, encodePng, type RgbaImage } from "./merge/png.js";

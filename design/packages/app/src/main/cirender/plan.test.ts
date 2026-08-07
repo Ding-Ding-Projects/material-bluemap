@@ -20,7 +20,6 @@ import {
     chooseProjectMap,
     planCiRender,
     readProjectAt,
-    settingsTheWorkflowCannotSee,
 } from "./plan.js";
 
 function map(overrides: Partial<ProjectMap> = {}): ProjectMap {
@@ -47,7 +46,13 @@ function project(maps: ProjectMap[]): ProjectFile {
         appVersion: null,
         maps,
         storages: [],
-        render: { threads: null, force: false, fixEdges: false, metrics: false, outputFolder: null },
+        render: {
+            threads: null,
+            force: false,
+            fixEdges: false,
+            metrics: false,
+            outputFolder: null,
+        },
         core: null,
         webapp: null,
         webserver: null,
@@ -112,7 +117,9 @@ describe("the inputs", () => {
             budgetMinutes: 0,
             maxJobs: -4,
         });
-        expect(result.ok && result.plan.inputs["budget-minutes"]).toBe(String(DEFAULT_BUDGET_MINUTES));
+        expect(result.ok && result.plan.inputs["budget-minutes"]).toBe(
+            String(DEFAULT_BUDGET_MINUTES),
+        );
         expect(result.ok && result.plan.inputs["max-jobs"]).toBe(String(DEFAULT_MAX_JOBS));
     });
 });
@@ -146,32 +153,35 @@ describe("choosing the map", () => {
     });
 
     it("accepts all three dimensions the workflow does offer", () => {
-        for (const dimension of ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"]) {
+        for (const dimension of [
+            "minecraft:overworld",
+            "minecraft:the_nether",
+            "minecraft:the_end",
+        ]) {
             expect(chooseProjectMap(project([map({ dimension })])).ok, dimension).toBe(true);
         }
     });
 });
 
-describe("saying what will not travel", () => {
-    it("lists the map's own settings, which the workflow has no input for", () => {
-        const listed = settingsTheWorkflowCannotSee(
-            map({
-                config: [
-                    "# a comment",
-                    "world: not-carried-by-this-list",
-                    "ambient-light: 0.1",
-                    'sky-color = "#7dabff"',
-                    "min-inhabited-time {",
-                    "  value: 0",
-                    "}",
-                ].join("\n"),
-            }),
-        );
-        expect(listed).toEqual(["ambient-light", "min-inhabited-time", "sky-color"]);
-    });
-
-    it("is empty for a map that carries no configuration of its own", () => {
-        expect(settingsTheWorkflowCannotSee(map({ config: "\n# nothing but a comment\n" }))).toEqual([]);
+describe("the complete configuration transport contract", () => {
+    it("routes every map setting through the project inside the uploaded world archive", () => {
+        const result = planCiRender({
+            project: project([
+                map({
+                    config: 'ambient-light: 0.1\nrender-mask: [{ type: "bluemap:ellipse", radius-x: 80, radius-z: 30 }]',
+                }),
+            ]),
+            releaseTag: "world-1",
+            assetName: "world.zip",
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.plan.configuration).toEqual({
+            route: "project-archive",
+            complete: true,
+            file: PROJECT_FILE_NAME,
+        });
+        expect(result.plan.notCarried).toEqual([]);
     });
 });
 

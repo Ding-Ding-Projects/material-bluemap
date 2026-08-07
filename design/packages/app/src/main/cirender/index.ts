@@ -152,7 +152,12 @@ export type {
 export { collectRenderedMap } from "./collect.js";
 export type { CollectFailure, CollectOptions, CollectResult, CollectSuccess } from "./collect.js";
 
-export { FingerprintError, WORLD_FINGERPRINT_VERSION, fingerprintWorld, isUnchanged } from "./fingerprint.js";
+export {
+    FingerprintError,
+    WORLD_FINGERPRINT_VERSION,
+    fingerprintWorld,
+    isUnchanged,
+} from "./fingerprint.js";
 export type { WorldFingerprint } from "./fingerprint.js";
 
 // Scheduled re-rendering's app-side configuration: the four-cadence set, reading and
@@ -183,7 +188,6 @@ export {
     chooseProjectMap,
     planCiRender,
     readProjectAt,
-    settingsTheWorkflowCannotSee,
 } from "./plan.js";
 export type {
     ChooseMapResult,
@@ -279,4 +283,7 @@ export {
     CiWorkflowTemplateError,
     loadCiWorkflowTemplates,
 } from "./workflowTemplates.js";
-export type { LoadCiWorkflowTemplatesOptions, LoadedCiWorkflowTemplates } from "./workflowTemplates.js";
+export type {
+    LoadCiWorkflowTemplatesOptions,
+    LoadedCiWorkflowTemplates,
+} from "./workflowTemplates.js";

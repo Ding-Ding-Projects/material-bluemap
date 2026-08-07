@@ -57,6 +57,11 @@ export interface ShardConfigOptions {
      */
     acceptDownload: boolean;
     renderThreadCount: number;
+    /** Complete project-authored maps/<id>.conf HOCON, when the world archive carries it. */
+    mapConfig?: string | null | undefined;
+    /** Reported with the written files so Actions can prove which configuration route ran. */
+    mapConfigSource?: "project" | "defaults" | undefined;
+    mapConfigReason?: string | undefined;
 }
 
 export interface WrittenShardConfig {
@@ -64,6 +69,8 @@ export interface WrittenShardConfig {
     /** where this shard's map output will appear */
     mapDirectory: string;
     files: string[];
+    mapConfigSource: "project" | "defaults";
+    mapConfigReason: string;
 }
 
 /** HOCON string escaping. Windows paths are full of backslashes; the tests run on Windows. */
@@ -82,9 +89,56 @@ export function renderMaskEntry(bounds: { x: BlockRange; z: BlockRange }): strin
     return "render-mask: [\n  {\n" + lines.join("\n") + "\n  }\n]";
 }
 
-export async function writeShardConfig(
-    options: ShardConfigOptions,
-): Promise<WrittenShardConfig> {
+/**
+ * Subtracts everything outside a shard from the project's own ordered render mask.
+ *
+ * HOCON's `+=` appends one element to an existing array and creates the array when it is
+ * absent. That second property matters: a project with no mask means the whole world, and
+ * BlueMap's first-subtract rule starts from `Mask.ALL`, so these same entries produce the
+ * shard alone. A project with circles, polygons, blur or ordered subtraction keeps all of
+ * those semantics and then loses only columns the shard does not own.
+ */
+export function renderMaskSubtractions(bounds: { x: BlockRange; z: BlockRange }): string[] {
+    const entries: string[] = [];
+    const append = (axis: "x" | "z", edge: "min" | "max", value: number): void => {
+        entries.push(
+            [
+                "render-mask += {",
+                '  type: "bluemap:box"',
+                "  subtract: true",
+                `  ${edge}-${axis}: ${String(value)}`,
+                "}",
+            ].join("\n"),
+        );
+    };
+
+    if (bounds.x.min !== null) append("x", "max", bounds.x.min - 1);
+    if (bounds.x.max !== null) append("x", "min", bounds.x.max + 1);
+    if (bounds.z.min !== null) append("z", "max", bounds.z.min - 1);
+    if (bounds.z.max !== null) append("z", "min", bounds.z.max + 1);
+    return entries;
+}
+
+const DEFAULT_MAP_CONFIG = [
+    "sorting: 0",
+    "start-pos: { x: 0, z: 0 }",
+    'sky-color: "#7dabff"',
+    'void-color: "#000000"',
+    "sky-light: 1",
+    "ambient-light: 0",
+    "remove-caves-below-y: 55",
+    "cave-detection-ocean-floor: -5",
+    "cave-detection-uses-block-light: false",
+    "min-inhabited-time: 0",
+    "enable-perspective-view: true",
+    "enable-flat-view: true",
+    "enable-free-flight-view: true",
+    "enable-hires: true",
+    "ignore-missing-light-data: false",
+    "marker-sets: {}",
+].join("\n");
+
+export async function writeShardConfig(options: ShardConfigOptions): Promise<WrittenShardConfig> {
     const configDirectory = resolve(options.configDirectory);
     const dataDirectory = resolve(options.dataDirectory);
     const storageRoot = resolve(options.storageRoot);
@@ -97,8 +151,7 @@ export async function writeShardConfig(
     await mkdir(storageRoot, { recursive: true });
     await mkdir(webRoot, { recursive: true });
 
-    const shardLabel =
-        options.shard === null ? "the whole world" : "shard " + options.shard.id;
+    const shardLabel = options.shard === null ? "the whole world" : "shard " + options.shard.id;
 
     const core = [
         "# Written by @material-bluemap/render-actions for " + shardLabel + ".",
@@ -138,29 +191,35 @@ export async function writeShardConfig(
         "",
     ].join("\n");
 
-    const mask = options.shard === null ? null : renderMaskEntry(options.shard.bounds);
+    const maskSubtractions =
+        options.shard === null ? [] : renderMaskSubtractions(options.shard.bounds);
+    const mapConfigSource =
+        options.mapConfigSource ??
+        (options.mapConfig === undefined || options.mapConfig === null ? "defaults" : "project");
+    const mapConfigReason =
+        options.mapConfigReason ??
+        (mapConfigSource === "project"
+            ? "The world archive carried this map's complete project configuration."
+            : "The world archive carried no project configuration, so the documented defaults were used.");
+    const baseMap = options.mapConfig?.trim() || DEFAULT_MAP_CONFIG;
 
     const map = [
         "# Written by @material-bluemap/render-actions for " + shardLabel + ".",
+        `# Configuration source: ${mapConfigSource}. ${mapConfigReason}`,
+        "# The complete project-authored body comes first. Runtime-owned paths and shard",
+        "# boundaries follow it, so they override only what this runner must own.",
+        baseMap,
+        "",
+        "# Runtime-owned values. Repeated HOCON keys deliberately take the later value.",
         "world: " + quoteConfigString(worldDirectory),
         "dimension: " + quoteConfigString(options.plan.dimension),
         "name: " + quoteConfigString(options.mapName),
-        "sorting: 0",
-        "start-pos: { x: 0, z: 0 }",
-        'sky-color: "#7dabff"',
-        'void-color: "#000000"',
-        "sky-light: 1",
-        "ambient-light: 0",
-        "remove-caves-below-y: 55",
-        "cave-detection-ocean-floor: -5",
-        "cave-detection-uses-block-light: false",
-        "min-inhabited-time: 0",
-        ...(mask === null
-            ? ["# No render-mask: this job renders the whole world."]
+        ...(maskSubtractions.length === 0
+            ? ["# No shard boundary: the project's render-mask is used exactly as written."]
             : [
-                  "# This shard's slice. The edges sit on hires tile boundaries (the hires grid is",
-                  "# 32 blocks with an offset of 2), so no tile is ever half-rendered by two shards.",
-                  mask,
+                  "# Intersect the project's complete render-mask with this shard. Each appended",
+                  "# subtract box removes one outside half-plane; no project shape is replaced.",
+                  ...maskSubtractions,
               ]),
         "",
         "# False on purpose. See renderConfig.ts: with edges on, the blocks another shard owns",
@@ -168,13 +227,7 @@ export async function writeShardConfig(
         "# same tiles in an unsharded render.",
         "render-edges: false",
         "edge-light-strength: 8",
-        "enable-perspective-view: true",
-        "enable-flat-view: true",
-        "enable-free-flight-view: true",
-        "enable-hires: true",
         'storage: "file"',
-        "ignore-missing-light-data: false",
-        "marker-sets: {}",
         "",
     ].join("\n");
 
@@ -198,5 +251,7 @@ export async function writeShardConfig(
         // wrote. See ../bluemap.ts's sanitizeMapId and docs/render-in-actions.md.
         mapDirectory: join(storageRoot, sanitizeMapId(options.plan.mapId)),
         files: files.map(([path]) => path),
+        mapConfigSource,
+        mapConfigReason,
     };
 }

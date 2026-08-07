@@ -277,7 +277,12 @@ export type CiSyncEvent =
           readonly asset: string | null;
           readonly at: string;
       }
-    | { readonly type: "run"; readonly syncId: string; readonly run: CiRunReport; readonly at: string }
+    | {
+          readonly type: "run";
+          readonly syncId: string;
+          readonly run: CiRunReport;
+          readonly at: string;
+      }
     | {
           readonly type: "finished";
           readonly syncId: string;
@@ -285,7 +290,12 @@ export type CiSyncEvent =
           readonly durationMs: number;
           readonly at: string;
       }
-    | { readonly type: "failed"; readonly syncId: string; readonly failure: CiSyncFailure; readonly at: string }
+    | {
+          readonly type: "failed";
+          readonly syncId: string;
+          readonly failure: CiSyncFailure;
+          readonly at: string;
+      }
     | { readonly type: "cancelled"; readonly syncId: string; readonly at: string };
 
 export interface CiSyncRequest {
@@ -450,7 +460,8 @@ export interface CiRenderSyncOptions {
      * account id `token` does, additively, so the message names the account a request
      * actually chose rather than always the active one.
      */
-    readonly account?: ((accountId?: string | undefined) => string | null | Promise<string | null>) | undefined;
+    readonly account?:
+        ((accountId?: string | undefined) => string | null | Promise<string | null>) | undefined;
     /**
      * How `gh` is run. Injected so every test in this folder runs on a machine that does
      * not have it installed - which is the only way "not installed" gets tested at all.
@@ -529,13 +540,19 @@ export class CiRenderSync {
      * arrives after is not a warning. `sync` reads it again and refuses without the
      * acknowledgement, because a guard that lives only in the interface is not a guard.
      */
-    async preflight(request: CiSyncRequest): Promise<
-        { readonly ok: true; readonly preflight: CiPreflight } | { readonly ok: false; readonly failure: CiSyncFailure }
+    async preflight(
+        request: CiSyncRequest,
+    ): Promise<
+        | { readonly ok: true; readonly preflight: CiPreflight }
+        | { readonly ok: false; readonly failure: CiSyncFailure }
     > {
         const owner = request.owner.trim();
         const repo = request.repo.trim();
         if (owner === "" || repo === "") {
-            return { ok: false, failure: failure("no-repository", "A repository owner and name are required.") };
+            return {
+                ok: false,
+                failure: failure("no-repository", "A repository owner and name are required."),
+            };
         }
 
         // No early refusal for a missing in-app token: `gh` may well be signed in, and
@@ -573,7 +590,9 @@ export class CiRenderSync {
                     ...(request.mapId === undefined ? {} : { mapId: request.mapId }),
                     releaseTag: "(not uploaded yet)",
                     assetName: "(not uploaded yet)",
-                    ...(request.budgetMinutes === undefined ? {} : { budgetMinutes: request.budgetMinutes }),
+                    ...(request.budgetMinutes === undefined
+                        ? {}
+                        : { budgetMinutes: request.budgetMinutes }),
                     ...(request.maxJobs === undefined ? {} : { maxJobs: request.maxJobs }),
                     ...(request.output === undefined ? {} : { output: request.output }),
                 });
@@ -609,7 +628,9 @@ export class CiRenderSync {
         let run: CiRunReport | null = null;
         const recordedRun = state?.runId ?? null;
         if (recordedRun !== null && resolved.transport !== null) {
-            run = await this.#readRunReport(resolved.transport, owner, repo, recordedRun).catch(() => null);
+            run = await this.#readRunReport(resolved.transport, owner, repo, recordedRun).catch(
+                () => null,
+            );
         }
 
         return {
@@ -658,7 +679,9 @@ export class CiRenderSync {
             runner: this.#options.runner ?? nodeProcessRunner(),
             ...(signal === undefined ? {} : { signal }),
             ...(this.#options.apiBase === undefined ? {} : { apiBase: this.#options.apiBase }),
-            ...(this.#options.uploadsBase === undefined ? {} : { uploadsBase: this.#options.uploadsBase }),
+            ...(this.#options.uploadsBase === undefined
+                ? {}
+                : { uploadsBase: this.#options.uploadsBase }),
             ...(request.route === undefined ? {} : { prefer: request.route }),
         });
     }
@@ -698,7 +721,11 @@ export class CiRenderSync {
         routeFailure: string | null;
     }> {
         try {
-            return { report: await this.#options.backup.inspectRepository(owner, repo), appFailure: null, routeFailure: null };
+            return {
+                report: await this.#options.backup.inspectRepository(owner, repo),
+                appFailure: null,
+                routeFailure: null,
+            };
         } catch (error) {
             const appFailure = error instanceof Error ? error.message : String(error);
             if (transport === null) return { report: null, appFailure, routeFailure: null };
@@ -732,7 +759,10 @@ export class CiRenderSync {
         const repo = request.repo.trim();
 
         if (owner === "" || repo === "") {
-            return this.#failed("nowhere", failure("no-repository", "A repository owner and name are required."));
+            return this.#failed(
+                "nowhere",
+                failure("no-repository", "A repository owner and name are required."),
+            );
         }
 
         // Read before anything else that costs money or time. The workflow accepts
@@ -747,10 +777,12 @@ export class CiRenderSync {
         }
 
         const project = await readProjectAt(request.worldFolder);
-        if (!project.ok) return this.#failed("nowhere", failure(project.failure.code, project.failure.message));
+        if (!project.ok)
+            return this.#failed("nowhere", failure(project.failure.code, project.failure.message));
 
         const picked = chooseProjectMap(project.project, request.mapId);
-        if (!picked.ok) return this.#failed("nowhere", failure(picked.failure.code, picked.failure.message));
+        if (!picked.ok)
+            return this.#failed("nowhere", failure(picked.failure.code, picked.failure.message));
 
         const syncId = syncIdFor(owner, repo, request.worldFolder, picked.map.id);
         if (this.#running.has(syncId)) {
@@ -843,7 +875,10 @@ export class CiRenderSync {
     async check(syncId: string): Promise<CiSyncResult> {
         const state = await this.readState(syncId);
         if (state === null) {
-            return this.#failed(syncId, failure("no-such-sync", `There is no CI render recorded under ${syncId}.`));
+            return this.#failed(
+                syncId,
+                failure("no-such-sync", `There is no CI render recorded under ${syncId}.`),
+            );
         }
         if (state.runId === null) {
             return { ok: true, syncId, outcome: "running", run: null, state };
@@ -860,7 +895,12 @@ export class CiRenderSync {
         }
 
         try {
-            const run = await this.#readRunReport(routed.transport, state.owner, state.repo, state.runId);
+            const run = await this.#readRunReport(
+                routed.transport,
+                state.owner,
+                state.repo,
+                state.runId,
+            );
             this.emit({ type: "run", syncId, run, at: this.#timestamp() });
             return { ok: true, syncId, outcome: "running", run, state };
         } catch (error) {
@@ -942,7 +982,10 @@ export class CiRenderSync {
 
         const inspected = await inspectBackupSource("world", context.request.worldFolder, signal);
         if (!inspected.ok) {
-            return this.#failed(syncId, failure(inspected.failure.code, inspected.failure.message, { route }));
+            return this.#failed(
+                syncId,
+                failure(inspected.failure.code, inspected.failure.message, { route }),
+            );
         }
         const source = inspected.source;
 
@@ -1010,9 +1053,13 @@ export class CiRenderSync {
             if (context.request.acknowledgeUpload !== true) {
                 return this.#failed(
                     syncId,
-                    failure("upload-not-acknowledged", uploadConsentMessage(repository.fullName, source.bytes), {
-                        route,
-                    }),
+                    failure(
+                        "upload-not-acknowledged",
+                        uploadConsentMessage(repository.fullName, source.bytes),
+                        {
+                            route,
+                        },
+                    ),
                 );
             }
 
@@ -1063,7 +1110,9 @@ export class CiRenderSync {
                 storageDir: this.#options.storageDir(),
                 partSize: CI_UPLOAD_PART_SIZE_BYTES,
                 ...(resume === undefined ? {} : { resume }),
-                ...(this.#options.appVersion === undefined ? {} : { appVersion: this.#options.appVersion }),
+                ...(this.#options.appVersion === undefined
+                    ? {}
+                    : { appVersion: this.#options.appVersion }),
                 at: new Date(this.#clock()),
                 signal,
                 onEvent: (event) => {
@@ -1185,22 +1234,25 @@ export class CiRenderSync {
             mapId: context.map.id,
             releaseTag,
             assetName,
-            ...(context.request.budgetMinutes === undefined ? {} : { budgetMinutes: context.request.budgetMinutes }),
+            ...(context.request.budgetMinutes === undefined
+                ? {}
+                : { budgetMinutes: context.request.budgetMinutes }),
             ...(context.request.maxJobs === undefined ? {} : { maxJobs: context.request.maxJobs }),
             ...(context.request.output === undefined ? {} : { output: context.request.output }),
         });
         if (!planned.ok) {
-            return this.#failed(syncId, failure(planned.failure.code, planned.failure.message, { route }));
-        }
-
-        if (planned.plan.notCarried.length > 0) {
-            this.#log(
+            return this.#failed(
                 syncId,
-                "warning",
-                `The workflow has no input for the map's own settings, so ${planned.plan.notCarried.join(", ")} ` +
-                    "will not be applied to this render. It uses BlueMap's defaults for them.",
+                failure(planned.failure.code, planned.failure.message, { route }),
             );
         }
+
+        this.#log(
+            syncId,
+            "info",
+            `The complete maps/${planned.plan.mapId}.conf body will be read from ` +
+                `${planned.plan.configuration.file} inside the uploaded world archive.`,
+        );
 
         const workflowFile = this.#options.workflowFile ?? RENDER_WORKFLOW_FILE;
         let runId = state.runId;
@@ -1210,12 +1262,28 @@ export class CiRenderSync {
             const ref = await transport.readDefaultBranch(owner, repo);
             const dispatchedAt = new Date(this.#clock());
             await transport.dispatchWorkflow(owner, repo, workflowFile, ref, planned.plan.inputs);
-            this.#log(syncId, "info", `Started ${workflowFile} on ${owner}/${repo} against ${ref}.`);
-            state = { ...state, stage: "dispatched", dispatchedAt: dispatchedAt.toISOString(), updatedAt: this.#timestamp() };
+            this.#log(
+                syncId,
+                "info",
+                `Started ${workflowFile} on ${owner}/${repo} against ${ref}.`,
+            );
+            state = {
+                ...state,
+                stage: "dispatched",
+                dispatchedAt: dispatchedAt.toISOString(),
+                updatedAt: this.#timestamp(),
+            };
             await this.#save(workspace.stateFile, state);
 
             this.#phase(syncId, "waiting", route);
-            const found = await this.#awaitRun(transport, owner, repo, workflowFile, dispatchedAt, signal);
+            const found = await this.#awaitRun(
+                transport,
+                owner,
+                repo,
+                workflowFile,
+                dispatchedAt,
+                signal,
+            );
             if (found === null) {
                 return this.#failed(
                     syncId,
@@ -1240,7 +1308,11 @@ export class CiRenderSync {
             };
             await this.#save(workspace.stateFile, state);
         } else {
-            this.#log(syncId, "info", `Carrying on with run ${String(runId)}, which this world was already sent to.`);
+            this.#log(
+                syncId,
+                "info",
+                `Carrying on with run ${String(runId)}, which this world was already sent to.`,
+            );
         }
 
         /* -- follow it, honestly -------------------------------------------- */
@@ -1314,7 +1386,9 @@ export class CiRenderSync {
             headSha: report.headSha,
             repository: `${owner}/${repo}`,
             ...(this.#options.mounts === undefined ? {} : { mounts: this.#options.mounts }),
-            ...(this.#options.appVersion === undefined ? {} : { appVersion: this.#options.appVersion }),
+            ...(this.#options.appVersion === undefined
+                ? {}
+                : { appVersion: this.#options.appVersion }),
             startedAt: report.createdAt,
         });
 
@@ -1390,7 +1464,10 @@ export class CiRenderSync {
         since: Date,
         signal: AbortSignal,
     ): Promise<WorkflowRun | null> {
-        const attempts = Math.max(1, this.#options.runLookupAttempts ?? DEFAULT_RUN_LOOKUP_ATTEMPTS);
+        const attempts = Math.max(
+            1,
+            this.#options.runLookupAttempts ?? DEFAULT_RUN_LOOKUP_ATTEMPTS,
+        );
         for (let attempt = 0; attempt < attempts; attempt += 1) {
             signal.throwIfAborted();
             const found = await transport.findDispatchedRun(owner, repo, workflowFile, since);
@@ -1474,7 +1551,10 @@ export class CiRenderSync {
         this.emit({ type: "log", syncId, level, message, at: this.#timestamp() });
     }
 
-    #failed(syncId: string, value: CiSyncFailure): { ok: false; syncId: string; failure: CiSyncFailure } {
+    #failed(
+        syncId: string,
+        value: CiSyncFailure,
+    ): { ok: false; syncId: string; failure: CiSyncFailure } {
         this.emit({ type: "failed", syncId, failure: value, at: this.#timestamp() });
         return { ok: false, syncId, failure: value };
     }
@@ -1603,7 +1683,9 @@ export function firstUnsuccessfulJob(jobs: readonly CiJobReport[]): CiJobReport 
     return (
         jobs.find(
             (job) =>
-                job.conclusion !== null && job.conclusion !== "success" && job.conclusion !== "skipped",
+                job.conclusion !== null &&
+                job.conclusion !== "success" &&
+                job.conclusion !== "skipped",
         ) ?? null
     );
 }
@@ -1630,15 +1712,21 @@ function failure(
 /** Every thrown thing turned into one sentence, with the GitHub status when there was one. */
 function fromError(error: unknown, route: CiRoute | null = null): CiSyncFailure {
     if (error instanceof ActionsCallError) {
-        return failure(error.status === 401 ? "signed-out" : `github-${String(error.status)}`, error.message, {
-            detail: error.url === "" ? null : error.url,
-            status: error.status,
-            // A 403 on the `gh` route is very often an organisation that has not
-            // authorised that credential for SSO rather than a missing scope, so signing
-            // in to the application again would not help and is not offered.
-            needsSignIn: error.needsSignIn || (route !== "gh" && (error.status === 401 || error.status === 403)),
-            route,
-        });
+        return failure(
+            error.status === 401 ? "signed-out" : `github-${String(error.status)}`,
+            error.message,
+            {
+                detail: error.url === "" ? null : error.url,
+                status: error.status,
+                // A 403 on the `gh` route is very often an organisation that has not
+                // authorised that credential for SSO rather than a missing scope, so signing
+                // in to the application again would not help and is not offered.
+                needsSignIn:
+                    error.needsSignIn ||
+                    (route !== "gh" && (error.status === 401 || error.status === 403)),
+                route,
+            },
+        );
     }
     return failure("failed", error instanceof Error ? error.message : String(error), { route });
 }

@@ -4,13 +4,24 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { planShards } from "../plan/plan.js";
 import type { RegionMeasurement, WorldMeasurement } from "../world/measure.js";
-import { quoteConfigString, renderMaskEntry, writeShardConfig } from "./renderConfig.js";
+import {
+    quoteConfigString,
+    renderMaskEntry,
+    renderMaskSubtractions,
+    writeShardConfig,
+} from "./renderConfig.js";
 
 function world(size: number): WorldMeasurement {
     const regions: RegionMeasurement[] = [];
     for (let z = 0; z < size; z++)
         for (let x = 0; x < size; x++)
-            regions.push({ fileName: "r." + x + "." + z + ".mca", x, z, chunkCount: 1024, bytes: 4_200_000 });
+            regions.push({
+                fileName: "r." + x + "." + z + ".mca",
+                x,
+                z,
+                chunkCount: 1024,
+                bytes: 4_200_000,
+            });
 
     return {
         regionDirectory: "/world/region",
@@ -51,6 +62,26 @@ describe("the render mask", () => {
             renderMaskEntry({ x: { min: null, max: null }, z: { min: null, max: null } }),
         ).toBeNull();
     });
+
+    it("expresses a shard as outside subtract boxes so it intersects any project mask", () => {
+        expect(
+            renderMaskSubtractions({
+                x: { min: 514, max: 1025 },
+                z: { min: null, max: 2049 },
+            }),
+        ).toEqual([
+            expect.stringContaining("max-x: 513"),
+            expect.stringContaining("min-x: 1026"),
+            expect.stringContaining("min-z: 2050"),
+        ]);
+        for (const entry of renderMaskSubtractions({
+            x: { min: 514, max: 1025 },
+            z: { min: null, max: 2049 },
+        })) {
+            expect(entry).toContain("render-mask += {");
+            expect(entry).toContain("subtract: true");
+        }
+    });
 });
 
 describe("writing a shard's config directory", () => {
@@ -64,7 +95,11 @@ describe("writing a shard's config directory", () => {
         await rm(root, { recursive: true, force: true });
     });
 
-    async function writeFor(shardIndex: number | null, acceptDownload = true): Promise<string> {
+    async function writeFor(
+        shardIndex: number | null,
+        acceptDownload = true,
+        mapConfig?: string,
+    ): Promise<string> {
         const plan = planShards(world(4), { mapId: "world", budgetSeconds: 120, ...layout });
         const written = await writeShardConfig({
             plan,
@@ -77,6 +112,13 @@ describe("writing a shard's config directory", () => {
             mapName: "Overworld",
             acceptDownload,
             renderThreadCount: 4,
+            ...(mapConfig === undefined
+                ? {}
+                : {
+                      mapConfig,
+                      mapConfigSource: "project" as const,
+                      mapConfigReason: "test project config",
+                  }),
         });
         expect(written.mapDirectory).toBe(join(root, "out", "maps", "world"));
         return await readFile(join(root, "config", "maps", "world.conf"), "utf8");
@@ -119,9 +161,10 @@ describe("writing a shard's config directory", () => {
         expect(written.files).toContain(join(root, "config", "maps", "test-issue44-staging.conf"));
     });
 
-    it("writes an aligned render-mask for a shard", async () => {
+    it("writes aligned outside-subtraction boundaries for a shard", async () => {
         const map = await writeFor(1);
-        expect(map).toContain("render-mask: [");
+        expect(map).toContain("render-mask += {");
+        expect(map).toContain("subtract: true");
 
         // every bound in the file has to sit on a hires tile edge, or the merge breaks
         const bounds = [...map.matchAll(/\b(?:min|max)-[xz]: (-?\d+)/g)].map((match) =>
@@ -129,17 +172,45 @@ describe("writing a shard's config directory", () => {
         );
         expect(bounds.length).toBeGreaterThan(0);
         for (const bound of bounds) {
-            const edge = map.includes("min-x: " + bound) || map.includes("min-z: " + bound)
-                ? bound
-                : bound + 1;
+            const edge =
+                map.includes("min-x: " + bound) || map.includes("min-z: " + bound)
+                    ? bound
+                    : bound + 1;
             expect((((edge - 2) % 32) + 32) % 32).toBe(0);
         }
     });
 
-    it("writes no render-mask when a single job renders the whole world", async () => {
+    it("adds no shard boundary when a single job renders the whole world", async () => {
         const map = await writeFor(null);
-        expect(map).not.toContain("render-mask: [");
-        expect(map).toContain("No render-mask");
+        expect(map).not.toContain("render-mask += {");
+        expect(map).toContain("No shard boundary");
+    });
+
+    it("keeps every project setting and intersects its non-box mask with the shard", async () => {
+        const project = [
+            "ambient-light: 0.37",
+            'sky-color: "#123456"',
+            "render-mask: [",
+            '  { type: "bluemap:ellipse", center-x: 40, center-z: -20, radius-x: 80, radius-z: 30 },',
+            '  { type: "bluemap:blur", size: 4, masks: [{ type: "bluemap:circle", radius: 12 }] }',
+            "]",
+        ].join("\n");
+        const map = await writeFor(1, true, project);
+
+        expect(map).toContain(project);
+        expect(map).toContain("ambient-light: 0.37");
+        expect(map).toContain('type: "bluemap:ellipse"');
+        expect(map).toContain('type: "bluemap:blur"');
+        expect(map).toContain("render-mask += {");
+        expect(map).toContain("Configuration source: project. test project config");
+    });
+
+    it("preserves the project mask without shard edits for an unsharded render", async () => {
+        const project =
+            'render-mask: [{ type: "bluemap:polygon", points: [[0, 0], [20, 0], [0, 20]] }]';
+        const map = await writeFor(null, true, project);
+        expect(map).toContain(project);
+        expect(map).not.toContain("render-mask += {");
     });
 
     it("uses absolute paths, because the CLI resolves them against the working directory", async () => {
