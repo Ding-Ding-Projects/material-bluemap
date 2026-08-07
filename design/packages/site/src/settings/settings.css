@@ -53,6 +53,94 @@
     --md-sys-motion-duration-extra-long2: calc(800ms * var(--mb-motion-scale, 1));
 }
 
+/* Scheduled settings ------------------------------------------------------- */
+.mb-schedule,
+.mb-schedule-form,
+.mb-schedule-values,
+.mb-schedule-history {
+    display: grid;
+    gap: var(--md-sys-spacing-4);
+    min-inline-size: 0;
+}
+
+.mb-schedule-picker {
+    grid-template-columns: minmax(7rem, auto) minmax(12rem, 1fr) auto;
+    align-items: center;
+}
+
+.mb-schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--md-sys-spacing-4);
+}
+
+.mb-schedule-field,
+.mb-schedule-source-fields {
+    min-inline-size: 0;
+}
+
+.mb-schedule-field .md-field__input,
+.mb-schedule-source-fields .md-field__input,
+.mb-schedule-picker .md-field__input {
+    inline-size: 100%;
+    max-inline-size: 100%;
+}
+
+.mb-schedule-weekdays {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--md-sys-spacing-2);
+    min-inline-size: 0;
+    padding: var(--md-sys-spacing-3);
+    border: 1px solid var(--md-sys-color-outline-variant);
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+
+.mb-schedule-day {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--md-sys-spacing-1);
+    min-block-size: 44px;
+    padding-inline: var(--md-sys-spacing-2);
+}
+
+.mb-schedule-value {
+    display: grid;
+    grid-template-columns: minmax(10rem, 1fr) minmax(9rem, 1fr) 48px;
+    gap: var(--md-sys-spacing-2);
+    align-items: center;
+    min-inline-size: 0;
+}
+
+.mb-schedule-value-control,
+.mb-schedule-value-control > * {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+}
+
+.mb-history-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--md-sys-spacing-2);
+    padding-block: var(--md-sys-spacing-2);
+    border-block-end: 1px solid var(--md-sys-color-outline-variant);
+}
+
+@media (width <= 720px) {
+    .mb-schedule-picker,
+    .mb-schedule-grid,
+    .mb-schedule-value {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .mb-schedule-picker > *,
+    .mb-schedule-value > * {
+        inline-size: 100%;
+    }
+}
+
 /*
  * Text size scales the root font size rather than each type role, so the Material
  * type ramp keeps its proportions and the browser's own font-size setting is still

@@ -50,6 +50,15 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
         ],
     },
     {
+        id: "automation",
+        labelKey: "settings.tab.automation",
+        descriptionKey: "settings.tab.automation.desc",
+        groups: [
+            { id: "schedule", labelKey: "settings.group.schedule" },
+            { id: "sources", labelKey: "settings.group.sources" },
+        ],
+    },
+    {
         id: "data",
         labelKey: "settings.tab.data",
         descriptionKey: "settings.tab.data.desc",

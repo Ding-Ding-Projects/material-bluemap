@@ -925,7 +925,19 @@ function boot(): void {
         appearance,
         confirmDestructive,
     });
-    const settingsView = createSettingsPage({ prefs, appearance, theme, tabs: model, sidebar });
+    const settingsView = createSettingsPage({
+        prefs,
+        appearance,
+        theme,
+        tabs: model,
+        sidebar,
+        notify: (message, error) => {
+            notifications.notify({
+                severity: error ? "error" : "success",
+                title: { text: message },
+            });
+        },
+    });
     const tabLabelKey = {
         home: "site.homeTab",
         docs: "site.docsTab",
