@@ -4,12 +4,18 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
 import {
+  ACTION_INVENTORIES,
+  PINNED_ACTIONS,
   WATCHED_SCRIPT_STEPS,
+  WATCHED_STEP_FINGERPRINTS,
+  actionDependencyProblems,
   lintText,
   scriptRegions,
+  stepFingerprint,
 } from "./lint-workflows.mjs";
 
 const FILE = ".github/workflows/ci.yml";
+const BUILD_JARS_FILE = ".github/workflows/build-jars.yml";
 const WATCHED = WATCHED_SCRIPT_STEPS[FILE];
 const ONE_INPUT = {
   Publish: {
@@ -61,7 +67,143 @@ test("the exact e137779 baseline exposes all 19 later executable expression site
 });
 
 test("the checked-in workflow has exact provenance and quoted data-only sinks", () => {
-  assert.deepEqual(lintText(readFileSync(FILE, "utf8"), FILE, WATCHED), []);
+  const workflow = readFileSync(FILE, "utf8");
+  assert.deepEqual(
+    lintText(workflow, FILE, WATCHED, WATCHED_STEP_FINGERPRINTS[FILE]),
+    [],
+  );
+  for (const [stepName, fingerprint] of Object.entries(
+    WATCHED_STEP_FINGERPRINTS[FILE],
+  )) {
+    assert.deepEqual(stepFingerprint(workflow, stepName), fingerprint);
+  }
+});
+
+test("complete run and env fingerprints reject indirect execution and harmless drift", () => {
+  const workflow = readFileSync(FILE, "utf8");
+  const anchor = 'if [ -n "$DISH_NAME_EN" ]; then';
+  for (const extra of [
+    "printenv DISH_NAME_EN | bash",
+    'eval "$(printenv DISH_NAME_EN)"',
+    'key=DISH_NAME_EN; eval "${!key}"',
+    'export PAYLOAD="$(printenv DISH_NAME_EN)"; bash -c "$PAYLOAD"',
+    'echo "harmless reviewed change"',
+  ]) {
+    const mutated = workflow.replace(
+      anchor,
+      `${anchor}\n              ${extra}`,
+    );
+    const problems = lintText(
+      mutated,
+      FILE,
+      WATCHED,
+      WATCHED_STEP_FINGERPRINTS[FILE],
+    );
+    assert.ok(
+      problems.some((problem) =>
+        /watched run block changed outside its reviewed SHA-256 contract/.test(
+          problem.message,
+        ),
+      ),
+      extra,
+    );
+  }
+
+  const extraEnv = workflow.replace(
+    "DISH_NAME_EN: ${{ steps.dish.outputs.dish_name_en }}",
+    'DISH_NAME_EN: ${{ steps.dish.outputs.dish_name_en }}\n          REVIEW_NOTE: "harmless"',
+  );
+  assert.ok(
+    lintText(extraEnv, FILE, WATCHED, WATCHED_STEP_FINGERPRINTS[FILE]).some(
+      (problem) =>
+        /watched env block changed outside its reviewed SHA-256 contract/.test(
+          problem.message,
+        ),
+    ),
+  );
+});
+
+test("all 49 release-chain actions are SHA-pinned and checkouts erase credentials", () => {
+  for (const file of Object.keys(ACTION_INVENTORIES)) {
+    assert.deepEqual(
+      actionDependencyProblems(readFileSync(file, "utf8"), file),
+      [],
+    );
+  }
+  assert.equal(
+    Object.values(ACTION_INVENTORIES).reduce(
+      (total, inventory) =>
+        total +
+        Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
+      0,
+    ),
+    49,
+  );
+  assert.equal(Object.keys(PINNED_ACTIONS).length, 6);
+});
+
+test("mutable action tags, retained checkout credentials and missing root gates fail", () => {
+  const workflow = readFileSync(FILE, "utf8");
+  const mutable = workflow.replace(
+    "actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+    "actions/checkout@v4",
+  );
+  assert.ok(
+    actionDependencyProblems(mutable, FILE).some((problem) =>
+      /not in the exact SHA inventory/.test(problem.message),
+    ),
+  );
+
+  const credentialed = workflow.replace(
+    "persist-credentials: false",
+    "persist-credentials: true",
+  );
+  assert.ok(
+    actionDependencyProblems(credentialed, FILE).some((problem) =>
+      /erase its credential/.test(problem.message),
+    ),
+  );
+
+  const unwired = workflow.replace(
+    "node --test scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs",
+    "echo skipped",
+  );
+  assert.ok(
+    actionDependencyProblems(unwired, FILE).some((problem) =>
+      /security contract must run exactly once/.test(problem.message),
+    ),
+  );
+
+  const unvalidatedOutput = workflow.replace(
+    "printf 'ordinal=%s\\n' \"$ordinal\"",
+    'echo "ordinal=$ordinal"',
+  );
+  assert.ok(
+    actionDependencyProblems(unvalidatedOutput, FILE).some((problem) =>
+      /security contract must run exactly once/.test(problem.message),
+    ),
+  );
+
+  const bypassedGuard = workflow.replace(
+    "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]",
+    "needs: [check, package, jars, test-world, config-java-roundtrip]",
+  );
+  assert.ok(
+    actionDependencyProblems(bypassedGuard, FILE).some((problem) =>
+      /release must depend/.test(problem.message),
+    ),
+  );
+
+  const jarWorkflow = readFileSync(BUILD_JARS_FILE, "utf8");
+  const mutableReusable = jarWorkflow.replace(
+    "gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d",
+    "gradle/actions/setup-gradle@v4",
+  );
+  assert.ok(
+    actionDependencyProblems(mutableReusable, BUILD_JARS_FILE).some((problem) =>
+      /not in the exact SHA inventory/.test(problem.message),
+    ),
+  );
 });
 
 test("the small canonical contract shape passes", () => {

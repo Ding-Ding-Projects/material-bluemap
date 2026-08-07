@@ -23,7 +23,7 @@
  */
 
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const CATALOG_REPO = "Ding-Ding-Projects/dim-sum-photos";
@@ -200,18 +200,42 @@ function validateAsset(asset, volume, expectedFileName) {
 
 function workflowOutputText(result) {
   const entries = {
-    dish_name_en: result.nameEn,
-    dish_name_zh: result.nameZh,
-    dish_file_name: result.fileName,
-    dish_alt_en: result.altEn,
-    dish_volume: result.volume,
+    dish_name_en: requireString("workflow.dish_name_en", result.nameEn, {
+      max: 120,
+      pattern: SAFE_HUMAN_TEXT,
+    }),
+    dish_name_zh: requireString("workflow.dish_name_zh", result.nameZh, {
+      max: 64,
+      pattern: SAFE_HUMAN_TEXT,
+    }),
+    dish_file_name: requireString("workflow.dish_file_name", result.fileName, {
+      max: 180,
+      pattern: SAFE_FILE_NAME,
+    }),
+    dish_alt_en: requireString("workflow.dish_alt_en", result.altEn, {
+      max: 235,
+      pattern: SAFE_HUMAN_TEXT,
+    }),
+    dish_volume: requireString("workflow.dish_volume", result.volume, {
+      max: 100,
+      pattern: SAFE_VOLUME,
+    }),
   };
-  for (const [key, value] of Object.entries(entries)) {
-    requireString(`workflow.${key}`, value, { max: 235 });
-  }
   return Object.entries(entries)
     .map(([key, value]) => `${key}=${value}`)
     .join("\n");
+}
+
+function resolveOutputPath(outDirectory, fileName) {
+  const root = resolve(outDirectory);
+  const candidate = resolve(root, fileName);
+  if (dirname(candidate) !== root) {
+    throw metadataError(
+      "asset.name",
+      "resolved outside the requested output directory",
+    );
+  }
+  return candidate;
 }
 
 function parseArgs(argv) {
@@ -327,6 +351,7 @@ function verifyPng(buffer, expectedSize) {
   let sawImageData = false;
   let imageDataEnded = false;
   let sawEnd = false;
+  let bitDepth = -1;
   let colorType = -1;
   const allowedCritical = new Set(["IHDR", "PLTE", "IDAT", "IEND"]);
 
@@ -381,7 +406,7 @@ function verifyPng(buffer, expectedSize) {
       sawHeader = true;
       width = buffer.readUInt32BE(offset + 8);
       height = buffer.readUInt32BE(offset + 12);
-      const bitDepth = buffer[offset + 16];
+      bitDepth = buffer[offset + 16];
       colorType = buffer[offset + 17];
       const compression = buffer[offset + 18];
       const filter = buffer[offset + 19];
@@ -419,7 +444,8 @@ function verifyPng(buffer, expectedSize) {
         colorType === 4 ||
         length < 3 ||
         length > 768 ||
-        length % 3 !== 0
+        length % 3 !== 0 ||
+        (colorType === 3 && length / 3 > 2 ** bitDepth)
       ) {
         throw new Error(
           "downloaded image failed verification: invalid PLTE placement or size",
@@ -547,13 +573,7 @@ async function main() {
   const buffer = await readBoundedResponse(res);
   const { width, height } = verifyPng(buffer, asset.size);
 
-  const outPath = join(args.out, fileName);
-  if (dirname(resolve(outPath)) !== resolve(args.out)) {
-    throw metadataError(
-      "asset.name",
-      "resolved outside the requested output directory",
-    );
-  }
+  const outPath = resolveOutputPath(args.out, fileName);
   await mkdir(dirname(outPath), { recursive: true });
   await writeFile(outPath, buffer);
 
@@ -599,6 +619,7 @@ async function main() {
 export {
   parseArgs,
   readBoundedResponse,
+  resolveOutputPath,
   validateAsset,
   validateDish,
   verifyPng,

@@ -46,7 +46,7 @@ jobs:
       # the tags and its entries from the commits, and a depth-1 checkout would report a
       # changelog covering one version as current.
       #
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -55,7 +55,7 @@ jobs:
           # the actual PR head instead of inventing an unlisted merge entry.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
 
@@ -121,7 +121,7 @@ jobs:
       # is passed explicitly because actions/checkout applies that same depth to the
       # submodule fetch: this pulls the one commit's tree rather than the submodule's
       # full history, which matters because that tree is 500+ MB.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: true
           fetch-depth: 1
@@ -134,7 +134,7 @@ jobs:
       # This installs the pinned version regardless of whatever pnpm (if any) is already
       # in this job, without hand-duplicating the version number here for
       # it to drift out of sync with the manifest later.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           package_json_file: design/package.json
 
@@ -142,7 +142,7 @@ jobs:
       # version rather than a range lookup: setup-node's own version-file resolution is
       # documented for exact pins and `.nvmrc`-style files, not proven here for a bare
       # `>=` range, and 22 is already the exact floor the manifest declares.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -204,17 +204,17 @@ jobs:
       group: ci-package-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           package_json_file: design/package.json
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -230,10 +230,16 @@ jobs:
         run: pnpm build
 
       - name: Download the CLI jar built by the jars job
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bluemap-jar-cli
           path: jar-download
+
+      - name: Download the jar digest index built by the jars job
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bluemap-jar-index
+          path: jar-index
 
       # jars.ts's bundledJarDirectory() reads resources/jars in a packaged build, and
       # electron-builder.config.cjs's extraResources copies this exact staging
@@ -250,6 +256,17 @@ jobs:
             Write-Host '::error::the bluemap-jar-cli artifact contained no .jar file'
             exit 1
           }
+          $index = Get-Content -LiteralPath jar-index/bluemap-jars.json -Raw | ConvertFrom-Json
+          $record = @($index.jars | Where-Object { $_.implementation -eq 'cli' })
+          if ($record.Count -ne 1 -or $record[0].fileName -ne $jar.Name) {
+            Write-Host '::error::the CLI jar does not match the same-run digest index'
+            exit 1
+          }
+          $actual = (Get-FileHash -LiteralPath $jar.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $record[0].sha256) {
+            Write-Host '::error::the CLI jar failed its same-run SHA-256 provenance check'
+            exit 1
+          }
           Copy-Item -LiteralPath $jar.FullName -Destination tools/oracle/out/jars/
           Get-ChildItem -LiteralPath tools/oracle/out/jars
 
@@ -263,6 +280,14 @@ jobs:
         working-directory: design/packages/app
         run: |
           $base = node -p "require('./package.json').version.split('.').slice(0,2).join('.')"
+          if ($base -notmatch '^[0-9]+\.[0-9]+$') {
+            Write-Host '::error::application package version is outside the supported major.minor schema'
+            exit 1
+          }
+          if ($env:GITHUB_RUN_NUMBER -notmatch '^[1-9][0-9]{0,17}$') {
+            Write-Host '::error::GITHUB_RUN_NUMBER is not a bounded positive integer'
+            exit 1
+          }
           $version = "$base.$env:GITHUB_RUN_NUMBER"
           node -e "const fs=require('fs');const p='package.json';const j=JSON.parse(fs.readFileSync(p,'utf8'));j.version=process.argv[1];fs.writeFileSync(p,JSON.stringify(j,null,4)+String.fromCharCode(10));" $version
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -293,9 +318,14 @@ jobs:
             exit 1
           }
           $found | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $output }
+          $digestLines = Get-ChildItem -LiteralPath $output -File | Sort-Object Name | ForEach-Object {
+            $digest = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$digest  $($_.Name)"
+          }
+          Set-Content -LiteralPath (Join-Path $output 'installer-out.sha256.txt') -Value $digestLines -Encoding utf8
           Get-ChildItem -LiteralPath $output
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: windows-installer
           path: installer-out/
@@ -342,17 +372,17 @@ jobs:
       group: ci-config-java-roundtrip-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           package_json_file: design/package.json
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -361,12 +391,12 @@ jobs:
       # Upstream pins JavaLanguageVersion.of(25) (buildSrc/bluemap.java.gradle.kts,
       # see build-jars.yml), and the shadow jar's own class files require exactly
       # that version - not merely "some JVM".
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: "25"
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bluemap-jar-cli
           path: jar-download
@@ -407,28 +437,28 @@ jobs:
       group: ci-test-world-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           package_json_file: design/package.json
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: design/pnpm-lock.yaml
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: 25
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: bluemap-jar-cli
           path: jar
@@ -497,16 +527,20 @@ jobs:
           set -euo pipefail
           cd "$GITHUB_WORKSPACE/test-world"
           zip -qr "$GITHUB_WORKSPACE/test-world-seed-${{ steps.world.outputs.seed }}.zip" .
+          cd "$GITHUB_WORKSPACE"
+          sha256sum test-world-seed-*.zip > test-world.sha256.txt
           ls -la "$GITHUB_WORKSPACE"/test-world-seed-*.zip
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: test-world
-          path: test-world-seed-*.zip
+          path: |
+            test-world-seed-*.zip
+            test-world.sha256.txt
           if-no-files-found: error
           retention-days: 30
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rendered-map
           path: |
@@ -523,17 +557,17 @@ jobs:
       group: ci-screenshots-${{ github.ref }}
       cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           package_json_file: design/package.json
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
@@ -577,7 +611,7 @@ jobs:
         working-directory: design
         run: pnpm build
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: rendered-map
           path: rendered-map
@@ -587,7 +621,7 @@ jobs:
       # already had the rendered map; the world that produced it is an artifact of
       # the same run, so fetch that too rather than leaving four captures out of
       # every build.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: test-world
           path: test-world-zip
@@ -625,7 +659,7 @@ jobs:
 
       # Upload even when the capture failed: a diagnostic image of a broken
       # window is exactly the evidence needed to fix it.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: screenshots
@@ -633,7 +667,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: failure()
         with:
           name: screenshot-traces
@@ -659,7 +693,7 @@ jobs:
     # of that, and `test-world` is a real Java world render at around 6 minutes. Since
     # `release` already waits on all three, config-java-roundtrip is never the slowest
     # input it is blocked on - it is done long before the others are.
-    needs: [check, package, jars, test-world, config-java-roundtrip]
+    needs: [check, workflows, package, jars, test-world, config-java-roundtrip]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     # This job deliberately carries no `ci-release-*-cancel-in-progress-true` group like
@@ -689,7 +723,7 @@ jobs:
     steps:
       # The line counter attributes surviving lines with `git blame`, so it
       # needs the full history rather than a shallow clone.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
           # The release scripts only read local history. Leaving the write-scoped
@@ -700,17 +734,17 @@ jobs:
       # pnpm before setup-node, so the node cache can key off the lockfile. Version
       # pinned via design/package.json's own `packageManager` field - see the comment on
       # the same step in the `check` job above for why.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           package_json_file: design/package.json
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: pnpm
           cache-dependency-path: design/pnpm-lock.yaml
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: windows-installer
           path: installer-out
@@ -719,7 +753,7 @@ jobs:
       # take only the one their server needs; here they are collected back into one
       # directory, together with the checksums and the release-notes section the build
       # wrote from the jars it had actually produced.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: bluemap-jar-*
           merge-multiple: true
@@ -727,7 +761,7 @@ jobs:
 
       # A world anybody can render themselves, with the seed stated so the exact one
       # in this release can be regenerated byte for byte.
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: test-world
           path: world-out
@@ -750,6 +784,13 @@ jobs:
           fi
           sha256sum -c bluemap-jars.sha256.txt
           ls -la
+
+      - name: Verify installer and test-world artifact provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd installer-out && sha256sum -c installer-out.sha256.txt)
+          (cd world-out && sha256sum -c test-world.sha256.txt)
 
       # A GitHub release asset is capped at 2 GB, and a rendered world is tens of
       # gigabytes of tiles. Anything over the cap is published as 1.7 GB parts beside a
@@ -802,6 +843,14 @@ jobs:
         run: |
           set -euo pipefail
           version=$(node -p "require('./design/package.json').version")
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::design/package.json has a release version outside the supported schema"
+            exit 1
+          fi
+          if [[ ! "$GITHUB_RUN_NUMBER" =~ ^[1-9][0-9]{0,17}$ ]]; then
+            echo "::error::GITHUB_RUN_NUMBER is not a bounded positive integer"
+            exit 1
+          fi
           tag="v${version}-build.${GITHUB_RUN_NUMBER}"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "::error::tag $tag already exists; refusing to recycle a published release"
@@ -810,11 +859,16 @@ jobs:
           # The release ordinal drives the dim sum code name. It is monotonic, so
           # a dish is never silently reused, and no ledger has to be committed
           # back by CI, which would be an automation loop.
-          count=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --json tagName --jq 'length')
+          count=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 100000 --json tagName --jq 'length')
+          if [[ ! "$count" =~ ^[0-9]{1,6}$ ]] || [ "$count" -gt 999999 ]; then
+            echo "::error::release inventory count is not a bounded non-negative integer"
+            exit 1
+          fi
+          ordinal=$((count + 1))
           {
-            echo "tag=$tag"
-            echo "version=$version"
-            echo "ordinal=$((count + 1))"
+            printf 'tag=%s\n' "$tag"
+            printf 'version=%s\n' "$version"
+            printf 'ordinal=%s\n' "$ordinal"
           } >> "$GITHUB_OUTPUT"
 
       # Not a gate: a release must never be blocked because the photo catalog is

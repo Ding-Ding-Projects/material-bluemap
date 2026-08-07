@@ -4,6 +4,7 @@ import { test } from "node:test";
 import {
   parseArgs,
   readBoundedResponse,
+  resolveOutputPath,
   validateAsset,
   validateDish,
   verifyPng,
@@ -204,6 +205,22 @@ test("PNG ordering, IHDR combinations and the reserved chunk bit are enforced", 
     () => verifyPng(structuralPng([reservedBit, imageData]), undefined),
     /reserved chunk bit/,
   );
+
+  const threeEntryPalette = pngChunk(
+    "PLTE",
+    Buffer.from([0, 0, 0, 127, 127, 127, 255, 255, 255]),
+  );
+  assert.throws(
+    () =>
+      verifyPng(
+        structuralPng([threeEntryPalette, imageData], (header) => {
+          header[8] = 1;
+          header[9] = 3;
+        }),
+        undefined,
+      ),
+    /PLTE/,
+  );
 });
 
 test("Content-Length and streamed bytes are capped before a full buffer is accepted", async () => {
@@ -246,6 +263,42 @@ test("workflow output contains only the five consumed, validated single-line fie
       "dish_alt_en",
       "dish_volume",
     ],
+  );
+});
+
+test("workflow output rejects controls, wrong types, oversized and Markdown-active fields", () => {
+  const result = {
+    ...validateDish(validDish(), "hk-dish-0001"),
+    fileName: "hk-dish-0001-classic-har-gow.png",
+    volume: "catalog-v1.1",
+  };
+  for (const [field, unsafe] of [
+    ["nameEn", "Classic\rHar Gow"],
+    ["nameZh", "蝦餃`"],
+    ["altEn", "[linked alt]"],
+    ["fileName", "../escape.png"],
+    ["volume", "catalog-v1.1)"],
+  ]) {
+    assert.throws(() => workflowOutputText({ ...result, [field]: unsafe }));
+  }
+  assert.throws(() => workflowOutputText({ ...result, nameEn: 42 }), /text/);
+  assert.throws(
+    () => workflowOutputText({ ...result, altEn: "a".repeat(236) }),
+    /235/,
+  );
+});
+
+test("slug validation and output resolution keep the photo inside its directory", () => {
+  const traversal = validDish();
+  traversal.slug = "../escape";
+  assert.throws(() => validateDish(traversal, "hk-dish-0001"), /dish\.slug/);
+  assert.match(
+    resolveOutputPath("safe-output", "photo.png"),
+    /safe-output[\\/]photo\.png$/,
+  );
+  assert.throws(
+    () => resolveOutputPath("safe-output", "../escape.png"),
+    /outside the requested output directory/,
   );
 });
 
