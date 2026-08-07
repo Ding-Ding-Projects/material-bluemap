@@ -838,3 +838,16 @@ rather than pulled as a Docker image, and because the same jar is what renders l
 reference implementation is exercised on every render instead of only when someone
 remembers to run the harness. Tracked as
 [#3](https://github.com/Ding-Ding-Projects/material-bluemap/issues/3).
+## Release transport follow-up (2026-08-06)
+
+- [x] Replace unsupported `gh release ... --hostname` calls with the supported host-qualified
+  `--repo [HOST/]OWNER/REPO` form.
+- [x] Resolve the selected account from live `gh` inventory, auto-switch when inactive, verify
+  the effective login, and refuse to fall back to another identity.
+- [x] Keep identity failures non-mutating and provide GitHub-account recovery on the same screen.
+- [x] Document the computer-wide account-switch side effect and leave the selected account active.
+- [x] Cover active/inactive, missing, enterprise, refused-switch, mismatch, create-failure, and
+  resume paths with focused tests.
+- [ ] Re-run the original multi-gigabyte CI-render release flow against an explicitly disposable
+  repository and capture the genuine built-app recovery/success surface. This remains external
+  verification; the target repository reported by the user was deliberately not mutated.

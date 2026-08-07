@@ -26,6 +26,17 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "4a7ea0f8438612cd7a541eec64f0568a62f502fe",
+        shortSha: "4a7ea0f843",
+        date: "2026-08-06T20:45:18-04:00",
+        subject: "Merge cloud-runner phase into gh release repair",
+        details: "Keep the hosted-runner migration and its documentation together with the release-route fix; the two paths can now meet without one dropping the other's luggage.\n\n保留 cloud runner 遷移同文件，再同 release route 修復正式會合；兩條路今次識得交收，唔會各自漏低行李。",
+        category: "docs",
+        areas: ["docs", "build", "services", "interface", "site"],
+        files: 19,
+        summarizes: 5,
+    },
+    {
         sha: "7bf8e2a3d1344d38e971ee54f4dad1ec0341d082",
         shortSha: "7bf8e2a3d1",
         date: "2026-08-06T20:30:06-04:00",
@@ -44,6 +55,16 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
         category: "docs",
         areas: ["docs", "build", "services", "site"],
         files: 17,
+    },
+    {
+        sha: "f4a3b6c9b2787a6a346b6e76f4716c7f328063e0",
+        shortSha: "f4a3b6c9b2",
+        date: "2026-08-06T20:45:12-04:00",
+        subject: "Fix gh release host and account routing",
+        details: "Release creation had borrowed an API-only --hostname hat, so a fully uploaded archive tripped over the finish line. Use the supported host-qualified --repo form, bind the operation to the selected live gh account, and fail before release mutation when identity cannot be proven.\n\nRelease 建立之前戴錯咗 API 專用嘅 --hostname 帽，成個 archive 搬完先喺終點跣低。依家用正規 host-qualified --repo、鎖實所選 gh 帳戶，身份證明唔到就未開 release 已經停低，唔會亂撞人哋個 repo。",
+        category: "shell",
+        areas: ["shell", "interface", "docs", "site"],
+        files: 13,
     },
     {
         sha: "4f7c71c163fea47509f28d4c8a56ad8a02eac959",

@@ -3485,3 +3485,20 @@ test red, and changing `> 0` to `>= 0` turned the no-timer test red. `design/ROA
 Phase E section is updated below to close this half of issue #40; the two upstream
 deviations above are recorded there too rather than only here. **CI has not run against
 this change yet** — everything above is local verification only.
+## 2026-08-06 — gh release host and selected-account repair
+
+CI-render release creation no longer passes the API-only `--hostname` flag to `gh release`.
+Both creation and resumed upload use `--repo [HOST/]OWNER/REPO`, re-read the live `gh auth`
+account inventory at the release boundary, switch to the exact selected host/login when needed,
+and verify `gh api --hostname HOST user --jq .login` before any release mutation. A missing
+account, refused switch, or identity mismatch stops before creation/upload and exposes the
+GitHub-account recovery action on the same CI-render surface. The UI warns before preflight that
+the switch changes the active `gh` account for the whole computer and leaves it active.
+
+Local verification: app and UI typechecks passed; the focused transport, sync, CI-render screen,
+and backup-run-card suites passed **148/148 tests**. Tests cover already-active and inactive
+accounts, missing account, switch refusal, effective-identity mismatch, enterprise host syntax,
+release failure without fallback, and resume. No real repository was created or uploaded to, and
+no genuine ~2 GB rerun was performed. A genuine built-app capture of the recovery state is still
+blocked because reaching it in the current runtime harness would require either injecting a fake
+bridge state (not genuine runtime evidence) or performing a real network/repository operation.

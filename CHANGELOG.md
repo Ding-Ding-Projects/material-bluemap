@@ -41,6 +41,7 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- Fix gh release host and account routing - [`f4a3b6c9b2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f4a3b6c9b2787a6a346b6e76f4716c7f328063e0)
 - Derive the update feed repository at build time instead of hardcoding it - [`6b8304ca59`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6b8304ca59b7cf20df5b2101374e7d32780013a2)
 - Delete the four dead worldsource:* bridge methods duplicating discoverRelease's - [`c3abad0396`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c3abad0396df7217c63e801841071d1b7c11b9fa)
 - Bridge dockerworld: wire up the ipc.ts nobody ever called - [`64c0f9a294`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/64c0f9a2948f1281508303f8b4d4955a4cc6d868)
@@ -55,6 +56,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Merge cloud-runner phase into gh release repair - [`4a7ea0f843`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4a7ea0f8438612cd7a541eec64f0568a62f502fe) _(summary of 5 commits, also listed here)_
 - Repair hosted-runner documentation links - [`7bf8e2a3d1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7bf8e2a3d1344d38e971ee54f4dad1ec0341d082)
 - Restore GitHub-hosted workflow runners - [`b76c3d6a69`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b76c3d6a691d71a5ab0b5e2b36887262da41129a)
 - Merge phase 1 super-confirmation coverage - [`ebf00b2d14`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ebf00b2d14ea8b5dc36afe9b34409f2680d320d4) _(summary of 3 commits, also listed here)_
