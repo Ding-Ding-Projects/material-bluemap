@@ -133,7 +133,8 @@ Not fully ported, and so keeping this phase open:
   and writes the webapp's real `settings.json` (`WebFilesManager.Settings`, field for
   field). Deliberately deferred, and said so out loud where the CLI is asked for it rather
   than silently doing nothing: `-n`/mod-resource scanning, `resourceExtensions.zip`
-  parity, SQL storages in the CLI, and non-box render masks. (`-u`/`--watch` was deferred
+  parity and SQL storages in the CLI. Non-box, nested and subtracting render masks closed on
+  2026-08-06 with exact local, standalone-CLI and GitHub Actions semantics. (`-u`/`--watch` was deferred
   here too when this paragraph was first written, exiting non-zero and naming issue #40's
   `MapUpdateService` as the still-unwired piece; it closed on 2026-08-06 — see below.)
   3 files, 22 tests (`packages/cli/test`) as of this paragraph's original writing, including
