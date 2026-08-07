@@ -45,6 +45,7 @@ export const APPEARANCE_STORAGE_KEY = "worldlens-appearance";
 
 /** The marker an exported file carries, so a stray JSON file is not read as a theme. */
 export const APPEARANCE_FORMAT = "worldlens-appearance";
+export const LEGACY_APPEARANCE_FORMAT = "material-bluemap-appearance";
 
 export const APPEARANCE_VERSION = 1;
 
@@ -475,7 +476,9 @@ export type ImportResult =
 /** The import half, over already-parsed JSON, so storage and files share one implementation. */
 export function importState(raw: unknown): ImportResult {
     if (!isObject(raw)) return { ok: false, error: "not-a-theme" };
-    if (raw.format !== APPEARANCE_FORMAT) return { ok: false, error: "not-a-theme" };
+    if (raw.format !== APPEARANCE_FORMAT && raw.format !== LEGACY_APPEARANCE_FORMAT) {
+        return { ok: false, error: "not-a-theme" };
+    }
 
     const state = emptyState();
     const preservedKeys: string[] = [];

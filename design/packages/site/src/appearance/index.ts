@@ -15,7 +15,13 @@
  */
 
 export { AppearanceController } from "./controller.js";
-export { AppearanceStore, appearanceStore, THEME_FORMAT, THEME_VERSION } from "./store.js";
+export {
+    AppearanceStore,
+    appearanceStore,
+    LEGACY_THEME_FORMAT,
+    THEME_FORMAT,
+    THEME_VERSION,
+} from "./store.js";
 export type { AppearancePreset, ThemeFile, ThemeImportReport } from "./store.js";
 
 export {

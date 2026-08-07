@@ -9,6 +9,8 @@
  * enforced it is enforced there, not by this file remembering to ask.
  */
 
+// Must evaluate before controllers below hydrate their localStorage-backed state.
+import "./legacyStorageMigration.js";
 import "./theme/tokens.css";
 import "./theme/base.css";
 import "./tabs/tabs.css";

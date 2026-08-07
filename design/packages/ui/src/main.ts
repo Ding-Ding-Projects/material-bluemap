@@ -1,3 +1,6 @@
+// This side-effect module must evaluate before any store import below: several stores read
+// localStorage at module initialisation time.
+import "./legacyStorageMigration.js";
 import { createApp, reactive } from "vue";
 import { setI18nAdapter, setReactiveFactory } from "@worldlens/viewer";
 import type { ReactiveFactory } from "@worldlens/viewer";

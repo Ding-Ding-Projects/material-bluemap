@@ -80,10 +80,12 @@ export function tokenSourceForClient(kind: GitHubClientKind): TokenSource {
 }
 
 /** Overrides the client id at runtime. Empty or unset means the default. */
-export const GITHUB_CLIENT_ID_ENV = "MATERIAL_BLUEMAP_GITHUB_CLIENT_ID";
+export const GITHUB_CLIENT_ID_ENV = "WORLDLENS_GITHUB_CLIENT_ID";
+export const LEGACY_GITHUB_CLIENT_ID_ENV = "MATERIAL_BLUEMAP_GITHUB_CLIENT_ID";
 
 /** `app` or `oauth`. Says which kind an overridden client id is, since it cannot be guessed. */
-export const GITHUB_CLIENT_KIND_ENV = "MATERIAL_BLUEMAP_GITHUB_CLIENT_KIND";
+export const GITHUB_CLIENT_KIND_ENV = "WORLDLENS_GITHUB_CLIENT_KIND";
+export const LEGACY_GITHUB_CLIENT_KIND_ENV = "MATERIAL_BLUEMAP_GITHUB_CLIENT_KIND";
 
 /**
  * A client secret, which this application never ships and does not normally need.
@@ -95,7 +97,8 @@ export const GITHUB_CLIENT_KIND_ENV = "MATERIAL_BLUEMAP_GITHUB_CLIENT_KIND";
  * an expired App token is answered by signing in again rather than by a silent refresh.
  * A self-hosted build that genuinely holds a secret can set this and get both.
  */
-export const GITHUB_CLIENT_SECRET_ENV = "MATERIAL_BLUEMAP_GITHUB_CLIENT_SECRET";
+export const GITHUB_CLIENT_SECRET_ENV = "WORLDLENS_GITHUB_CLIENT_SECRET";
+export const LEGACY_GITHUB_CLIENT_SECRET_ENV = "MATERIAL_BLUEMAP_GITHUB_CLIENT_SECRET";
 
 /**
  * The smallest set of scopes that can do the job. **OAuth App only.**
@@ -178,10 +181,12 @@ export function resolveClient(
     environment: EnvironmentLike = process.env,
     fallback: GitHubClient = { id: GITHUB_OAUTH_CLIENT_ID, kind: "oauth" },
 ): GitHubClient | null {
-    const override = environment[GITHUB_CLIENT_ID_ENV];
+    const override =
+        environment[GITHUB_CLIENT_ID_ENV] ?? environment[LEGACY_GITHUB_CLIENT_ID_ENV];
     const overriddenId = typeof override === "string" ? override.trim() : "";
 
-    const rawKind = environment[GITHUB_CLIENT_KIND_ENV];
+    const rawKind =
+        environment[GITHUB_CLIENT_KIND_ENV] ?? environment[LEGACY_GITHUB_CLIENT_KIND_ENV];
     const declaredKind =
         typeof rawKind === "string" && (rawKind.trim() === "app" || rawKind.trim() === "oauth")
             ? (rawKind.trim() as GitHubClientKind)
@@ -215,7 +220,8 @@ export function fallbackOAuthClient(
 
 /** The client secret in force, or null. Null on every shipped build; see the constant above. */
 export function resolveClientSecret(environment: EnvironmentLike = process.env): string | null {
-    const value = environment[GITHUB_CLIENT_SECRET_ENV];
+    const value =
+        environment[GITHUB_CLIENT_SECRET_ENV] ?? environment[LEGACY_GITHUB_CLIENT_SECRET_ENV];
     return typeof value === "string" && value.trim() !== "" ? value.trim() : null;
 }
 

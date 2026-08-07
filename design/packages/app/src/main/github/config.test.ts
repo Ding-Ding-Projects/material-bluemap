@@ -44,6 +44,17 @@ describe("resolveClient", () => {
         ).toEqual({ id: GITHUB_APP_CLIENT_ID, kind: "app" });
     });
 
+    it("reads the Worldlens variables and gives them precedence over legacy aliases", () => {
+        expect(
+            resolveClient({
+                WORLDLENS_GITHUB_CLIENT_ID: "Iv0000000000000001",
+                WORLDLENS_GITHUB_CLIENT_KIND: "app",
+                MATERIAL_BLUEMAP_GITHUB_CLIENT_ID: "Ov0000000000000002",
+                MATERIAL_BLUEMAP_GITHUB_CLIENT_KIND: "oauth",
+            }),
+        ).toEqual({ id: "Iv0000000000000001", kind: "app" });
+    });
+
     it("takes a fork's own client id, and its declared kind", () => {
         expect(
             resolveClient({
@@ -105,5 +116,14 @@ describe("resolveClientSecret", () => {
         expect(resolveClientSecret({ MATERIAL_BLUEMAP_GITHUB_CLIENT_SECRET: "s3cret" })).toBe(
             "s3cret",
         );
+    });
+
+    it("prefers the current Worldlens secret variable over its legacy alias", () => {
+        expect(
+            resolveClientSecret({
+                WORLDLENS_GITHUB_CLIENT_SECRET: "current",
+                MATERIAL_BLUEMAP_GITHUB_CLIENT_SECRET: "legacy",
+            }),
+        ).toBe("current");
     });
 });
