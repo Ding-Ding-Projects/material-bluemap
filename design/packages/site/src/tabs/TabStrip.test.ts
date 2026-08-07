@@ -188,6 +188,53 @@ describe("tabs.css compact media query", () => {
         // version of the bug for any future page that registers with an icon.
         expect(tabsCss).not.toMatch(/tab--pinned[^{]*\{[^}]*display:\s*none/);
     });
+
+    it("scopes every one of its rules away from a left/right (vertical) dock", () => {
+        // TabStrip.ts's own isCompact() is `!this.isVertical() && width <=
+        // COMPACT_TAB_STRIP_MAX_WIDTH`: a vertical (left/right-docked) strip never leaves the
+        // measure-and-overflow-into-a-menu strategy, at any viewport width - see the
+        // "vertical dock ignores the compact-width scrollable strategy" describe block below
+        // for the JS side of that contract. This block's rules used to apply unconditionally to
+        // every `data-placement`, which put the CSS at odds with that JS gate: below 720px, a
+        // vertical strip's `.tab-bar__overflow` was force-hidden by `display: none !important`
+        // even while `layout()` had un-hidden it and populated it with real overflowed tabs,
+        // and `.tab__label`/`.tab-group__name` were forced onto one line even though the
+        // vertical pinned region's own always-on `overflow-x: hidden` (above) has nothing else
+        // to stop that forced single line from being silently clipped. Both are exactly the
+        // "content is gone with no way to reach it" failure this file's own header comment
+        // promises never happens on this strip.
+        const block = compactBlock();
+        const guardText = '.tab-bar:not([data-placement="left"]):not([data-placement="right"])';
+
+        expect(block).toMatch(
+            /\.tab-bar:not\(\[data-placement="left"\]\):not\(\[data-placement="right"\]\)\s+\.tab-strip__pinned\s*\{[^}]*flex:\s*none/,
+        );
+        expect(block).toMatch(
+            /\.tab-bar:not\(\[data-placement="left"\]\):not\(\[data-placement="right"\]\)\s+\.tab-strip__main\s*\{[^}]*overflow-x:\s*auto/,
+        );
+        expect(block).toMatch(
+            /\.tab-bar:not\(\[data-placement="left"\]\):not\(\[data-placement="right"\]\)\s+\.tab__label,/,
+        );
+        expect(block).toMatch(
+            /\.tab-bar:not\(\[data-placement="left"\]\):not\(\[data-placement="right"\]\)\s+\.tab-group__name\s*\{[^}]*white-space:\s*nowrap/,
+        );
+        expect(block).toMatch(
+            /\.tab-bar:not\(\[data-placement="left"\]\):not\(\[data-placement="right"\]\)\s+\.tab-bar__overflow\s*\{[^}]*display:\s*none\s*!important/,
+        );
+
+        // A stray *unscoped* copy of any of these four rules would silently reintroduce the
+        // bug even if a correctly scoped copy also exists, so also check none was left behind:
+        // a bare selector is one whose nearest preceding non-whitespace character is "{", "}",
+        // or the start of the block, i.e. it opens its own top-level rule rather than hanging
+        // off the guard's descendant combinator.
+        for (const selector of [".tab-strip__pinned", ".tab-strip__main", ".tab-bar__overflow"]) {
+            const escaped = selector.replace(".", "\\.");
+            const barePattern = new RegExp(`(^|[{}])\\s*${escaped}\\s*\\{`);
+            expect(block, `${selector} must not also appear unscoped in ${guardText}'s block`).not.toMatch(
+                barePattern,
+            );
+        }
+    });
 });
 
 describe("tabs.css visual refresh", () => {
@@ -375,6 +422,73 @@ describe("TabStrip at a phone-width viewport (the reported bug)", () => {
         expect(strip.bar.querySelector<HTMLButtonElement>(".tab-bar__overflow")?.hidden).toBe(true);
         const pinnedLabel = strip.bar.querySelector(".tab--pinned .tab__label");
         expect(pinnedLabel?.textContent).toBe("Home");
+    });
+});
+
+describe("vertical dock ignores the compact-width scrollable strategy", () => {
+    /**
+     * jsdom performs no real layout, so every `getBoundingClientRect()` and `clientWidth`/
+     * `clientHeight` read in `TabStrip.ts`'s own `layout()` normally comes back zero - which
+     * makes "nothing overflowed" true by accident whether or not the overflow computation
+     * actually ran. That is fine for the horizontal/compact tests above (the compact branch
+     * returns before it reads any of that), but it means a vertical-dock test needs real
+     * geometry forced onto the DOM before `layout()` can tell a genuinely fitting strip from
+     * an overflowing one. This mirrors the existing `scrollIntoView` spy technique above:
+     * override exactly the primitives `layout()` reads, on the exact nodes it reads them from.
+     */
+    function forceOverflow(strip: TabStrip, budget: number): void {
+        const main = strip.bar.querySelector<HTMLElement>(".tab-strip__main");
+        if (main === null) throw new Error("expected a .tab-strip__main region");
+        Object.defineProperty(main, "clientHeight", { configurable: true, value: budget });
+        Object.defineProperty(main, "clientWidth", { configurable: true, value: budget });
+        for (const child of [...main.children]) {
+            if (!(child instanceof HTMLElement)) continue;
+            child.getBoundingClientRect = () =>
+                ({
+                    width: 120,
+                    height: 60,
+                    top: 0,
+                    left: 0,
+                    right: 120,
+                    bottom: 60,
+                    x: 0,
+                    y: 0,
+                    toJSON: () => ({}),
+                }) as DOMRect;
+        }
+    }
+
+    it("still measures real overflow on a left-docked (vertical) strip below 720px, unlike a horizontal one", () => {
+        // TabStrip.ts's own isCompact() is `!this.isVertical() && width <=
+        // COMPACT_TAB_STRIP_MAX_WIDTH`, so a vertical strip must never take the "everything
+        // stays a real tab, nothing is measured" shortcut just because the viewport is
+        // narrow - it keeps computing which tabs fit and which move into the overflow menu,
+        // at every width. This is the JS-side half of the contract the tabs.css placement
+        // guard above depends on: if isCompact() ever forgot the vertical exclusion, this
+        // strip would silently stop overflowing into a reachable menu and start relying on
+        // tabs.css's horizontal-only scrollable-strip rules instead, which do not apply to a
+        // column layout at all.
+        const { strip } = buildStrip(390, null, "left");
+        forceOverflow(strip, 100);
+        setViewportWidth(390);
+
+        expect(strip.overflowedIds().length).toBeGreaterThan(0);
+        const overflowButton = strip.bar.querySelector<HTMLButtonElement>(".tab-bar__overflow");
+        expect(overflowButton?.hidden).toBe(false);
+    });
+
+    it("takes the scrollable-strip shortcut instead, on the same forced geometry, once docked top", () => {
+        // Same six pages, same forced per-tab size and the same tight budget as the test
+        // above - only the placement differs. A horizontal dock at this width is compact, so
+        // it must never reach the measurement code at all: every destination stays a real
+        // tab and the overflow button stays hidden, regardless of what forceOverflow set up.
+        const { strip } = buildStrip(390, null, "top");
+        forceOverflow(strip, 100);
+        setViewportWidth(390);
+
+        expect(strip.overflowedIds()).toEqual([]);
+        const overflowButton = strip.bar.querySelector<HTMLButtonElement>(".tab-bar__overflow");
+        expect(overflowButton?.hidden).toBe(true);
     });
 });
 

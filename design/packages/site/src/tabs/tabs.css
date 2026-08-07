@@ -292,9 +292,24 @@
  * JS never measures a fit-into-budget decision or hides a tab the CSS is about to make
  * reachable by scrolling instead. TabStrip.test.ts reads this file's source to check the two
  * cannot silently drift apart.
+ *
+ * Every rule in this block is scoped to `.tab-bar` *without* a left/right `data-placement`,
+ * on purpose: `TabStrip.ts`'s own `isCompact()` only ever returns true when
+ * `!this.isVertical()`, so a vertical (left/right-docked) strip never leaves the
+ * measure-and-overflow-into-a-menu strategy, at any viewport width. An earlier version of
+ * this block applied unconditionally to every placement, which left a vertical strip in a
+ * state its own JS never intended: `layout()` still measured height, hid whatever did not
+ * fit, and un-hid `.tab-bar__overflow` to reach it - while this block's unscoped
+ * `display: none !important` kept that exact button permanently invisible below 720px, and
+ * its unscoped `white-space: nowrap` forced pinned-tab labels into the single line the
+ * pinned region's own always-on `overflow-x: hidden` (above) then silently clipped. Both are
+ * exactly the "content is gone with no way to reach it" failure this file's own header
+ * comment promises never happens. Scoping away from vertical placement is the fix: a
+ * left/right dock keeps wrapping labels and a working overflow button at every width, and
+ * only a genuinely horizontal (top/bottom) strip ever switches to scrollable tabs.
  */
 @media (width <= 720px) {
-    .tab-strip__pinned {
+    .tab-bar:not([data-placement="left"]):not([data-placement="right"]) .tab-strip__pinned {
         /* Never crushed below its own content: the row scrolls instead of shrinking a
            pinned tab away. If pinned tabs themselves exceed the max-width below, this
            region's own overflow-x: auto (set above, unconditionally) scrolls them, exactly
@@ -302,7 +317,7 @@
         flex: none;
     }
 
-    .tab-strip__main {
+    .tab-bar:not([data-placement="left"]):not([data-placement="right"]) .tab-strip__main {
         /* The scrollable row itself. min-width: 0 (set above) is what lets it shrink to
            whatever space is actually left rather than forcing the whole bar to overflow. */
         overflow-x: auto;
@@ -315,14 +330,14 @@
        label that wraps to two lines would make every tab a different height. Nothing is
        truncated - the tab simply takes the width its one-line label needs, up to the
        max-width above, and the row scrolls past whatever does not fit on screen. */
-    .tab__label,
-    .tab-group__name {
+    .tab-bar:not([data-placement="left"]):not([data-placement="right"]) .tab__label,
+    .tab-bar:not([data-placement="left"]):not([data-placement="right"]) .tab-group__name {
         white-space: nowrap;
     }
 
     /* Nothing is ever hidden into a menu at this width, so the control that would open
        that menu never renders either. */
-    .tab-bar__overflow {
+    .tab-bar:not([data-placement="left"]):not([data-placement="right"]) .tab-bar__overflow {
         display: none !important;
     }
 }

@@ -19,6 +19,8 @@
  *    to fixing it rather than silently dropped.
  */
 
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
@@ -494,6 +496,57 @@ describe("worlds this computer is tracking", () => {
         expect(wrapper.find('[data-test="remove-failure"]').text()).toContain(
             "The world branch no longer carries this application's marker, so it was not deleted.",
         );
+    });
+});
+
+describe("a syncing row's title is not silently clipped by a long owner/repo/branch", () => {
+    /**
+     * `owner/repo#branch` is typed by whoever set the sync up - GitHub alone allows a
+     * 39-character owner plus a 100-character repo name, before bilingual mode doubles it
+     * again. The row title is a `VCardTitle` turned into a flex row (`d-flex`) so the state
+     * chip and spinner sit beside it; Vuetify's own `.v-card-title` rule still contributes
+     * `overflow: hidden; white-space: nowrap; text-overflow: ellipsis` underneath that, and
+     * `text-overflow` has no effect once the box is a flex formatting context, so the target
+     * and the chip were clipped at the card edge with no ellipsis and no scrollbar to say
+     * anything was missing.
+     */
+    it("keeps the full target text in the DOM and marks the title as wrap-safe", async () => {
+        const fake = fakeWorldRepo();
+        const wrapper = mountScreen(fake.bridge);
+        await flushPromises();
+
+        const longTarget =
+            "a-very-long-organisation-name-that-github-would-actually-allow/an-equally-long-repository-name-that-github-would-also-allow#a-noticeably-long-branch-name";
+        fake.fire({ type: "started", key: "row-1", target: longTarget, at: "2026-01-01T00:00:00.000Z" });
+        await flushPromises();
+
+        const row = wrapper.find('[data-test="row"]');
+        expect(row.exists()).toBe(true);
+        // Not truncated by application code before it ever reaches the DOM.
+        expect(row.text()).toContain(longTarget);
+
+        // Carries the class the stylesheet uses to beat Vuetify's bare `.v-card-title` on
+        // specificity, rather than being left to the framework's clip-with-no-ellipsis default.
+        const title = row.find(".mb-worldrepo-row__title");
+        expect(title.exists()).toBe(true);
+        expect(title.find(".mb-worldrepo-row__name").text()).toBe(longTarget);
+    });
+
+    it("declares the wrap-safe rule with enough specificity to beat Vuetify's own .v-card-title", () => {
+        const source = readFileSync(fileURLToPath(new URL("./WorldRepoScreen.vue", import.meta.url)), "utf8");
+        const rule = /\.mb-worldrepo-row__title\s*\{[^}]*\}/s.exec(source)?.[0] ?? "";
+        expect(rule).toContain("overflow: visible");
+        expect(rule).toContain("white-space: normal");
+        expect(rule).toContain("flex-wrap: wrap");
+
+        const nameRule = /\.mb-worldrepo-row__name\s*\{[^}]*\}/s.exec(source)?.[0] ?? "";
+        expect(nameRule).toContain("min-width: 0");
+        expect(nameRule).toContain("overflow-wrap: anywhere");
+
+        // The template actually wires the class onto the title and the span, not just the
+        // stylesheet declaring it in isolation.
+        expect(source).toMatch(/VCardTitle class="d-flex align-center ga-2 mb-worldrepo-row__title"/);
+        expect(source).toMatch(/<span class="mb-worldrepo-row__name">\{\{ row\.target \}\}<\/span>/);
     });
 });
 

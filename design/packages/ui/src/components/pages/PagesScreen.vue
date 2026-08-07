@@ -540,8 +540,20 @@ onBeforeUnmount(() => {
 
             <!-- What is happening right now, with real numbers rather than a spinner. -->
             <VCard v-for="row in pages.rows.value" :key="row.renderId" class="mb-3" data-test="row">
-                <VCardTitle class="d-flex align-center ga-2">
-                    <span>{{ rowTitle(row) }}</span>
+                <!--
+                    `owner/repo` is typed by whoever set publishing up, and GitHub alone
+                    allows a 39-character owner plus a 100-character repo name - long before
+                    bilingual mode doubles it again. `VCardTitle` defaults to `overflow:
+                    hidden; white-space: nowrap; text-overflow: ellipsis`, and this row's own
+                    `d-flex` turns it into a flex container that ellipsis never actually
+                    paints (text-overflow has no effect on a flex formatting context), so the
+                    title and the state chip were silently clipped at the card edge with no
+                    visible cue anything was missing. `mb-pages-row__title` wins on
+                    specificity (a scoped class beats Vuetify's bare `.v-card-title`) and lets
+                    the row wrap instead.
+                -->
+                <VCardTitle class="d-flex align-center ga-2 mb-pages-row__title">
+                    <span class="mb-pages-row__name">{{ rowTitle(row) }}</span>
                     <VChip size="small" data-test="row-state">{{ row.state }}</VChip>
                     <VProgressCircular v-if="row.state === 'publishing'" indeterminate size="18" />
                 </VCardTitle>
@@ -751,6 +763,26 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/*
+ * Beats Vuetify's bare `.v-card-title` (overflow: hidden; white-space: nowrap;
+ * text-overflow: ellipsis) on specificity: a scoped class compiles to
+ * `.mb-pages-row__title[data-v-xxxx]`, two selector components against the
+ * framework rule's one, so it wins regardless of source order. `flex-wrap: wrap`
+ * lets the state chip and spinner drop to their own line instead of being pushed
+ * past the card edge and clipped by the overflow this rule turns off.
+ */
+.mb-pages-row__title {
+    overflow: visible;
+    white-space: normal;
+    flex-wrap: wrap;
+    row-gap: 4px;
+}
+
+.mb-pages-row__name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 .mb-pages-site + .mb-pages-site {
     margin-block-start: 16px;
     padding-block-start: 16px;
