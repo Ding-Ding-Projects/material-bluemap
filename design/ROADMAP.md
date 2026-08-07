@@ -1,5 +1,21 @@
 # Roadmap
 
+## Exact-SHA release-gate repair (2026-08-06)
+
+**Complete on `codex/phase-release-gates`; default-branch integration and release publication
+remain with the root workflow.** The four failures that stopped the manual release at
+`215307ac05ecf86728831da9429aac48d2bc03dd` are repaired in `77c1222`: the CI-render account
+warning and GitHub-account recovery action have complete catalogue coverage, the cloud-runner
+article is explicitly categorized under Rendering, and the real CLI watcher e2e waits for
+chokidar's initial-scan readiness before writing the region event it verifies. The real
+five-second debounce and both scheduling assertions remain intact.
+
+Focused tests passed 69/69. Repository lint, all 13 package typechecks, all 13 package builds,
+and the full `pnpm test:ci` passed locally; the full suite exited 0 on its first attempt after
+598.6 seconds. The upstream webapp bundle was present, so the CLI render/watch cases ran rather
+than reporting an environment skip. No remote workflow or release result is claimed for this
+local phase.
+
 ## GitHub-hosted runner restoration (2026-08-06)
 
 **Implemented on the cloud-runner phase branch; hosted runtime proof follows default-branch

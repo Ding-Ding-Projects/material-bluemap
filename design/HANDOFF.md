@@ -1,5 +1,30 @@
 # Handoff
 
+## Update, 2026-08-06 — the exact-SHA manual release gate is green again
+
+The manual release attempt from exact base `215307ac05ecf86728831da9429aac48d2bc03dd`
+stopped before publication because `pnpm test:ci` found four real failures. Commit `77c1222`
+repairs all four without changing the repository's explicit GitHub-hosted runner decision:
+
+- `CiRenderScreen.vue`'s account-switch warning now has complete English and Hong Kong
+  Cantonese copy at all five funny levels, with its machine-wide account facts pinned, and the
+  “Open GitHub accounts” recovery action has a fixed bilingual catalogue entry;
+- `cloud-runners.md` now belongs to `docsModel.ts`'s explicit `RENDERING_ORDER`, so both the
+  README/index completeness guard and `categoryOfFile()` place it under Rendering;
+- `MCAWorldRegionWatchService.whenReady()` exposes chokidar's real initial-scan completion.
+  The CLI e2e awaits that event before rewriting its real `.mca` region file, eliminating the
+  intermittent `ignoreInitial` race while retaining the real five-second production debounce
+  and the exact scheduling-log assertions. Existing engine/server tests use the same public
+  lifecycle seam instead of reaching into chokidar's private field, and close-before-ready is
+  covered explicitly.
+
+Verification on the phase branch is terminal and local: the focused seven-file set passed
+69/69 tests; `pnpm lint`, all 13 package typechecks, and all 13 package builds passed; and the
+full `pnpm test:ci` completed on its first attempt with exit 0 in 598.6 seconds. The vendored
+BlueMap webapp was built first and copied into the CLI, so both real CLI render/watch e2e cases
+ran rather than skipping. No commit was pushed, no workflow was dispatched, and no release was
+published by this phase; the root orchestrator owns integration and the resumed manual release.
+
 ## Update, 2026-08-06 — repository CI is returning to disposable hosted runners
 
 The `codex/phase-cloud-runners` phase converts all ten project-owned self-hosted jobs and confirms
