@@ -18,6 +18,19 @@
  * pattern below asserts.
  */
 
+// Worldlens releases are permanently unsigned. Clear every electron-builder signing input
+// before configuration is evaluated so a developer shell or runner secret cannot silently
+// turn one build into a differently trusted artifact.
+for (const key of [
+    "CSC_LINK",
+    "CSC_KEY_PASSWORD",
+    "WIN_CSC_LINK",
+    "WIN_CSC_KEY_PASSWORD",
+    "CSC_IDENTITY_AUTO_DISCOVERY",
+]) {
+    delete process.env[key];
+}
+
 /** @type {import("electron-builder").Configuration} */
 module.exports = {
     appId: "dev.worldlens.desktop",
@@ -79,12 +92,17 @@ module.exports = {
         },
     ],
     asar: true,
+    // Permanent product policy: Worldlens artifacts are intentionally unsigned. Integrity is
+    // supplied by HTTPS, the immutable Squirrel feed metadata, and package hashes.
+    forceCodeSigning: false,
     // No native modules reach the packaged app — everything is bundled by esbuild.
     npmRebuild: false,
     buildDependenciesFromSource: false,
     win: {
         // Multi-size .ico (256px + 64px) derived from the tracked project logo.
         icon: "build/icon.ico",
+        signExecutable: false,
+        signAndEditExecutable: false,
         target: [
             {
                 target: "squirrel",

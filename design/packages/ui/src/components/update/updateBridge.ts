@@ -31,7 +31,6 @@ export type UpdateStatus =
 export type UpdateFailureCode =
     | "offline"
     | "feed-unavailable"
-    | "invalid-signature"
     | "corrupt-asset"
     | "not-installed"
     | "staging-failed"

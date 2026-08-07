@@ -277,19 +277,6 @@ describe("UpdateController", () => {
         expect(test.timers.pending.size).toBe(1);
     });
 
-    it("reports a signature that does not verify, and does not retry it on a schedule", () => {
-        const test = harness();
-        test.controller.start();
-        test.engine.emit("update-available");
-        test.engine.emit("error", new Error("Authenticode signature is not valid"));
-
-        const state = test.controller.current();
-        expect(state.status).toBe("failed");
-        expect(state.failure?.code).toBe("invalid-signature");
-        expect(state.failure?.retryable).toBe(false);
-        expect(test.engine.installs).toBe(0);
-    });
-
     it("reports a corrupt asset as a download that will probably fix itself", () => {
         const test = harness();
         test.controller.start();

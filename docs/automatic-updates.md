@@ -128,16 +128,15 @@ reached, the app will try again by itself" is not.
 |---|---|---|
 | `offline` | No route to the update server. | Yes |
 | `feed-unavailable` | The server answered with something that is not a release list. | Yes |
-| `invalid-signature` | The installer is not signed by the expected publisher. **Nothing was installed.** | **No** |
 | `corrupt-asset` | The bytes that arrived are not the bytes the feed described. | Yes |
 | `not-installed` | This copy was not installed by its installer, so there is no updater beside it. | No |
 | `staging-failed` | The disk is full, or the app's folder is not writable. | Yes |
 | `unknown` | Recognised as nothing in particular. The updater's own words travel as detail. | Yes |
 
-The signature rule is ordered first, ahead of the corrupt-asset rule, because Squirrel's
-messages overlap and misreporting a tampered installer as a flaky network is the one mistake
-here with a security consequence. It is also the one failure marked *not* retryable:
-downloading a bad file on a schedule forever is not resilience.
+Worldlens packages are intentionally unsigned. The updater therefore makes no Authenticode
+claim and does not classify the absence of a publisher signature as a defect. Integrity relies
+on the HTTPS transport, immutable Squirrel feed metadata, and the package hash recorded in the
+feed. A hash mismatch is a `corrupt-asset` failure and nothing is installed from those bytes.
 
 An `unknown` failure says so rather than guessing. A confident wrong diagnosis is worse than
 an admission.
@@ -158,9 +157,10 @@ the same step that records the failure, and a test asserts exactly that.
   so a local test feed needs no certificate.
 - **A release-notes link is only used when it is `https`.** Anything else is dropped rather
   than handed to the shell.
-- **Squirrel verifies the package.** A signature that does not verify is a hard stop, not a
-  retry, and the copy says plainly that nothing was installed and nothing on the machine
-  changed.
+- **The artifacts are unsigned by permanent policy.** Packaging fixes
+  `forceCodeSigning`, `signExecutable`, and `signAndEditExecutable` to `false` and clears
+  signing environment inputs. Authenticity comes from the HTTPS release origin; integrity
+  comes from the Squirrel feed metadata and package hash. A hash mismatch is never installed.
 
 ## Opening a folder the app wrote
 
@@ -271,7 +271,7 @@ injected seams.
 | Feed resolution, the three refusals, the https rule, the token redaction | `main/update/feed.test.ts` |
 | The state machine, including "ready survives a failure" and "unsupported is terminal" | `main/update/state.test.ts` |
 | The schedule: interval, back-off, cap, floor, and stopping once staged | `main/update/schedule.test.ts` |
-| No update, available, downloading, ready, restart declined, offline, invalid signature, corrupt asset, cancellation, and a render in progress | `main/update/controller.test.ts` |
+| No update, available, downloading, ready, restart declined, offline, corrupt asset, cancellation, and a render in progress | `main/update/controller.test.ts` |
 | The channels, the push, and that no credential crosses them | `main/update/ipc.test.ts` |
 | The OneDrive redirect and the user-called-OneDrive guard | `main/files/documents.test.ts` |
 | The reveal allowlist: prefix siblings, links, relative paths, missing roots, files versus folders | `main/files/reveal.test.ts` |
@@ -284,7 +284,8 @@ injected seams.
 **Not verified by running it.** No packaged build has been installed and updated end to end
 by this work, so the claim that a released `Setup.exe` will find and install its successor
 rests on the feed being correct and Squirrel behaving as documented, not on somebody having
-watched it happen. That check needs two consecutive signed releases and is the first thing to
+watched it happen. That check needs two consecutive unsigned releases from the verified HTTPS
+feed and is the first thing to
 do once there are two.
 
 ## Related

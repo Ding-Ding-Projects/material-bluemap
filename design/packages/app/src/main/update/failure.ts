@@ -25,8 +25,6 @@ export type UpdateFailureCode =
     | "offline"
     /** The server answered, but not with a feed: a 404, a 500, an HTML error page. */
     | "feed-unavailable"
-    /** The downloaded installer is not signed by the expected publisher. */
-    | "invalid-signature"
     /** The download arrived, and it is not the bytes the feed said it would be. */
     | "corrupt-asset"
     /** Squirrel is not present, which is what an unpackaged or copied build looks like. */
@@ -45,8 +43,7 @@ export interface UpdateFailure {
     /**
      * True when trying again later could plausibly work without the user doing anything.
      *
-     * A network blip is retryable; a signature that does not verify is not, and retrying it
-     * on a schedule would just be downloading a bad file over and over.
+     * A network blip or truncated download is retryable; a local installation problem is not.
      */
     readonly retryable: boolean;
 }
@@ -70,11 +67,9 @@ export function errorText(error: unknown): string {
 /**
  * Every rule, in order, first match wins.
  *
- * Ordered rather than a lookup because the strings overlap: Squirrel's signature complaint
- * mentions the file it downloaded, and a hash mismatch mentions the download too, so a
- * naive "contains download" rule would swallow both. The signature rules come first
- * because misreporting a tampered installer as a flaky network is the one mistake here
- * with a security consequence.
+ * Ordered rather than a lookup because several messages mention the download. Worldlens
+ * packages are intentionally unsigned, so this classifier makes no Authenticode promise:
+ * update integrity comes from HTTPS, feed metadata, and the package hash recorded by Squirrel.
  */
 const RULES: readonly {
     readonly code: UpdateFailureCode;
@@ -83,16 +78,8 @@ const RULES: readonly {
     readonly retryable: boolean;
 }[] = [
     {
-        code: "invalid-signature",
-        test: /authenticode|signature (?:is )?(?:not valid|invalid|could not be verified)|not (?:digitally )?signed|untrusted publisher/i,
-        message:
-            "The update was downloaded but it is not signed by the publisher this app expects, so it was not installed. " +
-            "Nothing has changed on this machine. Download the update from the project's releases page instead.",
-        retryable: false,
-    },
-    {
         code: "corrupt-asset",
-        test: /hash (?:of |for )?.*(?:does not match|mismatch)|checksum|sha1 .*(?:mismatch|does not match)|corrupt|not a valid (?:nupkg|package|zip)|end of central directory/i,
+        test: /hash (?:of |for )?.*(?:does not match|mismatch)|checksum|sha1 .*(?:mismatch|does not match)|digest .*(?:mismatch|does not match)|integrity check.*fail|corrupt|not a valid (?:nupkg|package|zip)|end of central directory/i,
         message:
             "The update downloaded, but the file that arrived is not the file the server said it would be, so it was " +
             "not installed. This is usually a download that was cut short and normally fixes itself on the next check.",
