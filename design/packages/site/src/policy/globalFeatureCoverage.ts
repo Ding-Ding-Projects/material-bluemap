@@ -347,7 +347,7 @@ export const PAGES_FEATURE_COVERAGE: readonly PagesFeatureCoverage[] = [
     ),
     implemented(
         "no-promotional-nags",
-        "No donation, rating, subscription, or promotional prompts",
+        "The shipped-copy policy guard rejects every unwanted solicitation pattern",
         ["design/packages/site/src/main.ts"],
         ["design/packages/site/src/notifications/notificationPolicy.test.ts"],
     ),

@@ -45,4 +45,15 @@ describe("hand-written GitHub Pages global-feature coverage", () => {
             PAGES_FEATURE_COVERAGE.some((item) => (item.status as string) === "incomplete"),
         ).toBe(false);
     });
+
+    it("describes the no-solicitation policy without repeating copy the shipped-copy scanner rejects", () => {
+        const policy = PAGES_FEATURE_COVERAGE.find((item) => item.id === "no-promotional-nags");
+        expect(policy?.status).toBe("implemented");
+        expect(policy?.verification).toContain(
+            "design/packages/site/src/notifications/notificationPolicy.test.ts",
+        );
+        expect(policy?.title).toBe(
+            "The shipped-copy policy guard rejects every unwanted solicitation pattern",
+        );
+    });
 });

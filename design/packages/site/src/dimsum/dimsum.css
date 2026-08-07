@@ -55,8 +55,8 @@
 .dimsum__dismiss {
     flex: none;
     align-self: flex-start;
-    width: 36px;
-    height: 36px;
+    width: var(--md-sys-min-touch-target);
+    height: var(--md-sys-min-touch-target);
 }
 
 .dimsum__dismiss svg {

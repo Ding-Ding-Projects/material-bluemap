@@ -1,0 +1,337 @@
+{
+  "generatedAt": "2026-08-07T07:13:52.053Z",
+  "requested": {
+    "width": 414,
+    "height": 896,
+    "scale": 1,
+    "mode": "english",
+    "finalState": "collapsed"
+  },
+  "interaction": {
+    "available": true,
+    "initial": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase"
+    },
+    "afterFirst": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase",
+      "focusStayed": true
+    },
+    "afterSecond": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase",
+      "focusStayed": true
+    }
+  },
+  "metrics": {
+    "viewport": {
+      "width": 414,
+      "height": 896,
+      "scale": 1
+    },
+    "compact": true,
+    "documentOverflowX": 0,
+    "bodyOverflowX": 0,
+    "workspace": {
+      "placement": "left",
+      "sidebarCollapsed": "true"
+    },
+    "navigation": {
+      "hidden": true,
+      "toggleVisible": true,
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase",
+      "controls": "site-primary-navigation"
+    },
+    "language": {
+      "mode": "en",
+      "englishNodes": 506,
+      "cantoneseNodes": 0
+    },
+    "clippedControls": [],
+    "undersized": [],
+    "overflowingElements": [
+      {
+        "tag": "DIV",
+        "className": "mb-stat",
+        "left": 339.15625,
+        "right": 590.3125,
+        "width": 251.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-value",
+        "left": 355.15625,
+        "right": 574.3125,
+        "width": 219.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-label",
+        "left": 355.15625,
+        "right": 574.3125,
+        "width": 219.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-detail",
+        "left": 355.15625,
+        "right": 574.3125,
+        "width": 219.15625
+      },
+      {
+        "tag": "DIV",
+        "className": "mb-stat",
+        "left": 602.3125,
+        "right": 853.46875,
+        "width": 251.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-value",
+        "left": 618.3125,
+        "right": 837.46875,
+        "width": 219.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-label",
+        "left": 618.3125,
+        "right": 837.46875,
+        "width": 219.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-detail",
+        "left": 618.3125,
+        "right": 837.46875,
+        "width": 219.15625
+      },
+      {
+        "tag": "DIV",
+        "className": "mb-stat",
+        "left": 865.46875,
+        "right": 1116.625,
+        "width": 251.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-value",
+        "left": 881.46875,
+        "right": 1100.625,
+        "width": 219.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-label",
+        "left": 881.46875,
+        "right": 1100.625,
+        "width": 219.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-detail",
+        "left": 881.46875,
+        "right": 1100.625,
+        "width": 219.15625
+      },
+      {
+        "tag": "DIV",
+        "className": "mb-stat",
+        "left": 1128.625,
+        "right": 1379.78125,
+        "width": 251.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-value",
+        "left": 1144.625,
+        "right": 1363.78125,
+        "width": 219.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-label",
+        "left": 1144.625,
+        "right": 1363.78125,
+        "width": 219.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-detail",
+        "left": 1144.625,
+        "right": 1363.78125,
+        "width": 219.15625
+      },
+      {
+        "tag": "DIV",
+        "className": "mb-stat",
+        "left": 1391.78125,
+        "right": 1642.9375,
+        "width": 251.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-value",
+        "left": 1407.78125,
+        "right": 1626.9375,
+        "width": 219.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-label",
+        "left": 1407.78125,
+        "right": 1626.9375,
+        "width": 219.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-detail",
+        "left": 1407.78125,
+        "right": 1626.9375,
+        "width": 219.15625
+      },
+      {
+        "tag": "DIV",
+        "className": "mb-stat",
+        "left": 1654.9375,
+        "right": 1906.09375,
+        "width": 251.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-value",
+        "left": 1670.9375,
+        "right": 1890.09375,
+        "width": 219.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-label",
+        "left": 1670.9375,
+        "right": 1890.09375,
+        "width": 219.15625
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-detail",
+        "left": 1670.9375,
+        "right": 1890.09375,
+        "width": 219.15625
+      },
+      {
+        "tag": "TABLE",
+        "className": "mb-prose-table",
+        "left": 77,
+        "right": 576.71875,
+        "width": 499.71875
+      },
+      {
+        "tag": "CAPTION",
+        "className": "",
+        "left": 77,
+        "right": 576.71875,
+        "width": 499.71875
+      },
+      {
+        "tag": "THEAD",
+        "className": "",
+        "left": 77,
+        "right": 576.71875,
+        "width": 499.71875
+      },
+      {
+        "tag": "TR",
+        "className": "",
+        "left": 77,
+        "right": 576.71875,
+        "width": 499.71875
+      },
+      {
+        "tag": "TH",
+        "className": "",
+        "left": 169.453125,
+        "right": 457.453125,
+        "width": 288
+      },
+      {
+        "tag": "TH",
+        "className": "",
+        "left": 457.453125,
+        "right": 576.71875,
+        "width": 119.265625
+      },
+      {
+        "tag": "TBODY",
+        "className": "",
+        "left": 77,
+        "right": 576.71875,
+        "width": 499.71875
+      },
+      {
+        "tag": "TR",
+        "className": "",
+        "left": 77,
+        "right": 576.71875,
+        "width": 499.71875
+      },
+      {
+        "tag": "TD",
+        "className": "mb-phase-scope",
+        "left": 169.453125,
+        "right": 457.453125,
+        "width": 288
+      },
+      {
+        "tag": "TD",
+        "className": "",
+        "left": 457.453125,
+        "right": 576.71875,
+        "width": 119.265625
+      },
+      {
+        "tag": "SPAN",
+        "className": "mb-status mb-phase-done",
+        "left": 473.453125,
+        "right": 528.1875,
+        "width": 54.734375
+      },
+      {
+        "tag": "TR",
+        "className": "",
+        "left": 77,
+        "right": 576.71875,
+        "width": 499.71875
+      },
+      {
+        "tag": "TD",
+        "className": "mb-phase-scope",
+        "left": 169.453125,
+        "right": 457.453125,
+        "width": 288
+      },
+      {
+        "tag": "TD",
+        "className": "",
+        "left": 457.453125,
+        "right": 576.71875,
+        "width": 119.265625
+      },
+      {
+        "tag": "SPAN",
+        "className": "mb-status mb-phase-done",
+        "left": 473.453125,
+        "right": 528.1875,
+        "width": 54.734375
+      },
+      {
+        "tag": "TR",
+        "className": "",
+        "left": 77,
+        "right": 576.71875,
+        "width": 499.71875
+      }
+    ]
+  }
+}

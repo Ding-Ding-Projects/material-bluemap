@@ -1,5 +1,23 @@
 # Roadmap
 
+## GitHub Pages mobile navigation and global-feature parity (2026-08-07)
+
+**Implemented on `codex/phase-pages-global-parity`; default-branch deployment proof remains with
+the integration flow.** Left/right site navigation now has a localized, focus-retaining collapse
+control. A compact first visit starts collapsed with a minimum-size expand target still visible;
+an explicit visitor choice persists across reloads and viewport changes, while reset returns to the
+responsive default. Top and bottom placement remain complete horizontal strips.
+
+The documentation site carries a hand-written inventory of 39 shared requirements. Every applicable
+row names its implementation and verification files; static-browser boundaries and the optional
+narrator each state a substantial public reason. Six exact headless proofs cover 360×640, 390×844,
+414×896, bilingual 390×844 at 200% in both collapsed and expanded states, and desktop 1024×768. They
+report zero document/body horizontal overflow, clipped controls, or undersized targets, and focus
+stays on the toggle through both transitions. The runtime pass also corrected the expanded compact
+rail width and the startup-surprise dismiss target. See `../docs/pages-feature-parity.md` and issue
+#92. A local build is not evidence of the live Pages deployment; that exact URL and workflow remain
+open until this branch is integrated and the hosted run is read back.
+
 ## Release expression and catalog-metadata hardening (2026-08-07)
 
 **Implemented on `codex/phase-release-expression-hardening`; exact-main integration and release

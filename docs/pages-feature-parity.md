@@ -69,10 +69,18 @@ credential, account, or private-infrastructure details.
 - `globalFeatureCoverage.test.ts` checks the exact hand-written requirement list, the existence of
   every implementation and verification file, and a substantial reason for each explicit browser
   exclusion.
-- Site typecheck and production build run before compact runtime proof.
+- Site typecheck and production build run before compact runtime proof. The committed driver is
+  `design/packages/site/scripts/compact-proof.mjs`; it talks to the isolated browser target through
+  Chrome DevTools Protocol without using the visitor's browser profile, foreground window, pointer,
+  or keyboard.
 - Compact proof covers `360×640@1`, `390×844@1`, `414×896@1`, and bilingual `390×844@2`, requiring
   the exact viewport, no document/body horizontal overflow, no clipped controls, and no undersized
   targets.
+- The six machine-readable records are under `docs/runtime-proof/pages-parity-*.json`; the matching
+  real rendered captures are under `docs/screenshots/pages-parity-*.png`. They include compact
+  collapsed, compact bilingual collapsed and expanded, and wide desktop expanded states. All six
+  records report zero document/body horizontal overflow, zero clipped controls and zero undersized
+  targets; both expand/collapse clicks retain focus.
 - Publication is not proven by a local build. The integration owner records the exact default-branch
   commit, Pages workflow run, and live URL after deployment.
 

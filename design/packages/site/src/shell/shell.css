@@ -18,8 +18,10 @@
 .mb-shell-workspace {
     display: flex;
     flex-direction: column;
+    max-width: 100%;
     min-width: 0;
     min-height: 100vh;
+    overflow-x: clip;
 }
 
 .mb-shell-workspace[data-tab-placement="left"],
@@ -226,8 +228,8 @@ html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] > * {
 @media (width <= 640px) {
     .mb-shell-topbar[data-placement="left"],
     .mb-shell-topbar[data-placement="right"] {
-        flex-basis: min(44vw, 16rem);
-        min-width: 9rem;
+        flex-basis: clamp(7rem, 36vw, 10rem);
+        min-width: 7rem;
     }
 
     .mb-shell-topbar[data-placement="left"] .mb-brand,

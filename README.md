@@ -34,9 +34,13 @@ persists language mode, both funny-level sliders and per-element appearance cont
 `Ctrl+Shift+F` opens the searchable command palette, and the changelog date filter is an anchored
 calendar with typed ISO/slash dates, month jumps, presets and range selection. Pages copy follows
 the persisted English, Hong Kong Cantonese or bilingual mode and both funny-level sliders while
-search builders refresh their own labels when that choice changes. These surfaces are assembled in
-`design/packages/site/src/main.ts` and verified with the site type checker, Vitest suite and
-Vite production build.
+search builders refresh their own labels when that choice changes. Its left/right navigation can
+be collapsed without hiding the expand control, starts collapsed on a compact first visit, and
+persists an explicit visitor choice; the hand-written
+[Pages feature-parity inventory](docs/pages-feature-parity.md) names implementation and verification
+evidence for every applicable shared requirement and states each browser-only boundary. These
+surfaces are assembled in `design/packages/site/src/main.ts` and verified with the site type checker,
+Vitest suite, Vite production build, and exact compact headless metrics at 360, 390 and 414 CSS pixels.
 
 Every push to the default branch that passes lint, build and the full test suite publishes a real
 Squirrel.Windows installer with its own uniquely tagged release. Read what it can and cannot do

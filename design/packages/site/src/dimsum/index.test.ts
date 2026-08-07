@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
 
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { I18n } from "../i18n/I18n.js";
 import { Preferences } from "../platform/Preferences.js";
 import { dimSumPoolSize, maybeShowDimSum, showDimSumDish } from "./index.js";
 import type { DimSumDish } from "./pool.js";
+
+const dimsumCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "dimsum.css"), "utf8");
 
 const SAMPLE_DISH: DimSumDish = {
     id: "hk-dish-0001",
@@ -81,6 +86,12 @@ describe("dim sum surprise", () => {
         const dismiss = host.querySelector<HTMLButtonElement>(".dimsum__dismiss")!;
         dismiss.click();
         expect(host.querySelector(".dimsum")).toBeNull();
+    });
+
+    it("keeps the dismiss button at the shared 44 CSS pixel minimum target", () => {
+        const rule = /\.dimsum__dismiss\s*{[^}]*}/.exec(dimsumCss)?.[0] ?? "";
+        expect(rule).toContain("width: var(--md-sys-min-touch-target)");
+        expect(rule).toContain("height: var(--md-sys-min-touch-target)");
     });
 
     it("is announced politely rather than gating anything, per its status role", () => {

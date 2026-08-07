@@ -1,0 +1,337 @@
+{
+  "generatedAt": "2026-08-07T07:13:54.803Z",
+  "requested": {
+    "width": 390,
+    "height": 844,
+    "scale": 2,
+    "mode": "bilingual",
+    "finalState": "expanded"
+  },
+  "interaction": {
+    "available": true,
+    "initial": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase / 放側邊導航出返迷你喼仔"
+    },
+    "afterFirst": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase / 將側邊導航塞入迷你喼仔",
+      "focusStayed": true
+    },
+    "afterSecond": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase / 放側邊導航出返迷你喼仔",
+      "focusStayed": true
+    }
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "scale": 2
+    },
+    "compact": true,
+    "documentOverflowX": 0,
+    "bodyOverflowX": 0,
+    "workspace": {
+      "placement": "left",
+      "sidebarCollapsed": "false"
+    },
+    "navigation": {
+      "hidden": false,
+      "toggleVisible": true,
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase / 將側邊導航塞入迷你喼仔",
+      "controls": "site-primary-navigation"
+    },
+    "language": {
+      "mode": "bilingual",
+      "englishNodes": 513,
+      "cantoneseNodes": 77
+    },
+    "clippedControls": [],
+    "undersized": [],
+    "overflowingElements": [
+      {
+        "tag": "DIV",
+        "className": "mb-stat",
+        "left": 338.125,
+        "right": 507.859375,
+        "width": 169.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-value",
+        "left": 354.125,
+        "right": 491.859375,
+        "width": 137.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-label",
+        "left": 354.125,
+        "right": 491.859375,
+        "width": 137.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-detail",
+        "left": 354.125,
+        "right": 491.859375,
+        "width": 137.734375
+      },
+      {
+        "tag": "DIV",
+        "className": "mb-stat",
+        "left": 519.859375,
+        "right": 689.59375,
+        "width": 169.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-value",
+        "left": 535.859375,
+        "right": 673.59375,
+        "width": 137.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-label",
+        "left": 535.859375,
+        "right": 673.59375,
+        "width": 137.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-detail",
+        "left": 535.859375,
+        "right": 673.59375,
+        "width": 137.734375
+      },
+      {
+        "tag": "DIV",
+        "className": "mb-stat",
+        "left": 701.59375,
+        "right": 871.328125,
+        "width": 169.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-value",
+        "left": 717.59375,
+        "right": 855.328125,
+        "width": 137.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-label",
+        "left": 717.59375,
+        "right": 855.328125,
+        "width": 137.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-detail",
+        "left": 717.59375,
+        "right": 855.328125,
+        "width": 137.734375
+      },
+      {
+        "tag": "DIV",
+        "className": "mb-stat",
+        "left": 883.328125,
+        "right": 1053.0625,
+        "width": 169.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-value",
+        "left": 899.328125,
+        "right": 1037.0625,
+        "width": 137.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-label",
+        "left": 899.328125,
+        "right": 1037.0625,
+        "width": 137.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-detail",
+        "left": 899.328125,
+        "right": 1037.0625,
+        "width": 137.734375
+      },
+      {
+        "tag": "DIV",
+        "className": "mb-stat",
+        "left": 1065.0625,
+        "right": 1234.796875,
+        "width": 169.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-value",
+        "left": 1081.0625,
+        "right": 1218.796875,
+        "width": 137.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-label",
+        "left": 1081.0625,
+        "right": 1218.796875,
+        "width": 137.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-detail",
+        "left": 1081.0625,
+        "right": 1218.796875,
+        "width": 137.734375
+      },
+      {
+        "tag": "DIV",
+        "className": "mb-stat",
+        "left": 1246.796875,
+        "right": 1416.53125,
+        "width": 169.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-value",
+        "left": 1262.796875,
+        "right": 1400.53125,
+        "width": 137.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-label",
+        "left": 1262.796875,
+        "right": 1400.53125,
+        "width": 137.734375
+      },
+      {
+        "tag": "P",
+        "className": "mb-stat-detail",
+        "left": 1262.796875,
+        "right": 1400.53125,
+        "width": 137.734375
+      },
+      {
+        "tag": "SPAN",
+        "className": "mb-status mb-status-ported-unverified",
+        "left": 172.390625,
+        "right": 391.875,
+        "width": 219.484375
+      },
+      {
+        "tag": "SPAN",
+        "className": "mb-status mb-status-ported-unverified",
+        "left": 172.390625,
+        "right": 391.875,
+        "width": 219.484375
+      },
+      {
+        "tag": "SPAN",
+        "className": "mb-status mb-status-ported-unverified",
+        "left": 172.390625,
+        "right": 391.875,
+        "width": 219.484375
+      },
+      {
+        "tag": "SPAN",
+        "className": "mb-status mb-status-ported-unverified",
+        "left": 172.390625,
+        "right": 391.875,
+        "width": 219.484375
+      },
+      {
+        "tag": "SPAN",
+        "className": "mb-status mb-status-ported-unverified",
+        "left": 172.390625,
+        "right": 391.875,
+        "width": 219.484375
+      },
+      {
+        "tag": "TABLE",
+        "className": "mb-prose-table",
+        "left": 157.390625,
+        "right": 685.671875,
+        "width": 528.28125
+      },
+      {
+        "tag": "CAPTION",
+        "className": "",
+        "left": 157.390625,
+        "right": 685.671875,
+        "width": 528.28125
+      },
+      {
+        "tag": "SPAN",
+        "className": "i18n-secondary",
+        "left": 173.390625,
+        "right": 669.671875,
+        "width": 496.28125
+      },
+      {
+        "tag": "THEAD",
+        "className": "",
+        "left": 157.390625,
+        "right": 685.671875,
+        "width": 528.28125
+      },
+      {
+        "tag": "TR",
+        "className": "",
+        "left": 157.390625,
+        "right": 685.671875,
+        "width": 528.28125
+      },
+      {
+        "tag": "TH",
+        "className": "",
+        "left": 249.84375,
+        "right": 537.84375,
+        "width": 288
+      },
+      {
+        "tag": "SPAN",
+        "className": "i18n-secondary",
+        "left": 265.84375,
+        "right": 521.84375,
+        "width": 256
+      },
+      {
+        "tag": "TH",
+        "className": "",
+        "left": 537.84375,
+        "right": 685.671875,
+        "width": 147.828125
+      },
+      {
+        "tag": "SPAN",
+        "className": "i18n-secondary",
+        "left": 553.84375,
+        "right": 669.671875,
+        "width": 115.828125
+      },
+      {
+        "tag": "TBODY",
+        "className": "",
+        "left": 157.390625,
+        "right": 685.671875,
+        "width": 528.28125
+      },
+      {
+        "tag": "TR",
+        "className": "",
+        "left": 157.390625,
+        "right": 685.671875,
+        "width": 528.28125
+      }
+    ]
+  }
+}

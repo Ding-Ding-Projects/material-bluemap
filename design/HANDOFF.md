@@ -1,5 +1,30 @@
 # Handoff
 
+## Update, 2026-08-07 — Pages navigation now packs down without disappearing
+
+Issue #92 lives on `codex/phase-pages-global-parity`. Commit `fa7f6afb4cdbb5cebd6abb66f4bed1379fe3f088`
+introduces the persisted side-navigation model, DOM wiring, settings control, localized copy,
+hand-written 39-category coverage inventory, landing-page card, article and focused tests. A compact
+first visit starts collapsed; a deliberate expand/collapse choice persists; top/bottom tabs stay
+horizontal; `aria-expanded`, `aria-controls`, labels and focus all follow the real state.
+
+The first branch workflow, run `31156076304`, failed after lint, build and typecheck passed because
+two documentation-policy checks were exact: the new article was absent from `docs/README.md`, and a
+negated coverage sentence repeated a word the shipped-copy solicitation guard deliberately rejects.
+The installer, screenshots and release jobs were skipped. The follow-up indexes the article,
+rephrases the evidence without weakening the scanner, and adds direct regressions for that row,
+compact rail sizing and the 44 CSS pixel startup-surprise dismiss target. Do not describe that first
+workflow as green.
+
+Runtime proof uses `packages/site/scripts/compact-proof.mjs` against a production site build on an
+isolated off-screen desktop. Committed JSON and real captures cover 360×640@1, 390×844@1,
+414×896@1, bilingual 390×844@2 collapsed and expanded, and 1024×768@1 desktop. Every record reports
+the exact requested viewport, zero document/body horizontal overflow, zero clipped controls, zero
+undersized targets, a visible correctly-labelled toggle, and focus retained across both clicks.
+These are local built-site facts, not evidence that the default-branch GitHub Pages deployment has
+updated. Integration must run the full CI gate, read back the exact branch/default-branch workflow,
+verify the live URL and only then close #92.
+
 ## Update, 2026-08-07 — release metadata stays data
 
 The security phase started from exact main `e13777927876a3d7898778f18193e9465bc97cc2` and owns commits
