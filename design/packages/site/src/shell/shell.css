@@ -38,11 +38,6 @@ html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] > * {
     direction: rtl;
 }
 
-.mb-shell-workspace[data-tab-placement="right"] .mb-shell-topbar,
-.mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar {
-    order: 2;
-}
-
 .mb-shell-workspace .mb-main {
     flex: 1 1 auto;
     min-width: 0;
@@ -70,6 +65,15 @@ html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] > * {
     box-shadow: none;
     transition: box-shadow var(--md-sys-motion-duration-short3)
         var(--md-sys-motion-easing-standard-decelerate);
+}
+
+/*
+ * Kept after the canonical topbar rule so source-level and runtime consumers meet the
+ * complete motion/elevation contract before the edge-specific flex ordering override.
+ */
+.mb-shell-workspace[data-tab-placement="right"] .mb-shell-topbar,
+.mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar {
+    order: 2;
 }
 
 .mb-shell-topbar[data-placement="left"],
