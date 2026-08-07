@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { VAlert, VBtn } from "vuetify/components";
 import { mdiOpenInNew, mdiRestart } from "@mdi/js";
+import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
 import { langAttr } from "../setup/setupI18n.js";
 import { updatePair, updateText } from "./updateCopy.js";
 import type { UpdateBannerModel } from "./updateModel.js";
@@ -68,13 +69,22 @@ function onNotes(): void {
         aria-live="polite"
         class="mb-update-banner"
     >
+        <ActionArtwork artwork="restartToInstall" :alt="updateText('update.artwork.restartAlt')" />
         <div class="mb-update-banner__text">
             <p class="mb-update-banner__title">{{ titlePair.primary }}</p>
-            <p v-if="titlePair.secondary !== null" class="mb-update-banner__secondary" :lang="langAttr('yue')">
+            <p
+                v-if="titlePair.secondary !== null"
+                class="mb-update-banner__secondary"
+                :lang="langAttr('yue')"
+            >
                 {{ titlePair.secondary }}
             </p>
             <p class="mb-update-banner__body">{{ bodyPair.primary }}</p>
-            <p v-if="bodyPair.secondary !== null" class="mb-update-banner__secondary" :lang="langAttr('yue')">
+            <p
+                v-if="bodyPair.secondary !== null"
+                class="mb-update-banner__secondary"
+                :lang="langAttr('yue')"
+            >
                 {{ bodyPair.secondary }}
             </p>
         </div>
@@ -127,6 +137,13 @@ function onNotes(): void {
     min-width: 0;
 }
 
+.mb-update-banner .mb-action-artwork {
+    flex: 1 1 18rem;
+    max-inline-size: 24rem;
+    margin: 0;
+    aspect-ratio: 16 / 9;
+}
+
 .mb-update-banner__title {
     margin: 0;
     font-weight: 600;
@@ -157,5 +174,12 @@ function onNotes(): void {
 .mb-update-banner__actions .v-btn {
     /* An adequate target at every supported display scale. */
     min-height: 40px;
+}
+
+@media (max-width: 720px) {
+    .mb-update-banner .mb-action-artwork {
+        flex-basis: 100%;
+        max-inline-size: none;
+    }
 }
 </style>

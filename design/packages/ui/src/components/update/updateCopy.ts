@@ -212,6 +212,10 @@ export const UPDATE_VOICED = {
 
 export const UPDATE_FIXED = {
     "update.title": { en: "Updates", yue: "更新" },
+    "update.artwork.restartAlt": {
+        en: "A completed update package ready beside a workstation while the open map remains safely visible",
+        yue: "更新包已經喺工作站旁邊準備好，而畫面上開住嘅地圖依然安全保留",
+    },
     "update.action.restart": { en: "Restart to install", yue: "重新開機安裝" },
     "update.action.later": { en: "Later", yue: "遲啲先" },
     "update.action.notes": { en: "Release notes", yue: "更新說明" },
@@ -251,7 +255,11 @@ function interpolate(template: string, vars: TranslationVars): string {
  * persisted setting, which is what makes "no level changes a version number" checkable
  * rather than merely asserted in a comment.
  */
-export function updateString(key: UpdateCopyKey, language: "en" | "yue", level: FunnyLevel): string {
+export function updateString(
+    key: UpdateCopyKey,
+    language: "en" | "yue",
+    level: FunnyLevel,
+): string {
     if (isUpdateVoicedKey(key)) {
         const strings = UPDATE_VOICED[key][language];
         return strings[level - 1] ?? strings[2];

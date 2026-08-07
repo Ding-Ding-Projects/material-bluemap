@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiAlertOutline, mdiContentSaveOutline, mdiFileDocumentOutline, mdiFilePlusOutline, mdiTrashCanOutline } from "@mdi/js";
+import {
+    mdiAlertOutline,
+    mdiContentSaveOutline,
+    mdiFileDocumentOutline,
+    mdiFilePlusOutline,
+    mdiTrashCanOutline,
+} from "@mdi/js";
 import {
     VAlert,
     VBtn,
@@ -18,6 +24,7 @@ import {
     VProgressLinear,
     VSpacer,
 } from "vuetify/components";
+import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
 import ConfigSuperConfirm from "./ConfigSuperConfirm.vue";
 import { valueToText } from "./fieldValue.js";
 import type { WorkspaceIssue, WorkspacePlan } from "./configWorkspace.js";
@@ -56,7 +63,6 @@ const open = computed<boolean>({
     get: () => props.modelValue,
     set: (value) => emit("update:modelValue", value),
 });
-
 
 /**
  * Vuetify's props and `exactOptionalPropertyTypes` disagree about `undefined`,
@@ -130,10 +136,26 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
             <v-divider />
 
             <v-card-text>
+                <ActionArtwork
+                    v-if="deletesFiles"
+                    artwork="configDeleteConfirmation"
+                    :alt="
+                        t(
+                            'config.apply.artwork.alt',
+                            'Changed configuration pages being reviewed before selected files move into a deletion tray',
+                        )
+                    "
+                    eager
+                />
                 <p v-if="folder" class="mb-config-apply__folder">{{ folder }}</p>
 
                 <v-alert v-if="plan.empty" type="info" density="compact" variant="tonal">
-                    {{ t("config.apply.nothing", "Nothing has changed, so nothing would be written.") }}
+                    {{
+                        t(
+                            "config.apply.nothing",
+                            "Nothing has changed, so nothing would be written.",
+                        )
+                    }}
                 </v-alert>
 
                 <template v-else>
@@ -167,7 +189,9 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
                         <v-list-item
                             v-for="path in changedPaths"
                             :key="path"
-                            :prepend-icon="createdPaths.has(path) ? mdiFilePlusOutline : mdiFileDocumentOutline"
+                            :prepend-icon="
+                                createdPaths.has(path) ? mdiFilePlusOutline : mdiFileDocumentOutline
+                            "
                             :subtitle="
                                 createdPaths.has(path)
                                     ? t('config.apply.newFile', 'New file')
@@ -191,7 +215,9 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
                     </v-list>
 
                     <template v-if="plan.entryChanges.length > 0">
-                        <h3 class="mb-config-apply__heading">{{ t("config.apply.changes", "What changes") }}</h3>
+                        <h3 class="mb-config-apply__heading">
+                            {{ t("config.apply.changes", "What changes") }}
+                        </h3>
                         <ul class="mb-config-apply__changes">
                             <li v-for="group in plan.entryChanges" :key="group.entry.key">
                                 <strong>{{ group.entry.file.path }}</strong>
@@ -201,7 +227,13 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
                                         <code>{{ valueToText(change.from) || "not set" }}</code>
                                         →
                                         <code>{{ valueToText(change.to) || "not set" }}</code>
-                                        <v-chip v-if="change.invalidatesTiles" size="x-small" color="warning" variant="tonal" class="ml-1">
+                                        <v-chip
+                                            v-if="change.invalidatesTiles"
+                                            size="x-small"
+                                            color="warning"
+                                            variant="tonal"
+                                            class="ml-1"
+                                        >
                                             {{ t("config.apply.reRender", "re-render") }}
                                         </v-chip>
                                     </li>
@@ -210,10 +242,21 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
                         </ul>
                     </template>
 
-                    <v-alert v-if="reRenderCount > 0" type="warning" density="compact" variant="tonal" class="mt-3">
+                    <v-alert
+                        v-if="reRenderCount > 0"
+                        type="warning"
+                        density="compact"
+                        variant="tonal"
+                        class="mt-3"
+                    >
                         <template #prepend><v-icon :icon="mdiAlertOutline" /></template>
                         <p>
-                            <strong>{{ t("config.apply.reRenderTitle", "Tiles that are already rendered become wrong.") }}</strong>
+                            <strong>{{
+                                t(
+                                    "config.apply.reRenderTitle",
+                                    "Tiles that are already rendered become wrong.",
+                                )
+                            }}</strong>
                         </p>
                         <p>
                             {{
@@ -229,7 +272,13 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
                                 <template v-for="change in group.changes" :key="change.field.path">
                                     <template v-if="change.invalidatesTiles">
                                         <strong>{{ change.field.label }}</strong>
-                                        {{ change.invalidationNote ?? t("config.apply.reRenderGeneric", "changes how tiles are produced.") }}
+                                        {{
+                                            change.invalidationNote ??
+                                            t(
+                                                "config.apply.reRenderGeneric",
+                                                "changes how tiles are produced.",
+                                            )
+                                        }}
                                     </template>
                                 </template>
                             </li>
@@ -237,15 +286,37 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
                     </v-alert>
                 </template>
 
-                <v-alert v-for="issue in errors" :key="issue.message" type="error" density="compact" variant="tonal" class="mt-2" role="alert">
+                <v-alert
+                    v-for="issue in errors"
+                    :key="issue.message"
+                    type="error"
+                    density="compact"
+                    variant="tonal"
+                    class="mt-2"
+                    role="alert"
+                >
                     {{ issue.message }}
                 </v-alert>
 
-                <v-alert v-for="issue in warnings" :key="issue.message" type="warning" density="compact" variant="tonal" class="mt-2">
+                <v-alert
+                    v-for="issue in warnings"
+                    :key="issue.message"
+                    type="warning"
+                    density="compact"
+                    variant="tonal"
+                    class="mt-2"
+                >
                     {{ issue.message }}
                 </v-alert>
 
-                <v-alert v-if="failure" type="error" density="compact" variant="tonal" class="mt-2" role="alert">
+                <v-alert
+                    v-if="failure"
+                    type="error"
+                    density="compact"
+                    variant="tonal"
+                    class="mt-2"
+                    role="alert"
+                >
                     {{ failure }}
                 </v-alert>
 
@@ -255,10 +326,17 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
             <v-divider />
 
             <v-card-actions>
-                <v-btn variant="text" :disabled="isSaving" @click="open = false">{{ t("config.apply.cancel", "Cancel") }}</v-btn>
+                <v-btn variant="text" :disabled="isSaving" @click="open = false">{{
+                    t("config.apply.cancel", "Cancel")
+                }}</v-btn>
                 <v-spacer />
                 <span v-if="blocked" class="mb-config-apply__blocked">
-                    {{ t("config.apply.blocked", "Fix the problems above first. BlueMap would refuse to start with these.") }}
+                    {{
+                        t(
+                            "config.apply.blocked",
+                            "Fix the problems above first. BlueMap would refuse to start with these.",
+                        )
+                    }}
                 </span>
                 <!--
                     A save that only writes is one button. A save that also deletes is the

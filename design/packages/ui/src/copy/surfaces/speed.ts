@@ -131,6 +131,10 @@ export const SPEED_VOICED = {
 export const SPEED_FIXED = {
     /* The section heading, above the blurb. */
     "speed.title": { en: "Speed", yue: "速度" },
+    "speed.artwork.alt": {
+        en: "A desktop workstation turning terrain chunks into a map at five increasing processing levels",
+        yue: "一部桌面工作站用五個逐級加強嘅處理等級，將地形方塊變成地圖",
+    },
     /* The five level buttons. Names, not sentences, so they stay put across levels. */
     "speed.level.1": { en: "1 · Gentle", yue: "1 級 · 輕手" },
     "speed.level.2": { en: "2 · Light", yue: "2 級 · 略快" },
@@ -142,17 +146,26 @@ export const SPEED_FIXED = {
     /* BlueMap's own default, shown as a chip on level 3. */
     "speed.defaultChip": { en: "BlueMap's default", yue: "BlueMap 預設" },
     /* The progressive-disclosure toggle over the exact-values table. */
-    "speed.details.show": { en: "Show exactly what each level sets", yue: "睇清楚每個等級實際設咩" },
+    "speed.details.show": {
+        en: "Show exactly what each level sets",
+        yue: "睇清楚每個等級實際設咩",
+    },
     "speed.details.hide": { en: "Hide the details", yue: "收埋詳情" },
     /* The details table's own columns. */
     "speed.table.level": { en: "Level", yue: "等級" },
     "speed.table.threadCount": { en: "render-thread-count", yue: "render-thread-count" },
     "speed.table.threadPriority": { en: "render-thread-priority", yue: "render-thread-priority" },
-    "speed.table.caption": { en: "Every level and the exact raw values it writes", yue: "每個等級同佢實際寫入嘅原始數值" },
+    "speed.table.caption": {
+        en: "Every level and the exact raw values it writes",
+        yue: "每個等級同佢實際寫入嘅原始數值",
+    },
 } as const satisfies Record<string, FixedString>;
 
 export const SPEED_FACTS = {
-    "speed.blurb": { en: ["threads", "priority", "raw settings"], yue: ["執行緒", "優先權", "原始設定"] },
+    "speed.blurb": {
+        en: ["threads", "priority", "raw settings"],
+        yue: ["執行緒", "優先權", "原始設定"],
+    },
     "speed.levelSummary": {
         en: ["render-thread-count", "{count}", "render-thread-priority", "{priority}"],
         yue: ["render-thread-count", "{count}", "render-thread-priority", "{priority}"],
@@ -162,11 +175,40 @@ export const SPEED_FACTS = {
         yue: ["{level}", "render-thread-count", "{count}", "render-thread-priority", "{priority}"],
     },
     "speed.appliedDefault": {
-        en: ["{level}", "BlueMap", "render-thread-count", "{count}", "render-thread-priority", "{priority}"],
-        yue: ["{level}", "BlueMap", "render-thread-count", "{count}", "render-thread-priority", "{priority}"],
+        en: [
+            "{level}",
+            "BlueMap",
+            "render-thread-count",
+            "{count}",
+            "render-thread-priority",
+            "{priority}",
+        ],
+        yue: [
+            "{level}",
+            "BlueMap",
+            "render-thread-count",
+            "{count}",
+            "render-thread-priority",
+            "{priority}",
+        ],
     },
     "speed.custom": {
-        en: ["render-thread-count", "{count}", "render-thread-priority", "{priority}", "Nothing here"],
-        yue: ["render-thread-count", "{count}", "render-thread-priority", "{priority}", "呢度冇改過佢哋"],
+        en: [
+            "render-thread-count",
+            "{count}",
+            "render-thread-priority",
+            "{priority}",
+            "Nothing here",
+        ],
+        yue: [
+            "render-thread-count",
+            "{count}",
+            "render-thread-priority",
+            "{priority}",
+            "呢度冇改過佢哋",
+        ],
     },
-} as const satisfies Record<keyof typeof SPEED_VOICED, { en: readonly string[]; yue: readonly string[] }>;
+} as const satisfies Record<
+    keyof typeof SPEED_VOICED,
+    { en: readonly string[]; yue: readonly string[] }
+>;

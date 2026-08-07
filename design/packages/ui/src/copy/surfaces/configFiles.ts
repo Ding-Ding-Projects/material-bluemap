@@ -1497,6 +1497,11 @@ export const CONFIGFILES_FIXED = {
     /* The config-folder shell: toolbar, pickers, search                 */
     /* ---------------------------------------------------------------- */
 
+    "config.apply.artwork.alt": {
+        en: "Changed configuration pages being reviewed before selected files move into a deletion tray",
+        yue: "改動過嘅設定頁面先接受檢查，之後所選檔案先移入刪除盤",
+    },
+
     "config.shell.open": { en: "Open or import a config folder", yue: "開啟或匯入設定資料夾" },
     "config.shell.new": { en: "New config folder", yue: "新設定資料夾" },
     "config.shell.reload": { en: "Re-read from disk", yue: "由磁碟重新讀入" },

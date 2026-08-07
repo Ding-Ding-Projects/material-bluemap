@@ -22,6 +22,7 @@ import {
     VSwitch,
     VTextField,
 } from "vuetify/components";
+import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { createGitHubAccountsList } from "../github/githubAccountsStore.js";
@@ -1022,6 +1023,16 @@ onBeforeUnmount(() => {
         <VCard variant="tonal" class="mb-4">
             <VCardTitle>{{ t("cirender.title", "Render on GitHub") }}</VCardTitle>
             <VCardText>
+                <ActionArtwork
+                    artwork="cloudRenderSetup"
+                    :alt="
+                        t(
+                            'cirender.artwork.alt',
+                            'A local Minecraft world travelling through a cloud render pipeline and returning as a finished map',
+                        )
+                    "
+                    eager
+                />
                 <p>
                     {{
                         t(
