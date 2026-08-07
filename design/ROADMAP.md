@@ -1,5 +1,25 @@
 # Roadmap
 
+## Release expression and catalog-metadata hardening (2026-08-07)
+
+**Implemented on `codex/phase-release-expression-hardening`; exact-main integration and release
+read-back remain with the root release flow.** All 19 dynamic-expression sites present in assigned
+baseline `e13777927876a3d7898778f18193e9465bc97cc2` now cross through exact environment mappings and
+quoted data-only sinks. The workflow defaults to read permission, grants write only to `release`,
+and all eight release-chain checkouts decline credential persistence. The release explicitly waits
+for the workflow-security job before publication.
+
+The hand-written guard pins three steps, thirteen variable/provenance pairs, their complete
+normalized `env`/`run` fingerprints, and all 49 external action SHAs across `ci.yml` and
+`build-jars.yml`. Exact historical workflows stay red: recovered `98988e3` at 11 sites and the
+assigned baseline at 19. The picker validates all 2,866 current catalog records, accepts the genuine
+235-character longest alt, caps declared and streamed photo bytes, and verifies PNG chunk ordering,
+IHDR combinations, indexed-palette bounds and CRCs. Same-run digests also verify transported CLI,
+installer and test-world bytes without claiming the producer itself is trusted. Focused tests pass
+41/41; Ubuntu 24.04 actionlint 1.7.12 with real shellcheck passes locally over every workflow.
+Branch CI remains evidence-gated, and this phase does not publish a release or dispatch a workflow
+manually. See `../docs/release-workflow-security.md` and issue #90.
+
 ## Four-edge tabs and nested-editor interaction repair (2026-08-06)
 
 **Implemented and integrated; packaged hidden-desktop capture remains a separate runtime gate.**

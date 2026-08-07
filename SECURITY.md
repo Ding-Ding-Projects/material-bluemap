@@ -97,6 +97,25 @@ user does not run. Treat any bypass of the sanitizer as a real finding.
   from user-managed profiles. The app makes no other outbound requests, and metrics are opt-in
   (upstream defaults to opt-out).
 
+### Release automation
+
+The workflow defaults to `contents: read`; only its publishing job receives `contents: write`, and
+no checkout persists a credential. Dynamic catalog, artifact and tag values enter the three watched
+release scripts only through exact environment mappings and quoted data-only uses. A committed
+guard pins the complete normalized `env` and `run` blocks with SHA-256, so direct expressions,
+YAML indirection, `printenv`/parameter-indirection bypasses and even an unreviewed harmless line all
+fail closed. Publication explicitly depends on that guard job. All 49 external actions across the
+release workflow and its jar-building reusable workflow are pinned to full commit SHAs.
+
+Catalog metadata is type-, character- and length-bounded without printing rejected content. Photo
+downloads are pinned to the public catalog release origin, receive no release token, and are capped
+before and during streaming. Every PNG chunk and CRC is checked before publication, including
+IHDR-dependent indexed-palette bounds. Same-run SHA-256 records verify the CLI jar, installer set
+and test-world bytes after artifact transport; they do not extend trust beyond the producer jobs,
+pinned actions, repository/vendored source and GitHub-hosted runner. See
+[`docs/release-workflow-security.md`](docs/release-workflow-security.md) for the exact boundary,
+failure behavior and reproducible tests.
+
 ## Known limitations
 
 Stated plainly so nobody reports them as discoveries, and so nobody mistakes the list above for a

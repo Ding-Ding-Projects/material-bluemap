@@ -216,6 +216,10 @@ export const releasePipeline: Article = {
                         "The render workflows copied into users' repositories use the same standard hosted labels and never depend on a maintainer machine being online.",
                         "The workflow-lint job verifies its pinned actionlint archive before extraction, and uses the hosted image's shellcheck so run blocks are checked too.",
                         "The default permission is read. Only the release job asks for write, and only to contents.",
+                        "Every checkout declines credential persistence, including the write-scoped release checkout.",
+                        "The three release scripts accept dynamic values only through a hand-inventoried environment boundary. The guard pins each value's provenance plus SHA-256 fingerprints of each complete normalized env and run block, so indirect reads and any unreviewed line fail closed.",
+                        "All 49 external action invocations in the release workflow and its reusable jar builder use full commit SHAs. The release depends on the workflow-security job, and same-run SHA-256 records detect changed CLI, installer and test-world bytes after artifact transport without claiming a compromised producer is trustworthy.",
+                        "Catalog metadata is field- and length-bounded without echoing rejected values. Public photo downloads receive no release token, are capped before and during streaming, and pass complete PNG chunk and CRC checks before publication.",
                         "Tokens are passed through the standard environment convention and never echoed, logged or written into release notes.",
                         "Installers are unsigned today. Windows SmartScreen will warn on first run, and that is the honest state rather than something to work around.",
                         "The vendored upstream Java reference is a large submodule that nothing in the build reads, so it is deliberately not checked out. Less code fetched is less code trusted.",
@@ -244,6 +248,7 @@ export const releasePipeline: Article = {
                         "The pipeline has published tagged releases carrying a Squirrel installer, its execution stub, the package and the release manifest.",
                         "The cloud-runner policy test compares every workflow and all 36 jobs to a hand-written label or reusable-call inventory, rejecting self-hosted labels and deleted bootstrap paths.",
                         "Workflow lint runs on hosted Ubuntu, where shellcheck is present before the checksum-pinned actionlint binary checks every run block.",
+                        "The project guard reads two exact historical workflows from Git: the recovered revision is red at 11 sites, the assigned security baseline is red at 19, and the fixed workflow has none.",
                         "The release job reads back the published release and fails on a draft, so publication is proved rather than assumed.",
                         "The line counter self-checks its own arithmetic and fails the job on a mismatch.",
                         "The site deploy asserts the built output carries the project subpath, because a site that deploys green and 404s on every page is the failure this catches.",
@@ -285,6 +290,10 @@ export const releasePipeline: Article = {
         {
             label: "docs/cloud-runners.md",
             href: repoFile("docs/cloud-runners.md"),
+        },
+        {
+            label: "docs/release-workflow-security.md",
+            href: repoFile("docs/release-workflow-security.md"),
         },
         { label: "scripts/count-lines.mjs", href: repoFile("scripts/count-lines.mjs") },
         {

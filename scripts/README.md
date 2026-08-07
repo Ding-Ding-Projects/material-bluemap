@@ -1,6 +1,6 @@
 # scripts
 
-Release-time scripts. `count-lines.mjs` and `pick-dim-sum.mjs` are plain Node with no dependencies
+Release-time scripts. `count-lines.mjs`, `pick-dim-sum.mjs` and `lint-workflows.mjs` are plain Node with no dependencies
 beyond the standard library and `git`, so they run identically on a developer machine and on a CI
 runner. `split-parts.mjs` and `join-parts.mjs` are thin command lines over the workspace package
 `@material-bluemap/parts`, which has to be built first; they say so and exit 2 when it is not.
@@ -20,7 +20,7 @@ It reports source, tests, styles and markup, config, and docs **separately**, ea
 total and non-blank lines, and it splits per workspace package. A single grand number on its own
 is the least informative version of this and the easiest to inflate, so there isn't one.
 
-**Authorship** is attributed per *surviving* line via `git blame --line-porcelain`, never by
+**Authorship** is attributed per _surviving_ line via `git blame --line-porcelain`, never by
 summing added lines from the log, because churn is not authorship and a line that was written
 and later deleted belongs to nobody. A commit counts as agent-written when its author is an
 automation identity or its message carries a `Co-Authored-By` trailer naming an agent; the
@@ -33,13 +33,13 @@ can see both what the project is and what the repository holds.
 
 **Exclusions are stated, never silent:**
 
-| Excluded | Why |
-|---|---|
-| `vendor/` | the vendored upstream BlueMap Java sources, read as reference, not this project's code |
-| `node_modules/` | installed third-party dependencies |
-| `dist/`, `out/`, `release/`, `.vite/` | build output, regenerated from the sources that are counted |
-| `coverage/` | test coverage output |
-| lockfiles | a resolver's output, not code anyone wrote |
+| Excluded                              | Why                                                                                    |
+| ------------------------------------- | -------------------------------------------------------------------------------------- |
+| `vendor/`                             | the vendored upstream BlueMap Java sources, read as reference, not this project's code |
+| `node_modules/`                       | installed third-party dependencies                                                     |
+| `dist/`, `out/`, `release/`, `.vite/` | build output, regenerated from the sources that are counted                            |
+| `coverage/`                           | test coverage output                                                                   |
+| lockfiles                             | a resolver's output, not code anyone wrote                                             |
 
 Held out of the project total but present in the grand total: `design/packages/engine/assets/`
 (bundled resource-pack and legacy mapping JSON), `design/packages/ui/public/` (upstream web
@@ -75,10 +75,41 @@ have to be committed back by CI, and a workflow that pushes to its own repositor
 automation loop the project rules forbid. The ordinal is monotonic, so a dish is never silently
 reused, and the published releases are themselves the auditable mapping.
 
-Downloaded bytes are verified before anything ships them: PNG signature, terminating `IEND`
-chunk, and a byte length matching the catalog manifest. **Nothing is generated.** On any
-failure the script exits non-zero with the exact URL and status, and the release job reports
-that in the notes rather than substituting an image.
+Network metadata is schema-, type-, character- and length-checked before it becomes runner state.
+The live 2,866-record catalog validates in full, including its real 235-character longest English
+alternative text and Traditional Chinese punctuation. Rejected values are not printed. Public
+asset URLs are pinned to the catalog repository, downloads receive no release token, and both
+`Content-Length` and streamed bytes are capped at 50 MiB before a full buffer is accepted.
+
+Downloaded bytes are verified before anything ships them: manifest size, every PNG chunk and CRC,
+critical-chunk ordering, a terminal zero-length `IEND`, supported IHDR methods and bounded
+dimensions. Indexed palettes are also bounded by the IHDR bit depth. This is chunk/CRC verification,
+not a full pixel decode. **Nothing is generated.** On failure the release continues without a
+code-name photo and says which validation boundary failed, rather than substituting an image.
+
+## `lint-workflows.mjs`
+
+Guards the three release steps that accept dynamic metadata:
+
+```bash
+node scripts/lint-workflows.mjs
+node --test scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs
+```
+
+Its hand-written inventory pins each expected environment variable to its exact Actions expression
+and pins the complete normalized `env` and `run` blocks with SHA-256. Any added or altered line
+fails, including a line that recovers data indirectly through `printenv` or shell parameter
+indirection. The same guard inventories all 49 external action uses in `ci.yml` and
+`build-jars.yml`, requires immutable full SHAs, disables persisted checkout credentials and proves
+the release depends on the workflow-security job. The tests read the exact historical workflows
+from Git: 11 findings at recovered revision `98988e3`, 19 at the assigned
+`e13777927876a3d7898778f18193e9465bc97cc2` baseline, and zero in the fixed workflow.
+
+To change a watched script, review the entire new block and deliberately replace its stored
+`stepFingerprint()` values. To update an action, resolve and review the intended tag in the action's
+official repository with `git ls-remote`, then update its full SHA and per-file inventory count.
+
+Full boundary and verification notes: [Release workflow security](../docs/release-workflow-security.md).
 
 ## `split-parts.mjs` and `join-parts.mjs`
 

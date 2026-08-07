@@ -1,5 +1,39 @@
 # Handoff
 
+## Update, 2026-08-07 — release metadata stays data
+
+The security phase started from exact main `e13777927876a3d7898778f18193e9465bc97cc2` and owns commits
+`0a8c52c`, `19dc47b`, `34a9a81`, `6f53db1` and `b2e4338` on
+`codex/phase-release-expression-hardening`. The assigned
+baseline had 19 direct dynamic expressions across the resolver, release-note composer and
+publisher; the older recovered Claude revision `98988e3` had 11. Tests read both exact files from
+Git so those counts and the 19 baseline line locations cannot drift behind a hand-written fixture.
+
+The fixed steps use exact `env:` provenance and quoted data-only sinks. Reviewed SHA-256 fingerprints
+cover each complete normalized `env` and `run` block, so `printenv`, parameter indirection, an env
+alias, a new execution route and even a harmless added line fail until deliberately reviewed. The
+guard also pins all 49 external actions across `ci.yml` and `build-jars.yml` to full SHAs and checks
+all eight release-chain checkouts use `persist-credentials: false`. Workflow permission defaults to
+`contents: read`, only `release` receives write, and release publication now depends on the
+workflow-security job.
+
+The picker validates the full live 2,866-record catalog, including record `hk-dish-1436`'s real
+235-character English alt. It rejects malformed schema, controls, Markdown-active metadata, unsafe
+paths, wrong asset origins and overlarge responses without echoing rejected values; it checks
+`Content-Length` before reading, maintains the 50 MiB limit during streaming, and parses every PNG
+chunk and CRC, including IHDR combinations and indexed-palette bounds. Same-run SHA-256 records
+verify the packaged CLI, installer set and test-world bytes after artifact transport; they detect
+transport change, not a compromised producer. Focused Node tests pass 41/41. A read-only Ubuntu
+24.04 container ran checksum-verified actionlint 1.7.12 with real shellcheck across every workflow
+and exited 0. Windows actionlint's combined shellcheck bridge can block while writing the child's
+input before starting it, so Windows syntax-only actionlint is supplementary, not the combined proof.
+
+The first branch run, `31147035262`, was red because two static Markdown formats triggered SC2016;
+the follow-up uses only two adjacent, explained suppressions. Exact `b2e4338` branch run
+`31149413047` was in progress when this handoff entry was written. No release was published and no
+workflow was manually dispatched. Issue #90 stays open until root integrates this branch and
+obtains exact-main CI, release-note, asset and published-record proof.
+
 ## Update, 2026-08-06 — four-edge tabs, real Project Editor input and complete restart fields
 
 The desktop and documentation-site tab strips now dock to the physical left, right, top or bottom
