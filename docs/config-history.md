@@ -69,7 +69,7 @@ coincide often enough to look acceptable and then stop exactly when it matters:
 
 So the main process sends both sides of each file whole (capped, and stating when a side was
 withheld for being too large or not text), and the panel reads them with the same
-`@material-bluemap/config` HOCON model the editor writes files with, flattens each to
+`@worldlens/config` HOCON model the editor writes files with, flattens each to
 `dotted.key -> value`, and reports the difference between those two maps. `.json` files are read
 the same way.
 
@@ -91,7 +91,7 @@ each setting.
   it back as it was". Files that are not named are not touched in either direction.
 - **One setting** is a merge rather than a copy: the file keeps every other setting, every comment
   and its formatting, and only the chosen key takes its old value. The merge happens in the
-  renderer because the round-tripping HOCON reader and writer are `@material-bluemap/config`, and
+  renderer because the round-tripping HOCON reader and writer are `@worldlens/config`, and
   a second copy of them in the main process would be a second HOCON implementation to disagree
   with the one that writes every save. What the main process still checks, rather than assumes:
   the revision exists in this folder's history; every path is one this editor would write

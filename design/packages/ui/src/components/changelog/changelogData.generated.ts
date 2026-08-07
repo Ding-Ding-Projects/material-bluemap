@@ -15,7 +15,7 @@
 import type { ChangelogEntry, ChangelogVersion } from "./changelogModel.js";
 
 /** Where a commit reference resolves. */
-export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/material-bluemap";
+export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/worldlens";
 
 /**
  * Commits that are in the history but not yet in any tagged release.

@@ -62,7 +62,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
+  WORLDLENS_ACCEPT_DOWNLOAD: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
   # Deliberately fixed rather than an input. A map id ends up in paths, in commands and
   # therefore in this public log; a real world's name in that position would leak the one
   # thing this whole arrangement exists to keep. The map can be renamed on the private
@@ -393,7 +393,7 @@ jobs:
             --web-root "$GITHUB_WORKSPACE/bluemap-out" \
             --map-name "$MAP_NAME" \
             --threads 4 \
-            --accept-download "$MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD"
+            --accept-download "$WORLDLENS_ACCEPT_DOWNLOAD"
 
       - name: Render
         run: java -Xmx10G -jar "$GITHUB_WORKSPACE/cli/bluemap-cli.jar" -c "$GITHUB_WORKSPACE/bluemap-config" -r -g

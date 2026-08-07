@@ -49,7 +49,7 @@ table below is what each one *is*:
   `java -jar bluemap.jar --render --watch --webserver`, which renders, then keeps running,
   watching the world for changes and serving the map on `localhost:8100` out of BlueMap's own
   web server. The app's main screen is a console watching that process. Stop sends SIGINT.
-- **Material BlueMap runs a render to completion and then serves the result itself.**
+- **Worldlens runs a render to completion and then serves the result itself.**
   `design/packages/app/src/main/render/runner.ts` spawns `-c <configDir> -r -s`, no `--watch`
   and no `--webserver`; `render/config.ts` writes `enabled: false` into `webserver.conf` on
   purpose, and the rendered tiles are then served by this project's own
@@ -94,7 +94,7 @@ something different on purpose). "Partial" rows name exactly what is absent.
 BlueMapGUI's "project" is **a folder on disk** containing `config/`, `web/`, the downloaded
 jar and the rendered output — one BlueMap installation per project, so one modpack or one
 Minecraft version per project. This project's `project.ts` means something else entirely: a
-single `material-bluemap.project.json` file living **at the root of a Minecraft world**,
+single `worldlens.project.json` file living **at the root of a Minecraft world**,
 holding that world's maps and storages. They are different concepts wearing the same word,
 and any implementing agent should be careful not to conflate them.
 

@@ -107,9 +107,16 @@ class CountingHandler implements HttpHandler {
     }
 }
 
-function environment(name: string): string | null {
-    const value = process.env[name];
-    return value === undefined || value.trim().length === 0 ? null : value.trim();
+/** Reads the current Worldlens variable first and falls back to its read-only legacy alias. */
+export function migrationEnvironment(
+    values: NodeJS.ProcessEnv,
+    currentName: string,
+    legacyName: string,
+): string | null {
+    const current = values[currentName];
+    if (current !== undefined && current.trim().length > 0) return current.trim();
+    const legacy = values[legacyName];
+    return legacy === undefined || legacy.trim().length === 0 ? null : legacy.trim();
 }
 
 async function isDirectory(path: string): Promise<boolean> {
@@ -223,22 +230,34 @@ function noTarget(caption: string, provenance: CaptureProvenance | null): Captur
 /**
  * Resolves and starts whatever this run is capturing.
  *
- * `MATERIAL_BLUEMAP_CAPTURE_MODE`      `local` (default) or `remote`
- * `MATERIAL_BLUEMAP_CAPTURE_MAP`       local: the rendered web root (settings.json + maps/)
- * `MATERIAL_BLUEMAP_CAPTURE_PROVENANCE` local: the JSON CI wrote about that render
- * `MATERIAL_BLUEMAP_CAPTURE_REMOTE_URL` remote: the server to browse
+ * `WORLDLENS_CAPTURE_MODE`       `local` (default) or `remote`
+ * `WORLDLENS_CAPTURE_MAP`        local: the rendered web root (settings.json + maps/)
+ * `WORLDLENS_CAPTURE_PROVENANCE` local: the JSON CI wrote about that render
+ * `WORLDLENS_CAPTURE_REMOTE_URL` remote: the server to browse
+ *
+ * The former `MATERIAL_BLUEMAP_CAPTURE_*` names remain read-only aliases. Current names
+ * always win when both generations are present.
  *
  * A missing or unusable local map is not an error. It produces the `none` mode, which
  * captures the app honestly rather than quietly falling back to somebody's public server.
  */
 export async function resolveCaptureTarget(): Promise<CaptureTarget> {
-    const mode = environment("MATERIAL_BLUEMAP_CAPTURE_MODE") ?? "local";
+    const mode =
+        migrationEnvironment(
+            process.env,
+            "WORLDLENS_CAPTURE_MODE",
+            "MATERIAL_BLUEMAP_CAPTURE_MODE",
+        ) ?? "local";
 
     if (mode === "remote") {
-        const url = environment("MATERIAL_BLUEMAP_CAPTURE_REMOTE_URL");
+        const url = migrationEnvironment(
+            process.env,
+            "WORLDLENS_CAPTURE_REMOTE_URL",
+            "MATERIAL_BLUEMAP_CAPTURE_REMOTE_URL",
+        );
         if (url === null) {
             throw new Error(
-                "MATERIAL_BLUEMAP_CAPTURE_MODE=remote needs MATERIAL_BLUEMAP_CAPTURE_REMOTE_URL. " +
+                "WORLDLENS_CAPTURE_MODE=remote needs WORLDLENS_CAPTURE_REMOTE_URL. " +
                     "Remote captures name the server they browsed; there is no default.",
             );
         }
@@ -261,11 +280,19 @@ export async function resolveCaptureTarget(): Promise<CaptureTarget> {
     }
 
     if (mode !== "local") {
-        throw new Error(`Unknown MATERIAL_BLUEMAP_CAPTURE_MODE '${mode}'; use 'local' or 'remote'.`);
+        throw new Error(`Unknown WORLDLENS_CAPTURE_MODE '${mode}'; use 'local' or 'remote'.`);
     }
 
-    const rawRoot = environment("MATERIAL_BLUEMAP_CAPTURE_MAP");
-    const provenancePath = environment("MATERIAL_BLUEMAP_CAPTURE_PROVENANCE");
+    const rawRoot = migrationEnvironment(
+        process.env,
+        "WORLDLENS_CAPTURE_MAP",
+        "MATERIAL_BLUEMAP_CAPTURE_MAP",
+    );
+    const provenancePath = migrationEnvironment(
+        process.env,
+        "WORLDLENS_CAPTURE_PROVENANCE",
+        "MATERIAL_BLUEMAP_CAPTURE_PROVENANCE",
+    );
     const webRoot = rawRoot === null ? null : isAbsolute(rawRoot) ? rawRoot : resolve(rawRoot);
 
     let provenance: CaptureProvenance | null =
@@ -274,7 +301,7 @@ export async function resolveCaptureTarget(): Promise<CaptureTarget> {
     if (webRoot === null) {
         provenance ??= {
             unavailable:
-                "MATERIAL_BLUEMAP_CAPTURE_MAP was not set, so this run had no rendered map to serve",
+                "WORLDLENS_CAPTURE_MAP was not set, so this run had no rendered map to serve",
         };
         return noTarget(captionFor("none", provenance, null), provenance);
     }
@@ -292,8 +319,7 @@ export async function resolveCaptureTarget(): Promise<CaptureTarget> {
 
     const mapIds = await mapIdsFrom(webRoot);
     if (mapIds.length === 0) {
-        const unavailable =
-            `${webRoot} has no webapp settings.json listing any map, so there is nothing to serve`;
+        const unavailable = `${webRoot} has no webapp settings.json listing any map, so there is nothing to serve`;
         return noTarget(captionFor("none", { unavailable }, null), provenance ?? { unavailable });
     }
 

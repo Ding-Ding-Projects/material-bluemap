@@ -61,7 +61,7 @@ that command should be is a second thing to get wrong.
 | `port` | 22 unless the host has moved SSH |
 | `user` | the account to sign in as |
 | `identityFile` | the **path** to a private key, or blank to use your SSH agent |
-| `workDir` | where renders are staged there. `~/.material-bluemap/renders` by default |
+| `workDir` | where renders are staged there. `~/.worldlens/renders` by default |
 | `image` | the container image. The same stock JRE the local Docker path uses |
 | `docker` | the remote `docker` binary, for a host with a wrapper |
 | `keepRemoteFiles` | off. On, the staging directory survives the render — and the app says so |
@@ -344,8 +344,7 @@ available" sends somebody to install it on the machine that already has it.
 
 There is one sharp edge and it is handled at use time rather than assumed away. **rsync takes the
 remote shell as a single string and splits it itself**, and this app's `known_hosts` lives under the
-application data directory — on Windows, `…\Material BlueMap\known_hosts`, a path with a space in
-it. Whether a given rsync build honours the quotes around that is a property of that build. So the
+application data directory — on Windows, `…\Worldlens\known_hosts`. Whether a given rsync build honours the quotes around that is a property of that build. So the
 words are quoted, and if an rsync copy fails anyway the same copy is made with `scp` and the log
 says so:
 

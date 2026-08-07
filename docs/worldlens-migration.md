@@ -70,6 +70,26 @@ The **Product display name** setting is cosmetic. It changes the title bar, Abou
 notification titles, and introductions. It never changes the data directory, app/package id,
 installer name, update feed, schema, markers, diagnostics product name, or repository identity.
 
+## Repository rename finalization
+
+Current live repository, Pages, policy and legal references retain their reachable pre-rename
+addresses until the repository rename succeeds. The committed finalizer makes the rename-time
+switch deterministic instead of relying on a manual search-and-replace:
+
+```powershell
+node scripts/finalize-worldlens-repository.mjs --check-ready
+node scripts/finalize-worldlens-repository.mjs --apply
+node scripts/finalize-worldlens-repository.mjs --verify-final
+```
+
+`--check-ready` verifies the exact old value and occurrence count in every inventoried file
+without writing anything. `--apply` preflights the complete inventory before staging same-folder
+replacements, rolls every installed file back if any replacement or verification fails, then
+verifies the final Worldlens values. Commit the eight-file switch as one changeset, and run it
+only after the repository rename lands. `--verify-final` is the post-switch CI guard. Historical
+changelog entries, release and issue links, migration prose, compatibility readers and archived
+decisions are deliberately outside this current-reference switch.
+
 Worldlens is free software and has no payment, donation, review, or upgrade nags. People who want
 to support the renderer this port builds on should support the BlueMap project directly.
 

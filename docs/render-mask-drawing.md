@@ -15,7 +15,7 @@ bounds and, for the overworld, the real spawn read from `level.dat`.
 
 ### The mask stays what the config schema already defines
 
-Nothing here invents a new mask representation. `@material-bluemap/config`'s `MaskConfig` union
+Nothing here invents a new mask representation. `@worldlens/config`'s `MaskConfig` union
 — `box` / `circle` / `ellipse` / `polygon` / `blur`, each optionally `subtract`, combined as an
 ordered list — is the single source of truth, exactly as `docs/config-history.md` describes for
 every other config value. A drawing surface produces the same `Record<string, PlainValue>` shape
@@ -78,7 +78,7 @@ now honour the same semantics:
   falling back to an unmasked render.
 
 Actions receives the same config rather than a hand-picked subset. The uploaded project archive
-already contains `material-bluemap.project.json`; `design/packages/render-actions` reads the
+already contains `worldlens.project.json`; `design/packages/render-actions` reads the
 selected map's full HOCON from it and writes that configuration into every render job. A shard
 adds its boundary as outside-subtraction boxes with HOCON `render-mask +=`, so the shard boundary
 intersects any user-authored mask instead of replacing it. The desktop editor therefore reports
@@ -92,7 +92,7 @@ self-describing JSON document rather than requiring hand-copied HOCON:
 
 ```json
 {
-    "format": "material-bluemap.render-mask",
+    "format": "worldlens.render-mask",
     "version": 1,
     "units": "blocks",
     "coordinateSystem": "minecraft-world-xyz",

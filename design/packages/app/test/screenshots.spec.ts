@@ -111,7 +111,7 @@ import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveCaptureTarget } from "./captureTarget.js";
+import { migrationEnvironment, resolveCaptureTarget } from "./captureTarget.js";
 import type { CaptureTarget } from "./captureTarget.js";
 import {
     describeViolation,
@@ -665,8 +665,12 @@ async function closeSideSheet(): Promise<void> {
  * the honest outcome then, and it says which command failed.
  */
 function captureWorldFolder(): string | null {
-    const explicit = process.env.MATERIAL_BLUEMAP_CAPTURE_WORLD?.trim();
-    if (explicit !== undefined && explicit !== "" && existsSync(explicit)) return explicit;
+    const explicit = migrationEnvironment(
+        process.env,
+        "WORLDLENS_CAPTURE_WORLD",
+        "MATERIAL_BLUEMAP_CAPTURE_WORLD",
+    );
+    if (explicit !== null && existsSync(explicit)) return explicit;
 
     const cli = resolve(here, "../../worldgen/dist/cli.js");
     if (!existsSync(cli)) return null;
@@ -735,7 +739,7 @@ async function captureFirstRun(): Promise<void> {
         skip(
             "First-run setup",
             "the application did not ask: this launch was not a first run, which happens when " +
-                "MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD is set or the user-data directory already " +
+                "WORLDLENS_ACCEPT_DOWNLOAD is set or the user-data directory already " +
                 "records a completed setup",
         );
         return;
@@ -871,7 +875,7 @@ test.beforeAll(async () => {
 
     app = await electron.launch({
         args: [appRoot, "--no-sandbox", "--disable-gpu", `--user-data-dir=${userData}`],
-        env: { ...process.env, MATERIAL_BLUEMAP_SCREENSHOTS: "1" },
+        env: { ...process.env, WORLDLENS_SCREENSHOTS: "1" },
     });
 
     // Before anything is pointed at a map. The app makes no outbound request until a
@@ -2282,7 +2286,7 @@ test("captures the make-a-map wizard at every step", async () => {
             "Wizard steps after the first",
             "the wizard reads the world folder it is given through the main process, so its later " +
                 "steps only exist once a real Minecraft world has been read; point " +
-                "MATERIAL_BLUEMAP_CAPTURE_WORLD at one to capture them",
+                "WORLDLENS_CAPTURE_WORLD at one to capture them",
         );
     } else {
         console.log(`[harness] wizard world folder: ${world}`);

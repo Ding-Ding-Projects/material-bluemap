@@ -52,7 +52,7 @@ fresh `ETag` and `Cache-Control: no-cache` on every request, which is necessary 
 sufficient, because the browser never asks again for a URL it is already holding in
 memory. A silently stale "live" view would be worse than no live view at all, so the page
 served at `index.html` carries a small injected banner (`injectLiveBanner` in
-`server.ts`) that polls the server's own `/__material-bluemap-preview/status` endpoint,
+`server.ts`) that polls the server's own `/__worldlens-preview/status` endpoint,
 names this plainly while the render is active, and offers a one-click reload. It never
 force-reloads without saying so.
 

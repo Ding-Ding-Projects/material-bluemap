@@ -71,7 +71,7 @@ created thirty seconds ago.
 
 ## The marker, and why a foreign file is refused rather than replaced
 
-Every file this writes is recorded in `.material-bluemap-ci.json`, at the repository root,
+Every file this writes is recorded in `.worldlens-ci.json`, at the repository root,
 naming the tool, the template version, and which paths it placed — the same pattern
 [publishing to GitHub Pages](./pages-hosting.md) already uses for its own marker. Before a
 file that already exists is touched, its content is compared to the template:
