@@ -18,6 +18,7 @@
 
 import type { HomeContent } from "./types.js";
 import {
+    ACTION_ARTWORK_DOC_URL,
     APPEARANCE_EDITORS_DOC_URL,
     BACKUP_DOC_URL,
     BUILD_JARS_WORKFLOW_URL,
@@ -630,6 +631,17 @@ export const home: HomeContent = {
                         { label: "docs/language-and-tone.md", href: LANGUAGE_AND_TONE_DOC_URL },
                     ],
                 },
+                {
+                    title: "A different realistic image for each high-impact action",
+                    body: "Cloud setup, local speed, restart-to-install, repository backup publication and destructive config review each show a different bundled image whose subject matches that operation. The pictures explain; the real controls still do the work.",
+                    status: "shipped",
+                    statusNote:
+                        "Five local PNGs are wired to five exact owners. A hand-written inventory rejects missing or reused files, empty alternative text and owner drift; 143 focused tests and the production workspace build passed. A packaged runtime capture is not claimed by this phase.",
+                    articleId: "action-artwork",
+                    reading: [
+                        { label: "docs/action-artwork.md", href: ACTION_ARTWORK_DOC_URL },
+                    ],
+                },
             ],
         },
         {
@@ -891,6 +903,7 @@ export const home: HomeContent = {
         { label: "Appearance editors, colour and typography", href: APPEARANCE_EDITORS_DOC_URL },
         { label: "Super confirmation for destructive actions", href: SUPER_CONFIRMATION_DOC_URL },
         { label: "Language modes and funny levels", href: LANGUAGE_AND_TONE_DOC_URL },
+        { label: "Action-specific realistic artwork", href: ACTION_ARTWORK_DOC_URL },
         { label: "The regex builder and the search bars it reaches", href: REGEX_BUILDER_DOC_URL },
         { label: "Writing and rendering 1.12.2 worlds", href: LEGACY_WORLDS_DOC_URL },
         { label: "Local version history for a config folder", href: CONFIG_HISTORY_DOC_URL },

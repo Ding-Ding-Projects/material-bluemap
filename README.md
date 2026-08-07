@@ -103,6 +103,7 @@ states its behaviour, configuration, failure modes, security considerations and 
 | **Tabbed navigation** | Browser-style tabs docked left, right, top or bottom, with overflow, reordering, pinning, grouping and four discovery searches | [`docs/tabbed-navigation.md`](docs/tabbed-navigation.md) |
 | **Appearance editors** | Per-element **Edit appearance…**, with a continuous colour picker and Word-depth typography | [`docs/appearance-editors.md`](docs/appearance-editors.md) |
 | **Language and tone** | English, Hong Kong Cantonese and bilingual, each with its own funny-level slider | [`docs/language-and-tone.md`](docs/language-and-tone.md) |
+| **Action-specific artwork** | Gives cloud setup, local speed, restart, repository publication and destructive config review their own bundled realistic image and semantic alt text | [`docs/action-artwork.md`](docs/action-artwork.md) |
 | **Super confirmation** | Two keys and a full-travel slider before anything destructive, with an emergency exit throughout | [`docs/super-confirmation.md`](docs/super-confirmation.md) |
 
 [`docs/README.md`](docs/README.md) is the index, and every article is also published on the
