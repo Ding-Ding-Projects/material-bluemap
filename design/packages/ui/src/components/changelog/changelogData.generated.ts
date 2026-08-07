@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "7bf8e2a3d1344d38e971ee54f4dad1ec0341d082",
+        shortSha: "7bf8e2a3d1",
+        date: "2026-08-06T20:30:06-04:00",
+        subject: "Repair hosted-runner documentation links",
+        details: "Point historical D19 references at the current cloud-runner guide after removing the obsolete bootstrap article. Retired runners should not leave ghost links wandering the documentation corridors.\n\n將 D19 歷史段落指返去現行 cloud-runner 指南，移走已刪 bootstrap 文章嘅死 link。Runner 退休可以，條 link 唔使留低扮靈異熱線。",
+        category: "docs",
+        areas: ["docs"],
+        files: 2,
+    },
+    {
         sha: "b76c3d6a691d71a5ab0b5e2b36887262da41129a",
         shortSha: "b76c3d6a69",
         date: "2026-08-06T20:27:47-04:00",
