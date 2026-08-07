@@ -18,6 +18,8 @@
  */
 
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
     CHANGELOG_REPOSITORY_URL,
@@ -65,10 +67,19 @@ describe("the generated changelog", () => {
 
     it("resolves its commit links against this repository", () => {
         // GitHub preserves repository redirects after a rename, so current changelog links use
-        // the final Worldlens address while historical entry text remains untouched.
-        expect(CHANGELOG_REPOSITORY_URL).toBe(
-            "https://github.com/Ding-Ding-Projects/material-bluemap",
+        // the generator's current address while historical entry text remains untouched. Reading
+        // the committed generator keeps this assertion exact before and after the atomic cutover.
+        const generator = readFileSync(
+            fileURLToPath(
+                new URL("../../../../../../scripts/build-changelog.mjs", import.meta.url),
+            ),
+            "utf8",
         );
+        const repository = generator.match(
+            /const REPOSITORY_URL = "(https:\/\/github\.com\/[^"\r\n]+)";/,
+        )?.[1];
+        expect(repository).toBeDefined();
+        expect(CHANGELOG_REPOSITORY_URL).toBe(repository);
     });
 
     it("carries a full SHA on every entry, with the short form a real prefix of it", () => {

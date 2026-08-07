@@ -1,5 +1,36 @@
 # Handoff
 
+## Pre-cutover update, 2026-08-07 — the repository finalizer covers the integrated Pages tree
+
+This phase worktree was fast-forwarded without divergence from `5652d185e67c381364b57ec42d5dcebab82762dd`
+to exact default-branch commit `64858ee71f2ee47e07dd7f6aa0de969e5ac3be02`. No repository,
+Pages, homepage, wiki or issue state is changed by this checkpoint. The live physical addresses
+remain `Ding-Ding-Projects/material-bluemap` and `/material-bluemap/` until the separate cutover.
+
+The original eight-file finalizer predated the integrated Pages implementation. Its preflight was
+internally exact but incomplete: the desktop crash-report URL, site noscript/clone/link/base/issue
+sources, compact proof route and changelog generator/current displays sat outside its transaction.
+The plan now covers 17 production/current-display files and pins every old value's exact count.
+Historical proof URLs, quoted migration history, `ciprobe`, and every explicit updater, profile,
+schema, marker, environment and local-storage compatibility reader remain old by design.
+
+The residual guard now models the cutover as one state: every target is either exactly ready or
+verified-final. A deliberately finalized first target inside 16 ready targets is rejected as
+mixed. Filesystem transaction fixtures are generated from the replacement contract instead of
+copied from the checkout, so the five rollback/cleanup cases remain runnable after the repository
+itself has been finalized. Local evidence is recorded below; cloud branch CI remains required
+before any public rename or wiki edit.
+
+Local pre-cutover verification is terminal green: build first across all 13 package targets;
+recursive typecheck across the same 13; ESLint; the focused finalizer/residual/site/changelog/
+updater matrix at 197 passed and one history-dependent skip; complete `test:ci` in 366 seconds;
+43/43 workflow and catalog security tests; the workflow guard with two workflow files, 49 pinned
+actions and three watched release steps; changelog freshness at 115 versions / 673 entries;
+17-file read-only finalizer readiness; and `git diff --check`. The app build logs the intended
+pair: current update repository `Ding-Ding-Projects/worldlens`, legacy bridge
+`Ding-Ding-Projects/material-bluemap`. Repository-wide Prettier remains a pre-existing non-gate:
+its baseline reports 2,389 files, so this phase does not perform an unrelated bulk rewrite.
+
 ## Integration update, 2026-08-07 — Pages parity now sits on the corrected Worldlens release base
 
 Merge commit `f713d1a5dcbc2209711f24b3ca5b7a2b3c584916` brings exact default-branch

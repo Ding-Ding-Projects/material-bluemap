@@ -34,7 +34,8 @@ See [Rendering engines](#rendering-engines).
 > explicit adapters. See [Migrating to Worldlens](docs/worldlens-migration.md).
 >
 > `node scripts/finalize-worldlens-repository.mjs --check-ready` proves the live repository,
-> Pages, policy and legal references are ready for one deterministic rename-time switch;
+> Pages, policy and legal references across all 17 inventoried files are ready for one
+> deterministic rename-time switch;
 > `--apply` performs that switch only after the repository rename actually lands.
 
 The documentation site is a Material 3 tabbed application, not a plain scroll: `Search` owns

@@ -1,5 +1,24 @@
 # Roadmap
 
+## Worldlens repository pre-cutover expansion (2026-08-07)
+
+The repository remains at `Ding-Ding-Projects/material-bluemap`; this checkpoint does **not**
+rename it, change Pages, update the wiki or publish final Worldlens URLs. The phase branch is based
+exactly on default-branch commit `64858ee71f2ee47e07dd7f6aa0de969e5ac3be02` and expands the
+atomic finalizer from eight pre-Pages targets to 17 current-display targets. The added inventory
+covers the desktop crash-report URL; the site noscript, clone, central repository/base and issue
+sources; compact proof routing; and the generator, Markdown and in-app forms of current changelog
+links. Historical evidence and the legacy updater/profile/schema/storage readers remain unchanged.
+
+The transaction tests now synthesize their exact pre-cutover fixtures from the replacement plan,
+so the same rollback and cleanup suite remains valid after the real cutover. Repository-state
+tests accept only all-ready or all-finalized state and carry a negative deliberately mixed probe.
+Build, all 13 package typechecks, ESLint, 197 focused tests with one history-dependent skip, the
+complete 366-second `test:ci`, 43 workflow/catalog tests, workflow lint, changelog freshness and
+the 17-file no-write preflight are green locally. Cloud branch verification is still an evidence
+gate; repository rename, wiki updates, homepage change and `/worldlens/` Pages deployment remain
+later cutover steps.
+
 ## Pages parity exact-main integration checkpoint (2026-08-07)
 
 The phase branch now contains merge commit `f713d1a5dcbc2209711f24b3ca5b7a2b3c584916`, whose second
@@ -81,14 +100,14 @@ profiles, localStorage preferences, environment variables, project files and own
 have explicit compatibility adapters; current writes never create another legacy identifier.
 Unknown project fields survive the v1-to-v2 schema adapter.
 
-The final current-identity inventory is implemented in `637cc69`: release and helper output,
+The final current-identity inventory began in `637cc69`: release and helper output,
 standalone regex-builder branding and storage, capture automation, generated changelog targets and
 current feature documentation use Worldlens, while each retained legacy reader is named in an
-explicit allowlist. The eight-file repository, Pages, policy and legal switch is staged behind a
+explicit allowlist. The 17-file repository, Pages, policy and legal switch is staged behind a
 deterministic preflight/apply/verify finalizer until the real repository rename succeeds. Its
 install-and-verify transaction now reaches an explicit committed state before cleanup begins;
 cleanup failure preserves every finalized target and retains the backups it did not remove. A
-disposable eight-file integration matrix proves no-write readiness, normal completion, both
+disposable plan-generated integration matrix proves no-write readiness, normal completion, both
 pre-commit rollback boundaries, and cleanup-only failure. The capture legacy allowance is pinned
 to exact current-first alias sites and includes a negative write probe; the two former names in
 `AGENTS.md` remain untouched as classified project-instruction metadata. The reviewed Options-tab
