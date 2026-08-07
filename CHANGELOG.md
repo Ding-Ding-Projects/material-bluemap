@@ -20,6 +20,27 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Landing page and documentation site
+
+- WEBSITE EDIT - Add collapsible responsive navigation - [`fa7f6afb4c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/fa7f6afb4cdbb5cebd6abb66f4bed1379fe3f088)
+
+### Documentation
+
+- WEBSITE EDIT - Align Pages article coverage types - [`ab64ed6f44`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ab64ed6f44a62b40eb8b9b6548bd7f5f9c724e99)
+- WEBSITE EDIT - Prove compact navigation without clipping - [`11a5c21310`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/11a5c2131099eefa1773e153c4c0be974d23a33a)
+
+## 0.1.0-build.708 - 2026-08-07
+
+Tagged at [`37104b4016`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/37104b4016491b74619b67b56cafc6f84c19aaa3).
+
+### Documentation
+
+- Publish verified Server plugin tab capture - [`349178590b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/349178590bc79412923d76225390848f25e5e722)
+
+## 0.1.0-build.704 - 2026-08-07
+
+Tagged at [`f727083e5c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f727083e5cb60f86aa4c493415d9e7c2b4952864).
+
 ### Build, release and tooling
 
 - Make the release-guard fixture newline-safe - [`e21aaee356`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e21aaee3562c998ff49cde03af6596a8ff1d3a57)
@@ -32,7 +53,6 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
-- Publish verified Server plugin tab capture - [`349178590b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/349178590bc79412923d76225390848f25e5e722)
 - Merge screenshot tab activation repair - [`4e087432fb`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4e087432fba694e55e905004fe5d71328b94b289) _(summary of 3 commits, also listed here)_
 - Repair Options tab screenshot activation - [`ae0a6894b5`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ae0a6894b52754a9339b8c17d4fa28a781811457)
 - Document the whole-job release guard - [`ad7e2cabcc`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ad7e2cabcc1ec3f7de868cc919c0b32ce4f0b991)
