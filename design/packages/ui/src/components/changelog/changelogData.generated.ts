@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "5a33bd394434423738054b70a2888d8b2151bffe",
+        shortSha: "5a33bd3944",
+        date: "2026-08-07T08:49:13-04:00",
+        subject: "Make release evidence match the published assets",
+        details: "Attach the jar checksum directly, require the unsigned warning, and move timing publication to the last release command with a UTC-second retry guard. The notes can no longer promise a file hiding inside a zip or stop the clock while the release is still putting on its shoes.\n\n直接附上 jar checksum、強制 unsigned 警告，仲將 timing publication 放到最後一個 release command，用 UTC 秒邊界重試守門。Release note 以後唔會話個檔喺枱面，其實塞咗入 zip；個鐘亦唔會未著好鞋就偷停。",
+        category: "build",
+        areas: ["build"],
+        files: 2,
+    },
+    {
         sha: "6967158ff9f33b3be9a8f0a01484f5492bb4663f",
         shortSha: "6967158ff9",
         date: "2026-08-07T08:12:30-04:00",

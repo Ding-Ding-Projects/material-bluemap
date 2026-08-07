@@ -43,6 +43,10 @@ full message for the in-app changelog viewer.
 
 - Carry persisted preferences into Worldlens - [`5d443b2cad`](https://github.com/Ding-Ding-Projects/worldlens/commit/5d443b2cad75b4151044e5a72ac0f97ac0ebcd4c)
 
+### Build, release and tooling
+
+- Make release evidence match the published assets - [`5a33bd3944`](https://github.com/Ding-Ding-Projects/worldlens/commit/5a33bd394434423738054b70a2888d8b2151bffe)
+
 ### Documentation
 
 - Harden Worldlens finalizer commit boundary - [`5652d185e6`](https://github.com/Ding-Ding-Projects/worldlens/commit/5652d185e67c381364b57ec42d5dcebab82762dd)
