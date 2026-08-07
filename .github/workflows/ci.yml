@@ -24,7 +24,7 @@ on:
 # there - a queued publish waits, it is never dropped, and nothing above cancels it either.
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   # A workflow file with an invalid expression is not a workflow that fails - it is a
@@ -125,6 +125,7 @@ jobs:
         with:
           submodules: true
           fetch-depth: 1
+          persist-credentials: false
 
       # No `version:` input: the workspace pins the exact pnpm build it wants
       # (`packageManager: "pnpm@10.33.0"` in design/package.json), and pnpm/action-setup
@@ -204,6 +205,8 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
@@ -340,6 +343,8 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
@@ -403,6 +408,8 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
@@ -517,6 +524,8 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
@@ -840,7 +849,7 @@ jobs:
                 "$DISH_ALT_EN" "$GITHUB_REPOSITORY" "$RELEASE_TAG" "$DISH_FILE_NAME"
               # The backticks are literal Markdown delimiters in a static format.
               # shellcheck disable=SC2016
-              printf 'Photo from the public `Ding-Ding-Projects/dim-sum-photos` catalog, volume `%s`, downloaded unchanged at release time and checked for manifest size plus a bounded PNG envelope. It is not stored in this repository.\n' \
+              printf 'Photo from the public `Ding-Ding-Projects/dim-sum-photos` catalog, volume `%s`, downloaded unchanged at release time and checked for manifest size, PNG chunk structure and CRC integrity. It is not stored in this repository.\n' \
                 "$DISH_VOLUME"
             else
               echo "> [!NOTE]"

@@ -31,7 +31,6 @@ const CATALOG_INDEX_URL = `https://raw.githubusercontent.com/${CATALOG_REPO}/mai
 const RELEASES_API = `https://api.github.com/repos/${CATALOG_REPO}/releases?per_page=100`;
 
 const PNG_SIGNATURE = "89504e470d0a1a0a";
-const IEND = "49454e44";
 const MAX_CATALOG_DISHES = 10_000;
 const MAX_RELEASES = 100;
 const MAX_ASSETS_PER_RELEASE = 1_000;
@@ -46,6 +45,22 @@ const SAFE_SLUG = /^[a-z0-9]+(?:-[a-z0-9]+){0,20}$/;
 const SAFE_VOLUME = /^catalog-v1[A-Za-z0-9._-]{0,88}$/;
 const SAFE_FILE_NAME = /^hk-dish-\d{4}-[a-z0-9]+(?:-[a-z0-9]+){0,20}\.png$/;
 const CONTROL_OR_SEPARATOR = /[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u;
+const PNG_CHUNK_TYPE = /^[A-Za-z]{4}$/;
+
+const CRC32_TABLE = new Uint32Array(256);
+for (let index = 0; index < CRC32_TABLE.length; index++) {
+    let value = index;
+    for (let bit = 0; bit < 8; bit++) {
+        value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+    }
+    CRC32_TABLE[index] = value >>> 0;
+}
+
+function crc32(buffer) {
+    let crc = 0xffffffff;
+    for (const byte of buffer) crc = CRC32_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+    return (crc ^ 0xffffffff) >>> 0;
+}
 
 function metadataError(field, reason) {
     return new Error(`catalog metadata field ${field} failed validation: ${reason}`);
@@ -249,18 +264,14 @@ async function loadAssetIndex() {
 }
 
 /**
- * Verify the manifest size and a bounded PNG envelope before anything ships it.
- * This is deliberately not described as a full decode: signature, terminal IEND
- * marker and IHDR dimensions catch truncation and obvious substitutions, but do
- * not parse every chunk or inflate pixel data.
+ * Verify the manifest size and PNG chunk/CRC structure before anything ships it.
+ * This parses every chunk, validates every CRC and the critical-chunk ordering,
+ * and bounds dimensions. It deliberately does not claim to inflate pixel data.
  */
 function verifyPng(buffer, expectedSize) {
     const problems = [];
     if (buffer.subarray(0, 8).toString("hex") !== PNG_SIGNATURE) {
         problems.push("missing PNG signature");
-    }
-    if (!buffer.subarray(-8).toString("hex").includes(IEND)) {
-        problems.push("missing IEND chunk");
     }
     if (buffer.length < 24) problems.push("file is too short to contain PNG dimensions");
     if (typeof expectedSize === "number" && buffer.length !== expectedSize) {
@@ -269,12 +280,106 @@ function verifyPng(buffer, expectedSize) {
     if (problems.length > 0) {
         throw new Error(`downloaded image failed verification: ${problems.join("; ")}`);
     }
-    const width = buffer.readUInt32BE(16);
-    const height = buffer.readUInt32BE(20);
+
+    let offset = 8;
+    let width = 0;
+    let height = 0;
+    let sawHeader = false;
+    let sawImageData = false;
+    let sawEnd = false;
+    const allowedCritical = new Set(["IHDR", "PLTE", "IDAT", "IEND"]);
+
+    while (offset < buffer.length) {
+        if (buffer.length - offset < 12) {
+            throw new Error("downloaded image failed verification: truncated PNG chunk header");
+        }
+        const length = buffer.readUInt32BE(offset);
+        if (length > MAX_IMAGE_BYTES) {
+            throw new Error("downloaded image failed verification: PNG chunk exceeds the byte limit");
+        }
+        const chunkEnd = offset + 12 + length;
+        if (chunkEnd > buffer.length) {
+            throw new Error("downloaded image failed verification: truncated PNG chunk payload");
+        }
+        const type = buffer.subarray(offset + 4, offset + 8).toString("ascii");
+        if (!PNG_CHUNK_TYPE.test(type)) {
+            throw new Error("downloaded image failed verification: invalid PNG chunk type");
+        }
+        const expectedCrc = buffer.readUInt32BE(offset + 8 + length);
+        const actualCrc = crc32(buffer.subarray(offset + 4, offset + 8 + length));
+        if (actualCrc !== expectedCrc) {
+            throw new Error(`downloaded image failed verification: ${type} chunk CRC mismatch`);
+        }
+        if (/[A-Z]/.test(type[0]) && !allowedCritical.has(type)) {
+            throw new Error(`downloaded image failed verification: unknown critical ${type} chunk`);
+        }
+
+        if (type === "IHDR") {
+            if (sawHeader || offset !== 8 || length !== 13) {
+                throw new Error("downloaded image failed verification: invalid IHDR chunk");
+            }
+            sawHeader = true;
+            width = buffer.readUInt32BE(offset + 8);
+            height = buffer.readUInt32BE(offset + 12);
+            const compression = buffer[offset + 18];
+            const filter = buffer[offset + 19];
+            const interlace = buffer[offset + 20];
+            if (compression !== 0 || filter !== 0 || (interlace !== 0 && interlace !== 1)) {
+                throw new Error("downloaded image failed verification: unsupported IHDR methods");
+            }
+        } else if (!sawHeader) {
+            throw new Error("downloaded image failed verification: IHDR is not the first chunk");
+        } else if (type === "IDAT") {
+            sawImageData = true;
+        } else if (type === "IEND") {
+            if (length !== 0 || !sawImageData || chunkEnd !== buffer.length) {
+                throw new Error("downloaded image failed verification: invalid terminal IEND chunk");
+            }
+            sawEnd = true;
+        }
+        offset = chunkEnd;
+    }
+
+    if (!sawHeader || !sawImageData || !sawEnd) {
+        throw new Error("downloaded image failed verification: missing required PNG chunks");
+    }
     if (width < 1 || height < 1 || width > 20_000 || height > 20_000) {
         throw new Error("downloaded image failed verification: implausible PNG dimensions");
     }
     return { width, height };
+}
+
+async function readBoundedResponse(response, limit = MAX_IMAGE_BYTES) {
+    const contentLength = response.headers.get("content-length");
+    if (contentLength !== null) {
+        if (!/^\d+$/.test(contentLength)) {
+            throw new Error("downloaded image failed verification: invalid Content-Length");
+        }
+        const declared = Number(contentLength);
+        if (!Number.isSafeInteger(declared) || declared > limit) {
+            throw new Error("downloaded image failed verification: Content-Length exceeds byte limit");
+        }
+    }
+    if (!response.body) throw new Error("downloaded image failed verification: response has no body");
+
+    const reader = response.body.getReader();
+    const chunks = [];
+    let total = 0;
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            total += value.byteLength;
+            if (total > limit) {
+                await reader.cancel();
+                throw new Error("downloaded image failed verification: streamed body exceeds byte limit");
+            }
+            chunks.push(Buffer.from(value));
+        }
+    } finally {
+        reader.releaseLock();
+    }
+    return Buffer.concat(chunks, total);
 }
 
 async function main() {
@@ -310,7 +415,7 @@ async function main() {
         headers: headers("application/octet-stream", false),
     });
     if (!res.ok) throw new Error(`GET ${asset.sourceUrl} -> ${res.status} ${res.statusText}`);
-    const buffer = Buffer.from(await res.arrayBuffer());
+    const buffer = await readBoundedResponse(res);
     const { width, height } = verifyPng(buffer, asset.size);
 
     const outPath = join(args.out, fileName);
@@ -359,7 +464,14 @@ async function main() {
     }
 }
 
-export { parseArgs, validateAsset, validateDish, verifyPng, workflowOutputText };
+export {
+    parseArgs,
+    readBoundedResponse,
+    validateAsset,
+    validateDish,
+    verifyPng,
+    workflowOutputText,
+};
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
     main().catch((error) => {
