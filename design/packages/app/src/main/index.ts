@@ -120,8 +120,63 @@ import { spawnProcessRunner } from "./sysdeps/process.js";
 import { registerGhCliHandlers } from "./ghcli/ipc.js";
 import type { GhCliIpc } from "./ghcli/ipc.js";
 import { nodeProcessRunner } from "./cirender/gh.js";
+import { WORLDLENS_IDENTITY } from "@worldlens/shared";
+import { migrateWorldlensProfile, type ProfileMigrationPlan } from "./migration/index.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Pin storage to the immutable product identity before Electron initializes a renderer.
+ * A user-configurable display name is renderer state and never reaches either call.
+ */
+const applicationDataDirectory = app.getPath("appData");
+app.setName(WORLDLENS_IDENTITY.shippedName);
+app.setPath("userData", join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName));
+
+async function requestProfileMigrationConsent(plan: ProfileMigrationPlan): Promise<"accept" | "deny"> {
+    const answer = await dialog.showMessageBox({
+        type: "question",
+        title: "Bring your existing profile to Worldlens?",
+        message: "Worldlens found data from Material BlueMap.",
+        detail:
+            "Copy and verify your consent record, settings, GitHub credential references, projects, histories, " +
+            "cache and maps for Worldlens. The old profile stays in place so this can be retried or rolled back.\n\n" +
+            `Old profile: ${plan.legacyDirectory}\nWorldlens profile: ${plan.worldlensDirectory}`,
+        buttons: ["Copy and verify", "Not now"],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+    });
+    return answer.response === 0 ? "accept" : "deny";
+}
+
+async function prepareWorldlensProfile(): Promise<boolean> {
+    const outcome = await migrateWorldlensProfile({
+        appDataDirectory: applicationDataDirectory,
+        requestConsent: requestProfileMigrationConsent,
+    });
+    if (
+        outcome.kind === "no-legacy-profile" ||
+        outcome.kind === "already-migrated" ||
+        outcome.kind === "denied" ||
+        outcome.kind === "migrated"
+    ) {
+        console.info(`[worldlens] profile migration: ${outcome.kind}`);
+        return true;
+    }
+
+    const detail =
+        outcome.kind === "collision"
+            ? `Both profiles contain different versions of: ${outcome.paths.join(", ")}. Neither profile was changed.`
+            : outcome.message;
+    console.error(`[worldlens] profile migration ${outcome.kind}: ${detail}`);
+    dialog.showErrorBox(
+        "Worldlens kept your old profile safe",
+        `${detail}\n\nWorldlens did not open because continuing could hide or overwrite data. ` +
+            "The Material BlueMap profile remains intact; correct the reported problem and start Worldlens again.",
+    );
+    return false;
+}
 
 /** Built UI bundle (packages/ui/dist), resolved relative to the app package. */
 function resolveUiRoot(): string {
@@ -1278,8 +1333,12 @@ async function launch(): Promise<void> {
     }
 }
 
-app.whenReady().then(() => {
-    void launch();
+app.whenReady().then(async () => {
+    if (!(await prepareWorldlensProfile())) {
+        app.exit(1);
+        return;
+    }
+    await launch();
     app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0) void launch();
     });
