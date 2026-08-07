@@ -466,7 +466,7 @@ describe("the tab strip", () => {
         await settle();
 
         const outerPanel = document.querySelector<HTMLElement>(
-            ".mb-tabs__panel.mb-shell-primary-panel",
+            ".mb-tabs__panel--pointer-passthrough",
         );
         const nestedPanel = document.querySelector<HTMLElement>(
             ".mb-project-editor__tabs .mb-tabs__panel",
@@ -481,6 +481,17 @@ describe("the tab strip", () => {
         core?.click();
         await settle();
         expect(core?.getAttribute("aria-selected")).toBe("true");
+
+        const maps = [...document.querySelectorAll<HTMLElement>('.mb-project-editor__tabs [role="tab"]')]
+            .find((tab) => (tab.textContent ?? "").includes("Maps"));
+        maps?.click();
+        await settle();
+        const addMap = [...document.querySelectorAll<HTMLButtonElement>(".mb-project-editor button")]
+            .find((button) => (button.textContent ?? "").includes("Add a map"));
+        expect(addMap).toBeDefined();
+        addMap?.click();
+        await settle();
+        expect(document.querySelector(".mb-project-maps__create")).not.toBeNull();
     });
 
     it("takes the wizard's finished project to that same page", async () => {

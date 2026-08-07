@@ -90,15 +90,19 @@ const props = withDefaults(
          * the user already made.
          */
         pinnedPageIds?: readonly string[];
-        /** Optional class applied to the one rendered panel/empty state for its owning shell. */
-        panelClass?: string;
+        /**
+         * Lets a map-owning shell pass pointer input through this one panel to the canvas
+         * behind it. Nested tab sets stay interactive because false is the default; the
+         * empty state is explicitly interactive so its reopen buttons remain usable.
+         */
+        panelPassThrough?: boolean;
     }>(),
     {
         windowLabel: "",
         stripLabel: "",
         storageKey: DEFAULT_TAB_STORAGE_KEY,
         pinnedPageIds: () => [],
-        panelClass: "",
+        panelPassThrough: false,
     },
 );
 
@@ -429,7 +433,7 @@ function applyPlan(
             v-if="activeTab !== null && activePage !== null"
             :id="panelId"
             class="mb-tabs__panel"
-            :class="panelClass"
+            :class="{ 'mb-tabs__panel--pointer-passthrough': panelPassThrough }"
             role="tabpanel"
             :aria-labelledby="`${idPrefix}-tab-${activeTab.id}`"
             tabindex="0"
@@ -456,7 +460,12 @@ function applyPlan(
             leaves it, rather than a blank area or a tab conjured up to keep the
             strip looking populated.
         -->
-        <div v-else class="mb-tabs__empty" :class="panelClass" role="status">
+        <div
+            v-else
+            class="mb-tabs__empty"
+            :class="{ 'mb-tabs__empty--pointer-interactive': panelPassThrough }"
+            role="status"
+        >
             <p class="mb-tabs__empty-line">{{ t("tabs.panel.empty", "Every tab is closed.") }}</p>
             <div class="mb-tabs__empty-actions">
                 <v-btn
@@ -506,6 +515,14 @@ html[dir="rtl"] .mb-tabs--right > * {
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
+}
+
+.mb-tabs__panel--pointer-passthrough {
+    pointer-events: none;
+}
+
+.mb-tabs__empty--pointer-interactive {
+    pointer-events: auto;
 }
 
 .mb-tabs__panel:focus-visible {
