@@ -26,6 +26,47 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "4e087432fba694e55e905004fe5d71328b94b289",
+        shortSha: "4e087432fb",
+        date: "2026-08-07T01:32:12-04:00",
+        subject: "Merge screenshot tab activation repair",
+        details: "The capture harness now clicks the tab label instead of asking the close button to impersonate navigation. Required surfaces and timeouts stay fail-closed.\n\n截圖 harness 而家撳 tab 個 label，唔再叫 close 掣扮導航大師。必須畫面同 timeout 一粒都冇放水。",
+        category: "docs",
+        areas: ["docs", "shell", "site"],
+        files: 4,
+        summarizes: 3,
+    },
+    {
+        sha: "ae0a6894b52754a9339b8c17d4fa28a781811457",
+        shortSha: "ae0a6894b5",
+        date: "2026-08-07T01:23:00-04:00",
+        subject: "Repair Options tab screenshot activation",
+        details: "The screenshot loop now activates each Options editor tab through its visible label, keeping the nested close button out of Playwright's default centre-click path. The required-surface inventory and all timeouts remain unchanged. Documentation records the exact failure mode and verification boundary.\n\n個 screenshot loop 而家撳 tab 個 label，唔再對住成個 tab 正中間亂篤；「Server plugin」粒 close 掣終於唔會俾測試當門鐘撳。必須 surface 清單同 timeout 一粒都冇偷薄，文件亦寫清楚邊度跣親同邊度仲等 cloud 證明。",
+        category: "docs",
+        areas: ["docs", "shell", "site"],
+        files: 4,
+    },
+    {
+        sha: "e21aaee3562c998ff49cde03af6596a8ff1d3a57",
+        shortSha: "e21aaee356",
+        date: "2026-08-07T01:25:12-04:00",
+        subject: "Make the release-guard fixture newline-safe",
+        details: "The adjacency mutation now proves it changed the workflow and runs under both LF and CRLF; Windows can no longer let the test congratulate an untouched file.\n\n相鄰步驟測試而家先證明真係改到檔案，再用 LF 同 CRLF 各跑一次；Windows 唔可以再畀一份原封不動嘅檔案自我鼓掌。",
+        category: "build",
+        areas: ["build"],
+        files: 1,
+    },
+    {
+        sha: "ad7e2cabcc1ec3f7de868cc919c0b32ce4f0b991",
+        shortSha: "ad7e2cabcc",
+        date: "2026-08-07T01:18:55-04:00",
+        subject: "Document the whole-job release guard",
+        details: "The docs now say what the code proves: every executable neighbour is scanned and the entire release job is reviewed together, so no mystery step gets diplomatic immunity from its display name.\n\n文件而家同程式講同一件事：每位可執行鄰居都要受查，成個 release job 一齊驗；唔會因為改咗顯示名就忽然有外交豁免。",
+        category: "docs",
+        areas: ["docs", "interface", "site"],
+        files: 8,
+    },
+    {
         sha: "807cfd4a1ef3a090128e023c82e5e618e63158a8",
         shortSha: "807cfd4a1e",
         date: "2026-08-07T01:16:04-04:00",
@@ -99,6 +140,14 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
+    {
+        version: "0.1.0-build.684",
+        tag: "v0.1.0-build.684",
+        date: "2026-08-06T23:41:01-04:00",
+        commit: "e13777927876a3d7898778f18193e9465bc97cc2",
+        entries: [
+        ],
+    },
     {
         version: "0.1.0-build.682",
         tag: "v0.1.0-build.682",

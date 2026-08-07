@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- Make the release-guard fixture newline-safe - [`e21aaee356`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e21aaee3562c998ff49cde03af6596a8ff1d3a57)
 - Fingerprint the complete release job - [`807cfd4a1e`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/807cfd4a1ef3a090128e023c82e5e618e63158a8)
 - Seal the release trust chain - [`b2e433899a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b2e433899af775c9e9a4666619013f4bc671beca)
 - Make release guards fail closed - [`6f53db19c0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6f53db19c019975e9f717b39207195769437554f)
@@ -31,7 +32,16 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Merge screenshot tab activation repair - [`4e087432fb`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4e087432fba694e55e905004fe5d71328b94b289) _(summary of 3 commits, also listed here)_
+- Repair Options tab screenshot activation - [`ae0a6894b5`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ae0a6894b52754a9339b8c17d4fa28a781811457)
+- Document the whole-job release guard - [`ad7e2cabcc`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ad7e2cabcc1ec3f7de868cc919c0b32ce4f0b991)
 - Document the sealed release boundary - [`c3c871c659`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c3c871c6592de60b09f19156208c281548e5f5a7)
+
+## 0.1.0-build.684 - 2026-08-06
+
+Tagged at [`e137779278`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e13777927876a3d7898778f18193e9465bc97cc2).
+
+_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
 
 ## 0.1.0-build.682 - 2026-08-06
 
