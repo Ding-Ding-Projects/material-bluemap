@@ -24,7 +24,7 @@ on:
 # there - a queued publish waits, it is never dropped, and nothing above cancels it either.
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   # A workflow file with an invalid expression is not a workflow that fails - it is a
