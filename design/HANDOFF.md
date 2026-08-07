@@ -1,5 +1,29 @@
 # Handoff
 
+## Integration update, 2026-08-07 — Pages parity now sits on the corrected Worldlens release base
+
+Merge commit `f713d1a5dcbc2209711f24b3ca5b7a2b3c584916` brings exact default-branch
+commit `ff2a8db67329311357f3ffe858d1d78b25ac7ab1` into
+`codex/phase-pages-global-parity`. The resolution preserves the Worldlens product, package and
+executable identity; permanently unsigned update/release disclosure; final workflow timing and
+direct checksum publication; and the complete Pages parity implementation. Until the repository
+itself is renamed, live repository, issue, clone and Pages addresses deliberately remain under
+`Ding-Ding-Projects/material-bluemap` and `/material-bluemap/`.
+
+The merged production site was rebuilt with `SITE_BASE=/material-bluemap/` and exercised through
+the cheap off-screen browser route. All 18 schema-v2 scenarios passed at 360, 390, 414 and 1024 CSS
+pixels, including bilingual 200% scale: mobile navigation inverted twice with localized labels,
+retained focus, matched its requested final state, preserved valid `aria-controls`, opened the
+requested feature surface and classified every overflow candidate with no accidental clipping.
+The complete `pnpm test:ci` pass was terminal green in 352.2 seconds after three stale physical-path
+expectations were corrected; all 13 package typechecks, lint, build, changelog verification, the
+43 workflow/picker tests and the workflow linter also passed locally.
+
+These are branch and local built-artifact facts only. The phase branch still needs its hosted
+workflow and exact-SHA read-back before integration, and the live Pages URL remains a default-branch
+deployment gate. Issue #92 therefore stays open; this update does not claim that the default branch
+or the public Pages deployment contains the phase.
+
 ## Update, 2026-08-07 — Pages navigation, scheduling and panel geometry share one compact contract
 
 Issue #92 lives on `codex/phase-pages-global-parity`. Commits

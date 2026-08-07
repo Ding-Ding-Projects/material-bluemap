@@ -815,7 +815,7 @@ describe("screenshot helpers", () => {
 
     it("keeps the project base path on every image URL", () => {
         expect(screenshotUrl("screenshots", "shell-1280x800.png")).toBe(
-            "/worldlens/screenshots/shell-1280x800.png",
+            "/material-bluemap/screenshots/shell-1280x800.png",
         );
         expect(screenshotUrl("/screenshots/", "a.png", "/elsewhere")).toBe(
             "/elsewhere/screenshots/a.png",

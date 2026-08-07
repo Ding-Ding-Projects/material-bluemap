@@ -1,5 +1,21 @@
 # Roadmap
 
+## Pages parity exact-main integration checkpoint (2026-08-07)
+
+The phase branch now contains merge commit `f713d1a5dcbc2209711f24b3ca5b7a2b3c584916`, whose second
+parent is exact corrected default-branch commit `ff2a8db67329311357f3ffe858d1d78b25ac7ab1`.
+Worldlens identity, permanently unsigned release/update truth, final release timing and the direct
+checksum asset coexist with all 41 Pages requirement categories, the compact side-navigation
+contract, scheduled/session-only external-source rules, shared panel geometry and schema-v2 proof.
+Physical links continue to use `material-bluemap` until the repository rename actually happens.
+
+The exact `/material-bluemap/` production build passes the full 18-scenario off-screen compact
+matrix across desktop, mobile, bilingual and 200% scale. Local build, lint, all 13 package
+typechecks, the complete 352.2-second `test:ci`, changelog validation, 43 workflow/picker tests and
+workflow lint are terminal green. This checkpoint remains branch-only: exact hosted branch CI,
+default-branch integration and live Pages deployment proof are still required, so issue #92 stays
+open and the public site is not described as updated yet.
+
 ## GitHub Pages mobile navigation and global-feature parity (2026-08-07)
 
 **Implemented on `codex/phase-pages-global-parity`; default-branch deployment proof remains with

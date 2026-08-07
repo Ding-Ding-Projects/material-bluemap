@@ -15,7 +15,7 @@
 import type { ChangelogEntry, ChangelogVersion } from "./changelogModel.js";
 
 /** Where a commit reference resolves. */
-export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/worldlens";
+export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/material-bluemap";
 
 /**
  * Commits that are in the history but not yet in any tagged release.
@@ -25,6 +25,17 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  * read very differently to somebody checking whether their fix shipped.
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
+    {
+        sha: "f713d1a5dcbc2209711f24b3ca5b7a2b3c584916",
+        shortSha: "f713d1a5dc",
+        date: "2026-08-07T08:57:18-04:00",
+        subject: "Merge Worldlens main into Pages parity",
+        details: "Keep Worldlens product, package and executable identity with the permanent unsigned-release truth, while carrying forward every mobile navigation, scheduled-settings, session-only Home Assistant, panel-geometry and schema-v2 compact-proof feature. Physical repository links stay on material-bluemap until the repository actually changes its address; the sign changed, but the postman still needs the real street.\\n\\n保住 Worldlens 產品、package 同 exe 身份，永久 unsigned release 事實照寫清楚；手機側欄、scheduled settings、session-only Home Assistant、panel geometry 同 schema-v2 compact proof 一件都冇跌低。Repository 未正式搬之前，連結繼續用 material-bluemap 真地址；招牌換咗，郵差都仲係要真門牌。",
+        category: "engine",
+        areas: ["engine", "interface", "shell", "docs", "site", "build", "services", "other"],
+        files: 777,
+        summarizes: 20,
+    },
     {
         sha: "5a33bd394434423738054b70a2888d8b2151bffe",
         shortSha: "5a33bd3944",
@@ -195,6 +206,126 @@ export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
         category: "interface",
         areas: ["interface", "services"],
         files: 9,
+    },
+    {
+        sha: "28902b48ed3c8aa3a7314c6aff791952908c97e7",
+        shortSha: "28902b48ed",
+        date: "2026-08-07T07:11:14-04:00",
+        subject: "WEBSITE EDIT - Refresh the verified Pages handoff",
+        details: "The handoff and changelog now point at the proof repair instead of asking readers to solve a tiny archaeological dig before breakfast. / Handoff 同 changelog 而家直接指住修復 commit，讀者唔使食早餐之前先做迷你考古隊。",
+        category: "docs",
+        areas: ["docs", "interface"],
+        files: 3,
+    },
+    {
+        sha: "82139b484903d81997e11306292983dbd55a608f",
+        shortSha: "82139b4849",
+        date: "2026-08-07T07:10:14-04:00",
+        subject: "WEBSITE EDIT - Close remaining Pages parity proof gaps",
+        details: "Home Assistant credentials finally live where a static page can honestly keep them: this page session, not an imaginary vault with excellent branding and no address. Off now falls through, failures stay closed, every transient menu gets real geometry, and schema-v2 proof catches stale evidence before it can wear a green hat. / Home Assistant 憑證終於住喺靜態頁面真係住得到嘅地方：今次 session 記憶體，唔再靠一個名就威但地址都冇嘅幻想保險庫。Off 會向下搵規則、失敗照樣 fail closed、menu 全部有真 geometry，schema-v2 仲會捉走扮新嘅舊證據。",
+        category: "docs",
+        areas: ["docs", "site"],
+        files: 45,
+    },
+    {
+        sha: "4fae06b6c4914825a6d196a134cfe7ee7ac11519",
+        shortSha: "4fae06b6c4",
+        date: "2026-08-07T05:46:12-04:00",
+        subject: "WEBSITE EDIT - Match the panel inventory to tracked case",
+        details: "Linux found the one capital letter Windows politely pretended was fine. The inventory now names the file exactly as Git stores it, so the guard checks a real owner on every runner.\n\nLinux 捉到 Windows 好客氣扮冇事嗰粒大楷字。Inventory 而家照 Git 真名寫，所有 runner 都會驗到同一個真主人。",
+        category: "site",
+        areas: ["site"],
+        files: 1,
+    },
+    {
+        sha: "890b93473201120429f2d57bb50d1cc12b6310e4",
+        shortSha: "890b934732",
+        date: "2026-08-07T05:35:42-04:00",
+        subject: "WEBSITE EDIT - Close the Pages integration contract gaps",
+        details: "The full suite caught what the focused suite could not: two articles were homeless in the offline browser, schedule deletion lacked an inventory passport, and a Markdown formatter widened a table past a brittle regex's imagination.\n\n完整測試捉到 focused suite 睇唔到嘅三隻曳嘢：兩篇文章喺離線文件瀏覽器冇屋住、刪排程冇登記入冊，仲有 Markdown formatter 拉闊張表就嚇親條脆弱 regex。",
+        category: "site",
+        areas: ["site", "interface"],
+        files: 3,
+    },
+    {
+        sha: "10c8881bdf787c229bfa9ac0ead2327cb1e1f25f",
+        shortSha: "10c8881bdf",
+        date: "2026-08-07T05:25:57-04:00",
+        subject: "WEBSITE EDIT - Complete Pages parity proof and guided controls",
+        details: "The site now schedules language and appearance instead of expecting visitors to babysit every toggle. Panels also remember where they live, because teleporting off-screen is not a layout strategy.\n\n網站而家識得按時間同外部訊號調校語言同外觀，唔使訪客日日幫啲掣返工。面板亦記得自己住邊，唔再玩失蹤當係響應式設計。",
+        category: "docs",
+        areas: ["docs", "site"],
+        files: 40,
+    },
+    {
+        sha: "5a4fe2aef86e2ec3fb36a10a4886d09f9f0376ea",
+        shortSha: "5a4fe2aef8",
+        date: "2026-08-07T04:55:09-04:00",
+        subject: "WEBSITE EDIT - Make every panel adjustable",
+        details: "Settings panels, page panels, anchored tools, and interactive overlays now share viewport-bounded resize, persistence, reset, and keyboard controls; floating surfaces also drag by a dedicated handle. The panels can finally move house without leaving the postcode.\\n\\n設定 panel、頁面 panel、錨定工具同互動 overlay 而家共用有邊界嘅縮放、持久化、重設同鍵盤控制；浮動面板仲可以用專用手柄拖。啲 panel 終於識搬屋，但唔會搬出 viewport。",
+        category: "site",
+        areas: ["site"],
+        files: 8,
+    },
+    {
+        sha: "a9fe3c4f2527e1e8365260e439ce997f30e259dd",
+        shortSha: "a9fe3c4f25",
+        date: "2026-08-07T04:50:03-04:00",
+        subject: "WEBSITE EDIT - Ship guided scheduled settings",
+        details: "The Pages settings surface now edits, validates, searches, teleports to, imports, exports, restores, and applies real scheduled language and appearance rules. API and Home Assistant setup is guided without ever asking the static site to hold a token. A timetable finally means a timetable, not an inspirational paragraph beside an empty form.\\n\\nPages 設定而家真係可以編輯、驗證、搜尋、直達、匯入、匯出、還原同套用語言及外觀排程。API 同 Home Assistant 有引導式設定，但靜態網站唔會收 token；時間表終於係時間表，唔再係空表格旁邊一段勵志文。",
+        category: "site",
+        areas: ["site"],
+        files: 7,
+    },
+    {
+        sha: "57e41cc8f29fae885a5d5ad65ffad9edc3594586",
+        shortSha: "57e41cc8f2",
+        date: "2026-08-07T04:43:07-04:00",
+        subject: "WEBSITE EDIT - Add recoverable scheduled settings engine",
+        details: "Scheduled appearance and language rules now keep stable precedence, timezone-aware windows, cross-midnight weekdays, bounded history, and base-value recovery. External JSON and Home Assistant sources fail closed behind HTTPS, size, timeout, generation, and credential-vault boundaries. The clock may cross midnight; the settings no longer turn into a pumpkin.\\n\\n排程外觀同語言規則而家有穩定優先次序、時區、跨午夜星期、有限歷史同原值復原。外部 JSON 同 Home Assistant 經 HTTPS、大小、逾時、代數同憑證保險庫閘門先入場；個鐘可以過午夜，設定唔會突然變南瓜。",
+        category: "site",
+        areas: ["site"],
+        files: 4,
+    },
+    {
+        sha: "d556c3da648b75ce78b77901b04c8e28039efb86",
+        shortSha: "d556c3da64",
+        date: "2026-08-07T04:34:45-04:00",
+        subject: "WEBSITE EDIT - Make responsive sidebar defaults truthful",
+        details: "Compact and wide first visits now remain defaults in changed counts and exports, while an explicit choice still persists even when it matches the current viewport. The settings page also names whether each value came from browser storage, a responsive default, or the compiled fallback; the old checkbox can stop accusing a fresh phone of editing itself.\n\n手機同桌面第一次開而家都真係算預設，唔會無啦啦出現在 changed count 同 export；用戶明確揀過就照樣記住。設定頁亦講清楚每個值係 browser 儲存、響應式預設定編譯預設，個 checkbox 終於唔再屈新手機自己改設定。",
+        category: "site",
+        areas: ["site"],
+        files: 8,
+    },
+    {
+        sha: "ab64ed6f44a62b40eb8b9b6548bd7f5f9c724e99",
+        shortSha: "ab64ed6f44",
+        date: "2026-08-07T03:44:01-04:00",
+        subject: "WEBSITE EDIT - Align Pages article coverage types",
+        details: "The coverage regression now narrows the real union instead of asking a test assertion to moonlight as the TypeScript compiler. The article also lives in the same Application category everywhere, so the in-app docs browser no longer sends it to the uncategorized broom cupboard.\n\nCoverage test 而家用真 union narrowing，唔再叫 Vitest assertion 兼職做 TypeScript compiler。新文章亦喺每個 index 都歸返 Application，唔會再畀 docs browser 掃入 uncategorized 雜物房。",
+        category: "docs",
+        areas: ["docs", "interface", "site"],
+        files: 5,
+    },
+    {
+        sha: "11a5c2131099eefa1773e153c4c0be974d23a33a",
+        shortSha: "11a5c21310",
+        date: "2026-08-07T03:21:38-04:00",
+        subject: "WEBSITE EDIT - Prove compact navigation without clipping",
+        details: "The runtime gate now measures exact compact and 200% bilingual layouts, and the rail no longer eats the page like it ordered the entire viewport for itself. The startup-surprise close target also graduated from tiny decoration to a real 44-pixel control.\n\n今次用真 headless 畫面逐吋驗身，側欄終於唔再當成個 viewport 係自助餐。點心驚喜個關閉掣亦由迷你裝飾升級做真正 44 像素可撳目標，唔使手指做針灸。",
+        category: "docs",
+        areas: ["docs", "site"],
+        files: 26,
+    },
+    {
+        sha: "fa7f6afb4cdbb5cebd6abb66f4bed1379fe3f088",
+        shortSha: "fa7f6afb4c",
+        date: "2026-08-07T03:01:40-04:00",
+        subject: "WEBSITE EDIT - Add collapsible responsive navigation",
+        details: "The Pages site now starts compact side rails collapsed, persists an explicit visitor choice, exposes the state through accessible localized controls and Settings, and carries a hand-written shared-feature coverage inventory. The navigation no longer rents 44% of a phone screen forever like it signed a very suspicious lease.\\n\\nPages 手機側欄而家識得預設收埋、記住用家選擇，仲有無障礙雙語掣同 Settings 控制。手寫全域功能清單會捉實漏項，個側欄終於唔再霸住 44% 畫面扮長租霸王。",
+        category: "site",
+        areas: ["site", "docs"],
+        files: 15,
     }
 ];
 
