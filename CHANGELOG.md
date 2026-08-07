@@ -22,10 +22,15 @@ full message for the in-app changelog viewer.
 
 ### Landing page and documentation site
 
+- WEBSITE EDIT - Make every panel adjustable - [`5a4fe2aef8`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5a4fe2aef86e2ec3fb36a10a4886d09f9f0376ea)
+- WEBSITE EDIT - Ship guided scheduled settings - [`a9fe3c4f25`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a9fe3c4f2527e1e8365260e439ce997f30e259dd)
+- WEBSITE EDIT - Add recoverable scheduled settings engine - [`57e41cc8f2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/57e41cc8f29fae885a5d5ad65ffad9edc3594586)
+- WEBSITE EDIT - Make responsive sidebar defaults truthful - [`d556c3da64`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d556c3da648b75ce78b77901b04c8e28039efb86)
 - WEBSITE EDIT - Add collapsible responsive navigation - [`fa7f6afb4c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/fa7f6afb4cdbb5cebd6abb66f4bed1379fe3f088)
 
 ### Documentation
 
+- WEBSITE EDIT - Complete Pages parity proof and guided controls - [`10c8881bdf`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/10c8881bdf787c229bfa9ac0ead2327cb1e1f25f)
 - WEBSITE EDIT - Align Pages article coverage types - [`ab64ed6f44`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ab64ed6f44a62b40eb8b9b6548bd7f5f9c724e99)
 - WEBSITE EDIT - Prove compact navigation without clipping - [`11a5c21310`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/11a5c2131099eefa1773e153c4c0be974d23a33a)
 
