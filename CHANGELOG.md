@@ -55,6 +55,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Restore GitHub-hosted workflow runners - [`b76c3d6a69`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b76c3d6a691d71a5ab0b5e2b36887262da41129a)
 - Merge phase 1 super-confirmation coverage - [`ebf00b2d14`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ebf00b2d14ea8b5dc36afe9b34409f2680d320d4) _(summary of 3 commits, also listed here)_
 - Guard world branch deletion with super confirmation - [`c1fef94f33`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c1fef94f33ab7d3d641fa3ad771b358d31c56fa3)
 - Document that the git-world-repository and adoption features are now reachable - [`2b8bf0d9e0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2b8bf0d9e0ddebf43db1c2bd9557f2284d44eaf1)

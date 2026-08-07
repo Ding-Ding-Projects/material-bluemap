@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "b76c3d6a691d71a5ab0b5e2b36887262da41129a",
+        shortSha: "b76c3d6a69",
+        date: "2026-08-06T20:27:47-04:00",
+        subject: "Restore GitHub-hosted workflow runners",
+        details: "Move all 23 executable jobs onto explicit Ubuntu or Windows hosted labels, restore pull-request validation, and replace the retired ten-job bootstrap with a hand-written 36-job inventory guard. The bootstrap had become a tiny operating system inside YAML; disposable runners can carry their own lunch again.\n\n將 23 個 executable job 搬返去明確嘅 Ubuntu 或 Windows hosted runner，恢復 pull-request 驗證，並用手寫 36-job inventory guard 取代退役嘅十-job bootstrap。舊 bootstrap 曾經喺 YAML 入面自製迷你作業系統；而家 disposable runner 自己帶飯盒，唔使再養機。",
+        category: "docs",
+        areas: ["docs", "build", "services", "site"],
+        files: 17,
+    },
+    {
         sha: "4f7c71c163fea47509f28d4c8a56ad8a02eac959",
         shortSha: "4f7c71c163",
         date: "2026-08-06T20:06:40-04:00",
