@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiArrowDown,
@@ -99,6 +99,9 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const uid = useId();
+const createNameId = `${uid}-new-map-name`;
+const selectedNameId = `${uid}-selected-map-name`;
 
 /**
  * Vuetify's props and `exactOptionalPropertyTypes` disagree about `undefined`, so the
@@ -324,15 +327,17 @@ const createDimensionItems = computed(() =>
     DIMENSION_OPTIONS.map((option) => ({ value: String(option.value), title: option.label })),
 );
 
-function openCreate(): void {
+async function openCreate(): Promise<void> {
     createName.value = "";
     createId.value = "";
     createIdTouched.value = false;
     createDimension.value = "minecraft:overworld";
     createOpen.value = true;
+    await nextTick();
+    document.getElementById(createNameId)?.focus();
 }
 
-function confirmCreate(): void {
+async function confirmCreate(): Promise<void> {
     if (createProblem.value !== null) return;
     const id = createIdPreview.value;
     const name = createName.value.trim() === "" ? id : createName.value.trim();
@@ -357,6 +362,9 @@ function confirmCreate(): void {
         ),
     );
     createOpen.value = false;
+    await nextTick();
+    await nextTick();
+    document.getElementById(selectedNameId)?.focus();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -416,7 +424,7 @@ function presetDescription(preset: ProjectPreset): string {
     }
 }
 
-function usePreset(preset: ProjectPreset): void {
+async function usePreset(preset: ProjectPreset): Promise<void> {
     const application = applyPreset(props.project, preset, {
         world: props.world,
         storageRoot: props.defaultRoot,
@@ -425,6 +433,9 @@ function usePreset(preset: ProjectPreset): void {
     emit("update:project", application.project);
     emit("update:selectedId", application.mapsAdded[0] ?? maps.value[0]?.id ?? null);
     emit("notify", presetApplicationLines(preset, application, t).join(" "));
+    await nextTick();
+    await nextTick();
+    document.getElementById(selectedNameId)?.focus();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -555,6 +566,7 @@ function confirmRemoval(): void {
                 <v-card-title>{{ t("project.maps.newTitle", "Add a map to this project") }}</v-card-title>
                 <v-card-text class="mb-project-maps__form">
                     <v-text-field
+                        :id="createNameId"
                         v-model="createName"
                         :label="t('project.maps.name', 'Name shown in the web app')"
                         variant="outlined"
@@ -624,6 +636,7 @@ function confirmRemoval(): void {
                     <v-card-text>
                         <div class="mb-project-maps__grid">
                             <v-text-field
+                                :id="selectedNameId"
                                 :model-value="selected.name"
                                 :label="t('project.maps.name', 'Name shown in the web app')"
                                 variant="outlined"

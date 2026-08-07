@@ -196,6 +196,26 @@ describe("every map setting, before the render starts", () => {
         expect(wrapper.text()).toContain("carries no core.conf of its own");
         wrapper.unmount();
     });
+
+    it("activates its real nested tabs with Enter and Space, without opening an overlay", async () => {
+        const wrapper = await editor();
+        const tabs = wrapper.findAll('[role="tab"]');
+        const core = tabs.find((tab) => tab.text().includes("Core"));
+        const maps = tabs.find((tab) => tab.text().includes("Maps"));
+
+        expect(core).toBeDefined();
+        expect(maps).toBeDefined();
+        await core!.trigger("keydown", { key: "Enter" });
+        await flushPromises();
+        expect(core!.attributes("aria-selected")).toBe("true");
+        expect(wrapper.text()).toContain("carries no core.conf of its own");
+
+        await maps!.trigger("keydown", { key: " " });
+        await flushPromises();
+        expect(maps!.attributes("aria-selected")).toBe("true");
+        expect(wrapper.find(".v-overlay--active").exists()).toBe(false);
+        wrapper.unmount();
+    });
 });
 
 describe("the live map id preview", () => {
@@ -255,6 +275,25 @@ describe("the live map id preview", () => {
 });
 
 describe("adding and removing maps", () => {
+    it("opens Add a map from a genuine button, focuses its first field, and leaves no invisible overlay", async () => {
+        const wrapper = await editor(createProject("Empty", STAMP));
+        const add = buttonNamed(wrapper, "Add a map");
+
+        expect(add).toBeDefined();
+        expect(add!.tagName).toBe("BUTTON");
+        expect(add!.disabled).toBe(false);
+        add!.focus();
+        expect(document.activeElement).toBe(add);
+        add!.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+        add!.dispatchEvent(new Event("pointerup", { bubbles: true }));
+        add!.click();
+        await flushPromises();
+
+        expect(createInputs(wrapper)[0]).toBe(document.activeElement);
+        expect(wrapper.find(".v-overlay--active").exists()).toBe(false);
+        wrapper.unmount();
+    });
+
     it("adds one written from BlueMap's own template", async () => {
         const wrapper = await editor(createProject("Empty", STAMP));
 
@@ -387,6 +426,8 @@ describe("the guided empty state", () => {
         // Written from BlueMap's own per-dimension templates, exactly like "Add a map" does.
         expect(project.maps.find((map) => map.id === "nether")?.config).toContain("sky-color");
         expect(project.storages.map((storage) => storage.id)).toEqual(["file"]);
+        expect((document.activeElement as HTMLInputElement | null)?.value).toBe("Overworld");
+        expect(wrapper.find(".v-overlay--active").exists()).toBe(false);
 
         // Fully editable afterwards: the overworld map (selected first) can be renamed
         // through the ordinary identity field, exactly as a hand-added map could be.
