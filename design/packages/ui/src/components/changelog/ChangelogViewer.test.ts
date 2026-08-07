@@ -65,7 +65,7 @@ beforeAll(() => {
     } as unknown as VisualViewport;
 });
 
-const REPO = "https://github.com/Ding-Ding-Projects/worldlens";
+const REPO = "https://github.com/Ding-Ding-Projects/material-bluemap";
 
 function entry(overrides: Partial<ChangelogEntry> & { sha: string }): ChangelogEntry {
     return {

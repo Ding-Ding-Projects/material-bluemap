@@ -36,6 +36,8 @@ html {
      */
     -webkit-text-size-adjust: 100%;
     color-scheme: light dark;
+    max-width: 100%;
+    overflow-x: clip;
 }
 
 [data-theme="light"] {
@@ -47,6 +49,7 @@ html {
 }
 
 body {
+    max-width: 100%;
     margin: 0;
     background: var(--md-sys-color-background);
     color: var(--md-sys-color-on-background);
@@ -56,7 +59,7 @@ body {
     letter-spacing: var(--md-sys-typescale-body-large-tracking);
     -webkit-font-smoothing: antialiased;
     /* A long page must never scroll sideways, whatever a child measures. */
-    overflow-x: hidden;
+    overflow-x: clip;
 }
 
 h1,
@@ -146,7 +149,8 @@ textarea {
     font: var(--md-sys-typescale-label-large-weight) var(--md-sys-typescale-label-large-size) /
         var(--md-sys-typescale-label-large-line-height) var(--md-sys-typescale-label-large-font);
     text-decoration: none;
-    transition: transform var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-emphasized-decelerate);
+    transition: transform var(--md-sys-motion-duration-short4)
+        var(--md-sys-motion-easing-emphasized-decelerate);
 }
 
 .md-skip-link:focus-visible {
@@ -482,7 +486,8 @@ textarea {
 /* ---- Buttons ----------------------------------------------------------------------- */
 
 .md-button {
-    --md-comp-button-height: max(40px, calc(40px * var(--md-sys-density-scale)));
+    /* M3's visual button sits inside this site's required 44px minimum target. */
+    --md-comp-button-height: max(44px, calc(44px * var(--md-sys-density-scale)));
     --md-comp-button-container: transparent;
     --md-comp-button-label: var(--md-sys-color-primary);
     --md-comp-button-outline: transparent;
@@ -533,7 +538,11 @@ textarea {
 }
 
 .md-button:disabled {
-    color: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity), transparent);
+    color: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity),
+        transparent
+    );
     background: transparent;
     border-color: transparent;
     cursor: not-allowed;
@@ -631,7 +640,8 @@ textarea {
     background: transparent;
     color: var(--md-sys-color-on-surface-variant);
     cursor: pointer;
-    transition: background-color var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard);
+    transition: background-color var(--md-sys-motion-duration-short3)
+        var(--md-sys-motion-easing-standard);
 }
 
 .md-icon-button:hover:not(:disabled) {
@@ -643,7 +653,11 @@ textarea {
 }
 
 .md-icon-button:disabled {
-    color: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity), transparent);
+    color: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity),
+        transparent
+    );
     cursor: not-allowed;
 }
 
@@ -935,6 +949,57 @@ textarea {
     color: var(--md-sys-color-on-surface);
 }
 
+/* Every interactive panel can be resized; floating panels also drag by this toolbar. */
+.mb-resizable-panel {
+    box-sizing: border-box;
+    min-width: min(280px, 100%);
+    max-width: 100%;
+    min-height: min(180px, calc(100vh - 24px));
+    resize: both;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+.mb-panel-geometry-toolbar {
+    position: sticky;
+    z-index: 3;
+    top: 0;
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--md-sys-spacing-1);
+    min-height: 48px;
+    margin: calc(-1 * var(--md-sys-spacing-2)) calc(-1 * var(--md-sys-spacing-2))
+        var(--md-sys-spacing-2);
+    padding: var(--md-sys-spacing-1) var(--md-sys-spacing-2);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    background: var(--md-sys-color-surface-container-high);
+}
+
+.mb-draggable-panel .mb-panel-geometry-toolbar {
+    cursor: move;
+    touch-action: none;
+}
+
+.mb-panel-geometry-button {
+    min-width: 44px;
+    min-height: 44px;
+    font: inherit;
+    cursor: pointer;
+}
+
+.mb-panel-geometry-button:focus-visible {
+    outline: max(2px, var(--mb-focus-width, 2px)) solid
+        var(--mb-focus-color, var(--md-sys-color-primary));
+    outline-offset: 2px;
+}
+
+@media (width <= 719px) {
+    .mb-resizable-panel {
+        min-width: min(240px, 100%);
+        min-height: min(160px, calc(100vh - 16px));
+    }
+}
+
 .md-menu {
     min-width: 14rem;
     padding: var(--md-sys-spacing-2) 0;
@@ -998,11 +1063,19 @@ textarea {
 }
 
 .md-menu__item:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity), transparent);
+    background: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-hover-opacity),
+        transparent
+    );
 }
 
 .md-menu__item:disabled {
-    color: color-mix(in srgb, var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity), transparent);
+    color: color-mix(
+        in srgb,
+        var(--md-sys-color-on-surface) var(--md-sys-state-disabled-content-opacity),
+        transparent
+    );
     cursor: not-allowed;
 }
 

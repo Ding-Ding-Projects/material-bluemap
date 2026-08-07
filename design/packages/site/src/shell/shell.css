@@ -18,8 +18,10 @@
 .mb-shell-workspace {
     display: flex;
     flex-direction: column;
+    max-width: 100%;
     min-width: 0;
     min-height: 100vh;
+    overflow-x: clip;
 }
 
 .mb-shell-workspace[data-tab-placement="left"],
@@ -83,6 +85,36 @@ html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] > * {
     height: 100vh;
     min-width: 0;
     min-height: 0;
+}
+
+.mb-shell-topbar[data-sidebar-collapsed="true"][data-placement="left"],
+.mb-shell-topbar[data-sidebar-collapsed="true"][data-placement="right"] {
+    flex-basis: calc(var(--md-sys-min-touch-target) + 2 * var(--md-sys-spacing-2));
+    min-width: calc(var(--md-sys-min-touch-target) + 2 * var(--md-sys-spacing-2));
+}
+
+.mb-shell-topbar[data-sidebar-collapsed="true"] .mb-brand {
+    justify-content: center;
+    padding-inline: var(--md-sys-spacing-2);
+}
+
+.mb-shell-topbar[data-sidebar-collapsed="true"] .mb-brand-word {
+    display: none;
+}
+
+.mb-sidebar-toggle {
+    align-self: center;
+    flex: none;
+    margin: var(--md-sys-spacing-1);
+}
+
+.mb-sidebar-toggle[hidden] {
+    display: none;
+}
+
+.mb-sidebar-toggle svg {
+    width: 20px;
+    height: 20px;
 }
 
 .mb-shell-topbar[data-placement="bottom"] {
@@ -196,8 +228,8 @@ html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] > * {
 @media (width <= 640px) {
     .mb-shell-topbar[data-placement="left"],
     .mb-shell-topbar[data-placement="right"] {
-        flex-basis: min(44vw, 16rem);
-        min-width: 9rem;
+        flex-basis: clamp(7rem, 36vw, 10rem);
+        min-width: 7rem;
     }
 
     .mb-shell-topbar[data-placement="left"] .mb-brand,

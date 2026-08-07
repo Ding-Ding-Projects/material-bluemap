@@ -24,7 +24,7 @@ import {
     toPlainText,
 } from "./changelogModel.js";
 
-const REPO = "https://github.com/Ding-Ding-Projects/worldlens";
+const REPO = "https://github.com/Ding-Ding-Projects/material-bluemap";
 
 function entry(overrides: Partial<ChangelogEntry> & { sha: string }): ChangelogEntry {
     return {

@@ -7,10 +7,10 @@
  */
 
 export const REPO_OWNER = "Ding-Ding-Projects";
-export const REPO_NAME = "worldlens";
+export const REPO_NAME = "material-bluemap";
 
 /** Base path the site is served from. It is a project page, not a domain root. */
-export const SITE_BASE_PATH = "/worldlens/";
+export const SITE_BASE_PATH = "/material-bluemap/";
 
 export const REPO_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}`;
 export const ISSUES_URL = `${REPO_URL}/issues`;
@@ -78,6 +78,11 @@ export const REMOTE_HOSTING_DOC_URL = repoFile("docs/remote-hosting.md");
 export const AUTOMATIC_REPAIR_DOC_URL = repoFile("docs/automatic-repair.md");
 export const FINDING_WORLDS_DOC_URL = repoFile("docs/finding-worlds.md");
 export const BEDROCK_WORLDS_DOC_URL = repoFile("docs/bedrock-worlds.md");
+export const PAGES_FEATURE_PARITY_DOC_URL = repoFile("docs/pages-feature-parity.md");
+export const SCHEDULED_SETTINGS_DOC_URL = repoFile(
+    "docs/scheduled-settings-and-external-sources.md",
+);
+export const PANEL_GEOMETRY_DOC_URL = repoFile("docs/panel-geometry.md");
 
 /** Upstream BlueMap, the project this is a port of. */
 export const UPSTREAM_URL = "https://github.com/BlueMap-Minecraft/BlueMap";

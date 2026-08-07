@@ -134,7 +134,7 @@
 }
 
 .tab-bar__overflow {
-    --md-comp-button-height: 36px;
+    --md-comp-button-height: 44px;
 
     flex: none;
     padding: 0 var(--md-sys-spacing-2);
@@ -450,8 +450,8 @@
 @media (width <= 640px) {
     .tab-bar[data-placement="left"],
     .tab-bar[data-placement="right"] {
-        flex-basis: min(44vw, 16rem);
-        min-width: 9rem;
+        flex-basis: clamp(7rem, 36vw, 10rem);
+        min-width: 7rem;
     }
 
     .tab-bar[data-placement="left"] .tab,

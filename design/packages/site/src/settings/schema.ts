@@ -50,6 +50,15 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
         ],
     },
     {
+        id: "automation",
+        labelKey: "settings.tab.automation",
+        descriptionKey: "settings.tab.automation.desc",
+        groups: [
+            { id: "schedule", labelKey: "settings.group.schedule" },
+            { id: "sources", labelKey: "settings.group.sources" },
+        ],
+    },
+    {
         id: "data",
         labelKey: "settings.tab.data",
         descriptionKey: "settings.tab.data.desc",
@@ -153,6 +162,21 @@ export const SETTINGS: readonly SettingDefinition[] = [
             { value: "top", labelKey: "set.tabPlacement.top" },
             { value: "bottom", labelKey: "set.tabPlacement.bottom" },
         ],
+    },
+    {
+        id: "tabs.sidebarCollapsed",
+        kind: "toggle",
+        tab: "general",
+        group: "navigation",
+        labelKey: "set.sidebarCollapsed",
+        descriptionKey: "set.sidebarCollapsed.desc",
+        keywords: ["sidebar", "navigation", "rail", "collapse", "expand", "側欄", "收合", "展開"],
+        defaultValue: false,
+        responsiveDefault: {
+            compactMaxWidth: 720,
+            compactValue: true,
+            wideValue: false,
+        },
     },
     {
         id: "motion.reduce",

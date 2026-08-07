@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-07T10:48:21.437Z",
+  "requested": {
+    "width": 414,
+    "height": 896,
+    "scale": 1,
+    "mode": "cantonese",
+    "finalState": "collapsed",
+    "scenario": "notifications"
+  },
+  "interaction": {
+    "available": true,
+    "initial": {
+      "expanded": "false",
+      "label": "放側邊導航出返迷你喼仔"
+    },
+    "afterFirst": {
+      "expanded": "true",
+      "label": "將側邊導航塞入迷你喼仔",
+      "focusStayed": true
+    },
+    "afterSecond": {
+      "expanded": "false",
+      "label": "放側邊導航出返迷你喼仔",
+      "focusStayed": true
+    },
+    "final": {
+      "expanded": "false",
+      "label": "放側邊導航出返迷你喼仔",
+      "focusStayed": true
+    }
+  },
+  "scenario": {
+    "scenario": "notifications",
+    "opened": true,
+    "selector": "#panel-notifications",
+    "targetPresent": true,
+    "targetVisible": true
+  },
+  "metrics": {
+    "viewport": {
+      "width": 414,
+      "height": 896,
+      "scale": 1.0000000298023224
+    },
+    "compact": true,
+    "documentOverflowX": 0,
+    "bodyOverflowX": 0,
+    "workspace": {
+      "placement": "left",
+      "sidebarCollapsed": "true"
+    },
+    "navigation": {
+      "hidden": true,
+      "toggleVisible": true,
+      "expanded": "false",
+      "label": "放側邊導航出返迷你喼仔",
+      "controls": "site-primary-navigation",
+      "controlledElementExists": true
+    },
+    "language": {
+      "mode": "yue",
+      "englishNodes": 24,
+      "cantoneseNodes": 0
+    },
+    "scenarioTarget": {
+      "present": true,
+      "horizontalOverflow": 8,
+      "outOfBounds": [
+        {
+          "tag": "DIV",
+          "id": "",
+          "className": "mb-panel-geometry-toolbar",
+          "left": 68,
+          "right": 406,
+          "targetLeft": 76,
+          "targetRight": 398
+        }
+      ]
+    },
+    "clippedControls": [],
+    "undersized": [],
+    "overflowingElements": [],
+    "overflowSummary": {
+      "total": 0,
+      "classified": 0,
+      "accidental": 0,
+      "intentionalHorizontalScroller": 0
+    }
+  },
+  "verification": {
+    "toggleTransitions": {
+      "firstInverted": true,
+      "secondInverted": true,
+      "firstLabelChanged": true,
+      "secondLabelChanged": true
+    },
+    "focusRetained": true,
+    "finalStateMatched": true,
+    "ariaControlsValid": true,
+    "scenarioMatched": true,
+    "overflowClassificationComplete": true,
+    "failures": []
+  }
+}

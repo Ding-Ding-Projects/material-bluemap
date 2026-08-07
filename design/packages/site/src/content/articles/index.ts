@@ -67,6 +67,9 @@ import { remoteRender } from "./remote-render.js";
 import { sshWorldSources } from "./ssh-world-sources.js";
 import { remoteHosting } from "./remote-hosting.js";
 import { automaticRepair } from "./automatic-repair.js";
+import { pagesFeatureParity } from "./pages-feature-parity.js";
+import { scheduledSettings } from "./scheduled-settings.js";
+import { panelGeometry } from "./panel-geometry.js";
 
 export const articles: readonly Article[] = [
     glossary,
@@ -95,6 +98,9 @@ export const articles: readonly Article[] = [
     regexBuilderSurfaces,
     languageAndTone,
     actionArtwork,
+    pagesFeatureParity,
+    scheduledSettings,
+    panelGeometry,
     worldReading,
     worldDiscovery,
     legacyWorldSupport,

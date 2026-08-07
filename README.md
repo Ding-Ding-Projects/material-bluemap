@@ -44,9 +44,19 @@ persists language mode, both funny-level sliders and per-element appearance cont
 `Ctrl+Shift+F` opens the searchable command palette, and the changelog date filter is an anchored
 calendar with typed ISO/slash dates, month jumps, presets and range selection. Pages copy follows
 the persisted English, Hong Kong Cantonese or bilingual mode and both funny-level sliders while
-search builders refresh their own labels when that choice changes. These surfaces are assembled in
-`design/packages/site/src/main.ts` and verified with the site type checker, Vitest suite and
-Vite production build.
+search builders refresh their own labels when that choice changes. Its left/right navigation can
+be collapsed without hiding the expand control, starts collapsed on a compact first visit, and
+persists an explicit visitor choice; the hand-written
+[Pages feature-parity inventory](docs/pages-feature-parity.md) names implementation and verification
+evidence for every applicable shared requirement and states each browser-only boundary. Scheduled
+language and appearance rules can use local time windows, bounded JSON APIs, or Home Assistant
+boolean entities. Home Assistant tokens stay only in page-session memory and `off` falls through to
+the next matching rule. Every settings, tab, anchored, dialog and menu panel shares
+viewport-bounded, persisted resize/drag controls. These surfaces are assembled in `design/packages/site/src/main.ts`
+and verified with the site type checker, Vitest suite, Vite production build, and exact compact
+headless metrics at 360, 390 and 414 CSS pixels plus a desktop viewport. All 18 proof records use a
+guarded schema that checks scenario identity, ARIA state, focus, both toggle label/state changes and
+complete overflow classification.
 
 Every push to the default branch that passes lint, build and the full test suite publishes a real
 Squirrel.Windows installer with its own uniquely tagged release. Read what it can and cannot do
@@ -114,6 +124,8 @@ states its behaviour, configuration, failure modes, security considerations and 
 | **Tabbed navigation**                      | Browser-style tabs docked left, right, top or bottom, with overflow, reordering, pinning, grouping and four discovery searches                                            | [`docs/tabbed-navigation.md`](docs/tabbed-navigation.md)                                                                                                             |
 | **Appearance editors**                     | Per-element **Edit appearance…**, with a continuous colour picker and Word-depth typography                                                                               | [`docs/appearance-editors.md`](docs/appearance-editors.md)                                                                                                           |
 | **Language and tone**                      | English, Hong Kong Cantonese and bilingual, each with its own funny-level slider                                                                                          | [`docs/language-and-tone.md`](docs/language-and-tone.md)                                                                                                             |
+| **Scheduled language and appearance**      | Applies versioned rules by date, time, weekday and timezone, optionally gated by bounded JSON API or Home Assistant boolean sources                                       | [`docs/scheduled-settings-and-external-sources.md`](docs/scheduled-settings-and-external-sources.md)                                                                 |
+| **Resizable and draggable panels**         | Keeps every panel class viewport-bounded, persistent, resettable and keyboard movable/resizable                                                                           | [`docs/panel-geometry.md`](docs/panel-geometry.md)                                                                                                                   |
 | **Action-specific artwork**                | Gives cloud setup, local speed, restart, repository publication and destructive config review their own bundled realistic image and semantic alt text                     | [`docs/action-artwork.md`](docs/action-artwork.md)                                                                                                                   |
 | **Super confirmation**                     | Two keys and a full-travel slider before anything destructive, with an emergency exit throughout                                                                          | [`docs/super-confirmation.md`](docs/super-confirmation.md)                                                                                                           |
 

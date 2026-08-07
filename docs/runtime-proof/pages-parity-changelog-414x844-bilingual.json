@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-07T10:48:14.015Z",
+  "requested": {
+    "width": 414,
+    "height": 844,
+    "scale": 1,
+    "mode": "bilingual",
+    "finalState": "expanded",
+    "scenario": "changelog"
+  },
+  "interaction": {
+    "available": true,
+    "initial": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase / 放側邊導航出返迷你喼仔"
+    },
+    "afterFirst": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase / 將側邊導航塞入迷你喼仔",
+      "focusStayed": true
+    },
+    "afterSecond": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase / 放側邊導航出返迷你喼仔",
+      "focusStayed": true
+    },
+    "final": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase / 將側邊導航塞入迷你喼仔",
+      "focusStayed": true
+    }
+  },
+  "scenario": {
+    "scenario": "changelog",
+    "opened": true,
+    "selector": "#panel-changelog",
+    "targetPresent": true,
+    "targetVisible": true
+  },
+  "metrics": {
+    "viewport": {
+      "width": 414,
+      "height": 844,
+      "scale": 1.0000000298023224
+    },
+    "compact": true,
+    "documentOverflowX": 0,
+    "bodyOverflowX": 0,
+    "workspace": {
+      "placement": "left",
+      "sidebarCollapsed": "false"
+    },
+    "navigation": {
+      "hidden": false,
+      "toggleVisible": true,
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase / 將側邊導航塞入迷你喼仔",
+      "controls": "site-primary-navigation",
+      "controlledElementExists": true
+    },
+    "language": {
+      "mode": "bilingual",
+      "englishNodes": 2630,
+      "cantoneseNodes": 14
+    },
+    "scenarioTarget": {
+      "present": true,
+      "horizontalOverflow": 8,
+      "outOfBounds": [
+        {
+          "tag": "DIV",
+          "id": "",
+          "className": "mb-panel-geometry-toolbar",
+          "left": 157.03125,
+          "right": 406,
+          "targetLeft": 165.03125,
+          "targetRight": 398
+        }
+      ]
+    },
+    "clippedControls": [],
+    "undersized": [],
+    "overflowingElements": [],
+    "overflowSummary": {
+      "total": 0,
+      "classified": 0,
+      "accidental": 0,
+      "intentionalHorizontalScroller": 0
+    }
+  },
+  "verification": {
+    "toggleTransitions": {
+      "firstInverted": true,
+      "secondInverted": true,
+      "firstLabelChanged": true,
+      "secondLabelChanged": true
+    },
+    "focusRetained": true,
+    "finalStateMatched": true,
+    "ariaControlsValid": true,
+    "scenarioMatched": true,
+    "overflowClassificationComplete": true,
+    "failures": []
+  }
+}

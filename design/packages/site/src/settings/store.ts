@@ -23,6 +23,10 @@ export interface SettingBridge {
     write(value: SettingValue): void;
     reset(): void;
     subscribe(listener: () => void): () => void;
+    /** Whether the controller is still using its default rather than an explicit value. */
+    readonly isDefault?: () => boolean;
+    /** Truthful source shown beside the setting. */
+    readonly provenance?: () => "stored" | "compiled-default" | "responsive-default";
 }
 
 export interface ImportReport {
@@ -41,6 +45,8 @@ export class SettingsStore {
     private readonly bridges = new Map<string, SettingBridge>();
     private readonly bridgeUnsubscribes = new Map<string, () => void>();
     private readonly listeners = new Set<Listener>();
+    /** Effective scheduled values; base browser preferences remain untouched underneath. */
+    private readonly overrides = new Map<string, SettingValue>();
     /** Ids written by another build. Kept so a round trip through this build loses nothing. */
     private readonly preserved = new Map<string, string>();
 
@@ -68,7 +74,7 @@ export class SettingsStore {
             id,
             bridge.subscribe(() => {
                 this.emit([id]);
-            })
+            }),
         );
     }
 
@@ -82,6 +88,14 @@ export class SettingsStore {
 
     get(id: string): SettingValue {
         const definition = this.definitions.get(id);
+        if (definition === undefined) throw new Error(`Unknown setting: ${id}`);
+
+        const override = this.overrides.get(id);
+        if (override !== undefined) return override;
+        return this.getBase(id, definition);
+    }
+
+    private getBase(id: string, definition = this.definitions.get(id)): SettingValue {
         if (definition === undefined) throw new Error(`Unknown setting: ${id}`);
 
         const bridge = this.bridges.get(id);
@@ -113,7 +127,20 @@ export class SettingsStore {
     isDefault(id: string): boolean {
         const definition = this.definitions.get(id);
         if (definition === undefined) return true;
-        return this.get(id) === definition.defaultValue;
+        const bridge = this.bridges.get(id);
+        if (bridge?.isDefault !== undefined) return bridge.isDefault();
+        return this.getBase(id, definition) === definition.defaultValue;
+    }
+
+    provenance(
+        id: string,
+    ): "stored" | "compiled-default" | "responsive-default" | "scheduled-override" {
+        const definition = this.definitions.get(id);
+        if (definition === undefined) return "compiled-default";
+        if (this.overrides.has(id)) return "scheduled-override";
+        const bridge = this.bridges.get(id);
+        if (bridge?.provenance !== undefined) return bridge.provenance();
+        return this.prefs.read(KEY_PREFIX + id, "") === "" ? "compiled-default" : "stored";
     }
 
     changedIds(): readonly string[] {
@@ -125,14 +152,16 @@ export class SettingsStore {
         if (definition === undefined) throw new Error(`Unknown setting: ${id}`);
         const coerced = coerce(definition, value);
         if (coerced === null) return;
-        if (this.get(id) === coerced) return;
-
         const bridge = this.bridges.get(id);
         if (bridge !== undefined) {
+            // A value equal to the current responsive default is still an explicit choice.
+            // Let the bridge persist it when it currently reports itself as default.
+            if (this.getBase(id, definition) === coerced && bridge.isDefault?.() !== true) return;
             bridge.write(coerced);
             this.emit([id]);
             return;
         }
+        if (this.getBase(id, definition) === coerced) return;
         if (coerced === definition.defaultValue) this.prefs.remove(KEY_PREFIX + id);
         else this.prefs.write(KEY_PREFIX + id, encode(coerced));
         this.emit([id]);
@@ -175,7 +204,7 @@ export class SettingsStore {
     snapshot(): Record<string, SettingValue> {
         const values: Record<string, SettingValue> = {};
         for (const id of this.definitions.keys()) {
-            if (!this.isDefault(id)) values[id] = this.get(id);
+            if (!this.isDefault(id)) values[id] = this.getBase(id);
         }
         for (const [id, raw] of this.preserved) values[id] = raw;
         return values;
@@ -220,6 +249,30 @@ export class SettingsStore {
     /** Null when persistence works, otherwise a key naming the reason for honest display. */
     persistenceError(): string | null {
         return this.prefs.available ? null : "unavailable";
+    }
+
+    /** Validate a candidate without changing either the base or effective value. */
+    validate(id: string, value: SettingValue): SettingValue | null {
+        const definition = this.definitions.get(id);
+        return definition === undefined ? null : coerce(definition, value);
+    }
+
+    /** Replace the complete scheduled layer without rewriting any base preference. */
+    replaceScheduledOverrides(values: Readonly<Record<string, SettingValue>>): readonly string[] {
+        const next = new Map<string, SettingValue>();
+        for (const [id, raw] of Object.entries(values)) {
+            const value = this.validate(id, raw);
+            if (value !== null) next.set(id, value);
+        }
+        const changed = new Set<string>([...this.overrides.keys(), ...next.keys()]);
+        this.overrides.clear();
+        for (const [id, value] of next) this.overrides.set(id, value);
+        this.emit([...changed]);
+        return [...next.keys()];
+    }
+
+    scheduledOverrideIds(): readonly string[] {
+        return [...this.overrides.keys()];
     }
 
     private emit(ids: readonly string[]): void {

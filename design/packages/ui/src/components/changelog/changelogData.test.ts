@@ -66,7 +66,9 @@ describe("the generated changelog", () => {
     it("resolves its commit links against this repository", () => {
         // GitHub preserves repository redirects after a rename, so current changelog links use
         // the final Worldlens address while historical entry text remains untouched.
-        expect(CHANGELOG_REPOSITORY_URL).toBe("https://github.com/Ding-Ding-Projects/worldlens");
+        expect(CHANGELOG_REPOSITORY_URL).toBe(
+            "https://github.com/Ding-Ding-Projects/material-bluemap",
+        );
     });
 
     it("carries a full SHA on every entry, with the short form a real prefix of it", () => {

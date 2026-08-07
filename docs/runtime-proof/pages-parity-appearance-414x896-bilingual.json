@@ -1,0 +1,257 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-07T10:48:12.741Z",
+  "requested": {
+    "width": 414,
+    "height": 896,
+    "scale": 1,
+    "mode": "bilingual",
+    "finalState": "expanded",
+    "scenario": "appearance"
+  },
+  "interaction": {
+    "available": true,
+    "initial": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase / 放側邊導航出返迷你喼仔"
+    },
+    "afterFirst": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase / 將側邊導航塞入迷你喼仔",
+      "focusStayed": true
+    },
+    "afterSecond": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase / 放側邊導航出返迷你喼仔",
+      "focusStayed": true
+    },
+    "final": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase / 將側邊導航塞入迷你喼仔",
+      "focusStayed": true
+    }
+  },
+  "scenario": {
+    "scenario": "appearance",
+    "opened": true,
+    "selector": ".mbm-panel:not([hidden]), .md-surface-overlay",
+    "targetPresent": true,
+    "targetVisible": true
+  },
+  "metrics": {
+    "viewport": {
+      "width": 414,
+      "height": 896,
+      "scale": 1.0000000298023224
+    },
+    "compact": true,
+    "documentOverflowX": 0,
+    "bodyOverflowX": 0,
+    "workspace": {
+      "placement": "left",
+      "sidebarCollapsed": "false"
+    },
+    "navigation": {
+      "hidden": false,
+      "toggleVisible": true,
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase / 將側邊導航塞入迷你喼仔",
+      "controls": "site-primary-navigation",
+      "controlledElementExists": true
+    },
+    "language": {
+      "mode": "bilingual",
+      "englishNodes": 341,
+      "cantoneseNodes": 87
+    },
+    "scenarioTarget": {
+      "present": true,
+      "horizontalOverflow": 0,
+      "outOfBounds": []
+    },
+    "clippedControls": [],
+    "undersized": [],
+    "overflowingElements": [
+      {
+        "tag": "BUTTON",
+        "id": "mb-tab-appearance",
+        "className": "mb-tab",
+        "left": 380.625,
+        "right": 499.1354217529297,
+        "width": 118.51042175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-tab-label",
+        "left": 396.625,
+        "right": 483.1354217529297,
+        "width": 86.51042175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-primary",
+        "left": 396.625,
+        "right": 483.1354217529297,
+        "width": 86.51042175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 396.625,
+        "right": 483.1354217529297,
+        "width": 86.51042175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "mb-tab-access",
+        "className": "mb-tab",
+        "left": 501.13543701171875,
+        "right": 621.5000228881836,
+        "width": 120.36458587646484,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-tab-label",
+        "left": 517.1354370117188,
+        "right": 605.5000228881836,
+        "width": 88.36458587646484,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-primary",
+        "left": 517.1354370117188,
+        "right": 605.5000228881836,
+        "width": 88.36458587646484,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 517.1354370117188,
+        "right": 605.5000228881836,
+        "width": 88.36458587646484,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "mb-tab-automation",
+        "className": "mb-tab",
+        "left": 623.5,
+        "right": 728.1041717529297,
+        "width": 104.60417175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-tab-label",
+        "left": 639.5,
+        "right": 712.1041717529297,
+        "width": 72.60417175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-primary",
+        "left": 639.5,
+        "right": 712.1041717529297,
+        "width": 72.60417175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 639.5,
+        "right": 712.1041717529297,
+        "width": 72.60417175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "mb-tab-data",
+        "className": "mb-tab",
+        "left": 730.1041870117188,
+        "right": 796.0729370117188,
+        "width": 65.96875,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-tab-label",
+        "left": 746.1041870117188,
+        "right": 780.0729370117188,
+        "width": 33.96875,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-primary",
+        "left": 746.1041870117188,
+        "right": 780.0729370117188,
+        "width": 33.96875,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 746.1041870117188,
+        "right": 780.0729370117188,
+        "width": 33.96875,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      }
+    ],
+    "overflowSummary": {
+      "total": 16,
+      "classified": 16,
+      "accidental": 0,
+      "intentionalHorizontalScroller": 16
+    }
+  },
+  "verification": {
+    "toggleTransitions": {
+      "firstInverted": true,
+      "secondInverted": true,
+      "firstLabelChanged": true,
+      "secondLabelChanged": true
+    },
+    "focusRetained": true,
+    "finalStateMatched": true,
+    "ariaControlsValid": true,
+    "scenarioMatched": true,
+    "overflowClassificationComplete": true,
+    "failures": []
+  }
+}

@@ -42,6 +42,13 @@ interface LegacyAllowance {
 }
 
 const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
+    "scripts/build-changelog.mjs": [
+        {
+            pattern: /https:\/\/github\.com\/Ding-Ding-Projects\/material-bluemap/g,
+            expectedMatches: 1,
+            reason: "current physical repository URL until the atomic rename finalizer runs",
+        },
+    ],
     "design/tools/regex-builder-reference/regex-builder.html": [
         {
             pattern: /https:\/\/github\.com\/Ding-Ding-Projects\/material-bluemap/g,
@@ -93,6 +100,13 @@ const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
                 /migrationEnvironment\(\s*process\.env,\s*"WORLDLENS_CAPTURE_WORLD",\s*"MATERIAL_BLUEMAP_CAPTURE_WORLD",\s*\)/g,
             expectedMatches: 1,
             reason: "read-only world alias at its exact current-first lookup site",
+        },
+    ],
+    "design/packages/ui/src/components/changelog/changelogData.test.ts": [
+        {
+            pattern: /https:\/\/github\.com\/Ding-Ding-Projects\/material-bluemap/g,
+            expectedMatches: 1,
+            reason: "assertion for the current physical changelog repository URL",
         },
     ],
     "docs/repository-adoption.md": [
@@ -199,13 +213,13 @@ describe("the current Worldlens identity inventory", () => {
         expect(source).not.toContain("removeItem(LEGACY_LANGUAGE_STORAGE_KEY)");
     });
 
-    it("uses the final Worldlens repository for newly generated changelog links", async () => {
+    it("uses the current physical repository for newly generated changelog links", async () => {
         const generated = await readFile(
             resolve(root, "design/packages/ui/src/components/changelog/changelogData.generated.ts"),
             "utf8",
         );
         expect(generated).toContain(
-            'CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/worldlens"',
+            'CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/material-bluemap"',
         );
     });
 });

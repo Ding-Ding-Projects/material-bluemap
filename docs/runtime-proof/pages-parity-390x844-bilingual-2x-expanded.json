@@ -1,0 +1,2204 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-07T10:48:06.524Z",
+  "requested": {
+    "width": 390,
+    "height": 844,
+    "scale": 2,
+    "mode": "bilingual",
+    "finalState": "expanded",
+    "scenario": "home"
+  },
+  "interaction": {
+    "available": true,
+    "initial": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase / 放側邊導航出返迷你喼仔"
+    },
+    "afterFirst": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase / 將側邊導航塞入迷你喼仔",
+      "focusStayed": true
+    },
+    "afterSecond": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase / 放側邊導航出返迷你喼仔",
+      "focusStayed": true
+    },
+    "final": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase / 將側邊導航塞入迷你喼仔",
+      "focusStayed": true
+    }
+  },
+  "scenario": {
+    "scenario": "home",
+    "opened": true,
+    "selector": "#panel-home",
+    "targetPresent": true,
+    "targetVisible": true
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "scale": 2.0000000596046448
+    },
+    "compact": true,
+    "documentOverflowX": 0,
+    "bodyOverflowX": 0,
+    "workspace": {
+      "placement": "left",
+      "sidebarCollapsed": "false"
+    },
+    "navigation": {
+      "hidden": false,
+      "toggleVisible": true,
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase / 將側邊導航塞入迷你喼仔",
+      "controls": "site-primary-navigation",
+      "controlledElementExists": true
+    },
+    "language": {
+      "mode": "bilingual",
+      "englishNodes": 529,
+      "cantoneseNodes": 79
+    },
+    "scenarioTarget": {
+      "present": true,
+      "horizontalOverflow": 17,
+      "outOfBounds": [
+        {
+          "tag": "DIV",
+          "id": "",
+          "className": "mb-panel-geometry-toolbar",
+          "left": 148.39584350585938,
+          "right": 382.00001525878906,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "className": "mb-stat",
+          "left": 338.125,
+          "right": 507.8541717529297,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-value",
+          "left": 354.125,
+          "right": 491.8541717529297,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-label",
+          "left": 354.125,
+          "right": 491.8541717529297,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-detail",
+          "left": 354.125,
+          "right": 491.8541717529297,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "className": "mb-stat",
+          "left": 519.8541870117188,
+          "right": 689.5833587646484,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-value",
+          "left": 535.8541870117188,
+          "right": 673.5833587646484,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-label",
+          "left": 535.8541870117188,
+          "right": 673.5833587646484,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-detail",
+          "left": 535.8541870117188,
+          "right": 673.5833587646484,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "className": "mb-stat",
+          "left": 701.5833740234375,
+          "right": 871.3125457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-value",
+          "left": 717.5833740234375,
+          "right": 855.3125457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-label",
+          "left": 717.5833740234375,
+          "right": 855.3125457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-detail",
+          "left": 717.5833740234375,
+          "right": 855.3125457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "className": "mb-stat",
+          "left": 883.3125,
+          "right": 1053.0416717529297,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-value",
+          "left": 899.3125,
+          "right": 1037.0416717529297,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-label",
+          "left": 899.3125,
+          "right": 1037.0416717529297,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-detail",
+          "left": 899.3125,
+          "right": 1037.0416717529297,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "className": "mb-stat",
+          "left": 1065.041748046875,
+          "right": 1234.7709197998047,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-value",
+          "left": 1081.041748046875,
+          "right": 1218.7709197998047,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-label",
+          "left": 1081.041748046875,
+          "right": 1218.7709197998047,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-detail",
+          "left": 1081.041748046875,
+          "right": 1218.7709197998047,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "DIV",
+          "id": "",
+          "className": "mb-stat",
+          "left": 1246.7708740234375,
+          "right": 1416.5000457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-value",
+          "left": 1262.7708740234375,
+          "right": 1400.5000457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-label",
+          "left": 1262.7708740234375,
+          "right": 1400.5000457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "P",
+          "id": "",
+          "className": "mb-stat-detail",
+          "left": 1262.7708740234375,
+          "right": 1400.5000457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-status-ported-unverified",
+          "left": 172.39584350585938,
+          "right": 391.21876525878906,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 311.90625,
+          "right": 378.55208587646484,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-status-ported-unverified",
+          "left": 172.39584350585938,
+          "right": 391.21876525878906,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 311.90625,
+          "right": 378.55208587646484,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-status-ported-unverified",
+          "left": 172.39584350585938,
+          "right": 391.21876525878906,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 311.90625,
+          "right": 378.55208587646484,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-status-ported-unverified",
+          "left": 172.39584350585938,
+          "right": 391.21876525878906,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 311.90625,
+          "right": 378.55208587646484,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-status-ported-unverified",
+          "left": 172.39584350585938,
+          "right": 391.21876525878906,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 311.90625,
+          "right": 378.55208587646484,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TABLE",
+          "id": "",
+          "className": "mb-prose-table",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "CAPTION",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 173.0625,
+          "right": 668.6770935058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "THEAD",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TH",
+          "id": "",
+          "className": "",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 265.5208435058594,
+          "right": 521.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TH",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 553.5208740234375,
+          "right": 668.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TBODY",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "mb-phase-scope",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-phase-done",
+          "left": 553.5208740234375,
+          "right": 626.6250457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 594.9166870117188,
+          "right": 613.9583549499512,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "mb-phase-scope",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-phase-done",
+          "left": 553.5208740234375,
+          "right": 626.6250457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 594.9166870117188,
+          "right": 613.9583549499512,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "mb-phase-scope",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-phase-done",
+          "left": 553.5208740234375,
+          "right": 626.6250457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 594.9166870117188,
+          "right": 613.9583549499512,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "mb-phase-scope",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-phase-note",
+          "left": 265.5208435058594,
+          "right": 521.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-phase-done",
+          "left": 553.5208740234375,
+          "right": 626.6250457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 594.9166870117188,
+          "right": 613.9583549499512,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "mb-phase-scope",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-phase-note",
+          "left": 265.5208435058594,
+          "right": 521.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-phase-in-progress",
+          "left": 553.5208740234375,
+          "right": 668.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 627.4479370117188,
+          "right": 656.0104370117188,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "mb-phase-scope",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-phase-note",
+          "left": 265.5208435058594,
+          "right": 521.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-phase-done",
+          "left": 553.5208740234375,
+          "right": 626.6250457763672,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 594.9166870117188,
+          "right": 613.9583549499512,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "mb-phase-scope",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-phase-note",
+          "left": 265.5208435058594,
+          "right": 521.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-phase-pending",
+          "left": 553.5208740234375,
+          "right": 651.7917098999023,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 610.5625,
+          "right": 639.125,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "mb-phase-scope",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-phase-note",
+          "left": 265.5208435058594,
+          "right": 521.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-phase-in-progress",
+          "left": 553.5208740234375,
+          "right": 668.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 627.4479370117188,
+          "right": 656.0104370117188,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "mb-phase-scope",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-phase-pending",
+          "left": 553.5208740234375,
+          "right": 651.7917098999023,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 610.5625,
+          "right": 639.125,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "mb-phase-scope",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-phase-note",
+          "left": 265.5208435058594,
+          "right": 521.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-phase-pending",
+          "left": 553.5208740234375,
+          "right": 651.7917098999023,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 610.5625,
+          "right": 639.125,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "mb-phase-scope",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-phase-note",
+          "left": 265.5208435058594,
+          "right": 521.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-phase-pending",
+          "left": 553.5208740234375,
+          "right": 651.7917098999023,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 610.5625,
+          "right": 639.125,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TR",
+          "id": "",
+          "className": "",
+          "left": 157.0625,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "mb-phase-scope",
+          "left": 249.52084350585938,
+          "right": 537.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-phase-note",
+          "left": 265.5208435058594,
+          "right": 521.5208435058594,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "TD",
+          "id": "",
+          "className": "",
+          "left": 537.5208740234375,
+          "right": 684.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "mb-status mb-phase-in-progress",
+          "left": 553.5208740234375,
+          "right": 668.6771240234375,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "SPAN",
+          "id": "",
+          "className": "i18n-secondary",
+          "left": 627.4479370117188,
+          "right": 656.0104370117188,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        },
+        {
+          "tag": "CODE",
+          "id": "",
+          "className": "",
+          "left": 173.0625,
+          "right": 569.65625,
+          "targetLeft": 156.39584350585938,
+          "targetRight": 374.00001525878906
+        }
+      ]
+    },
+    "clippedControls": [],
+    "undersized": [],
+    "overflowingElements": [
+      {
+        "tag": "DIV",
+        "id": "",
+        "className": "mb-stat",
+        "left": 338.125,
+        "right": 507.8541717529297,
+        "width": 169.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-value",
+        "left": 354.125,
+        "right": 491.8541717529297,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-label",
+        "left": 354.125,
+        "right": 491.8541717529297,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-detail",
+        "left": 354.125,
+        "right": 491.8541717529297,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "className": "mb-stat",
+        "left": 519.8541870117188,
+        "right": 689.5833587646484,
+        "width": 169.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-value",
+        "left": 535.8541870117188,
+        "right": 673.5833587646484,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-label",
+        "left": 535.8541870117188,
+        "right": 673.5833587646484,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-detail",
+        "left": 535.8541870117188,
+        "right": 673.5833587646484,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "className": "mb-stat",
+        "left": 701.5833740234375,
+        "right": 871.3125457763672,
+        "width": 169.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-value",
+        "left": 717.5833740234375,
+        "right": 855.3125457763672,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-label",
+        "left": 717.5833740234375,
+        "right": 855.3125457763672,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-detail",
+        "left": 717.5833740234375,
+        "right": 855.3125457763672,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "className": "mb-stat",
+        "left": 883.3125,
+        "right": 1053.0416717529297,
+        "width": 169.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-value",
+        "left": 899.3125,
+        "right": 1037.0416717529297,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-label",
+        "left": 899.3125,
+        "right": 1037.0416717529297,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-detail",
+        "left": 899.3125,
+        "right": 1037.0416717529297,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "className": "mb-stat",
+        "left": 1065.041748046875,
+        "right": 1234.7709197998047,
+        "width": 169.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-value",
+        "left": 1081.041748046875,
+        "right": 1218.7709197998047,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-label",
+        "left": 1081.041748046875,
+        "right": 1218.7709197998047,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-detail",
+        "left": 1081.041748046875,
+        "right": 1218.7709197998047,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "DIV",
+        "id": "",
+        "className": "mb-stat",
+        "left": 1246.7708740234375,
+        "right": 1416.5000457763672,
+        "width": 169.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-value",
+        "left": 1262.7708740234375,
+        "right": 1400.5000457763672,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-label",
+        "left": 1262.7708740234375,
+        "right": 1400.5000457763672,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "P",
+        "id": "",
+        "className": "mb-stat-detail",
+        "left": 1262.7708740234375,
+        "right": 1400.5000457763672,
+        "width": 137.7291717529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-stat-grid"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-status-ported-unverified",
+        "left": 172.39584350585938,
+        "right": 391.21876525878906,
+        "width": 218.8229217529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "panel-home"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-status-ported-unverified",
+        "left": 172.39584350585938,
+        "right": 391.21876525878906,
+        "width": 218.8229217529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "panel-home"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-status-ported-unverified",
+        "left": 172.39584350585938,
+        "right": 391.21876525878906,
+        "width": 218.8229217529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "panel-home"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-status-ported-unverified",
+        "left": 172.39584350585938,
+        "right": 391.21876525878906,
+        "width": 218.8229217529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "panel-home"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-status-ported-unverified",
+        "left": 172.39584350585938,
+        "right": 391.21876525878906,
+        "width": 218.8229217529297,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "panel-home"
+      },
+      {
+        "tag": "TABLE",
+        "id": "",
+        "className": "mb-prose-table",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "CAPTION",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 173.0625,
+        "right": 668.6770935058594,
+        "width": 495.6145935058594,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "THEAD",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TH",
+        "id": "",
+        "className": "",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 265.5208435058594,
+        "right": 521.5208435058594,
+        "width": 256,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TH",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 553.5208740234375,
+        "right": 668.6771240234375,
+        "width": 115.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TBODY",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "mb-phase-scope",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-phase-done",
+        "left": 553.5208740234375,
+        "right": 626.6250457763672,
+        "width": 73.10417175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 594.9166870117188,
+        "right": 613.9583549499512,
+        "width": 19.041667938232422,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "mb-phase-scope",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-phase-done",
+        "left": 553.5208740234375,
+        "right": 626.6250457763672,
+        "width": 73.10417175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 594.9166870117188,
+        "right": 613.9583549499512,
+        "width": 19.041667938232422,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "mb-phase-scope",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-phase-done",
+        "left": 553.5208740234375,
+        "right": 626.6250457763672,
+        "width": 73.10417175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 594.9166870117188,
+        "right": 613.9583549499512,
+        "width": 19.041667938232422,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "mb-phase-scope",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-phase-note",
+        "left": 265.5208435058594,
+        "right": 521.5208435058594,
+        "width": 256,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-phase-done",
+        "left": 553.5208740234375,
+        "right": 626.6250457763672,
+        "width": 73.10417175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 594.9166870117188,
+        "right": 613.9583549499512,
+        "width": 19.041667938232422,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "mb-phase-scope",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-phase-note",
+        "left": 265.5208435058594,
+        "right": 521.5208435058594,
+        "width": 256,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-phase-in-progress",
+        "left": 553.5208740234375,
+        "right": 668.6771240234375,
+        "width": 115.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 627.4479370117188,
+        "right": 656.0104370117188,
+        "width": 28.5625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "mb-phase-scope",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-phase-note",
+        "left": 265.5208435058594,
+        "right": 521.5208435058594,
+        "width": 256,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-phase-done",
+        "left": 553.5208740234375,
+        "right": 626.6250457763672,
+        "width": 73.10417175292969,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 594.9166870117188,
+        "right": 613.9583549499512,
+        "width": 19.041667938232422,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "mb-phase-scope",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-phase-note",
+        "left": 265.5208435058594,
+        "right": 521.5208435058594,
+        "width": 256,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-phase-pending",
+        "left": 553.5208740234375,
+        "right": 651.7917098999023,
+        "width": 98.27083587646484,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 610.5625,
+        "right": 639.125,
+        "width": 28.5625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "mb-phase-scope",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-phase-note",
+        "left": 265.5208435058594,
+        "right": 521.5208435058594,
+        "width": 256,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-phase-in-progress",
+        "left": 553.5208740234375,
+        "right": 668.6771240234375,
+        "width": 115.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 627.4479370117188,
+        "right": 656.0104370117188,
+        "width": 28.5625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "mb-phase-scope",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-phase-pending",
+        "left": 553.5208740234375,
+        "right": 651.7917098999023,
+        "width": 98.27083587646484,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 610.5625,
+        "right": 639.125,
+        "width": 28.5625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "mb-phase-scope",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-phase-note",
+        "left": 265.5208435058594,
+        "right": 521.5208435058594,
+        "width": 256,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-phase-pending",
+        "left": 553.5208740234375,
+        "right": 651.7917098999023,
+        "width": 98.27083587646484,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 610.5625,
+        "right": 639.125,
+        "width": 28.5625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "mb-phase-scope",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-phase-note",
+        "left": 265.5208435058594,
+        "right": 521.5208435058594,
+        "width": 256,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-phase-pending",
+        "left": 553.5208740234375,
+        "right": 651.7917098999023,
+        "width": 98.27083587646484,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 610.5625,
+        "right": 639.125,
+        "width": 28.5625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TR",
+        "id": "",
+        "className": "",
+        "left": 157.0625,
+        "right": 684.6771240234375,
+        "width": 527.6146240234375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "mb-phase-scope",
+        "left": 249.52084350585938,
+        "right": 537.5208435058594,
+        "width": 288,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-phase-note",
+        "left": 265.5208435058594,
+        "right": 521.5208435058594,
+        "width": 256,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "TD",
+        "id": "",
+        "className": "",
+        "left": 537.5208740234375,
+        "right": 684.6771240234375,
+        "width": 147.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-status mb-phase-in-progress",
+        "left": 553.5208740234375,
+        "right": 668.6771240234375,
+        "width": 115.15625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 627.4479370117188,
+        "right": 656.0104370117188,
+        "width": 28.5625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-table-scroll"
+      },
+      {
+        "tag": "CODE",
+        "id": "",
+        "className": "",
+        "left": 173.0625,
+        "right": 569.65625,
+        "width": 396.59375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-code"
+      }
+    ],
+    "overflowSummary": {
+      "total": 108,
+      "classified": 108,
+      "accidental": 0,
+      "intentionalHorizontalScroller": 108
+    }
+  },
+  "verification": {
+    "toggleTransitions": {
+      "firstInverted": true,
+      "secondInverted": true,
+      "firstLabelChanged": true,
+      "secondLabelChanged": true
+    },
+    "focusRetained": true,
+    "finalStateMatched": true,
+    "ariaControlsValid": true,
+    "scenarioMatched": true,
+    "overflowClassificationComplete": true,
+    "failures": []
+  }
+}

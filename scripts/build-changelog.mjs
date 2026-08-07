@@ -66,7 +66,7 @@ import { fileURLToPath } from "node:url";
 const REPO_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 /** Where the commit links resolve. The changelog is useless if they point at a fork. */
-const REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/worldlens";
+const REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/material-bluemap";
 
 const CHANGELOG_PATH = join(REPO_ROOT, "CHANGELOG.md");
 const DATA_PATH = join(

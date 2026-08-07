@@ -101,6 +101,22 @@ export const SETTINGS_STRINGS: StringTable = {
     },
     "settings.atDefault": { en: "Already at its default", yue: "已經係預設值" },
     "settings.changed": { en: "Changed", yue: "已改" },
+    "settings.provenance.stored": {
+        en: "Source: an explicit value stored in this browser.",
+        yue: "來源：呢個瀏覽器明確儲低嘅值。",
+    },
+    "settings.provenance.compiled-default": {
+        en: "Source: the application's compiled default.",
+        yue: "來源：應用程式編譯時嘅預設值。",
+    },
+    "settings.provenance.responsive-default": {
+        en: "Source: responsive default — collapsed at 720 CSS pixels or narrower, expanded above it.",
+        yue: "來源：響應式預設——720 CSS 像素或以下收合，再闊就展開。",
+    },
+    "settings.provenance.scheduled-override": {
+        en: "Source: a temporary scheduled override; the stored base value is unchanged.",
+        yue: "來源：暫時排程覆寫；原本儲低嘅基礎值冇被改。",
+    },
     "settings.changedCount": {
         en: "{count} settings differ from their defaults",
         yue: "有 {count} 項設定同預設唔同",
@@ -143,6 +159,11 @@ export const SETTINGS_STRINGS: StringTable = {
         en: "Export, import, and reset what this browser has stored.",
         yue: "匯出、匯入同清走呢個瀏覽器儲低嘅嘢。",
     },
+    "settings.tab.automation": { en: "Schedules", yue: "排程" },
+    "settings.tab.automation.desc": {
+        en: "Apply language and appearance settings by date, time, weekday, timezone, API, or Home Assistant state.",
+        yue: "按日期、時間、星期、時區、API 或 Home Assistant 狀態套用語言同外觀設定。",
+    },
 
     "settings.group.theme": { en: "Theme and surface", yue: "主題同底色" },
     "settings.group.navigation": { en: "Navigation", yue: "導覽" },
@@ -157,6 +178,133 @@ export const SETTINGS_STRINGS: StringTable = {
     "settings.group.targets": { en: "Targets and spacing", yue: "點擊範圍同間距" },
     "settings.group.transfer": { en: "Export and import", yue: "匯出同匯入" },
     "settings.group.resetGroup": { en: "Reset", yue: "還原" },
+    "settings.group.schedule": { en: "Scheduled rules", yue: "排程規則" },
+    "settings.group.sources": { en: "External sources and history", yue: "外部來源同歷史" },
+
+    "schedule.intro": {
+        en: "Rules temporarily override the site's active settings. Your stored base values stay unchanged and return when no rule matches.",
+        yue: "規則只係暫時覆寫網站目前設定；原本儲低嘅基礎值唔會改，冇規則符合就自動返嚟。",
+    },
+    "schedule.rule": { en: "Rule", yue: "規則" },
+    "schedule.add": { en: "Add rule", yue: "新增規則" },
+    "schedule.save": { en: "Save rule", yue: "儲存規則" },
+    "schedule.delete": { en: "Delete rule", yue: "刪除規則" },
+    "schedule.label": { en: "Rule name", yue: "規則名稱" },
+    "schedule.enabled": { en: "Enabled", yue: "啟用" },
+    "schedule.priority": { en: "Priority (-1000 to 1000)", yue: "優先次序（-1000 至 1000）" },
+    "schedule.startDate": { en: "Start date (optional)", yue: "開始日期（可留空）" },
+    "schedule.endDate": { en: "End date (optional)", yue: "結束日期（可留空）" },
+    "schedule.startTime": { en: "Start time", yue: "開始時間" },
+    "schedule.endTime": { en: "End time", yue: "結束時間" },
+    "schedule.timezone": { en: "Timezone", yue: "時區" },
+    "schedule.everyDay": { en: "Every day", yue: "每日" },
+    "schedule.weekdays": { en: "Weekdays", yue: "星期" },
+    "schedule.weekday.0": { en: "Sun", yue: "日" },
+    "schedule.weekday.1": { en: "Mon", yue: "一" },
+    "schedule.weekday.2": { en: "Tue", yue: "二" },
+    "schedule.weekday.3": { en: "Wed", yue: "三" },
+    "schedule.weekday.4": { en: "Thu", yue: "四" },
+    "schedule.weekday.5": { en: "Fri", yue: "五" },
+    "schedule.weekday.6": { en: "Sat", yue: "六" },
+    "schedule.values": { en: "Settings this rule controls", yue: "呢條規則控制嘅設定" },
+    "schedule.addValue": { en: "Add setting", yue: "新增設定" },
+    "schedule.removeValue": { en: "Remove setting", yue: "移除設定" },
+    "schedule.source": { en: "Value source", yue: "數值來源" },
+    "schedule.source.local": { en: "Values in this rule", yue: "規則內嘅值" },
+    "schedule.source.api": { en: "Versioned JSON API", yue: "有版本 JSON API" },
+    "schedule.source.ha": { en: "Home Assistant boolean entity", yue: "Home Assistant 布林實體" },
+    "schedule.apiUrl": { en: "HTTPS JSON URL", yue: "HTTPS JSON 網址" },
+    "schedule.haUrl": { en: "Home Assistant base URL", yue: "Home Assistant 基礎網址" },
+    "schedule.haEntity": {
+        en: "Entity ID (binary_sensor or input_boolean)",
+        yue: "實體 ID（binary_sensor 或 input_boolean）",
+    },
+    "schedule.sessionToken": {
+        en: "Home Assistant token for this browser session",
+        yue: "今次瀏覽器 session 用嘅 Home Assistant token",
+    },
+    "schedule.sessionTokenPlaceholder": {
+        en: "Paste token for this session",
+        yue: "貼上今次 session 嘅 token",
+    },
+    "schedule.useSessionToken": { en: "Use token this session", yue: "今次 session 使用 token" },
+    "schedule.clearSessionToken": { en: "Clear this token", yue: "清除呢個 token" },
+    "schedule.clearSessionTokens": {
+        en: "Clear all session tokens",
+        yue: "清除全部 session token",
+    },
+    "schedule.sessionTokenLoaded": {
+        en: "A token is loaded in memory for this rule until reload, clear, or page close.",
+        yue: "呢條規則嘅 token 已放喺記憶體；reload、清除或者閂頁就會消失。",
+    },
+    "schedule.sessionTokenMissing": {
+        en: "No token is loaded. Home Assistant checks cannot run until one is entered for this session.",
+        yue: "未載入 token；今次 session 未輸入之前，Home Assistant 檢查唔會跑到。",
+    },
+    "schedule.sessionTokenEmpty": {
+        en: "Enter a token before using it.",
+        yue: "要先輸入 token 先用得。",
+    },
+    "schedule.sessionTokenAccepted": {
+        en: "Session token loaded in memory only.",
+        yue: "Session token 只放咗喺記憶體。",
+    },
+    "schedule.sessionTokenCleared": {
+        en: "This rule's session token was cleared.",
+        yue: "呢條規則嘅 session token 已清除。",
+    },
+    "schedule.sessionTokensCleared": {
+        en: "All Home Assistant session tokens were cleared.",
+        yue: "全部 Home Assistant session token 已清除。",
+    },
+    "schedule.credentialHelp": {
+        en: "This static site keeps Home Assistant tokens only in memory for the current page session. Tokens are never stored, exported, placed in URLs, or logged; reload, page close, or Clear removes them, so you must enter them again next session.",
+        yue: "呢個靜態網站只會將 Home Assistant token 放喺今次頁面 session 嘅記憶體；唔會儲存、匯出、放入網址或者寫落 log。Reload、閂頁或者撳 Clear 就會清走，下次 session 要再輸入。",
+    },
+    "schedule.refresh": { en: "Refresh interval (minutes)", yue: "更新間隔（分鐘）" },
+    "schedule.refreshNow": { en: "Refresh and apply now", yue: "立即更新並套用" },
+    "schedule.status.idle": {
+        en: "No matching rule. Stored base settings are active.",
+        yue: "冇規則符合；而家用緊儲低嘅基礎設定。",
+    },
+    "schedule.status.applied": {
+        en: "Applied {rule}; {count} settings are temporarily overridden.",
+        yue: "已套用 {rule}；暫時覆寫 {count} 項設定。",
+    },
+    "schedule.status.off": {
+        en: "{rule} and every lower candidate are off; stored base settings are active.",
+        yue: "{rule} 同全部較低候選都係 off；而家用返儲低嘅基礎設定。",
+    },
+    "schedule.status.error": {
+        en: "{rule} could not be applied: {code}. Base settings were restored.",
+        yue: "{rule} 套用唔到：{code}。已還原基礎設定。",
+    },
+    "schedule.saved": { en: "Rule saved and evaluated.", yue: "規則已儲存同重新評估。" },
+    "schedule.deleted": {
+        en: "Rule deleted; its previous version remains in history.",
+        yue: "規則已刪除；舊版本仲留喺歷史入面。",
+    },
+    "schedule.invalid": {
+        en: "Fix these fields before saving: {errors}.",
+        yue: "儲存前要修正：{errors}。",
+    },
+    "schedule.empty": {
+        en: "No rules yet. Add one to schedule the site's real settings.",
+        yue: "仲未有規則。新增一條就可以排程網站嘅真設定。",
+    },
+    "schedule.history": { en: "Version history", yue: "版本歷史" },
+    "schedule.export": { en: "Export rules", yue: "匯出規則" },
+    "schedule.import": { en: "Import rules", yue: "匯入規則" },
+    "schedule.imported": {
+        en: "Rules imported, validated, and evaluated.",
+        yue: "規則已匯入、驗證同重新評估。",
+    },
+    "schedule.importFailed": {
+        en: "That file is not a valid version 1 schedule document.",
+        yue: "嗰個檔案唔係有效嘅第 1 版排程文件。",
+    },
+    "schedule.restore": { en: "Restore this version", yue: "還原呢個版本" },
+    "schedule.historyEmpty": { en: "No saved versions yet.", yue: "仲未有儲存版本。" },
 
     "set.themeMode": { en: "Theme", yue: "主題" },
     "set.themeMode.desc": {
@@ -206,6 +354,12 @@ export const SETTINGS_STRINGS: StringTable = {
     "set.tabPlacement.right": { en: "Right edge", yue: "右邊" },
     "set.tabPlacement.top": { en: "Top edge", yue: "上邊" },
     "set.tabPlacement.bottom": { en: "Bottom edge", yue: "下邊" },
+
+    "set.sidebarCollapsed": { en: "Collapse side navigation", yue: "收合側邊導航" },
+    "set.sidebarCollapsed.desc": {
+        en: "Hide the left or right tab rail behind a persistent expand button. A fresh compact visit starts collapsed; your explicit choice is then kept at every width.",
+        yue: "將左邊或者右邊分頁列收埋，只留一個長駐展開掣。新手機畫面預設收合；你揀過之後，唔同闊度都會記住。",
+    },
 
     "set.reduceMotion": { en: "Reduce motion", yue: "減少動畫" },
     "set.reduceMotion.desc": {

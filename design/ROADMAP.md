@@ -1,5 +1,55 @@
 # Roadmap
 
+## Pages parity exact-main integration checkpoint (2026-08-07)
+
+The phase branch now contains merge commit `f713d1a5dcbc2209711f24b3ca5b7a2b3c584916`, whose second
+parent is exact corrected default-branch commit `ff2a8db67329311357f3ffe858d1d78b25ac7ab1`.
+Worldlens identity, permanently unsigned release/update truth, final release timing and the direct
+checksum asset coexist with all 41 Pages requirement categories, the compact side-navigation
+contract, scheduled/session-only external-source rules, shared panel geometry and schema-v2 proof.
+Physical links continue to use `material-bluemap` until the repository rename actually happens.
+
+The exact `/material-bluemap/` production build passes the full 18-scenario off-screen compact
+matrix across desktop, mobile, bilingual and 200% scale. Local build, lint, all 13 package
+typechecks, the complete 352.2-second `test:ci`, changelog validation, 43 workflow/picker tests and
+workflow lint are terminal green. This checkpoint remains branch-only: exact hosted branch CI,
+default-branch integration and live Pages deployment proof are still required, so issue #92 stays
+open and the public site is not described as updated yet.
+
+## GitHub Pages mobile navigation and global-feature parity (2026-08-07)
+
+**Implemented on `codex/phase-pages-global-parity`; default-branch deployment proof remains with
+the integration flow.** Left/right site navigation now has a localized, focus-retaining collapse
+control. A compact first visit starts collapsed with a minimum-size expand target still visible;
+an explicit visitor choice persists across reloads and viewport changes, while reset returns to the
+responsive default. Top and bottom placement remain complete horizontal strips.
+
+The documentation site now carries a hand-written inventory of 41 shared requirements. The added
+rows cover scheduled language/appearance rules with local, bounded JSON API and Home Assistant
+boolean sources, plus one shared geometry controller for settings panels, tab panels, anchored
+panels and interactive overlays. Rules are versioned and bounded, preserve base-value recovery and
+history, validate timezone/cross-midnight/equal-endpoint behaviour, keep Home Assistant tokens only
+in page-session memory, let `off` fall through to the next matching rule, and fail closed on
+unavailable/authentication responses. Panels resize, every transient panel including menus drags,
+stays viewport-bounded, persists per surface, resets visibly and exposes keyboard move/resize paths.
+
+Eighteen exact schema-v2 headless records and fourteen genuine captures cover ten routes: Home, Settings,
+Schedules/external sources, Search/regex, command-palette teleport, appearance, notification
+history, changelog/date filtering, tab/group menus and exports/bulk actions. The driver no longer
+truncates overflow candidates; it classifies every one as accidental or an intentional internal
+scroller and fails accidental clipping, an undersized target, broken `aria-controls`, missing
+toggle inversion or localized label change, a missing scenario, or an incorrect final navigation
+state. A committed guard rejects legacy/incomplete records. The runtime pass also corrected the
+expanded compact rail width, appearance-editor width and wrapping, startup-surprise dismiss target,
+button/search/tab targets and scheduled checkbox rows. See `../docs/pages-feature-parity.md`,
+`../docs/scheduled-settings-and-external-sources.md`, `../docs/panel-geometry.md` and issue #92.
+
+Focused schedule, geometry and content-policy tests plus site typecheck/build are green locally.
+The final repository lint, all 13 package typechecks, complete `pnpm test:ci` and exact hosted run
+are re-run after this evidence commit; until they finish, they remain pending rather than inferred
+from the earlier 344.7-second branch run. A local build is not evidence of the live Pages
+deployment; that exact URL and default-branch workflow remain open until integration.
+
 ## Release expression and catalog-metadata hardening (2026-08-07)
 
 **Implemented on `codex/phase-release-expression-hardening`; exact-main integration and release

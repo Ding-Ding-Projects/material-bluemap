@@ -15,7 +15,7 @@ repository**, for use as a deterministic render fixture.
 
 The screenshot job used to point at a third party's public BlueMap demo server, which
 meant every push spent someone else's bandwidth and produced captures that changed with
-their uptime ([issue #17](https://github.com/Ding-Ding-Projects/worldlens/issues/17)).
+their uptime ([issue #17](https://github.com/Ding-Ding-Projects/material-bluemap/issues/17)).
 A world this repository generates itself is free, offline, reproducible from a recorded
 seed, and — because it goes out through our NBT writer and comes back in through our
 Anvil reader — it exercises the format code on the way.

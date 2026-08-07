@@ -1,5 +1,102 @@
 # Handoff
 
+## Integration update, 2026-08-07 — Pages parity now sits on the corrected Worldlens release base
+
+Merge commit `f713d1a5dcbc2209711f24b3ca5b7a2b3c584916` brings exact default-branch
+commit `ff2a8db67329311357f3ffe858d1d78b25ac7ab1` into
+`codex/phase-pages-global-parity`. The resolution preserves the Worldlens product, package and
+executable identity; permanently unsigned update/release disclosure; final workflow timing and
+direct checksum publication; and the complete Pages parity implementation. Until the repository
+itself is renamed, live repository, issue, clone and Pages addresses deliberately remain under
+`Ding-Ding-Projects/material-bluemap` and `/material-bluemap/`.
+
+The merged production site was rebuilt with `SITE_BASE=/material-bluemap/` and exercised through
+the cheap off-screen browser route. All 18 schema-v2 scenarios passed at 360, 390, 414 and 1024 CSS
+pixels, including bilingual 200% scale: mobile navigation inverted twice with localized labels,
+retained focus, matched its requested final state, preserved valid `aria-controls`, opened the
+requested feature surface and classified every overflow candidate with no accidental clipping.
+The complete `pnpm test:ci` pass was terminal green in 352.2 seconds after three stale physical-path
+expectations were corrected; all 13 package typechecks, lint, build, changelog verification, the
+43 workflow/picker tests and the workflow linter also passed locally.
+
+These are branch and local built-artifact facts only. The phase branch still needs its hosted
+workflow and exact-SHA read-back before integration, and the live Pages URL remains a default-branch
+deployment gate. Issue #92 therefore stays open; this update does not claim that the default branch
+or the public Pages deployment contains the phase.
+
+## Update, 2026-08-07 — Pages navigation, scheduling and panel geometry share one compact contract
+
+Issue #92 lives on `codex/phase-pages-global-parity`. Commits
+`fa7f6afb4cdbb5cebd6abb66f4bed1379fe3f088`,
+`d556c3da648b75ce78b77901b04c8e28039efb86`,
+`57e41cc8f29fae885a5d5ad65ffad9edc3594586`,
+`a9fe3c4f2527e1e8365260e439ce997f30e259dd` and
+`5a4fe2aef86e2ec3fb36a10a4886d09f9f0376ea` introduce the persisted responsive side-navigation
+model, correct default provenance, a versioned scheduled-settings engine and guided editor, and the
+shared panel-geometry controller. A compact first visit starts collapsed; a deliberate choice
+persists; reset returns to the responsive default; and simply observing the compact default no
+longer writes a false user override. Top/bottom tabs remain horizontal; `aria-expanded`,
+`aria-controls`, labels and focus follow the real state.
+
+The final rejected-proof repair is
+`82139b484903d81997e11306292983dbd55a608f`: session-only Home Assistant credentials,
+lower-priority fallthrough, menu geometry, schema-v2 proof, compact appearance reflow, and the
+fresh 414×844 bilingual capture.
+
+The hand-written inventory now has 41 categories. Scheduled language and appearance rules cover
+date, time, weekday, timezone, cross-midnight and full-day equal-endpoint windows; priority and
+later-rule precedence; base recovery; bounded history; local, HTTPS/loopback JSON API and Home
+Assistant boolean sources; page-session-only credentials; import/export; and fail-safe
+notifications. Settings/tab panels resize, every transient surface including menus also drags, and
+the shared controller provides viewport clamping, per-surface persistence, a visible reset path and
+keyboard controls.
+
+The rejected proof follow-up removes the imaginary companion-vault dependency. The static site now
+accepts a Home Assistant token through a password field and holds it only in a page-lifetime memory
+map, with per-rule and clear-all actions. A real loopback server covers `on`, `off` fallthrough to a
+lower-priority rule, unavailable and authentication responses; a separate assertion proves the
+token never enters persistence, exports, URLs or console output. The `role="menu"` geometry
+exemption is gone: the coverage test now constructs AnchoredPanel, dialog Overlay, menu Overlay and
+Menu, and rejects a null/non-floating controller.
+
+All 18 compact records now use schema version 2. The driver proves both `aria-expanded` inversions,
+both localized label changes, focus retention, `aria-controls`, scenario identity, final state and
+complete overflow classification; `compactProofSchema.test.ts` rejects legacy or incomplete
+records. At 414×844 bilingual, the appearance editor reports zero internal horizontal overflow and
+zero out-of-bounds descendants. Its fresh genuine headless capture is
+`docs/screenshots/pages-parity-appearance-414x844-bilingual.png`.
+
+The first branch workflow, run `31156076304`, failed after lint, build and typecheck passed because
+two documentation-policy checks were exact: the new article was absent from `docs/README.md`, and a
+negated coverage sentence repeated a word the shipped-copy solicitation guard deliberately rejects.
+The installer, screenshots and release jobs were skipped. The follow-up indexes the article,
+rephrases the evidence without weakening the scanner, and adds direct regressions for that row,
+compact rail sizing and the 44 CSS pixel startup-surprise dismiss target. Do not describe that first
+workflow as green.
+
+The next branch workflow, run `31157361045`, stopped even earlier at typecheck: the new policy-row
+test used a Vitest assertion as though it narrowed the `PagesFeatureCoverage` discriminated union.
+It does not. The correction uses a real `status === "implemented"` guard before reading verification
+evidence, with no cast. The first complete local `pnpm test:ci` after that repair then found the new
+article indexed under Rendering even though the site article declares itself an Application feature,
+and absent from the in-app docs browser's hand-written application order. The canonical index now
+lists it under **The application**, and `APPLICATION_ORDER` names it explicitly. Focused docs/policy
+tests pass 49/49; root build and all 13 package typechecks pass; the second complete local
+`pnpm test:ci` is terminal green in 344.7 seconds. These local results justify the next branch update,
+but do not predict its hosted result.
+
+Runtime proof uses `packages/site/scripts/compact-proof.mjs` against a production site build on an
+isolated off-screen desktop. Eighteen JSON records and fourteen genuine captures cover Home,
+Settings, Schedules/external sources, Search/regex, command-palette teleport, appearance,
+notification history, changelog/date filtering, tab/group menus and exports/bulk actions at
+360×640@1, 390×844@1, 414×896@1, bilingual 390×844@2 and 1024×768@1. Every overflow candidate is
+recorded and classified; no list is truncated. Every record reports zero accidental clipping and
+zero undersized targets, while intended bounded internal scrollers remain explicit. The driver also
+checks the exact final collapse state, hidden-navigation match, visible toggle, `aria-controls` and
+focus retention. These are local built-site facts, not evidence that the default-branch GitHub Pages
+deployment has updated. The final evidence commit, complete repository gate and exact hosted run are
+recorded below once terminal; integration must still verify the live URL and only then close #92.
+
 ## Update, 2026-08-07 — release metadata stays data
 
 The security phase started from exact main `e13777927876a3d7898778f18193e9465bc97cc2` and owns commits

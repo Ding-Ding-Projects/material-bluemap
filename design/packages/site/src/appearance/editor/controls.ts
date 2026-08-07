@@ -34,6 +34,8 @@ export interface RowOptions {
     readonly capabilityNoteKey?: string | null | undefined;
     readonly onReset: () => void;
     readonly isDefault: () => boolean;
+    /** Current value source, kept beside every setting rather than hidden in a tooltip. */
+    readonly provenance?: (() => string) | undefined;
 }
 
 function buildRow(
@@ -60,6 +62,12 @@ function buildRow(
     const head = el("div", { class: "mb-row-head" }, label, reset);
     const row = el("div", { class: "mb-property-row" }, head, control);
 
+    const provenance =
+        options.provenance === undefined
+            ? null
+            : el("p", { class: "md-field__help mb-provenance", attrs: { role: "status" } });
+    if (provenance !== null) row.append(provenance);
+
     if (options.descriptionKey !== undefined && options.descriptionKey !== null) {
         const description = el("p", { class: "md-field__help mb-help" });
         fillPhrase(description, options.descriptionKey);
@@ -76,6 +84,9 @@ function buildRow(
         const atDefault = options.isDefault();
         reset.disabled = atDefault;
         reset.title = atDefault ? t("settings.atDefault") : t("editor.resetProperty", { name: t(options.labelKey) });
+        if (provenance !== null && options.provenance !== undefined) {
+            provenance.textContent = options.provenance();
+        }
     };
     refreshReset();
     return { row, refreshReset };

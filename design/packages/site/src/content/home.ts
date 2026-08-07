@@ -38,6 +38,8 @@ import {
     LARGE_WORLDS_DOC_URL,
     LEGACY_WORLDS_DOC_URL,
     NOTIFICATION_CENTRE_DOC_URL,
+    PAGES_FEATURE_PARITY_DOC_URL,
+    PANEL_GEOMETRY_DOC_URL,
     PLAN_URL,
     PRIVATE_WORLD_DOC_URL,
     REGEX_BUILDER_DOC_URL,
@@ -48,6 +50,7 @@ import {
     RENDER_WORLD_WORKFLOW_URL,
     REPO_URL,
     RESUMABLE_RENDERS_DOC_URL,
+    SCHEDULED_SETTINGS_DOC_URL,
     ROADMAP_URL,
     SSH_WORLD_SOURCES_DOC_URL,
     SUPER_CONFIRMATION_DOC_URL,
@@ -550,6 +553,43 @@ export const home: HomeContent = {
                     ],
                 },
                 {
+                    title: "A documentation site that keeps the whole product contract",
+                    body: "The GitHub Pages site carries its own settings, language and tone controls, tab searches, regex builders, command palette, exact teleport, appearance editors, notifications, exports and accessibility rules. On phones its side rail starts collapsed and can always be expanded without losing focus or hiding the current page.",
+                    status: "shipped",
+                    statusNote:
+                        "A hand-written inventory names every applicable shared requirement with implementation and test evidence, and records browser-platform boundaries instead of silently skipping them. Local compact proof and the exact live deployment are reported separately.",
+                    articleId: "pages-feature-parity",
+                    reading: [
+                        {
+                            label: "docs/pages-feature-parity.md",
+                            href: PAGES_FEATURE_PARITY_DOC_URL,
+                        },
+                    ],
+                },
+                {
+                    title: "Language and appearance that can keep a timetable",
+                    body: "A versioned rule can apply the site's real language and appearance settings by date, time, weekday and timezone. Values can live in the rule, arrive from a bounded HTTPS JSON endpoint, or wait for a Home Assistant boolean entity; the stored base always returns when the rule is inactive or fails.",
+                    status: "shipped",
+                    statusNote:
+                        "The guided Schedules settings tab, precedence and cross-midnight engine, bounded history, import/export, API and Home Assistant safety boundaries, search destinations, tests and compact bilingual runtime proof are implemented. Home Assistant tokens live only in memory for the current page session, with per-rule and clear-all actions; they never enter storage, exports, URLs or logs.",
+                    articleId: "scheduled-settings",
+                    reading: [
+                        {
+                            label: "docs/scheduled-settings-and-external-sources.md",
+                            href: SCHEDULED_SETTINGS_DOC_URL,
+                        },
+                    ],
+                },
+                {
+                    title: "Panels that resize, move, remember and come back",
+                    body: "Every settings and page panel resizes. Floating interactive panels also drag by a visible toolbar, stay inside the viewport, remember geometry per surface, reset independently, and expose keyboard move and resize paths.",
+                    status: "shipped",
+                    statusNote:
+                        "A hand-written four-surface inventory covers settings panels, site page panels, anchored panels and interactive overlays. The guard proves each owner attaches the shared controller; compact appearance and schedule captures show the real bounded surfaces.",
+                    articleId: "panel-geometry",
+                    reading: [{ label: "docs/panel-geometry.md", href: PANEL_GEOMETRY_DOC_URL }],
+                },
+                {
                     title: "One shortcut over every command and setting",
                     body: "The command palette lists everything the application can do, and a row that is a setting carries the setting itself rather than a link to the screen it lives on: flipping it here and flipping it there are the same act with the same persistence. A row that opens a surface says which one.",
                     status: "shipped",
@@ -638,9 +678,7 @@ export const home: HomeContent = {
                     statusNote:
                         "Five local PNGs are wired to five exact owners. A hand-written inventory rejects missing or reused files, empty alternative text and owner drift; 143 focused tests and the production workspace build passed. A packaged runtime capture is not claimed by this phase.",
                     articleId: "action-artwork",
-                    reading: [
-                        { label: "docs/action-artwork.md", href: ACTION_ARTWORK_DOC_URL },
-                    ],
+                    reading: [{ label: "docs/action-artwork.md", href: ACTION_ARTWORK_DOC_URL }],
                 },
             ],
         },
@@ -814,7 +852,7 @@ export const home: HomeContent = {
             phase: "I",
             scope: "Local live players, measurement and waypoints, screenshot gallery, scheduled renders, multi-server dashboard, update checker, packaging",
             status: "pending",
-            note: "The update checker landed early, out of order: it checks a signed feed on startup and on a bounded schedule, stages a verified download without interrupting active work, and shows the persistent restart banner. Local live players, measurement and waypoints, the screenshot gallery, scheduled renders, the multi-server dashboard and packaging remain untouched.",
+            note: "The update checker landed early, out of order: it checks the unsigned Squirrel feed on startup and on a bounded schedule, verifies its advertised package hash without claiming publisher authenticity, and shows the persistent restart banner. Local live players, measurement and waypoints, the screenshot gallery, scheduled renders, the multi-server dashboard and packaging remain untouched.",
         },
         {
             phase: "Contracts",
@@ -862,8 +900,8 @@ export const home: HomeContent = {
             language: "sh",
             caption: "Clone, install and verify",
             code: [
-                "git clone https://github.com/Ding-Ding-Projects/worldlens.git",
-                "cd worldlens",
+                "git clone https://github.com/Ding-Ding-Projects/material-bluemap.git",
+                "cd material-bluemap",
                 "git submodule update --init --recursive",
                 "",
                 "cd design",

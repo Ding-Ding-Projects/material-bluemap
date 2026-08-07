@@ -133,7 +133,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    min-height: 40px;
+    min-height: 44px;
     padding: 8px 20px;
     border: 1px solid var(--mbm-outline);
     border-radius: var(--mbm-radius-full);
@@ -271,7 +271,7 @@
     align-items: center;
     gap: 6px;
     align-self: flex-start;
-    min-height: 36px;
+    min-height: 44px;
     padding: 4px 12px;
     border: 1px solid var(--mbm-outline-variant);
     border-radius: var(--mbm-radius-full);
@@ -317,7 +317,7 @@
 }
 
 .mbm-segmented__option {
-    min-height: 40px;
+    min-height: 44px;
     padding: 6px 16px;
     border: 0;
     background: transparent;
@@ -338,6 +338,7 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
+    min-height: 44px;
 }
 
 .mbm-check__input,

@@ -35,6 +35,16 @@ export interface SettingCommon {
 export interface ToggleSetting extends SettingCommon {
     readonly kind: "toggle";
     readonly defaultValue: boolean;
+    /**
+     * A truthful responsive default. `defaultValue` remains the wide/fallback value for
+     * environments without a viewport; the compact value applies only while no explicit
+     * visitor choice exists.
+     */
+    readonly responsiveDefault?: {
+        readonly compactMaxWidth: number;
+        readonly compactValue: boolean;
+        readonly wideValue: boolean;
+    } | undefined;
 }
 
 export interface SelectOption {

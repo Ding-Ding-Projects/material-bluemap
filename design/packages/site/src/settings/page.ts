@@ -19,6 +19,7 @@ import type { FunnyLevel, LanguageMode } from "./i18n.js";
 import type { Preferences } from "../platform/Preferences.js";
 import type { ThemeController } from "../theme/ThemeController.js";
 import { TAB_PLACEMENTS, type TabModel, type TabPlacement } from "../tabs/TabModel.js";
+import type { SidebarNavigation } from "../shell/SidebarNavigation.js";
 import { THEME_MODES, DENSITIES } from "../theme/ThemeController.js";
 import type { SearchableSetting, SettingControl, SettingsSearchHost } from "../search/contract.js";
 import { attachRegexBuilder } from "../search/attachBuilder.js";
@@ -43,6 +44,14 @@ import {
     toggleRow,
 } from "../appearance/editor/controls.js";
 import { downloadFile, pickFile } from "./dom.js";
+import {
+    ExternalSettingsClient,
+    ScheduleRepository,
+    ScheduledSettingsController,
+    SessionSecretProvider,
+} from "./schedule.js";
+import { createSchedulePanel } from "./schedulePanel.js";
+import { attachPanelGeometry } from "../platform/PanelGeometry.js";
 
 /**
  * What the search module attaches to.
@@ -75,6 +84,10 @@ export interface SettingsPageOptions {
     readonly theme?: ThemeController | undefined;
     /** When supplied, the tab-placement row drives the real site strip. */
     readonly tabs?: TabModel | undefined;
+    /** When supplied, the navigation-collapse row drives the real side rail. */
+    readonly sidebar?: SidebarNavigation | undefined;
+    /** Non-blocking site notification route for schedule success and recoverable failures. */
+    readonly notify?: ((message: string, error: boolean) => void) | undefined;
 }
 
 export interface SettingsPageView {
@@ -100,6 +113,21 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
     const store = new SettingsStore(options.prefs);
     store.register(SETTINGS);
     installBridges(store, options);
+    const scheduleRepository = new ScheduleRepository(options.prefs, store);
+    const scheduleSecrets = new SessionSecretProvider();
+    const scheduleController = new ScheduledSettingsController(
+        scheduleRepository,
+        store,
+        new ExternalSettingsClient({ secrets: scheduleSecrets }),
+    );
+    const scheduleView = createSchedulePanel({
+        store,
+        repository: scheduleRepository,
+        controller: scheduleController,
+        secrets: scheduleSecrets,
+        confirmDelete: confirmDestructive,
+        notify: options.notify,
+    });
 
     const rows = new Map<string, { row: ControlRow; container: HTMLElement; tabId: string }>();
     /**
@@ -347,6 +375,14 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                 tabindex: "0",
             },
         });
+        const panelGeometry = attachPanelGeometry(panel, {
+            id: `settings.${tab.id}`,
+            floating: false,
+            preferences: options.prefs,
+        });
+        panelGeometry.mountToolbar();
+        panelGeometry.restore();
+        disposers.push(() => panelGeometry.destroy());
         panels.set(tab.id, panel);
         panelHost.append(panel);
         buildPanel(tab, panel);
@@ -446,6 +482,12 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                     confirmDestructive,
                 });
                 section.append(presets.element);
+            }
+            if (tab.id === "automation" && group.id === "schedule") {
+                section.append(scheduleView.rulesElement);
+            }
+            if (tab.id === "automation" && group.id === "sources") {
+                section.append(scheduleView.sourcesElement);
             }
             if (tab.id === "data" && group.id === "transfer") {
                 section.append(buildTransfer());
@@ -595,6 +637,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                 announce(t("settings.resetOneDone", { name: t(definition.labelKey) }));
             },
             isDefault: (): boolean => store.isDefault(definition.id),
+            provenance: (): string => t(`settings.provenance.${store.provenance(definition.id)}`),
         };
         switch (definition.kind) {
             case "toggle":
@@ -879,7 +922,40 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
      * ---------------------------------------------------------- */
 
     function searchableSettings(): readonly SearchableSetting[] {
-        return [...storedSettingSearchables(), ...appearanceElementSettings()];
+        return [
+            ...storedSettingSearchables(),
+            ...appearanceElementSettings(),
+            ...scheduleSearchables(),
+        ];
+    }
+
+    function scheduleSearchables(): readonly SearchableSetting[] {
+        return [
+            {
+                id: "schedule.rules",
+                label: t("settings.group.schedule"),
+                description: t("settings.tab.automation.desc"),
+                valueText: String(scheduleRepository.load().rules.length),
+                tabId: "automation",
+                tabLabel: t("settings.tab.automation"),
+                sectionLabel: t("settings.group.schedule"),
+                keywords: [
+                    "date time timezone weekday cross-midnight priority rule 日期 時間 時區 星期 優先",
+                ],
+            },
+            {
+                id: "schedule.externalSources",
+                label: t("settings.group.sources"),
+                description: t("schedule.credentialHelp"),
+                valueText: scheduleController.status.kind,
+                tabId: "automation",
+                tabLabel: t("settings.tab.automation"),
+                sectionLabel: t("settings.group.sources"),
+                keywords: [
+                    "API JSON Home Assistant entity HTTPS refresh history restore 外部 更新 歷史",
+                ],
+            },
+        ];
     }
 
     function storedSettingSearchables(): readonly SearchableSetting[] {
@@ -1146,6 +1222,16 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
             revealElement(id.slice(ELEMENT_ID_PREFIX.length));
             return;
         }
+        const scheduleDestination = scheduleView.destinations.get(id);
+        if (scheduleDestination !== undefined) {
+            activateTab("automation");
+            scheduleDestination.scrollIntoView({ block: "center", behavior: "auto" });
+            flashAttention(scheduleDestination);
+            scheduleDestination
+                .querySelector<HTMLElement>("input, select, button, textarea")
+                ?.focus();
+            return;
+        }
         const entry = rows.get(id);
         if (entry === undefined) return;
         activateTab(entry.tabId);
@@ -1197,6 +1283,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         }
 
         for (const entry of rows.values()) entry.row.refresh();
+        scheduleView.refresh();
 
         const changed = store.changedIds().length;
         changedNotice.textContent =
@@ -1217,9 +1304,16 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
 
     /** Push the site-wide values onto the root element. */
     function applyRoot(): void {
+        const themeMode = store.getString("theme.mode");
         const resolvedDark =
-            options.theme?.resolved === "dark" ||
-            (options.theme === undefined && document.documentElement.dataset["theme"] === "dark");
+            themeMode === "dark" ||
+            (themeMode === "system" &&
+                (options.theme?.resolved === "dark" ||
+                    (options.theme === undefined &&
+                        document.documentElement.dataset["theme"] === "dark")));
+        document.documentElement.dataset["theme"] = resolvedDark ? "dark" : "light";
+        document.documentElement.dataset["themeMode"] = themeMode;
+        document.documentElement.dataset["density"] = store.getString("theme.density");
         options.appearance.applyRoot({
             resolvedDark,
             contrast: store.getString("theme.contrast") as "standard" | "medium" | "high",
@@ -1273,6 +1367,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
     syncLanguageFromSettings(store);
     activateTab(activeTab);
     refresh();
+    scheduleController.start();
 
     const search: SettingsSearchHooks = {
         input: searchInput,
@@ -1312,6 +1407,8 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
         revealSetting,
         refresh,
         destroy(): void {
+            scheduleController.destroy();
+            scheduleView.destroy();
             for (const dispose of disposers) dispose();
             root.remove();
         },
@@ -1370,6 +1467,18 @@ function installBridges(store: SettingsStore, options: SettingsPageOptions): voi
             },
             reset: () => tabs.setPlacement("left"),
             subscribe: (listener) => tabs.subscribe(listener),
+        });
+    }
+
+    if (options.sidebar !== undefined) {
+        const sidebar = options.sidebar;
+        store.bridge("tabs.sidebarCollapsed", {
+            read: () => sidebar.collapsed,
+            write: (value) => sidebar.setCollapsed(Boolean(value)),
+            reset: () => sidebar.reset(),
+            subscribe: (listener) => sidebar.subscribe(listener),
+            isDefault: () => !sidebar.hasExplicitChoice,
+            provenance: () => (sidebar.hasExplicitChoice ? "stored" : "responsive-default"),
         });
     }
 
