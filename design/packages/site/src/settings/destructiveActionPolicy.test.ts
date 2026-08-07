@@ -89,8 +89,14 @@ const DESTRUCTIVE_CALLS: readonly { readonly label: string; readonly pattern: Re
         pattern:
             /(?<![A-Za-z0-9_$])(?:delete|remove|destroy|purge|wipe|erase|revoke|discard)(?!(?:EventListener|Property|Child|Attribute|ObjectURL)\s*\()[A-Z][A-Za-z0-9_$]*\s*\(/g,
     },
-    { label: "forgets every stored preference", pattern: /(?<![A-Za-z0-9_$])resetAll(?!Elements)\s*\(/g },
-    { label: "forgets every customised element's appearance", pattern: /(?<![A-Za-z0-9_$])resetAllElements\s*\(/g },
+    {
+        label: "forgets every stored preference",
+        pattern: /(?<![A-Za-z0-9_$])resetAll(?!Elements)\s*\(/g,
+    },
+    {
+        label: "forgets every customised element's appearance",
+        pattern: /(?<![A-Za-z0-9_$])resetAllElements\s*\(/g,
+    },
     { label: "closes a batch of tabs at once", pattern: /(?<![A-Za-z0-9_$])applyBulkClose\s*\(/g },
     { label: "empties the notification history", pattern: /(?<![A-Za-z0-9_$])clearAll\s*\(/g },
     { label: "empties web storage outright", pattern: /(?:local|session)Storage\.clear\s*\(/g },
@@ -236,17 +242,30 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "run one after the other inside `buildGlobalReset()`'s click handler, behind the same " +
             "`await confirmDestructive(...)`, so one confirmation covers both.",
     },
-    "settings/store.ts": {
-        count: 1,
-        destroys: "every settings-store value: everything bridged to another controller and every plain key",
+    "settings/schedulePanel.ts": {
+        count: 2,
+        destroys:
+            "one saved scheduled-settings rule and its future automatic changes to language or appearance",
         standing: "gated",
         gatedIn: "settings/page.ts",
         note:
-            "The store's own method. Its one caller is settings/page.ts's global reset, gated.",
+            "The detector sees both the delete button's `deleteRule(current)` call and the private " +
+            "`deleteRule` function that performs the repository save. That function awaits the " +
+            "injected `confirmDelete` callback before removing the rule; settings/page.ts injects " +
+            "the site's one `confirmDestructive` gate as that callback.",
+    },
+    "settings/store.ts": {
+        count: 1,
+        destroys:
+            "every settings-store value: everything bridged to another controller and every plain key",
+        standing: "gated",
+        gatedIn: "settings/page.ts",
+        note: "The store's own method. Its one caller is settings/page.ts's global reset, gated.",
     },
     "tabs/BulkCloseDialog.ts": {
         count: 1,
-        destroys: "every open tab matching (or not matching) the typed text, along with any unsaved work",
+        destroys:
+            "every open tab matching (or not matching) the typed text, along with any unsaved work",
         standing: "gated",
         gatedIn: "tabs/BulkCloseDialog.ts",
         note:
@@ -354,7 +373,9 @@ describe("every destructive action in the site package is declared with where it
             }
             const text = read(host);
             if (!text.includes("confirmDestructive")) {
-                wrong.push(`${file} claims a gate in ${host}, which never mentions confirmDestructive`);
+                wrong.push(
+                    `${file} claims a gate in ${host}, which never mentions confirmDestructive`,
+                );
             }
         }
 
@@ -427,7 +448,11 @@ describe("there is exactly one destructive-action gate in this package", () => {
     it("finds confirmDestructive's only definition where the inventory above expects it", () => {
         const files = sourceFiles(siteSource, [".ts"])
             .map(relativeToSource)
-            .filter((file) => !file.endsWith(".test.ts") && read(file).includes("export function confirmDestructive"));
+            .filter(
+                (file) =>
+                    !file.endsWith(".test.ts") &&
+                    read(file).includes("export function confirmDestructive"),
+            );
 
         expect(
             files,
