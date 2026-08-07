@@ -84,21 +84,29 @@ node scripts/finalize-worldlens-repository.mjs --verify-final
 
 `--check-ready` verifies the exact old value and occurrence count in every inventoried file
 without writing anything. `--apply` preflights the complete inventory before staging same-folder
-replacements, installs all eight targets, and verifies every final Worldlens value. Installation
+replacements, installs all 17 targets, and verifies every final Worldlens value. The expanded
+inventory includes the desktop crash-report destination, every current Pages repository/base/clone
+source, the compact-proof target, and both generated changelog link owners alongside the original
+README, contributor, policy, legal and standalone-builder surfaces. Installation
 and verification form the rollback transaction: any failure before the explicit committed state
 restores every original file byte-for-byte. Backup cleanup starts only after that commit boundary
 and is not allowed to enter rollback. If cleanup fails, every finalized target stays in place,
 undeleted backups are retained, and the error lists the exact paths to review and remove manually.
-Commit the eight-file switch as one changeset, and run it only after the repository rename lands.
+Commit the 17-file switch as one changeset, and run it only after the repository rename lands.
 `--verify-final` is the post-switch CI guard. Historical changelog entries, release and issue
-links, migration prose, compatibility readers and archived decisions are deliberately outside
-this current-reference switch.
+prose, compatibility readers and archived decisions are deliberately outside this
+current-reference switch; only their current link owner changes where the generated changelog must
+keep navigation live.
 
-The executable filesystem integration matrix copies the eight inventoried files into a disposable
-fixture and proves read-only readiness by hash and timestamp, normal apply plus verification,
+The executable filesystem integration matrix synthesizes the exact pre-cutover form of all 17
+inventoried files from the committed replacement contract. It therefore remains executable both
+before and after the real repository has been finalized, and proves read-only readiness by hash
+and timestamp, normal apply plus verification,
 exact rollback during installation, exact rollback after verification, and committed cleanup
 failure after one backup has already been removed. Faults enter through an import-only test hook;
-the production command has no fault flag or environment-variable switch.
+the production command has no fault flag or environment-variable switch. A separate residual test
+accepts only a wholly ready or wholly finalized inventory and deliberately finalizes one fixture
+inside an otherwise ready set to prove that a mixed cutover is rejected.
 
 Worldlens is free software and has no payment, donation, review, or upgrade nags. People who want
 to support the renderer this port builds on should support the BlueMap project directly.

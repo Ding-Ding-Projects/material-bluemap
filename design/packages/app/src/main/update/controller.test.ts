@@ -98,7 +98,7 @@ const workingFeed: FeedResolution = resolveFeed({
     platform: "win32",
     arch: "x64",
     version: "0.1.0",
-    repository: "Ding-Ding-Projects/material-bluemap",
+    repository: "Ding-Ding-Projects/worldlens",
     environment: {},
 });
 

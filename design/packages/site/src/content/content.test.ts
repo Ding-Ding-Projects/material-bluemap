@@ -19,6 +19,7 @@ import { FIXED } from "../i18n/strings.js";
 import { releaseAvailability } from "./generated/release.js";
 import { screenshotAvailability } from "./generated/screenshots.js";
 import { home } from "./home.js";
+import { SITE_BASE_PATH } from "./links.js";
 import { contentPages } from "./pages.js";
 import { searchIndex } from "./search.js";
 import { downloadCopy } from "./release.js";
@@ -815,7 +816,7 @@ describe("screenshot helpers", () => {
 
     it("keeps the project base path on every image URL", () => {
         expect(screenshotUrl("screenshots", "shell-1280x800.png")).toBe(
-            "/material-bluemap/screenshots/shell-1280x800.png",
+            `${SITE_BASE_PATH}screenshots/shell-1280x800.png`,
         );
         expect(screenshotUrl("/screenshots/", "a.png", "/elsewhere")).toBe(
             "/elsewhere/screenshots/a.png",
