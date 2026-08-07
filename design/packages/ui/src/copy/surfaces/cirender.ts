@@ -54,7 +54,7 @@ export const CIRENDER_VOICED = {
             'This lists renders sent to GitHub\'s own computers instead of yours, useful for a big world or a computer you would rather not tie up for hours. Nothing has been sent yet; fill in the form above and press "Render on GitHub" to start one.',
             'This lists renders sent to GitHub\'s own computers instead of yours, useful for a big world or a computer you would rather not tie up for hours. Nothing has been sent yet, so fill in the form above and press "Render on GitHub" to start one.',
             'This lists renders handed off to GitHub\'s own computers instead of yours, worth it for a big world or a computer you cannot spare for hours. Nothing has been sent yet, so fill in the form above and press "Render on GitHub".',
-            'This lists renders handed off to GitHub\'s own computers instead of yours, worth it for a big world or a computer you would rather not chain to a desk for hours. Nothing has been sent yet, so fill in the form above and press "Render on GitHub", and let somebody else\'s computer do the sweating.',
+            "This lists renders handed off to GitHub's own computers instead of yours, worth it for a big world or a computer you would rather not chain to a desk for hours. Nothing has been sent yet, so fill in the form above and press \"Render on GitHub\", and let somebody else's computer do the sweating.",
         ],
         yue: [
             "呢度會列出送咗去 GitHub 自己部機、而唔係喺你部機算嘅 render，啱晒個世界好大又或者唔想部機俾霸幾個鐘嘅時候用。而家仲未送過任何一個；喺上面填好張表，撳「喺 GitHub 度算圖」就開始。",
@@ -427,28 +427,23 @@ export const CIRENDER_VOICED = {
     },
 
     /* ---------------------------------------------------------------- */
-    /* What the workflow cannot carry, and what is being agreed to       */
+    /* Complete configuration transport, and what is being agreed to    */
     /* ---------------------------------------------------------------- */
 
-    /*
-     * `{settings}` is a joined list of the map's own settings the workflow has no input
-     * for. Naming them is the whole point of the sentence: "some settings will not apply"
-     * is not something anybody can check against their own configuration.
-     */
-    "cirender.notCarried": {
+    "cirender.configCarried": {
         en: [
-            "The workflow has no input for the map's own settings, so {settings} will not be applied. It renders with BlueMap's defaults for them.",
-            "The workflow has no input for the map's own settings, so {settings} will not be applied. It renders with BlueMap's defaults for them.",
-            "The workflow has no input for the map's own settings, so {settings} will not be applied. It renders with BlueMap's defaults for them instead.",
-            "The workflow has no input for the map's own settings, so {settings} will not be applied at all. It renders with BlueMap's defaults for them.",
-            "The workflow has nowhere to put the map's own settings, so {settings} will not be applied and nothing is going to sneak them through. It renders with BlueMap's defaults for them.",
+            "Every map setting is carried in {file} inside the world archive and applied by the runner, including the complete render mask.",
+            "Every map setting is carried in {file} inside the world archive and applied by the runner, including the complete render mask.",
+            "Every map setting travels in {file} inside the world archive and is applied by the runner, including the complete render mask.",
+            "Every map setting rides inside the world archive in {file}; the runner applies all of it, including the complete render mask.",
+            "Every map setting has a reserved seat inside the world archive in {file}; the runner applies the whole passenger list, including the complete render mask.",
         ],
         yue: [
-            "呢個 workflow 冇位放地圖自己嘅設定，所以 {settings} 唔會生效。呢啲項目會用 BlueMap 嘅預設值嚟算。",
-            "呢個 workflow 冇位放地圖自己嘅設定，所以 {settings} 唔會生效。呢啲項目會用 BlueMap 嘅預設值嚟算。",
-            "呢個 workflow 冇位放地圖自己嘅設定，所以 {settings} 唔會生效，呢啲項目會改為用 BlueMap 嘅預設值嚟算。",
-            "呢個 workflow 完全冇位放地圖自己嘅設定，所以 {settings} 一啲都唔會生效。呢啲項目會用 BlueMap 嘅預設值嚟算。",
-            "呢個 workflow 根本冇位放地圖自己嘅設定，所以 {settings} 唔會生效，亦都冇人幫佢哋偷渡過去。呢啲項目會用 BlueMap 嘅預設值嚟算。",
+            "每個地圖設定都會放喺世界壓縮檔入面嘅 {file}，由 runner 全部套用，包括完整 render mask。",
+            "每個地圖設定都會放喺世界壓縮檔入面嘅 {file}，由 runner 全部套用，包括完整 render mask。",
+            "每個地圖設定都會跟住 {file} 一齊入世界壓縮檔，再由 runner 全部套用，包括完整 render mask。",
+            "每個地圖設定都坐住 {file} 入世界壓縮檔，runner 會成份套用，完整 render mask 都唔會甩車。",
+            "每個地圖設定都有位坐喺世界壓縮檔入面嘅 {file}；runner 會照名單全部套用，完整 render mask 一個都唔會走雞。",
         ],
     },
     /*
@@ -1166,7 +1161,10 @@ export const CIRENDER_FIXED = {
     "cirender.repo.pick": { en: "One of your repositories", yue: "你其中一個倉庫" },
     "cirender.repo.itemPrivate": { en: "{name} (private)", yue: "{name}（私人）" },
     "cirender.repo.itemPublic": { en: "{name} (PUBLIC)", yue: "{name}（公開）" },
-    "cirender.repo.checking": { en: "Checking whether that name is free...", yue: "檢查緊呢個名係咪得閒..." },
+    "cirender.repo.checking": {
+        en: "Checking whether that name is free...",
+        yue: "檢查緊呢個名係咪得閒...",
+    },
     "cirender.repo.loadingRepositories": {
         en: "Reading your repositories...",
         yue: "讀緊你嘅倉庫...",
@@ -1236,7 +1234,10 @@ export const CIRENDER_FIXED = {
         yue: "{path} 本身已經係最新",
     },
     "cirender.bootstrap.file.refused": { en: "{path} was not touched", yue: "{path} 冇郁過" },
-    "cirender.bootstrap.reauth": { en: "Sign in again and grant it", yue: "再登入一次，畀返個權限" },
+    "cirender.bootstrap.reauth": {
+        en: "Sign in again and grant it",
+        yue: "再登入一次，畀返個權限",
+    },
 } as const satisfies Record<string, FixedString>;
 
 export const CIRENDER_FACTS = {
@@ -1341,9 +1342,9 @@ export const CIRENDER_FACTS = {
         yue: ["讀唔到個倉庫", "會真正做嘢嗰個憑證"],
     },
 
-    "cirender.notCarried": {
-        en: ["{settings}", "will not be applied", "BlueMap's defaults"],
-        yue: ["{settings}", "唔會生效", "BlueMap 嘅預設值"],
+    "cirender.configCarried": {
+        en: ["{file}", "world archive", "runner", "complete render mask"],
+        yue: ["{file}", "世界壓縮檔", "runner", "完整 render mask"],
     },
     // What is being agreed to. "whole" and "PUBLIC" are the words that carry the risk.
     "cirender.ack.upload": {

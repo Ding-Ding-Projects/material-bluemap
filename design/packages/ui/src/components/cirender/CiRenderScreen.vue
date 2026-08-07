@@ -188,17 +188,24 @@ const worldCatalogBridge = computed<WorldCatalogBridge | null>(() =>
  * reach through. A build carrying none of it simply hides the Browse button; typing the
  * path, or choosing it from the list below, both still work.
  */
-const dialogPickFolder = computed<((options: { title: string; startIn?: string }) => Promise<string | null>) | null>(
-    () => {
-        const host = (
-            globalThis as {
-                materialBluemap?: { dialog?: { pickFolder?: (options: { title: string; startIn?: string }) => Promise<string | null> } };
-            }
-        ).materialBluemap;
-        const pick = host?.dialog?.pickFolder;
-        return typeof pick === "function" ? pick : null;
-    },
-);
+const dialogPickFolder = computed<
+    ((options: { title: string; startIn?: string }) => Promise<string | null>) | null
+>(() => {
+    const host = (
+        globalThis as {
+            materialBluemap?: {
+                dialog?: {
+                    pickFolder?: (options: {
+                        title: string;
+                        startIn?: string;
+                    }) => Promise<string | null>;
+                };
+            };
+        }
+    ).materialBluemap;
+    const pick = host?.dialog?.pickFolder;
+    return typeof pick === "function" ? pick : null;
+});
 
 /**
  * Why the Browse button is dead on this build, or null when it works.
@@ -219,7 +226,10 @@ async function browseWorldFolder(): Promise<void> {
     const pick = dialogPickFolder.value;
     if (pick === null) return;
     const chosen = await pick({
-        title: t("cirender.field.world.browsePrompt", "Choose the world folder, the one that contains level.dat"),
+        title: t(
+            "cirender.field.world.browsePrompt",
+            "Choose the world folder, the one that contains level.dat",
+        ),
         ...(worldFolder.value.trim() === "" ? {} : { startIn: worldFolder.value.trim() }),
     });
     if (chosen === null) return;
@@ -248,7 +258,8 @@ async function applySuggestedRepoName(folder: string): Promise<void> {
     const name = worldFolderName(folder);
     if (name === "") return;
     const suggestion = await renders.suggestRepoName(name);
-    if (suggestion !== null && repo.value.trim() === "" && worldFolder.value === folder) repo.value = suggestion;
+    if (suggestion !== null && repo.value.trim() === "" && worldFolder.value === folder)
+        repo.value = suggestion;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -307,7 +318,10 @@ const accountItems = computed(() =>
  */
 const accountPickerDisabledBecause = computed<string | null>(() => {
     if (accountOrdered.value.length !== 1) return null;
-    return t("cirender.account.single", "Only one GitHub account is signed in, so this is fixed to it.");
+    return t(
+        "cirender.account.single",
+        "Only one GitHub account is signed in, so this is fixed to it.",
+    );
 });
 
 /**
@@ -512,7 +526,10 @@ const checkBlockedBecause = computed<string | null>(() => {
         return t("cirender.checkBlocked.world", "Choose a world folder before checking.");
     }
     if (owner.value.trim() === "") {
-        return t("cirender.checkBlocked.owner", "Choose or type a repository owner before checking.");
+        return t(
+            "cirender.checkBlocked.owner",
+            "Choose or type a repository owner before checking.",
+        );
     }
     if (repo.value.trim() === "") {
         return t("cirender.checkBlocked.repo", "Choose or type a repository name before checking.");
@@ -577,7 +594,7 @@ function openRepositorySetup(): void {
     const url =
         readinessNeedsSetup.value === "exists"
             ? (preflight.value?.repository?.htmlUrl ??
-                  `https://github.com/${encodeURIComponent(targetOwner)}/${encodeURIComponent(targetRepo)}`)
+              `https://github.com/${encodeURIComponent(targetOwner)}/${encodeURIComponent(targetRepo)}`)
             : `https://github.com/new?owner=${encodeURIComponent(targetOwner)}&name=${encodeURIComponent(targetRepo)}`;
     emit("open", url);
 }
@@ -607,7 +624,10 @@ let unsubscribeBootstrap: (() => void) | null = null;
  * key still has a call site reads the source for literal calls and cannot follow one that
  * is assembled at runtime.
  */
-function bootstrapFileOutcomeText(outcome: { readonly path: string; readonly action: CiBootstrapFileOutcome["action"] }): string {
+function bootstrapFileOutcomeText(outcome: {
+    readonly path: string;
+    readonly action: CiBootstrapFileOutcome["action"];
+}): string {
     switch (outcome.action) {
         case "created":
             return t("cirender.bootstrap.file.created", { path: outcome.path }, "Added {path}");
@@ -620,7 +640,11 @@ function bootstrapFileOutcomeText(outcome: { readonly path: string; readonly act
                 "{path} was already up to date",
             );
         case "refused":
-            return t("cirender.bootstrap.file.refused", { path: outcome.path }, "{path} was not touched");
+            return t(
+                "cirender.bootstrap.file.refused",
+                { path: outcome.path },
+                "{path} was not touched",
+            );
     }
 }
 
@@ -633,7 +657,10 @@ function bootstrapPhaseLabel(phase: CiBootstrapPhase): string {
         case "writing-files":
             return t("cirender.bootstrap.phase.writingFiles", "Adding the render workflow...");
         case "checking-actions":
-            return t("cirender.bootstrap.phase.checkingActions", "Checking whether GitHub Actions is enabled...");
+            return t(
+                "cirender.bootstrap.phase.checkingActions",
+                "Checking whether GitHub Actions is enabled...",
+            );
         case "finished":
             return t("cirender.bootstrap.phase.finished", "Done.");
     }
@@ -810,7 +837,10 @@ const blockedBecause = computed<string | null>(() => {
         return t("cirender.blocked.upload", "Confirm that the world may be uploaded to GitHub.");
     }
     if (isPublic.value && !acknowledgePublic.value) {
-        return t("cirender.blocked.public", "Confirm that you mean to publish this world publicly.");
+        return t(
+            "cirender.blocked.public",
+            "Confirm that you mean to publish this world publicly.",
+        );
     }
     return null;
 });
@@ -852,7 +882,9 @@ const jobFlags = ref("i");
 
 function visibleJobs(row: CiRow): readonly CiJobReport[] {
     const matcher = createSettingMatcher(jobQuery.value, jobRegex.value, jobFlags.value);
-    return (row.run?.jobs ?? []).filter((job) => matcher.test(`${job.name} ${job.status} ${job.conclusion ?? ""}`));
+    return (row.run?.jobs ?? []).filter((job) =>
+        matcher.test(`${job.name} ${job.status} ${job.conclusion ?? ""}`),
+    );
 }
 
 function jobSample(row: CiRow): string {
@@ -921,9 +953,15 @@ async function saveScheduleFor(row: CiRow, enabled: boolean): Promise<void> {
 function scheduleResultText(result: CiScheduleCheckResultName): string {
     switch (result) {
         case "changed":
-            return t("cirender.schedule.result.changed", "the world had changed, so a render was started");
+            return t(
+                "cirender.schedule.result.changed",
+                "the world had changed, so a render was started",
+            );
         case "unchanged":
-            return t("cirender.schedule.result.unchanged", "the world had not changed, so nothing was rendered");
+            return t(
+                "cirender.schedule.result.unchanged",
+                "the world had not changed, so nothing was rendered",
+            );
         case "unknown":
             return t(
                 "cirender.schedule.result.unknown",
@@ -946,7 +984,9 @@ function scheduleResultText(result: CiScheduleCheckResultName): string {
  */
 function waves(row: CiRow): readonly { wave: number; done: number; total: number }[] {
     return waveSummaries(row.run?.jobs ?? []).flatMap((summary) =>
-        summary.wave === null ? [] : [{ wave: summary.wave, done: summary.done, total: summary.total }],
+        summary.wave === null
+            ? []
+            : [{ wave: summary.wave, done: summary.done, total: summary.total }],
     );
 }
 
@@ -1104,7 +1144,12 @@ onBeforeUnmount(() => {
                         <VTextField
                             v-model="worldFolder"
                             :label="t('cirender.field.world', 'World folder')"
-                            :hint="t('cirender.field.world.help', 'Pick a world below, browse for one, or type its full path.')"
+                            :hint="
+                                t(
+                                    'cirender.field.world.help',
+                                    'Pick a world below, browse for one, or type its full path.',
+                                )
+                            "
                             persistent-hint
                             density="compact"
                             data-test="world-field"
@@ -1139,7 +1184,11 @@ onBeforeUnmount(() => {
                         {{ browseUnavailableBecause }}
                     </p>
 
-                    <MinecraftWorldList :model-value="worldFolder" :bridge="worldCatalogBridge" @choose="chooseWorld" />
+                    <MinecraftWorldList
+                        :model-value="worldFolder"
+                        :bridge="worldCatalogBridge"
+                        @choose="chooseWorld"
+                    />
 
                     <!--
                         The repository owner: signed out points at the sign-in row that
@@ -1238,7 +1287,12 @@ onBeforeUnmount(() => {
                         <VTextField
                             v-model="owner"
                             :label="t('cirender.field.owner', 'Repository owner')"
-                            :hint="t('cirender.field.owner.help', 'Pick an account above, or type any owner you have write access to.')"
+                            :hint="
+                                t(
+                                    'cirender.field.owner.help',
+                                    'Pick an account above, or type any owner you have write access to.',
+                                )
+                            "
                             persistent-hint
                             density="compact"
                             data-test="owner-field"
@@ -1298,7 +1352,11 @@ onBeforeUnmount(() => {
                     >
                         {{ t("cirender.check", "Check before anything is sent") }}
                     </VBtn>
-                    <p v-if="checkBlockedBecause !== null" class="text-medium-emphasis mt-2" data-test="check-blocked">
+                    <p
+                        v-if="checkBlockedBecause !== null"
+                        class="text-medium-emphasis mt-2"
+                        data-test="check-blocked"
+                    >
                         {{ checkBlockedBecause }}
                     </p>
                     <VAlert
@@ -1328,7 +1386,11 @@ onBeforeUnmount(() => {
                         data-test="route"
                     >
                         {{ routeReport?.describe }}
-                        <p v-if="routeAside !== null" class="mt-1 text-medium-emphasis" data-test="route-aside">
+                        <p
+                            v-if="routeAside !== null"
+                            class="mt-1 text-medium-emphasis"
+                            data-test="route-aside"
+                        >
                             {{
                                 t(
                                     "cirender.route.other",
@@ -1337,7 +1399,11 @@ onBeforeUnmount(() => {
                                 )
                             }}
                         </p>
-                        <p v-if="ghState !== null" class="mt-1 text-medium-emphasis" data-test="route-gh">
+                        <p
+                            v-if="ghState !== null"
+                            class="mt-1 text-medium-emphasis"
+                            data-test="route-gh"
+                        >
                             {{ ghState.text }}
                         </p>
                         <VBtn
@@ -1453,7 +1519,11 @@ onBeforeUnmount(() => {
                             </li>
                         </ul>
                         <p class="mt-2">{{ bootstrapReport.actionsMessage }}</p>
-                        <p v-for="note in bootstrapReport.notes" :key="note" class="mt-1 text-medium-emphasis">
+                        <p
+                            v-for="note in bootstrapReport.notes"
+                            :key="note"
+                            class="mt-1 text-medium-emphasis"
+                        >
                             {{ note }}
                         </p>
                     </VAlert>
@@ -1467,7 +1537,12 @@ onBeforeUnmount(() => {
                     >
                         {{ bootstrapFailureMessage }}
                         <div v-if="bootstrapMissingScope" class="mt-2">
-                            <VBtn size="small" variant="tonal" color="primary" @click="emit('signIn')">
+                            <VBtn
+                                size="small"
+                                variant="tonal"
+                                color="primary"
+                                @click="emit('signIn')"
+                            >
                                 {{ t("cirender.bootstrap.reauth", "Sign in again and grant it") }}
                             </VBtn>
                         </div>
@@ -1499,7 +1574,9 @@ onBeforeUnmount(() => {
 
                     <VAlert
                         v-if="preflight.repository?.warning != null"
-                        :type="preflight.repository.warning.level === 'warning' ? 'warning' : 'info'"
+                        :type="
+                            preflight.repository.warning.level === 'warning' ? 'warning' : 'info'
+                        "
                         variant="tonal"
                         class="mb-3"
                         data-test="repository-warning"
@@ -1540,12 +1617,16 @@ onBeforeUnmount(() => {
 
                     <p data-test="upload-line">{{ uploadLine(preflight, t) }}</p>
 
-                    <p v-if="preflight.plan !== null && preflight.plan.notCarried.length > 0" class="text-medium-emphasis mt-2">
+                    <p
+                        v-if="preflight.plan?.configuration?.complete === true"
+                        class="text-medium-emphasis mt-2"
+                        data-test="config-transport"
+                    >
                         {{
                             t(
-                                "cirender.notCarried",
-                                { settings: preflight.plan.notCarried.join(", ") },
-                                "The workflow has no input for the map's own settings, so {settings} will not be applied. It renders with BlueMap's defaults for them.",
+                                "cirender.configCarried",
+                                { file: preflight.plan.configuration.file },
+                                "Every map setting is carried in {file} inside the world archive and applied by the runner, including the complete render mask.",
                             )
                         }}
                     </p>
@@ -1578,7 +1659,9 @@ onBeforeUnmount(() => {
                         v-model="forceUpload"
                         density="compact"
                         data-test="force-upload"
-                        :label="t('cirender.force', 'Upload again even if the world looks unchanged')"
+                        :label="
+                            t('cirender.force', 'Upload again even if the world looks unchanged')
+                        "
                     />
                     <VCheckbox
                         v-model="publishToPages"
@@ -1616,7 +1699,11 @@ onBeforeUnmount(() => {
                     >
                         {{ t("cirender.start", "Render on GitHub") }}
                     </VBtn>
-                    <p v-if="blockedBecause !== null" class="text-medium-emphasis mt-2" data-test="blocked">
+                    <p
+                        v-if="blockedBecause !== null"
+                        class="text-medium-emphasis mt-2"
+                        data-test="blocked"
+                    >
                         {{ blockedBecause }}
                     </p>
                 </VCardText>
@@ -1660,7 +1747,11 @@ onBeforeUnmount(() => {
                 local render. Shown only before the first sync of this session or a resumed
                 one is known, so it never sits above a real row pretending the list is empty.
             -->
-            <p v-if="renders.rows.value.length === 0" class="text-medium-emphasis mb-3" data-test="no-runs">
+            <p
+                v-if="renders.rows.value.length === 0"
+                class="text-medium-emphasis mb-3"
+                data-test="no-runs"
+            >
                 {{
                     t(
                         "cirender.list.empty",
@@ -1716,7 +1807,10 @@ onBeforeUnmount(() => {
                                 {{
                                     t(
                                         "cirender.transfer.items",
-                                        { done: row.transfer.assetsDone, total: row.transfer.assetsTotal },
+                                        {
+                                            done: row.transfer.assetsDone,
+                                            total: row.transfer.assetsTotal,
+                                        },
                                         "{done} of {total} pieces",
                                     )
                                 }}
@@ -1766,10 +1860,17 @@ onBeforeUnmount(() => {
                             <li v-for="job in visibleJobs(row)" :key="job.id" data-test="job">
                                 <VChip size="x-small" :color="jobTone(job)">{{ job.status }}</VChip>
                                 <span class="ml-2">{{ job.name }}</span>
-                                <span v-if="job.wave !== null" class="ml-2 text-medium-emphasis" data-test="job-wave">
+                                <span
+                                    v-if="job.wave !== null"
+                                    class="ml-2 text-medium-emphasis"
+                                    data-test="job-wave"
+                                >
                                     {{ t("cirender.job.wave", { wave: job.wave }, "Wave {wave}") }}
                                 </span>
-                                <span v-if="job.conclusion !== null" class="ml-2 text-medium-emphasis">
+                                <span
+                                    v-if="job.conclusion !== null"
+                                    class="ml-2 text-medium-emphasis"
+                                >
                                     {{ job.conclusion }}
                                 </span>
                             </li>
@@ -1784,7 +1885,11 @@ onBeforeUnmount(() => {
                         data-test="row-failure"
                     >
                         <p>{{ row.failure.message }}</p>
-                        <p v-if="row.failure.failingJob !== null" class="mt-2" data-test="failing-job">
+                        <p
+                            v-if="row.failure.failingJob !== null"
+                            class="mt-2"
+                            data-test="failing-job"
+                        >
                             {{
                                 t(
                                     "cirender.failingJob",
@@ -1793,9 +1898,11 @@ onBeforeUnmount(() => {
                                 )
                             }}
                         </p>
-                        <pre v-if="row.failure.logExcerpt !== null" class="ci-log" data-test="log-excerpt">{{
-                            row.failure.logExcerpt
-                        }}</pre>
+                        <pre
+                            v-if="row.failure.logExcerpt !== null"
+                            class="ci-log"
+                            data-test="log-excerpt"
+                            >{{ row.failure.logExcerpt }}</pre>
                     </VAlert>
 
                     <VAlert
@@ -1812,7 +1919,10 @@ onBeforeUnmount(() => {
                                 "{map} is in the map list, rendered on GitHub.",
                             )
                         }}
-                        <span v-if="!row.summary.verified" class="d-block mt-1 text-medium-emphasis">
+                        <span
+                            v-if="!row.summary.verified"
+                            class="d-block mt-1 text-medium-emphasis"
+                        >
                             {{
                                 t(
                                     "cirender.recorded",
@@ -1851,7 +1961,11 @@ onBeforeUnmount(() => {
                             {{ t("cirender.schedule.title", "Scheduled re-rendering") }}
                         </VBtn>
 
-                        <VCard v-if="scheduleOpenSyncId === row.syncId" variant="tonal" class="mt-2 pa-3">
+                        <VCard
+                            v-if="scheduleOpenSyncId === row.syncId"
+                            variant="tonal"
+                            class="mt-2 pa-3"
+                        >
                             <p v-if="renders.loadingSchedule.value" data-test="schedule-loading">
                                 {{ t("cirender.schedule.loading", "Reading the schedule...") }}
                             </p>
@@ -1870,12 +1984,20 @@ onBeforeUnmount(() => {
                                     :loading="renders.savingSchedule.value"
                                     density="compact"
                                     data-test="schedule-enable"
-                                    @update:model-value="(value: boolean | null) => saveScheduleFor(row, value === true)"
+                                    @update:model-value="
+                                        (value: boolean | null) =>
+                                            saveScheduleFor(row, value === true)
+                                    "
                                 />
 
                                 <VSelect
                                     v-model="scheduleCadenceDraft"
-                                    :items="SCHEDULE_CADENCES.map((c) => ({ title: cadenceLabel(c), value: c }))"
+                                    :items="
+                                        SCHEDULE_CADENCES.map((c) => ({
+                                            title: cadenceLabel(c),
+                                            value: c,
+                                        }))
+                                    "
                                     :label="t('cirender.schedule.cadence', 'How often')"
                                     :disabled="!renders.schedule.value.enabled"
                                     density="compact"
@@ -1899,8 +2021,15 @@ onBeforeUnmount(() => {
                                         renders.schedule.value.lastCheckAt ??
                                         t("cirender.schedule.lastCheck.never", "Never yet")
                                     }}
-                                    <template v-if="renders.schedule.value.lastCheckResult !== null">
-                                        - {{ scheduleResultText(renders.schedule.value.lastCheckResult) }}
+                                    <template
+                                        v-if="renders.schedule.value.lastCheckResult !== null"
+                                    >
+                                        -
+                                        {{
+                                            scheduleResultText(
+                                                renders.schedule.value.lastCheckResult,
+                                            )
+                                        }}
                                     </template>
                                 </p>
                                 <p
@@ -1916,11 +2045,17 @@ onBeforeUnmount(() => {
                                         )
                                     }}
                                 </p>
-                                <p v-if="renders.schedule.value.nextCheckAt !== null" data-test="schedule-nextCheck">
+                                <p
+                                    v-if="renders.schedule.value.nextCheckAt !== null"
+                                    data-test="schedule-nextCheck"
+                                >
                                     {{ t("cirender.schedule.nextCheck", "Next check") }}:
                                     {{ renders.schedule.value.nextCheckAt }}
                                 </p>
-                                <p v-if="renders.schedule.value.lastRenderAt !== null" data-test="schedule-lastRender">
+                                <p
+                                    v-if="renders.schedule.value.lastRenderAt !== null"
+                                    data-test="schedule-lastRender"
+                                >
                                     {{ t("cirender.schedule.lastRender", "Last render started") }}:
                                     {{ renders.schedule.value.lastRenderAt }}
                                 </p>

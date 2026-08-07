@@ -25,13 +25,7 @@
 /* -------------------------------------------------------------------------- */
 
 export type CiRunStatus =
-    | "queued"
-    | "in_progress"
-    | "completed"
-    | "waiting"
-    | "requested"
-    | "pending"
-    | "unknown";
+    "queued" | "in_progress" | "completed" | "waiting" | "requested" | "pending" | "unknown";
 
 export interface CiJobReport {
     readonly id: number;
@@ -81,7 +75,12 @@ export interface CiRenderPlan {
     readonly mapName: string;
     readonly dimension: string;
     readonly inputs: Readonly<Record<string, string>>;
-    /** Project settings the workflow has no input for. Shown, never acted on. */
+    readonly configuration?: {
+        readonly route: "project-archive";
+        readonly complete: true;
+        readonly file: string;
+    };
+    /** Kept for an older main process. Current complete transport always sends an empty list. */
     readonly notCarried: readonly string[];
 }
 
@@ -150,7 +149,12 @@ export type CiRepositoryNameAvailability =
           readonly private: boolean;
           readonly htmlUrl: string | null;
       }
-    | { readonly status: "unknown"; readonly owner: string; readonly repo: string; readonly message: string };
+    | {
+          readonly status: "unknown";
+          readonly owner: string;
+          readonly repo: string;
+          readonly message: string;
+      };
 
 /**
  * One repository the signed-in account could publish to, offered instead of a typed name.
@@ -187,7 +191,11 @@ export interface RouteReport {
     readonly route: CiRoute | null;
     /** One sentence for the interface: the credential in play, or why neither can. */
     readonly describe: string;
-    readonly session: { readonly signedIn: boolean; readonly usable: boolean; readonly reason: string | null };
+    readonly session: {
+        readonly signedIn: boolean;
+        readonly usable: boolean;
+        readonly reason: string | null;
+    };
     readonly gh: {
         readonly availability: GhAvailability;
         readonly version: string | null;
@@ -224,7 +232,11 @@ export interface CiPreflight {
     readonly eulaAccepted: boolean;
     readonly plan: CiRenderPlan | null;
     readonly planFailure: string | null;
-    readonly world: { readonly label: string; readonly files: number; readonly bytes: number } | null;
+    readonly world: {
+        readonly label: string;
+        readonly files: number;
+        readonly bytes: number;
+    } | null;
     readonly worldFailure: string | null;
     readonly worldChanged: boolean;
     readonly uploadNeeded: boolean;
@@ -354,7 +366,12 @@ export type CiSyncEvent =
           readonly asset: string | null;
           readonly at: string;
       }
-    | { readonly type: "run"; readonly syncId: string; readonly run: CiRunReport; readonly at: string }
+    | {
+          readonly type: "run";
+          readonly syncId: string;
+          readonly run: CiRunReport;
+          readonly at: string;
+      }
     | {
           readonly type: "finished";
           readonly syncId: string;
@@ -362,7 +379,12 @@ export type CiSyncEvent =
           readonly durationMs: number;
           readonly at: string;
       }
-    | { readonly type: "failed"; readonly syncId: string; readonly failure: CiSyncFailure; readonly at: string }
+    | {
+          readonly type: "failed";
+          readonly syncId: string;
+          readonly failure: CiSyncFailure;
+          readonly at: string;
+      }
     | { readonly type: "cancelled"; readonly syncId: string; readonly at: string };
 
 export type CiSyncResult =
@@ -384,8 +406,7 @@ export type CiSyncResult =
 
 /** Every answer the main process gives to a question that can simply fail. */
 export type Answer<T> =
-    | { readonly ok: true; readonly value: T }
-    | { readonly ok: false; readonly message: string };
+    { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
 
 /* -------------------------------------------------------------------------- */
 /* Scheduled re-rendering: the honest cadence set, and what the workflow found */
@@ -415,8 +436,7 @@ export interface CiScheduleWriteFailure {
 }
 
 export type CiScheduleWriteResult =
-    | { readonly ok: true }
-    | { readonly ok: false; readonly failure: CiScheduleWriteFailure };
+    { readonly ok: true } | { readonly ok: false; readonly failure: CiScheduleWriteFailure };
 
 /* -------------------------------------------------------------------------- */
 /* Preparing a repository that has never had the render workflow on it        */
@@ -464,14 +484,15 @@ export type CiBootstrapResult =
     | { readonly ok: false; readonly failure: CiBootstrapFailure };
 
 export type CiBootstrapPhase =
-    | "checking-scopes"
-    | "reading-repository"
-    | "writing-files"
-    | "checking-actions"
-    | "finished";
+    "checking-scopes" | "reading-repository" | "writing-files" | "checking-actions" | "finished";
 
 export type CiBootstrapEvent =
-    | { readonly type: "started"; readonly owner: string; readonly repo: string; readonly at: string }
+    | {
+          readonly type: "started";
+          readonly owner: string;
+          readonly repo: string;
+          readonly at: string;
+      }
     | { readonly type: "phase"; readonly phase: CiBootstrapPhase; readonly at: string }
     | { readonly type: "file"; readonly outcome: CiBootstrapFileOutcome; readonly at: string }
     | {
@@ -533,7 +554,11 @@ export interface CiRenderBridge {
     /** The signed-in account's own repositories, to pick an existing one instead of typing it. */
     listExistingRepositories?(): Promise<Answer<readonly CiRepositoryChoice[]>>;
     /** Scheduled re-rendering's current status for one repository. See docs/scheduled-render.md. */
-    ciRenderScheduleRead?(owner: string, repo: string, accountId?: string): Promise<Answer<CiScheduleStatus>>;
+    ciRenderScheduleRead?(
+        owner: string,
+        repo: string,
+        accountId?: string,
+    ): Promise<Answer<CiScheduleStatus>>;
     /** Turns scheduling on (with a cadence) or off, for one recorded sync. */
     ciRenderScheduleWrite?(
         syncId: string,
@@ -578,7 +603,11 @@ type Host = Partial<{
         repo: string;
     }) => Promise<CiRepositoryNameAvailability>;
     listBackupRepositories: () => Promise<Answer<readonly CiRepositoryChoice[]>>;
-    ciRenderScheduleRead: (owner: string, repo: string, accountId?: string) => Promise<Answer<CiScheduleStatus>>;
+    ciRenderScheduleRead: (
+        owner: string,
+        repo: string,
+        accountId?: string,
+    ) => Promise<Answer<CiScheduleStatus>>;
     ciRenderScheduleWrite: (
         syncId: string,
         enabled: boolean,
@@ -612,7 +641,11 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
     if (host === undefined) return null;
 
     const { startCiRender, onCiRenderEvent, ciRenderPreflight } = host;
-    if (!isFunction(startCiRender) || !isFunction(onCiRenderEvent) || !isFunction(ciRenderPreflight)) {
+    if (
+        !isFunction(startCiRender) ||
+        !isFunction(onCiRenderEvent) ||
+        !isFunction(ciRenderPreflight)
+    ) {
         return null;
     }
 
@@ -633,7 +666,8 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
                       syncId,
                       failure: {
                           code: "unsupported",
-                          message: "This build cannot poll a run. The desktop application is what does it.",
+                          message:
+                              "This build cannot poll a run. The desktop application is what does it.",
                           detail: null,
                           status: null,
                           needsSignIn: false,
@@ -649,7 +683,8 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
                 ? host.listCiRenders()
                 : Promise.resolve({
                       ok: false,
-                      message: "This build cannot list past CI renders. The desktop application is what does it.",
+                      message:
+                          "This build cannot list past CI renders. The desktop application is what does it.",
                   }),
         // False rather than a rejection: "this build cannot stop a sync" and "there was
         // nothing to stop" both leave the sync running, and the surface says which of the
@@ -705,8 +740,12 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
         // running is exactly the spinner-that-hides-a-failure this project forbids.
         ...(isFunction(host.bootstrapCiRepository) && isFunction(host.onCiBootstrapEvent)
             ? {
-                  bootstrapCiRepository: (owner: string, repo: string, accountId?: string, prefer?: CiRoute) =>
-                      host.bootstrapCiRepository!(owner, repo, accountId, prefer),
+                  bootstrapCiRepository: (
+                      owner: string,
+                      repo: string,
+                      accountId?: string,
+                      prefer?: CiRoute,
+                  ) => host.bootstrapCiRepository!(owner, repo, accountId, prefer),
                   onCiBootstrapEvent: (listener: (event: CiBootstrapEvent) => void) =>
                       host.onCiBootstrapEvent!(listener),
               }

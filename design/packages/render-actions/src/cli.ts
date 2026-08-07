@@ -3,6 +3,7 @@ import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { writeShardConfig } from "./config/renderConfig.js";
+import { readProjectMapConfig } from "./config/projectMapConfig.js";
 import { mergeShardMaps, MergeError, type MergeReport } from "./merge/mergeMap.js";
 import { verifyMerge } from "./merge/verify.js";
 import { prepareStaticHost } from "./pages/staticHost.js";
@@ -231,13 +232,14 @@ function optionalBoolean(args: Args, name: string, fallback: boolean): boolean {
     return !/^(false|0|no|off)$/i.test(raw.trim());
 }
 
-async function writeGithubOutput(path: string | undefined, values: [string, string][]): Promise<void> {
+async function writeGithubOutput(
+    path: string | undefined,
+    values: [string, string][],
+): Promise<void> {
     if (path === undefined) return;
     await mkdir(dirname(resolve(path)), { recursive: true });
     const lines = values.map(([key, value]) =>
-        value.includes("\n")
-            ? key + "<<__EOF__\n" + value + "\n__EOF__"
-            : key + "=" + value,
+        value.includes("\n") ? key + "<<__EOF__\n" + value + "\n__EOF__" : key + "=" + value,
     );
     await appendFile(path, lines.join("\n") + "\n", "utf8");
 }
@@ -266,7 +268,8 @@ export async function resolveShardDirectories(args: Args, mapId: string): Promis
     if (explicit !== undefined && explicit.length > 0) return explicit.map((path) => resolve(path));
 
     const parent = args.flags.get("shards");
-    if (parent === undefined) throw new Error("Give either --shards <dir> or one or more --shard-dir <dir>");
+    if (parent === undefined)
+        throw new Error("Give either --shards <dir> or one or more --shard-dir <dir>");
 
     const { readdir } = await import("node:fs/promises");
     const entries = await readdir(resolve(parent), { withFileTypes: true });
@@ -428,7 +431,13 @@ function planSummary(
     return [
         "## Render plan",
         "",
-        "World: `" + worldDirectory + "`, dimension `" + plan.dimension + "`, map id `" + plan.mapId + "`.",
+        "World: `" +
+            worldDirectory +
+            "`, dimension `" +
+            plan.dimension +
+            "`, map id `" +
+            plan.mapId +
+            "`.",
         "",
         ...plan.decision.map((line) => "- " + line),
         "",
@@ -485,6 +494,7 @@ async function commandConfig(args: Args): Promise<number> {
         throw new Error("The plan has no shard with id " + rawShard);
 
     const location = await locateWorld(worldInput, plan.dimension);
+    const projectMap = await readProjectMapConfig(location.worldDirectory, plan.mapId);
     const written = await writeShardConfig({
         plan,
         shard,
@@ -496,6 +506,9 @@ async function commandConfig(args: Args): Promise<number> {
         mapName: args.flags.get("map-name") ?? plan.mapId,
         acceptDownload: optionalBoolean(args, "accept-download", true),
         renderThreadCount: optionalNumber(args, "threads") ?? 4,
+        mapConfig: projectMap.config,
+        mapConfigSource: projectMap.source,
+        mapConfigReason: projectMap.reason,
     });
 
     process.stderr.write(
@@ -512,6 +525,8 @@ async function commandConfig(args: Args): Promise<number> {
         ["config-dir", written.configDirectory],
         ["map-dir", written.mapDirectory],
         ["world-dir", location.worldDirectory],
+        ["map-config-source", written.mapConfigSource],
+        ["map-config-reason", written.mapConfigReason],
     ]);
 
     process.stdout.write(JSON.stringify(written) + "\n");
@@ -687,8 +702,14 @@ async function commandShardComplete(args: Args): Promise<number> {
     await writeShardMarker(path, marker);
 
     process.stderr.write(
-        "Shard " + String(shardId) + " finished with " + hiresTileCount + " hires tiles; " +
-            "marker written to " + path + "\n",
+        "Shard " +
+            String(shardId) +
+            " finished with " +
+            hiresTileCount +
+            " hires tiles; " +
+            "marker written to " +
+            path +
+            "\n",
     );
 
     await writeGithubOutput(args.flags.get("github-output"), [
@@ -770,7 +791,9 @@ async function commandMergeLowres(args: Args): Promise<number> {
                 " (" +
                 report.lod1TilesComposited +
                 " composited across a group boundary) |",
-            "| Lod 1 erasures overruled | " + report.overruledErasures.toLocaleString("en-US") + " |",
+            "| Lod 1 erasures overruled | " +
+                report.overruledErasures.toLocaleString("en-US") +
+                " |",
             "| Lod 1 pixel conflicts | " + report.conflictingPixels + " |",
             "| Rebuilt lods | " +
                 (report.rebuiltLods.length === 0
@@ -827,7 +850,9 @@ async function commandMerge(args: Args): Promise<number> {
             " of " +
             report.lowres.lod1Tiles +
             " lod-1 tiles, rebuilt " +
-            report.lowres.rebuiltLods.map((entry) => "lod " + entry.lod + ": " + entry.tiles).join(", ") +
+            report.lowres.rebuiltLods
+                .map((entry) => "lod " + entry.lod + ": " + entry.tiles)
+                .join(", ") +
             "\n",
     );
 
@@ -853,7 +878,9 @@ function mergeSummary(report: MergeReport): string {
             " (" +
             report.lowres.lod1TilesComposited +
             " composited from more than one shard) |",
-        "| Lod 1 erasures overruled | " + report.lowres.overruledErasures.toLocaleString("en-US") + " |",
+        "| Lod 1 erasures overruled | " +
+            report.lowres.overruledErasures.toLocaleString("en-US") +
+            " |",
         "| Lod 1 pixel conflicts | " + report.lowres.conflictingPixels + " |",
         "| Rebuilt lods | " +
             (report.lowres.rebuiltLods.length === 0
@@ -882,7 +909,9 @@ async function commandVerify(args: Args): Promise<number> {
     const report = await verifyMerge({ plan, shardMapDirectories, mergedDirectory });
 
     for (const check of report.checks)
-        process.stderr.write((check.ok ? "ok   " : "FAIL ") + check.name + ": " + check.detail + "\n");
+        process.stderr.write(
+            (check.ok ? "ok   " : "FAIL ") + check.name + ": " + check.detail + "\n",
+        );
 
     await appendSummary(
         args.flags.get("summary"),
@@ -893,7 +922,13 @@ async function commandVerify(args: Args): Promise<number> {
             "| --- | --- | --- |",
             ...report.checks.map(
                 (check) =>
-                    "| " + check.name + " | " + (check.ok ? "pass" : "FAIL") + " | " + check.detail + " |",
+                    "| " +
+                    check.name +
+                    " | " +
+                    (check.ok ? "pass" : "FAIL") +
+                    " | " +
+                    check.detail +
+                    " |",
             ),
             "",
         ].join("\n"),
@@ -982,7 +1017,9 @@ async function commandStaticHost(args: Args): Promise<number> {
             "| Maps | " + report.maps.map((map) => map.id).join(", ") + " |",
             "| Files | " + String(report.fileCount) + " |",
             "| Size | " + String(Math.round(report.totalBytes / 1_000_000)) + " MB |",
-            "| Viewer decompresses tiles | " + (report.changedSettings ? "turned on here" : "already on") + " |",
+            "| Viewer decompresses tiles | " +
+                (report.changedSettings ? "turned on here" : "already on") +
+                " |",
             "",
             ...report.notes.map((note) => "- " + note),
             "",
@@ -1008,8 +1045,15 @@ export async function commandFingerprint(args: Args): Promise<number> {
     const fingerprint = await fingerprintWorld(world);
 
     process.stderr.write(
-        "Fingerprint of " + world + ": " + fingerprint.digest + " (" + fingerprint.files + " files, " +
-            fingerprint.bytes + " bytes)\n",
+        "Fingerprint of " +
+            world +
+            ": " +
+            fingerprint.digest +
+            " (" +
+            fingerprint.files +
+            " files, " +
+            fingerprint.bytes +
+            " bytes)\n",
     );
 
     const outPath = args.flags.get("out");
@@ -1037,23 +1081,33 @@ export async function commandScheduleDue(args: Args): Promise<number> {
     const rawCadence = required(args, "cadence", SCHEDULE_DUE_USAGE);
     if (!isCiScheduleCadence(rawCadence)) {
         process.stderr.write(
-            "--cadence must be one of " + CI_SCHEDULE_CADENCES.join(", ") + ", got " + rawCadence + "\n",
+            "--cadence must be one of " +
+                CI_SCHEDULE_CADENCES.join(", ") +
+                ", got " +
+                rawCadence +
+                "\n",
         );
         return 2;
     }
 
     const rawLastCheckAt = args.flags.get("last-check-at");
-    const lastCheckAt = rawLastCheckAt === undefined || rawLastCheckAt === "" ? null : rawLastCheckAt;
+    const lastCheckAt =
+        rawLastCheckAt === undefined || rawLastCheckAt === "" ? null : rawLastCheckAt;
     const rawNow = args.flags.get("now");
     const now = rawNow === undefined ? new Date() : new Date(rawNow);
-    if (Number.isNaN(now.getTime())) throw new Error("--now must be a parseable date, got " + String(rawNow));
+    if (Number.isNaN(now.getTime()))
+        throw new Error("--now must be a parseable date, got " + String(rawNow));
 
     const due = isCadenceDue(rawCadence, lastCheckAt, now);
 
     process.stderr.write(
         (due.due ? "Due: " : "Not due yet: ") +
-            (lastCheckAt === null ? "no earlier check is recorded" : "last checked " + lastCheckAt) +
-            "; next check at " + due.nextCheckAt + "\n",
+            (lastCheckAt === null
+                ? "no earlier check is recorded"
+                : "last checked " + lastCheckAt) +
+            "; next check at " +
+            due.nextCheckAt +
+            "\n",
     );
 
     await writeGithubOutput(args.flags.get("github-output"), [
@@ -1065,7 +1119,12 @@ export async function commandScheduleDue(args: Args): Promise<number> {
     return 0;
 }
 
-const SCHEDULE_SOURCE_KINDS: readonly CiScheduleSourceKind[] = ["repository", "release-asset", "url", "git"];
+const SCHEDULE_SOURCE_KINDS: readonly CiScheduleSourceKind[] = [
+    "repository",
+    "release-asset",
+    "url",
+    "git",
+];
 
 function isScheduleSourceKind(value: string): value is CiScheduleSourceKind {
     return (SCHEDULE_SOURCE_KINDS as readonly string[]).includes(value);
@@ -1159,8 +1218,7 @@ async function main(argv: readonly string[]): Promise<number> {
 // without this guard that import used to run the whole CLI with vitest's own argv, printing
 // the usage text and setting `process.exitCode` as a side effect of merely loading the module.
 const isMain =
-    typeof process.argv[1] === "string" &&
-    import.meta.url === pathToFileURL(process.argv[1]).href;
+    typeof process.argv[1] === "string" && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isMain) {
     main(process.argv.slice(2))
@@ -1170,7 +1228,10 @@ if (isMain) {
         .catch((error: unknown) => {
             if (error instanceof MergeError || error instanceof WorldValidationError)
                 process.stderr.write(error.message + "\n");
-            else process.stderr.write(String(error instanceof Error ? error.stack ?? error.message : error) + "\n");
+            else
+                process.stderr.write(
+                    String(error instanceof Error ? (error.stack ?? error.message) : error) + "\n",
+                );
             process.exitCode = 1;
         });
 }
