@@ -8,7 +8,7 @@
  * Upstream's web server has no route that triggers a render. Every upstream `MapRequestHandler`
  * route this package's `MapStorageHandler` mirrors is read-only; a real BlueMap instance
  * starts an update from a plugin command (`/bluemap update`) or a file-system watch, never
- * from an HTTP request. Material BlueMap's desktop app *is* the server, though, so "ask the
+ * from an HTTP request. Worldlens's desktop app *is* the server, though, so "ask the
  * server to update a map" needs some entry point, and this is it — a deliberate addition,
  * not a deviation from a upstream behaviour that exists to mirror.
  *

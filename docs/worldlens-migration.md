@@ -30,6 +30,11 @@ World/project repository adapters read both generations during the compatibility
 
 Unknown project fields survive parse and serialization. New writes use only current identifiers.
 
+Encrypted private-render payloads follow the same rule: new opaque ids and AES-GCM associated
+data use `worldlens/private-transport`; the opener recognizes the prior
+`material-bluemap/private-transport` generation when its legacy manifest is present. Sealing and
+workflow id output never create another legacy payload.
+
 ## Configuration
 
 Runtime environment variables use the `WORLDLENS_` prefix. Existing

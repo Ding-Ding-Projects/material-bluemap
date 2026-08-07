@@ -11,8 +11,10 @@ unchanged and target byte-matched.
 
 Renderer and documentation-site localStorage namespaces migrate before store hydration; current
 values win and old cells remain. Worldlens environment variables take precedence while legacy
-update, GitHub-client and consent names remain readable. The cosmetic display name reaches the
-title bar, About, notifications and introductions without changing diagnostics or machine ids.
+update, GitHub-client and consent names remain readable. Encrypted private-render payloads use
+Worldlens ids and AES-GCM associated-data contexts for new writes while the opener recognizes the
+legacy generation. The cosmetic display name reaches the title bar, About, notifications and
+introductions without changing diagnostics or machine ids.
 
 Windows packages are permanently unsigned: `forceCodeSigning`, `signExecutable` and
 `signAndEditExecutable` are false, signing inputs are cleared, and updates rely on HTTPS, feed

@@ -14,17 +14,26 @@
  * with no manifest at all.
  */
 
-import { randomBytes } from "node:crypto";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { createHash, randomBytes } from "node:crypto";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { PrivateCryptoError, generateKey } from "./crypto.js";
-import { deriveProjectId, manifestAssetName, partAssetName } from "./ids.js";
+import { PrivateCryptoError, generateKey, seal } from "./crypto.js";
+import {
+    deriveLegacyProjectId,
+    deriveProjectId,
+    manifestAssetName,
+    partAssetName,
+} from "./ids.js";
 import {
     PRIVATE_PART_BYTES,
     PrivatePayloadError,
+    legacyManifestAad,
+    legacyPartAad,
+    manifestAad,
     openPayload,
+    partAad,
     readManifest,
     sealPayload,
 } from "./payload.js";
@@ -61,6 +70,19 @@ describe("the part size", () => {
         // parts of this repository. This one bounds a buffer in every job on the private
         // path; the other bounds how large a published asset may be.
         expect(PRIVATE_PART_BYTES).toBe(50 * 1024 * 1024);
+    });
+});
+
+describe("transport identity", () => {
+    it("writes Worldlens AAD and keeps the old generation read-only", () => {
+        expect(partAad("abc", 2, 64)).toBe("worldlens/private-transport/1|abc|part|2|64");
+        expect(manifestAad("abc")).toBe("worldlens/private-transport/1|abc|manifest");
+        expect(legacyPartAad("abc", 2, 64)).toBe(
+            "material-bluemap/private-transport/1|abc|part|2|64",
+        );
+        expect(legacyManifestAad("abc")).toBe(
+            "material-bluemap/private-transport/1|abc|manifest",
+        );
     });
 });
 
@@ -126,6 +148,44 @@ describe("sealPayload and openPayload", () => {
             const bytes = await readFile(join(sealedDirectory, name));
             expect(bytes.includes("the-world-is-called-something")).toBe(false);
         }
+    });
+
+    it("opens a payload sealed with the legacy id and AAD contexts", async () => {
+        const content = Buffer.from("legacy payload that must survive the rename", "utf8");
+        const legacyProjectId = deriveLegacyProjectId(KEY, "a legacy world");
+        const digest = createHash("sha256").update(content).digest("hex");
+        const manifest = {
+            version: 1,
+            projectId: legacyProjectId,
+            partBytes: content.length,
+            partCount: 1,
+            totalBytes: content.length,
+            sha256: digest,
+            parts: [{ index: 0, bytes: content.length, sha256: digest }],
+        };
+
+        await mkdir(sealedDirectory, { recursive: true });
+        await writeFile(
+            join(sealedDirectory, partAssetName(legacyProjectId, 0)),
+            seal(KEY, legacyPartAad(legacyProjectId, 0, content.length), content),
+        );
+        await writeFile(
+            join(sealedDirectory, manifestAssetName(legacyProjectId)),
+            seal(
+                KEY,
+                legacyManifestAad(legacyProjectId),
+                Buffer.from(JSON.stringify(manifest), "utf8"),
+            ),
+        );
+
+        await openPayload({
+            key: KEY,
+            inputDirectory: sealedDirectory,
+            outputPath: output,
+            projectId: legacyProjectId,
+        });
+
+        expect((await readFile(output)).equals(content)).toBe(true);
     });
 
     it("refuses to seal an empty file rather than producing a payload that renders nothing", async () => {

@@ -3,7 +3,7 @@
  *
  * `history/describe.ts` already does this for a config folder, and does it by looking at
  * which *files* changed. That reading is useless for a project, because a project is one
- * file: every save would produce the row "Changed material-bluemap.project.json", forty
+ * file: every save would produce the row "Changed worldlens.project.json", forty
  * times over, which is the word "Updated" wearing a longer name. A history panel full of
  * those is an archive nobody opens.
  *

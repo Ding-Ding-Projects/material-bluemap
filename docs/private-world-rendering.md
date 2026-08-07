@@ -164,6 +164,13 @@ do not belong together.
 The manifest is written last, so a half-finished upload has no manifest and is refused
 rather than mistaken for a complete payload.
 
+New payload ids and associated-data bindings use the `worldlens/private-transport`
+contexts. The reader also derives the former `material-bluemap/private-transport`
+identifier and tries the former authenticated bindings when an existing directory holds
+that generation's manifest. Sealing and workflow identifier output always use Worldlens;
+the old contexts are read-only compatibility so an encrypted payload is not stranded by
+the product rename.
+
 > **50 MB is this transport's part size and nothing else.** It is not the release-asset
 > size limit used when publishing a large *public* world, which is a different problem
 > with a much larger number. Raising this one to match that one would put gigabyte
@@ -279,7 +286,7 @@ render path cannot grow a flag that takes one.
 | --- | --- |
 | `id` | derives an opaque identifier from the label, without touching any data |
 | `seal` | encrypts a file into parts plus a manifest |
-| `open` | verifies and decrypts parts back into the original file |
+| `open` | verifies and decrypts current or legacy-generation parts back into the original file |
 | `check` | proves the key and the required secrets are present before anything runs |
 
 The label is passed as `--label-env <VAR>` rather than `--label <text>` so that it never

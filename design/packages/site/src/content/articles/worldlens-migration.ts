@@ -18,7 +18,7 @@ export const worldlensMigration: Article = {
                 {
                     kind: "paragraph",
                     content:
-                        "On first launch Worldlens asks once before copying the legacy profile through a verified staging directory. It retains the source, migrates browser preferences before stores load, reads old and current repository markers/project files, and writes only current Worldlens identifiers.",
+                        "On first launch Worldlens asks once before copying the legacy profile through a verified staging directory. It retains the source, migrates browser preferences before stores load, reads old and current repository markers/project files and encrypted private-transport payloads, and writes only current Worldlens identifiers.",
                 },
                 {
                     kind: "callout",
