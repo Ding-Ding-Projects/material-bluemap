@@ -809,13 +809,54 @@ function confirmRemoval(): void {
     grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
     gap: 20px;
     align-items: start;
+    min-inline-size: 0;
 }
 
-/* One column below the breakpoint, and at high display scales where the same thing happens. */
+/* One column when this editor's own panel is narrow, including high display scales. */
+@container project-editor (max-width: 60rem) {
+    .mb-project-maps {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
 @media (max-width: 900px) {
     .mb-project-maps {
         grid-template-columns: minmax(0, 1fr);
     }
+}
+
+.mb-project-maps__list,
+.mb-project-maps__editor,
+.mb-project-maps__identity,
+.mb-project-maps__create,
+.mb-project-maps__preset,
+.mb-project-maps__form,
+.mb-project-maps__grid,
+.mb-project-maps__id {
+    min-inline-size: 0;
+}
+
+.mb-project-maps .v-btn,
+.mb-project-maps .v-list-item {
+    min-block-size: 44px;
+}
+
+.mb-project-maps .v-btn {
+    block-size: auto;
+    max-inline-size: 100%;
+}
+
+.mb-project-maps .v-btn .v-btn__content,
+.mb-project-maps .v-list-item-title,
+.mb-project-maps .v-list-item-subtitle,
+.mb-project-maps .v-card-title,
+.mb-project-maps .v-card-text {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.mb-project-maps .v-field {
+    min-block-size: 44px;
 }
 
 .mb-project-maps__identity {
@@ -828,6 +869,21 @@ function confirmRemoval(): void {
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 12px;
     align-items: start;
+}
+
+@container project-editor (max-width: 34rem) {
+    .mb-project-maps__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .mb-project-maps__actions > .v-spacer {
+        flex-basis: 100%;
+        block-size: 0;
+    }
+
+    .mb-project-maps__actions .v-btn {
+        flex: 1 1 12rem;
+    }
 }
 
 .mb-project-maps__id {
@@ -858,6 +914,7 @@ function confirmRemoval(): void {
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
+    overflow-wrap: anywhere;
 }
 
 .mb-project-maps__glossaryLine {
@@ -899,6 +956,7 @@ function confirmRemoval(): void {
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
+    overflow-wrap: anywhere;
 }
 
 .mb-project-maps__create {

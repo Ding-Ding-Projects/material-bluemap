@@ -1696,6 +1696,7 @@ const tabCountLabel = computed(() =>
     padding-inline: 4px;
     background: rgb(var(--v-theme-surface));
     border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+    min-block-size: 44px;
 }
 
 .mb-tabs-strip-row[data-placement="left"],
@@ -1797,6 +1798,7 @@ const tabCountLabel = computed(() =>
     gap: 6px;
     max-width: 14rem;
     min-width: 0;
+    min-block-size: 44px;
     padding: 6px 10px;
     border: 0;
     border-radius: 8px 8px 0 0;
@@ -1838,9 +1840,9 @@ const tabCountLabel = computed(() =>
 }
 
 .mb-tabs-strip__label {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 /* Unsaved work, shown as well as announced through the tab's own title. */
@@ -1854,6 +1856,8 @@ const tabCountLabel = computed(() =>
 
 .mb-tabs-strip__x {
     opacity: 0.6;
+    min-inline-size: 44px;
+    min-block-size: 44px;
 }
 
 .mb-tabs-strip__x:hover {
@@ -1877,6 +1881,8 @@ const tabCountLabel = computed(() =>
     color: inherit;
     font: inherit;
     cursor: pointer;
+    min-block-size: 44px;
+    min-inline-size: 44px;
 }
 
 .mb-tabs-strip__count {
@@ -1891,6 +1897,11 @@ const tabCountLabel = computed(() =>
     flex: 0 0 auto;
 }
 
+.mb-tabs-strip__controls .v-btn {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+}
+
 .mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__controls,
 .mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__controls {
     justify-content: center;
@@ -1900,7 +1911,7 @@ const tabCountLabel = computed(() =>
 }
 
 .mb-tabs-strip__placement-sheet {
-    width: min(92vw, 24rem);
+    width: min(calc(100vw - 16px), 24rem);
     padding-block: 8px;
 }
 
@@ -1909,6 +1920,7 @@ const tabCountLabel = computed(() =>
 .mb-tabs-strip__placement-provenance {
     margin: 0;
     padding-inline: 12px;
+    overflow-wrap: anywhere;
 }
 
 .mb-tabs-strip__placement-title {
@@ -1944,8 +1956,14 @@ const tabCountLabel = computed(() =>
     background: rgb(var(--v-theme-surface));
     border-radius: 12px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-    max-height: min(70vh, 640px);
+    max-width: calc(100vw - 16px);
+    max-height: min(calc(100vh - 24px), 640px);
     overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+.mb-tabs-strip__sheet .v-list-item {
+    min-block-size: 44px;
 }
 
 .mb-tabs-strip__overflow-member {
