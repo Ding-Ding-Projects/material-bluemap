@@ -19,8 +19,6 @@
  *    to fixing it rather than silently dropped.
  */
 
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
@@ -28,6 +26,7 @@ import { createVuetify } from "vuetify";
 import { VSlider, VSwitch } from "vuetify/components";
 
 import WorldRepoScreen from "./WorldRepoScreen.vue";
+import worldRepoScreenSource from "./WorldRepoScreen.vue?raw";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { GATE_TRAVEL_END } from "../confirm/superConfirmGate.js";
 import type {
@@ -533,7 +532,7 @@ describe("a syncing row's title is not silently clipped by a long owner/repo/bra
     });
 
     it("declares the wrap-safe rule with enough specificity to beat Vuetify's own .v-card-title", () => {
-        const source = readFileSync(fileURLToPath(new URL("./WorldRepoScreen.vue", import.meta.url)), "utf8");
+        const source = worldRepoScreenSource;
         const rule = /\.mb-worldrepo-row__title\s*\{[^}]*\}/s.exec(source)?.[0] ?? "";
         expect(rule).toContain("overflow: visible");
         expect(rule).toContain("white-space: normal");

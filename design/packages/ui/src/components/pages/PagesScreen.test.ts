@@ -20,14 +20,13 @@
  *    like every other list in the application.
  */
 
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 
 import PagesScreen from "./PagesScreen.vue";
+import pagesScreenSource from "./PagesScreen.vue?raw";
 import type {
     PagesBridge,
     PagesCandidate,
@@ -318,7 +317,7 @@ describe("a publishing row's title is not silently clipped by a long owner/repo"
     });
 
     it("declares the wrap-safe rule with enough specificity to beat Vuetify's own .v-card-title", () => {
-        const source = readFileSync(fileURLToPath(new URL("./PagesScreen.vue", import.meta.url)), "utf8");
+        const source = pagesScreenSource;
         const rule = /\.mb-pages-row__title\s*\{[^}]*\}/s.exec(source)?.[0] ?? "";
         expect(rule).toContain("overflow: visible");
         expect(rule).toContain("white-space: normal");
