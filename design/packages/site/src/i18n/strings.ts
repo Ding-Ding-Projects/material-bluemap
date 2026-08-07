@@ -1227,6 +1227,21 @@ export const FIXED = {
         yue: "開源項目 · BlueMap 嘅 TypeScript 移植版",
     },
     "home.changelogButtonLabel": { en: "See what changed", yue: "睇吓改咗啲乜" },
+    "walkthrough.heading": {
+        en: "See each action move",
+        yue: "睇住每個操作郁起嚟",
+    },
+    "walkthrough.lede": {
+        en: "Twelve short walkthroughs show distinct site actions. Each animation plays once, loads only when needed, and has a still reduced-motion alternative.",
+        yue: "十二段短動畫逐個示範唔同操作；每段只播一次、要睇先載入，減少動態模式就換做靜態圖。",
+    },
+    "walkthrough.motionNote": {
+        en: "Animations are silent, finite, lazy-loaded, and replaced by still images when reduced motion is requested.",
+        yue: "動畫冇聲、有限次、延遲載入；要求減少動態時會自動換靜態圖。",
+    },
+    "walkthrough.replay": { en: "Replay", yue: "再播一次" },
+    "walkthrough.replayNamed": { en: "Replay {name}", yue: "再播一次：{name}" },
+    "walkthrough.readArticle": { en: "Read the article", yue: "閱讀相關文章" },
 
     /* The small kicker line above each capability group's own heading in "What it can
        do" -- see FEATURE_GROUP_KICKER_KEYS in main.ts. */

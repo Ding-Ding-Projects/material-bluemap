@@ -13,6 +13,7 @@
     "fetch-dim-sum": "node scripts/fetch-dim-sum-pool.mjs"
   },
   "devDependencies": {
+    "gifenc": "1.0.3",
     "pngjs": "^7.0.0",
     "typescript": "^5.9.0",
     "vite": "^6.4.3"

@@ -1,5 +1,29 @@
 # Handoff
 
+## Pages rewrite update, 2026-08-07 — explicit M3 shell and twelve action walkthroughs
+
+Issue #107 lives on `codex/phase-pages-m3-rewrite`, isolated from exact base
+`eef61990675997509559c85c7ae3c5e1b27a9b1f`. The start checkpoint `e5ff0d5` preserves a genuine
+headless capture of the then-live public site before the rewrite. The branch has not been merged and
+the public Pages deployment is not claimed to contain this work.
+
+`ExpressiveSiteShell.ts` replaces the old entry-point-owned layout with a top app bar, adaptive
+navigation, content canvas and footer. Existing tab, search, regex, settings, appearance,
+notification and palette controllers remain the single source of state. The rewritten shell keeps
+the mobile toggle reachable, uses a bounded drawer/scrim, exposes four real quick actions, paints a
+lens-and-voxel mark, wraps bilingual content, and has explicit reduced-motion/forced-colour paths.
+
+The new walkthrough package adds a hand-written twelve-action manifest, gallery renderer, responsive
+styles, 12 GIFs, 12 PNG stills, a deterministic capture-frame encoder and an audit test. The media
+comes from genuine built app/site captures but is labelled as explanatory imagery rather than
+runtime/deployment evidence. Current generated GIF payload is 427,520 bytes total; each file is well
+below the 900 KiB individual limit.
+
+Focused tests and site typecheck/build are green after the shell and media changes. Remaining work
+is the full site/repository suite, the 360/390/414/desktop/bilingual-200% cheap-headless matrix,
+final screenshots, branch commit/push and exact branch CI. The final owner must keep issue #107 open
+until the exact branch commit and live Pages deployment have genuine captures and terminal proof.
+
 ## Pre-cutover update, 2026-08-07 — the repository finalizer covers the integrated Pages tree
 
 This phase worktree was fast-forwarded without divergence from `5652d185e67c381364b57ec42d5dcebab82762dd`

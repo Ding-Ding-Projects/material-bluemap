@@ -27,6 +27,14 @@ See [Rendering engines](#rendering-engines).
 · [all releases](https://github.com/Ding-Ding-Projects/worldlens/releases)
 · [documentation site](https://ding-ding-projects.github.io/worldlens/)
 
+The documentation site is a full Material Design 3 Expressive application shell rather than a
+long static page. It has adaptive collapsible navigation, real browser-style tabs, all four tab
+searches with anchored regex builders, persisted appearance/language/tone settings, the
+`Ctrl+Shift+F` command palette, notification history, and twelve finite action walkthrough GIFs
+with static reduced-motion fallbacks. See the
+[site architecture](docs/site/material-design-3-pages.md) and
+[animation inventory](docs/site/action-walkthroughs.md).
+
 > **Rename in progress.** The product, packages, installer and machine identifiers are Worldlens.
 > The source repository and Pages URLs above retain their old path until the separate repository
 > rename is executed; keeping the currently live addresses here avoids publishing guessed links.

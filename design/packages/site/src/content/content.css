@@ -35,6 +35,7 @@
  */
 .mb-hero {
     position: relative;
+    container: worldlens-hero / inline-size;
     overflow: hidden;
     padding: clamp(var(--md-sys-spacing-6), 4vw, var(--md-sys-spacing-12));
     /* One step past the shared shape scale's largest named corner, on three sides only.
@@ -84,7 +85,7 @@
     pointer-events: none;
 }
 
-@media (max-width: 56.24rem) {
+@container worldlens-hero (width < 58rem) {
     .mb-hero::after {
         display: none;
     }
@@ -103,7 +104,7 @@
     align-items: center;
 }
 
-@media (min-width: 56.25rem) {
+@container worldlens-hero (width >= 58rem) {
     .mb-hero-grid {
         grid-template-columns: minmax(0, 3fr) minmax(16rem, 2fr);
     }
@@ -185,13 +186,14 @@
        at its own default weight. */
     font-size: clamp(
         var(--md-sys-typescale-headline-medium-size),
-        8vw,
+        7cqi,
         var(--md-sys-typescale-display-large-size)
     );
     font-weight: 650;
     line-height: 1.05;
     letter-spacing: -0.02em;
-    overflow-wrap: anywhere;
+    overflow-wrap: normal;
+    word-break: keep-all;
 }
 
 /*

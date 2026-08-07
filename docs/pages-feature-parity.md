@@ -1,5 +1,13 @@
 # GitHub Pages feature parity and responsive navigation
 
+The current implementation now sits inside a ground-up Material Design 3 Expressive application
+shell rather than the former append-ordered topbar. The shell has an explicit top app bar, adaptive
+navigation surface, bounded content canvas and footer; its quick actions open Search, Notifications,
+Settings and the `Ctrl+Shift+F` command palette. The Home page also includes twelve finite,
+action-specific GIF walkthroughs with local reduced-motion stills. See
+[the architecture](site/material-design-3-pages.md) and
+[the animation inventory](site/action-walkthroughs.md).
+
 The documentation site is a user-facing application, not a passive brochure. It ships the same
 discoverability, customization, localization, accessibility, search, safety, and export contracts
 that apply to the desktop interface wherever the browser platform can truthfully provide them.
