@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Landing page and documentation site
 
+- WEBSITE EDIT - Close the Pages integration contract gaps - [`890b934732`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/890b93473201120429f2d57bb50d1cc12b6310e4)
 - WEBSITE EDIT - Make every panel adjustable - [`5a4fe2aef8`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5a4fe2aef86e2ec3fb36a10a4886d09f9f0376ea)
 - WEBSITE EDIT - Ship guided scheduled settings - [`a9fe3c4f25`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a9fe3c4f2527e1e8365260e439ce997f30e259dd)
 - WEBSITE EDIT - Add recoverable scheduled settings engine - [`57e41cc8f2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/57e41cc8f29fae885a5d5ad65ffad9edc3594586)

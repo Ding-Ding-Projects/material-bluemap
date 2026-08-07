@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "890b93473201120429f2d57bb50d1cc12b6310e4",
+        shortSha: "890b934732",
+        date: "2026-08-07T05:35:42-04:00",
+        subject: "WEBSITE EDIT - Close the Pages integration contract gaps",
+        details: "The full suite caught what the focused suite could not: two articles were homeless in the offline browser, schedule deletion lacked an inventory passport, and a Markdown formatter widened a table past a brittle regex's imagination.\n\n完整測試捉到 focused suite 睇唔到嘅三隻曳嘢：兩篇文章喺離線文件瀏覽器冇屋住、刪排程冇登記入冊，仲有 Markdown formatter 拉闊張表就嚇親條脆弱 regex。",
+        category: "site",
+        areas: ["site", "interface"],
+        files: 3,
+    },
+    {
         sha: "10c8881bdf787c229bfa9ac0ead2327cb1e1f25f",
         shortSha: "10c8881bdf",
         date: "2026-08-07T05:25:57-04:00",
