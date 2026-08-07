@@ -37,22 +37,22 @@ export const releasePipeline: Article = {
                     rows: [
                         [
                             { code: "check" },
-                            "Self-hosted Linux",
+                            "GitHub-hosted Ubuntu",
                             "Installs from the frozen lockfile, then lint, build and the full test suite across the workspace.",
                         ],
                         [
                             { code: "package" },
-                            "Self-hosted Windows",
+                            "GitHub-hosted Windows",
                             "Builds the workspace, then the Squirrel.Windows installer, and fails loudly if no installer artefact was produced.",
                         ],
                         [
                             { code: "screenshots" },
-                            "Self-hosted Linux",
+                            "GitHub-hosted Ubuntu",
                             "Launches the real app under a virtual framebuffer and captures it, uploading the images even when the capture failed.",
                         ],
                         [
                             { code: "release" },
-                            "Self-hosted Linux",
+                            "GitHub-hosted Ubuntu",
                             "Only on the default branch. Tags, composes notes and publishes after every required job passes.",
                         ],
                     ],
@@ -100,11 +100,15 @@ export const releasePipeline: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "Every self-hosted job selects an explicit check-first dependency profile. OS packages ",
-                        "are installed only when their command or library is absent; actionlint, shellcheck and ",
-                        "the GitHub CLI are checksum-pinned job-local downloads; Node, pnpm and Java follow the ",
-                        "workspace and upstream pins. A hand-written ten-job inventory fails when a job is added ",
-                        "without a profile.",
+                        "Every executable job selects an explicit standard hosted label: ",
+                        { code: "ubuntu-latest" },
+                        " or ",
+                        { code: "windows-latest" },
+                        ". Reusable-workflow calls name their checked-in workflow instead, because GitHub Actions ",
+                        "does not permit those call jobs to declare ",
+                        { code: "runs-on" },
+                        ". A hand-written inventory covers all 36 jobs and fails on an unknown workflow, a missing ",
+                        "job, a non-standard label, or any return of self-hosted bootstrap plumbing.",
                     ],
                 },
             ],
@@ -119,7 +123,7 @@ export const releasePipeline: Article = {
                         {
                             term: "Triggers",
                             description:
-                                "Push and manual dispatch. Pull requests cannot start these public-repository self-hosted jobs, because that would let untrusted fork code execute on project-owned machines.",
+                                "Push, pull request and manual dispatch. Pull-request validation is safe to restore because every executable job runs in an isolated GitHub-hosted environment.",
                         },
                         {
                             term: "Concurrency",
@@ -132,9 +136,9 @@ export const releasePipeline: Article = {
                                 "Resolved as an optional repository-scoped token, then the organisation token, then the workflow token. Publishing needs more than the ephemeral workflow token is always granted.",
                         },
                         {
-                            term: "Dependency profiles",
+                            term: "Runner selection",
                             description:
-                                "Each self-hosted job names one profile. The Linux profiles support apt, dnf/yum and pacman families; Windows packaging uses PowerShell and can install pinned MinGit without changing the machine-wide Git installation.",
+                                "Linux build, test, render, Pages and release jobs use ubuntu-latest. Windows Squirrel packaging uses windows-latest. The workflows keep the manifest-pinned Node, pnpm and Java setup actions and frozen lockfile.",
                         },
                         {
                             term: "Release code name",
@@ -170,7 +174,7 @@ export const releasePipeline: Article = {
                         {
                             term: "A runner dependency is missing",
                             description:
-                                "The job installs it non-interactively from the distribution package manager or a checksum-pinned canonical release. If no supported package manager or passwordless elevation is available, the failure names the exact dependency instead of opening a prompt.",
+                                "The job's declared setup action or package command fails on that disposable image. The workflow does not mutate a developer-owned machine or fall back to an unlisted runner.",
                         },
                         {
                             term: "The packager produced no installer",
@@ -208,9 +212,9 @@ export const releasePipeline: Article = {
                 {
                     kind: "list",
                     items: [
-                        "Project CI and Pages jobs use self-hosted runners, so their workflow files have no pull_request trigger. Push and manual dispatch require repository write access.",
-                        "The render workflows copied into users' repositories stay on GitHub-hosted runners; they never depend on a project-owned runner being online.",
-                        "Downloaded command-line tools come from their canonical release pages, are pinned to exact versions and SHA-256 digests, and live only under the job's temporary directory.",
+                        "Project CI, Pages and render jobs use disposable GitHub-hosted runners; pull requests never execute on a project-owned machine.",
+                        "The render workflows copied into users' repositories use the same standard hosted labels and never depend on a maintainer machine being online.",
+                        "The workflow-lint job verifies its pinned actionlint archive before extraction, and uses the hosted image's shellcheck so run blocks are checked too.",
                         "The default permission is read. Only the release job asks for write, and only to contents.",
                         "Tokens are passed through the standard environment convention and never echoed, logged or written into release notes.",
                         "Installers are unsigned today. Windows SmartScreen will warn on first run, and that is the honest state rather than something to work around.",
@@ -238,8 +242,8 @@ export const releasePipeline: Article = {
                     kind: "list",
                     items: [
                         "The pipeline has published tagged releases carrying a Squirrel installer, its execution stub, the package and the release manifest.",
-                        "The self-hosted policy test compares every literal self-hosted runner job to a hand-written workflow/job/OS/profile inventory and proves both bootstrap scripts through fake-missing dry runs.",
-                        "Workflow lint runs only after the bootstrap has placed shellcheck on PATH, so actionlint checks every run block instead of silently skipping shell analysis.",
+                        "The cloud-runner policy test compares every workflow and all 36 jobs to a hand-written label or reusable-call inventory, rejecting self-hosted labels and deleted bootstrap paths.",
+                        "Workflow lint runs on hosted Ubuntu, where shellcheck is present before the checksum-pinned actionlint binary checks every run block.",
                         "The release job reads back the published release and fails on a draft, so publication is proved rather than assumed.",
                         "The line counter self-checks its own arithmetic and fails the job on a mismatch.",
                         "The site deploy asserts the built output carries the project subpath, because a site that deploys green and 404s on every page is the failure this catches.",
@@ -279,8 +283,8 @@ export const releasePipeline: Article = {
         { label: ".github/workflows/ci.yml", href: CI_WORKFLOW_URL },
         { label: ".github/workflows/pages.yml", href: PAGES_WORKFLOW_URL },
         {
-            label: "docs/self-hosted-ci-bootstrap.md",
-            href: repoFile("docs/self-hosted-ci-bootstrap.md"),
+            label: "docs/cloud-runners.md",
+            href: repoFile("docs/cloud-runners.md"),
         },
         { label: "scripts/count-lines.mjs", href: repoFile("scripts/count-lines.mjs") },
         {

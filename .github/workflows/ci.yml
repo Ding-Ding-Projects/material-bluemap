@@ -2,17 +2,8 @@ name: CI
 
 on:
   push:
+  pull_request:
   workflow_dispatch:
-  # `pull_request` was removed on 2026-08-05 (decision D19, design/docs/decisions.md) when
-  # this workflow moved onto this developer's own two self-hosted runners. A self-hosted
-  # runner on a public repository is a documented attack path: anyone who can cause a
-  # workflow to run can execute code on the machine behind it, and `pull_request` is
-  # exactly that trigger for anyone who can open one - including from a fork, with
-  # whatever workflow content the fork carries. `push` and `workflow_dispatch` both
-  # require write access to this repository, which is the actual mitigation. Do not
-  # restore `pull_request` here without first moving these jobs back to hosted runners, or
-  # switching every checkout to a hard-pinned ref under `pull_request_target` with no
-  # secrets in scope - and understanding exactly what that reintroduces before doing it.
 
 # No *workflow*-level concurrency group: a run is never wholesale-cancelled by a later one.
 #
@@ -24,14 +15,7 @@ on:
 # **one** pending run, so a third arrival evicts the queued middle one even with cancellation
 # switched off - avoided the same way, by not sharing a group at all.
 #
-# That history does not change here, but the situation it was written for has: this workflow
-# now runs on two self-hosted machines (see the `runs-on` labels below) instead of disposable
-# hosted VMs, and on 2026-08-04 a burst of pushes queued 26 runs against those two machines at
-# once. Runners used to be free and disposable on a public repository; now they are this
-# developer's own two computers, and unbounded pileup is a real cost again - just a different
-# one than the workflow-level group above caused.
-#
-# The fix below is a `concurrency` block on each job except `release`, not on the workflow.
+# The `concurrency` blocks below stay scoped per job, never to the whole workflow.
 # A job-level group only supersedes that same job across runs - it can never cancel a
 # *different* job in the *same* run the way a shared workflow-level group would, so jobs
 # meant to run in parallel (`workflows`, `check` and `jars` all start together below) still
@@ -53,7 +37,7 @@ jobs:
   # checkout of anything but the workflows and no toolchain at all.
   workflows:
     name: Lint the workflow files
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     concurrency:
       group: ci-workflows-${{ github.ref }}
       cancel-in-progress: true
@@ -62,23 +46,13 @@ jobs:
       # the tags and its entries from the commits, and a depth-1 checkout would report a
       # changelog covering one version as current.
       #
-      # No explicit `ref:` here: this workflow no longer triggers on `pull_request` (see
-      # the trigger comment above), so `github.sha` - actions/checkout's own default - is
-      # always the commit to lint. The old override existed only to prefer a pull
-      # request's real head over GitHub's synthetic merge commit; there is no merge commit
-      # to avoid once `pull_request` cannot start this workflow at all.
-      # Seed checkout makes the repository-owned bootstrap action available. The
-      # profile installs Git if checkout had to use its REST fallback.
-      - uses: actions/checkout@v4
-
-      - name: Bootstrap this self-hosted job
-        uses: ./.github/actions/bootstrap-self-hosted
-        with:
-          profile: workflow-lint
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Pull requests are otherwise checked out at GitHub's synthetic merge
+          # commit. The generated changelog follows the branch history, so lint
+          # the actual PR head instead of inventing an unlisted merge entry.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       # There is deliberately NO changelog freshness check here, and the reason is worth
       # recording so nobody adds one back without solving it first.
@@ -98,17 +72,22 @@ jobs:
       - name: actionlint
         run: |
           set -euo pipefail
-          # The profile above pins both actionlint and shellcheck, verifies their
-          # release-asset digests, and puts them on this job's PATH. shellcheck must be
-          # present before actionlint starts or every run block is silently skipped.
+          version=1.7.12
+          curl -fsSL --retry 3 \
+            "https://github.com/rhysd/actionlint/releases/download/v${version}/actionlint_${version}_linux_amd64.tar.gz" \
+            -o actionlint.tar.gz
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz" \
+            | sha256sum --check --strict -
+          tar -xzf actionlint.tar.gz actionlint
+          # The hosted runner already ships shellcheck, so every run block is checked.
           # (This note deliberately never starts a line with the word shellcheck: a
           # comment starting "# shellcheck" is parsed as a shellcheck *directive*, and a
           # malformed one fails the very lint step this comment sits in.)
-          actionlint -color
+          ./actionlint -color
 
   check:
     name: Lint, build, test
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     concurrency:
       group: ci-check-${{ github.ref }}
       cancel-in-progress: true
@@ -131,15 +110,6 @@ jobs:
       # is passed explicitly because actions/checkout applies that same depth to the
       # submodule fetch: this pulls the one commit's tree rather than the submodule's
       # full history, which matters because that tree is 500+ MB.
-      # Seed checkout makes the repository-owned bootstrap action available before
-      # the real checkout asks Git to initialise the vendor submodule.
-      - uses: actions/checkout@v4
-
-      - name: Bootstrap this self-hosted job
-        uses: ./.github/actions/bootstrap-self-hosted
-        with:
-          profile: workspace
-
       - uses: actions/checkout@v4
         with:
           submodules: true
@@ -150,7 +120,7 @@ jobs:
       # reads that field itself when pointed at the file - `package_json_file` because the
       # manifest lives in `design/`, not at the repository root the action defaults to.
       # This installs the pinned version regardless of whatever pnpm (if any) is already
-      # on this self-hosted machine, without hand-duplicating the version number here for
+      # in this job, without hand-duplicating the version number here for
       # it to drift out of sync with the manifest later.
       - uses: pnpm/action-setup@v4
         with:
@@ -179,7 +149,7 @@ jobs:
       # one package runs `vue-tsc` instead.
       #
       # `NODE_OPTIONS` raises Node's default old-space limit for this step alone. The
-      # first run after CI moved onto a self-hosted runner died here with
+      # an earlier constrained runner died here with
       # `FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of
       # memory` (exit 134). `vue-tsc` holds the whole `ui` package's type graph in one
       # process, that package grew a great deal, and a hosted runner's Node was sizing
@@ -217,17 +187,12 @@ jobs:
     # installer, but every local render in that installer fails immediately with
     # "The BlueMap engine is not installed" - see jars.ts and orchestrator.ts.
     needs: [check, jars]
-    runs-on: [self-hosted, Windows, X64]
+    runs-on: windows-latest
     concurrency:
       group: ci-package-${{ github.ref }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
-
-      - name: Bootstrap this self-hosted job
-        uses: ./.github/actions/bootstrap-self-hosted
-        with:
-          profile: windows-package
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
@@ -358,17 +323,12 @@ jobs:
   config-java-roundtrip:
     name: Config / real Java CLI round trip
     needs: [jars]
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     concurrency:
       group: ci-config-java-roundtrip-${{ github.ref }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
-
-      - name: Bootstrap this self-hosted job
-        uses: ./.github/actions/bootstrap-self-hosted
-        with:
-          profile: java-roundtrip
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
@@ -388,7 +348,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: "25"
 
       - uses: actions/download-artifact@v4
         with:
@@ -426,17 +386,12 @@ jobs:
   test-world:
     name: Generate and render a test world
     needs: [check, jars]
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     concurrency:
       group: ci-test-world-${{ github.ref }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
-
-      - name: Bootstrap this self-hosted job
-        uses: ./.github/actions/bootstrap-self-hosted
-        with:
-          profile: test-world
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
@@ -545,28 +500,12 @@ jobs:
   screenshots:
     name: Screenshots
     needs: [check, test-world]
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     concurrency:
       group: ci-screenshots-${{ github.ref }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
-
-      - name: Bootstrap this self-hosted job
-        uses: ./.github/actions/bootstrap-self-hosted
-        with:
-          profile: screenshots
-
-      # This machine is not thrown away between runs the way a hosted VM is. A crashed or
-      # timed-out capture in an earlier run can leave an Electron process running under a
-      # stale Xvfb display, which would otherwise sit there wasting resources at best and
-      # colliding with this run's own capture at worst - the exact "poisoned by the
-      # previous run" failure mode self-hosted runners are prone to and hosted ones are
-      # not. Best-effort and never fatal: it must not turn a clean runner into a failed
-      # job, so nothing here is allowed to fail the step.
-      - name: Stop any Electron processes left running from a previous run
-        continue-on-error: true
-        run: pkill -f "design/packages/app" || true
 
       # Version pinned via design/package.json's own `packageManager` field - see the
       # comment on the same step in the `check` job above for why.
@@ -647,42 +586,7 @@ jobs:
           echo "CAPTURE_WORLD=$world" >> "$GITHUB_ENV"
           ls -la "$world"
 
-      # `install-deps` shells out to the OS package manager (apt-get, with sudo) to
-      # install the system libraries headless Chromium (and therefore Electron, which
-      # bundles it) needs. On a hosted runner that mutated a disposable VM once; on this
-      # self-hosted machine, calling it unconditionally would mutate the developer's own
-      # real system package set on every single run forever, whether or not anything is
-      # actually missing - the same class of waste the `zip`/`unzip`/`xvfb` checks above
-      # exist to avoid.
-      #
-      # Playwright itself now provides the check we need: `install-deps --dry-run` does
-      # not touch the system at all, it simulates the install via `apt-get install -s`
-      # against the exact package list this installed Playwright version currently
-      # requires, and exits non-zero the moment anything is missing (`playwright
-      # install-deps --help` documents this precisely). That live re-derivation is what
-      # keeps this cheap-and-safe rather than cheap-and-stale: if a future Playwright
-      # bump needs one more library than this machine has, the dry run recomputes its
-      # requirement list from that new version and correctly reports it missing - it is
-      # never comparing against a list we wrote down once and forgot to update. Any
-      # dry-run failure, for that reason or any other (an unpopulated apt cache, for
-      # instance), falls through to the real install below rather than being treated as
-      # "probably fine"; the only thing this check is trusted to say is "yes, already
-      # satisfied", never "no, and therefore skip".
-      - name: Check whether Playwright's Chromium OS dependencies are already satisfied
-        id: playwright-deps
-        working-directory: design/packages/app
-        run: |
-          set -euo pipefail
-          if pnpm exec playwright install-deps chromium --dry-run; then
-            echo "All Chromium OS dependencies are already present; skipping the real install."
-            echo "satisfied=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "Chromium OS dependencies are missing or the dry run could not confirm them; installing for real."
-            echo "satisfied=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Install Playwright browsers' OS dependencies
-        if: steps.playwright-deps.outputs.satisfied != 'true'
         working-directory: design/packages/app
         run: pnpm exec playwright install-deps chromium
 
@@ -737,12 +641,12 @@ jobs:
     # input it is blocked on - it is done long before the others are.
     needs: [check, package, jars, test-world, config-java-roundtrip]
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, Linux, X64]
+    runs-on: ubuntu-latest
     # This job deliberately carries no `ci-release-*-cancel-in-progress-true` group like
     # the other jobs in this file now do (see the top-of-file comment): that pattern
     # exists to clear a pileup of *stale* work, and a publish already in flight is never
     # stale. The group below is the one that already existed for a different reason and
-    # is unrelated to the self-hosted switch - kept exactly as it was.
+    # is unrelated to runner selection - kept exactly as it was.
     #
     # The one thing that genuinely cannot run twice at once, and not for the reason it
     # looks like. The tag is `v<version>-build.<run number>`, which is unique per run, so
@@ -765,15 +669,6 @@ jobs:
     steps:
       # The line counter attributes surviving lines with `git blame`, so it
       # needs the full history rather than a shallow clone.
-      # Seed checkout makes the repository-owned bootstrap action available before
-      # the line-count checkout asks Git for the complete history.
-      - uses: actions/checkout@v4
-
-      - name: Bootstrap this self-hosted job
-        uses: ./.github/actions/bootstrap-self-hosted
-        with:
-          profile: release
-
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0

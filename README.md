@@ -87,6 +87,7 @@ states its behaviour, configuration, failure modes, security considerations and 
 | **Docker or this machine** | One render plan that resolves to a container or to the local runtime | [`docs/docker-and-local.md`](docs/docker-and-local.md) |
 | **Remote rendering over SSH** | Runs the render on another machine, with host-key handling and a preflight | [`docs/remote-render.md`](docs/remote-render.md) |
 | **Rendering in GitHub Actions** | Hands the whole render to GitHub's runners, sharded and resumable | [`docs/render-in-actions.md`](docs/render-in-actions.md) · [`docs/large-worlds.md`](docs/large-worlds.md) · [`docs/resumable-renders.md`](docs/resumable-renders.md) |
+| **Disposable cloud CI** | Builds, tests, packages, publishes and deploys on explicit standard GitHub-hosted Linux and Windows runners | [`docs/cloud-runners.md`](docs/cloud-runners.md) |
 | **Publish a rendered map to GitHub Pages** | Preflights the real render, publishes guarded static files, verifies the public address, and offers a two-key stop-hosting gate | [`docs/pages-hosting.md`](docs/pages-hosting.md) · [`docs/render-in-actions.md`](docs/render-in-actions.md) |
 | **Private worlds** | Sealed before they leave the machine, rendered on public runners, published only privately | [`docs/private-world-rendering.md`](docs/private-world-rendering.md) |
 | **World sources** | Fetches a world from any GitHub release, including one split into parts in another repository | [`docs/world-sources.md`](docs/world-sources.md) |

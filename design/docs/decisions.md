@@ -276,9 +276,43 @@ steps, so Git Bash is no longer a hidden build dependency; a missing Git install
 with checksum-pinned MinGit in the job directory. Official setup actions still provide the
 manifest-pinned Node/pnpm and upstream-pinned Temurin toolchains.
 
-`design/packages/shared/src/selfHostedCiPolicy.test.ts` is the completeness boundary: a
+For this historical D19 implementation,
+`design/packages/shared/src/selfHostedCiPolicy.test.ts` was the completeness boundary: a
 hand-written ten-job inventory is compared to every literal self-hosted `runs-on` entry, each job
 must call its declared profile, and any `pull_request` trigger on those workflow files fails the
 test. The Pages deploy job is explicitly inventoried as `action-only`; it has no external command
 to install, which is a declared empty dependency set rather than an unexamined omission. See
-`docs/self-hosted-ci-bootstrap.md` for the profile table, failure modes, and dry-run proof.
+the superseding D20 decision and `docs/cloud-runners.md` for the current runner inventory. The
+self-hosted bootstrap article and code were intentionally removed when D20 restored hosted
+runners, so this historical paragraph no longer links to a deleted file.
+
+## D20 — Project workflows returned to standard GitHub-hosted runners
+
+**Decided 2026-08-06, superseding D19 for current runner selection.**
+
+Every executable job in all seven repository workflows now selects an explicit standard hosted
+label: `ubuntu-latest` for Linux build, test, render, release and Pages work, and
+`windows-latest` for Squirrel.Windows packaging. Reusable-workflow call jobs still declare only
+their checked-in `uses` target because GitHub Actions forbids `runs-on` on those jobs. This is a
+project-specific exception to any broader fully-self-hosted preference: the current user request
+expressly restores hosted runners for this public repository.
+
+The reason is isolation and reproducibility. A public pull request can run repository-controlled
+validation on a disposable GitHub-managed environment without executing contributor code on a
+maintainer's computer. A failed or cancelled job cannot leave behind processes, package changes,
+or workspace state for the next run. Accordingly, `pull_request` is restored to `ci.yml`.
+
+The self-hosted composite action, Linux and Windows bootstrap scripts, and their dedicated
+bootstrap article were removed because no job consumes them. The workflows keep ordinary setup
+actions and their existing exact sources of truth: pnpm comes from `packageManager` in
+`design/package.json`, Node remains 22, Java remains on the Temurin versions required by the
+vendored upstream build, and installs continue to use the frozen lockfile. The workflow-lint job
+keeps actionlint 1.7.12 and its SHA-256 digest directly in the hosted job; hosted Ubuntu supplies
+shellcheck before actionlint runs.
+
+`design/packages/shared/src/cloudRunnerPolicy.test.ts` is the replacement completeness boundary.
+Its hand-written list covers all seven workflows and all 36 jobs: 23 command-running jobs with an
+exact allowed hosted label, plus 13 reusable calls with an exact checked-in target. It fails when
+a workflow or job appears without inventory, when an executable job lacks a standard label, when
+a call job grows an illegal label, or when self-hosted/bootstrap wiring returns. See
+`docs/cloud-runners.md` for behaviour, configuration, failure modes, security, and verification.
