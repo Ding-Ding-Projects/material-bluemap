@@ -24,6 +24,9 @@ import type { Preferences } from "../platform/Preferences.js";
 
 export const GROUP_COLOURS = ["blue", "green", "amber", "purple", "red", "grey"] as const;
 export type GroupColour = (typeof GROUP_COLOURS)[number];
+export const TAB_PLACEMENTS = ["left", "right", "top", "bottom"] as const;
+export type TabPlacement = (typeof TAB_PLACEMENTS)[number];
+export const DEFAULT_TAB_PLACEMENT: TabPlacement = "left";
 
 /** This site owns one window and one strip. Search results still name both, because the API
  *  contract is that a result says where it is, and a caller should not have to know that the
@@ -113,7 +116,8 @@ export interface BulkCloseResult {
 /** Wall-clock budget for one matching batch, so a slow pattern cannot freeze the page. */
 const MATCH_BUDGET_MS = 50;
 const STATE_KEY = "tabs.state";
-const STATE_VERSION = 1;
+const STATE_VERSION = 2;
+const LEGACY_STATE_VERSION = 1;
 const RECENTLY_CLOSED_LIMIT = 20;
 
 interface PersistedState {
@@ -124,13 +128,19 @@ interface PersistedState {
     readonly groups: TabGroup[];
     readonly membership: [string, string][];
     readonly active: string | null;
+    readonly placement: TabPlacement;
 }
 
-function revive(value: unknown): PersistedState | undefined {
+interface RevivedState extends PersistedState {
+    readonly placementWasStored: boolean;
+}
+
+function revive(value: unknown): RevivedState | undefined {
     if (typeof value !== "object" || value === null) return undefined;
     const raw = value as Partial<PersistedState>;
-    if (raw.v !== STATE_VERSION) return undefined;
-    if (!Array.isArray(raw.order) || !Array.isArray(raw.pinned) || !Array.isArray(raw.closed)) return undefined;
+    if (raw.v !== STATE_VERSION && raw.v !== LEGACY_STATE_VERSION) return undefined;
+    if (!Array.isArray(raw.order) || !Array.isArray(raw.pinned) || !Array.isArray(raw.closed))
+        return undefined;
     if (!Array.isArray(raw.groups) || !Array.isArray(raw.membership)) return undefined;
     return {
         v: STATE_VERSION,
@@ -140,9 +150,16 @@ function revive(value: unknown): PersistedState | undefined {
         groups: raw.groups.filter(isGroup),
         membership: raw.membership.filter(
             (pair): pair is [string, string] =>
-                Array.isArray(pair) && pair.length === 2 && typeof pair[0] === "string" && typeof pair[1] === "string",
+                Array.isArray(pair) &&
+                pair.length === 2 &&
+                typeof pair[0] === "string" &&
+                typeof pair[1] === "string",
         ),
         active: typeof raw.active === "string" ? raw.active : null,
+        placement: (TAB_PLACEMENTS as readonly unknown[]).includes(raw.placement)
+            ? (raw.placement as TabPlacement)
+            : DEFAULT_TAB_PLACEMENT,
+        placementWasStored: (TAB_PLACEMENTS as readonly unknown[]).includes(raw.placement),
     };
 }
 
@@ -170,6 +187,8 @@ export class TabModel {
     private groups = new Map<string, TabGroup>();
     private membership = new Map<string, string>();
     private activeId: string | null = null;
+    private placementValue: TabPlacement = DEFAULT_TAB_PLACEMENT;
+    private placementStored = false;
     /** Ids that came back from storage, so a definition's defaults only apply to new pages. */
     private readonly hydrated = new Set<string>();
     private groupCounter = 0;
@@ -188,7 +207,8 @@ export class TabModel {
 
         const isNew = !this.hydrated.has(definition.id);
         if (isNew) {
-            if (definition.pinned === true && !this.pinned.includes(definition.id)) this.pinned.push(definition.id);
+            if (definition.pinned === true && !this.pinned.includes(definition.id))
+                this.pinned.push(definition.id);
             if (definition.group !== undefined) {
                 const seed = definition.group;
                 if (!this.groups.has(seed.id)) {
@@ -204,7 +224,14 @@ export class TabModel {
             this.hydrated.add(definition.id);
         }
 
-        if (this.activeId === null || !this.isOpen(this.activeId)) {
+        // A stored active id may be registered later in the host's declaration order.
+        // Do not replace it with the first page and immediately persist that replacement
+        // merely because its definition has not arrived yet.
+        const awaitingStoredActive =
+            this.activeId !== null &&
+            this.hydrated.has(this.activeId) &&
+            !this.definitions.has(this.activeId);
+        if (!awaitingStoredActive && (this.activeId === null || !this.isOpen(this.activeId))) {
             this.activeId = this.openIds()[0] ?? null;
         }
         this.save();
@@ -219,6 +246,15 @@ export class TabModel {
 
     get active(): string | null {
         return this.activeId;
+    }
+
+    get placement(): TabPlacement {
+        return this.placementValue;
+    }
+
+    /** Whether this value came from storage rather than the built-in migration fallback. */
+    get placementProvenance(): "stored" | "default" {
+        return this.placementStored ? "stored" : "default";
     }
 
     isOpen(id: string): boolean {
@@ -264,7 +300,9 @@ export class TabModel {
 
     /** Pages the visitor closed, most recently closed first. */
     recentlyClosedIds(): string[] {
-        return [...this.recentlyClosed].reverse().filter((id) => this.definitions.has(id) && this.closed.has(id));
+        return [...this.recentlyClosed]
+            .reverse()
+            .filter((id) => this.definitions.has(id) && this.closed.has(id));
     }
 
     /** The unpinned part of the strip, with each group's members gathered into one run. */
@@ -280,7 +318,10 @@ export class TabModel {
                 continue;
             }
             const members = this.order.filter(
-                (candidate) => this.isOpen(candidate) && !this.isPinned(candidate) && this.groupOf(candidate) === group,
+                (candidate) =>
+                    this.isOpen(candidate) &&
+                    !this.isPinned(candidate) &&
+                    this.groupOf(candidate) === group,
             );
             for (const member of members) emitted.add(member);
             result.push({ kind: "group", id: group.id, members });
@@ -304,16 +345,30 @@ export class TabModel {
 
     /** Activate the page `delta` positions away in the visible sequence, wrapping around. */
     activateRelative(delta: number): void {
-        const visible = [...this.pinnedIds(), ...this.segments().flatMap((s) => (s.kind === "tab" ? [s.id] : s.members))];
+        const visible = [
+            ...this.pinnedIds(),
+            ...this.segments().flatMap((s) => (s.kind === "tab" ? [s.id] : s.members)),
+        ];
         if (visible.length === 0) return;
         const current = this.activeId === null ? -1 : visible.indexOf(this.activeId);
         const next = visible[(current + delta + visible.length) % visible.length];
         if (next !== undefined) this.activate(next);
     }
 
+    setPlacement(placement: TabPlacement): void {
+        if (this.placementValue === placement && this.placementStored) return;
+        this.placementValue = placement;
+        this.placementStored = true;
+        this.save();
+        this.emit();
+    }
+
     close(id: string): boolean {
         if (!this.isOpen(id) || !this.isClosable(id)) return false;
-        const visible = [...this.pinnedIds(), ...this.segments().flatMap((s) => (s.kind === "tab" ? [s.id] : s.members))];
+        const visible = [
+            ...this.pinnedIds(),
+            ...this.segments().flatMap((s) => (s.kind === "tab" ? [s.id] : s.members)),
+        ];
         const position = visible.indexOf(id);
 
         this.closed.add(id);
@@ -365,7 +420,9 @@ export class TabModel {
         if (taken === undefined) return false;
         moved.splice(to, 0, taken);
         // Write back into the positions the pinned ids occupied, leaving everything else.
-        const positions = this.pinned.flatMap((candidate, index) => (ids.includes(candidate) ? [index] : []));
+        const positions = this.pinned.flatMap((candidate, index) =>
+            ids.includes(candidate) ? [index] : [],
+        );
         for (const [slot, index] of positions.entries()) {
             const value = moved[slot];
             if (value !== undefined) this.pinned[index] = value;
@@ -397,12 +454,15 @@ export class TabModel {
     moveSegment(index: number, delta: number): boolean {
         const segments = this.segments();
         const target = index + delta;
-        if (index < 0 || index >= segments.length || target < 0 || target >= segments.length) return false;
+        if (index < 0 || index >= segments.length || target < 0 || target >= segments.length)
+            return false;
         const reordered = [...segments];
         const [taken] = reordered.splice(index, 1);
         if (taken === undefined) return false;
         reordered.splice(target, 0, taken);
-        const flattened = reordered.flatMap((segment) => (segment.kind === "tab" ? [segment.id] : [...segment.members]));
+        const flattened = reordered.flatMap((segment) =>
+            segment.kind === "tab" ? [segment.id] : [...segment.members],
+        );
         this.writeBack(flattened);
         this.save();
         this.emit();
@@ -461,7 +521,8 @@ export class TabModel {
     removeGroup(groupId: string): void {
         if (!this.groups.has(groupId)) return;
         this.groups.delete(groupId);
-        for (const [tabId, id] of [...this.membership]) if (id === groupId) this.membership.delete(tabId);
+        for (const [tabId, id] of [...this.membership])
+            if (id === groupId) this.membership.delete(tabId);
         this.save();
         this.emit();
     }
@@ -477,7 +538,9 @@ export class TabModel {
     /** Undo every group, pin, close and reorder, returning the strip to its registered state. */
     reset(): void {
         this.order = [...this.definitions.keys()];
-        this.pinned = [...this.definitions.values()].filter((d) => d.pinned === true).map((d) => d.id);
+        this.pinned = [...this.definitions.values()]
+            .filter((d) => d.pinned === true)
+            .map((d) => d.id);
         this.closed = new Set();
         this.recentlyClosed = [];
         this.groups = new Map();
@@ -486,11 +549,18 @@ export class TabModel {
             if (definition.group === undefined) continue;
             const seed = definition.group;
             if (!this.groups.has(seed.id)) {
-                this.groups.set(seed.id, { id: seed.id, name: seed.name, colour: seed.colour ?? "blue", collapsed: false });
+                this.groups.set(seed.id, {
+                    id: seed.id,
+                    name: seed.name,
+                    colour: seed.colour ?? "blue",
+                    collapsed: false,
+                });
             }
             this.membership.set(definition.id, seed.id);
         }
         this.activeId = this.openIds()[0] ?? null;
+        this.placementValue = DEFAULT_TAB_PLACEMENT;
+        this.placementStored = false;
         this.prefs.remove(STATE_KEY);
         this.emit();
     }
@@ -555,7 +625,10 @@ export class TabModel {
         return { matched, timedOut: false };
     }
 
-    searchTabs(ids: readonly string[], spec: MatchSpec): { results: TabSearchResult[]; matcher: CompiledMatcher; timedOut: boolean } {
+    searchTabs(
+        ids: readonly string[],
+        spec: MatchSpec,
+    ): { results: TabSearchResult[]; matcher: CompiledMatcher; timedOut: boolean } {
         const matcher = compileMatcher(spec);
         if (!matcher.ok) return { results: [], matcher, timedOut: false };
         const { matched, timedOut } = this.runMatcher(ids, matcher, false);
@@ -578,9 +651,16 @@ export class TabModel {
      * preview always reports the eligible set it actually considered, so the dialog can state
      * the scope rather than leaving the visitor to guess how far a close reaches.
      */
-    previewBulkClose(spec: MatchSpec, options: BulkCloseOptions, scopeIds?: readonly string[]): BulkClosePreview {
+    previewBulkClose(
+        spec: MatchSpec,
+        options: BulkCloseOptions,
+        scopeIds?: readonly string[],
+    ): BulkClosePreview {
         const matcher = compileMatcher(spec);
-        const scope = scopeIds === undefined ? this.openIds() : this.openIds().filter((id) => scopeIds.includes(id));
+        const scope =
+            scopeIds === undefined
+                ? this.openIds()
+                : this.openIds().filter((id) => scopeIds.includes(id));
         const eligible = scope.map((id) => this.describe(id));
         if (!matcher.ok) {
             return {
@@ -608,7 +688,16 @@ export class TabModel {
         const willClose = matched.filter(
             (entry) => entry.closable && (options.includePinned || !entry.pinned),
         );
-        return { matcher, spec, options, eligible, willClose, excludedPinned, excludedProtected, timedOut };
+        return {
+            matcher,
+            spec,
+            options,
+            eligible,
+            willClose,
+            excludedPinned,
+            excludedProtected,
+            timedOut,
+        };
     }
 
     applyBulkClose(preview: BulkClosePreview): BulkCloseResult {
@@ -637,7 +726,9 @@ export class TabModel {
         if (taken === undefined) return false;
         moved.splice(to, 0, taken);
 
-        const indices = this.order.flatMap((candidate, index) => (subset.includes(candidate) ? [index] : []));
+        const indices = this.order.flatMap((candidate, index) =>
+            subset.includes(candidate) ? [index] : [],
+        );
         for (const [slot, index] of indices.entries()) {
             const value = moved[slot];
             if (value !== undefined) this.order[index] = value;
@@ -650,7 +741,9 @@ export class TabModel {
     /** Write a new sequence for the unpinned, open pages back into `order`. */
     private writeBack(sequence: string[]): void {
         const members = new Set(sequence);
-        const indices = this.order.flatMap((candidate, index) => (members.has(candidate) ? [index] : []));
+        const indices = this.order.flatMap((candidate, index) =>
+            members.has(candidate) ? [index] : [],
+        );
         for (const [slot, index] of indices.entries()) {
             const value = sequence[slot];
             if (value !== undefined) this.order[index] = value;
@@ -658,14 +751,18 @@ export class TabModel {
     }
 
     private load(): void {
-        const state = this.prefs.readJson<PersistedState>(STATE_KEY, revive);
+        const state = this.prefs.readJson<RevivedState>(STATE_KEY, revive);
         if (state === undefined) return;
         this.order = [...state.order];
         this.pinned = [...state.pinned];
         this.closed = new Set(state.closed);
         this.groups = new Map(state.groups.map((group) => [group.id, { ...group }]));
-        this.membership = new Map(state.membership.filter(([, groupId]) => this.groups.has(groupId)));
+        this.membership = new Map(
+            state.membership.filter(([, groupId]) => this.groups.has(groupId)),
+        );
         this.activeId = state.active;
+        this.placementValue = state.placement;
+        this.placementStored = state.placementWasStored;
         for (const id of state.order) this.hydrated.add(id);
         for (const group of this.groups.keys()) {
             const parsed = Number.parseInt(group.replace("group-", ""), 10);
@@ -682,6 +779,7 @@ export class TabModel {
             groups: [...this.groups.values()].map((group) => ({ ...group })),
             membership: [...this.membership].filter(([tabId]) => this.definitions.has(tabId)),
             active: this.activeId,
+            placement: this.placementValue,
         };
         this.prefs.writeJson(STATE_KEY, state);
     }

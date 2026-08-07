@@ -17,7 +17,9 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it } from "vitest";
 import { AppearanceController } from "../appearance/controller.js";
+import { I18n } from "../i18n/I18n.js";
 import { Preferences } from "../platform/Preferences.js";
+import { TabModel } from "../tabs/TabModel.js";
 import { createSettingsPage } from "./page.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -60,6 +62,7 @@ describe("settings kicker", () => {
             removeListener: () => undefined,
             dispatchEvent: () => false,
         })) as typeof window.matchMedia;
+        HTMLElement.prototype.scrollIntoView = (): void => {};
         prefs = new Preferences(new MemoryStorage());
         appearance = new AppearanceController(prefs);
     });
@@ -78,6 +81,38 @@ describe("settings kicker", () => {
         expect(children.indexOf(kicker as Element)).toBeLessThan(
             children.indexOf(heading as Element),
         );
+        page.destroy();
+    });
+});
+
+describe("tab-strip placement setting", () => {
+    it("is searchable, defaults truthfully to left, and drives the real tab model", () => {
+        const prefs = new Preferences(new MemoryStorage());
+        const model = new TabModel(prefs, new I18n(prefs));
+        const page = createSettingsPage({
+            prefs,
+            appearance: new AppearanceController(prefs),
+            tabs: model,
+        });
+
+        const searchable = page.search.host
+            .listSettings()
+            .find((setting) => setting.id === "tabs.placement");
+        expect(searchable?.label).toBe("Tab strip edge");
+        expect(searchable?.valueText).toBe("Left edge");
+
+        page.revealSetting("tabs.placement");
+        const select = [...page.element.querySelectorAll<HTMLSelectElement>("select")].find(
+            (candidate) =>
+                candidate.closest(".mb-setting")?.textContent?.includes("Tab strip edge"),
+        );
+        expect(select).toBeDefined();
+        expect(select?.value).toBe("left");
+        if (select !== undefined) {
+            select.value = "right";
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        expect(model.placement).toBe("right");
         page.destroy();
     });
 });

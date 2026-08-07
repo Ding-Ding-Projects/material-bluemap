@@ -36,7 +36,7 @@ import { Notifications } from "../notifications/Notifications.js";
 import { Preferences } from "../platform/Preferences.js";
 import { RegexBuilderSlot } from "../platform/RegexBuilderSlot.js";
 import { ShortcutRegistry } from "../platform/shortcuts.js";
-import { TabModel } from "./TabModel.js";
+import { TabModel, type TabPlacement } from "./TabModel.js";
 import { COMPACT_TAB_STRIP_MAX_WIDTH, TabStrip } from "./TabStrip.js";
 
 const tabsCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "tabs.css"), "utf8");
@@ -74,11 +74,15 @@ function setViewportWidth(width: number): void {
 
 /** Builds a strip with the site's own seven-page shape, at a given starting viewport width
  *  (default wide, so a test that wants compact behaviour says so explicitly). */
-function buildStrip(width = 1440): { strip: TabStrip; model: TabModel } {
+function buildStrip(
+    width = 1440,
+    storage: Storage | null = null,
+    placement: TabPlacement = "left",
+): { strip: TabStrip; model: TabModel } {
     Object.defineProperty(window, "innerWidth", { value: width, configurable: true });
 
     const i18n = new I18n(new Preferences(memoryStorage()));
-    const model = new TabModel(new Preferences(null), i18n);
+    const model = new TabModel(new Preferences(storage), i18n);
     const notifications = new Notifications(i18n, document.createElement("div"));
     const shortcuts = new ShortcutRegistry(document.createElement("div"));
     const regex = new RegexBuilderSlot();
@@ -106,6 +110,7 @@ function buildStrip(width = 1440): { strip: TabStrip; model: TabModel } {
     for (const [id, label] of OTHER_PAGES) {
         model.register({ id, label: { text: label }, render: () => {} });
     }
+    if (placement !== "left") model.setPlacement(placement);
 
     return { strip, model };
 }
@@ -203,9 +208,93 @@ describe("tabs.css visual refresh", () => {
     });
 });
 
+describe("four-edge placement", () => {
+    it("defaults to the left edge and updates ARIA and layout markers for every edge", () => {
+        const { strip, model } = buildStrip();
+        const tablist = strip.bar.querySelector('[role="tablist"]');
+
+        expect(model.placement).toBe("left");
+        expect(model.placementProvenance).toBe("default");
+        expect(strip.bar.dataset.placement).toBe("left");
+        expect(tablist?.getAttribute("aria-orientation")).toBe("vertical");
+
+        model.setPlacement("right");
+        expect(strip.bar.dataset.placement).toBe("right");
+        expect(tablist?.getAttribute("aria-orientation")).toBe("vertical");
+        model.setPlacement("top");
+        expect(strip.bar.dataset.placement).toBe("top");
+        expect(tablist?.getAttribute("aria-orientation")).toBe("horizontal");
+        model.setPlacement("bottom");
+        expect(strip.bar.dataset.placement).toBe("bottom");
+        expect(tablist?.getAttribute("aria-orientation")).toBe("horizontal");
+    });
+
+    it("persists one placement without changing tabs, pins, groups, or the active page", () => {
+        const storage = memoryStorage();
+        const first = buildStrip(1440, storage);
+        const groupId = first.model.createGroup("Reference");
+        first.model.setGroup("docs", groupId);
+        first.model.setPinned("search", true);
+        first.model.activate("changelog");
+        first.model.setPlacement("right");
+
+        const second = buildStrip(1440, storage);
+        expect(second.model.placement).toBe("right");
+        expect(second.model.placementProvenance).toBe("stored");
+        expect(second.model.groupOf("docs")?.name).toBe("Reference");
+        expect(second.model.isPinned("search")).toBe(true);
+        expect(second.model.active).toBe("changelog");
+    });
+
+    it("migrates a version-1 state with no edge to left without losing its layout", () => {
+        const storage = memoryStorage();
+        storage.setItem(
+            "mbm-site:tabs.state",
+            JSON.stringify({
+                v: 1,
+                order: ["home", "docs"],
+                pinned: ["home"],
+                closed: [],
+                groups: [],
+                membership: [],
+                active: "docs",
+            }),
+        );
+        const { model } = buildStrip(1440, storage);
+        expect(model.placement).toBe("left");
+        expect(model.placementProvenance).toBe("default");
+        expect(model.pinnedIds()).toContain("home");
+        expect(model.active).toBe("docs");
+    });
+
+    it("uses Down on vertical strips and Right on horizontal strips", () => {
+        const { strip, model } = buildStrip();
+        const visibleTabs = (): HTMLElement[] => [
+            ...strip.bar.querySelectorAll<HTMLElement>('[role="tab"]'),
+        ];
+        for (const tab of visibleTabs()) {
+            Object.defineProperty(tab, "offsetParent", { configurable: true, value: strip.bar });
+        }
+
+        const home = visibleTabs()[0];
+        home?.focus();
+        home?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+        expect(document.activeElement?.getAttribute("data-tab-id")).toBe("docs");
+
+        model.setPlacement("top");
+        for (const tab of visibleTabs()) {
+            Object.defineProperty(tab, "offsetParent", { configurable: true, value: strip.bar });
+        }
+        const docs = visibleTabs().find((tab) => tab.dataset.tabId === "docs");
+        docs?.focus();
+        docs?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+        expect(document.activeElement?.getAttribute("data-tab-id")).toBe("screenshots");
+    });
+});
+
 describe("TabStrip at a phone-width viewport (the reported bug)", () => {
     it("keeps every destination a real tab and never opens the overflow menu", () => {
-        const { strip } = buildStrip(390);
+        const { strip } = buildStrip(390, null, "top");
 
         expect(strip.overflowedIds()).toEqual([]);
         const overflowButton = strip.bar.querySelector<HTMLButtonElement>(".tab-bar__overflow");
@@ -217,7 +306,7 @@ describe("TabStrip at a phone-width viewport (the reported bug)", () => {
     });
 
     it("never truncates the pinned tab's label to a single character - the exact reported bug", () => {
-        const { strip } = buildStrip(390);
+        const { strip } = buildStrip(390, null, "top");
         const pinnedLabel = strip.bar.querySelector(".tab--pinned .tab__label");
         expect(pinnedLabel?.textContent).toBe("Home");
         expect(pinnedLabel?.textContent?.length ?? 0).toBeGreaterThan(1);
@@ -226,7 +315,7 @@ describe("TabStrip at a phone-width viewport (the reported bug)", () => {
     });
 
     it("keeps every ordinary tab's full label text, not shortened or ellipsised", () => {
-        const { strip } = buildStrip(390);
+        const { strip } = buildStrip(390, null, "top");
         const labels = [...strip.bar.querySelectorAll(".tab-strip__main .tab__label")].map(
             (node) => node.textContent,
         );
@@ -234,7 +323,7 @@ describe("TabStrip at a phone-width viewport (the reported bug)", () => {
     });
 
     it("lets every destination activate without opening any menu first", () => {
-        const { strip, model } = buildStrip(390);
+        const { strip, model } = buildStrip(390, null, "top");
         for (const [id] of OTHER_PAGES) {
             strip.reveal(id);
             expect(model.active).toBe(id);
@@ -244,7 +333,7 @@ describe("TabStrip at a phone-width viewport (the reported bug)", () => {
     });
 
     it("keeps every tab's accessible tab role, selection state and full aria-label", () => {
-        const { strip, model } = buildStrip(390);
+        const { strip, model } = buildStrip(390, null, "top");
         model.activate("changelog");
         const active = strip.bar.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
         expect(active?.dataset.tabId).toBe("changelog");
@@ -253,7 +342,7 @@ describe("TabStrip at a phone-width viewport (the reported bug)", () => {
     });
 
     it("scrolls a newly activated tab into view", () => {
-        const { model } = buildStrip(390);
+        const { model } = buildStrip(390, null, "top");
         const calls: HTMLElement[] = [];
         const original = HTMLElement.prototype.scrollIntoView;
         HTMLElement.prototype.scrollIntoView = function scrollIntoViewSpy(this: HTMLElement): void {
@@ -271,7 +360,7 @@ describe("TabStrip at a phone-width viewport (the reported bug)", () => {
         // jsdom has no ResizeObserver, so TabStrip.ts's own constructor falls back to a
         // window "resize" listener - this is that exact runtime path, not a shortcut.
         expect(typeof ResizeObserver).toBe("undefined");
-        const { strip } = buildStrip(1440);
+        const { strip } = buildStrip(1440, null, "top");
         setViewportWidth(390);
 
         expect(strip.overflowedIds()).toEqual([]);
@@ -283,7 +372,7 @@ describe("TabStrip at a phone-width viewport (the reported bug)", () => {
 
 describe("TabStrip contracts that must survive the compact redesign", () => {
     it("still lets a pinned page be unpinned and re-pinned at phone width", () => {
-        const { model } = buildStrip(390);
+        const { model } = buildStrip(390, null, "top");
         expect(model.isPinned("home")).toBe(true);
         model.setPinned("home", false);
         expect(model.isPinned("home")).toBe(false);
@@ -292,7 +381,7 @@ describe("TabStrip contracts that must survive the compact redesign", () => {
     });
 
     it("still lets a page be pinned, reordered, grouped and closed at phone width", () => {
-        const { model } = buildStrip(390);
+        const { model } = buildStrip(390, null, "top");
 
         model.setPinned("docs", true);
         expect(model.pinnedIds()).toContain("docs");
@@ -310,7 +399,7 @@ describe("TabStrip contracts that must survive the compact redesign", () => {
     });
 
     it("still runs every one of the four discovery searches at phone width", () => {
-        const { model } = buildStrip(390);
+        const { model } = buildStrip(390, null, "top");
         const spec = { query: "change", mode: "plain" as const, caseSensitive: false };
 
         const strip = model.searchTabs(model.openIds(), spec);
@@ -336,7 +425,7 @@ describe("TabStrip contracts that must survive the compact redesign", () => {
     });
 
     it("still exposes the per-tab context menu's own search and its Edit appearance entry", () => {
-        const { strip } = buildStrip(390);
+        const { strip } = buildStrip(390, null, "top");
         const home = strip.bar.querySelector<HTMLElement>('[data-tab-id="home"]');
         expect(home).not.toBeNull();
         home!.dispatchEvent(

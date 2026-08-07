@@ -29,12 +29,41 @@
     background: var(--md-sys-color-surface-container);
 }
 
+.tab-bar[data-placement="left"],
+.tab-bar[data-placement="right"] {
+    flex: 0 0 clamp(14rem, 23vw, 21rem);
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    padding: var(--md-sys-spacing-2);
+    border-bottom: none;
+}
+
+.tab-bar[data-placement="left"] {
+    border-right: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.tab-bar[data-placement="right"] {
+    border-left: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.tab-bar[data-placement="bottom"] {
+    border-top: 1px solid var(--md-sys-color-outline-variant);
+    border-bottom: none;
+}
+
 .tab-strip {
     display: flex;
     flex: 1 1 auto;
     align-items: stretch;
     gap: var(--md-sys-spacing-2);
     min-width: 0;
+}
+
+.tab-bar[data-placement="left"] .tab-strip,
+.tab-bar[data-placement="right"] .tab-strip {
+    flex-direction: column;
+    min-height: 0;
 }
 
 .tab-strip__pinned {
@@ -47,6 +76,20 @@
     border-right: 1px solid var(--md-sys-color-outline-variant);
     overflow-x: auto;
     overscroll-behavior-x: contain;
+}
+
+.tab-bar[data-placement="left"] .tab-strip__pinned,
+.tab-bar[data-placement="right"] .tab-strip__pinned {
+    flex-direction: column;
+    max-width: none;
+    max-height: 42%;
+    padding-right: 0;
+    padding-bottom: var(--md-sys-spacing-2);
+    border-right: none;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
 }
 
 .tab-strip__pinned[hidden] {
@@ -62,6 +105,13 @@
     overflow: hidden;
 }
 
+.tab-bar[data-placement="left"] .tab-strip__main,
+.tab-bar[data-placement="right"] .tab-strip__main {
+    flex-direction: column;
+    row-gap: var(--md-sys-spacing-1);
+    min-height: 0;
+}
+
 .tab-strip__empty {
     align-self: center;
     padding: var(--md-sys-spacing-2);
@@ -73,6 +123,14 @@
     flex: none;
     align-items: center;
     gap: var(--md-sys-spacing-1);
+}
+
+.tab-bar[data-placement="left"] .tab-bar__actions,
+.tab-bar[data-placement="right"] .tab-bar__actions {
+    justify-content: center;
+    flex-wrap: wrap;
+    padding-top: var(--md-sys-spacing-2);
+    border-top: 1px solid var(--md-sys-color-outline-variant);
 }
 
 .tab-bar__overflow {
@@ -133,6 +191,33 @@
     height: 4px;
     border-radius: var(--md-sys-shape-corner-full) var(--md-sys-shape-corner-full) 0 0;
     background: var(--md-sys-color-primary);
+}
+
+.tab-bar[data-placement="left"] .tab,
+.tab-bar[data-placement="right"] .tab {
+    width: 100%;
+    max-width: none;
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+
+.tab-bar[data-placement="left"] .tab.is-active::after,
+.tab-bar[data-placement="right"] .tab.is-active::after {
+    top: var(--md-sys-spacing-2);
+    bottom: var(--md-sys-spacing-2);
+    width: 4px;
+    height: auto;
+}
+
+.tab-bar[data-placement="left"] .tab.is-active::after {
+    right: auto;
+    left: 0;
+    border-radius: 0 var(--md-sys-shape-corner-full) var(--md-sys-shape-corner-full) 0;
+}
+
+.tab-bar[data-placement="right"] .tab.is-active::after {
+    right: 0;
+    left: auto;
+    border-radius: var(--md-sys-shape-corner-full) 0 0 var(--md-sys-shape-corner-full);
 }
 
 .tab.is-dragging {
@@ -254,6 +339,20 @@
     background: color-mix(in srgb, var(--md-comp-group-current) 14%, transparent);
 }
 
+.tab-bar[data-placement="left"] .tab-group,
+.tab-bar[data-placement="right"] .tab-group,
+.tab-bar[data-placement="left"] .tab-group__tabs,
+.tab-bar[data-placement="right"] .tab-group__tabs {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.tab-bar[data-placement="left"] .tab-group__header,
+.tab-bar[data-placement="right"] .tab-group__header {
+    width: 100%;
+    max-width: none;
+}
+
 .tab-group[data-colour="blue"] {
     --md-comp-group-current: var(--md-comp-group-blue);
 }
@@ -346,6 +445,19 @@
 
 .tab-panels {
     padding: var(--md-sys-spacing-8) var(--md-sys-spacing-4) var(--md-sys-spacing-16);
+}
+
+@media (width <= 640px) {
+    .tab-bar[data-placement="left"],
+    .tab-bar[data-placement="right"] {
+        flex-basis: min(44vw, 16rem);
+        min-width: 9rem;
+    }
+
+    .tab-bar[data-placement="left"] .tab,
+    .tab-bar[data-placement="right"] .tab {
+        padding-inline: var(--md-sys-spacing-2);
+    }
 }
 
 .tab-panel {

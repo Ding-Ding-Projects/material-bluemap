@@ -145,6 +145,7 @@ export const SETTINGS_STRINGS: StringTable = {
     },
 
     "settings.group.theme": { en: "Theme and surface", yue: "主題同底色" },
+    "settings.group.navigation": { en: "Navigation", yue: "導覽" },
     "settings.group.motion": { en: "Motion", yue: "動態" },
     "settings.group.languageMode": { en: "Language mode", yue: "語言模式" },
     "settings.group.tone": { en: "Tone", yue: "語氣" },
@@ -195,6 +196,16 @@ export const SETTINGS_STRINGS: StringTable = {
         en: "Material tints raised surfaces towards the accent colour.",
         yue: "Material 會將浮起嘅底色向主色偏。",
     },
+
+    "set.tabPlacement": { en: "Tab strip edge", yue: "分頁列擺邊條邊" },
+    "set.tabPlacement.desc": {
+        en: "Dock the site's browser-style tab strip to the left, right, top, or bottom. The choice keeps tab order, pins, groups, and the active page intact. Fresh and migrated profiles use the left edge.",
+        yue: "將網站嘅瀏覽器式分頁列擺去左、右、上或者下邊。轉位唔會郁分頁次序、釘住項目、群組同目前頁面；新 profile 同舊記錄遷移會用左邊。",
+    },
+    "set.tabPlacement.left": { en: "Left edge", yue: "左邊" },
+    "set.tabPlacement.right": { en: "Right edge", yue: "右邊" },
+    "set.tabPlacement.top": { en: "Top edge", yue: "上邊" },
+    "set.tabPlacement.bottom": { en: "Bottom edge", yue: "下邊" },
 
     "set.reduceMotion": { en: "Reduce motion", yue: "減少動畫" },
     "set.reduceMotion.desc": {

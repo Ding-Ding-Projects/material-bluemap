@@ -15,6 +15,39 @@
 
 /* ---- Top bar --------------------------------------------------------------------------- */
 
+.mb-shell-workspace {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 100vh;
+}
+
+.mb-shell-workspace[data-tab-placement="left"],
+.mb-shell-workspace[data-tab-placement="right"] {
+    flex-direction: row;
+    align-items: stretch;
+}
+
+html[dir="rtl"] .mb-shell-workspace[data-tab-placement="left"],
+html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] {
+    direction: ltr;
+}
+
+html[dir="rtl"] .mb-shell-workspace[data-tab-placement="left"] > *,
+html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] > * {
+    direction: rtl;
+}
+
+.mb-shell-workspace[data-tab-placement="right"] .mb-shell-topbar,
+.mb-shell-workspace[data-tab-placement="bottom"] .mb-shell-topbar {
+    order: 2;
+}
+
+.mb-shell-workspace .mb-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
 /*
  * A real M3 top app bar: a tonal, elevated surface rather than the flat hairline the tab
  * strip used to draw on its own. The strip keeps its own sticky rule for the rare case it is
@@ -37,6 +70,20 @@
     box-shadow: none;
     transition: box-shadow var(--md-sys-motion-duration-short3)
         var(--md-sys-motion-easing-standard-decelerate);
+}
+
+.mb-shell-topbar[data-placement="left"],
+.mb-shell-topbar[data-placement="right"] {
+    flex: 0 0 clamp(14rem, 23vw, 21rem);
+    flex-direction: column;
+    height: 100vh;
+    min-width: 0;
+    min-height: 0;
+}
+
+.mb-shell-topbar[data-placement="bottom"] {
+    top: auto;
+    bottom: 0;
 }
 
 .mb-shell-topbar[data-scrolled="true"] {
@@ -67,6 +114,30 @@
     transition: opacity var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-standard);
 }
 
+.mb-shell-topbar[data-placement="left"]::after,
+.mb-shell-topbar[data-placement="right"]::after {
+    top: 0;
+    right: auto;
+    bottom: 0;
+    left: auto;
+    width: 3px;
+    height: auto;
+    background: linear-gradient(
+        180deg,
+        var(--md-sys-color-primary),
+        var(--md-sys-color-secondary),
+        var(--md-sys-color-tertiary)
+    );
+}
+
+.mb-shell-topbar[data-placement="left"]::after {
+    right: 0;
+}
+
+.mb-shell-topbar[data-placement="right"]::after {
+    left: 0;
+}
+
 .mb-shell-topbar[data-scrolled="true"]::after {
     opacity: 1;
 }
@@ -79,6 +150,13 @@
     background: transparent;
     box-shadow: none;
     border-bottom: none;
+}
+
+.mb-shell-topbar[data-placement="left"] .tab-bar,
+.mb-shell-topbar[data-placement="right"] .tab-bar {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 0;
 }
 
 /*
@@ -100,6 +178,28 @@
     cursor: pointer;
     transition: background-color var(--md-sys-motion-duration-short3)
         var(--md-sys-motion-easing-standard);
+}
+
+.mb-shell-topbar[data-placement="left"] .mb-brand,
+.mb-shell-topbar[data-placement="right"] .mb-brand {
+    width: 100%;
+    min-height: var(--md-sys-min-touch-target);
+    padding-block: var(--md-sys-spacing-2);
+    border-right: none;
+    border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+@media (width <= 640px) {
+    .mb-shell-topbar[data-placement="left"],
+    .mb-shell-topbar[data-placement="right"] {
+        flex-basis: min(44vw, 16rem);
+        min-width: 9rem;
+    }
+
+    .mb-shell-topbar[data-placement="left"] .mb-brand,
+    .mb-shell-topbar[data-placement="right"] .mb-brand {
+        padding-inline: var(--md-sys-spacing-2);
+    }
 }
 
 .mb-brand:hover {
