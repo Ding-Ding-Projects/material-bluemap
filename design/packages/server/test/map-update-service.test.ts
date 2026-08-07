@@ -142,8 +142,9 @@ async function buildMapOverRegionFolder(
 
 /** waits until chokidar finished its initial scan, matching MCAWorldRegionWatchService.test.ts's own helper. */
 async function watcherReady(service: MapUpdateService): Promise<void> {
-    const watchService = service.getWatchService() as unknown as { watcher: { once: (event: string, cb: () => void) => void } };
-    await new Promise<void>((resolve) => watchService.watcher.once("ready", resolve));
+    const watchService = service.getWatchService();
+    expect(watchService).toBeInstanceOf(MCAWorldRegionWatchService);
+    await (watchService as MCAWorldRegionWatchService).whenReady();
 }
 
 describe("MapUpdateService: bridges watch events to scheduled render tasks (issue #40)", () => {

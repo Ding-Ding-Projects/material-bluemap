@@ -12,6 +12,11 @@ interface Waiter {
     timer: NodeJS.Timeout | null;
 }
 
+interface ReadyWaiter {
+    resolve: () => void;
+    reject: (error: Error) => void;
+}
+
 /** upstream: FileHelper.awaitExistence's re-check granularity (it watches the parent-folder; the port polls) */
 const EXISTENCE_CHECK_INTERVAL_MS = 1000;
 
@@ -42,6 +47,8 @@ export class MCAWorldRegionWatchService implements WatchService<Vector2i> {
     /** pending region-positions, coalesced by position while not yet consumed */
     private readonly pending = new Map<string, Vector2i>();
     private readonly waiters: Waiter[] = [];
+    private readonly readyWaiters: ReadyWaiter[] = [];
+    private initialized = false;
     private closed = false;
 
     constructor(regionFolder: string) {
@@ -91,6 +98,21 @@ export class MCAWorldRegionWatchService implements WatchService<Vector2i> {
         });
     }
 
+    /**
+     * Resolves once chokidar has completed its initial scan and subsequent changes can no
+     * longer be swallowed by `ignoreInitial`. Upstream registers its java.nio watcher
+     * synchronously; the port needs this explicit seam because chokidar becomes ready
+     * asynchronously.
+     */
+    whenReady(): Promise<void> {
+        if (this.closed) return Promise.reject(new WatchService.ClosedException());
+        if (this.initialized) return Promise.resolve();
+
+        return new Promise((resolve, reject) => {
+            this.readyWaiters.push({ resolve, reject });
+        });
+    }
+
     async close(): Promise<void> {
         if (this.closed) return;
         this.closed = true;
@@ -106,6 +128,7 @@ export class MCAWorldRegionWatchService implements WatchService<Vector2i> {
             if (waiter.timer !== null) clearTimeout(waiter.timer);
             waiter.reject(new WatchService.ClosedException());
         }
+        for (const waiter of this.readyWaiters.splice(0)) waiter.reject(new WatchService.ClosedException());
         this.pending.clear();
 
         await this.watcher?.close();
@@ -135,6 +158,11 @@ export class MCAWorldRegionWatchService implements WatchService<Vector2i> {
         });
 
         this.watcher.on("all", (event, path) => this.handleEvent(event, path));
+        this.watcher.once("ready", () => {
+            if (this.closed) return;
+            this.initialized = true;
+            for (const waiter of this.readyWaiters.splice(0)) waiter.resolve();
+        });
 
         // upstream surfaces watcher-failures as IOExceptions from poll/take; chokidar
         // reports them asynchronously — they are logged and the service keeps watching

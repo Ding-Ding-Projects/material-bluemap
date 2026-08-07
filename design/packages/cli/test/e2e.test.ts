@@ -24,6 +24,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { MCAWorldRegionWatchService } from "@material-bluemap/engine";
 import { generateWorld } from "@material-bluemap/worldgen";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runCli, type CliResult } from "../src/cli.js";
@@ -239,6 +240,14 @@ describe("e2e: runCli renders a real fixture map and serves real routes", () => 
         // by `MapUpdateService.fireScheduledUpdate`'s `verboseLog` the instant it
         // schedules — is the non-racy signal that scheduling itself really happened.
         const consoleErrorSpy = vi.spyOn(console, "error");
+
+        // Chokidar completes its initial scan asynchronously. With `ignoreInitial: true`,
+        // rewriting the region before its `ready` event is intentionally invisible; the
+        // full suite exposed that race as an empty log capture under load. Wait on the real
+        // watcher lifecycle signal rather than guessing a delay before the write.
+        const watchService = result.watch!.services[0]!.getWatchService();
+        expect(watchService).toBeInstanceOf(MCAWorldRegionWatchService);
+        await (watchService as MCAWorldRegionWatchService).whenReady();
 
         // touch (rewrite) the exact real region file the render above just processed
         const regionPath = join(regionFolder, regionFile!);

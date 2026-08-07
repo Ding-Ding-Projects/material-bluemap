@@ -14,11 +14,6 @@ describe("MCAWorldRegionWatchService", () => {
         return tempDir;
     }
 
-    /** waits until chokidar finished its initial scan, so subsequent changes are seen */
-    async function watcherReady(watchService: MCAWorldRegionWatchService): Promise<void> {
-        await new Promise<void>((resolve) => watchService["watcher"]!.once("ready", resolve));
-    }
-
     afterEach(async () => {
         await service?.close();
         service = null;
@@ -28,7 +23,7 @@ describe("MCAWorldRegionWatchService", () => {
     it("emits region-positions for created and changed region-files", { timeout: 15000 }, async () => {
         const regionFolder = createTempDir();
         service = new MCAWorldRegionWatchService(regionFolder);
-        await watcherReady(service);
+        await service.whenReady();
 
         const takePromise = service.take();
         writeFileSync(join(regionFolder, "r.1.-2.mca"), "data");
@@ -46,7 +41,7 @@ describe("MCAWorldRegionWatchService", () => {
     it("coalesces pending events and ignores non-region files", { timeout: 15000 }, async () => {
         const regionFolder = createTempDir();
         service = new MCAWorldRegionWatchService(regionFolder);
-        await watcherReady(service);
+        await service.whenReady();
 
         writeFileSync(join(regionFolder, "foo.txt"), "not a region");
         writeFileSync(join(regionFolder, "r.0.0.mca"), "a");
@@ -70,7 +65,7 @@ describe("MCAWorldRegionWatchService", () => {
     it("poll(timeout) resolves null when no event arrives", { timeout: 15000 }, async () => {
         const regionFolder = createTempDir();
         service = new MCAWorldRegionWatchService(regionFolder);
-        await watcherReady(service);
+        await service.whenReady();
 
         expect(await service.poll(200)).toBeNull();
         expect(service.poll()).toBeNull();
@@ -79,7 +74,7 @@ describe("MCAWorldRegionWatchService", () => {
     it("close rejects waiting calls and closes the service", { timeout: 15000 }, async () => {
         const regionFolder = createTempDir();
         const closingService = new MCAWorldRegionWatchService(regionFolder);
-        await watcherReady(closingService);
+        await closingService.whenReady();
 
         const waiting = closingService.take();
         await closingService.close();
@@ -87,6 +82,16 @@ describe("MCAWorldRegionWatchService", () => {
         await expect(waiting).rejects.toBeInstanceOf(WatchService.ClosedException);
         expect(() => closingService.poll()).toThrow(WatchService.ClosedException);
         await expect(closingService.take()).rejects.toBeInstanceOf(WatchService.ClosedException);
+    });
+
+    it("rejects a readiness wait when it closes before the watched folder exists", async () => {
+        const base = createTempDir();
+        service = new MCAWorldRegionWatchService(join(base, "not-created-yet"));
+
+        const ready = service.whenReady();
+        await service.close();
+
+        await expect(ready).rejects.toBeInstanceOf(WatchService.ClosedException);
     });
 
     it(

@@ -50,6 +50,7 @@ describe("categoryOfFile", () => {
 
     it("places a file from the rendering table", () => {
         expect(categoryOfFile("large-worlds.md")).toBe("rendering");
+        expect(categoryOfFile("cloud-runners.md")).toBe("rendering");
     });
 
     it("falls back to uncategorized for a file in neither table", () => {

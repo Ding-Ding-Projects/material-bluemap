@@ -633,6 +633,27 @@ export const CIRENDER_VOICED = {
             "成個 GitHub 都冇人登入，所以呢次算圖真係搵唔到人頂替。快啲喺設定入面登入，呢個揀帳戶掣先有嘢好揀。",
         ],
     },
+    /*
+     * `gh auth switch` changes the command-line tool's machine-wide active account; it is
+     * not scoped to this render card. Every level keeps both the scope and the lasting
+     * consequence so choosing a playful voice can never make the warning less actionable.
+     */
+    "cirender.account.ghSwitchWarning": {
+        en: [
+            "If this render uses gh, checking or uploading may switch gh's active account for the whole computer. The selected account remains active afterward.",
+            "If this render uses gh, a check or upload may switch gh's active account for the whole computer. The selected account remains active afterward.",
+            "If this render uses gh, checking or uploading may switch gh's active account across the whole computer. The selected account remains active afterward, not only for this render.",
+            "If this render uses gh, a check or upload may switch gh's active account for the whole computer. The selected account remains active afterward, because gh makes that choice machine-wide rather than card-sized.",
+            "If this render uses gh, checking or uploading may switch gh's active account for the whole computer. The selected account remains active afterward; gh changes the machine-wide name badge and does not put the old one back when this card is done.",
+        ],
+        yue: [
+            "如果呢次算圖用 gh，檢查或者上載可能會切換 gh 喺成部電腦目前使用中嘅帳戶。揀咗嘅帳戶之後會繼續保持使用中。",
+            "如果呢次算圖用 gh，檢查或者上載可能會切換 gh 喺成部電腦目前使用中嘅帳戶。揀咗嘅帳戶之後會繼續保持使用中。",
+            "如果呢次算圖用 gh，檢查或者上載可能會切換 gh 喺成部電腦目前使用中嘅帳戶。揀咗嘅帳戶之後會繼續保持使用中，唔係淨係今次算圖先用。",
+            "如果呢次算圖用 gh，檢查或者上載可能會切換 gh 喺成部電腦目前使用中嘅帳戶。揀咗嘅帳戶之後會繼續保持使用中，因為 gh 改嘅係全機選擇，唔係呢張卡自己收埋玩。",
+            "如果呢次算圖用 gh，檢查或者上載可能會切換 gh 喺成部電腦目前使用中嘅帳戶。揀咗嘅帳戶之後會繼續保持使用中；gh 幫成部機換咗名牌，做完呢張卡都唔會自動掛返舊嗰塊。",
+        ],
+    },
 
     /*
      * Signed out is not a dead end: it says so, and it points at the sign-in row that
@@ -1133,6 +1154,7 @@ export const CIRENDER_FIXED = {
     /** Which one every other legacy channel already resolves to, named on the item itself. */
     "cirender.account.itemActive": { en: "{login} (active)", yue: "{login}（用緊）" },
     "cirender.account.disabledLabel": { en: "Render as: {reason}", yue: "算圖帳戶：{reason}" },
+    "cirender.gh.openAccounts": { en: "Open GitHub accounts", yue: "開啟 GitHub 帳戶" },
 
     /* The owner picker: its two item shapes, and the two ways it can come up short. */
     "cirender.owner.pick": { en: "Choose an owner", yue: "揀個擁有者" },
@@ -1362,6 +1384,10 @@ export const CIRENDER_FACTS = {
     "cirender.account.signedOut": {
         en: ["Nobody is signed in", "Sign in from Settings"],
         yue: ["冇人登入", "設定入面登入"],
+    },
+    "cirender.account.ghSwitchWarning": {
+        en: ["uses gh", "active account", "whole computer", "remains active afterward"],
+        yue: ["用 gh", "目前使用中嘅帳戶", "成部電腦", "之後會繼續保持使用中"],
     },
 
     // The remedy - Settings, or free text - is the point, not merely "nobody signed in".
