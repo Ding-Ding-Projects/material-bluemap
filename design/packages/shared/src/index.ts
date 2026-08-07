@@ -10,6 +10,15 @@ export { Key } from "./Key.js";
 export type { Keyed } from "./Keyed.js";
 export { Registry } from "./Registry.js";
 export {
+    DISPLAY_NAME_MAX_LENGTH,
+    DISPLAY_NAME_STORAGE_KEY,
+    LEGACY_MATERIAL_BLUEMAP_IDENTITY,
+    WORLDLENS_IDENTITY,
+    productNames,
+    resolveDisplayName,
+    type ProductNames,
+} from "./productIdentity.js";
+export {
     ITEM_PATH_PATTERN,
     encodeTilePath,
     decodeTilePath,

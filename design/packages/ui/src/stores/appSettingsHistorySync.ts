@@ -115,6 +115,7 @@ export const APP_SETTINGS_HISTORY_KEYS: readonly AppSettingsHistoryKey[] = [
     { key: "languageMode", owner: "components/setup/setupI18n.ts" },
     { key: "funnyLevelEn", owner: "components/setup/setupI18n.ts" },
     { key: "funnyLevelYue", owner: "components/setup/setupI18n.ts" },
+    { key: "productDisplayName", owner: "stores/productName.ts" },
     { key: "updateDismissed", owner: "components/update/updateModel.ts" },
     { key: "noticeDuration", owner: "components/config/noticeDurationPrefs.ts" },
     { key: "autoScroll", owner: "components/scroll/autoScrollPrefs.ts" },

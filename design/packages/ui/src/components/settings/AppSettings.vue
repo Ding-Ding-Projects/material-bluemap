@@ -30,6 +30,7 @@ import { createMapStorageSetting } from "./mapStorageSetting.js";
 import { createRenderMemorySetting } from "./renderMemorySetting.js";
 import RenderMemoryRow from "./RenderMemoryRow.vue";
 import NotificationDurationRow from "./NotificationDurationRow.vue";
+import ProductDisplayNameRow from "./ProductDisplayNameRow.vue";
 import { createDownloadConcurrencySetting } from "./downloadConcurrencySetting.js";
 import DownloadConcurrencyRow from "./DownloadConcurrencyRow.vue";
 import {
@@ -47,6 +48,7 @@ import {
     type SettingsSectionAnchor,
     type SettingsSectionText,
 } from "./settingsSections.js";
+import { productDisplayName } from "../../stores/productName.js";
 
 /**
  * The settings surface a failed render points at.
@@ -273,7 +275,7 @@ const sections = computed<SettingsSectionText[]>(() => {
             anchor: "language-and-tone",
             title: text["language-and-tone"].title,
             description: text["language-and-tone"].description,
-            values: languageSearchLabels(),
+            values: [...languageSearchLabels(), productDisplayName.value, "Worldlens", "display name"],
         },
         // The names of the panels that are open and the five placements they can take, so
         // somebody who can read "Docked to the bottom" on screen finds this row by typing
@@ -775,6 +777,7 @@ function onDrawer(value: boolean): void {
                         :description="copy['language-and-tone'].description"
                     >
                         <LanguageSettingsRow />
+                        <ProductDisplayNameRow />
                     </SettingsSection>
                 </template>
 
