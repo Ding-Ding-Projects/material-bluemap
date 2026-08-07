@@ -21,6 +21,7 @@ function strip(overrides: Partial<TabStripState> = {}): TabStripState {
         label: "Main",
         windowId: "window-1",
         windowLabel: "Material BlueMap",
+        placement: "left",
         tabs: [],
         pinnedOrder: [],
         groups: [],
@@ -31,8 +32,22 @@ function strip(overrides: Partial<TabStripState> = {}): TabStripState {
 }
 
 const GROUPS = [
-    { id: "g1", name: "Research", color: "primary", collapsed: false, tabIds: ["a", "b"], appearance: null },
-    { id: "g2", name: "Reference", color: "secondary", collapsed: false, tabIds: ["c"], appearance: null },
+    {
+        id: "g1",
+        name: "Research",
+        color: "primary",
+        collapsed: false,
+        tabIds: ["a", "b"],
+        appearance: null,
+    },
+    {
+        id: "g2",
+        name: "Reference",
+        color: "secondary",
+        collapsed: false,
+        tabIds: ["c"],
+        appearance: null,
+    },
     { id: "g3", name: "Scratch", color: "tertiary", collapsed: true, tabIds: [], appearance: null },
 ];
 
@@ -86,12 +101,11 @@ describe("pickerSample", () => {
 
 describe("pickerEntries", () => {
     it("appends New group... after the given rows", () => {
-        const rows: TabGroupPickerRow[] = [{ id: "g1", name: "Research", color: "primary", memberCount: 2 }];
+        const rows: TabGroupPickerRow[] = [
+            { id: "g1", name: "Research", color: "primary", memberCount: 2 },
+        ];
         const entries = pickerEntries(rows);
-        expect(entries).toEqual([
-            { kind: "group", row: rows[0] },
-            { kind: "new-group" },
-        ]);
+        expect(entries).toEqual([{ kind: "group", row: rows[0] }, { kind: "new-group" }]);
     });
 
     it("is New group... alone when there are no rows at all", () => {

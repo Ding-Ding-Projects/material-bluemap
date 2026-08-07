@@ -20,6 +20,7 @@ import {
     setActiveTab,
     setGroupCollapsed,
     setGroupColor,
+    setTabPlacement,
     unpinTab,
     type TabPage,
     type TabStripState,
@@ -90,7 +91,12 @@ const props = withDefaults(
          */
         pinnedPageIds?: readonly string[];
     }>(),
-    { windowLabel: "", stripLabel: "", storageKey: DEFAULT_TAB_STORAGE_KEY, pinnedPageIds: () => [] },
+    {
+        windowLabel: "",
+        stripLabel: "",
+        storageKey: DEFAULT_TAB_STORAGE_KEY,
+        pinnedPageIds: () => [],
+    },
 );
 
 const { t } = useI18n();
@@ -109,6 +115,7 @@ function seedStrip(): TabStripState {
         windowId: "window-main",
         windowLabel:
             props.windowLabel === "" ? t("tabs.window.main", "This window") : props.windowLabel,
+        placement: "left",
         tabs: [],
         groups: [],
         pinnedOrder: [],
@@ -150,7 +157,9 @@ const strip = computed<TabStripState>(() => workspace.value.strips[0] ?? seedStr
 /** Replaces one strip, leaving every other strip in the workspace untouched. */
 function update(next: TabStripState): void {
     workspace.value = {
-        strips: workspace.value.strips.map((candidate) => (candidate.id === next.id ? next : candidate)),
+        strips: workspace.value.strips.map((candidate) =>
+            candidate.id === next.id ? next : candidate,
+        ),
     };
 }
 
@@ -195,10 +204,14 @@ function setCollapsed(groupId: string, collapsed: boolean): void {
 /* The panel                                                                  */
 /* -------------------------------------------------------------------------- */
 
-const activeTab = computed(() => strip.value.tabs.find((tab) => tab.id === strip.value.activeTabId) ?? null);
+const activeTab = computed(
+    () => strip.value.tabs.find((tab) => tab.id === strip.value.activeTabId) ?? null,
+);
 
 const activePage = computed(() =>
-    activeTab.value === null ? null : (props.pages.find((page) => page.id === activeTab.value?.pageId) ?? null),
+    activeTab.value === null
+        ? null
+        : (props.pages.find((page) => page.id === activeTab.value?.pageId) ?? null),
 );
 
 /* -------------------------------------------------------------------------- */
@@ -318,14 +331,19 @@ function newGroup(tabId: string): void {
  * total-success failure the contract names, and the notice level follows the
  * worst of them rather than the best.
  */
-function applyPlan(plan: TabClosePlan, options: { closeUnsaved: boolean; keepEmptyGroups: boolean }): void {
+function applyPlan(
+    plan: TabClosePlan,
+    options: { closeUnsaved: boolean; keepEmptyGroups: boolean },
+): void {
     const outcome = applyClosePlan(strip.value, plan, options);
     update(outcome.strip);
 
     const kept = outcome.kept.map((entry) => entry.hit.label);
     const protectedPinned = plan.protectedPinned.map((entry) => entry.hit.label);
 
-    const parts: string[] = [t("tabs.close.done", { closed: outcome.closed.length }, "Closed {closed} tabs.")];
+    const parts: string[] = [
+        t("tabs.close.done", { closed: outcome.closed.length }, "Closed {closed} tabs."),
+    ];
     if (kept.length > 0) {
         parts.push(
             t(
@@ -365,7 +383,11 @@ function applyPlan(plan: TabClosePlan, options: { closeUnsaved: boolean; keepEmp
 </script>
 
 <template>
-    <div class="mb-tabs">
+    <div
+        class="mb-tabs"
+        :class="`mb-tabs--${strip.placement}`"
+        :data-tab-placement="strip.placement"
+    >
         <TabStrip
             :strip="strip"
             :workspace="workspace"
@@ -373,6 +395,7 @@ function applyPlan(plan: TabClosePlan, options: { closeUnsaved: boolean; keepEmp
             :panel-id="panelId"
             :id-prefix="idPrefix"
             :pages="pages"
+            @set-placement="update(setTabPlacement(strip, $event))"
             @activate="(tabId, stripId) => updateIn(stripId, (state) => setActiveTab(state, tabId))"
             @close="(tabId, stripId) => updateIn(stripId, (state) => closeTabs(state, [tabId]))"
             @pin="(tabId, stripId) => updateIn(stripId, (state) => pinTab(state, tabId))"
@@ -381,7 +404,8 @@ function applyPlan(plan: TabClosePlan, options: { closeUnsaved: boolean; keepEmp
             @drop-tab="(tabId, index) => update(moveTabToIndex(strip, tabId, index))"
             @new-group="newGroup"
             @assign="
-                (tabId, groupId, stripId) => updateIn(stripId, (state) => assignTabToGroup(state, tabId, groupId))
+                (tabId, groupId, stripId) =>
+                    updateIn(stripId, (state) => assignTabToGroup(state, tabId, groupId))
             "
             @rename-group="(groupId, name) => update(renameGroup(strip, groupId, name))"
             @set-group-color="(groupId, color) => update(setGroupColor(strip, groupId, color))"
@@ -452,6 +476,16 @@ function applyPlan(plan: TabClosePlan, options: { closeUnsaved: boolean; keepEmp
     flex-direction: column;
     min-height: 0;
     height: 100%;
+}
+
+.mb-tabs--left,
+.mb-tabs--right {
+    flex-direction: row;
+}
+
+.mb-tabs--right .mb-tabs-strip-row,
+.mb-tabs--bottom .mb-tabs-strip-row {
+    order: 2;
 }
 
 .mb-tabs__panel {

@@ -60,6 +60,11 @@
  */
 export type AppearanceRecord = Readonly<Record<string, unknown>>;
 
+/** The edge a strip occupies around its panel. Fresh and migrated strips start on the left. */
+export const TAB_PLACEMENTS = ["left", "right", "top", "bottom"] as const;
+export type TabPlacement = (typeof TAB_PLACEMENTS)[number];
+export const DEFAULT_TAB_PLACEMENT: TabPlacement = "left";
+
 /**
  * A page a tab can show.
  *
@@ -132,6 +137,8 @@ export interface TabStripState {
     readonly label: string;
     readonly windowId: string;
     readonly windowLabel: string;
+    /** Persisted independently for each strip. */
+    readonly placement: TabPlacement;
     /** Every tab in the strip. Array order carries no meaning; see the module note. */
     readonly tabs: readonly TabRecord[];
     readonly groups: readonly TabGroup[];
@@ -357,9 +364,21 @@ export function normalizeStrip(strip: TabStripState): TabStripState {
         if (!claimed.has(tab.id)) slots.push({ kind: "tab", tabId: tab.id });
     }
 
-    const repaired: TabStripState = { ...strip, tabs, groups, pinnedOrder, slots, activeTabId: strip.activeTabId };
+    const repaired: TabStripState = {
+        ...strip,
+        tabs,
+        groups,
+        pinnedOrder,
+        slots,
+        activeTabId: strip.activeTabId,
+    };
     if (strip.activeTabId !== null && seenTabs.has(strip.activeTabId)) return repaired;
     return { ...repaired, activeTabId: tabOrder(repaired)[0]?.id ?? null };
+}
+
+/** Moves a strip to another edge without touching any tab, group, pin, or active state. */
+export function setTabPlacement(strip: TabStripState, placement: TabPlacement): TabStripState {
+    return strip.placement === placement ? strip : { ...strip, placement };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -429,7 +448,12 @@ export interface NewTab {
 
 /** Opens a tab at the end of the ordinary region and makes it active. */
 export function addTab(strip: TabStripState, tab: NewTab): TabStripState {
-    const id = tab.id ?? nextId(strip.tabs.map((existing) => existing.id), "tab");
+    const id =
+        tab.id ??
+        nextId(
+            strip.tabs.map((existing) => existing.id),
+            "tab",
+        );
     const record: TabRecord = {
         id,
         pageId: tab.pageId,
@@ -504,12 +528,18 @@ export function setActiveTab(strip: TabStripState, tabId: string): TabStripState
 
 /** Replaces a tab's label, which is what every search and bulk close then matches. */
 export function renameTab(strip: TabStripState, tabId: string, label: string): TabStripState {
-    return { ...strip, tabs: strip.tabs.map((tab) => (tab.id === tabId ? { ...tab, label } : tab)) };
+    return {
+        ...strip,
+        tabs: strip.tabs.map((tab) => (tab.id === tabId ? { ...tab, label } : tab)),
+    };
 }
 
 /** Marks a tab as holding unsaved work, which excludes it from a silent bulk close. */
 export function setTabDirty(strip: TabStripState, tabId: string, dirty: boolean): TabStripState {
-    return { ...strip, tabs: strip.tabs.map((tab) => (tab.id === tabId ? { ...tab, dirty } : tab)) };
+    return {
+        ...strip,
+        tabs: strip.tabs.map((tab) => (tab.id === tabId ? { ...tab, dirty } : tab)),
+    };
 }
 
 /**
@@ -524,7 +554,10 @@ export function setTabAppearance(
     tabId: string,
     appearance: AppearanceRecord | null,
 ): TabStripState {
-    return { ...strip, tabs: strip.tabs.map((tab) => (tab.id === tabId ? { ...tab, appearance } : tab)) };
+    return {
+        ...strip,
+        tabs: strip.tabs.map((tab) => (tab.id === tabId ? { ...tab, appearance } : tab)),
+    };
 }
 
 /** The same attach point for a group. */
@@ -535,7 +568,9 @@ export function setGroupAppearance(
 ): TabStripState {
     return {
         ...strip,
-        groups: strip.groups.map((group) => (group.id === groupId ? { ...group, appearance } : group)),
+        groups: strip.groups.map((group) =>
+            group.id === groupId ? { ...group, appearance } : group,
+        ),
     };
 }
 
@@ -612,7 +647,10 @@ export function moveTab(strip: TabStripState, tabId: string, delta: number): Tab
     if (region === null) return strip;
 
     if (region === "pinned") {
-        return { ...strip, pinnedOrder: shift(strip.pinnedOrder, strip.pinnedOrder.indexOf(tabId), delta) };
+        return {
+            ...strip,
+            pinnedOrder: shift(strip.pinnedOrder, strip.pinnedOrder.indexOf(tabId), delta),
+        };
     }
     if (region === "group") {
         return {
@@ -640,7 +678,10 @@ export function moveTabToIndex(strip: TabStripState, tabId: string, index: numbe
     if (region === null) return strip;
 
     if (region === "pinned") {
-        return { ...strip, pinnedOrder: moveTo(strip.pinnedOrder, strip.pinnedOrder.indexOf(tabId), index) };
+        return {
+            ...strip,
+            pinnedOrder: moveTo(strip.pinnedOrder, strip.pinnedOrder.indexOf(tabId), index),
+        };
     }
     if (region === "group") {
         return {
@@ -664,7 +705,9 @@ export function moveTabToIndex(strip: TabStripState, tabId: string, index: numbe
  * without any of their own order changing.
  */
 export function moveGroup(strip: TabStripState, groupId: string, delta: number): TabStripState {
-    const index = strip.slots.findIndex((slot) => slot.kind === "group" && slot.groupId === groupId);
+    const index = strip.slots.findIndex(
+        (slot) => slot.kind === "group" && slot.groupId === groupId,
+    );
     if (index === -1 || delta === 0) return strip;
     return { ...strip, slots: shift(strip.slots, index, delta) };
 }
@@ -674,7 +717,15 @@ export function moveGroup(strip: TabStripState, groupId: string, delta: number):
 /* -------------------------------------------------------------------------- */
 
 /** The colours a new group may be given, in the order the menu offers them. */
-export const GROUP_COLORS = ["primary", "secondary", "tertiary", "success", "warning", "error", "info"] as const;
+export const GROUP_COLORS = [
+    "primary",
+    "secondary",
+    "tertiary",
+    "success",
+    "warning",
+    "error",
+    "info",
+] as const;
 export type GroupColor = (typeof GROUP_COLORS)[number];
 
 export const DEFAULT_GROUP_COLOR: GroupColor = "primary";
@@ -696,7 +747,12 @@ export function createGroup(
     const members = [...new Set(tabIds)].filter((id) => known.has(id));
     if (members.length === 0) return strip;
 
-    const id = group.id ?? nextId(strip.groups.map((existing) => existing.id), "group");
+    const id =
+        group.id ??
+        nextId(
+            strip.groups.map((existing) => existing.id),
+            "group",
+        );
     const record: TabGroup = {
         id,
         name: group.name,
@@ -707,10 +763,16 @@ export function createGroup(
     };
 
     const member = new Set(members);
-    const slotIndex = strip.slots.findIndex((slot) => slot.kind === "tab" && member.has(slot.tabId));
+    const slotIndex = strip.slots.findIndex(
+        (slot) => slot.kind === "tab" && member.has(slot.tabId),
+    );
     const remaining = without(strip.slots, (slot) => slot.kind === "tab" && member.has(slot.tabId));
     const at = slotIndex === -1 ? remaining.length : Math.min(slotIndex, remaining.length);
-    const slots = [...remaining.slice(0, at), { kind: "group", groupId: id } as TabSlot, ...remaining.slice(at)];
+    const slots = [
+        ...remaining.slice(0, at),
+        { kind: "group", groupId: id } as TabSlot,
+        ...remaining.slice(at),
+    ];
 
     return normalizeStrip({
         ...strip,
@@ -727,11 +789,17 @@ export function createGroup(
 }
 
 export function renameGroup(strip: TabStripState, groupId: string, name: string): TabStripState {
-    return { ...strip, groups: strip.groups.map((group) => (group.id === groupId ? { ...group, name } : group)) };
+    return {
+        ...strip,
+        groups: strip.groups.map((group) => (group.id === groupId ? { ...group, name } : group)),
+    };
 }
 
 export function setGroupColor(strip: TabStripState, groupId: string, color: string): TabStripState {
-    return { ...strip, groups: strip.groups.map((group) => (group.id === groupId ? { ...group, color } : group)) };
+    return {
+        ...strip,
+        groups: strip.groups.map((group) => (group.id === groupId ? { ...group, color } : group)),
+    };
 }
 
 /**
@@ -741,10 +809,16 @@ export function setGroupColor(strip: TabStripState, groupId: string, color: stri
  * group reveals it through the runtime set instead, which is the whole point of
  * that set existing.
  */
-export function setGroupCollapsed(strip: TabStripState, groupId: string, collapsed: boolean): TabStripState {
+export function setGroupCollapsed(
+    strip: TabStripState,
+    groupId: string,
+    collapsed: boolean,
+): TabStripState {
     return {
         ...strip,
-        groups: strip.groups.map((group) => (group.id === groupId ? { ...group, collapsed } : group)),
+        groups: strip.groups.map((group) =>
+            group.id === groupId ? { ...group, collapsed } : group,
+        ),
     };
 }
 
@@ -760,9 +834,14 @@ export function removeGroup(strip: TabStripState, groupId: string): TabStripStat
     const group = strip.groups.find((candidate) => candidate.id === groupId);
     if (group === undefined) return strip;
 
-    const index = strip.slots.findIndex((slot) => slot.kind === "group" && slot.groupId === groupId);
+    const index = strip.slots.findIndex(
+        (slot) => slot.kind === "group" && slot.groupId === groupId,
+    );
     const replacement: TabSlot[] = group.tabIds.map((tabId) => ({ kind: "tab", tabId }));
-    const slots = index === -1 ? [...strip.slots, ...replacement] : [...strip.slots.slice(0, index), ...replacement, ...strip.slots.slice(index + 1)];
+    const slots =
+        index === -1
+            ? [...strip.slots, ...replacement]
+            : [...strip.slots.slice(0, index), ...replacement, ...strip.slots.slice(index + 1)];
 
     return normalizeStrip({
         ...strip,
@@ -779,13 +858,20 @@ export function removeGroup(strip: TabStripState, groupId: string): TabStripStat
  * group's slot, because the group is still there and dropping the tab beside it
  * would look like it never left.
  */
-export function assignTabToGroup(strip: TabStripState, tabId: string, groupId: string | null): TabStripState {
+export function assignTabToGroup(
+    strip: TabStripState,
+    tabId: string,
+    groupId: string | null,
+): TabStripState {
     if (!strip.tabs.some((tab) => tab.id === tabId)) return strip;
     if (groupId !== null && !strip.groups.some((group) => group.id === groupId)) return strip;
 
     const stripped: TabStripState = {
         ...strip,
-        groups: strip.groups.map((group) => ({ ...group, tabIds: group.tabIds.filter((id) => id !== tabId) })),
+        groups: strip.groups.map((group) => ({
+            ...group,
+            tabIds: group.tabIds.filter((id) => id !== tabId),
+        })),
         pinnedOrder: strip.pinnedOrder.filter((id) => id !== tabId),
         slots: without(strip.slots, (slot) => slot.kind === "tab" && slot.tabId === tabId),
     };
@@ -820,7 +906,11 @@ export function assignTabToGroup(strip: TabStripState, tabId: string, groupId: s
  * a jsdom test, where every measurement is zero. Both answer "all of them",
  * which keeps the strip complete rather than briefly emptying it.
  */
-export function fitCount(widths: readonly number[], available: number, overflowWidth: number): number {
+export function fitCount(
+    widths: readonly number[],
+    available: number,
+    overflowWidth: number,
+): number {
     if (widths.length === 0) return 0;
     const total = widths.reduce((sum, width) => sum + width, 0);
     if (available <= 0 || total <= available) return widths.length;

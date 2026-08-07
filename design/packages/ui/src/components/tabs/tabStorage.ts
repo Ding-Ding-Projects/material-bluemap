@@ -37,11 +37,14 @@
  */
 
 import {
+    DEFAULT_TAB_PLACEMENT,
+    TAB_PLACEMENTS,
     normalizeStrip,
     type AppearanceRecord,
     type TabGroup,
     type TabRecord,
     type TabSlot,
+    type TabPlacement,
     type TabStripState,
     type TabWorkspaceState,
 } from "./tabModel.js";
@@ -65,7 +68,8 @@ export const DEFAULT_TAB_STORAGE_KEY = "material-bluemap-tabs";
  * Bumping it is how a future change that cannot be repaired by
  * {@link normalizeStrip} refuses an old file instead of half-reading it.
  */
-export const TAB_STORAGE_VERSION = 1;
+export const TAB_STORAGE_VERSION = 2;
+const LEGACY_TAB_STORAGE_VERSION = 1;
 
 /** The two methods used, so a test can pass a plain object and nothing else leaks. */
 export interface TabStorage {
@@ -95,7 +99,15 @@ function asString(value: unknown, fallback: string): string {
 }
 
 function asStringArray(value: unknown): string[] {
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+    return Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === "string")
+        : [];
+}
+
+function asPlacement(value: unknown): TabPlacement {
+    return (TAB_PLACEMENTS as readonly unknown[]).includes(value)
+        ? (value as TabPlacement)
+        : DEFAULT_TAB_PLACEMENT;
 }
 
 /** Kept whole when it is an object, discarded when it is anything else. */
@@ -107,7 +119,8 @@ function readTab(value: unknown): TabRecord | null {
     if (!isRecord(value)) return null;
     const id = value["id"];
     const pageId = value["pageId"];
-    if (typeof id !== "string" || id === "" || typeof pageId !== "string" || pageId === "") return null;
+    if (typeof id !== "string" || id === "" || typeof pageId !== "string" || pageId === "")
+        return null;
     const icon = value["icon"];
     return {
         id,
@@ -136,8 +149,10 @@ function readGroup(value: unknown): TabGroup | null {
 function readSlot(value: unknown): TabSlot | null {
     if (!isRecord(value)) return null;
     const kind = value["kind"];
-    if (kind === "tab" && typeof value["tabId"] === "string") return { kind: "tab", tabId: value["tabId"] };
-    if (kind === "group" && typeof value["groupId"] === "string") return { kind: "group", groupId: value["groupId"] };
+    if (kind === "tab" && typeof value["tabId"] === "string")
+        return { kind: "tab", tabId: value["tabId"] };
+    if (kind === "group" && typeof value["groupId"] === "string")
+        return { kind: "group", groupId: value["groupId"] };
     return null;
 }
 
@@ -167,6 +182,7 @@ function readStrip(value: unknown): TabStripState | null {
         label: asString(value["label"], id),
         windowId: asString(value["windowId"], "main"),
         windowLabel: asString(value["windowLabel"], ""),
+        placement: asPlacement(value["placement"]),
         tabs,
         groups,
         pinnedOrder: asStringArray(value["pinnedOrder"]),
@@ -192,9 +208,15 @@ export function readTabWorkspace(
         if (raw === null) return null;
         const parsed: unknown = JSON.parse(raw);
         if (!isRecord(parsed)) return null;
-        if (parsed["version"] !== TAB_STORAGE_VERSION) return null;
+        if (
+            parsed["version"] !== TAB_STORAGE_VERSION &&
+            parsed["version"] !== LEGACY_TAB_STORAGE_VERSION
+        )
+            return null;
         const strips = Array.isArray(parsed["strips"])
-            ? parsed["strips"].map(readStrip).filter((strip): strip is TabStripState => strip !== null)
+            ? parsed["strips"]
+                  .map(readStrip)
+                  .filter((strip): strip is TabStripState => strip !== null)
             : [];
         return strips.length === 0 ? null : { strips };
     } catch {
@@ -213,6 +235,7 @@ function writableStrip(strip: TabStripState): Record<string, unknown> {
         label: strip.label,
         windowId: strip.windowId,
         windowLabel: strip.windowLabel,
+        placement: strip.placement,
         tabs: strip.tabs.map((tab) => ({
             id: tab.id,
             pageId: tab.pageId,
@@ -251,7 +274,10 @@ export function writeTabWorkspace(
     try {
         storage.setItem(
             key,
-            JSON.stringify({ version: TAB_STORAGE_VERSION, strips: workspace.strips.map(writableStrip) }),
+            JSON.stringify({
+                version: TAB_STORAGE_VERSION,
+                strips: workspace.strips.map(writableStrip),
+            }),
         );
     } catch {
         // Private mode or a full quota. A remembered tab layout is not worth a toast.

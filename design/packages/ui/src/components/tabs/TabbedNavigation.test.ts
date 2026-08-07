@@ -115,11 +115,15 @@ const Host = defineComponent({
         return () =>
             h(VApp, null, {
                 default: () => [
-                    h(TabbedNavigation, { pages: PAGES, windowLabel: "Material BlueMap", stripLabel: "Main" }, {
-                        map: () => h("p", { class: "page-map" }, "the map"),
-                        world: () => h("p", { class: "page-world" }, "the wizard"),
-                        servers: () => h("p", { class: "page-servers" }, "the servers"),
-                    }),
+                    h(
+                        TabbedNavigation,
+                        { pages: PAGES, windowLabel: "Material BlueMap", stripLabel: "Main" },
+                        {
+                            map: () => h("p", { class: "page-map" }, "the map"),
+                            world: () => h("p", { class: "page-world" }, "the wizard"),
+                            servers: () => h("p", { class: "page-servers" }, "the servers"),
+                        },
+                    ),
                 ],
             });
     },
@@ -150,7 +154,11 @@ describe("roles and structure", () => {
         await nextTick();
 
         expect(view.findAll('[role="tablist"]')).toHaveLength(1);
-        expect(tabs(view).map((tab) => tab.attributes("title"))).toEqual(["Map", "Make a map", "Servers"]);
+        expect(tabs(view).map((tab) => tab.attributes("title"))).toEqual([
+            "Map",
+            "Make a map",
+            "Servers",
+        ]);
     });
 
     it("selects the first page, and only that tab claims the panel", async () => {
@@ -161,7 +169,9 @@ describe("roles and structure", () => {
         expect(selected).toHaveLength(1);
         expect(selected[0]?.attributes("title")).toBe("Map");
 
-        const withControls = tabs(view).filter((tab) => tab.attributes("aria-controls") !== undefined);
+        const withControls = tabs(view).filter(
+            (tab) => tab.attributes("aria-controls") !== undefined,
+        );
         expect(withControls).toHaveLength(1);
         expect(withControls[0]?.attributes("aria-controls")).toBe(
             view.find('[role="tabpanel"]').attributes("id"),
@@ -257,11 +267,19 @@ describe("the keyboard commands the context menu advertises", () => {
         const view = open();
         await nextTick();
 
-        await tabs(view)[0]?.trigger("keydown", { key: "ArrowRight", ctrlKey: true, shiftKey: true });
+        await tabs(view)[0]?.trigger("keydown", {
+            key: "ArrowRight",
+            ctrlKey: true,
+            shiftKey: true,
+        });
         await nextTick();
 
         const list = tabs(view);
-        expect(list.map((tab) => tab.attributes("title"))).toEqual(["Make a map", "Map", "Servers"]);
+        expect(list.map((tab) => tab.attributes("title"))).toEqual([
+            "Make a map",
+            "Map",
+            "Servers",
+        ]);
         // The tab moved; what is selected did not.
         expect(list[1]?.attributes("aria-selected")).toBe("true");
     });
@@ -455,11 +473,17 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
                                 default: () =>
                                     h(
                                         TabbedNavigation,
-                                        { pages: PAGES, windowLabel: "Material BlueMap", stripLabel: "Main" },
+                                        {
+                                            pages: PAGES,
+                                            windowLabel: "Material BlueMap",
+                                            stripLabel: "Main",
+                                        },
                                         {
                                             map: () => h("p", { class: "page-map" }, "the map"),
-                                            world: () => h("p", { class: "page-world" }, "the wizard"),
-                                            servers: () => h("p", { class: "page-servers" }, "the servers"),
+                                            world: () =>
+                                                h("p", { class: "page-world" }, "the wizard"),
+                                            servers: () =>
+                                                h("p", { class: "page-servers" }, "the servers"),
                                         },
                                     ),
                             },
@@ -472,7 +496,10 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
     let wrapped: VueWrapper<InstanceType<typeof WrappedHost>> | null = null;
 
     function openWrapped(): VueWrapper<InstanceType<typeof WrappedHost>> {
-        wrapped = mount(WrappedHost, { global: { plugins: [vuetify, i18n] }, attachTo: document.body });
+        wrapped = mount(WrappedHost, {
+            global: { plugins: [vuetify, i18n] },
+            attachTo: document.body,
+        });
         return wrapped;
     }
 
@@ -562,7 +589,9 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
         // overlay stack learns which overlay is "top" (and so allowed to act on Escape) from
         // a `setTimeout`-debounced recompute, so the first Escape can land before that settles
         // and only the second is guaranteed to be seen.
-        tabEl?.element.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        tabEl?.element.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
         await nextTick();
         await nextTick();
@@ -588,7 +617,9 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
 
         // Two dispatches, matching AppearanceTarget.test.ts's own proven route - see the
         // comment on the menu's own Escape test above for why one alone is not reliable.
-        tabEl?.element.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        tabEl?.element.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+        );
         document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
         await nextTick();
         await nextTick();
@@ -611,7 +642,9 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
         const target = view.find(".mb-appearance-target");
         expect(target.exists()).toBe(true);
 
-        target.element.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+        target.element.dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+        );
         await nextTick();
 
         expect(document.body.textContent).toContain("Edit appearance...");
@@ -632,9 +665,13 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
         await nextTick();
 
         const target = view.find(".mb-appearance-target");
-        target.element.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true }));
+        target.element.dispatchEvent(
+            new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+        );
         await nextTick();
-        expect(document.querySelectorAll(".v-overlay--active .mb-appearance-target__menu")).toHaveLength(1);
+        expect(
+            document.querySelectorAll(".v-overlay--active .mb-appearance-target__menu"),
+        ).toHaveLength(1);
 
         // An everyday click on a tab: still inside `root`, nowhere near the popup itself -
         // exactly "clicking off the menu" as reported.
@@ -649,7 +686,9 @@ describe("the app.tabBar wrapper around the whole strip does not collide with a 
         await new Promise((resolve) => setTimeout(resolve, 0));
         await nextTick();
 
-        expect(document.querySelectorAll(".v-overlay--active .mb-appearance-target__menu")).toHaveLength(0);
+        expect(
+            document.querySelectorAll(".v-overlay--active .mb-appearance-target__menu"),
+        ).toHaveLength(0);
     });
 
     it("group header: opens exactly one menu on right-click, with the working shortcut shown", async () => {
@@ -763,7 +802,11 @@ describe("pinned tabs and collapsed groups, as drawn", () => {
         await view.find('[aria-expanded="false"]').trigger("click");
         await nextTick();
 
-        expect(tabs(view).map((tab) => tab.attributes("title"))).toEqual(["Map", "Make a map", "Servers"]);
+        expect(tabs(view).map((tab) => tab.attributes("title"))).toEqual([
+            "Map",
+            "Make a map",
+            "Servers",
+        ]);
         expect(cells.get("material-bluemap-tabs")).toContain('"collapsed":false');
     });
 });
@@ -786,7 +829,10 @@ describe("persistence", () => {
         const second = open();
         await nextTick();
 
-        expect(tabs(second).map((tab) => tab.attributes("title"))).toEqual(["Make a map", "Servers"]);
+        expect(tabs(second).map((tab) => tab.attributes("title"))).toEqual([
+            "Make a map",
+            "Servers",
+        ]);
         const selected = tabs(second).find((tab) => tab.attributes("aria-selected") === "true");
         expect(selected?.attributes("title")).toBe("Servers");
     });
@@ -797,7 +843,11 @@ describe("persistence", () => {
         const view = open();
         await nextTick();
 
-        expect(tabs(view).map((tab) => tab.attributes("title"))).toEqual(["Map", "Make a map", "Servers"]);
+        expect(tabs(view).map((tab) => tab.attributes("title"))).toEqual([
+            "Map",
+            "Make a map",
+            "Servers",
+        ]);
     });
 });
 
@@ -808,7 +858,12 @@ describe("persistence", () => {
  */
 function openDirect(): VueWrapper<InstanceType<typeof TabbedNavigation>> {
     const direct = mount(TabbedNavigation, {
-        props: { pages: PAGES, windowLabel: "Material BlueMap", stripLabel: "Main", storageKey: "test-direct-tabs" },
+        props: {
+            pages: PAGES,
+            windowLabel: "Material BlueMap",
+            stripLabel: "Main",
+            storageKey: "test-direct-tabs",
+        },
         slots: {
             map: () => h("p", { class: "page-map" }, "the map"),
             world: () => h("p", { class: "page-world" }, "the wizard"),
@@ -832,7 +887,9 @@ describe("the host API: revealPage and renamePage", () => {
 
         const rows = tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>);
         expect(rows).toHaveLength(3);
-        expect(rows.find((tab) => tab.attributes("aria-selected") === "true")?.attributes("title")).toBe("Servers");
+        expect(
+            rows.find((tab) => tab.attributes("aria-selected") === "true")?.attributes("title"),
+        ).toBe("Servers");
         view.unmount();
     });
 
@@ -840,9 +897,12 @@ describe("the host API: revealPage and renamePage", () => {
         const view = openDirect();
         await nextTick();
 
-        await tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>)[2]?.trigger("keydown", {
-            key: "Delete",
-        });
+        await tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>)[2]?.trigger(
+            "keydown",
+            {
+                key: "Delete",
+            },
+        );
         await nextTick();
         expect(tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>)).toHaveLength(2);
 
@@ -851,7 +911,9 @@ describe("the host API: revealPage and renamePage", () => {
 
         const rows = tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>);
         expect(rows).toHaveLength(3);
-        expect(rows.find((tab) => tab.attributes("aria-selected") === "true")?.attributes("title")).toBe("Servers");
+        expect(
+            rows.find((tab) => tab.attributes("aria-selected") === "true")?.attributes("title"),
+        ).toBe("Servers");
         view.unmount();
     });
 
@@ -863,7 +925,11 @@ describe("the host API: revealPage and renamePage", () => {
         await nextTick();
 
         const rows = tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>);
-        expect(rows.map((tab) => tab.attributes("title"))).toEqual(["Map", "Make a map", "Servers (3)"]);
+        expect(rows.map((tab) => tab.attributes("title"))).toEqual([
+            "Map",
+            "Make a map",
+            "Servers (3)",
+        ]);
         view.unmount();
     });
 
@@ -875,7 +941,11 @@ describe("the host API: revealPage and renamePage", () => {
         await nextTick();
 
         const rows = tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>);
-        expect(rows.map((tab) => tab.attributes("title"))).toEqual(["Map", "Make a map", "Servers"]);
+        expect(rows.map((tab) => tab.attributes("title"))).toEqual([
+            "Map",
+            "Make a map",
+            "Servers",
+        ]);
         view.unmount();
     });
 });
@@ -891,7 +961,13 @@ function openDirectPinned(
     storageKey = "test-pinned-tabs",
 ): VueWrapper<InstanceType<typeof TabbedNavigation>> {
     const direct = mount(TabbedNavigation, {
-        props: { pages: PAGES, windowLabel: "Material BlueMap", stripLabel: "Main", storageKey, pinnedPageIds },
+        props: {
+            pages: PAGES,
+            windowLabel: "Material BlueMap",
+            stripLabel: "Main",
+            storageKey,
+            pinnedPageIds,
+        },
         slots: {
             map: () => h("p", { class: "page-map" }, "the map"),
             world: () => h("p", { class: "page-world" }, "the wizard"),
@@ -918,7 +994,13 @@ function mountDirect(
     storageKey: string,
 ): VueWrapper<InstanceType<typeof TabbedNavigation>> {
     return mount(TabbedNavigation, {
-        props: { pages, windowLabel: "Material BlueMap", stripLabel: "Main", storageKey, pinnedPageIds },
+        props: {
+            pages,
+            windowLabel: "Material BlueMap",
+            stripLabel: "Main",
+            storageKey,
+            pinnedPageIds,
+        },
         slots: {
             map: () => h("p", { class: "page-map" }, "the map"),
             world: () => h("p", { class: "page-world" }, "the wizard"),
@@ -943,9 +1025,11 @@ describe("pinnedPageIds and ensurePage", () => {
         const view = openDirectPinned(["world"]);
         await nextTick();
 
-        expect(tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>)
-            .find((tab) => tab.attributes("aria-selected") === "true")
-            ?.attributes("title")).toBe("Map");
+        expect(
+            tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>)
+                .find((tab) => tab.attributes("aria-selected") === "true")
+                ?.attributes("title"),
+        ).toBe("Map");
         view.unmount();
     });
 
@@ -962,19 +1046,25 @@ describe("pinnedPageIds and ensurePage", () => {
         await nextTick();
 
         expect(
-            tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>).map((tab) => tab.attributes("title")),
+            tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>).map((tab) =>
+                tab.attributes("title"),
+            ),
         ).toEqual(["Map", "Make a map"]);
 
         view.vm.ensurePage("servers");
         await nextTick();
 
         const rows = tabs(view as unknown as VueWrapper<InstanceType<typeof Host>>);
-        expect(rows.map((tab) => tab.attributes("title"))).toEqual(["Servers", "Map", "Make a map"]);
+        expect(rows.map((tab) => tab.attributes("title"))).toEqual([
+            "Servers",
+            "Map",
+            "Make a map",
+        ]);
         // The tab the user was already looking at is undisturbed - the new pinned tab
         // renders first, but "in front" is a matter of `aria-selected`, not DOM order.
-        expect(rows.find((tab) => tab.attributes("aria-selected") === "true")?.attributes("title")).toBe(
-            "Make a map",
-        );
+        expect(
+            rows.find((tab) => tab.attributes("aria-selected") === "true")?.attributes("title"),
+        ).toBe("Make a map");
         expect(isPinned(view, "Servers")).toBe(true);
         view.unmount();
     });
@@ -1043,7 +1133,9 @@ describe("the new-tab picker's search field", () => {
         // Vuetify teleports the popup content out of the component's own tree, so this is
         // read off the document, the same way the searchable tab list is read elsewhere in
         // this file.
-        const input = document.querySelector<HTMLInputElement>(".mb-tabs-strip__menu-filter input[type='text']");
+        const input = document.querySelector<HTMLInputElement>(
+            ".mb-tabs-strip__menu-filter input[type='text']",
+        );
         if (input === null) throw new Error("no search field rendered inside the new-tab picker");
         return input;
     }
@@ -1099,13 +1191,99 @@ describe("the new-tab picker's search field", () => {
         search.dispatchEvent(new Event("input", { bubbles: true }));
         await settle();
 
-        const row = [...document.querySelectorAll(".mb-tabs-strip__sheet .v-list-item")].find((element) =>
-            (element.textContent ?? "").includes("Servers"),
+        const row = [...document.querySelectorAll(".mb-tabs-strip__sheet .v-list-item")].find(
+            (element) => (element.textContent ?? "").includes("Servers"),
         );
         expect(row).toBeDefined();
         row?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
         await settle();
 
-        expect(tabs(view).map((tab) => tab.attributes("title"))).toEqual(["Map", "Make a map", "Servers", "Servers"]);
+        expect(tabs(view).map((tab) => tab.attributes("title"))).toEqual([
+            "Map",
+            "Make a map",
+            "Servers",
+            "Servers",
+        ]);
+    });
+});
+
+describe("four-edge tab-strip placement", () => {
+    async function settle(): Promise<void> {
+        for (let index = 0; index < 4; index++) {
+            await nextTick();
+            await Promise.resolve();
+        }
+    }
+
+    async function choosePlacement(
+        view: VueWrapper<InstanceType<typeof TabbedNavigation>>,
+        label: string,
+    ): Promise<void> {
+        const trigger = view.find('[aria-label^="Move this tab strip"]');
+        expect(trigger.exists()).toBe(true);
+        await trigger.trigger("click");
+        await settle();
+        const row = [
+            ...document.querySelectorAll<HTMLElement>(
+                ".mb-tabs-strip__placement-sheet .v-list-item",
+            ),
+        ].find((candidate) => candidate.textContent?.includes(label));
+        expect(row).toBeDefined();
+        row?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await settle();
+    }
+
+    it("starts fresh profiles on the left with vertical ARIA and exposes all four guided choices", async () => {
+        const view = openDirect();
+        await settle();
+
+        expect(view.attributes("data-tab-placement")).toBe("left");
+        expect(view.find('[role="tablist"]').attributes("aria-orientation")).toBe("vertical");
+
+        const trigger = view.find('[aria-label^="Move this tab strip"]');
+        await trigger.trigger("click");
+        await settle();
+        const sheet = document.querySelector(".mb-tabs-strip__placement-sheet");
+        expect(sheet?.textContent).toContain("Left edge");
+        expect(sheet?.textContent).toContain("Right edge");
+        expect(sheet?.textContent).toContain("Top edge");
+        expect(sheet?.textContent).toContain("Bottom edge");
+        expect(sheet?.textContent).toContain(
+            "Built-in fallback for fresh and migrated profiles: Left edge",
+        );
+        expect(sheet?.querySelector("input")).not.toBeNull();
+        view.unmount();
+    });
+
+    it("uses Up and Down on vertical strips, then Left and Right on horizontal strips", async () => {
+        const view = openDirect();
+        await settle();
+        const first = view.findAll('[role="tab"]')[0];
+        await first?.trigger("keydown", { key: "ArrowDown" });
+        await settle();
+        expect(view.findAll('[role="tab"]')[1]?.attributes("aria-selected")).toBe("true");
+
+        await choosePlacement(view, "Top edge");
+        expect(view.attributes("data-tab-placement")).toBe("top");
+        expect(view.find('[role="tablist"]').attributes("aria-orientation")).toBe("horizontal");
+        const second = view.findAll('[role="tab"]')[1];
+        await second?.trigger("keydown", { key: "ArrowRight" });
+        await settle();
+        expect(view.findAll('[role="tab"]')[2]?.attributes("aria-selected")).toBe("true");
+        view.unmount();
+    });
+
+    it("persists a right-edge choice under this strip's own storage key", async () => {
+        const first = openDirect();
+        await settle();
+        await choosePlacement(first, "Right edge");
+        expect(first.attributes("data-tab-placement")).toBe("right");
+        first.unmount();
+
+        const second = openDirect();
+        await settle();
+        expect(second.attributes("data-tab-placement")).toBe("right");
+        expect(second.find('[role="tablist"]').attributes("aria-orientation")).toBe("vertical");
+        second.unmount();
     });
 });

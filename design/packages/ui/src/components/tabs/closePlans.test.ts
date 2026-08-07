@@ -18,13 +18,21 @@
 import { describe, expect, it } from "vitest";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { applyClosePlan, planCloseOthers, planCloseToEdge, planTextClose } from "./closePlans.js";
-import { addTab, createGroup, pinTab, setTabDirty, tabOrder, type TabStripState } from "./tabModel.js";
+import {
+    addTab,
+    createGroup,
+    pinTab,
+    setTabDirty,
+    tabOrder,
+    type TabStripState,
+} from "./tabModel.js";
 
 const EMPTY: TabStripState = {
     id: "strip-main",
     label: "Main",
     windowId: "window-1",
     windowLabel: "Material BlueMap",
+    placement: "left",
     tabs: [],
     groups: [],
     pinnedOrder: [],
@@ -40,14 +48,22 @@ function strip(): TabStripState {
         EMPTY,
     );
     built = pinTab(built, "Overworld map");
-    built = createGroup(built, { id: "g-renders", name: "Renders" }, ["Nether render", "End render"]);
+    built = createGroup(built, { id: "g-renders", name: "Renders" }, [
+        "Nether render",
+        "End render",
+    ]);
     return built;
 }
 
-const labels = (hits: readonly { readonly label: string }[]): string[] => hits.map((hit) => hit.label);
+const labels = (hits: readonly { readonly label: string }[]): string[] =>
+    hits.map((hit) => hit.label);
 
 describe("one predicate, used in both directions", () => {
-    const cases: readonly { readonly query: string; readonly regexMode: boolean; readonly flags: string }[] = [
+    const cases: readonly {
+        readonly query: string;
+        readonly regexMode: boolean;
+        readonly flags: string;
+    }[] = [
         { query: "render", regexMode: false, flags: "i" },
         { query: "RENDER", regexMode: false, flags: "i" },
         { query: "änderungen", regexMode: false, flags: "i" },
@@ -91,15 +107,12 @@ describe("one predicate, used in both directions", () => {
         const matcher = createSettingMatcher("RENDER", false, "i");
         const common = { query: "RENDER", regexMode: false, matcher, includePinned: false };
 
-        expect(labels(planTextClose(state, { ...common, direction: "containing" }).selected)).toEqual([
-            "Nether render",
-            "End render",
-        ]);
-        expect(labels(planTextClose(state, { ...common, direction: "notContaining" }).selected)).toEqual([
-            "Settings",
-            "ÄNDERUNGEN",
-            "notes",
-        ]);
+        expect(
+            labels(planTextClose(state, { ...common, direction: "containing" }).selected),
+        ).toEqual(["Nether render", "End render"]);
+        expect(
+            labels(planTextClose(state, { ...common, direction: "notContaining" }).selected),
+        ).toEqual(["Settings", "ÄNDERUNGEN", "notes"]);
     });
 });
 
@@ -146,7 +159,10 @@ describe("what a plan refuses to do", () => {
 });
 
 describe("scope", () => {
-    const scoped = (groupId: string | null, direction: "containing" | "notContaining" = "notContaining") =>
+    const scoped = (
+        groupId: string | null,
+        direction: "containing" | "notContaining" = "notContaining",
+    ) =>
         planTextClose(strip(), {
             direction,
             query: "nether",
@@ -170,7 +186,11 @@ describe("scope", () => {
 
     it("never crosses the group boundary, in either direction", () => {
         const outside = scoped("g-renders");
-        expect(outside.scope).toEqual({ kind: "group", groupId: "g-renders", groupName: "Renders" });
+        expect(outside.scope).toEqual({
+            kind: "group",
+            groupId: "g-renders",
+            groupName: "Renders",
+        });
         expect(labels(outside.eligible)).toEqual(["Nether render", "End render"]);
         expect(labels(outside.selected)).toEqual(["End render"]);
         expect(labels(scoped("g-renders", "containing").selected)).toEqual(["Nether render"]);
