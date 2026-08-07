@@ -9,6 +9,26 @@ legacy profile, refuses divergent collisions, quarantines interrupted staging, a
 failed activation. A real-profile copy migrated 885 files / 347,197,060 bytes with source
 unchanged and target byte-matched.
 
+The final residual-identity pass is `637cc69`. A hand-written inventory now guards every touched
+current-write and current-display surface, with legacy names permitted only through an explicit
+per-file compatibility allowlist. Release titles, helper output, capture variables, the standalone
+regex builder, generated changelog links and current documentation use Worldlens. The builder and
+capture harness read the current storage or environment key first, copy or fall back from the old
+key without deleting it, and tests cover precedence. Current live repository, Pages, policy and
+legal links remain reachable until the actual repository rename; the committed
+`scripts/finalize-worldlens-repository.mjs` preflights their exact occurrence counts, stages all
+eight files, rolls back installed replacements on failure and verifies the final state. The
+reviewed screenshot-label activation fix is incorporated as `522e3b5` without merging the default
+branch.
+
+Local verification at `522e3b5` is green: the focused identity/capture/changelog set passes 43
+tests with one historical-data test skipped; `pnpm test:ci` exits 0 in 356.9 seconds; recursive
+typecheck and build cover all 13 package targets; repository lint passes; and the unsigned package
+build produces a 204,521,984-byte `release/win-unpacked/Worldlens.exe`. Authenticode reports
+`NotSigned` with no signer certificate. Actionlint's YAML/expression pass is green; its
+ShellCheck-enabled run exceeded the 184.1-second local command limit without a verdict, so the
+exact pushed workflow remains the authoritative shell-check and screenshot verdict.
+
 Independent review found the original activation sequence was not crash-safe after the current
 root had been renamed aside. The correction writes a flushed transaction journal before that
 rename and performs startup preflight recovery. Tests inject failures and process crashes before
@@ -21,8 +41,11 @@ platform-correct relative-path containment, rejects linked roots and linked-pare
 copying, treats case-only names as collisions under Windows filesystem semantics, and records
 both source and current manifests. Worldlens holds Electron's single-instance lock during startup
 and revalidates the exact current and legacy manifests immediately before activation, so a
-concurrent write aborts into quarantine instead of being overwritten. These corrections require
-a new exact-commit CI verdict before the branch can be considered verified.
+concurrent write aborts into quarantine instead of being overwritten. Commit `fddf3608dd1d126abd0e179fb656e5951de20e6d`
+passed the complete Linux build/test job, including 650 test files and 9,584 tests; its overall
+workflow stayed red only because the stale Options-tab click hit a nested close button. That
+separate harness defect is the `522e3b5` correction above and requires one new exact-commit CI
+verdict before the branch can be considered fully verified.
 
 Local correction evidence is green: the 77 focused migration/feed/controller tests pass;
 `pnpm test:ci` exits 0 after 385.4 seconds; recursive typecheck covers all 13 package targets;

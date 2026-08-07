@@ -10,6 +10,16 @@ profiles, localStorage preferences, environment variables, project files and own
 have explicit compatibility adapters; current writes never create another legacy identifier.
 Unknown project fields survive the v1-to-v2 schema adapter.
 
+The final current-identity inventory is implemented in `637cc69`: release and helper output,
+standalone regex-builder branding and storage, capture automation, generated changelog targets and
+current feature documentation use Worldlens, while each retained legacy reader is named in an
+explicit allowlist. The eight-file repository, Pages, policy and legal switch is staged behind a
+deterministic preflight/apply/verify finalizer until the real repository rename succeeds. The
+reviewed Options-tab screenshot activation repair is incorporated as `522e3b5` without a
+default-branch merge. Local focused tests pass 43 with one historical-data skip; full `test:ci`,
+13-package typecheck/build, lint and unsigned Windows packaging pass. Exact pushed workflow proof
+remains the closing gate.
+
 Packaging is permanently unsigned and verified as such at the built executable. The migration
 has unit coverage for POSIX containment, linked-root escape rejection, Windows case-only
 collisions and injected concurrent current-profile writes, plus an isolated copy of the actual
