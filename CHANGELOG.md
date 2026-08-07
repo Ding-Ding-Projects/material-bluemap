@@ -20,6 +20,14 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Documentation
+
+- Repair Options tab screenshot activation - [`ae0a6894b5`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ae0a6894b52754a9339b8c17d4fa28a781811457)
+
+## 0.1.0-build.682 - 2026-08-06
+
+Tagged at [`e137779278`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e13777927876a3d7898778f18193e9465bc97cc2).
+
 ### Interface
 
 - Index the project editor in application docs - [`15369ae9c0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/15369ae9c0180305b4e2e49093239d8078c69ead)
