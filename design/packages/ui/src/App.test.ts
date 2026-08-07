@@ -466,7 +466,7 @@ describe("the tab strip", () => {
         await settle();
 
         const outerPanel = document.querySelector<HTMLElement>(
-            ".mb-shell-primary-tabs > .mb-tabs__panel",
+            ".mb-tabs__panel.mb-shell-primary-panel",
         );
         const nestedPanel = document.querySelector<HTMLElement>(
             ".mb-project-editor__tabs .mb-tabs__panel",
