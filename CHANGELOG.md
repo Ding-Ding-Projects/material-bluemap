@@ -42,6 +42,7 @@ full message for the in-app changelog viewer.
 
 ### Landing page and documentation site
 
+- Integrate Pages parity and responsive navigation - [`85c7513eec`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/85c7513eec4bb224d7134a996d355ec52f41d4fa) _(summary of 20 commits, also listed here)_
 - Carry persisted preferences into Worldlens - [`5d443b2cad`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5d443b2cad75b4151044e5a72ac0f97ac0ebcd4c)
 - WEBSITE EDIT - Match the panel inventory to tracked case - [`4fae06b6c4`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4fae06b6c4914825a6d196a134cfe7ee7ac11519)
 - WEBSITE EDIT - Close the Pages integration contract gaps - [`890b934732`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/890b93473201120429f2d57bb50d1cc12b6310e4)

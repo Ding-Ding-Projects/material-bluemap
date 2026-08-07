@@ -26,6 +26,17 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "85c7513eec4bb224d7134a996d355ec52f41d4fa",
+        shortSha: "85c7513eec",
+        date: "2026-08-07T09:54:34-04:00",
+        subject: "Integrate Pages parity and responsive navigation",
+        details: "Merge the complete mobile/desktop Pages inventory, collapsible navigation, scheduled settings, session-only Home Assistant path, panel geometry, compact proof, README and documentation updates. The side rail now knows when to fold instead of occupying a phone screen like it pays rent.\n\n合併 Pages desktop/mobile 全功能清單、可收合導航、排程設定、session-only Home Assistant、panel geometry、compact proof、README 同文件更新。條 side rail 終於識得喺手機摺埋，唔再霸住成個畫面扮交咗租。",
+        category: "site",
+        areas: ["site", "docs", "interface", "shell", "build"],
+        files: 93,
+        summarizes: 20,
+    },
+    {
         sha: "eaa89eada4112076a18368a0447f22f0699f16bb",
         shortSha: "eaa89eada4",
         date: "2026-08-07T09:21:03-04:00",
