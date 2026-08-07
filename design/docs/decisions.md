@@ -276,12 +276,15 @@ steps, so Git Bash is no longer a hidden build dependency; a missing Git install
 with checksum-pinned MinGit in the job directory. Official setup actions still provide the
 manifest-pinned Node/pnpm and upstream-pinned Temurin toolchains.
 
-`design/packages/shared/src/selfHostedCiPolicy.test.ts` is the completeness boundary: a
+For this historical D19 implementation,
+`design/packages/shared/src/selfHostedCiPolicy.test.ts` was the completeness boundary: a
 hand-written ten-job inventory is compared to every literal self-hosted `runs-on` entry, each job
 must call its declared profile, and any `pull_request` trigger on those workflow files fails the
 test. The Pages deploy job is explicitly inventoried as `action-only`; it has no external command
 to install, which is a declared empty dependency set rather than an unexamined omission. See
-`docs/self-hosted-ci-bootstrap.md` for the profile table, failure modes, and dry-run proof.
+the superseding D20 decision and `docs/cloud-runners.md` for the current runner inventory. The
+self-hosted bootstrap article and code were intentionally removed when D20 restored hosted
+runners, so this historical paragraph no longer links to a deleted file.
 
 ## D20 — Project workflows returned to standard GitHub-hosted runners
 

@@ -105,12 +105,14 @@ PowerShell, and the Windows profile can provision checksum-pinned MinGit into `R
 Node 22, pnpm 10.33.0, Temurin 8/25, Electron, Playwright, and other manifest dependencies still
 come from their official setup actions and the frozen workspace lockfile.
 
-The hand-written inventory in `packages/shared/src/selfHostedCiPolicy.test.ts` is the guard:
+Before D20 restored hosted runners, the hand-written inventory in
+`packages/shared/src/selfHostedCiPolicy.test.ts` was the guard:
 workflow/job, OS, and profile must match every literal self-hosted runner entry, no self-hosted
 workflow may grow a `pull_request` trigger, and the four user-repository render templates must
 stay hosted. Both bootstrap scripts expose fake-missing dry runs so installation branches can be
-proved without mutating a workstation. See `docs/self-hosted-ci-bootstrap.md` for the full table
-and honest runtime-evidence boundary.
+proved without mutating a workstation. That implementation and its article were removed when D20
+superseded them; `docs/cloud-runners.md` now carries the current inventory and runtime-evidence
+boundary.
 
 ## Plain-language summary (start here)
 
