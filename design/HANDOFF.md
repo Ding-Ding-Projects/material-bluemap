@@ -1,5 +1,32 @@
 # Handoff
 
+## Update, 2026-08-06 — repository CI is returning to disposable hosted runners
+
+The `codex/phase-cloud-runners` phase converts all ten project-owned self-hosted jobs and confirms
+the already-hosted render/private workflow jobs under one complete policy. Across seven workflow
+files, 23 executable jobs use explicit standard hosted labels (`ubuntu-latest`, except the
+Squirrel package job on `windows-latest`) and 13 reusable call jobs retain their checked-in
+targets. `ci.yml` restores `pull_request`, because contributor code now runs on an isolated
+GitHub-managed VM rather than a project-owned machine.
+
+Self-hosted-only setup is removed: the local composite action, both OS bootstrap scripts, duplicate
+seed checkouts, stale-process cleanup, check-first Playwright mutation avoidance, the old policy
+test, and the dedicated bootstrap article. Ordinary manifest-backed setup remains: pnpm 10.33.0,
+Node 22, the required Temurin JDKs, and frozen-lockfile installation. Workflow lint keeps
+actionlint 1.7.12 with the already-recorded SHA-256 digest and requires hosted Ubuntu's shellcheck.
+
+`packages/shared/src/cloudRunnerPolicy.test.ts` is now the hand-written completeness boundary. It
+names all seven workflows and all 36 jobs, distinguishes executable labels from reusable calls,
+and rejects missing jobs, unknown workflow files, non-standard labels, any `self-hosted` workflow
+text, or the deleted bootstrap paths. The current user request is the project-specific authority
+for this repository even though an older shared fully-self-hosted request remains open elsewhere;
+that external issue was inspected but not changed.
+
+This phase started from and contains local `main` commit
+`c92c199cf9f7c4330e4e2ac989ad2b2ad6a941b0`. The phase owner commits locally only; the root
+orchestrator owns default-branch integration, the remote update, hosted-run verification, and issue
+#51's milestone/finished comments. No workflow was manually dispatched by this phase.
+
 ## Update, 2026-08-06 — local Docker worlds are reachable from the map wizard
 
 The `dockerworld:*` main-process module is no longer a fully tested seam with no user route.

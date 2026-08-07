@@ -1,16 +1,21 @@
 # Roadmap
 
-## Self-hosted CI dependency closure (2026-08-06)
+## GitHub-hosted runner restoration (2026-08-06)
 
-**Done locally; real-runner verification follows when this branch is integrated.** Every one of
-the ten Linux/Windows self-hosted jobs now selects a check-first dependency profile through the
-same composite action. The profile scripts cover workflow linting, workspace build/test, Java
-jars, the real Java round trip, test-world generation, Electron screenshots, release publishing,
-Pages build/deploy, and Windows Squirrel packaging. A hand-written guard fails if a self-hosted job
-is missing, has the wrong OS/profile, or becomes reachable from `pull_request`. See
-`../docs/self-hosted-ci-bootstrap.md`; fake-missing dry runs and the focused Vitest policy suite
-are the local proof, while package-manager access on the actual runners remains an external
-runtime boundary until the integrated workflow runs.
+**Implemented on the cloud-runner phase branch; hosted runtime proof follows default-branch
+integration.** All 23 executable jobs across the seven repository workflows now select an
+explicit standard GitHub-hosted label: Ubuntu for Linux build/test/render/release/Pages work and
+Windows for Squirrel packaging. The 13 reusable-workflow call jobs retain their exact checked-in
+targets. Pull-request validation is restored now that contributor code runs on disposable hosted
+environments instead of a project-owned machine.
+
+The obsolete composite bootstrap, OS scripts, focused fake-missing tests and bootstrap article are
+gone. Manifest-driven pnpm, Node and Java setup plus the frozen lockfile remain unchanged. The
+replacement hand-written guard inventories all 36 jobs and rejects unknown workflows, missing or
+non-standard runner labels, illegal labels on reusable calls, and any self-hosted/bootstrap return.
+See `../docs/cloud-runners.md`. Local policy, YAML, actionlint, typecheck and site-build evidence
+must pass again after integration; no hosted run is claimed before the branch reaches the default
+branch.
 
 Phases from `../plan.md`; status is updated as each phase lands on the branch. Read
 `docs/decisions.md` first: decisions **D17** and **D18** (2026-08-03) changed which engine

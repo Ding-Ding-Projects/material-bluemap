@@ -33,12 +33,12 @@ permissions:
 jobs:
   build:
     name: Build the seven implementations
-    # See design/docs/decisions.md D19 for why this moved off a hosted runner. The
-    # caller (ci.yml's `jars` job) already carries the `cancel-in-progress: true` group
-    # that keeps a burst of pushes from piling up here; no separate group is added in
-    # this file for a job that is only ever reached through that call, since a direct
-    # `workflow_dispatch` of this file is rare enough on its own not to need one.
-    runs-on: [self-hosted, Linux, X64]
+    # Standard hosted Linux keeps the expensive Java build isolated and reproducible.
+    # The caller (ci.yml's `jars` job) already carries the `cancel-in-progress: true`
+    # group that keeps a burst of pushes from piling up here; no separate group is
+    # added in this file for a job that is only ever reached through that call, since a
+    # direct `workflow_dispatch` of this file is rare enough on its own not to need one.
+    runs-on: ubuntu-latest
     # A cold cache has to fetch Minecraft, Forge, NeoForge, Fabric and Paper artefacts
     # and decompile against them. A warm one does none of that. The ceiling is generous
     # so a first run on a new cache key is not killed halfway through populating it.
@@ -47,16 +47,6 @@ jobs:
       version: ${{ steps.upstream.outputs.version }}
       upstream-commit: ${{ steps.upstream.outputs.commit }}
     steps:
-      # Seed checkout: makes the repository-owned bootstrap action available. If Git
-      # itself is absent, checkout can use its REST fallback; the java-build profile
-      # then installs Git before the history/submodule checkout below needs it.
-      - uses: actions/checkout@v4
-
-      - name: Bootstrap this self-hosted job
-        uses: ./.github/actions/bootstrap-self-hosted
-        with:
-          profile: java-build
-
       # fetch-depth: 0 is not optional here. Upstream derives its version from
       # `git describe`, and BlueMap carries its own BlueMapAPI submodule at api/ that
       # the build includes, so both the full history and the recursive checkout are
@@ -73,7 +63,7 @@ jobs:
       # already installed it downloads its own via a bundled "Disco" (foojay) client into
       # its Gradle cache.
       #
-      # On this self-hosted runner's container image that download path is broken: the
+      # An earlier stripped runner image broke that download path: the
       # extracted `bin/java` fails with `error while loading shared libraries: libjli.so:
       # cannot open shared object file`. `libjli.so` ships inside the JDK tarball itself,
       # so a missing *file* is not the cause - the dynamic loader cannot resolve it via
@@ -94,7 +84,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '8'
+          java-version: "8"
 
       # Upstream pins JavaLanguageVersion.of(25) in buildSrc/bluemap.java.gradle.kts,
       # and the produced bytecode is class-file version 69, so 25 is what both the build
@@ -104,7 +94,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: "25"
 
       # Restores the dependency cache, the wrapper distribution and the local build
       # cache into the Gradle user home, keyed on this job. That is what keeps a re-run
