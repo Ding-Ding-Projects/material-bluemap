@@ -38,6 +38,7 @@ import {
     LARGE_WORLDS_DOC_URL,
     LEGACY_WORLDS_DOC_URL,
     NOTIFICATION_CENTRE_DOC_URL,
+    PAGES_FEATURE_PARITY_DOC_URL,
     PLAN_URL,
     PRIVATE_WORLD_DOC_URL,
     REGEX_BUILDER_DOC_URL,
@@ -550,6 +551,20 @@ export const home: HomeContent = {
                     ],
                 },
                 {
+                    title: "A documentation site that keeps the whole product contract",
+                    body: "The GitHub Pages site carries its own settings, language and tone controls, tab searches, regex builders, command palette, exact teleport, appearance editors, notifications, exports and accessibility rules. On phones its side rail starts collapsed and can always be expanded without losing focus or hiding the current page.",
+                    status: "shipped",
+                    statusNote:
+                        "A hand-written inventory names every applicable shared requirement with implementation and test evidence, and records browser-platform boundaries instead of silently skipping them. Local compact proof and the exact live deployment are reported separately.",
+                    articleId: "pages-feature-parity",
+                    reading: [
+                        {
+                            label: "docs/pages-feature-parity.md",
+                            href: PAGES_FEATURE_PARITY_DOC_URL,
+                        },
+                    ],
+                },
+                {
                     title: "One shortcut over every command and setting",
                     body: "The command palette lists everything the application can do, and a row that is a setting carries the setting itself rather than a link to the screen it lives on: flipping it here and flipping it there are the same act with the same persistence. A row that opens a surface says which one.",
                     status: "shipped",
@@ -638,9 +653,7 @@ export const home: HomeContent = {
                     statusNote:
                         "Five local PNGs are wired to five exact owners. A hand-written inventory rejects missing or reused files, empty alternative text and owner drift; 143 focused tests and the production workspace build passed. A packaged runtime capture is not claimed by this phase.",
                     articleId: "action-artwork",
-                    reading: [
-                        { label: "docs/action-artwork.md", href: ACTION_ARTWORK_DOC_URL },
-                    ],
+                    reading: [{ label: "docs/action-artwork.md", href: ACTION_ARTWORK_DOC_URL }],
                 },
             ],
         },

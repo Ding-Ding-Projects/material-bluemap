@@ -207,6 +207,12 @@ export const SETTINGS_STRINGS: StringTable = {
     "set.tabPlacement.top": { en: "Top edge", yue: "上邊" },
     "set.tabPlacement.bottom": { en: "Bottom edge", yue: "下邊" },
 
+    "set.sidebarCollapsed": { en: "Collapse side navigation", yue: "收合側邊導航" },
+    "set.sidebarCollapsed.desc": {
+        en: "Hide the left or right tab rail behind a persistent expand button. A fresh compact visit starts collapsed; your explicit choice is then kept at every width.",
+        yue: "將左邊或者右邊分頁列收埋，只留一個長駐展開掣。新手機畫面預設收合；你揀過之後，唔同闊度都會記住。",
+    },
+
     "set.reduceMotion": { en: "Reduce motion", yue: "減少動畫" },
     "set.reduceMotion.desc": {
         en: "System follows your operating system setting.",

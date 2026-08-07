@@ -120,6 +120,38 @@ export const VOICED = {
         en: ["All pages", "All pages", "Every page", "Every page there is", "The full page menu"],
         yue: ["所有頁面", "所有頁面", "全部頁面", "有幾多頁都喺呢度", "成張頁面菜單"],
     },
+    "shell.collapseNavigation": {
+        en: [
+            "Collapse the side navigation",
+            "Collapse the side navigation",
+            "Tuck away the side navigation",
+            "Fold the side navigation out of the way",
+            "Pack the side navigation into its tiny suitcase",
+        ],
+        yue: [
+            "收合側邊導航",
+            "收合側邊導航",
+            "收埋側邊導航",
+            "摺埋側邊導航，還返啲位",
+            "將側邊導航塞入迷你喼仔",
+        ],
+    },
+    "shell.expandNavigation": {
+        en: [
+            "Expand the side navigation",
+            "Expand the side navigation",
+            "Bring back the side navigation",
+            "Unfold the side navigation",
+            "Let the side navigation out of its tiny suitcase",
+        ],
+        yue: [
+            "展開側邊導航",
+            "展開側邊導航",
+            "叫返側邊導航出嚟",
+            "打開側邊導航",
+            "放側邊導航出返迷你喼仔",
+        ],
+    },
     "appearance.title": {
         en: [
             "Appearance",

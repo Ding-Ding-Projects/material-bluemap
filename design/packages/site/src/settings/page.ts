@@ -19,6 +19,7 @@ import type { FunnyLevel, LanguageMode } from "./i18n.js";
 import type { Preferences } from "../platform/Preferences.js";
 import type { ThemeController } from "../theme/ThemeController.js";
 import { TAB_PLACEMENTS, type TabModel, type TabPlacement } from "../tabs/TabModel.js";
+import type { SidebarNavigation } from "../shell/SidebarNavigation.js";
 import { THEME_MODES, DENSITIES } from "../theme/ThemeController.js";
 import type { SearchableSetting, SettingControl, SettingsSearchHost } from "../search/contract.js";
 import { attachRegexBuilder } from "../search/attachBuilder.js";
@@ -75,6 +76,8 @@ export interface SettingsPageOptions {
     readonly theme?: ThemeController | undefined;
     /** When supplied, the tab-placement row drives the real site strip. */
     readonly tabs?: TabModel | undefined;
+    /** When supplied, the navigation-collapse row drives the real side rail. */
+    readonly sidebar?: SidebarNavigation | undefined;
 }
 
 export interface SettingsPageView {
@@ -1370,6 +1373,16 @@ function installBridges(store: SettingsStore, options: SettingsPageOptions): voi
             },
             reset: () => tabs.setPlacement("left"),
             subscribe: (listener) => tabs.subscribe(listener),
+        });
+    }
+
+    if (options.sidebar !== undefined) {
+        const sidebar = options.sidebar;
+        store.bridge("tabs.sidebarCollapsed", {
+            read: () => sidebar.collapsed,
+            write: (value) => sidebar.setCollapsed(Boolean(value)),
+            reset: () => sidebar.reset(),
+            subscribe: (listener) => sidebar.subscribe(listener),
         });
     }
 

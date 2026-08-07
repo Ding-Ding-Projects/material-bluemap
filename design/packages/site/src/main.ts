@@ -61,6 +61,7 @@ import { Notifications } from "./notifications/Notifications.js";
 import { Preferences } from "./platform/Preferences.js";
 import { RegexBuilderSlot } from "./platform/RegexBuilderSlot.js";
 import { ShortcutRegistry } from "./platform/shortcuts.js";
+import { icon } from "./platform/dom.js";
 import { confirmDestructive, createSettingsPage } from "./settings/index.js";
 import { appendInlineContent, renderBlocks } from "./shell/renderBlocks.js";
 import { TabModel } from "./tabs/TabModel.js";
@@ -68,6 +69,7 @@ import { TabsController } from "./tabs/index.js";
 import { ThemeController } from "./theme/ThemeController.js";
 import { createCommandPalette, type PaletteCommand } from "./shell/commandPalette.js";
 import { articlePaletteCommands } from "./shell/articleCommands.js";
+import { applySidebarNavigation, SidebarNavigation } from "./shell/SidebarNavigation.js";
 import {
     installRovingAppearanceFocus,
     registerAppearanceTarget,
@@ -910,6 +912,10 @@ function boot(): void {
     const notifications = new Notifications(i18n, notificationHost);
 
     const model = new TabModel(prefs, i18n);
+    const sidebar = new SidebarNavigation(
+        prefs,
+        typeof window !== "undefined" && window.matchMedia("(width <= 720px)").matches,
+    );
     const tabs = new TabsController({
         i18n,
         model,
@@ -919,7 +925,7 @@ function boot(): void {
         appearance,
         confirmDestructive,
     });
-    const settingsView = createSettingsPage({ prefs, appearance, theme, tabs: model });
+    const settingsView = createSettingsPage({ prefs, appearance, theme, tabs: model, sidebar });
     const tabLabelKey = {
         home: "site.homeTab",
         docs: "site.docsTab",
@@ -1271,6 +1277,12 @@ function boot(): void {
     // and behaviour are untouched by the wrapper.
     const topbar = el("div", "mb-shell-topbar");
     topbar.appendChild(createBrand(i18n, appearance, () => tabs.reveal("home")));
+    tabs.strip.bar.id = "site-primary-navigation";
+    const sidebarToggle = el("button", "md-icon-button mb-sidebar-toggle");
+    sidebarToggle.type = "button";
+    sidebarToggle.setAttribute("aria-controls", tabs.strip.bar.id);
+    sidebarToggle.addEventListener("click", () => sidebar.toggle());
+    topbar.appendChild(sidebarToggle);
     topbar.appendChild(tabs.strip.bar);
     watchTopbarScrollShadow(topbar);
 
@@ -1279,11 +1291,24 @@ function boot(): void {
     main.appendChild(tabs.strip.panels);
     const workspace = el("div", "mb-shell-workspace");
     const syncPlacement = (): void => {
-        workspace.dataset["tabPlacement"] = model.placement;
-        topbar.dataset["placement"] = model.placement;
+        const placement = model.placement;
+        const applied = applySidebarNavigation(
+            { workspace, topbar, navigation: tabs.strip.bar, toggle: sidebarToggle },
+            placement,
+            sidebar.collapsed,
+            {
+                collapse: i18n.t("shell.collapseNavigation"),
+                expand: i18n.t("shell.expandNavigation"),
+            },
+        );
+        sidebarToggle.replaceChildren(
+            icon(applied.chevron === "right" ? "chevronRight" : "chevronLeft"),
+        );
     };
     syncPlacement();
     model.subscribe(syncPlacement);
+    sidebar.subscribe(syncPlacement);
+    i18n.subscribe(syncPlacement);
     workspace.append(topbar, main);
     root.appendChild(workspace);
 

@@ -78,6 +78,7 @@ export const REMOTE_HOSTING_DOC_URL = repoFile("docs/remote-hosting.md");
 export const AUTOMATIC_REPAIR_DOC_URL = repoFile("docs/automatic-repair.md");
 export const FINDING_WORLDS_DOC_URL = repoFile("docs/finding-worlds.md");
 export const BEDROCK_WORLDS_DOC_URL = repoFile("docs/bedrock-worlds.md");
+export const PAGES_FEATURE_PARITY_DOC_URL = repoFile("docs/pages-feature-parity.md");
 
 /** Upstream BlueMap, the project this is a port of. */
 export const UPSTREAM_URL = "https://github.com/BlueMap-Minecraft/BlueMap";

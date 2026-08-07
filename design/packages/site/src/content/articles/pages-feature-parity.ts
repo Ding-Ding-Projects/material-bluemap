@@ -1,0 +1,140 @@
+import type { Article } from "../types.js";
+import { PAGES_FEATURE_PARITY_DOC_URL, repoFile } from "../links.js";
+import { PAGES_FEATURE_COVERAGE } from "../../policy/globalFeatureCoverage.js";
+
+const implementedRows = PAGES_FEATURE_COVERAGE.filter((item) => item.status === "implemented").map(
+    (item) => [item.title, "Implemented", item.implementation.join(", ")],
+);
+
+const boundaryRows = PAGES_FEATURE_COVERAGE.filter((item) => item.status !== "implemented").map(
+    (item) => [
+        item.title,
+        item.status === "not-applicable" ? "Not applicable" : "Optional, not enabled",
+        item.reason,
+    ],
+);
+
+export const pagesFeatureParity: Article = {
+    id: "pages-feature-parity",
+    title: "GitHub Pages feature parity",
+    summary:
+        "A hand-written, tested account of the user-facing contracts this documentation site implements, including a collapsible persisted mobile side rail and explicit browser-platform boundaries.",
+    category: "application",
+    status: "shipped",
+    statusNote:
+        "The inventory and responsive navigation are implemented and locally covered. Compact headless captures and the exact live Pages deployment are recorded separately because source and local builds are not deployment proof.",
+    sections: [
+        {
+            id: "behaviour",
+            title: "Behaviour",
+            blocks: [
+                {
+                    kind: "paragraph",
+                    content:
+                        "The site is a user-facing application. Its settings, tabs, searches, appearance editors, notifications, changelog and documentation are real interactive surfaces, so the same requirements apply to each one. The left and right tab rails now carry a persistent collapse control; a compact first visit starts collapsed and always leaves an expand button in reach.",
+                },
+                {
+                    kind: "table",
+                    caption: "Applicable shared features and the source that owns them",
+                    columns: ["Feature", "Status", "Implementation evidence"],
+                    rows: implementedRows,
+                },
+            ],
+        },
+        {
+            id: "configuration",
+            title: "Configuration",
+            blocks: [
+                {
+                    kind: "list",
+                    items: [
+                        "Settings → General → Navigation stores the tab edge and the side-navigation collapse choice.",
+                        "The collapse control is present only for left and right placements. Top and bottom remain complete horizontal strips.",
+                        "Ctrl+Shift+F opens the command palette whether the rail is open or closed, and selecting a setting teleports to its exact row.",
+                        "Language, both funny levels, theme, density, accent, typography, appearance presets, import, export and reset remain available from the Settings tab.",
+                    ],
+                },
+            ],
+        },
+        {
+            id: "failure-modes",
+            title: "Failure modes",
+            blocks: [
+                {
+                    kind: "list",
+                    items: [
+                        "Browser storage can be blocked. Collapse still works for the current load, while the Settings surface states that persistence is unavailable.",
+                        "A malformed stored value is ignored and the responsive default is used.",
+                        "A horizontal placement never inherits the side rail's hidden state.",
+                        "An overlay that cannot fit becomes a bounded sheet with internal scrolling rather than painting off screen or hiding content past a height cap.",
+                    ],
+                },
+                {
+                    kind: "table",
+                    caption:
+                        "Requirements that do not truthfully apply to a static documentation origin",
+                    columns: ["Feature", "Disposition", "Reason"],
+                    rows: boundaryRows,
+                },
+            ],
+        },
+        {
+            id: "security",
+            title: "Security considerations",
+            blocks: [
+                {
+                    kind: "list",
+                    items: [
+                        "Collapse state and other visitor preferences stay in namespaced browser storage and are never transmitted.",
+                        "The site bundles its scripts, styles, fonts and images and runs no analytics.",
+                        "The explicit exclusions avoid asking a static page for filesystem, editor-discovery, forge-token or local-Git authority it does not need.",
+                    ],
+                },
+            ],
+        },
+        {
+            id: "verification",
+            title: "Verification",
+            blocks: [
+                {
+                    kind: "list",
+                    items: [
+                        "SidebarNavigation.test.ts checks responsive defaults, persistence, reset, accessible state, focus retention and all four tab placements.",
+                        "globalFeatureCoverage.test.ts fails if an expected requirement disappears, evidence points to a missing file, or an exclusion has no concrete reason.",
+                        "Compact runtime proof covers 360×640, 390×844, 414×896, and bilingual 390×844 at device scale 2, with DOM overflow and control-size metrics.",
+                        "The exact Pages workflow and live URL are required after integration; a local production build is not described as deployment proof.",
+                    ],
+                },
+            ],
+        },
+    ],
+    suggested: [
+        {
+            articleId: "tabbed-shell",
+            reason: "The complete tab model behind the collapsible rail.",
+        },
+        {
+            articleId: "command-palette",
+            reason: "The global discovery path that remains available with the rail closed.",
+        },
+        {
+            articleId: "appearance-editor",
+            reason: "The per-element customization contract included in the inventory.",
+        },
+        {
+            articleId: "regex-builder-surfaces",
+            reason: "The full anchored builder behind every search field.",
+        },
+    ],
+    sources: [
+        { label: "docs/pages-feature-parity.md", href: PAGES_FEATURE_PARITY_DOC_URL },
+        {
+            label: "Pages coverage inventory",
+            href: repoFile("design/packages/site/src/policy/globalFeatureCoverage.ts"),
+        },
+        {
+            label: "Responsive navigation implementation",
+            href: repoFile("design/packages/site/src/shell/SidebarNavigation.ts"),
+        },
+    ],
+};

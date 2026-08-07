@@ -155,6 +155,16 @@ export const SETTINGS: readonly SettingDefinition[] = [
         ],
     },
     {
+        id: "tabs.sidebarCollapsed",
+        kind: "toggle",
+        tab: "general",
+        group: "navigation",
+        labelKey: "set.sidebarCollapsed",
+        descriptionKey: "set.sidebarCollapsed.desc",
+        keywords: ["sidebar", "navigation", "rail", "collapse", "expand", "側欄", "收合", "展開"],
+        defaultValue: false,
+    },
+    {
         id: "motion.reduce",
         kind: "select",
         tab: "general",

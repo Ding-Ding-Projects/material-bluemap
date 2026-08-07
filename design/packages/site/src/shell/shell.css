@@ -85,6 +85,36 @@ html[dir="rtl"] .mb-shell-workspace[data-tab-placement="right"] > * {
     min-height: 0;
 }
 
+.mb-shell-topbar[data-sidebar-collapsed="true"][data-placement="left"],
+.mb-shell-topbar[data-sidebar-collapsed="true"][data-placement="right"] {
+    flex-basis: calc(var(--md-sys-min-touch-target) + 2 * var(--md-sys-spacing-2));
+    min-width: calc(var(--md-sys-min-touch-target) + 2 * var(--md-sys-spacing-2));
+}
+
+.mb-shell-topbar[data-sidebar-collapsed="true"] .mb-brand {
+    justify-content: center;
+    padding-inline: var(--md-sys-spacing-2);
+}
+
+.mb-shell-topbar[data-sidebar-collapsed="true"] .mb-brand-word {
+    display: none;
+}
+
+.mb-sidebar-toggle {
+    align-self: center;
+    flex: none;
+    margin: var(--md-sys-spacing-1);
+}
+
+.mb-sidebar-toggle[hidden] {
+    display: none;
+}
+
+.mb-sidebar-toggle svg {
+    width: 20px;
+    height: 20px;
+}
+
 .mb-shell-topbar[data-placement="bottom"] {
     top: auto;
     bottom: 0;
