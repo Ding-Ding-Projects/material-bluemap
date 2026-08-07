@@ -117,6 +117,11 @@ export class ObjectMarker extends Marker {
 export class LabelPopup extends CSS2DObject {
     constructor(label: string) {
         super(htmlToElement(`<div class="bm-marker-labelpopup">${sanitizeHtml(label)}</div>`));
+        // Same edge-clipping hazard as PopupMarker's block-info popup: an object placed near
+        // the edge of the map anchors this popup near the edge of the screen, where the
+        // CSS2D layer's `overflow: hidden` would otherwise delete part of it silently. See
+        // CSS2DRenderer's `clampRectToBounds` doc comment.
+        this.keepInBounds = true;
     }
 
     /**

@@ -12,11 +12,66 @@ export interface MapInteractionData {
     doubleTap: boolean;
 }
 
+export interface BoundsRect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+}
+
+/**
+ * The smallest shift that keeps a rendered element's box inside a same-origin container box,
+ * without moving it at all when it already fits.
+ *
+ * {@link CSS2DObject.keepInBounds} objects are anchored to a point in the 3D scene; that
+ * point can legitimately land anywhere on screen, including right against an edge. Without
+ * this, an element positioned there renders partly outside the CSS2D layer and is silently
+ * deleted by that layer's own `overflow: hidden` - see the constructor below. This does not
+ * change *where* the anchor points to, only where the (already fully-sized) element is drawn
+ * relative to it, the same way a well-behaved popover clamps against a viewport edge.
+ *
+ * An element wider or taller than the container cannot fully fit on that axis either way; it
+ * is pinned to the container's near edge (0) rather than centered or left overflowing on
+ * both sides. A container that has not been measured yet (zero or negative size) gives no
+ * useful bound to clamp against, so the element is left exactly where it was rather than
+ * being forced into the corner.
+ */
+export function clampRectToBounds(
+    rect: BoundsRect,
+    containerWidth: number,
+    containerHeight: number,
+): { x: number; y: number } {
+    if (containerWidth <= 0 || containerHeight <= 0) {
+        return { x: rect.x, y: rect.y };
+    }
+
+    const clampAxis = (position: number, size: number, containerSize: number): number => {
+        if (size >= containerSize) return 0;
+        if (position < 0) return 0;
+        if (position + size > containerSize) return containerSize - size;
+        return position;
+    };
+
+    return {
+        x: clampAxis(rect.x, rect.width, containerWidth),
+        y: clampAxis(rect.y, rect.height, containerHeight),
+    };
+}
+
 class CSS2DObject extends Object3D {
     element: HTMLDivElement;
     anchor: Vector2;
     events: EventTarget | null;
     declare disableDepthTest?: boolean;
+    /**
+     * Opt-in: keeps this object's rendered box fully inside the CSS2D layer instead of
+     * letting the layer's `overflow: hidden` silently delete whatever crosses its edge.
+     * Off by default, so every existing marker (POI labels, player nametags, HTML markers)
+     * renders exactly as before - see {@link clampRectToBounds}. `PopupMarker` turns this on
+     * because it is interactive, author-read content the user directly asked to see (a
+     * clicked block's coordinates), not a passive label.
+     */
+    declare keepInBounds?: boolean;
 
     constructor(element: Element) {
         super();
@@ -149,19 +204,19 @@ class CSS2DRenderer {
                 vector.applyMatrix4(viewProjectionMatrix);
 
                 const element = object.element;
-                const style =
-                    "translate(" +
-                    (vector.x * _widthHalf + _widthHalf - object.anchor.x) +
-                    "px," +
-                    (-vector.y * _heightHalf + _heightHalf - object.anchor.y) +
-                    "px)";
+                let translateX = vector.x * _widthHalf + _widthHalf - object.anchor.x;
+                let translateY = -vector.y * _heightHalf + _heightHalf - object.anchor.y;
 
                 const elementStyle = element.style as CSSStyleDeclaration &
                     Record<"WebkitTransform" | "MozTransform" | "oTransform", string>;
-                elementStyle.WebkitTransform = style;
-                elementStyle.MozTransform = style;
-                elementStyle.oTransform = style;
-                elementStyle.transform = style;
+                const applyTransform = () => {
+                    const style = "translate(" + translateX + "px," + translateY + "px)";
+                    elementStyle.WebkitTransform = style;
+                    elementStyle.MozTransform = style;
+                    elementStyle.oTransform = style;
+                    elementStyle.transform = style;
+                };
+                applyTransform();
 
                 element.style.display =
                     parentVisible &&
@@ -172,15 +227,39 @@ class CSS2DRenderer {
                         ? ""
                         : "none";
 
+                if (element.parentNode !== domElement) {
+                    domElement.appendChild(element);
+                }
+
+                // Only for the rare opt-in object, and only once it is actually going to be
+                // shown: measuring forces a synchronous layout, which is not something every
+                // marker on the map should pay for every frame.
+                if (object.keepInBounds && element.style.display !== "none") {
+                    const containerRect = domElement.getBoundingClientRect();
+                    const elementRect = element.getBoundingClientRect();
+                    const offsetX = elementRect.left - containerRect.left;
+                    const offsetY = elementRect.top - containerRect.top;
+
+                    const corrected = clampRectToBounds(
+                        { x: offsetX, y: offsetY, width: elementRect.width, height: elementRect.height },
+                        containerRect.width,
+                        containerRect.height,
+                    );
+
+                    const correctionX = corrected.x - offsetX;
+                    const correctionY = corrected.y - offsetY;
+                    if (correctionX !== 0 || correctionY !== 0) {
+                        translateX += correctionX;
+                        translateY += correctionY;
+                        applyTransform();
+                    }
+                }
+
                 const objectData = {
                     distanceToCameraSquared: getDistanceToSquared(camera, object),
                 };
 
                 cache.objects.set(object, objectData);
-
-                if (element.parentNode !== domElement) {
-                    domElement.appendChild(element);
-                }
 
                 (
                     object.onAfterRender as unknown as (

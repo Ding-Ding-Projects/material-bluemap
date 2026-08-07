@@ -40,6 +40,12 @@ export class PopupMarker extends Marker {
         );
         this.elementObject.position.set(0.5, 1, 0.5);
         this.elementObject.disableDepthTest = true;
+        // Clicking near the edge of the map anchors this popup near the edge of the screen.
+        // Without this, the CSS2D layer's own `overflow: hidden` silently deletes whatever
+        // part of the popup crosses that edge - see CSS2DRenderer's `clampRectToBounds` doc
+        // comment. The popup still points at the clicked block; only its own box shifts to
+        // stay fully readable.
+        this.elementObject.keepInBounds = true;
         this.addEventListener("removed", () => {
             if (this.element.parentNode) this.element.parentNode.removeChild(this.element);
         });
