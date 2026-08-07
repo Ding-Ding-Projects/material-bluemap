@@ -434,7 +434,7 @@ function applyPlan(
             :id="panelId"
             class="mb-tabs__panel"
             :class="{ 'mb-tabs__panel--pointer-passthrough': panelPassThrough }"
-            :style="panelPassThrough ? { pointerEvents: 'none' } : undefined"
+            :style="{ pointerEvents: panelPassThrough ? 'none' : 'auto' }"
             role="tabpanel"
             :aria-labelledby="`${idPrefix}-tab-${activeTab.id}`"
             tabindex="0"
@@ -465,7 +465,7 @@ function applyPlan(
             v-else
             class="mb-tabs__empty"
             :class="{ 'mb-tabs__empty--pointer-interactive': panelPassThrough }"
-            :style="panelPassThrough ? { pointerEvents: 'auto' } : undefined"
+            :style="{ pointerEvents: 'auto' }"
             role="status"
         >
             <p class="mb-tabs__empty-line">{{ t("tabs.panel.empty", "Every tab is closed.") }}</p>
