@@ -15,18 +15,23 @@
 import { resolve as resolvePath } from "node:path";
 import {
     BmMap,
+    BlurMask,
     BoxMask,
+    CombinedMask,
     Compression,
+    EllipseMask,
     FileStorage,
     Mask,
     MapSettings,
     MCAWorld,
+    PolygonMask,
     type BmMap as BmMapType,
     type DataPack,
     type ResourcePack,
+    type Shape,
 } from "@material-bluemap/engine";
-import { Key, Vector2i, Vector3i } from "@material-bluemap/shared";
-import type { MapConfig } from "@material-bluemap/config";
+import { Key, Vector2d, Vector2i, Vector3i } from "@material-bluemap/shared";
+import type { MapConfig, MaskConfig } from "@material-bluemap/config";
 import type { LoadedConfig, StorageEntry } from "./config.js";
 import type { Logger } from "./logger.js";
 
@@ -39,45 +44,115 @@ export interface BuiltMaps {
 function compressionFor(storage: StorageEntry & { kind: "file" }): Compression {
     const key = Key.parse(storage.config.compression, "bluemap");
     const compression = Compression.REGISTRY.get(key);
-    if (compression === null) throw new Error(`Storage '${storage.id}' names an unknown compression '${storage.config.compression}'`);
+    if (compression === null)
+        throw new Error(
+            `Storage '${storage.id}' names an unknown compression '${storage.config.compression}'`,
+        );
     return compression;
 }
 
-/**
- * Upstream builds `Mask.ALL` when `render-mask` is empty and a real `CombinedMask`
- * otherwise. The schema's own default entry for a freshly generated map.conf is not an
- * empty array, though: `generateConfigSet`/`renderMapTemplate` write one commented-out
- * example box (see `mask.ts`'s `normaliseMaskType`, which fills in `type: "bluemap:box"`
- * for a bare `{}`) whose min/max default to Java's `int` range on every axis — a box that
- * restricts nothing, which is exactly what the template's own comment says ("Default is no
- * mask"). That single, unrestricting box is translated for real below.
- *
- * A **hand-edited** `render-mask` — more than one entry, a `subtract: true` box, or any of
- * the other four shapes (`circle`/`ellipse`/`polygon`/`blur`) — is a real, supported config
- * editor feature with no translation on this side yet, so it is reported (never silently
- * ignored) and the map renders unmasked rather than guessing at a shape.
- */
-function maskFor(mapConfig: MapConfig, mapId: string, logger: Logger): Mask {
-    const entries = mapConfig["render-mask"];
-    if (entries.length === 0) return Mask.ALL;
-
-    if (entries.length === 1 && entries[0]!.type === "bluemap:box" && !entries[0]!.subtract) {
-        const box = entries[0]!;
-        return new BoxMask(
-            new Vector3i(box["min-x"], box["min-y"], box["min-z"]),
-            new Vector3i(box["max-x"], box["max-y"], box["max-z"]),
-        );
-    }
-
-    logger.warn(
-        `Map '${mapId}' configures a render-mask this CLI does not yet translate (only a single, ` +
-            "non-subtracting box mask is) — rendering the whole map. See packages/cli/src/maps.ts.",
-    );
-    return Mask.ALL;
+function degenerateMask(message: string): never {
+    throw new Error(message);
 }
 
-function settingsFor(mapConfig: MapConfig, mapId: string, logger: Logger): MapSettings {
-    const mask = maskFor(mapConfig, mapId, logger);
+/**
+ * Creates one mask exactly as upstream's concrete `MaskConfig#createMask` implementations
+ * do. Validation deliberately lives here as well as in the guided editor: the config folder
+ * is public input, so a hand-edited invalid mask must fail on the cloud path at the same point
+ * the Java `CombinedMaskSerializer` rejects it locally.
+ *
+ * Upstream:
+ * `common/src/main/java/de/bluecolored/bluemap/common/config/mask/*MaskConfig.java`.
+ */
+export function createMaskFromConfig(entry: MaskConfig): Mask {
+    switch (entry.type) {
+        case "bluemap:box":
+            if (
+                entry["min-x"] > entry["max-x"] ||
+                entry["min-y"] > entry["max-y"] ||
+                entry["min-z"] > entry["max-z"]
+            )
+                return degenerateMask(
+                    'The box-mask configuration results in a degenerate mask. Make sure that all "min-" values are actually SMALLER than their "max-" counterparts.',
+                );
+            return new BoxMask(
+                new Vector3i(entry["min-x"], entry["min-y"], entry["min-z"]),
+                new Vector3i(entry["max-x"], entry["max-y"], entry["max-z"]),
+            );
+
+        case "bluemap:circle":
+            if (entry["min-y"] > entry["max-y"])
+                return degenerateMask(
+                    'The circle-mask configuration results in a degenerate mask. Make sure that the "min-y" value is actually SMALLER than the "max-y" counterpart.',
+                );
+            if (entry.radius <= 0)
+                return degenerateMask(
+                    'The circle-mask configuration results in a degenerate mask. Make sure that the "radius" value is greater than 0.',
+                );
+            return new EllipseMask(
+                new Vector2d(entry["center-x"], entry["center-z"]),
+                entry.radius,
+                entry["min-y"],
+                entry["max-y"],
+            );
+
+        case "bluemap:ellipse":
+            if (entry["min-y"] > entry["max-y"])
+                // Upstream's EllipseMaskConfig calls this a circle mask in this branch.
+                // Preserve that wording: fidelity includes the awkward error, not just pixels.
+                return degenerateMask(
+                    'The circle-mask configuration results in a degenerate mask. Make sure that the "min-y" value is actually SMALLER than the "max-y" counterpart.',
+                );
+            if (entry["radius-x"] <= 0 || entry["radius-z"] <= 0)
+                return degenerateMask(
+                    "The ellipse-mask configuration results in a degenerate mask. Make sure that the radius values are greater than 0.",
+                );
+            return new EllipseMask(
+                new Vector2d(entry["center-x"], entry["center-z"]),
+                entry["radius-x"],
+                entry["radius-z"],
+                entry["min-y"],
+                entry["max-y"],
+            );
+
+        case "bluemap:polygon": {
+            if (entry["min-y"] > entry["max-y"])
+                return degenerateMask(
+                    'The polygon-mask configuration results in a degenerate mask. Make sure that the "min-y" value is actually SMALLER than the "max-y" counterpart.',
+                );
+            if (entry.shape.length < 3)
+                return degenerateMask(
+                    "The polygon-mask configuration needs at least 3 points for a valid shape.",
+                );
+            const points = entry.shape.map((point) => new Vector2d(point.x, point.z));
+            const shape: Shape = { getPoints: () => points };
+            return new PolygonMask(shape, entry["min-y"], entry["max-y"]);
+        }
+
+        case "bluemap:blur": {
+            const nested = combinedMaskFromConfig(entry.masks);
+            return entry.size > 0 ? new BlurMask(nested, entry.size) : nested;
+        }
+    }
+}
+
+/**
+ * Port of `CombinedMaskSerializer#deserialize`: preserve list order, create each concrete
+ * shape, and pass `!subtract` to `CombinedMask#add`. An empty `CombinedMask` intentionally
+ * tests true everywhere, matching upstream's default render-mask exactly.
+ */
+export function combinedMaskFromConfig(entries: readonly MaskConfig[]): CombinedMask {
+    const combined = new CombinedMask();
+    for (const entry of entries) combined.add(createMaskFromConfig(entry), !entry.subtract);
+    return combined;
+}
+
+export function maskFor(mapConfig: Pick<MapConfig, "render-mask">): Mask {
+    return combinedMaskFromConfig(mapConfig["render-mask"]);
+}
+
+function settingsFor(mapConfig: MapConfig): MapSettings {
+    const mask = maskFor(mapConfig);
     const base: MapSettings = {
         getSorting: () => mapConfig.sorting,
         getStartPos: () => new Vector2i(mapConfig["start-pos"].x, mapConfig["start-pos"].z),
@@ -126,7 +201,7 @@ export function resolveConfigPath(value: string): string {
 }
 
 export async function buildMaps(options: BuildMapsOptions): Promise<BuiltMaps> {
-    const { loaded, resourcePack, dataPack, logger, mapFilter } = options;
+    const { loaded, resourcePack, dataPack, mapFilter } = options;
     const maps = new Map<string, BmMapType>();
     const skipped = new Map<string, string>();
 
@@ -137,7 +212,10 @@ export async function buildMaps(options: BuildMapsOptions): Promise<BuiltMaps> {
 
         try {
             if (mapConfig.loader !== "bluemap:anvil") {
-                skipped.set(mapId, `unsupported world-loader '${mapConfig.loader}' (only bluemap:anvil is ported)`);
+                skipped.set(
+                    mapId,
+                    `unsupported world-loader '${mapConfig.loader}' (only bluemap:anvil is ported)`,
+                );
                 continue;
             }
             if (mapConfig.world === null) {
@@ -155,13 +233,20 @@ export async function buildMaps(options: BuildMapsOptions): Promise<BuiltMaps> {
                 continue;
             }
             if (storageEntry.kind === "sql") {
-                skipped.set(mapId, `storage '${mapConfig.storage}' is a SQL storage, which packages/engine does not port (issue #32)`);
+                skipped.set(
+                    mapId,
+                    `storage '${mapConfig.storage}' is a SQL storage, which packages/engine does not port (issue #32)`,
+                );
                 continue;
             }
 
             let storage = storageCache.get(storageEntry.id);
             if (storage === undefined) {
-                storage = new FileStorage(resolveConfigPath(storageEntry.config.root), compressionFor(storageEntry), storageEntry.config.atomic);
+                storage = new FileStorage(
+                    resolveConfigPath(storageEntry.config.root),
+                    compressionFor(storageEntry),
+                    storageEntry.config.atomic,
+                );
                 await storage.initialize();
                 storageCache.set(storageEntry.id, storage);
             }
@@ -169,12 +254,27 @@ export async function buildMaps(options: BuildMapsOptions): Promise<BuiltMaps> {
             const dimension = Key.parse(mapConfig.dimension, "minecraft");
             // upstream keeps this a possible-null unchecked (see MCAWorld.ts's own note on
             // `MapConfig#getDimensionType`) — bug-for-bug, not invented here
-            const dimensionTypeKey = mapConfig["dimension-type"] === null ? null : Key.parse(mapConfig["dimension-type"], "minecraft");
+            const dimensionTypeKey =
+                mapConfig["dimension-type"] === null
+                    ? null
+                    : Key.parse(mapConfig["dimension-type"], "minecraft");
 
-            const world = await MCAWorld.load(resolveConfigPath(mapConfig.world), dimension, dimensionTypeKey, dataPack);
+            const world = await MCAWorld.load(
+                resolveConfigPath(mapConfig.world),
+                dimension,
+                dimensionTypeKey,
+                dataPack,
+            );
 
-            const settings = settingsFor(mapConfig, mapId, logger);
-            const map = await BmMap.create(mapId, mapConfig.name ?? mapId, world, storage.map(mapId), resourcePack, settings);
+            const settings = settingsFor(mapConfig);
+            const map = await BmMap.create(
+                mapId,
+                mapConfig.name ?? mapId,
+                world,
+                storage.map(mapId),
+                resourcePack,
+                settings,
+            );
             maps.set(mapId, map);
         } catch (error) {
             skipped.set(mapId, error instanceof Error ? error.message : String(error));
