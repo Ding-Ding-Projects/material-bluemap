@@ -126,3 +126,33 @@ describe(".mb-changelog grid column cannot silently reopen the blowout", () => {
         expect(body).not.toMatch(/grid-template-columns/);
     });
 });
+
+describe(".mb-status badge survives its own longest bilingual label", () => {
+    // Measured live (a running vite dev server, jsdom has no layout engine) at 320px width
+    // with a 200% font scale: the "status.portedUnverified" badge -- "Ported, not yet
+    // verified" / "已移植，未驗證" -- painted 68px past its card's right edge in English-only
+    // mode and 201px past it in bilingual mode, because `.mb-card` sets no `overflow` to
+    // catch it. Three separate properties caused it together, so all three are guarded.
+    it("does not force the badge to stay a single unbreakable line", () => {
+        const body = ruleBody(".mb-status {");
+        expect(body).not.toMatch(/white-space:\s*nowrap/);
+        expect(body).toMatch(/overflow-wrap:\s*anywhere/);
+    });
+
+    it("lets the badge actually shrink instead of refusing with flex: none", () => {
+        const body = ruleBody(".mb-status {");
+        // Anchored to a real declaration (start of line, ends in `;`) so this cannot be
+        // tripped up by the word "none" appearing inside this rule's own explanatory comment.
+        expect(body).not.toMatch(/^\s*flex:\s*none\s*;/m);
+        expect(body).toMatch(/^\s*flex:\s*0 1 auto\s*;/m);
+        expect(body).toMatch(/min-width:\s*0/);
+    });
+
+    it("gives the bilingual secondary span its own flex line instead of running it into the primary label", () => {
+        const body = ruleBody(".mb-status .i18n-secondary {");
+        expect(body).toMatch(/flex-basis:\s*100%/);
+        // Without this, the secondary span would inherit `white-space: nowrap` back from a
+        // regression to the rule above and lose its own wrap opportunity all over again.
+        expect(body).not.toMatch(/white-space:\s*nowrap/);
+    });
+});

@@ -827,7 +827,13 @@
  */
 .mb-status {
     display: inline-flex;
-    flex: none;
+    /* Was `flex: none` (shrink: 0): it refused to shrink at all, so even with wrapping text
+       (below) the box stayed pinned to its unwrapped single-line width and overflowed its
+       card. `0 1 auto` keeps the no-grow behaviour but lets the flex algorithm compress this
+       item -- and therefore let its text actually wrap -- when the row is too narrow. */
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
     align-items: center;
     min-height: 26px;
     padding: 0 var(--md-sys-spacing-3);
@@ -839,7 +845,39 @@
     font-size: var(--md-sys-typescale-label-small-size);
     font-weight: var(--md-sys-typescale-label-small-weight);
     letter-spacing: var(--md-sys-typescale-label-small-tracking);
-    white-space: nowrap;
+    /* Not nowrap: see the comment below this rule for the overflow this used to cause. */
+    overflow-wrap: anywhere;
+}
+
+/*
+ * This badge used to set `white-space: nowrap` and `flex: none`, on the reasoning that a
+ * short chip like "Shipped" should never wrap. It also binds its label through
+ * `i18n.bindText` (`statusBadge()` and the phase-table badge in `main.ts`), and that
+ * reasoning did not survive contact with the longest FIXED string it actually renders:
+ * `status.portedUnverified` is "Ported, not yet verified" / "已移植，未驗證" (strings.ts).
+ * Reproduced live at 320px width with a 200% font scale (a combination this project's own
+ * rules require checking):
+ *
+ *   1. In English-only mode, no Cantonese involved at all, the un-shrinkable, un-wrappable
+ *      badge painted 68px past its card's right edge, because `.mb-card` sets no `overflow`
+ *      to catch it.
+ *   2. In bilingual mode it also defeated the sibling fix `.mb-hero-eyebrow` above documents:
+ *      `.i18n-secondary` is `display: block` (theme/base.css), normally its own line, but
+ *      inside a flex container that block-ness is ignored -- and the inherited `nowrap` then
+ *      stopped `overflow-wrap: anywhere` on the secondary span (below) from having anything
+ *      to do either. English and Cantonese fused into one run, "Ported, not yet
+ *      verified已移植，未驗證", painting 201px past the card.
+ *
+ * This badge was missing from the three `.mb-hero-eyebrow`'s own comment calls out: it lives
+ * in the capability cards and the phase table, not the hero. The fix is three parts: let the
+ * badge shrink and stop forcing nowrap above (so a lone label can wrap at a space instead of
+ * overflowing), and give the secondary span its own flex line here so bilingual mode stacks
+ * rather than concatenates. See content.css.test.ts.
+ */
+.mb-status .i18n-secondary {
+    flex-basis: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .mb-status-shipped {
