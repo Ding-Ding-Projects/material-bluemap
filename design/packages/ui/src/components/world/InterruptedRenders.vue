@@ -151,10 +151,10 @@ function when(iso: string | null): string {
         </p>
 
         <v-card v-for="offer in list" :key="offer.renderId" variant="tonal" class="mb-world-resume__card">
-            <v-card-title class="mb-world-resume__head">
-                <span>{{ offer.maps.map((map) => map.name).join(", ") || offer.renderId }}</span>
-                <v-chip size="x-small" variant="outlined">{{ offer.engine }}</v-chip>
-                <v-chip v-if="offer.interruptedAt" size="x-small" variant="outlined">{{ when(offer.interruptedAt) }}</v-chip>
+            <v-card-title class="mb-world-resume__head mb-responsive-card-title">
+                <span class="mb-responsive-card-title__text">{{ offer.maps.map((map) => map.name).join(", ") || offer.renderId }}</span>
+                <v-chip class="mb-responsive-card-title__meta" size="x-small" variant="outlined">{{ offer.engine }}</v-chip>
+                <v-chip v-if="offer.interruptedAt" class="mb-responsive-card-title__meta" size="x-small" variant="outlined">{{ when(offer.interruptedAt) }}</v-chip>
             </v-card-title>
             <v-card-text>
                 <p class="mb-world-resume__line">{{ describeInterruption(offer, t) }}</p>

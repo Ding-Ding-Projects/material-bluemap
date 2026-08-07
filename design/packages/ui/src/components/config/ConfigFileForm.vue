@@ -285,8 +285,9 @@ async function copyText(): Promise<void> {
             </v-expansion-panels>
 
             <v-card variant="tonal" class="mb-config-form__source">
-                <v-card-title class="mb-config-form__source-head">
+                <v-card-title class="mb-config-form__source-head mb-responsive-card-title">
                     <v-btn
+                        class="mb-responsive-card-title__action"
                         :prepend-icon="mdiCodeBraces"
                         :aria-expanded="rawOpen ? 'true' : 'false'"
                         variant="text"
@@ -296,7 +297,7 @@ async function copyText(): Promise<void> {
                     >
                         {{ rawOpen ? t("config.form.hideSource", "Hide the file") : t("config.form.showSource", "Show the file as it will be written") }}
                     </v-btn>
-                    <v-btn :prepend-icon="mdiContentCopy" variant="text" size="small" density="comfortable" @click="copyText">
+                    <v-btn class="mb-responsive-card-title__action" :prepend-icon="mdiContentCopy" variant="text" size="small" density="comfortable" @click="copyText">
                         {{ t("config.form.copy", "Copy") }}
                     </v-btn>
                 </v-card-title>

@@ -552,9 +552,9 @@ onBeforeUnmount(() => {
                     specificity (a scoped class beats Vuetify's bare `.v-card-title`) and lets
                     the row wrap instead.
                 -->
-                <VCardTitle class="d-flex align-center ga-2 mb-pages-row__title">
-                    <span class="mb-pages-row__name">{{ rowTitle(row) }}</span>
-                    <VChip size="small" data-test="row-state">{{ row.state }}</VChip>
+                <VCardTitle class="d-flex align-center ga-2 mb-pages-row__title mb-responsive-card-title">
+                    <span class="mb-pages-row__name mb-responsive-card-title__text">{{ rowTitle(row) }}</span>
+                    <VChip class="mb-responsive-card-title__meta" size="small" data-test="row-state">{{ row.state }}</VChip>
                     <VProgressCircular v-if="row.state === 'publishing'" indeterminate size="18" />
                 </VCardTitle>
                 <VCardText>

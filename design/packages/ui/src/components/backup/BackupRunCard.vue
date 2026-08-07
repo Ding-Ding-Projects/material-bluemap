@@ -170,11 +170,11 @@ const cardLabel = computed(() =>
 
 <template>
     <v-card class="mb-backup-row" variant="tonal" :aria-label="cardLabel">
-        <v-card-title class="mb-backup-row__head">
+        <v-card-title class="mb-backup-row__head mb-responsive-card-title">
             <v-icon :icon="stateIcon" size="20" aria-hidden="true" />
-            <span class="mb-backup-row__name">{{ title }}</span>
-            <v-chip v-if="kindLabel" size="x-small" variant="flat" density="compact">{{ kindLabel }}</v-chip>
-            <v-chip size="x-small" :color="stateColour" variant="flat" density="compact">
+            <span class="mb-backup-row__name mb-responsive-card-title__text">{{ title }}</span>
+            <v-chip v-if="kindLabel" class="mb-responsive-card-title__meta" size="x-small" variant="flat" density="compact">{{ kindLabel }}</v-chip>
+            <v-chip class="mb-responsive-card-title__meta" size="x-small" :color="stateColour" variant="flat" density="compact">
                 {{ stateLabel }}
             </v-chip>
         </v-card-title>
