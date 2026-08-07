@@ -43,6 +43,7 @@ import { FirstRunSetup, WelcomeSurface } from "./components/setup/index.js";
 import { appearanceTargets } from "./components/appearance/index.js";
 import { addLocalMap, profilesStore, removeProfile } from "./stores/profiles.js";
 import { notices, raiseNotice } from "./stores/notices.js";
+import { createProject, withMapAdded } from "./components/project/projectModel.js";
 
 /**
  * Every case in this file mounts the whole shell, and the whole shell is the single most
@@ -175,6 +176,7 @@ beforeAll(() => {
 });
 
 let wrapper: VueWrapper | null = null;
+const originalBridge = (globalThis as { materialBluemap?: unknown }).materialBluemap;
 
 /**
  * With no profile active and no stored tab layout, the shell seeds one tab per page and opens
@@ -251,6 +253,7 @@ afterEach(() => {
     document.body.innerHTML = "";
     for (const profile of [...profilesStore.profiles]) removeProfile(profile.id);
     profilesStore.activeId = null;
+    (globalThis as { materialBluemap?: unknown }).materialBluemap = originalBridge;
 });
 
 describe("the tab strip", () => {
@@ -423,6 +426,61 @@ describe("the tab strip", () => {
         await settle();
 
         expect(app.findComponent(ProjectsScreen).exists()).toBe(true);
+    });
+
+    it("keeps a project editor's nested tab panel interactive while the shell panel passes map clicks through", async () => {
+        const world = "C:/saves/Survival";
+        const project = withMapAdded(
+            createProject("Survival", { now: "2026-08-06T12:00:00Z", id: "project-1", appVersion: null }),
+            { id: "overworld", name: "Overworld", dimension: "minecraft:overworld", world },
+        );
+        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+            project: {
+                listProjects: async () => ({
+                    projects: [{
+                        world,
+                        file: `${world}/material-bluemap.project.json`,
+                        id: project.id,
+                        name: project.name,
+                        maps: project.maps.length,
+                        createdAt: project.createdAt,
+                        updatedAt: project.updatedAt,
+                        fromWizard: project.fromWizard,
+                        worldName: "Survival",
+                        problem: null,
+                    }],
+                    scanned: 1,
+                    problems: [],
+                }),
+                readProject: async () => ({ ok: true, project, file: `${world}/material-bluemap.project.json` }),
+                writeProject: async () => ({ ok: true, file: `${world}/material-bluemap.project.json` }),
+            },
+        };
+
+        const app = shell();
+        tabButton("Projects").click();
+        await settle();
+        const row = app.findComponent(ProjectsScreen).find('[role="option"]');
+        expect(row.exists()).toBe(true);
+        await row.trigger("click");
+        await settle();
+
+        const outerPanel = document.querySelector<HTMLElement>(
+            ".mb-shell-primary-tabs > .mb-tabs__panel",
+        );
+        const nestedPanel = document.querySelector<HTMLElement>(
+            ".mb-project-editor__tabs .mb-tabs__panel",
+        );
+        expect(outerPanel).not.toBeNull();
+        expect(nestedPanel).not.toBeNull();
+        expect(getComputedStyle(outerPanel!).pointerEvents).toBe("none");
+        expect(getComputedStyle(nestedPanel!).pointerEvents).not.toBe("none");
+
+        const core = [...document.querySelectorAll<HTMLElement>('.mb-project-editor__tabs [role="tab"]')]
+            .find((tab) => (tab.textContent ?? "").includes("Core"));
+        core?.click();
+        await settle();
+        expect(core?.getAttribute("aria-selected")).toBe("true");
     });
 
     it("takes the wizard's finished project to that same page", async () => {

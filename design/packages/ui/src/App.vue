@@ -751,7 +751,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     :label="t('appearance.target.app.tabBar', 'The tab bar')"
                     as="div"
                 >
-                    <TabbedNavigation ref="tabs" :pages="pages" :pinned-page-ids="[PAGE_HOME]">
+                    <TabbedNavigation
+                        ref="tabs"
+                        class="mb-shell-primary-tabs"
+                        :pages="pages"
+                        :pinned-page-ids="[PAGE_HOME]"
+                    >
                         <!--
                             Home draws no canvas and owns no shell-level state, so its page
                             slot is a thin, scrollable host - the same shape every other
@@ -1220,13 +1225,13 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
     min-block-size: 0;
 }
 
-.mb-shell-tabs :deep(.mb-tabs) {
+.mb-shell-tabs :deep(.mb-shell-primary-tabs) {
     flex: 1 1 auto;
     min-block-size: 0;
 }
 
 /* Real chrome, so it takes pointer events, and it never gives up height to the panel. */
-.mb-shell-tabs :deep(.mb-tabs-strip-row) {
+.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs-strip-row) {
     flex: 0 0 auto;
     pointer-events: auto;
 }
@@ -1237,7 +1242,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  * events asks for them with `.mb-interactive`, which is the same bargain every floating
  * control in this shell already makes.
  */
-.mb-shell-tabs :deep(.mb-tabs__panel) {
+.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs__panel) {
     position: relative;
     pointer-events: none;
 }
@@ -1247,7 +1252,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  * click-through layer is a button nobody can press; it also needs a surface of its own,
  * because centred text floating over a map render is text nobody can read.
  */
-.mb-shell-tabs :deep(.mb-tabs__empty) {
+.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs__empty) {
     pointer-events: auto;
     background: rgb(var(--v-theme-background));
 }
