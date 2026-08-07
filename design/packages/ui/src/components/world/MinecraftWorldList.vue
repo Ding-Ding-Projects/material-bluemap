@@ -491,6 +491,7 @@ function failureOf(folder: MinecraftFolder): string | null {
 
         <div class="mb-world-list__mount-actions">
             <v-btn
+                data-test="mount-minecraft-folder"
                 :prepend-icon="mdiFolderPlusOutline"
                 :disabled="host === null"
                 variant="tonal"
@@ -688,6 +689,19 @@ function failureOf(folder: MinecraftFolder): string | null {
     gap: 8px;
     flex-wrap: wrap;
     margin-block-start: 4px;
+}
+
+.mb-world-list__mount-actions > .v-btn {
+    block-size: auto;
+    min-block-size: 44px;
+    max-inline-size: 100%;
+}
+
+.mb-world-list__mount-actions > .v-btn .v-btn__content {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
+    text-align: start;
 }
 
 .mb-world-list__search {

@@ -2174,9 +2174,14 @@ test("captures the make-a-map wizard at every step", async () => {
                     candidate.textContent?.trim().slice(0, 80) ??
                     candidate.tagName.toLowerCase();
                 const controls = Array.from(
-                    element.querySelectorAll<HTMLElement>(
-                        "button:not([disabled]), input:not([disabled]), [role='checkbox'], [role='combobox']",
-                    ),
+                    new Set([
+                        ...element.querySelectorAll<HTMLElement>(
+                            "button:not([disabled]), input:not([disabled]), [role='checkbox'], [role='combobox']",
+                        ),
+                        ...document.querySelectorAll<HTMLElement>(
+                            "[data-test='mount-minecraft-folder']",
+                        ),
+                    ]),
                 ).filter((candidate) => candidate.getClientRects().length > 0);
                 const hitTarget = (candidate: HTMLElement): HTMLElement =>
                     candidate instanceof HTMLInputElement
@@ -2195,6 +2200,16 @@ test("captures the make-a-map wizard at every step", async () => {
                         return rect.width < 44 || rect.height < 44;
                     })
                     .map(label);
+                const internallyClippedControls = controls
+                    .filter((candidate) => {
+                        const content =
+                            candidate.querySelector<HTMLElement>(".v-btn__content") ?? candidate;
+                        return (
+                            content.scrollWidth > content.clientWidth + 1 ||
+                            content.scrollHeight > content.clientHeight + 1
+                        );
+                    })
+                    .map(label);
 
                 return {
                     viewport: {
@@ -2207,6 +2222,7 @@ test("captures the make-a-map wizard at every step", async () => {
                     bodyOverflowX: document.body.scrollWidth - document.body.clientWidth,
                     panelOverflowX: element.scrollWidth - element.clientWidth,
                     clippedControls,
+                    internallyClippedControls,
                     undersized,
                 };
             });
@@ -2220,6 +2236,7 @@ test("captures the make-a-map wizard at every step", async () => {
             expect(metrics.bodyOverflowX).toBe(0);
             expect(metrics.panelOverflowX).toBe(0);
             expect(metrics.clippedControls).toEqual([]);
+            expect(metrics.internallyClippedControls).toEqual([]);
             expect(metrics.undersized).toEqual([]);
             await writeFile(
                 join(shotDir, "wizard-docker-world-source-390x844-200pct.metrics.json"),
@@ -2236,7 +2253,7 @@ test("captures the make-a-map wizard at every step", async () => {
                 "The local Docker world-source checklist at a 390 by 844 CSS-pixel viewport and 200% device scale: Docker's real state, actual containers and volumes, a browsed local destination, live-copy risk acknowledgement, and honest progress";
             const compactCaption =
                 `${compactSurface}. ${target.caption} In this image, ${mapNote()}. ` +
-                "Captured through Chromium's own DevTools surface so the image uses the same exact CSS viewport and device scale as the metrics. The metrics record zero horizontal overflow, clipped controls, or undersized interactive targets.";
+                "Captured through Chromium's own DevTools surface so the image uses the same exact CSS viewport and device scale as the metrics. The metrics record zero horizontal overflow, outer or internal control clipping, or undersized interactive targets.";
             await writeFile(
                 join(shotDir, `${compactName}.png`),
                 Buffer.from(compactCapture.data, "base64"),
