@@ -85,9 +85,9 @@ render's own launch never move**. The panel says so beside every single outcome,
 breath as reporting what genuinely did change. A "Restart at this level" button is offered next to
 that fact — never triggered automatically — which stops the current render, waits for it to
 genuinely end, and starts a fresh one with the same maps and the chosen level's own
-`render-thread-count` (`speedLevels.ts`'s own table, the same one the pre-render dial writes).
-BlueMap's storage is incremental, so a restart loses no tile already drawn; it only re-launches the
-JVM with the new thread count actually in the config this time.
+`render-thread-count` **and** `render-thread-priority` (`speedLevels.ts`'s own table, the same one
+the pre-render dial writes). BlueMap's storage is incremental, so a restart loses no tile already
+drawn; it only re-launches the JVM with both deferred values actually in the config this time.
 
 ### Live throughput
 
@@ -100,13 +100,20 @@ rate is real and it is exactly as precise as the engine's own reporting allows, 
 
 ## Configuration
 
-Nothing here is a persisted setting. Each click is a one-off request against the render in flight,
+The live click is not a persisted setting. It is a one-off request against the render in flight,
 answered by `main/render/orchestrator.ts`'s `adjustSpeed(renderId, level)` and reported back as a
 structured fact — which route, whether it applied now, whether a restart is still needed, and the
 main process's own sentence explaining why. The interface never guesses at that sentence; it reads
 the structured fields and builds its own translated line from them, with the backend's exact words
 shown alongside as a quote, the same way an engine failure's own message is always shown verbatim
 elsewhere in this application.
+
+The explicit restart is different because it creates a new render request. That request carries
+both `renderThreadCount` and `renderThreadPriority` through the UI bridge, preload contract and main
+orchestrator. Local and Docker config generation write those values as `render-thread-count` and
+`render-thread-priority`; priority must be an integer from 1 through 10. The request/session shape
+retains the values needed by that replacement render rather than trying to mutate the already
+running JVM.
 
 ## Failure modes
 
@@ -123,15 +130,20 @@ elsewhere in this application.
   a click is even possible, naming the exact reason.
 - **A broken bridge promise**: `renderRun.ts`'s `adjustSpeed` never lets a rejected promise become
   an unhandled rejection — it is turned into the same refusal shape any other outcome uses.
+- **A stale packaged preload**: the UI's world-bridge resolver requires `adjustRenderSpeed`. A
+  preload exposing the older shape is rejected as unavailable instead of presenting a live-speed
+  button whose call can only fail later.
+- **An invalid deferred priority**: config generation rejects non-integers and values outside
+  1-10 before it writes a partial render configuration.
 
 ## Security considerations
 
-Nothing here reads or writes a config file, a session record, or anything `resume.ts` uses to
-decide whether a render can be carried on. The local route changes only this OS's own bookkeeping
-about a live process id; the Docker route changes only the daemon's cgroup quota for a live
-container name, addressed by the exact name this application itself gave it. Neither writes a
-single byte a render's own resumability depends on, and neither can reach a process or container
-this application did not start.
+The live adjustment reads or writes no config or session record. The local route changes only this
+OS's bookkeeping about a live process id; the Docker route changes only the daemon's cgroup quota
+for a live container name, addressed by the exact name this application itself gave it. Neither
+can reach a process or container this application did not start. Only the explicit restart writes
+a replacement render configuration, using the same bounded config path and request validation as
+an ordinary pre-render launch.
 
 ## Verification
 
@@ -147,7 +159,13 @@ this application did not start.
   (or `null` when it named nothing), `adjustSpeed` reaching the bridge with this render's real id
   and reporting the bridge's exact outcome unedited, a broken bridge promise turned into a refusal,
   and `restartWithLevel` genuinely cancelling first, waiting for the real end, then relaunching
-  with the chosen level's thread count.
+  with the chosen level's thread count and thread priority.
+- `packages/app/src/preload/liveSpeedBridge.test.ts`: loads the real preload entry, captures the
+  object exposed through `contextBridge`, gives that exact object to the real UI resolver, and
+  proves `adjustRenderSpeed` crosses the packaged preload seam rather than only an injected unit
+  stub.
+- `main/render/config.test.ts`: local and Docker config output contains both deferred fields, and
+  an invalid `renderThreadPriority` is refused before output is accepted.
 - `components/world/LiveSpeedControl.test.ts` (10 tests): every disabled route naming its own exact
   reason and refusing every click, an enabled route offering every level, the extremes stated in
   words, a click reaching the bridge with the right id and level, the live-versus-deferred outcome

@@ -3,7 +3,8 @@
 The application's content is a persistent tab strip rather than one scrolling surface: tabs that
 overflow into a surface of their own, reorder, pin, group and come back the way they were left.
 Four separate searches find a tab, and five bulk closes remove many at once, each of them showing
-exactly what it will do before it does it.
+exactly what it will do before it does it. The strip itself can occupy the physical left, right,
+top or bottom edge, and that choice comes back with the rest of the layout.
 
 The code is `design/packages/ui/src/components/tabs/`. A host mounts `TabbedNavigation`, declares
 its pages and renders one named slot per page id; nothing else needs to know that tabs exist.
@@ -96,6 +97,24 @@ reachable however many ordinary tabs are open. Pinned tabs render compact when t
 and keep their full accessible name, so what a screen reader announces does not shrink with the
 button.
 
+### Four physical edges, with one axis at a time
+
+The strip's placement picker offers **left**, **right**, **top** and **bottom**. Left and right
+are physical edges even in a right-to-left language: changing the reading direction does not move
+a strip the user explicitly docked against a side of the window. A fresh strip starts on the left.
+
+Placement changes the real layout rather than rotating labels inside the old one. Left and right
+use a vertical strip beside the panel; top and bottom use a horizontal strip above or below it.
+Overflow measurement, drag-and-drop ordering, the placement sheet and the tab list all follow that
+axis. Keyboard navigation follows it too: Up/Down move through a vertical strip, Left/Right move
+through a horizontal strip, and horizontal movement follows the document's RTL direction. Home
+and End still reach the first and last visible tab on either axis.
+
+`setTabPlacement` writes the choice into the strip state. Storage schema v2 adds only that field;
+loading a version-1 record preserves its tabs, pins, groups, order, collapsed state, membership and
+appearance and supplies `left` for the missing placement. An invalid placement is repaired to the
+same safe default instead of discarding the rest of a readable layout.
+
 ### Groups
 
 Groups can be created, named, renamed, coloured from seven Material roles, reordered, collapsed,
@@ -159,11 +178,11 @@ reported as a whole one. Running a plan goes through the
 | Setting | Value |
 |---|---|
 | Storage key | `material-bluemap-tabs` in `localStorage` by default; every host passes its own `storageKey` prop instead - see [Where it is mounted](#where-it-is-mounted) |
-| Stored shape version | `TAB_STORAGE_VERSION`, currently 1, shared across every `storageKey` |
+| Stored shape version | `TAB_STORAGE_VERSION`, currently 2, shared across every `storageKey`; version 1 migrates without losing its existing layout |
 | Group colours | `primary`, `secondary`, `tertiary`, `success`, `warning`, `error`, `info`; default `primary` |
 
-Persisted: tab order, pinned order, groups, group order, collapsed state, membership, and each
-tab's and group's opaque appearance record.
+Persisted: strip placement, tab order, pinned order, groups, group order, collapsed state,
+membership, and each tab's and group's opaque appearance record.
 
 Not persisted, deliberately:
 
@@ -214,7 +233,8 @@ two-key gate before anything runs.
 One `role="tablist"`, one `role="tab"` per tab, and `aria-controls` only on the selected tab,
 because the other panels are not rendered and pointing at an element that does not exist is worse
 than pointing at nothing. Exactly one tab carries `tabindex="0"`, so Tab reaches the strip once and
-the arrow keys move within it, with Home and End reaching the ends. A group header is a button
+the axis-appropriate arrow keys move within it, with Home and End reaching the ends. Enter and
+Space activate the focused tab without opening an overlay. A group header is a button
 inside the tablist rather than a tab: it is skipped by the arrow keys and announces its own name,
 count and expanded state. Tabs inside a collapsed group are out of the focus order, because focus
 landing on something not drawn looks like the key did nothing, while remaining in the strip and in
@@ -228,12 +248,13 @@ filtering a menu is typing what they can read on it.
 
 | Test | What it holds |
 |---|---|
-| `tabModel.test.ts` | Every ordering rule: where an unpinned tab lands, what happens to a removed group's members, which tab becomes active when the active one closes, that pinning clears membership, that every id lives in exactly one place after `normalizeStrip`, and the overflow arithmetic including paying for the overflow button. |
+| `tabModel.test.ts` | Every ordering rule: where an unpinned tab lands, what happens to a removed group's members, which tab becomes active when the active one closes, that pinning clears membership, that every id lives in exactly one place after `normalizeStrip`, the four valid placements, and the overflow arithmetic including paying for the overflow button. |
 | `tabSearch.test.ts` | Four scopes searched independently, collapsed group members found, hits carrying window, strip, group, pinned state and index, and only the visible label matched. |
 | `closePlans.test.ts` | The partition property for any query in either mode, plans that close nothing on an empty or uncompilable query, pinned and unsaved tabs held back and named, scope carried on the plan, and `applyClosePlan` reporting kept tabs honestly. |
-| `tabStorage.test.ts` | The six persisted orderings round-tripping, `dirty` dropped, queries and patterns never written, appearance records preserved verbatim, a blocked storage staying silent, and a file this build cannot read seeding defaults instead. |
+| `tabStorage.test.ts` | Placement and the six persisted orderings round-tripping, schema-v1 migration defaulting only the missing edge to left, `dirty` dropped, queries and patterns never written, appearance records preserved verbatim, a blocked storage staying silent, and a file this build cannot read seeding defaults instead. |
 | `tabMenus.test.ts` | The menu's own search filters its items without changing what they do. |
-| `TabbedNavigation.test.ts` | Mounted: roles and roving focus, selection moving panel and tab order together, arrow keys stopping at the ends, Home and End, the advertised keyboard commands, a compact pinned tab keeping its name, a collapsed group drawn as a header with name, count and state and its members out of the focus order, expanding writing the preference, the layout being written and read back on the next mount, `revealPage` activating an existing tab or reopening a closed one, and `renamePage` relabelling every open tab for a page without touching one that shows a different page. |
+| `TabbedNavigation.test.ts` | Mounted: roles and roving focus, selection moving panel and tab order together, axis-aware arrows on all four edges including RTL, Enter/Space activation, Home and End, the advertised keyboard commands, the placement picker and persisted restoration, a compact pinned tab keeping its name, a collapsed group drawn as a header with name, count and state and its members out of the focus order, expanding writing the preference, `revealPage` activating an existing tab or reopening a closed one, and `renamePage` relabelling every open tab for a page without touching one that shows a different page. |
+| `projectSurfaceSizing.test.ts` | The project editor, tab strip, search controls and live-speed controls keep 44px targets, wrapping text, responsive stacking and viewport-bounded scrollable overlays rather than clipping at narrow widths. |
 
 Run them with `npx vitest run packages/ui/src/components/tabs` from `design/`.
 

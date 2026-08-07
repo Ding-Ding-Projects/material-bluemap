@@ -1,5 +1,32 @@
 # Handoff
 
+## Update, 2026-08-06 — four-edge tabs, real Project Editor input and complete restart fields
+
+The desktop and documentation-site tab strips now dock to the physical left, right, top or bottom
+edge. `TAB_STORAGE_VERSION` is 2; loading version 1 retains its entire prior layout and defaults
+only the newly introduced placement to left. Side strips use vertical overflow and keyboard
+movement; top and bottom use horizontal behavior, including RTL-aware arrows.
+
+The application shell now owns pointer pass-through through `TabbedNavigation`'s typed
+`panelPassThrough` prop. The outer map panel opts in; a Project Editor nested inside it explicitly
+computes to ordinary pointer input. Its real Core, Maps and Add-map paths are clicked by the mounted
+shell test. Project tabs also activate on Enter and Space, Add focuses the first inline field, and
+a preset focuses the created map so it remains immediately editable. The responsive follow-up
+keeps the affected controls at 44 CSS pixels, stacks the map/editor regions and keeps overlays
+inside the viewport with their own scrolling.
+
+`restartWithLevel` now sends both `renderThreadCount` and `renderThreadPriority`. The real packaged
+preload object is captured and passed through the UI's real resolver in
+`packages/app/src/preload/liveSpeedBridge.test.ts`, so this is bridge-seam proof rather than a
+dependency-injected component test. Local and Docker config generation write both fields, and
+reject a priority outside the integer range 1-10.
+
+Implementation commits are `09b05a1`, `e905045`, `2cb8033`, `ea04164`, `92bb12e`, `313c858`,
+`209e807`, `3c1ccd1`, `7554067`, `26d1420` and `d25a6c9`. After integration the focused Project
+Editor/live-speed/throughput/sizing set passed 43/43 and the UI typecheck passed. The evidence does
+not include a packaged hidden-desktop screenshot; keep that boundary explicit in release notes if
+the required cheap headless route cannot resolve and capture the packaged window.
+
 ## Update, 2026-08-06 — the exact-SHA manual release gate is green again
 
 The manual release attempt from exact base `215307ac05ecf86728831da9429aac48d2bc03dd`

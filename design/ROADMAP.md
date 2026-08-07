@@ -1,5 +1,28 @@
 # Roadmap
 
+## Four-edge tabs and nested-editor interaction repair (2026-08-06)
+
+**Implemented and integrated; packaged hidden-desktop capture remains a separate runtime gate.**
+Desktop and documentation-site tab strips now occupy the physical left, right, top or bottom
+edge. Placement is part of storage schema v2, with a version-1 migration that preserves the
+existing tabs, pins, groups, order, collapsed state, membership and appearance while supplying
+the old left-edge default. Overflow, drag ordering and keyboard navigation follow the selected
+axis, including RTL-aware horizontal arrows.
+
+The Project Editor's nested strip is interactive again. Only the outer map shell opts into panel
+pointer pass-through; nested panels explicitly keep pointer input, Enter and Space activate their
+tabs, Add a map focuses the inline form, and presets focus the first editable map. The live-speed
+restart route now carries both `render-thread-count` and `render-thread-priority` across the real
+UI/preload/main bridge and writes both for local and Docker replacement renders. Responsive work
+keeps primary project, tab, search and live-speed targets at 44 CSS pixels, stacks constrained
+layouts, wraps long labels and bounds overlays to the viewport.
+
+The implementation is `09b05a1` through `d25a6c9`. Focused Project Editor, live-speed,
+throughput and sizing verification passed 43/43 after integration, and the UI typecheck passed.
+The real preload object is exercised by `packages/app/src/preload/liveSpeedBridge.test.ts`; config
+tests cover both deferred fields and invalid priority. A real packaged screenshot or interaction
+through the required hidden-desktop route is not implied by those DOM, bridge and CSS checks.
+
 ## Exact-SHA release-gate repair (2026-08-06)
 
 **Complete on `codex/phase-release-gates`; default-branch integration and release publication
