@@ -52,7 +52,7 @@ as an appointed representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the
 community leaders responsible for enforcement by opening an issue in this repository's
-[issue tracker](https://github.com/Ding-Ding-Projects/material-bluemap/issues). If the report
+[issue tracker](https://github.com/Ding-Ding-Projects/worldlens/issues). If the report
 should not be public, open an issue saying only that you have a conduct report and asking for a
 private channel, without details, and a maintainer will arrange one. All complaints will be
 reviewed and investigated promptly and fairly.

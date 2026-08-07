@@ -1324,7 +1324,7 @@ async function launch(): Promise<void> {
         dialog.showErrorBox(
             "Worldlens could not start",
             `${message}\n\nThis is a bug. Please report it with this message at\n` +
-                `https://github.com/Ding-Ding-Projects/material-bluemap/issues`,
+                `https://github.com/Ding-Ding-Projects/worldlens/issues`,
         );
         app.exit(1);
     }

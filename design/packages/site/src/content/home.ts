@@ -900,8 +900,8 @@ export const home: HomeContent = {
             language: "sh",
             caption: "Clone, install and verify",
             code: [
-                "git clone https://github.com/Ding-Ding-Projects/material-bluemap.git",
-                "cd material-bluemap",
+                "git clone https://github.com/Ding-Ding-Projects/worldlens.git",
+                "cd worldlens",
                 "git submodule update --init --recursive",
                 "",
                 "cd design",

@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
-import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 
 interface ReplacementEntry {
     readonly file: string;
+    readonly changes: readonly (readonly [from: string, to: string, expected: number])[];
 }
 
 interface FaultContext {
@@ -36,7 +36,6 @@ interface Fingerprint {
     readonly mtimeNs: string;
 }
 
-const repositoryRoot = resolve(fileURLToPath(new URL("../../../..", import.meta.url)));
 let finalizer: FinalizerModule;
 
 beforeAll(async () => {
@@ -46,10 +45,23 @@ beforeAll(async () => {
 
 async function createFixture(): Promise<string> {
     const fixtureRoot = await mkdtemp(join(tmpdir(), "worldlens-finalizer-"));
-    for (const { file } of finalizer.FINALIZATION_REPLACEMENTS) {
+    for (const { file, changes } of finalizer.FINALIZATION_REPLACEMENTS) {
         const target = resolve(fixtureRoot, file);
         await mkdir(dirname(target), { recursive: true });
-        await copyFile(resolve(repositoryRoot, file), target);
+        // Build the exact pre-cutover state from the public replacement contract instead of
+        // copying the checkout. Once the real finalizer has run, the checkout is deliberately
+        // post-cutover and copying it would make --check-ready fail for the wrong reason. The
+        // ordered plan handles overlapping values such as releases/latest before releases.
+        const original = changes
+            .flatMap(([from, _to, expected], changeIndex) =>
+                Array.from(
+                    { length: expected },
+                    (_, occurrenceIndex) =>
+                        `fixture-${changeIndex}-${occurrenceIndex}-before\n${from}\nfixture-${changeIndex}-${occurrenceIndex}-after`,
+                ),
+            )
+            .join("\n");
+        await writeFile(target, `${original}\n`, "utf8");
     }
     return fixtureRoot;
 }
@@ -103,29 +115,33 @@ async function withFixture(run: (fixtureRoot: string) => Promise<void>): Promise
 }
 
 describe("Worldlens repository finalizer filesystem transaction", () => {
+    const expectedCount = () => finalizer.FINALIZATION_REPLACEMENTS.length;
+
     it("checks readiness without changing hashes, timestamps, or recovery artifacts", async () => {
         await withFixture(async (fixtureRoot) => {
             const before = await fingerprint(fixtureRoot);
             await expect(
                 finalizer.runFinalizerForTest({ root: fixtureRoot, mode: "--check-ready" }),
             ).resolves.toBe(
-                "Worldlens rename finalizer is ready for 8 files; no file was changed.",
+                `Worldlens rename finalizer is ready for ${expectedCount()} files; no file was changed.`,
             );
             expect(await fingerprint(fixtureRoot)).toEqual(before);
             expect(await recoveryArtifacts(fixtureRoot)).toEqual([]);
         });
     });
 
-    it("applies and verifies all eight files, then removes transaction artifacts", async () => {
+    it("applies and verifies every inventoried file, then removes transaction artifacts", async () => {
         await withFixture(async (fixtureRoot) => {
             await expect(
                 finalizer.runFinalizerForTest({ root: fixtureRoot, mode: "--apply" }),
             ).resolves.toBe(
-                "Finalized Worldlens repository identity in 8 files. Commit all changes together.",
+                `Finalized Worldlens repository identity in ${expectedCount()} files. Commit all changes together.`,
             );
             await expect(
                 finalizer.runFinalizerForTest({ root: fixtureRoot, mode: "--verify-final" }),
-            ).resolves.toBe("Worldlens repository identity is final in 8 files.");
+            ).resolves.toBe(
+                `Worldlens repository identity is final in ${expectedCount()} files.`,
+            );
             expect(await recoveryArtifacts(fixtureRoot)).toEqual([]);
         });
     });
@@ -189,7 +205,9 @@ describe("Worldlens repository finalizer filesystem transaction", () => {
 
             await expect(
                 finalizer.runFinalizerForTest({ root: fixtureRoot, mode: "--verify-final" }),
-            ).resolves.toBe("Worldlens repository identity is final in 8 files.");
+            ).resolves.toBe(
+                `Worldlens repository identity is final in ${expectedCount()} files.`,
+            );
             expect(await recoveryArtifacts(fixtureRoot)).toEqual(retainedBackups.sort());
 
             const firstTarget = resolve(fixtureRoot, finalizer.FINALIZATION_REPLACEMENTS[0]!.file);

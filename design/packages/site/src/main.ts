@@ -844,7 +844,7 @@ function showBootFailure(error: unknown): void {
     notice.appendChild(detail);
 
     const link = document.createElement("a");
-    link.href = "https://github.com/Ding-Ding-Projects/material-bluemap/issues";
+    link.href = "https://github.com/Ding-Ding-Projects/worldlens/issues";
     link.textContent = reportText;
     link.rel = "noopener noreferrer";
     notice.appendChild(link);
