@@ -46,6 +46,7 @@ import {
 import { downloadFile, pickFile } from "./dom.js";
 import { ScheduleRepository, ScheduledSettingsController } from "./schedule.js";
 import { createSchedulePanel } from "./schedulePanel.js";
+import { attachPanelGeometry } from "../platform/PanelGeometry.js";
 
 /**
  * What the search module attaches to.
@@ -363,6 +364,14 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                 tabindex: "0",
             },
         });
+        const panelGeometry = attachPanelGeometry(panel, {
+            id: `settings.${tab.id}`,
+            floating: false,
+            preferences: options.prefs,
+        });
+        panelGeometry.mountToolbar();
+        panelGeometry.restore();
+        disposers.push(() => panelGeometry.destroy());
         panels.set(tab.id, panel);
         panelHost.append(panel);
         buildPanel(tab, panel);

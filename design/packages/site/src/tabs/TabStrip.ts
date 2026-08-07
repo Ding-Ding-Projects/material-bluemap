@@ -51,6 +51,7 @@ import type { AppearanceController } from "../appearance/controller.js";
 import { openAppearanceEditor } from "../appearance/editor/appearanceEditor.js";
 import { t } from "../settings/i18n.js";
 import type { DestructiveGate } from "../settings/confirm.js";
+import { attachPanelGeometry, type PanelGeometryController } from "../platform/PanelGeometry.js";
 
 export interface TabStripDeps {
     readonly i18n: I18n;
@@ -66,6 +67,7 @@ export interface TabStripDeps {
 
 interface PanelRecord {
     readonly node: HTMLElement;
+    readonly geometry: PanelGeometryController;
     rendered: boolean;
     dispose: (() => void) | null;
 }
@@ -434,6 +436,7 @@ export class TabStrip {
         for (const [id, record] of [...this.panelRecords]) {
             if (open.has(id)) continue;
             record.dispose?.();
+            record.geometry.destroy();
             record.node.remove();
             this.panelRecords.delete(id);
         }
@@ -450,7 +453,11 @@ export class TabStrip {
                         tabindex: "0",
                     },
                 });
-                record = { node, rendered: false, dispose: null };
+                const geometry = attachPanelGeometry(node, {
+                    id: `tab.${id}`,
+                    floating: false,
+                });
+                record = { node, geometry, rendered: false, dispose: null };
                 this.panelRecords.set(id, record);
                 this.panels.append(node);
             }
@@ -460,6 +467,10 @@ export class TabStrip {
                 // Pages are drawn the first time they are opened, not up front, so a strip of
                 // twenty pages does not build twenty pages nobody asked for.
                 const dispose = model.definition(id)?.render(record.node);
+                // Page renderers are allowed to replace the panel's children, so the
+                // shared geometry toolbar is mounted after content exists.
+                record.geometry.mountToolbar();
+                record.geometry.restore();
                 record.dispose = typeof dispose === "function" ? dispose : null;
                 record.rendered = true;
             }

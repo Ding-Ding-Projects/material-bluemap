@@ -14,6 +14,8 @@ const NARROW_QUERY = "(max-width: 719px)";
 const VIEWPORT_MARGIN = 12;
 const ANCHOR_GAP = 8;
 
+import { attachPanelGeometry, type PanelGeometryController } from "../platform/PanelGeometry.js";
+
 const FOCUSABLE = [
     "a[href]",
     "button:not([disabled])",
@@ -67,6 +69,8 @@ export interface AnchoredPanelOptions {
      * exists to fix.
      */
     readonly dismissBoundary?: HTMLElement | null;
+    /** Stable persistence key for size and position. Defaults to the accessible title. */
+    readonly geometryId?: string;
 }
 
 export class AnchoredPanel {
@@ -81,13 +85,13 @@ export class AnchoredPanel {
     private readonly onDocumentPointerDown: (event: Event) => void;
     private readonly onReposition: () => void;
     private resizeObserver: ResizeObserver | null = null;
+    private readonly geometry: PanelGeometryController;
 
     constructor(options: AnchoredPanelOptions) {
         this.options = options;
         this.dismissBoundary =
             options.dismissBoundary === undefined ? options.anchor : options.dismissBoundary;
-        this.narrow =
-            typeof matchMedia === "function" ? matchMedia(NARROW_QUERY) : null;
+        this.narrow = typeof matchMedia === "function" ? matchMedia(NARROW_QUERY) : null;
 
         panelCounter += 1;
         this.element = document.createElement("div");
@@ -97,6 +101,11 @@ export class AnchoredPanel {
         this.element.setAttribute("aria-label", options.title);
         this.element.setAttribute("aria-modal", "false");
         this.element.hidden = true;
+        this.geometry = attachPanelGeometry(this.element, {
+            id: options.geometryId ?? `anchored.${options.title}`,
+            floating: true,
+            onReset: () => this.scheduleReposition(),
+        });
 
         // The anchor announces what it opens and whether that surface is open right now.
         options.anchor.setAttribute("aria-haspopup", "dialog");
@@ -118,10 +127,12 @@ export class AnchoredPanel {
             return;
         }
         this.element.replaceChildren(content);
+        this.geometry.mountToolbar();
         if (!this.element.isConnected) {
             document.body.append(this.element);
         }
         this.element.hidden = false;
+        this.geometry.restore();
         this.open = true;
         OPEN_PANELS.add(this);
         this.options.anchor.setAttribute("aria-expanded", "true");
@@ -183,6 +194,7 @@ export class AnchoredPanel {
 
     destroy(): void {
         this.close();
+        this.geometry.destroy();
         this.element.remove();
     }
 
@@ -348,6 +360,11 @@ export class AnchoredPanel {
             this.element.style.removeProperty("top");
             this.element.style.removeProperty("max-height");
             this.element.style.removeProperty("width");
+            return;
+        }
+
+        if (this.geometry.detached) {
+            this.geometry.constrain();
             return;
         }
 
