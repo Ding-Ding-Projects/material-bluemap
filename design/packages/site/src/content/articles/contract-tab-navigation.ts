@@ -57,6 +57,12 @@ export const contractTabNavigation: Article = {
                     ],
                 },
                 {
+                    kind: "paragraph",
+                    content: [
+                        "The built strips can be placed on the physical left, right, top or bottom edge. Side strips navigate vertically; top and bottom strips navigate horizontally, with RTL-aware horizontal arrows. Placement persists with the layout, while a version-1 record migrates to left without discarding its existing structure.",
+                    ],
+                },
+                {
                     kind: "definitions",
                     items: [
                         {
@@ -101,7 +107,7 @@ export const contractTabNavigation: Article = {
                         {
                             term: "Persisted structure",
                             description:
-                                "Tab order, pinned order, group order, group membership and collapsed state. These are ordinary preferences and are expected to survive a restart.",
+                                "Physical edge placement, tab order, pinned order, group order, group membership and collapsed state. These are ordinary preferences and are expected to survive a restart.",
                         },
                         {
                             term: "Not persisted",
@@ -170,6 +176,7 @@ export const contractTabNavigation: Article = {
                         "Collapsed-group results revealing without changing the persisted preference, and keyboard activation with a return path.",
                         "Group creation, rename, colour, reorder, collapse and removal; tab moves between groups; every decoration and interaction state; reset and export; and the whole structure restored after a restart.",
                         "Narrow layouts, tab overflow, screen-reader state, reduced motion, contrast, and all three language modes.",
+                        "All four edge placements, axis-appropriate keyboard movement, horizontal RTL behavior, and schema-v1 migration preserving the existing layout.",
                         "Proof that the preview equals the set actually attempted, and that the result names every excluded or failed tab honestly.",
                     ],
                 },

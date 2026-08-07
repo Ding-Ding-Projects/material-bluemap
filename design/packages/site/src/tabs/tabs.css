@@ -251,8 +251,8 @@
 
 .tab__close {
     flex: none;
-    width: 28px;
-    height: 28px;
+    width: var(--md-sys-min-touch-target);
+    height: var(--md-sys-min-touch-target);
     opacity: 0;
 }
 

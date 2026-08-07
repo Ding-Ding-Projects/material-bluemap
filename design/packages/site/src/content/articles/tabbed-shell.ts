@@ -5,7 +5,7 @@ export const tabbedShell: Article = {
     id: "tabbed-shell",
     title: "Browser-style tabs in the application",
     summary:
-        "A persistent tab strip with an overflow surface that never clips, pinning, groups, four separate searches and five bulk closes, and a layout that comes back exactly as it was left.",
+        "A persistent tab strip docked to any physical edge, with an overflow surface that never clips, pinning, groups, four separate searches and five bulk closes, and a layout that comes back exactly as it was left.",
     category: "application",
     status: "shipped",
     statusNote:
@@ -24,6 +24,12 @@ export const tabbedShell: Article = {
                         "questions like where a tab goes when it is unpinned, what happens to a group's members ",
                         "when the group is removed, and which tab becomes active when the active one closes each ",
                         "have exactly one right answer that a unit test proves in a line.",
+                    ],
+                },
+                {
+                    kind: "paragraph",
+                    content: [
+                        "Each strip can occupy the physical left, right, top or bottom edge. Side placements use a vertical axis; top and bottom use a horizontal one. Overflow measurement, drag ordering and keyboard navigation follow that axis, horizontal arrows respect RTL, and schema-v1 records migrate to the left edge without losing their existing tabs, pins, groups or appearance.",
                     ],
                 },
                 {
@@ -134,7 +140,7 @@ export const tabbedShell: Article = {
                         {
                             term: "What is persisted",
                             description:
-                                "Tab order, pinned order, groups, group order, collapsed state, membership, and each tab's and group's opaque appearance record, under one namespaced storage key with a version field.",
+                                "Physical edge placement, tab order, pinned order, groups, group order, collapsed state, membership, and each tab's and group's opaque appearance record, under one namespaced storage key with a version field.",
                         },
                         {
                             term: "What is not, and why",
@@ -214,7 +220,7 @@ export const tabbedShell: Article = {
                         ],
                         [
                             { code: "TabbedNavigation.test.ts" },
-                            "Mounted: roles and roving focus, arrow keys stopping at the ends, Home and End, the advertised keyboard commands, a compact pinned tab keeping its name, a collapsed group drawn as a header with name, count and state, its members out of the focus order, and the layout written and read back on the next mount.",
+                            "Mounted: roles and roving focus, all four edge placements, axis-appropriate arrows including RTL, Enter and Space activation, Home and End, the advertised keyboard commands, a compact pinned tab keeping its name, a collapsed group drawn as a header with name, count and state, its members out of the focus order, and the layout written and read back on the next mount.",
                         ],
                         [
                             { code: "Menu.test.ts" },
@@ -234,6 +240,10 @@ export const tabbedShell: Article = {
     ],
 
     suggested: [
+        {
+            articleId: "project-editor",
+            reason: "A real nested strip whose shell pointer boundary and keyboard activation are tested end to end.",
+        },
         {
             articleId: "destructive-action-gate",
             reason: "The gate every bulk close runs through, and the largest thing behind it.",

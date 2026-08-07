@@ -40,6 +40,7 @@ import { TabModel, type TabPlacement } from "./TabModel.js";
 import { COMPACT_TAB_STRIP_MAX_WIDTH, TabStrip } from "./TabStrip.js";
 
 const tabsCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "tabs.css"), "utf8");
+const tokensCss = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "../theme/tokens.css"), "utf8");
 
 /** The exact seven-page shape the real site registers: one pinned Home plus six ordinary
  *  pages. This is not an arbitrary sample - it is the scenario the bug report described,
@@ -173,6 +174,13 @@ describe("tabs.css compact media query", () => {
 
     it("never truncates a label with an ellipsis anywhere in the stylesheet", () => {
         expect(tabsCss).not.toMatch(/text-overflow\s*:\s*ellipsis/);
+    });
+
+    it("keeps every tab close button at the shared 44px minimum target", () => {
+        const closeRule = /\.tab__close\s*\{[^}]*\}/.exec(tabsCss)?.[0] ?? "";
+        expect(closeRule).toContain("width: var(--md-sys-min-touch-target);");
+        expect(closeRule).toContain("height: var(--md-sys-min-touch-target);");
+        expect(tokensCss).toMatch(/--md-sys-min-touch-target:\s*44px/);
     });
 
     it("no longer hides a pinned tab's label to survive a narrow width (superseded by scrolling)", () => {

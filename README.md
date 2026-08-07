@@ -78,7 +78,7 @@ states its behaviour, configuration, failure modes, security considerations and 
 |---|---|---|
 | **Local rendering** | Turns a Minecraft save into a 3D map, driving upstream BlueMap's Java engine | [`docs/legacy-1-12-worlds.md`](docs/legacy-1-12-worlds.md) |
 | **Remote BlueMap servers** | Browses a map somebody else's server already rendered, through a token-gated proxy | — |
-| **Projects** | A project is the document you edit: its maps, its storages, its settings. The wizard is the quick way to make one | — |
+| **Projects** | A project is the document you edit: its maps, its storages, its settings. Its nested tabs are pointer- and keyboard-operable, and the wizard is the quick way to make one | [`docs/project-editor.md`](docs/project-editor.md) |
 | **The map wizard** | Makes a map in steps, starting from the worlds already on this computer | [`docs/finding-worlds.md`](docs/finding-worlds.md) |
 | **The options editor** | Eight tabs over every BlueMap configuration file, with a search across all of them | — |
 | **Local version history** | An append-only git history per config folder and per project, kept beside the app's data — never inside your folder | [`docs/config-history.md`](docs/config-history.md) |
@@ -98,7 +98,7 @@ states its behaviour, configuration, failure modes, security considerations and 
 | **Command palette** | `Ctrl+Shift+F` over every command, page and setting | [`docs/command-palette.md`](docs/command-palette.md) |
 | **Notification centre** | Nothing that only informs is a dialog; dismissed messages stay reviewable | [`docs/notification-centre.md`](docs/notification-centre.md) |
 | **The regex builder** | On every search bar, anchored beside the field it belongs to | [`docs/regex-builder.md`](docs/regex-builder.md) |
-| **Tabbed navigation** | Browser-style tabs with overflow, reordering, pinning, grouping and four discovery searches | [`docs/tabbed-navigation.md`](docs/tabbed-navigation.md) |
+| **Tabbed navigation** | Browser-style tabs docked left, right, top or bottom, with overflow, reordering, pinning, grouping and four discovery searches | [`docs/tabbed-navigation.md`](docs/tabbed-navigation.md) |
 | **Appearance editors** | Per-element **Edit appearance…**, with a continuous colour picker and Word-depth typography | [`docs/appearance-editors.md`](docs/appearance-editors.md) |
 | **Language and tone** | English, Hong Kong Cantonese and bilingual, each with its own funny-level slider | [`docs/language-and-tone.md`](docs/language-and-tone.md) |
 | **Super confirmation** | Two keys and a full-travel slider before anything destructive, with an emergency exit throughout | [`docs/super-confirmation.md`](docs/super-confirmation.md) |

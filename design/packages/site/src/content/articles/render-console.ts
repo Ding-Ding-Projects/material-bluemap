@@ -87,6 +87,10 @@ export const renderConsole: Article = {
         },
     ],
     suggested: [
+        {
+            articleId: "live-render-speed",
+            reason: "The live priority, quota and throughput controls that sit beside this console.",
+        },
         { articleId: "render-in-actions", reason: "The same progress model when a render runs in GitHub Actions." },
         { articleId: "viewer-remote-mode", reason: "How the finished map is served once rendering completes." },
         { articleId: "regex-builder-surfaces", reason: "The full builder behind the console's search field." },
