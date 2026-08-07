@@ -680,10 +680,15 @@ function setOutputFolder(value: string): void {
     flex-direction: column;
     gap: 12px;
     inline-size: 100%;
+    min-inline-size: 0;
+    box-sizing: border-box;
+    overflow-x: clip;
+    container: project-editor / inline-size;
 }
 
 .mb-project-editor__head {
     border-radius: 16px;
+    min-inline-size: 0;
 }
 
 .mb-project-editor__headrow {
@@ -691,6 +696,7 @@ function setOutputFolder(value: string): void {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    min-inline-size: 0;
 }
 
 .mb-project-editor__actions {
@@ -699,6 +705,27 @@ function setOutputFolder(value: string): void {
     gap: 8px;
     flex-wrap: wrap;
     margin-block-start: 12px;
+    min-inline-size: 0;
+}
+
+.mb-project-editor__headrow .v-btn,
+.mb-project-editor__actions .v-btn,
+.mb-project-editor__fieldDefault .v-btn {
+    min-block-size: 44px;
+    block-size: auto;
+    max-inline-size: 100%;
+}
+
+.mb-project-editor__headrow .v-btn .v-btn__content,
+.mb-project-editor__actions .v-btn .v-btn__content,
+.mb-project-editor__fieldDefault .v-btn .v-btn__content {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: start;
+}
+
+.mb-project-editor .v-field {
+    min-block-size: 44px;
 }
 
 .mb-project-editor__path {
@@ -719,6 +746,12 @@ function setOutputFolder(value: string): void {
 .mb-project-editor__tabs {
     flex: 1 1 auto;
     min-height: 0;
+    min-inline-size: 0;
+    container: project-editor / inline-size;
+}
+
+.mb-project-editor__tabs .mb-tabs__panel {
+    min-inline-size: 0;
 }
 
 .mb-project-editor__run {
@@ -726,6 +759,8 @@ function setOutputFolder(value: string): void {
     flex-direction: column;
     gap: 8px;
     max-inline-size: 720px;
+    inline-size: 100%;
+    min-inline-size: 0;
 }
 
 .mb-project-editor__fieldDefault {
@@ -736,5 +771,18 @@ function setOutputFolder(value: string): void {
     margin-block-start: -4px;
     font-size: 0.6875rem;
     color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+}
+
+@container project-editor (max-width: 42rem) {
+    .mb-project-editor__actions > .v-spacer {
+        flex-basis: 100%;
+        block-size: 0;
+    }
+
+    .mb-project-editor__actions .v-btn {
+        flex: 1 1 12rem;
+    }
 }
 </style>

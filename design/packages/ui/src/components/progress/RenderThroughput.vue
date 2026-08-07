@@ -101,5 +101,8 @@ const rateText = computed(() => {
     line-height: 1.5;
     font-variant-numeric: tabular-nums;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    overflow-wrap: anywhere;
 }
 </style>

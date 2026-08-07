@@ -178,9 +178,24 @@ function clear(): void {
 </template>
 
 <style>
+.mb-config-search {
+    min-inline-size: 0;
+    max-inline-size: 100%;
+}
+
+.mb-config-search .v-field {
+    min-block-size: 44px;
+}
+
+.mb-config-search .v-btn {
+    min-inline-size: 44px;
+    min-block-size: 44px;
+}
+
 .mb-config-search__summary {
     margin-block-start: 4px;
     font-size: 0.75rem;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    overflow-wrap: anywhere;
 }
 </style>

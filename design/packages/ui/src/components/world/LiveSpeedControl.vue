@@ -285,6 +285,9 @@ async function restartNow(): Promise<void> {
 .mb-livespeed {
     border-radius: 12px;
     margin-block: 12px;
+    min-inline-size: 0;
+    max-inline-size: 100%;
+    overflow: hidden;
 }
 
 .mb-livespeed__head {
@@ -298,6 +301,8 @@ async function restartNow(): Promise<void> {
     font-size: 1rem;
     font-weight: 500;
     line-height: 1.3;
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
 }
 
 .mb-livespeed__blurb,
@@ -306,22 +311,35 @@ async function restartNow(): Promise<void> {
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     margin-block-end: 8px;
+    overflow-wrap: anywhere;
 }
 
 .mb-livespeed__current {
     font-size: 0.75rem;
     line-height: 1.5;
     margin-block-end: 10px;
+    overflow-wrap: anywhere;
 }
 
 .mb-livespeed__buttons {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+    min-inline-size: 0;
 }
 
 .mb-livespeed__button {
-    min-width: 0;
+    flex: 1 1 9rem;
+    min-inline-size: min(9rem, 100%);
+    min-block-size: 44px;
+    block-size: auto;
+}
+
+.mb-livespeed__button .v-btn__content,
+.mb-livespeed__restart .v-btn__content {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
 }
 
 .mb-livespeed__extremes {
@@ -356,6 +374,9 @@ async function restartNow(): Promise<void> {
 
 .mb-livespeed__restart {
     margin-block-start: 10px;
+    min-block-size: 44px;
+    block-size: auto;
+    max-inline-size: 100%;
 }
 
 .mb-livespeed__restartOffer {
@@ -363,6 +384,7 @@ async function restartNow(): Promise<void> {
     font-size: 0.75rem;
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    overflow-wrap: anywhere;
 }
 
 .mb-livespeed__disclosure {
@@ -371,6 +393,8 @@ async function restartNow(): Promise<void> {
 
 .mb-livespeed__throughput {
     margin-block-start: 6px;
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
 }
 
 @media (prefers-reduced-motion: reduce) {
