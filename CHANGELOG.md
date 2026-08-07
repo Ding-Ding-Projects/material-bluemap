@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Wrap compact Minecraft folder action - [`4f7c71c163`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4f7c71c163fea47509f28d4c8a56ad8a02eac959)
 - Prove Docker world-source compact layout - [`7c343fbb84`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7c343fbb84176ddfed9c5687e085b6b5aa047732)
 - Merge corrected main into Docker world-source phase - [`f876961f74`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f876961f74f4bc3ac22f397adef737c05a416add) _(summary of 6 commits, also listed here)_
 - Separate generated changelog data from policy scans - [`af2d372754`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/af2d372754b336f22d65a6062d1fd2f102935b61)

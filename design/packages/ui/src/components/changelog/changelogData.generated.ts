@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "4f7c71c163fea47509f28d4c8a56ad8a02eac959",
+        shortSha: "4f7c71c163",
+        date: "2026-08-06T20:06:40-04:00",
+        subject: "Wrap compact Minecraft folder action",
+        details: "Let the mount button grow and wrap at narrow widths instead of eating the last letters for breakfast. Teach the 390 px runtime gate to inspect content overflow as well as outer rectangles.\\n\\n窄畫面個掣而家識轉行，唔會再偷偷食咗 Folder 尾字。390px 閘門亦會捉到內部文字迫爆。",
+        category: "interface",
+        areas: ["interface", "shell"],
+        files: 2,
+    },
+    {
         sha: "7c343fbb84176ddfed9c5687e085b6b5aa047732",
         shortSha: "7c343fbb84",
         date: "2026-08-06T19:55:20-04:00",
