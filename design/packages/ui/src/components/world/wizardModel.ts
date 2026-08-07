@@ -23,6 +23,7 @@ import { computed, ref, shallowRef, type ComputedRef, type Ref } from "vue";
 import {
     findField,
     renderMapTemplate,
+    type ConfigIssue,
     type ConfigFileDescriptor,
     type FieldMeta,
     type MapPreset,
@@ -44,7 +45,13 @@ import {
     type WorldDimension,
     type WorldInspection,
 } from "./worldFolder.js";
-import { WIZARD_STEPS, mapDescriptor, reachesRender, type WizardStep } from "./wizardSteps.js";
+import {
+    WIZARD_STEPS,
+    mapDescriptor,
+    reachesRender,
+    stepOf,
+    type WizardStep,
+} from "./wizardSteps.js";
 import type { RenderMapRequest, RenderRequest } from "./worldBridge.js";
 
 /**
@@ -165,6 +172,29 @@ export interface StepProblem {
     readonly fallback: string;
     /** Values substituted into the message, by `{name}`. */
     readonly vars?: Readonly<Record<string, string>>;
+    /** Exact setting destination when this problem belongs to a rendered field. */
+    readonly target?: {
+        readonly step: WizardStep;
+        readonly fieldPath: string;
+    };
+}
+
+/**
+ * The first blocking issue's real owning field, or no destination for file-wide/unknown
+ * errors. Zod may report a nested path such as `render-mask.0.radius`; the editor owns that
+ * through its longest matching descriptor field (`render-mask`), never a guessed constant.
+ */
+export function problemTargetForIssues(issues: readonly ConfigIssue[]): StepProblem["target"] {
+    const issue = issues.find((candidate) => candidate.severity === "error");
+    if (issue === undefined || issue.path === "") return undefined;
+
+    const owner = mapDescriptor()
+        .fields.filter(
+            (field) => issue.path === field.path || issue.path.startsWith(`${field.path}.`),
+        )
+        .sort((left, right) => right.path.length - left.path.length)[0];
+    if (owner === undefined) return undefined;
+    return { step: stepOf(owner.path), fieldPath: owner.path };
 }
 
 /** How the render itself is started, which the review step offers. */
@@ -308,7 +338,12 @@ export function createMapWizard(options: MapWizardOptions = {}): MapWizard {
     const storageDefault = ref(options.storageDirectory ?? "");
     const storageKnown = ref((options.storageDirectory ?? "") !== "");
 
-    const run = ref<RunOptions>({ force: false, fixEdges: false, metrics: false, renderThreads: null });
+    const run = ref<RunOptions>({
+        force: false,
+        fixEdges: false,
+        metrics: false,
+        renderThreads: null,
+    });
 
     const dimensions = computed<readonly WorldDimension[]>(() =>
         inspection.value.dimensions.length > 0 ? inspection.value.dimensions : FALLBACK_DIMENSIONS,
@@ -325,7 +360,9 @@ export function createMapWizard(options: MapWizardOptions = {}): MapWizard {
      */
     const extraDimensions = computed<readonly WorldDimension[]>(() =>
         dimensions.value.filter(
-            (candidate) => candidate.key !== dimensionKey.value && includedExtraDimensions.value.has(candidate.key),
+            (candidate) =>
+                candidate.key !== dimensionKey.value &&
+                includedExtraDimensions.value.has(candidate.key),
         ),
     );
 
@@ -383,8 +420,12 @@ export function createMapWizard(options: MapWizardOptions = {}): MapWizard {
     const file = computed<EditableConfigFile>(build);
 
     const changes = computed<readonly FieldChange[]>(() => changedFields(file.value));
-    const reachingChanges = computed(() => changes.value.filter((change) => reachesRender(change.field.path)));
-    const carriedChanges = computed(() => changes.value.filter((change) => !reachesRender(change.field.path)));
+    const reachingChanges = computed(() =>
+        changes.value.filter((change) => reachesRender(change.field.path)),
+    );
+    const carriedChanges = computed(() =>
+        changes.value.filter((change) => !reachesRender(change.field.path)),
+    );
 
     /* ---- steps ------------------------------------------------------------ */
 
@@ -394,13 +435,17 @@ export function createMapWizard(options: MapWizardOptions = {}): MapWizard {
         const problems: StepProblem[] = [];
         const path = worldPath.value.trim();
         if (path === "") {
-            problems.push({ key: "world.wizard.needWorld", fallback: "Choose the world folder first." });
+            problems.push({
+                key: "world.wizard.needWorld",
+                fallback: "Choose the world folder first.",
+            });
             return problems;
         }
         if (!isAbsolutePath(path)) {
             problems.push({
                 key: "world.wizard.worldRelative",
-                fallback: "That world path is relative, so where it points depends on where the app was started. Use a full path.",
+                fallback:
+                    "That world path is relative, so where it points depends on where the app was started. Use a full path.",
             });
         }
         // A folder nothing could read is allowed through: this build may have no
@@ -410,7 +455,8 @@ export function createMapWizard(options: MapWizardOptions = {}): MapWizard {
         if (!inspection.value.unchecked && !inspection.value.ok) {
             problems.push({
                 key: "world.wizard.notAWorld",
-                fallback: "That folder is not a Minecraft world. The step above says what is wrong with it.",
+                fallback:
+                    "That folder is not a Minecraft world. The step above says what is wrong with it.",
             });
         }
         return problems;
@@ -421,7 +467,10 @@ export function createMapWizard(options: MapWizardOptions = {}): MapWizard {
         const id = mapId.value.trim();
 
         if (id === "") {
-            problems.push({ key: "world.wizard.needId", fallback: "Give the map an id. It becomes its folder name and part of its address." });
+            problems.push({
+                key: "world.wizard.needId",
+                fallback: "Give the map an id. It becomes its folder name and part of its address.",
+            });
         } else if (!MAP_ID_PATTERN.test(id)) {
             problems.push({
                 key: "world.wizard.badId",
@@ -438,17 +487,23 @@ export function createMapWizard(options: MapWizardOptions = {}): MapWizard {
         }
 
         if (dimensionKey.value.trim() === "") {
-            problems.push({ key: "world.wizard.needDimension", fallback: "Choose which dimension of that world to render." });
+            problems.push({
+                key: "world.wizard.needDimension",
+                fallback: "Choose which dimension of that world to render.",
+            });
         }
         return problems;
     }
 
     function optionProblems(): StepProblem[] {
         if (!hasBlockingIssues(file.value)) return [];
+        const target = problemTargetForIssues(file.value.issues);
         return [
             {
                 key: "world.wizard.optionsInvalid",
-                fallback: "One of the settings holds a value BlueMap would refuse. The setting says which, in red, beside it.",
+                fallback:
+                    "One of the settings holds a value BlueMap would refuse. The setting says which, in red, beside it.",
+                ...(target === undefined ? {} : { target }),
             },
         ];
     }
@@ -457,7 +512,10 @@ export function createMapWizard(options: MapWizardOptions = {}): MapWizard {
         const problems: StepProblem[] = [];
         const path = storageDirectory.value.trim();
         if (path === "") {
-            problems.push({ key: "world.wizard.needStorage", fallback: "Say where the rendered map should be written." });
+            problems.push({
+                key: "world.wizard.needStorage",
+                fallback: "Say where the rendered map should be written.",
+            });
             return problems;
         }
         // The app's own default arrives already expanded, so anything left with a
@@ -466,7 +524,8 @@ export function createMapWizard(options: MapWizardOptions = {}): MapWizard {
         if (!isAbsolutePath(path) && !/^%[^%]+%/.test(path) && !path.startsWith("~")) {
             problems.push({
                 key: "world.wizard.storageRelative",
-                fallback: "That folder is relative, so the tiles would land wherever the app happened to be started. Use a full path.",
+                fallback:
+                    "That folder is relative, so the tiles would land wherever the app happened to be started. Use a full path.",
             });
         }
         return problems;
@@ -525,7 +584,10 @@ export function createMapWizard(options: MapWizardOptions = {}): MapWizard {
         // overworld when it exists, otherwise whatever does. Choosing a dimension
         // the world does not have is the second most common way to render nothing.
         const available = inspection.value.dimensions;
-        if (available.length > 0 && !available.some((candidate) => candidate.key === dimensionKey.value)) {
+        if (
+            available.length > 0 &&
+            !available.some((candidate) => candidate.key === dimensionKey.value)
+        ) {
             const first = available[0];
             if (first !== undefined) applyDimension(first);
         }

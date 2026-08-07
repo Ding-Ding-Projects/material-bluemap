@@ -2359,6 +2359,7 @@ export const WORLD_FIXED = {
     /* WorldWizard.vue */
     "world.wizard.openProject": { en: "Open the project", yue: "打開個項目" },
     "world.wizard.stepsLabel": { en: "Wizard steps", yue: "精靈步驟" },
+    "world.wizard.teleportToSetting": { en: "Teleport to setting", yue: "跳去嗰個設定" },
 
     /*
      * renderRun.ts's `phaseText()` builds `{ key, fallback, values }` phase-name objects the

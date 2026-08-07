@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createI18n } from "vue-i18n";
-import { findField } from "@material-bluemap/config";
+import { findField, type ConfigIssue } from "@material-bluemap/config";
 import { fieldValue } from "../config/configModel.js";
 import {
     FALLBACK_DIMENSIONS,
@@ -8,6 +8,7 @@ import {
     fillProblem,
     folderLeaf,
     isValidMapId,
+    problemTargetForIssues,
     suggestMapId,
 } from "./wizardModel.js";
 import { mapDescriptor } from "./wizardSteps.js";
@@ -30,7 +31,10 @@ function worldListing(folder: string, regionFiles: Record<string, number>): Worl
 /** A wizard that has been taken through the world and identity steps. */
 function answered() {
     const wizard = createMapWizard({ separator: "/" });
-    wizard.setWorld("/srv/survival/world", inspectWorldFolder(worldListing("/srv/survival/world", { region: 40, "DIM-1/region": 8 })));
+    wizard.setWorld(
+        "/srv/survival/world",
+        inspectWorldFolder(worldListing("/srv/survival/world", { region: 40, "DIM-1/region": 8 })),
+    );
     wizard.displayName.value = "Survival";
     wizard.mapId.value = "survival";
     wizard.storageDirectory.value = "/var/lib/material-bluemap/maps";
@@ -77,7 +81,10 @@ describe("choosing a world", () => {
 
     it("offers the dimensions the world really has once it has been read", () => {
         const wizard = createMapWizard();
-        wizard.setWorld("/srv/world", inspectWorldFolder(worldListing("/srv/world", { region: 5, "DIM1/region": 3 })));
+        wizard.setWorld(
+            "/srv/world",
+            inspectWorldFolder(worldListing("/srv/world", { region: 5, "DIM1/region": 3 })),
+        );
 
         expect(wizard.dimensions.value.map((dimension) => dimension.key)).toEqual([
             "minecraft:overworld",
@@ -92,13 +99,19 @@ describe("choosing a world", () => {
 
         // Rendering a dimension nobody has ever been to produces an empty map and
         // reports it as a success, which is the least useful pair of answers.
-        wizard.setWorld("/srv/world", inspectWorldFolder(worldListing("/srv/world", { region: 5 })));
+        wizard.setWorld(
+            "/srv/world",
+            inspectWorldFolder(worldListing("/srv/world", { region: 5 })),
+        );
         expect(wizard.dimensionKey.value).toBe("minecraft:overworld");
     });
 
     it("names the map after the world folder, until somebody names it themselves", () => {
         const wizard = createMapWizard();
-        wizard.setWorld("/srv/survival/world", inspectWorldFolder(worldListing("/srv/survival/world", { region: 5 })));
+        wizard.setWorld(
+            "/srv/survival/world",
+            inspectWorldFolder(worldListing("/srv/survival/world", { region: 5 })),
+        );
 
         expect(wizard.displayName.value).toBe("world");
         expect(wizard.mapId.value).toBe("world");
@@ -163,12 +176,63 @@ describe("the map config", () => {
         wizard.setOption(field("start-pos"), { x: 120, z: -64 });
         wizard.setOption(field("ambient-light"), 0.4);
 
-        expect(wizard.reachingChanges.value.map((change) => change.field.path)).toEqual(["start-pos"]);
-        expect(wizard.carriedChanges.value.map((change) => change.field.path)).toEqual(["ambient-light"]);
+        expect(wizard.reachingChanges.value.map((change) => change.field.path)).toEqual([
+            "start-pos",
+        ]);
+        expect(wizard.carriedChanges.value.map((change) => change.field.path)).toEqual([
+            "ambient-light",
+        ]);
     });
 });
 
 describe("stepping through", () => {
+    it("targets the first blocking option's actual issue path", () => {
+        const wizard = answered();
+        wizard.setOption(field("ambient-light"), "not a number");
+
+        const issue = wizard.file.value.issues.find((candidate) => candidate.severity === "error");
+        expect(issue?.path).toBe("ambient-light");
+        expect(wizard.problemsFor("options")[0]?.target).toEqual({
+            step: "options",
+            fieldPath: issue?.path,
+        });
+    });
+
+    it("maps a nested issue path to the real owning setting", () => {
+        const issue: ConfigIssue = {
+            severity: "error",
+            kind: "invalid-value",
+            path: "render-mask.0.radius",
+            message: "bad radius",
+            file: "map",
+        };
+
+        expect(problemTargetForIssues([issue])).toEqual({
+            step: "options",
+            fieldPath: "render-mask",
+        });
+    });
+
+    it("gives file-wide and unknown-path errors no dead teleport target", () => {
+        const fileWide: ConfigIssue = {
+            severity: "error",
+            kind: "hocon",
+            path: "",
+            message: "bad file",
+            file: "map",
+        };
+        const unknown: ConfigIssue = {
+            severity: "error",
+            kind: "invalid-value",
+            path: "not-a-setting",
+            message: "bad field",
+            file: "map",
+        };
+
+        expect(problemTargetForIssues([fileWide])).toBeUndefined();
+        expect(problemTargetForIssues([unknown])).toBeUndefined();
+    });
+
     it("refuses to leave the world step without a world", () => {
         const wizard = createMapWizard();
 
@@ -181,7 +245,11 @@ describe("stepping through", () => {
         const wizard = createMapWizard();
         wizard.setWorld(
             "/home/me/Documents",
-            inspectWorldFolder({ folder: "/home/me/Documents", entries: [{ path: "notes.txt", directory: false }], regionFiles: {} }),
+            inspectWorldFolder({
+                folder: "/home/me/Documents",
+                entries: [{ path: "notes.txt", directory: false }],
+                regionFiles: {},
+            }),
         );
 
         expect(wizard.canLeave("world")).toBe(false);
@@ -202,7 +270,9 @@ describe("stepping through", () => {
         const wizard = createMapWizard();
         wizard.setWorld("worlds/survival");
 
-        expect(wizard.problemsFor("world").map((problem) => problem.key)).toContain("world.wizard.worldRelative");
+        expect(wizard.problemsFor("world").map((problem) => problem.key)).toContain(
+            "world.wizard.worldRelative",
+        );
     });
 
     it("refuses an id the engine would refuse, and says which id", () => {
@@ -332,7 +402,11 @@ describe("auto-loading the other dimensions", () => {
         wizard.setWorld(
             "/srv/survival/world",
             inspectWorldFolder(
-                worldListing("/srv/survival/world", { region: 40, "DIM-1/region": 8, "DIM1/region": 3 }),
+                worldListing("/srv/survival/world", {
+                    region: 40,
+                    "DIM-1/region": 8,
+                    "DIM1/region": 3,
+                }),
             ),
         );
         wizard.displayName.value = "Survival";
