@@ -51,7 +51,7 @@ describe("what counts as a usable folder", () => {
 
     it("refuses a Windows path that names no drive", async () => {
         const setting = createMapStorageSetting({ bridge: null, platform: "windows" });
-        setting.value.value = "Material BlueMap\\maps";
+        setting.value.value = "Worldlens\\maps";
 
         expect(setting.problem.value).toBe("relative");
         expect(await setting.save()).toBe(false);
@@ -73,7 +73,7 @@ describe("what counts as a usable folder", () => {
         expect(linux.problem.value).toBeNull();
 
         const windows = createMapStorageSetting({ bridge: null, platform: "windows" });
-        windows.value.value = "%APPDATA%\\Material BlueMap\\maps";
+        windows.value.value = "%APPDATA%\\Worldlens\\maps";
         expect(windows.problem.value).toBeNull();
     });
 });

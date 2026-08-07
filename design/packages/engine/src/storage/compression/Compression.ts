@@ -15,7 +15,7 @@ import {
     compress as zstdCompress,
     decompress as zstdDecompress,
 } from "@bokuweb/zstd-wasm";
-import { Key, Registry, type Keyed } from "@material-bluemap/shared";
+import { Key, Registry, type Keyed } from "@worldlens/shared";
 import { BufferedCompression, type BufferCodec } from "./BufferedCompression.js";
 import { NoCompression } from "./NoCompression.js";
 import {

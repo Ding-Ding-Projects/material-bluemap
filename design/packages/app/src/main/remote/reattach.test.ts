@@ -32,15 +32,15 @@ const REMOTE: RemoteHandoffTarget = {
     identityFile: null,
     docker: "docker",
     keepRemoteFiles: false,
-    root: "/srv/material-bluemap/world-abc123",
-    storageRoot: "/srv/material-bluemap/world-abc123/web/maps",
+    root: "/srv/worldlens/world-abc123",
+    storageRoot: "/srv/worldlens/world-abc123/web/maps",
 };
 
 function record(overrides: Partial<ContainerHandoff> = {}): ContainerHandoff {
     return {
         ...newContainerHandoff({
             renderId: "world-abc123",
-            containerName: "material-bluemap-remote-world-abc123",
+            containerName: "worldlens-remote-world-abc123",
             mode: "remote",
             mapIds: ["overworld"],
             docker: "ssh",
@@ -101,7 +101,7 @@ describe("asking the remote daemon", () => {
         const { subject, runner } = access([
             { when: /inspect/, answer: output({ stdout: "running|0" }) },
         ]);
-        const inspection = await subject.inspect("material-bluemap-remote-world-abc123");
+        const inspection = await subject.inspect("worldlens-remote-world-abc123");
 
         expect(inspection.state).toBe("running");
         expect(runner.text()).toContain("'docker' 'inspect'");
@@ -115,18 +115,18 @@ describe("asking the remote daemon", () => {
                 answer: output({
                     ok: false,
                     exitCode: 1,
-                    stderr: "Error: No such object: material-bluemap-remote-world-abc123",
+                    stderr: "Error: No such object: worldlens-remote-world-abc123",
                 }),
             },
         ]);
-        expect((await subject.inspect("material-bluemap-remote-world-abc123")).state).toBe("absent");
+        expect((await subject.inspect("worldlens-remote-world-abc123")).state).toBe("absent");
     });
 
     it("reports a changed host key as itself, and never as a container that is gone", async () => {
         // Reading `ssh` failing as "no such container" would collect an empty output folder
         // and report a render as finished - over a connection that may not be the server.
         const { subject } = access([{ when: /inspect/, answer: SSH_HOST_KEY_CHANGED }]);
-        const inspection = await subject.inspect("material-bluemap-remote-world-abc123");
+        const inspection = await subject.inspect("worldlens-remote-world-abc123");
 
         expect(inspection.state).toBe("unknown");
         expect(inspection.detail).toContain("different host key");
@@ -135,7 +135,7 @@ describe("asking the remote daemon", () => {
 
     it("reports a host that did not answer as unreachable rather than as an empty answer", async () => {
         const { subject } = access([{ when: /inspect/, answer: SSH_UNREACHABLE }]);
-        const inspection = await subject.inspect("material-bluemap-remote-world-abc123");
+        const inspection = await subject.inspect("worldlens-remote-world-abc123");
         expect(inspection.state).toBe("unknown");
         expect(inspection.detail).toContain("did not answer");
     });
@@ -150,14 +150,14 @@ describe("reading and stopping", () => {
         expect(launch.args.at(-1)).toContain("'logs' '--follow' '--tail' 'all'");
         // Named, so the cancel below can reach it. A launch with no container name is a
         // render nothing can stop.
-        expect(launch.containerName).toBe("material-bluemap-remote-world-abc123");
+        expect(launch.containerName).toBe("worldlens-remote-world-abc123");
     });
 
     it("asks the remote daemon to stop it, with the grace period the JVM needs to save", async () => {
         const { subject, runner } = access([{ when: /.*/, answer: output() }]);
-        await subject.stop("material-bluemap-remote-world-abc123");
+        await subject.stop("worldlens-remote-world-abc123");
         expect(runner.text()).toContain(
-            "'docker' 'stop' '--time' '8' 'material-bluemap-remote-world-abc123'",
+            "'docker' 'stop' '--time' '8' 'worldlens-remote-world-abc123'",
         );
     });
 });
@@ -170,7 +170,7 @@ describe("bringing the map home", () => {
         const report = await subject.collect(record());
         expect(report.ok).toBe(true);
         expect(transfer.log).toContain(
-            "download-dir /srv/material-bluemap/world-abc123/web/maps -> C:\\renders\\world-abc123\\web",
+            "download-dir /srv/worldlens/world-abc123/web/maps -> C:\\renders\\world-abc123\\web",
         );
         // Which tool moved it is in the sentence, because whether an interruption is
         // survivable is a fact the person is entitled to.
@@ -192,7 +192,7 @@ describe("bringing the map home", () => {
         const { subject } = access([{ when: /.*/, answer: output() }], transfer);
         const report = await subject.cleanUp?.(record());
         expect(report?.ok).toBe(true);
-        expect(transfer.log).toContain("rm /srv/material-bluemap/world-abc123");
+        expect(transfer.log).toContain("rm /srv/worldlens/world-abc123");
 
         const keeping = remoteContainerAccess(
             record({ remote: { ...REMOTE, keepRemoteFiles: true } }),

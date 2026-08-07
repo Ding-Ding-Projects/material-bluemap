@@ -4,8 +4,8 @@ import {
     type BlueNBT,
     type FieldsSchema,
     type ObjectSchema,
-} from "@material-bluemap/nbt";
-import type { Key, Vector2d, Vector3d } from "@material-bluemap/shared";
+} from "@worldlens/nbt";
+import type { Key, Vector2d, Vector3d } from "@worldlens/shared";
 import type { Entity } from "../../Entity.js";
 import { KEY_TOKEN } from "../data/KeyDeserializer.js";
 import { UUID_TOKEN } from "../data/UUIDDeserializer.js";

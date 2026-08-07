@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { fileStorageConfigSchema, sqlStorageConfigSchema } from "@material-bluemap/config";
+import { fileStorageConfigSchema, sqlStorageConfigSchema } from "@worldlens/config";
 import { FileStorage } from "./file/FileStorage.js";
 import {
     fileStorageFromConfig,

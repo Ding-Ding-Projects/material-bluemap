@@ -56,7 +56,7 @@ function hit(overrides: Partial<TabHit> = {}): TabHit {
         tabId: "t1",
         label: "Settings",
         windowId: "w1",
-        windowLabel: "Material BlueMap",
+        windowLabel: "Worldlens",
         stripId: "s1",
         stripLabel: "Main",
         groupId: null,

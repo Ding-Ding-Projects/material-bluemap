@@ -5,7 +5,7 @@
  * decides what may actually be read from and written to one, and it is the only place in
  * the app allowed to do either. The whole of it is `ipc.ts`, because there is nothing here
  * that is not about the boundary: the parsing, the editing and the validating all live in
- * `@material-bluemap/config` and in the interface, where they can be tested without a file
+ * `@worldlens/config` and in the interface, where they can be tested without a file
  * system.
  *
  * ```ts

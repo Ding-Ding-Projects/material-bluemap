@@ -58,7 +58,7 @@
  * or `flush` can be taken down by a write that goes wrong, automatic or not.
  */
 
-import { serializeProjectFile, type ProjectFile } from "@material-bluemap/config";
+import { serializeProjectFile, type ProjectFile } from "@worldlens/config";
 
 import { saveProject, type ProjectSaveOptions, type ProjectSaveResult } from "./save.js";
 

@@ -20,13 +20,13 @@ function complete() {
 describe("resolveDockerWorldSourceBridge", () => {
     it("resolves the real nested preload namespace only when every safety/progress method exists", () => {
         const dockerWorld = complete();
-        vi.stubGlobal("materialBluemap", { dockerWorld });
+        vi.stubGlobal("worldlens", { dockerWorld });
         expect(resolveDockerWorldSourceBridge()).toBe(dockerWorld);
     });
 
     it("refuses a partial bridge with no event listener instead of presenting invented progress", () => {
         const partial = { ...complete(), onDockerWorldEvent: undefined };
-        vi.stubGlobal("materialBluemap", { dockerWorld: partial });
+        vi.stubGlobal("worldlens", { dockerWorld: partial });
         expect(resolveDockerWorldSourceBridge()).toBeNull();
     });
 });

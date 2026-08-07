@@ -3,7 +3,7 @@ import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiArrowLeft, mdiCompassOutline, mdiFileDocumentOutline } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardText, VList, VListItem } from "vuetify/components";
-import { renderMarkdown } from "@material-bluemap/viewer";
+import { renderMarkdown } from "@worldlens/viewer";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { tutorialCompleted } from "../tutorial/tutorialController.js";
 import { requestTutorialLaunch } from "../tutorial/tutorialLaunch.js";
@@ -30,7 +30,7 @@ import {
  *
  * ## The one shared renderer
  *
- * `renderMarkdown` from `@material-bluemap/viewer` is the whole rendering path: it runs the
+ * `renderMarkdown` from `@worldlens/viewer` is the whole rendering path: it runs the
  * article through `marked` and then through the same DOMPurify-based `sanitizeHtml` that
  * `InfoPage.vue` already runs upstream's locale HTML through. Nothing here builds a second
  * parser or a second sanitizer for the app to keep in step. `v-html` is used exactly once,

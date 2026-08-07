@@ -21,10 +21,10 @@
  * see that file's own comment.
  */
 
-import type { BmMap, RenderManager } from "@material-bluemap/engine";
-import { TileUpdateStrategy } from "@material-bluemap/engine";
-import type { ResolvedCliActions, TileUpdateStrategy as ForceStrategyString } from "@material-bluemap/config";
-import { RenderDriver, MapUpdateService } from "@material-bluemap/server";
+import type { BmMap, RenderManager } from "@worldlens/engine";
+import { TileUpdateStrategy } from "@worldlens/engine";
+import type { ResolvedCliActions, TileUpdateStrategy as ForceStrategyString } from "@worldlens/config";
+import { RenderDriver, MapUpdateService } from "@worldlens/server";
 import type { Logger } from "./logger.js";
 
 const FORCE_STRATEGY: Readonly<Record<ForceStrategyString, TileUpdateStrategy>> = {

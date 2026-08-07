@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deflateSync, gzipSync } from "node:zlib";
 import { afterAll, describe, expect, it } from "vitest";
-import { IOException } from "@material-bluemap/nbt";
+import { IOException } from "@worldlens/nbt";
 import { Compression } from "../../../storage/compression/Compression.js";
 import { lz4BlockCompress } from "../../../storage/compression/Lz4Block.js";
 import { ChunkConsumer } from "../../ChunkConsumer.js";

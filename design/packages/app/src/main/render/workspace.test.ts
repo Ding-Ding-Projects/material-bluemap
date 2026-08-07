@@ -65,21 +65,21 @@ describe("expandStorageDirectory", () => {
      */
     it("expands the Windows default the setup step writes", () => {
         expect(
-            expandStorageDirectory("%APPDATA%\\Material BlueMap\\maps", {
+            expandStorageDirectory("%APPDATA%\\Worldlens\\maps", {
                 home: "C:\\Users\\me",
                 appData: "C:\\Users\\me\\AppData\\Roaming",
                 platform: "win32",
             }),
-        ).toBe("C:\\Users\\me\\AppData\\Roaming\\Material BlueMap\\maps");
+        ).toBe("C:\\Users\\me\\AppData\\Roaming\\Worldlens\\maps");
     });
 
     it("expands the POSIX default the setup step writes", () => {
         expect(
-            expandStorageDirectory("~/.config/Material BlueMap/maps", {
+            expandStorageDirectory("~/.config/Worldlens/maps", {
                 home: "/home/me",
                 platform: "linux",
             }),
-        ).toBe("/home/me/.config/Material BlueMap/maps");
+        ).toBe("/home/me/.config/Worldlens/maps");
     });
 
     it("leaves a path somebody typed themselves alone", () => {
@@ -100,11 +100,11 @@ describe("expandStorageDirectory", () => {
 
 describe("defaultStorageDirectory", () => {
     it("agrees with the setup step's default by construction", () => {
-        // Electron's userData on Windows is %APPDATA%\Material BlueMap, so this and
+        // Electron's userData on Windows is %APPDATA%\Worldlens, so this and
         // `defaultMapStorageDir("windows")` name the same folder without either of them
         // hard-coding the other's string.
-        expect(defaultStorageDirectory("C:\\Users\\me\\AppData\\Roaming\\Material BlueMap")).toBe(
-            join("C:\\Users\\me\\AppData\\Roaming\\Material BlueMap", "maps"),
+        expect(defaultStorageDirectory("C:\\Users\\me\\AppData\\Roaming\\Worldlens")).toBe(
+            join("C:\\Users\\me\\AppData\\Roaming\\Worldlens", "maps"),
         );
     });
 });

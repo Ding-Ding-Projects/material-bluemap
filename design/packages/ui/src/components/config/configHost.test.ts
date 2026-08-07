@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { generateConfigSet, renderPluginTemplate } from "@material-bluemap/config";
+import { generateConfigSet, renderPluginTemplate } from "@worldlens/config";
 import {
     createBridgeConfigHost,
     displayPath,
@@ -32,12 +32,12 @@ describe("probing the bridge", () => {
     });
 
     it("reports no host when the shell has a bridge but no config namespace", () => {
-        setWindow({ materialBluemap: { getVersion: () => Promise.resolve("5.22") } });
+        setWindow({ worldlens: { getVersion: () => Promise.resolve("5.22") } });
         expect(createBridgeConfigHost()).toBeNull();
     });
 
     it("refuses a half-wired bridge rather than offering a picker that would throw", () => {
-        setWindow({ materialBluemap: { config: { readFolder: () => Promise.resolve({ folder: "/cfg", files: [] }) } } });
+        setWindow({ worldlens: { config: { readFolder: () => Promise.resolve({ folder: "/cfg", files: [] }) } } });
         expect(createBridgeConfigHost()).toBeNull();
     });
 
@@ -45,7 +45,7 @@ describe("probing the bridge", () => {
         const readFolder = vi.fn(() => Promise.resolve({ folder: "/cfg", files: [] }));
         const writeFiles = vi.fn(() => Promise.resolve());
         setWindow({
-            materialBluemap: {
+            worldlens: {
                 config: {
                     readFolder,
                     writeFiles,
@@ -71,7 +71,7 @@ describe("probing the bridge", () => {
 
     it("falls back to a forward slash when the shell does not say", () => {
         setWindow({
-            materialBluemap: {
+            worldlens: {
                 config: {
                     readFolder: () => Promise.resolve({ folder: "/cfg", files: [] }),
                     writeFiles: () => Promise.resolve(),

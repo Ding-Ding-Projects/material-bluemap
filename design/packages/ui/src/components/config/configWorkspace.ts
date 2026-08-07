@@ -23,7 +23,7 @@ import {
     type ConfigSetOptions,
     type MapPreset,
     type PlainValue,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 import {
     changedFields,
     fieldValue,
@@ -388,7 +388,7 @@ function stringField(entry: WorkspaceEntry, path: string): string | null {
 /**
  * The problems that only show up when the files are read together.
  *
- * Per-file validation already lives in `@material-bluemap/config`; every issue
+ * Per-file validation already lives in `@worldlens/config`; every issue
  * here is one no single file can see on its own. Each one is a failure mode that
  * really happens: a map pointing at a storage nobody created, two map files
  * whose names collapse to one id, tiles written where the web app will never

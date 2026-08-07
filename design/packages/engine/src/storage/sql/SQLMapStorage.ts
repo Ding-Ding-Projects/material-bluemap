@@ -1,4 +1,4 @@
-import type { Key } from "@material-bluemap/shared";
+import type { Key } from "@worldlens/shared";
 import type { Compression } from "../compression/Compression.js";
 import type { GridStorage } from "../GridStorage.js";
 import type { ItemStorage } from "../ItemStorage.js";

@@ -103,7 +103,7 @@ export const firstRunConsent: Article = {
                         {
                             term: "Environment opt-in",
                             description:
-                                "Setting MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD to 1, true or yes answers for the process, so a developer machine, a CI runner or an administered server is never shown setup at all. Deliberately an environment variable rather than a build-time default: a shipped installer that pre-accepted would be declaring, in a stranger's name, that they accepted a licence they were never shown.",
+                                "Setting WORLDLENS_ACCEPT_DOWNLOAD to 1, true or yes answers for the process; the legacy MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD name remains readable during migration. A developer machine, CI runner, or administered server is never shown setup at all. Deliberately an environment variable rather than a build-time default: a shipped installer that pre-accepted would be declaring, in a stranger's name, that they accepted a licence they were never shown.",
                         },
                         {
                             term: "Map storage directory",
@@ -228,6 +228,10 @@ export const firstRunConsent: Article = {
     ],
 
     suggested: [
+        {
+            articleId: "worldlens-migration",
+            reason: "The separate one-time consent and verified copy used when a legacy product profile exists.",
+        },
         {
             articleId: "java-render-path",
             reason: "What consent unlocks, and why a render reports a missing answer instead of asking for one.",

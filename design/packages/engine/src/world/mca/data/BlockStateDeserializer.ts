@@ -3,8 +3,8 @@ import {
     TypeToken,
     type NBTReader,
     type TypeDeserializer,
-} from "@material-bluemap/nbt";
-import { Key } from "@material-bluemap/shared";
+} from "@worldlens/nbt";
+import { Key } from "@worldlens/shared";
 import { BlockState } from "../../BlockState.js";
 
 export const BLOCK_STATE_TOKEN: TypeToken<BlockState> = TypeToken.of("BlockState");

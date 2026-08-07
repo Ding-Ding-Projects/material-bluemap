@@ -30,7 +30,7 @@ function target(id: string, host: string): RemoteTarget {
         port: 22,
         user: "renderer",
         identityFile: null,
-        workDir: "~/.material-bluemap/renders",
+        workDir: "~/.worldlens/renders",
         image: "",
         docker: "docker",
         keepRemoteFiles: false,
@@ -44,13 +44,13 @@ beforeEach(() => {
 describe("loading the stored map", () => {
     it("answers empty rather than throwing on no storage, rubbish, or the wrong shape", () => {
         expect(loadRecency(null)).toEqual({});
-        expect(loadRecency(memoryStorage({ "material-bluemap-remote-target-recency": "{{{" }))).toEqual({});
-        expect(loadRecency(memoryStorage({ "material-bluemap-remote-target-recency": "[1,2,3]" }))).toEqual({});
+        expect(loadRecency(memoryStorage({ "worldlens-remote-target-recency": "{{{" }))).toEqual({});
+        expect(loadRecency(memoryStorage({ "worldlens-remote-target-recency": "[1,2,3]" }))).toEqual({});
     });
 
     it("keeps only the entries that are really finite numbers", () => {
         const storage = memoryStorage({
-            "material-bluemap-remote-target-recency": JSON.stringify({
+            "worldlens-remote-target-recency": JSON.stringify({
                 "t-1": 1000,
                 "t-2": "not a number",
                 "t-3": Number.NaN,

@@ -1,4 +1,4 @@
-import { STRING, TypeToken, listOf, type BlueNBT, type ObjectSchema } from "@material-bluemap/nbt";
+import { STRING, TypeToken, listOf, type BlueNBT, type ObjectSchema } from "@worldlens/nbt";
 import { MCABlockEntity, MCA_BLOCK_ENTITY_FIELDS } from "./MCABlockEntity.js";
 
 export const BANNER_BLOCK_ENTITY_TOKEN: TypeToken<BannerBlockEntity> =

@@ -96,8 +96,9 @@ without bound for no benefit anybody would ever use.
 
 That makes the feature capable of destroying a website, so it is guarded:
 
-> Every publish writes `.material-bluemap-map.json` at the site root, naming this tool, the
-> render and the map ids. Before anything is pushed, **and again before anything is deleted**,
+> Every publish writes `.worldlens-map.json` at the site root; the legacy
+> `.material-bluemap-map.json` remains readable. The marker names this tool, the render and the map
+> ids. Before anything is pushed, **and again before anything is deleted**,
 > the target branch is read. If the branch exists and does not carry that marker, the operation
 > is refused.
 

@@ -1,5 +1,5 @@
 import { LRUCache } from "lru-cache";
-import { Color, Vector2i, type Grid } from "@material-bluemap/shared";
+import { Color, Vector2i, type Grid } from "@worldlens/shared";
 import type { GridStorage } from "../../storage/GridStorage.js";
 import { LowresTile } from "./LowresTile.js";
 

@@ -5,7 +5,7 @@ import {
     VectorM2f,
     VectorM3f,
     type Key,
-} from "@material-bluemap/shared";
+} from "@worldlens/shared";
 import type { ResourcePath } from "../../../resources/ResourcePath.js";
 import type { ResourcePack } from "../../../resources/pack/resourcepack/ResourcePack.js";
 import type { Variant } from "../../../resources/pack/resourcepack/blockstate/Variant.js";

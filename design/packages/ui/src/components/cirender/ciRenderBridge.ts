@@ -2,7 +2,7 @@
  * The seam between the CI-render surface and the main process.
  *
  * Every type here is a structural mirror of the one the Electron preload exposes on
- * `window.materialBluemap`, restated rather than imported for the same reason
+ * `window.worldlens`, restated rather than imported for the same reason
  * `backupBridge.ts` and `downloadBridge.ts` restate theirs: this package compiles and runs
  * in three places and only one of them has a preload. Importing across that boundary would
  * also drag the zip writer, the fingerprint walker and `node:fs` into the renderer's
@@ -637,7 +637,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
  * before their world is published to it. Neither is a degradation worth shipping.
  */
 export function resolveCiRenderBridge(): CiRenderBridge | null {
-    const host = (globalThis as { materialBluemap?: Host }).materialBluemap;
+    const host = (globalThis as { worldlens?: Host }).worldlens;
     if (host === undefined) return null;
 
     const { startCiRender, onCiRenderEvent, ciRenderPreflight } = host;

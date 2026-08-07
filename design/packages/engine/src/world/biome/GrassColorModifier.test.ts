@@ -1,4 +1,4 @@
-import { Color } from "@material-bluemap/shared";
+import { Color } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 import { GrassColorModifier } from "./GrassColorModifier.js";
 

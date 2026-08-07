@@ -52,7 +52,7 @@ const LOCAL: EngineLaunch = planLocalLaunch({
 
 const DOCKER: EngineLaunch = planDockerLaunch({
     role: "render",
-    containerName: "material-bluemap-render-test",
+    containerName: "worldlens-render-test",
     jarPath: "/opt/app/cli.jar",
     hostConfigDir: "/srv/render/config-container",
     hostDataDir: "/srv/render/data",
@@ -174,7 +174,7 @@ describe("cancelling", () => {
         run.cancel();
         const result = await finished;
 
-        expect(stopped).toEqual(["material-bluemap-render-test"]);
+        expect(stopped).toEqual(["worldlens-render-test"]);
         expect(result.cancelled).toBe(true);
         expect(run.isCancelled()).toBe(true);
     });

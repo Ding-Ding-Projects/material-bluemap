@@ -1,5 +1,5 @@
 {
-    "name": "@material-bluemap/cli",
+    "name": "@worldlens/cli",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -15,13 +15,13 @@
         "typecheck": "tsc -p tsconfig.json --noEmit"
     },
     "dependencies": {
-        "@material-bluemap/config": "workspace:*",
-        "@material-bluemap/engine": "workspace:*",
-        "@material-bluemap/server": "workspace:*",
-        "@material-bluemap/shared": "workspace:*"
+        "@worldlens/config": "workspace:*",
+        "@worldlens/engine": "workspace:*",
+        "@worldlens/server": "workspace:*",
+        "@worldlens/shared": "workspace:*"
     },
     "devDependencies": {
-        "@material-bluemap/worldgen": "workspace:*",
+        "@worldlens/worldgen": "workspace:*",
         "@types/pngjs": "^6.0.5",
         "pngjs": "^7.0.0"
     }

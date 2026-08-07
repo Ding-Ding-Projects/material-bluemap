@@ -11,7 +11,7 @@
  * editor saves with, which is what keeps the comments.
  *
  * That is also why this lives in the interface rather than in the main process. The reader
- * and writer that round-trip are `@material-bluemap/config`, which the editor already
+ * and writer that round-trip are `@worldlens/config`, which the editor already
  * depends on; a second copy of them in the main process would be a second HOCON
  * implementation to disagree with the one that writes every save. What the main process
  * keeps is everything that makes the write *safe* - the revision has to exist, the path has
@@ -43,7 +43,7 @@ import {
     setPlainValue,
     writeHocon,
     type PlainValue,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 
 import { flattenSettings, formatOf, MAX_READABLE_TEXT } from "./historyDiff.js";
 import type { HistoryMergedFile } from "./historyHost.js";

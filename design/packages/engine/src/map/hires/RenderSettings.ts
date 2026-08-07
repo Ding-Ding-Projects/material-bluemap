@@ -1,4 +1,4 @@
-import type { Grid, Vector2i } from "@material-bluemap/shared";
+import type { Grid, Vector2i } from "@worldlens/shared";
 import type { Mask } from "../mask/Mask.js";
 
 /**

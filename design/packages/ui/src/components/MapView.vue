@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref } from "vue";
-import { BlueMapApp } from "@material-bluemap/viewer";
+import { BlueMapApp } from "@worldlens/viewer";
 import { activeProfile, profileDataRoot } from "../stores/profiles.js";
 import { blueMapApp, setBlueMapApp } from "../stores/bluemap.js";
 

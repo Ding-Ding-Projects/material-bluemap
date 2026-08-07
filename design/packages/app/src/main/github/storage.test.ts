@@ -67,7 +67,7 @@ let directory: string;
 let file: string;
 
 beforeEach(async () => {
-    directory = await mkdtemp(join(tmpdir(), "material-bluemap-github-"));
+    directory = await mkdtemp(join(tmpdir(), "worldlens-github-"));
     file = join(directory, "github-credential.json");
 });
 

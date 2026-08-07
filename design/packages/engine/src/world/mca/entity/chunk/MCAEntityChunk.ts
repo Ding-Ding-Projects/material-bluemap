@@ -1,5 +1,5 @@
-import { INT, TypeToken, listOf, type BlueNBT, type ObjectSchema } from "@material-bluemap/nbt";
-import { Vector2i } from "@material-bluemap/shared";
+import { INT, TypeToken, listOf, type BlueNBT, type ObjectSchema } from "@worldlens/nbt";
+import { Vector2i } from "@worldlens/shared";
 import type { Entity } from "../../../Entity.js";
 import { ENTITY_TOKEN } from "../../data/EntityTypeResolver.js";
 import { VECTOR2I_TOKEN } from "../../data/Vector2iDeserializer.js";

@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import {
     BIRCH_LEAVES,
     BIRCH_LOG,

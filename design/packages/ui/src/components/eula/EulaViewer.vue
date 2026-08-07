@@ -361,8 +361,8 @@ async function copy(scope: "section" | "all"): Promise<void> {
     exportOpen.value = false;
     const body = render(scope, "text");
     try {
-        const bridge = (globalThis as { materialBluemap?: { writeClipboardText?: (value: string) => Promise<void> } })
-            .materialBluemap;
+        const bridge = (globalThis as { worldlens?: { writeClipboardText?: (value: string) => Promise<void> } })
+            .worldlens;
         if (typeof bridge?.writeClipboardText === "function") await bridge.writeClipboardText(body);
         else await navigator.clipboard.writeText(body);
         raiseNotice("success", i18n.t("eula.copied"));

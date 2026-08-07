@@ -386,20 +386,20 @@ export const CONSOLE_FIXED = {
      * Who is speaking when a line carries this app's advice. It is the product's name, so
      * it is the same in both languages: translating it would suggest a second speaker.
      */
-    "world.console.speaker": { en: "Material BlueMap", yue: "Material BlueMap" },
+    "world.console.speaker": { en: "Worldlens", yue: "Worldlens" },
     "world.console.openSetting": { en: "Open the setting", yue: "開嗰個設定" },
     "world.console.toBottom": { en: "Newest lines", yue: "最新嘅行" },
     /* The auto-scroll checkbox's own label - on by default for this surface, see RenderConsole.vue. */
     "world.console.autoScroll": { en: "Follow new lines", yue: "跟住新增嘅行" },
     /*
      * The `#` header line an exported console log opens with, so the file says which
-     * application wrote it. "Material BlueMap" is a product name and stays untranslated for
+     * application wrote it. "Worldlens" is a product name and stays untranslated for
      * the same reason `world.console.speaker` does; only the words around it move. The call
      * sits inside a template literal, which is why the generated work list never saw it.
      */
     "world.console.exportTitle": {
-        en: "Material BlueMap render console",
-        yue: "Material BlueMap 算圖主控台",
+        en: "Worldlens render console",
+        yue: "Worldlens 算圖主控台",
     },
 } as const satisfies Record<string, FixedString>;
 

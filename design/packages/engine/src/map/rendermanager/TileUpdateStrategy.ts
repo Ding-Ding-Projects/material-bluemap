@@ -1,4 +1,4 @@
-import { Key, Registry, type Keyed } from "@material-bluemap/shared";
+import { Key, Registry, type Keyed } from "@worldlens/shared";
 import { TileState } from "../renderstate/TileState.js";
 
 /**

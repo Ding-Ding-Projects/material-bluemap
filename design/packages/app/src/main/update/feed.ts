@@ -35,10 +35,15 @@
 const PUBLIC_FEED_HOST = "https://update.electronjs.org";
 
 /** Environment overrides, so a self-hosted or staging feed needs no rebuild. */
-export const FEED_URL_VARIABLE = "MATERIAL_BLUEMAP_UPDATE_FEED";
-export const FEED_TOKEN_VARIABLE = "MATERIAL_BLUEMAP_UPDATE_TOKEN";
+export const FEED_URL_VARIABLE = "WORLDLENS_UPDATE_FEED";
+export const FEED_TOKEN_VARIABLE = "WORLDLENS_UPDATE_TOKEN";
 /** Set this to switch the updater off entirely on a machine that manages its own installs. */
-export const FEED_DISABLE_VARIABLE = "MATERIAL_BLUEMAP_DISABLE_UPDATES";
+export const FEED_DISABLE_VARIABLE = "WORLDLENS_DISABLE_UPDATES";
+
+/** Old names remain readable for installed clients and managed-machine configuration. */
+export const LEGACY_FEED_URL_VARIABLE = "MATERIAL_BLUEMAP_UPDATE_FEED";
+export const LEGACY_FEED_TOKEN_VARIABLE = "MATERIAL_BLUEMAP_UPDATE_TOKEN";
+export const LEGACY_FEED_DISABLE_VARIABLE = "MATERIAL_BLUEMAP_DISABLE_UPDATES";
 
 export interface FeedInputs {
     /** `app.isPackaged`. False for a development run and for an unpacked directory. */
@@ -51,6 +56,8 @@ export interface FeedInputs {
     readonly version: string;
     /** `owner/repo` of the repository publishing the releases, or null for none. */
     readonly repository: string | null;
+    /** Previous `owner/repo`, retained only as a bridge feed during the rename. */
+    readonly legacyRepository?: string | null;
     /** `process.env`, passed in so this whole module is testable without one. */
     readonly environment: Readonly<Record<string, string | undefined>>;
 }
@@ -60,10 +67,16 @@ export interface FeedConfiguration {
     readonly url: string;
     readonly headers: Readonly<Record<string, string>>;
     readonly serverType: "default" | "json";
+    /** Stable repository/channel identity; deliberately excludes the installed version. */
+    readonly handoffIdentity: string;
 }
 
 export type FeedResolution =
-    | { readonly ok: true; readonly feed: FeedConfiguration }
+    | {
+          readonly ok: true;
+          readonly feed: FeedConfiguration;
+          readonly legacyFallback: FeedConfiguration | null;
+      }
     | { readonly ok: false; readonly reason: string };
 
 /** True for an https URL. An update fetched over http is an update anybody can replace. */
@@ -77,13 +90,27 @@ export function isSecureFeedUrl(value: string): boolean {
     if (parsed.protocol === "https:") return true;
     // Loopback over http is allowed so a test server needs no certificate. Nothing else
     // is: on any other host, plaintext means the installer can be swapped in transit.
-    return parsed.protocol === "http:" && (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost");
+    return (
+        parsed.protocol === "http:" &&
+        (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost")
+    );
 }
 
 function truthy(value: string | undefined): boolean {
     if (value === undefined) return false;
     const normalized = value.trim().toLowerCase();
     return normalized === "1" || normalized === "true" || normalized === "yes";
+}
+
+function firstEnvironmentValue(
+    environment: Readonly<Record<string, string | undefined>>,
+    primary: string,
+    legacy: string,
+): string | undefined {
+    const current = environment[primary]?.trim();
+    if (current !== undefined && current !== "") return current;
+    const old = environment[legacy]?.trim();
+    return old === "" ? undefined : old;
 }
 
 /**
@@ -97,7 +124,10 @@ function truthy(value: string | undefined): boolean {
 export function resolveFeed(inputs: FeedInputs): FeedResolution {
     const environment = inputs.environment;
 
-    if (truthy(environment[FEED_DISABLE_VARIABLE])) {
+    if (
+        truthy(environment[FEED_DISABLE_VARIABLE]) ||
+        truthy(environment[LEGACY_FEED_DISABLE_VARIABLE])
+    ) {
         return {
             ok: false,
             reason:
@@ -106,11 +136,19 @@ export function resolveFeed(inputs: FeedInputs): FeedResolution {
         };
     }
 
-    const token = environment[FEED_TOKEN_VARIABLE]?.trim();
+    const token = firstEnvironmentValue(
+        environment,
+        FEED_TOKEN_VARIABLE,
+        LEGACY_FEED_TOKEN_VARIABLE,
+    );
     const headers: Record<string, string> = {};
     if (token !== undefined && token !== "") headers["Authorization"] = `Bearer ${token}`;
 
-    const override = environment[FEED_URL_VARIABLE]?.trim();
+    const override = firstEnvironmentValue(
+        environment,
+        FEED_URL_VARIABLE,
+        LEGACY_FEED_URL_VARIABLE,
+    );
     if (override !== undefined && override !== "") {
         if (!isSecureFeedUrl(override)) {
             return {
@@ -121,7 +159,16 @@ export function resolveFeed(inputs: FeedInputs): FeedResolution {
                     "updater must not allow.",
             };
         }
-        return { ok: true, feed: { url: override, headers, serverType: "default" } };
+        return {
+            ok: true,
+            feed: {
+                url: override,
+                headers,
+                serverType: "default",
+                handoffIdentity: `custom:${override}`,
+            },
+            legacyFallback: null,
+        };
     }
 
     if (inputs.platform !== "win32") {
@@ -154,8 +201,42 @@ export function resolveFeed(inputs: FeedInputs): FeedResolution {
 
     // `win32-<arch>` is the service's own channel spelling, and the version goes in the
     // path rather than a query string because that is the route it documents.
-    const url = `${PUBLIC_FEED_HOST}/${repository}/win32-${inputs.arch}/${encodeURIComponent(inputs.version)}`;
-    return { ok: true, feed: { url, headers, serverType: "default" } };
+    const channel = `win32-${inputs.arch}`;
+    const urlFor = (source: string): string =>
+        `${PUBLIC_FEED_HOST}/${source}/${channel}/${encodeURIComponent(inputs.version)}`;
+    const identityFor = (source: string): string => `github-release:${source}:${channel}`;
+    const legacyRepository = inputs.legacyRepository?.trim();
+    if (
+        legacyRepository !== undefined &&
+        legacyRepository !== "" &&
+        !/^[\w.-]+\/[\w.-]+$/.test(legacyRepository)
+    ) {
+        return {
+            ok: false,
+            reason:
+                "This build's legacy release repository is malformed, so the update bridge was disabled " +
+                "instead of contacting a guessed address.",
+        };
+    }
+    const legacyFallback =
+        legacyRepository === undefined || legacyRepository === "" || legacyRepository === repository
+            ? null
+            : {
+                  url: urlFor(legacyRepository),
+                  headers,
+                  serverType: "default" as const,
+                  handoffIdentity: identityFor(legacyRepository),
+              };
+    return {
+        ok: true,
+        feed: {
+            url: urlFor(repository),
+            headers,
+            serverType: "default",
+            handoffIdentity: identityFor(repository),
+        },
+        legacyFallback,
+    };
 }
 
 /**

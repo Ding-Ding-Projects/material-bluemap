@@ -289,7 +289,7 @@ function playwrightBrowsers() {
 
 /* -------------------------------------------------------------------------- */
 
-log(`material-bluemap bootstrap${checkOnly ? " (check only)" : ""}`);
+log(`Worldlens bootstrap${checkOnly ? " (check only)" : ""}`);
 log(`repository: ${repoRoot}`);
 
 step("Node dependencies", nodeDependencies);

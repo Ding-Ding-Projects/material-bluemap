@@ -1,4 +1,4 @@
-import { Vector3i } from "@material-bluemap/shared";
+import { Vector3i } from "@worldlens/shared";
 import { Axis } from "./math/Axis.js";
 
 /**

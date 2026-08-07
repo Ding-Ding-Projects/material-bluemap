@@ -4,7 +4,7 @@
  * ## The trap this exists for
  *
  * `configExplainCoverage.test.ts` imports `MASK_SHAPES`, `MARKER_SET_FIELDS` and friends
- * from `"@material-bluemap/config"`. That specifier resolves through the package's own
+ * from `"@worldlens/config"`. That specifier resolves through the package's own
  * `package.json`, whose `main` points at `dist/index.js` - a build `tsc -p tsconfig.json`
  * produces, not the `src/` this repository edits and reviews. `dist/` is git-ignored (see
  * `design/.gitignore`), so a fresh clone has none at all, and a checkout that has one is
@@ -36,7 +36,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const configPackageRoot = join(here, "..", "..", "..", "..", "config");
 const CONFIG_SRC = join(configPackageRoot, "src");
 const CONFIG_DIST = join(configPackageRoot, "dist");
-const REBUILD_COMMAND = "pnpm --filter @material-bluemap/config run build";
+const REBUILD_COMMAND = "pnpm --filter @worldlens/config run build";
 
 interface Newest {
     readonly at: number;
@@ -113,7 +113,7 @@ export function assertConfigPackageFresh(): void {
     if (message === null) return;
 
     throw new Error(
-        "This suite imports @material-bluemap/config through its built dist/, which is not " +
+        "This suite imports @worldlens/config through its built dist/, which is not " +
             "current.\n\n" +
             message +
             "\nThis is checked because it is invisible otherwise: a stale dist/ still imports " +

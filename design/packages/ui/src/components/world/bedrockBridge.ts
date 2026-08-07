@@ -139,7 +139,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
  * unrelated method somebody adds later.
  */
 export function resolveBedrockBridge(): BedrockBridge | null {
-    const host = (globalThis as { materialBluemap?: { bedrock?: unknown } }).materialBluemap;
+    const host = (globalThis as { worldlens?: { bedrock?: unknown } }).worldlens;
     if (host === undefined) return null;
     const api = host.bedrock;
     if (typeof api !== "object" || api === null) return null;

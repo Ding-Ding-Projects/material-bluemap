@@ -18,7 +18,7 @@ import {
     VSpacer,
     VTextField,
 } from "vuetify/components";
-import type { FieldMeta, PlainValue, ProjectFile } from "@material-bluemap/config";
+import type { FieldMeta, PlainValue, ProjectFile } from "@worldlens/config";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";

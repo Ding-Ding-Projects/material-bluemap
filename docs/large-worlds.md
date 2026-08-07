@@ -97,13 +97,13 @@ backup log use — see [Render console](./render-console.md) for the full reason
 
 Each row is in one of five states, and they are kept apart because they mean different things:
 
-| State | What it means |
-|---|---|
-| Running | In flight now |
-| Interrupted | The record says running, and nothing is. The application or the machine stopped before an ending could be written |
-| Finished | Verified and unpacked |
-| Failed | Sorted into one of ten kinds, each with its own explanation, and a button to the setting that would fix it where one would |
-| Cancelled | Somebody pressed stop. **Not** a failure, and resumable |
+| State       | What it means                                                                                                              |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Running     | In flight now                                                                                                              |
+| Interrupted | The record says running, and nothing is. The application or the machine stopped before an ending could be written          |
+| Finished    | Verified and unpacked                                                                                                      |
+| Failed      | Sorted into one of ten kinds, each with its own explanation, and a button to the setting that would fix it where one would |
+| Cancelled   | Somebody pressed stop. **Not** a failure, and resumable                                                                    |
 
 A **public** release needs no token and is never asked for one. `GH_TOKEN` is used when the
 environment has it, which is what makes a private release and a rate-limited runner work. Note that
@@ -134,26 +134,26 @@ node scripts/join-parts.mjs test-world-seed-1739.zip.parts.json
 
 Options:
 
-| Option | Meaning |
-|---|---|
+| Option        | Meaning                                                       |
+| ------------- | ------------------------------------------------------------- |
 | `--out <dir>` | Write the rejoined file somewhere other than beside the parts |
-| `--json` | Machine-readable result instead of the human report |
+| `--json`      | Machine-readable result instead of the human report           |
 
 It prints the verified SHA-256 on success. On failure it names the exact part that is wrong, with
 its index, so one file can be fetched again instead of all of them, and exits 1.
 
-The script is a thin command line over the `@material-bluemap/parts` package, which must be built
+The script is a thin command line over the `@worldlens/parts` package, which must be built
 first:
 
 ```sh
-cd design && pnpm install && pnpm --filter @material-bluemap/parts run build
+cd design && pnpm install && pnpm --filter @worldlens/parts run build
 ```
 
 ## Measured: a real two-wave hosted dispatch
 
 Everything above was arithmetic until [issue #39](https://github.com/Ding-Ding-Projects/material-bluemap/issues/39)
 was closed out against a real run rather than an estimate. A 9728×9728 block world was generated
-with `@material-bluemap/worldgen` (seed `20260805`; regenerate with
+with `@worldlens/worldgen` (seed `20260805`; regenerate with
 `node packages/worldgen/dist/cli.js --seed 20260805 --size 9728 --out ./out`), published as a
 single 717 MB release asset (`test-world-issue39-20260805`, under the 2 GB cap so it needed no
 splitting), and dispatched through `Render world` with `budget-minutes: 1` and `max-jobs: 400` so
@@ -183,7 +183,7 @@ Free on this runner right now:            ~84 GiB free
 
 6 GiB required against 84 GiB actually free on a standard `ubuntu-latest` runner — the same gap
 this project had already documented on the 6.6 GB Andyville world, now reproduced on a second,
-independently generated world that pushed the *shard count*, not just the world's own size, past a
+independently generated world that pushed the _shard count_, not just the world's own size, past a
 boundary the plan had never hit before.
 
 **Wave dispatch, watched directly rather than assumed:** Wave 1 fanned out to all 256 shards and
@@ -231,16 +231,31 @@ the join format to open an asset that was never split.
 
 ```json
 {
-    "version": 1,
-    "file": "test-world-seed-1739.zip",
-    "bytes": 4030000000,
-    "sha256": "6640a521a88283195b790c8bdf6ca176e480c2f9399a8163153d02a2c5b72083",
-    "partSize": 1700000000,
-    "parts": [
-        { "index": 1, "name": "test-world-seed-1739.zip.001", "bytes": 1700000000, "sha256": "967c..." },
-        { "index": 2, "name": "test-world-seed-1739.zip.002", "bytes": 1700000000, "sha256": "52e6..." },
-        { "index": 3, "name": "test-world-seed-1739.zip.003", "bytes": 630000000, "sha256": "c77c..." }
-    ]
+  "version": 1,
+  "file": "test-world-seed-1739.zip",
+  "bytes": 4030000000,
+  "sha256": "6640a521a88283195b790c8bdf6ca176e480c2f9399a8163153d02a2c5b72083",
+  "partSize": 1700000000,
+  "parts": [
+    {
+      "index": 1,
+      "name": "test-world-seed-1739.zip.001",
+      "bytes": 1700000000,
+      "sha256": "967c..."
+    },
+    {
+      "index": 2,
+      "name": "test-world-seed-1739.zip.002",
+      "bytes": 1700000000,
+      "sha256": "52e6..."
+    },
+    {
+      "index": 3,
+      "name": "test-world-seed-1739.zip.003",
+      "bytes": 630000000,
+      "sha256": "c77c..."
+    }
+  ]
 }
 ```
 
@@ -264,18 +279,18 @@ Two checks, both load-bearing:
   order, or with one written twice, produce nineteen passing digests and a broken archive.
 
 A rejoin that skipped these would produce a corrupt world that unzips cleanly and then surfaces as
-a *rendering* bug three layers away, in a file nobody would think to look in. The checks are the
+a _rendering_ bug three layers away, in a file nobody would think to look in. The checks are the
 reason the format exists, not a safety net bolted onto it.
 
 When a check fails:
 
-| Failure | What is left on disk |
-|---|---|
-| A part's digest is wrong during a rejoin | The output is rolled back to the end of the last good part, so a retry redoes only that part |
-| A part is missing or the wrong length | Nothing is written; the part is named |
-| The whole-file digest is wrong although every part passed | The rejoined file is **deleted**, and the message says so |
-| A download's part arrives corrupt | That part file is deleted and re-fetched once; if it fails again the rejoined archive and the unpacked content are deleted |
-| A download is cancelled | Everything is kept, including the half-written part |
+| Failure                                                   | What is left on disk                                                                                                       |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| A part's digest is wrong during a rejoin                  | The output is rolled back to the end of the last good part, so a retry redoes only that part                               |
+| A part is missing or the wrong length                     | Nothing is written; the part is named                                                                                      |
+| The whole-file digest is wrong although every part passed | The rejoined file is **deleted**, and the message says so                                                                  |
+| A download's part arrives corrupt                         | That part file is deleted and re-fetched once; if it fails again the rejoined archive and the unpacked content are deleted |
+| A download is cancelled                                   | Everything is kept, including the half-written part                                                                        |
 
 The deletions are deliberate. This project has already been bitten by a file that existed, held
 nothing usable, and was treated as complete by everything downstream: a packaged `dist/` with no
@@ -340,17 +355,17 @@ re-copied from the first part that disagreed.
 
 ## Verification
 
-| What | Where |
-|---|---|
-| Split, rejoin, corruption, resume, boundaries, manifest validation | `design/packages/parts/src/parts.test.ts` |
-| Release reading and part discovery | `design/packages/app/src/main/download/release.test.ts` |
-| `Range` resume, and the three answers a ranged request can get | `design/packages/app/src/main/download/http.test.ts` |
-| Zip extraction and every path-escape case | `design/packages/app/src/main/download/extract.test.ts` |
-| The zip reader itself: store, deflate, Zip64, CRC failure, truncation | `design/packages/app/src/main/download/zip.test.ts` |
-| The whole download path, end to end, against a real split archive | `design/packages/app/src/main/download/downloader.test.ts` |
-| The rows, the failure classification, and events winning over the on-disk record | `design/packages/ui/src/components/downloads/downloads.test.ts` |
-| The panel: reconciling a download already in flight, and reading back a finished one | `design/packages/ui/src/components/downloads/ReleaseDownloads.test.ts` |
-| The row's own log disclosure and its auto-scroll checkbox: on by default, `role="log"` with `aria-live="off"`, follows while checked and does not once unchecked, pauses on a manual scroll without unticking the checkbox, resumes on scrolling back down, never scrolls away from a text selection, never moves keyboard focus, and the preference survives a fresh mount | `design/packages/ui/src/components/downloads/DownloadRowCard.test.ts` |
+| What                                                                                                                                                                                                                                                                                                                                                                        | Where                                                                  |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Split, rejoin, corruption, resume, boundaries, manifest validation                                                                                                                                                                                                                                                                                                          | `design/packages/parts/src/parts.test.ts`                              |
+| Release reading and part discovery                                                                                                                                                                                                                                                                                                                                          | `design/packages/app/src/main/download/release.test.ts`                |
+| `Range` resume, and the three answers a ranged request can get                                                                                                                                                                                                                                                                                                              | `design/packages/app/src/main/download/http.test.ts`                   |
+| Zip extraction and every path-escape case                                                                                                                                                                                                                                                                                                                                   | `design/packages/app/src/main/download/extract.test.ts`                |
+| The zip reader itself: store, deflate, Zip64, CRC failure, truncation                                                                                                                                                                                                                                                                                                       | `design/packages/app/src/main/download/zip.test.ts`                    |
+| The whole download path, end to end, against a real split archive                                                                                                                                                                                                                                                                                                           | `design/packages/app/src/main/download/downloader.test.ts`             |
+| The rows, the failure classification, and events winning over the on-disk record                                                                                                                                                                                                                                                                                            | `design/packages/ui/src/components/downloads/downloads.test.ts`        |
+| The panel: reconciling a download already in flight, and reading back a finished one                                                                                                                                                                                                                                                                                        | `design/packages/ui/src/components/downloads/ReleaseDownloads.test.ts` |
+| The row's own log disclosure and its auto-scroll checkbox: on by default, `role="log"` with `aria-live="off"`, follows while checked and does not once unchecked, pauses on a manual scroll without unticking the checkbox, resumes on scrolling back down, never scrolls away from a text selection, never moves keyboard focus, and the preference survives a fresh mount | `design/packages/ui/src/components/downloads/DownloadRowCard.test.ts`  |
 
 Run them with:
 

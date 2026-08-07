@@ -241,8 +241,8 @@ closes), and every placement is capped at the viewport so a 520px panel becomes 
 | Cache maximum age | `CACHE_MAX_AGE_MS` in `main/eula/document.ts` | 7 days |
 | Fetch timeout | `FETCH_TIMEOUT_MS` | 15 seconds |
 | Response cap | `MAX_RESPONSE_BYTES` | 2,000,000 bytes |
-| Viewer tab layout | `material-bluemap-eula-tabs` in local storage | one tab per section |
-| Panel placements | `material-bluemap-dock-placement` in local storage | per-surface default |
+| Viewer tab layout | `worldlens-eula-tabs` in local storage | one tab per section |
+| Panel placements | `worldlens-dock-placement` in local storage | per-surface default |
 
 The document address is not configurable. It comes from `MOJANG_EULA_URL` in `main/consent.ts`, so
 the document a person reads and the document their recorded acceptance names cannot drift apart.

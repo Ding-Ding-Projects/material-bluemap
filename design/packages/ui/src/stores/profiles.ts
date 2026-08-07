@@ -37,7 +37,7 @@ interface ProfilesState {
 }
 
 /** Exported so a test can point a stand-in `localStorage` at the same key this store writes. */
-export const STORAGE_KEY = "material-bluemap-profiles";
+export const STORAGE_KEY = "worldlens-profiles";
 
 function load(): ProfilesState {
     try {
@@ -76,7 +76,7 @@ export const profilesStore = reactive<ProfilesState>(load());
  * to forward `/remote/{id}` requests to.
  */
 function syncToBridge(): void {
-    window.materialBluemap?.syncProfiles(
+    window.worldlens?.syncProfiles(
         profilesStore.profiles
             .filter((p) => !isLocalProfile(p))
             .map((p) => ({ id: p.id, name: p.name, baseUrl: p.url })),
@@ -96,12 +96,12 @@ function syncToBridge(): void {
  * Never awaited past its own `void`, and any rejection is swallowed: the rule this history
  * exists under is that a failed history write must never fail the save a person actually
  * asked for, and that save already happened above, into `localStorage`, which stays this
- * store's real source of truth. `window.materialBluemap` is absent in a browser tab and in
+ * store's real source of truth. `window.worldlens` is absent in a browser tab and in
  * every test that mounts no bridge, and `simpleHistorySaveFn` answers null there rather
  * than throwing, so this is a plain no-op on every build that cannot keep a history at all.
  */
 function recordProfilesHistory(): void {
-    const save = simpleHistorySaveFn(typeof window === "undefined" ? null : window.materialBluemap, "profilesHistory");
+    const save = simpleHistorySaveFn(typeof window === "undefined" ? null : window.worldlens, "profilesHistory");
     if (save === null) return;
     void save({
         version: 1,

@@ -60,7 +60,7 @@ function emptyStrip(
 
 /** The main strip: a pinned map, a group of two renders, and two loose tabs. */
 function mainStrip(): TabStripState {
-    let strip = emptyStrip("strip-main", "Main", "window-1", "Material BlueMap");
+    let strip = emptyStrip("strip-main", "Main", "window-1", "Worldlens");
     for (const label of [
         "Overworld map",
         "Nether render",
@@ -116,7 +116,7 @@ describe("1: the current strip", () => {
         expect(hit).toMatchObject({
             label: "Nether render",
             windowId: "window-1",
-            windowLabel: "Material BlueMap",
+            windowLabel: "Worldlens",
             stripId: "strip-main",
             stripLabel: "Main",
             groupId: "g-renders",
@@ -177,7 +177,7 @@ describe("4: every tab everywhere", () => {
     it("crosses windows and strips, and keeps each result locatable", () => {
         const hits = searchAllTabs(workspace(), plain("settings"));
         expect(hits).toHaveLength(2);
-        expect(hits.map((hit) => hit.windowLabel)).toEqual(["Material BlueMap", "Second window"]);
+        expect(hits.map((hit) => hit.windowLabel)).toEqual(["Worldlens", "Second window"]);
         expect(hits.map((hit) => hit.stripLabel)).toEqual(["Main", "Side"]);
         expect(hits[1]?.groupName).toBe("Render notes");
     });

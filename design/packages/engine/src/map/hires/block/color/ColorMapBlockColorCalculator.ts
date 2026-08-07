@@ -1,4 +1,4 @@
-import { Color } from "@material-bluemap/shared";
+import { Color } from "@worldlens/shared";
 import type { ColorMap } from "../../../../resources/pack/resourcepack/texture/ColorMap.js";
 import type { BlockState } from "../../../../world/BlockState.js";
 import type { BlockAccess } from "../../../../world/block/BlockAccess.js";

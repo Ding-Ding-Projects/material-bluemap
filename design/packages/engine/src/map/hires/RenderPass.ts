@@ -1,4 +1,4 @@
-import type { Vector3i } from "@material-bluemap/shared";
+import type { Vector3i } from "@worldlens/shared";
 import type { World } from "../../world/World.js";
 import type { TileMetaConsumer } from "../TileMetaConsumer.js";
 import type { TileModelView } from "./TileModelView.js";

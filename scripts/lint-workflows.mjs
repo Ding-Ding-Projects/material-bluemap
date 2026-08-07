@@ -55,12 +55,11 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
         "printf 'BlueMap %s server plugins\\n\\n' \"$BLUEMAP_VERSION\"",
       ]),
       RELEASE_TAG: contract("steps.tag.outputs.tag", [
-        'extras="material-bluemap-${RELEASE_TAG}-extras"',
-        "printf 'material-bluemap %s - extras\\n\\n' \"$RELEASE_TAG\"",
+        'extras="worldlens-${RELEASE_TAG}-extras"',
+        "printf 'Worldlens %s - extras\\n\\n' \"$RELEASE_TAG\"",
         'gh release create "$RELEASE_TAG" \\',
-        '--title "material-bluemap $RELEASE_TAG" \\',
+        '--title "Worldlens $RELEASE_TAG" \\',
         'gh release edit "$RELEASE_TAG" \\',
-        'gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body \\',
         'gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets \\',
       ]),
     }),
@@ -75,17 +74,17 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
     }),
     "Compose release notes": Object.freeze({
       env: "caed41d074403c32376a58e8f01edc7c6e03a0b181235c85078eaccf819e9ca5",
-      run: "c2caf3f7ad7aec29373a50dc29be218ff8492e2846c0f3baa262c3720baa94a2",
+      run: "f0ae3ff87b620e873b29d1e0ed81ec97e5cae55f0941092dba895dc493e10d13",
     }),
     Publish: Object.freeze({
       env: "f951560bc01336f0c08b2b8fc66f8b9bc7745b1593b3560718edb128c9f3b823",
-      run: "34d56f3aab6404983c64a52a6abade8cbc1d35e082dfe282030b972b39ea5cdf",
+      run: "1dfc2b0093f507fd475701a56896ae9f5285f5963c3e60db6b99983575939eb0",
     }),
   }),
 });
 
 const RELEASE_JOB_FINGERPRINT =
-  "9e570f9952d5290a40c91a21b188c91823a192f71a3f7d1dbaf853c78925b10e";
+  "436b4fb744b42764ce97238e8edc252c771b80e08cd746697518be63bfd39e60";
 
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
@@ -167,6 +166,10 @@ const REQUIRED_STEP_LINES = Object.freeze({
   "Verify installer and test-world artifact provenance": Object.freeze([
     "(cd installer-out && sha256sum -c installer-out.sha256.txt)",
     "(cd world-out && sha256sum -c test-world.sha256.txt)",
+  ]),
+  "Compose release notes": Object.freeze([
+    'echo "> [!WARNING]"',
+    'echo "> Worldlens for Windows is intentionally and permanently unsigned. Windows SmartScreen may warn that the publisher is unknown; review the exact SHA-256 digest on this release before choosing to run it. The Squirrel package hash detects changed bytes, but an unsigned package does not authenticate who published or authored those bytes."',
   ]),
 });
 

@@ -7,7 +7,7 @@ describe("appearance target traversal", () => {
     it("includes every rendered element and excludes document plumbing", () => {
         const root = document.createElement("main");
         root.innerHTML = `
-            <header><h1>Material BlueMap</h1><p>Read the map.</p></header>
+            <header><h1>Worldlens</h1><p>Read the map.</p></header>
             <details><summary>More</summary><div><a href="#docs">Documentation</a></div></details>
             <script>window.neverDecorateMe = true;</script>
             <style>.ignored { color: red; }</style>

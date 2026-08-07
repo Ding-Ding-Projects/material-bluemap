@@ -2,7 +2,7 @@
 /**
  * Puts a split release asset back together, and proves it is what it claims to be.
  *
- * A thin command line over `@material-bluemap/parts`, and the same code the desktop
+ * A thin command line over `@worldlens/parts`, and the same code the desktop
  * application runs after downloading. Every part is checked against its own SHA-256 as
  * it is appended, and the whole file is checked at the end.
  *
@@ -26,9 +26,9 @@ const packageDist = resolve(here, "../design/packages/parts/dist/index.js");
 
 if (!existsSync(packageDist)) {
     console.error(
-        "The @material-bluemap/parts package has not been built.\n" +
+        "The @worldlens/parts package has not been built.\n" +
             "Run this first:\n\n" +
-            "    cd design && pnpm install && pnpm --filter @material-bluemap/parts run build\n",
+            "    cd design && pnpm install && pnpm --filter @worldlens/parts run build\n",
     );
     process.exit(2);
 }

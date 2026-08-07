@@ -151,7 +151,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm lint
       - run: pnpm build
-      # After `build`, never before: a package resolves a sibling `@material-bluemap/*`
+      # After `build`, never before: a package resolves a sibling `@worldlens/*`
       # through that sibling's emitted `dist/*.d.ts`, so on a clean checkout every
       # cross-package import is a "cannot find module" until the build has run.
       #
@@ -305,7 +305,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path $output | Out-Null
           $found = @()
           # Only the Squirrel output directory. A plain `*.exe` sweep also picks up
-          # `win-unpacked/Material BlueMap.exe`, which is the unpacked binary: 204 MB,
+          # `win-unpacked/Worldlens.exe`, which is the unpacked binary: 204 MB,
           # useless on its own, and the largest thing in the release.
           foreach ($directory in @('release/squirrel-windows', 'dist/squirrel-windows', '../../release/squirrel-windows')) {
             if (-not (Test-Path -LiteralPath $directory -PathType Container)) { continue }
@@ -651,10 +651,10 @@ jobs:
       - name: Capture
         working-directory: design/packages/app
         env:
-          MATERIAL_BLUEMAP_CAPTURE_MODE: local
-          MATERIAL_BLUEMAP_CAPTURE_MAP: ${{ github.workspace }}/rendered-map/web
-          MATERIAL_BLUEMAP_CAPTURE_PROVENANCE: ${{ github.workspace }}/rendered-map/provenance.json
-          MATERIAL_BLUEMAP_CAPTURE_WORLD: ${{ env.CAPTURE_WORLD }}
+          WORLDLENS_CAPTURE_MODE: local
+          WORLDLENS_CAPTURE_MAP: ${{ github.workspace }}/rendered-map/web
+          WORLDLENS_CAPTURE_PROVENANCE: ${{ github.workspace }}/rendered-map/provenance.json
+          WORLDLENS_CAPTURE_WORLD: ${{ env.CAPTURE_WORLD }}
         run: xvfb-run -a --server-args="-screen 0 1920x1080x24" pnpm run screenshots
 
       # Upload even when the capture failed: a diagnostic image of a broken
@@ -802,7 +802,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile --ignore-scripts
-          pnpm --filter @material-bluemap/parts run build
+          pnpm --filter @worldlens/parts run build
 
       # Nothing happens here on an ordinary build: every asset this release carries today
       # is far under the cap, `split` stays 0, and the notes below say nothing about
@@ -914,6 +914,9 @@ jobs:
             echo
             echo "Download the Squirrel.Windows installer below. Windows only for now; macOS and Linux packaging land in a later phase."
             echo
+            echo "> [!WARNING]"
+            echo "> Worldlens for Windows is intentionally and permanently unsigned. Windows SmartScreen may warn that the publisher is unknown; review the exact SHA-256 digest on this release before choosing to run it. The Squirrel package hash detects changed bytes, but an unsigned package does not authenticate who published or authored those bytes."
+            echo
             echo "The seven \`bluemap-*.jar\` files are a separate download and are not needed to install the desktop application. Take one only to run BlueMap on a Minecraft server or from a command line; the table below says which is which."
             echo
             cat jars-out/bluemap-jars.md
@@ -998,7 +1001,7 @@ jobs:
           zip -qr "$jars.zip" "$jars"
 
           # Everything else that is not the installer and not the plugins.
-          extras="material-bluemap-${RELEASE_TAG}-extras"
+          extras="worldlens-${RELEASE_TAG}-extras"
           mkdir -p "$extras"/{test-world,update}
           cp world-out/*.zip "$extras/test-world/"
           # The .nupkg and RELEASES are the update set and must exist - an unmatched
@@ -1012,7 +1015,7 @@ jobs:
             cp installer-out/Squirrel.exe "$extras/update/"
           fi
           {
-            printf 'material-bluemap %s - extras\n\n' "$RELEASE_TAG"
+            printf 'Worldlens %s - extras\n\n' "$RELEASE_TAG"
             cat <<'TXT'
 
             test-world/  A Minecraft save this project generated in anvil format, with
@@ -1028,7 +1031,7 @@ jobs:
           zip -qr "$extras.zip" "$extras"
           echo "server plugins: $(du -h "$jars.zip" | cut -f1)   extras: $(du -h "$extras.zip" | cut -f1)"
 
-          assets=(installer-out/*Setup.exe "$jars.zip" "$extras.zip")
+          assets=(installer-out/*Setup.exe "$jars.zip" "$extras.zip" jars-out/bluemap-jars.sha256.txt)
           # The Squirrel update set has to exist as its own loose release assets, not
           # only zipped inside $extras.zip. Electron's autoUpdater (and the public
           # update.electronjs.org feed this app points at by default, see
@@ -1054,51 +1057,56 @@ jobs:
           gh release create "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "material-bluemap $RELEASE_TAG" \
+            --title "Worldlens $RELEASE_TAG" \
             --notes-file release-notes.md \
             "${assets[@]}"
 
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets \
+            --jq 'if .isDraft then error("release was published as a draft") elif ([.assets[].name] | index("bluemap-jars.sha256.txt")) == null then error("the direct jar checksum asset is missing") else "published with \(.assets | length) assets" end'
+
           # The release notes are assembled before publication because they contain
-          # the artifact tables and line count. Add the end-to-end stopwatch after
-          # `gh release create` returns so the completed timestamp covers the actual
-          # publication, not merely note composition. The first job's startedAt is
-          # read from the run itself rather than inferred from this job's clock.
+          # the artifact tables and line count. Add the end-to-end stopwatch only
+          # after every other release check. Publication must be the last command in
+          # this step: otherwise the note records an intermediate clock and the step's
+          # own completedAt lands a second later. The first job's startedAt is read
+          # from the run itself rather than inferred from this job's clock.
           workflow_started=$(gh run view "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.startedAt != null and .startedAt != "0001-01-01T00:00:00Z") | .startedAt] | sort | .[0]')
           if [ -z "$workflow_started" ] || [ "$workflow_started" = "null" ]; then
             echo "::error::could not resolve the first job start time for end-to-end release timing"
             exit 1
           fi
-          workflow_completed=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           workflow_started_epoch=$(date -u -d "$workflow_started" +%s)
-          workflow_completed_epoch=$(date -u -d "$workflow_completed" +%s)
-          workflow_duration_seconds=$((workflow_completed_epoch - workflow_started_epoch))
-          if [ "$workflow_duration_seconds" -lt 0 ]; then
-            echo "::error::workflow timing went backwards: $workflow_started -> $workflow_completed"
-            exit 1
-          fi
-          workflow_duration=$(printf '%02d:%02d:%02d' \
-            $((workflow_duration_seconds / 3600)) \
-            $(((workflow_duration_seconds % 3600) / 60)) \
-            $((workflow_duration_seconds % 60)))
-          {
-            echo
-            echo "## Workflow timing"
-            echo
-            echo "- Workflow started: $workflow_started"
-            echo "- Workflow completed: $workflow_completed"
-            echo "- Workflow duration: $workflow_duration"
-          } >> release-notes.md
-          gh release edit "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --notes-file release-notes.md
-          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body \
-            > published-release-notes.md
-          published_notes=$(<published-release-notes.md)
-          for required_timing in "Workflow started:" "Workflow completed:" "Workflow duration:"; do
-            if ! grep -Fq "$required_timing" <<< "$published_notes"; then
-              echo "::error::published release notes are missing $required_timing"
+          cp release-notes.md release-notes-without-timing.md
+          for attempt in 1 2 3 4 5; do
+            workflow_completed=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            workflow_completed_epoch=$(date -u -d "$workflow_completed" +%s)
+            workflow_duration_seconds=$((workflow_completed_epoch - workflow_started_epoch))
+            if [ "$workflow_duration_seconds" -lt 0 ]; then
+              echo "::error::workflow timing went backwards: $workflow_started -> $workflow_completed"
+              exit 1
+            fi
+            workflow_duration=$(printf '%02d:%02d:%02d' \
+              $((workflow_duration_seconds / 3600)) \
+              $(((workflow_duration_seconds % 3600) / 60)) \
+              $((workflow_duration_seconds % 60)))
+            {
+              cat release-notes-without-timing.md
+              echo
+              echo "## Workflow timing"
+              echo
+              echo "- Workflow started: $workflow_started"
+              echo "- Workflow completed: $workflow_completed"
+              echo "- Workflow duration: $workflow_duration"
+            } > release-notes.md
+            gh release edit "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --notes-file release-notes.md
+            observed_completion=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            if [ "$observed_completion" = "$workflow_completed" ]; then
+              exit 0
+            fi
+            if [ "$attempt" = "5" ]; then
+              echo "::error::release-note publication crossed a UTC second boundary five times"
               exit 1
             fi
           done
-          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft,assets \
-            --jq 'if .isDraft then error("release was published as a draft") else "published with \(.assets | length) assets" end'

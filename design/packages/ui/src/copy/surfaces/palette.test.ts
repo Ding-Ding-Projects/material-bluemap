@@ -24,7 +24,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { parseHocon } from "@material-bluemap/shared";
+import { parseHocon } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 
 import { PALETTE_FACTS, PALETTE_FIXED, PALETTE_VOICED } from "./palette.js";

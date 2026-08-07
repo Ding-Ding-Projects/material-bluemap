@@ -36,7 +36,7 @@
 
 import { rm, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { sha256File } from "@material-bluemap/parts";
+import { sha256File } from "@worldlens/parts";
 import { extractZip } from "../download/extract.js";
 import { LocalMapHandler } from "../render/LocalMapHandler.js";
 import { RENDER_RECORD_VERSION, writeRenderRecord } from "../render/provenance.js";

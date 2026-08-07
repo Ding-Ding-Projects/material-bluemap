@@ -15,7 +15,7 @@ import { resolvePathFieldBridge, type PathFieldBridge } from "./pathFieldHost.js
  * into fields that `configHost.ts` cannot reach: `configHost.ts`'s `useConfigHost()` resolves
  * to `null` outside the three screens that call `provideConfigHost()` (World, Projects,
  * Config), and Settings, Backup and the remote target editor are outside all three.
- * `pathFieldHost.ts` probes `window.materialBluemap.dialog` directly instead, so this works
+ * `pathFieldHost.ts` probes `window.worldlens.dialog` directly instead, so this works
  * from anywhere with nothing to provide and nothing to inject.
  *
  * A pick writes into `v-model` exactly as typing would: same event

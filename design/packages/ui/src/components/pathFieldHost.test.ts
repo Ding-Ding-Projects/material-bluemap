@@ -20,19 +20,19 @@ describe("probing the dialog bridge", () => {
     });
 
     it("reports no bridge when the shell has a bridge but no dialog namespace", () => {
-        setWindow({ materialBluemap: { getVersion: () => Promise.resolve("5.22") } });
+        setWindow({ worldlens: { getVersion: () => Promise.resolve("5.22") } });
         expect(resolvePathFieldBridge()).toBeNull();
     });
 
     it("refuses a half-wired bridge rather than offering a picker that would throw", () => {
-        setWindow({ materialBluemap: { dialog: { pickFolder: () => Promise.resolve(null) } } });
+        setWindow({ worldlens: { dialog: { pickFolder: () => Promise.resolve(null) } } });
         expect(resolvePathFieldBridge()).toBeNull();
     });
 
     it("accepts a bridge that has both methods, and forwards to it", async () => {
         const pickFolder = vi.fn(() => Promise.resolve("/picked"));
         const pickFile = vi.fn(() => Promise.resolve("/picked/id_ed25519"));
-        setWindow({ materialBluemap: { dialog: { pickFolder, pickFile } } });
+        setWindow({ worldlens: { dialog: { pickFolder, pickFile } } });
 
         const bridge = resolvePathFieldBridge();
         expect(bridge).not.toBeNull();

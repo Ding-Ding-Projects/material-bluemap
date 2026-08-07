@@ -82,7 +82,7 @@ function harness(
     const transfer = fakeTransfer();
     const runner = fakeRunner([
         ...(options.runnerTable ?? []),
-        { when: /'rm' '-f'/, answer: output({ stdout: "material-bluemap-host-x" }) },
+        { when: /'rm' '-f'/, answer: output({ stdout: "worldlens-host-x" }) },
         { when: /'run' '-d'/, answer: output({ stdout: "container-id-123" }) },
     ]);
 
@@ -329,7 +329,7 @@ describe("stopHosting()", () => {
     it("treats 'no such container' as success, so stopping twice is not an error", async () => {
         const { orchestrator } = harness({
             probe: () => Promise.resolve(true),
-            runnerTable: [{ when: /'rm' '-f'/, answer: output({ ok: false, exitCode: 1, stderr: "Error: No such container: material-bluemap-host-x" }) }],
+            runnerTable: [{ when: /'rm' '-f'/, answer: output({ ok: false, exitCode: 1, stderr: "Error: No such container: worldlens-host-x" }) }],
         });
         await orchestrator.host(baseRequest());
 

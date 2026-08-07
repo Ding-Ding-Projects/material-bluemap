@@ -25,7 +25,7 @@ import {
     VSwitch,
     VTextField,
 } from "vuetify/components";
-import { DIMENSION_OPTIONS, type FieldMeta, type PlainValue, type ProjectFile } from "@material-bluemap/config";
+import { DIMENSION_OPTIONS, type FieldMeta, type PlainValue, type ProjectFile } from "@worldlens/config";
 import ConfigFileForm from "../config/ConfigFileForm.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
@@ -61,7 +61,7 @@ import {
  * The settings themselves are rendered by `../config/ConfigFileForm.vue`, which is the
  * component the options editor already uses for all ninety-odd of them. Nothing here names
  * a setting: the groups, the controls, the documentation and the defaults are read from
- * `@material-bluemap/config`, so a setting added to the schema appears here with no change
+ * `@worldlens/config`, so a setting added to the schema appears here with no change
  * to this file.
  *
  * ## Why this is not `../config/MapsScreen.vue`

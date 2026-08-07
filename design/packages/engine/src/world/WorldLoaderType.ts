@@ -1,4 +1,4 @@
-import { Registry, type Key, type Keyed } from "@material-bluemap/shared";
+import { Registry, type Key, type Keyed } from "@worldlens/shared";
 import type { DataPack } from "../resources/pack/datapack/DataPack.js";
 import type { World } from "./World.js";
 import { worldDataPacks, type WorldLoader } from "./WorldLoader.js";

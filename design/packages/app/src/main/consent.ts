@@ -95,7 +95,7 @@ export function readConsent(): ConsentRecord {
 /**
  * Environment opt-in, for machines whose operator has already decided.
  *
- * Set `MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD=1` and nothing ever asks: not first run,
+ * Set `WORLDLENS_ACCEPT_DOWNLOAD=1` and nothing ever asks: not first run,
  * not a render, not after a reinstall. This is for a developer machine, a CI
  * runner, or a server someone administers, where the person setting the variable
  * is the same person the acceptance belongs to.
@@ -108,7 +108,9 @@ export function readConsent(): ConsentRecord {
  * making it for themselves.
  */
 export function acceptedViaEnvironment(): boolean {
-    const raw = process.env.MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD;
+    const raw =
+        process.env.WORLDLENS_ACCEPT_DOWNLOAD ??
+        process.env.MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD;
     if (raw === undefined) return false;
     const value = raw.trim().toLowerCase();
     return value === "1" || value === "true" || value === "yes";

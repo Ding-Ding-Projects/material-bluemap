@@ -3,6 +3,9 @@ import {
     FEED_DISABLE_VARIABLE,
     FEED_TOKEN_VARIABLE,
     FEED_URL_VARIABLE,
+    LEGACY_FEED_DISABLE_VARIABLE,
+    LEGACY_FEED_TOKEN_VARIABLE,
+    LEGACY_FEED_URL_VARIABLE,
     describeFeed,
     isSecureFeedUrl,
     resolveFeed,
@@ -14,7 +17,7 @@ const packagedWindows: FeedInputs = {
     platform: "win32",
     arch: "x64",
     version: "0.1.0",
-    repository: "Ding-Ding-Projects/material-bluemap",
+    repository: "Ding-Ding-Projects/worldlens",
     environment: {},
 };
 
@@ -24,10 +27,59 @@ describe("resolveFeed", () => {
         expect(resolution.ok).toBe(true);
         if (!resolution.ok) return;
         expect(resolution.feed.url).toBe(
-            "https://update.electronjs.org/Ding-Ding-Projects/material-bluemap/win32-x64/0.1.0",
+            "https://update.electronjs.org/Ding-Ding-Projects/worldlens/win32-x64/0.1.0",
         );
         expect(resolution.feed.serverType).toBe("default");
         expect(resolution.feed.headers).toEqual({});
+        expect(resolution.feed.handoffIdentity).toBe(
+            "github-release:Ding-Ding-Projects/worldlens:win32-x64",
+        );
+        expect(resolution.legacyFallback).toBeNull();
+    });
+
+    it("resolves a distinct legacy repository as a bounded fallback", () => {
+        const resolution = resolveFeed({
+            ...packagedWindows,
+            legacyRepository: "Ding-Ding-Projects/material-bluemap",
+        });
+        expect(resolution.ok).toBe(true);
+        if (!resolution.ok) return;
+        expect(resolution.feed.url).toContain("Ding-Ding-Projects/worldlens");
+        expect(resolution.legacyFallback?.url).toContain("Ding-Ding-Projects/material-bluemap");
+        expect(resolution.legacyFallback?.handoffIdentity).toBe(
+            "github-release:Ding-Ding-Projects/material-bluemap:win32-x64",
+        );
+    });
+
+    it("keeps handoff identity stable when the installed version changes", () => {
+        const build100 = resolveFeed({
+            ...packagedWindows,
+            version: "0.1.0-build.100",
+            legacyRepository: "Ding-Ding-Projects/material-bluemap",
+        });
+        const build101 = resolveFeed({
+            ...packagedWindows,
+            version: "0.1.0-build.101",
+            legacyRepository: "Ding-Ding-Projects/material-bluemap",
+        });
+        expect(build100.ok).toBe(true);
+        expect(build101.ok).toBe(true);
+        if (!build100.ok || !build101.ok) return;
+        expect(build100.feed.url).not.toBe(build101.feed.url);
+        expect(build100.feed.handoffIdentity).toBe(build101.feed.handoffIdentity);
+        expect(build100.legacyFallback?.handoffIdentity).toBe(
+            build101.legacyFallback?.handoffIdentity,
+        );
+    });
+
+    it("refuses a malformed legacy repository instead of inventing a bridge URL", () => {
+        const resolution = resolveFeed({
+            ...packagedWindows,
+            legacyRepository: "not/a/repository/name",
+        });
+        expect(resolution.ok).toBe(false);
+        if (resolution.ok) return;
+        expect(resolution.reason).toContain("legacy release repository is malformed");
     });
 
     it("refuses, with a reason, when the build was not installed by its installer", () => {
@@ -63,6 +115,7 @@ describe("resolveFeed", () => {
         expect(resolution.ok).toBe(true);
         if (!resolution.ok) return;
         expect(resolution.feed.url).toBe("https://feed.example/win32-x64/0.1.0");
+        expect(resolution.legacyFallback).toBeNull();
     });
 
     it("refuses a plain-http override, because an update fetched over http can be replaced", () => {
@@ -103,6 +156,40 @@ describe("resolveFeed", () => {
         expect(resolution.feed.headers["Authorization"]).toBe("Bearer s3cret-token");
         // The URL is the value that reaches the interface, so the token must not be in it.
         expect(resolution.feed.url).not.toContain("s3cret-token");
+    });
+
+    it("reads legacy update variables but gives Worldlens variables precedence", () => {
+        const legacy = resolveFeed({
+            ...packagedWindows,
+            environment: {
+                [LEGACY_FEED_URL_VARIABLE]: "https://legacy.example/feed",
+                [LEGACY_FEED_TOKEN_VARIABLE]: "legacy-token",
+            },
+        });
+        expect(legacy.ok).toBe(true);
+        if (!legacy.ok) return;
+        expect(legacy.feed.url).toBe("https://legacy.example/feed");
+        expect(legacy.feed.headers.Authorization).toBe("Bearer legacy-token");
+
+        const current = resolveFeed({
+            ...packagedWindows,
+            environment: {
+                [FEED_URL_VARIABLE]: "https://worldlens.example/feed",
+                [LEGACY_FEED_URL_VARIABLE]: "https://legacy.example/feed",
+                [FEED_TOKEN_VARIABLE]: "worldlens-token",
+                [LEGACY_FEED_TOKEN_VARIABLE]: "legacy-token",
+            },
+        });
+        expect(current.ok).toBe(true);
+        if (!current.ok) return;
+        expect(current.feed.url).toBe("https://worldlens.example/feed");
+        expect(current.feed.headers.Authorization).toBe("Bearer worldlens-token");
+
+        const disabled = resolveFeed({
+            ...packagedWindows,
+            environment: { [LEGACY_FEED_DISABLE_VARIABLE]: "true" },
+        });
+        expect(disabled.ok).toBe(false);
     });
 });
 

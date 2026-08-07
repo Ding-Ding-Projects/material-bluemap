@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { NBTWriter } from "@material-bluemap/nbt";
-import { Color, Key } from "@material-bluemap/shared";
+import { NBTWriter } from "@worldlens/nbt";
+import { Color, Key } from "@worldlens/shared";
 import { BlockState } from "../../BlockState.js";
 import { DimensionType } from "../../DimensionType.js";
 import { LightData } from "../../LightData.js";

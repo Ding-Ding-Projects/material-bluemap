@@ -9,7 +9,7 @@
  * - the resumable ranged transfer comes from `download/http.ts`;
  * - the safe unpack comes from `download/extract.ts`;
  * - the join, with its per-part re-check and its resume, comes from
- *   `@material-bluemap/parts` - the same joiner `scripts/join-parts.mjs` runs;
+ *   `@worldlens/parts` - the same joiner `scripts/join-parts.mjs` runs;
  * - the event shapes, the failure codes and the on-disk workspace come from
  *   `download/`, so a world fetched from somebody else's repository is reported by the
  *   interface exactly as one fetched from this one.
@@ -42,7 +42,7 @@
 
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
-import { PartsIntegrityError, PartsManifestError, joinParts } from "@material-bluemap/parts";
+import { PartsIntegrityError, PartsManifestError, joinParts } from "@worldlens/parts";
 import * as failures from "../download/failure.js";
 import type { DownloadFailure } from "../download/failure.js";
 import { ReleaseDownloader } from "../download/downloader.js";
@@ -654,7 +654,7 @@ export class WorldSourceFetcher {
     }
 
     private headers(token: string | null): Record<string, string> {
-        if (token === null) return { "user-agent": "material-bluemap" };
+        if (token === null) return { "user-agent": "worldlens" };
         return { ...apiHeaders(token), accept: "application/octet-stream" };
     }
 

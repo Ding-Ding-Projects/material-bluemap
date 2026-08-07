@@ -3,7 +3,7 @@
 Release-time scripts. `count-lines.mjs`, `pick-dim-sum.mjs` and `lint-workflows.mjs` are plain Node with no dependencies
 beyond the standard library and `git`, so they run identically on a developer machine and on a CI
 runner. `split-parts.mjs` and `join-parts.mjs` are thin command lines over the workspace package
-`@material-bluemap/parts`, which has to be built first; they say so and exit 2 when it is not.
+`@worldlens/parts`, which has to be built first; they say so and exit 2 when it is not.
 
 ## `count-lines.mjs`
 
@@ -134,7 +134,7 @@ and is the same code the desktop application runs when it downloads what CI publ
 first:
 
 ```bash
-cd design && pnpm install && pnpm --filter @material-bluemap/parts run build
+cd design && pnpm install && pnpm --filter @worldlens/parts run build
 ```
 
 A file no larger than the part size is **passed through untouched** - nothing is written, and the

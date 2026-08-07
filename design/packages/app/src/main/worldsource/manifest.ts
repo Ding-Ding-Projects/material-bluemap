@@ -5,7 +5,7 @@
  * here, or describe what was downloaded in the format the existing one takes. The second
  * is what happens, deliberately.
  *
- * `@material-bluemap/parts` is where joining lives - it streams, it re-checks every part
+ * `@worldlens/parts` is where joining lives - it streams, it re-checks every part
  * as it appends, it resumes an interrupted join from the last complete part, and it is
  * the same code `scripts/join-parts.mjs` runs and the same code the release downloader
  * runs. A second implementation here would be a second set of those behaviours to get
@@ -28,7 +28,7 @@ import {
     manifestNameFor,
     parseManifest,
     type PartsManifest,
-} from "@material-bluemap/parts";
+} from "@worldlens/parts";
 
 export interface SynthesisedPart {
     /** The published asset name, kept exactly as published. */

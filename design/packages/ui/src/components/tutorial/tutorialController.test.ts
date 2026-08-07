@@ -147,7 +147,7 @@ describe("persistence: resumable, and never reappearing uninvited", () => {
     });
 
     it("a stored progress index past the real step count falls back to step one", () => {
-        storage.write("material-bluemap.tutorial.progress", "999");
+        storage.write("worldlens.tutorial.progress", "999");
 
         const tour = createTutorialController(storage);
         tour.start();
@@ -156,7 +156,7 @@ describe("persistence: resumable, and never reappearing uninvited", () => {
     });
 
     it("a corrupt stored progress index falls back to step one rather than throwing", () => {
-        storage.write("material-bluemap.tutorial.progress", "not-a-number");
+        storage.write("worldlens.tutorial.progress", "not-a-number");
 
         const tour = createTutorialController(storage);
         expect(() => tour.start()).not.toThrow();

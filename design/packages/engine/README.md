@@ -1,4 +1,4 @@
-# `@material-bluemap/engine`
+# `@worldlens/engine`
 
 The render engine: world parsing, resource packs, tile rendering and storage — a
 fidelity-first TypeScript port of BlueMap's `core` module.

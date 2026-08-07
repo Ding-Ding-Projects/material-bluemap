@@ -57,7 +57,7 @@ export function publishBindAddress(publish: RemoteHostingPublish): string {
  * confused in `docker ps` on a host that does both.
  */
 export function remoteHostingContainerName(hostingId: string): string {
-    return containerName("material-bluemap-host", hostingId);
+    return containerName("worldlens-host", hostingId);
 }
 
 export interface RemoteServeDockerRunOptions {

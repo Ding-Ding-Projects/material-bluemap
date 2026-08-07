@@ -29,6 +29,8 @@ import {
     CI_BOOTSTRAP_MARKER_FILE,
     CI_BOOTSTRAP_MARKER_TOOL,
     CI_BOOTSTRAP_MARKER_VERSION,
+    LEGACY_CI_BOOTSTRAP_MARKER_FILE,
+    LEGACY_CI_BOOTSTRAP_MARKER_TOOL,
 } from "../cirender/bootstrap.js";
 import type { ProcessResult, ProcessRunner } from "../cirender/gh.js";
 
@@ -63,20 +65,45 @@ function machine(): Machine {
                 });
             }
             if (command === "gh" && args[0] === "--version") {
-                return Promise.resolve({ started: true, code: 0, stdout: "gh version 2.62.0\n", stderr: "" });
+                return Promise.resolve({
+                    started: true,
+                    code: 0,
+                    stdout: "gh version 2.62.0\n",
+                    stderr: "",
+                });
             }
             if (command === "gh" && args[0] === "api") {
                 const endpoint = args[args.length - 1] ?? "";
                 if (!api.has(endpoint)) {
-                    return Promise.resolve({ started: true, code: 1, stdout: "", stderr: "gh: Not Found (HTTP 404)\n" });
+                    return Promise.resolve({
+                        started: true,
+                        code: 1,
+                        stdout: "",
+                        stderr: "gh: Not Found (HTTP 404)\n",
+                    });
                 }
-                return Promise.resolve({ started: true, code: 0, stdout: JSON.stringify(api.get(endpoint)), stderr: "" });
+                return Promise.resolve({
+                    started: true,
+                    code: 0,
+                    stdout: JSON.stringify(api.get(endpoint)),
+                    stderr: "",
+                });
             }
             if (command === "git" && args.includes("rev-parse")) {
-                return Promise.resolve({ started: true, code: 0, stdout: `${"d".repeat(40)}\n`, stderr: "" });
+                return Promise.resolve({
+                    started: true,
+                    code: 0,
+                    stdout: `${"d".repeat(40)}\n`,
+                    stderr: "",
+                });
             }
             if (command === "git" && args.includes("--version")) {
-                return Promise.resolve({ started: true, code: 0, stdout: "git version 2.47.0\n", stderr: "" });
+                return Promise.resolve({
+                    started: true,
+                    code: 0,
+                    stdout: "git version 2.47.0\n",
+                    stderr: "",
+                });
             }
             return Promise.resolve({ started: true, code: 0, stdout: "", stderr: "" });
         },
@@ -91,7 +118,12 @@ function jsonFile(value: unknown): unknown {
 }
 
 function markerPayload(branch: string, version = WORLD_REPO_MARKER_VERSION): unknown {
-    return jsonFile({ tool: WORLD_REPO_MARKER_TOOL, version, branch, updatedAt: "2026-08-01T00:00:00.000Z" });
+    return jsonFile({
+        tool: WORLD_REPO_MARKER_TOOL,
+        version,
+        branch,
+        updatedAt: "2026-08-01T00:00:00.000Z",
+    });
 }
 
 function repositoryPayload(): unknown {
@@ -129,18 +161,20 @@ function projectPayload(overrides: ProjectOverrides = {}): unknown {
         createdAt: "2026-01-01T00:00:00.000Z",
         updatedAt: "2026-01-02T00:00:00.000Z",
         appVersion: "1.2.3",
-        maps: (overrides.maps ?? [{ id: "overworld", name: "Overworld", dimension: "minecraft:overworld" }]).map(
-            (m) => ({
-                id: m.id,
-                name: m.name,
-                dimension: m.dimension,
-                world: m.world ?? null,
-                config: "",
-                storage: "file",
-                sorting: 0,
-                enabled: true,
-            }),
-        ),
+        maps: (
+            overrides.maps ?? [
+                { id: "overworld", name: "Overworld", dimension: "minecraft:overworld" },
+            ]
+        ).map((m) => ({
+            id: m.id,
+            name: m.name,
+            dimension: m.dimension,
+            world: m.world ?? null,
+            config: "",
+            storage: "file",
+            sorting: 0,
+            enabled: true,
+        })),
         storages: [{ id: "file", config: "" }],
         render: {
             threads: overrides.render?.threads ?? 4,
@@ -157,7 +191,10 @@ function projectPayload(overrides: ProjectOverrides = {}): unknown {
     };
 }
 
-function readyRepo(runner: Machine, options: { markerVersion?: number; projectVersion?: number } = {}): void {
+function readyRepo(
+    runner: Machine,
+    options: { markerVersion?: number; projectVersion?: number } = {},
+): void {
     runner.api.set("repos/octocat/worlds", repositoryPayload());
     runner.api.set("repos/octocat/worlds/branches/world", { commit: { sha: "c".repeat(40) } });
     runner.api.set(
@@ -176,17 +213,50 @@ function bootstrapMarkerPayload(version = CI_BOOTSTRAP_MARKER_VERSION): unknown 
     });
 }
 
+function legacyBootstrapMarkerPayload(version = CI_BOOTSTRAP_MARKER_VERSION): unknown {
+    return jsonFile({
+        tool: LEGACY_CI_BOOTSTRAP_MARKER_TOOL,
+        version,
+        templateVersion: "1",
+        files: [".github/workflows/render-world.yml"],
+        preparedAt: "2026-07-31T00:00:00.000Z",
+    });
+}
+
 /** A repository bootstrapped for CI rendering, but never synced through `worldrepo`. */
 function bootstrapOnlyRepo(runner: Machine, repo = "worlds", version?: number): void {
-    runner.api.set(`repos/octocat/${repo}`, { full_name: `octocat/${repo}`, private: false, permissions: { push: true } });
-    runner.api.set(`repos/octocat/${repo}/contents/${CI_BOOTSTRAP_MARKER_FILE}`, bootstrapMarkerPayload(version));
+    runner.api.set(`repos/octocat/${repo}`, {
+        full_name: `octocat/${repo}`,
+        private: false,
+        permissions: { push: true },
+    });
+    runner.api.set(
+        `repos/octocat/${repo}/contents/${CI_BOOTSTRAP_MARKER_FILE}`,
+        bootstrapMarkerPayload(version),
+    );
+}
+
+function legacyBootstrapOnlyRepo(runner: Machine, repo = "worlds", version?: number): void {
+    runner.api.set(`repos/octocat/${repo}`, {
+        full_name: `octocat/${repo}`,
+        private: false,
+        permissions: { push: true },
+    });
+    runner.api.set(
+        `repos/octocat/${repo}/contents/${LEGACY_CI_BOOTSTRAP_MARKER_FILE}`,
+        legacyBootstrapMarkerPayload(version),
+    );
 }
 
 let root = "";
 let work = "";
 
 function host(runner: ProcessRunner): WorldRepoHost {
-    return new WorldRepoHost({ workRoot: () => work, runner, now: () => new Date("2026-08-05T12:00:00.000Z") });
+    return new WorldRepoHost({
+        workRoot: () => work,
+        runner,
+        now: () => new Date("2026-08-05T12:00:00.000Z"),
+    });
 }
 
 beforeEach(async () => {
@@ -206,7 +276,11 @@ describe("probeAdoptionCandidates", () => {
     it("tells a prepared repository apart from a plain one, in the same list", async () => {
         const runner = machine();
         readyRepo(runner);
-        runner.api.set("repos/octocat/scratch", { full_name: "octocat/scratch", private: false, permissions: { push: true } });
+        runner.api.set("repos/octocat/scratch", {
+            full_name: "octocat/scratch",
+            private: false,
+            permissions: { push: true },
+        });
         runner.api.set("repos/octocat/scratch/branches/world", null as unknown as never);
 
         const results = await probeAdoptionCandidates(host(runner), runner, [
@@ -223,7 +297,9 @@ describe("probeAdoptionCandidates", () => {
     it("never asserts certainty - every wording hedges with 'looks like'", async () => {
         const runner = machine();
         readyRepo(runner);
-        const [prepared] = await probeAdoptionCandidates(host(runner), runner, [{ owner: "octocat", repo: "worlds" }]);
+        const [prepared] = await probeAdoptionCandidates(host(runner), runner, [
+            { owner: "octocat", repo: "worlds" },
+        ]);
         expect(prepared?.message).toMatch(/looks like/i);
         expect(prepared?.message).not.toMatch(/\bis your\b|\bdefinitely\b|\bconfirmed\b/i);
     });
@@ -252,7 +328,9 @@ describe("probeAdoptionCandidates", () => {
         // Genuinely never asked: no `gh api` call was ever made for those repository names.
         for (const signal of untouched) {
             const name = signal.fullName.split("/")[1] ?? "";
-            expect(runner.calls.some((call) => call.args.some((arg) => arg.includes(name)))).toBe(false);
+            expect(runner.calls.some((call) => call.args.some((arg) => arg.includes(name)))).toBe(
+                false,
+            );
         }
     });
 
@@ -277,7 +355,9 @@ describe("probeAdoptionCandidates", () => {
     it("degrades a marker from a newer version honestly, still calling it likely prepared", async () => {
         const runner = machine();
         readyRepo(runner, { markerVersion: WORLD_REPO_MARKER_VERSION + 7 });
-        const [signal] = await probeAdoptionCandidates(host(runner), runner, [{ owner: "octocat", repo: "worlds" }]);
+        const [signal] = await probeAdoptionCandidates(host(runner), runner, [
+            { owner: "octocat", repo: "worlds" },
+        ]);
         expect(signal?.status).toBe("prepared-newer-version");
         expect(signal?.message).toMatch(/newer version/i);
         expect(signal?.marker).not.toBeNull();
@@ -286,7 +366,9 @@ describe("probeAdoptionCandidates", () => {
     it("also recognises a repository bootstrapped for CI rendering but never synced as a world repo", async () => {
         const runner = machine();
         bootstrapOnlyRepo(runner);
-        const [signal] = await probeAdoptionCandidates(host(runner), runner, [{ owner: "octocat", repo: "worlds" }]);
+        const [signal] = await probeAdoptionCandidates(host(runner), runner, [
+            { owner: "octocat", repo: "worlds" },
+        ]);
         expect(signal?.status).toBe("prepared");
         expect(signal?.marker).toBeNull();
         expect(signal?.bootstrapMarker).not.toBeNull();
@@ -294,11 +376,66 @@ describe("probeAdoptionCandidates", () => {
         expect(signal?.message).toMatch(/looks like/i);
     });
 
+    it("reads the legacy CI marker and normalises its tool to Worldlens", async () => {
+        const runner = machine();
+        legacyBootstrapOnlyRepo(runner);
+
+        const [signal] = await probeAdoptionCandidates(host(runner), runner, [
+            { owner: "octocat", repo: "worlds" },
+        ]);
+
+        expect(signal?.status).toBe("prepared");
+        expect(signal?.bootstrapMarker).toMatchObject({
+            tool: CI_BOOTSTRAP_MARKER_TOOL,
+            version: CI_BOOTSTRAP_MARKER_VERSION,
+        });
+        const markerReads = runner.calls
+            .filter((call) => call.command === "gh" && call.args[0] === "api")
+            .map((call) => call.args[call.args.length - 1]);
+        expect(markerReads).toContain(`repos/octocat/worlds/contents/${CI_BOOTSTRAP_MARKER_FILE}`);
+        expect(markerReads).toContain(
+            `repos/octocat/worlds/contents/${LEGACY_CI_BOOTSTRAP_MARKER_FILE}`,
+        );
+        expect(
+            markerReads.indexOf(`repos/octocat/worlds/contents/${CI_BOOTSTRAP_MARKER_FILE}`),
+        ).toBeLessThan(
+            markerReads.indexOf(`repos/octocat/worlds/contents/${LEGACY_CI_BOOTSTRAP_MARKER_FILE}`),
+        );
+    });
+
+    it("gives a current CI marker precedence when both generations exist", async () => {
+        const runner = machine();
+        bootstrapOnlyRepo(runner, "worlds", CI_BOOTSTRAP_MARKER_VERSION);
+        runner.api.set(
+            `repos/octocat/worlds/contents/${LEGACY_CI_BOOTSTRAP_MARKER_FILE}`,
+            legacyBootstrapMarkerPayload(CI_BOOTSTRAP_MARKER_VERSION + 9),
+        );
+
+        const [signal] = await probeAdoptionCandidates(host(runner), runner, [
+            { owner: "octocat", repo: "worlds" },
+        ]);
+
+        expect(signal?.status).toBe("prepared");
+        expect(signal?.bootstrapMarker?.version).toBe(CI_BOOTSTRAP_MARKER_VERSION);
+        expect(
+            runner.calls.some((call) =>
+                call.args.includes(
+                    `repos/octocat/worlds/contents/${LEGACY_CI_BOOTSTRAP_MARKER_FILE}`,
+                ),
+            ),
+        ).toBe(false);
+    });
+
     it("reports both markers when a repository carries both", async () => {
         const runner = machine();
         readyRepo(runner);
-        runner.api.set(`repos/octocat/worlds/contents/${CI_BOOTSTRAP_MARKER_FILE}`, bootstrapMarkerPayload());
-        const [signal] = await probeAdoptionCandidates(host(runner), runner, [{ owner: "octocat", repo: "worlds" }]);
+        runner.api.set(
+            `repos/octocat/worlds/contents/${CI_BOOTSTRAP_MARKER_FILE}`,
+            bootstrapMarkerPayload(),
+        );
+        const [signal] = await probeAdoptionCandidates(host(runner), runner, [
+            { owner: "octocat", repo: "worlds" },
+        ]);
         expect(signal?.status).toBe("prepared");
         expect(signal?.marker).not.toBeNull();
         expect(signal?.bootstrapMarker).not.toBeNull();
@@ -312,8 +449,15 @@ describe("probeAdoptionCandidates", () => {
 describe("buildAdoptionPlan", () => {
     it("refuses a repository with no marker, rather than inventing a plan for it", async () => {
         const runner = machine();
-        runner.api.set("repos/octocat/scratch", { full_name: "octocat/scratch", private: false, permissions: { push: true } });
-        const plan = await buildAdoptionPlan(host(runner), runner, { owner: "octocat", repo: "scratch" });
+        runner.api.set("repos/octocat/scratch", {
+            full_name: "octocat/scratch",
+            private: false,
+            permissions: { push: true },
+        });
+        const plan = await buildAdoptionPlan(host(runner), runner, {
+            owner: "octocat",
+            repo: "scratch",
+        });
         expect(plan.ok).toBe(false);
         if (!plan.ok) expect(plan.reason).toBe("not-prepared");
     });
@@ -321,7 +465,10 @@ describe("buildAdoptionPlan", () => {
     it("recognises a CI-bootstrap-only repository honestly - nothing to restore, but not a stranger either", async () => {
         const runner = machine();
         bootstrapOnlyRepo(runner);
-        const plan = await buildAdoptionPlan(host(runner), runner, { owner: "octocat", repo: "worlds" });
+        const plan = await buildAdoptionPlan(host(runner), runner, {
+            owner: "octocat",
+            repo: "worlds",
+        });
         expect(plan.ok).toBe(false);
         if (plan.ok) return;
         expect(plan.reason).toBe("ci-bootstrap-only");
@@ -345,7 +492,10 @@ describe("buildAdoptionPlan", () => {
             ),
         );
 
-        const plan = await buildAdoptionPlan(host(runner), runner, { owner: "octocat", repo: "worlds" });
+        const plan = await buildAdoptionPlan(host(runner), runner, {
+            owner: "octocat",
+            repo: "worlds",
+        });
         expect(plan.ok).toBe(true);
         if (!plan.ok) return;
         expect(plan.restoring.projectName).toBe("Andyville");
@@ -365,7 +515,10 @@ describe("buildAdoptionPlan", () => {
             "repos/octocat/worlds/contents/material-bluemap.project.json?ref=world",
             jsonFile(projectPayload()),
         );
-        const plan = await buildAdoptionPlan(host(runner), runner, { owner: "octocat", repo: "worlds" });
+        const plan = await buildAdoptionPlan(host(runner), runner, {
+            owner: "octocat",
+            repo: "worlds",
+        });
         expect(plan.ok).toBe(true);
         if (!plan.ok) return;
 
@@ -397,7 +550,10 @@ describe("buildAdoptionPlan", () => {
                 }),
             ),
         );
-        const plan = await buildAdoptionPlan(host(runner), runner, { owner: "octocat", repo: "worlds" });
+        const plan = await buildAdoptionPlan(host(runner), runner, {
+            owner: "octocat",
+            repo: "worlds",
+        });
         expect(plan.ok).toBe(true);
         if (!plan.ok) return;
 
@@ -415,7 +571,10 @@ describe("buildAdoptionPlan", () => {
             "repos/octocat/worlds/contents/material-bluemap.project.json?ref=world",
             jsonFile(projectPayload({ version: 99 })),
         );
-        const plan = await buildAdoptionPlan(host(runner), runner, { owner: "octocat", repo: "worlds" });
+        const plan = await buildAdoptionPlan(host(runner), runner, {
+            owner: "octocat",
+            repo: "worlds",
+        });
         expect(plan.ok).toBe(false);
         if (plan.ok) return;
         expect(plan.reason).toBe("project-too-new");
@@ -452,7 +611,10 @@ describe("buildAdoptionPlan", () => {
             "utf8",
         );
 
-        const plan = await buildAdoptionPlan(host(runner), runner, { owner: "octocat", repo: "worlds" });
+        const plan = await buildAdoptionPlan(host(runner), runner, {
+            owner: "octocat",
+            repo: "worlds",
+        });
         expect(plan.ok).toBe(true);
         if (!plan.ok) return;
         expect(plan.alreadyLocal?.worldPath).toBe(join(root, "already-here"));
@@ -465,7 +627,10 @@ describe("buildAdoptionPlan", () => {
             "repos/octocat/worlds/contents/material-bluemap.project.json?ref=world",
             jsonFile(projectPayload()),
         );
-        const plan = await buildAdoptionPlan(host(runner), runner, { owner: "octocat", repo: "worlds" });
+        const plan = await buildAdoptionPlan(host(runner), runner, {
+            owner: "octocat",
+            repo: "worlds",
+        });
         expect(plan.ok).toBe(true);
         if (!plan.ok) return;
         expect(plan.alreadyLocal).toBeNull();

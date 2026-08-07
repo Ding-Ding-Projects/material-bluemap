@@ -6,7 +6,7 @@
  * editor do not. Rather than teach three more screens to reach into the config module, this
  * is the picker restated as its own small, screen-agnostic channel: two operations, choose a
  * folder and choose a file, reachable from anywhere in the renderer through
- * `window.materialBluemap.dialog`.
+ * `window.worldlens.dialog`.
  *
  * Built the same way as `config/ipc.ts`, `java/ipc.ts` and `world/index.ts`: Electron arrives
  * as a *type* only, `IpcMain` and the dialog module are parameters, and both are erased at

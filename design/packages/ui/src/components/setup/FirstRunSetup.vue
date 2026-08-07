@@ -16,6 +16,7 @@ import SetupStorageStep from "./SetupStorageStep.vue";
 import SetupWelcomeStep from "./SetupWelcomeStep.vue";
 import { useSetupI18n } from "./setupI18n.js";
 import { SETUP_STEPS, createFirstRunController, type SetupStep } from "./firstRunFlow.js";
+import { productDisplayName } from "../../stores/productName.js";
 
 /**
  * First-run setup: three steps, shown once, before anybody is in the middle of anything.
@@ -110,7 +111,7 @@ function onStorageInput(value: string): void {
         <v-card class="mb-setup-card">
             <div class="mb-setup-card__header">
                 <h1 :id="titleId" class="mb-setup-card__title">
-                    {{ i18n.t("app.name") }}
+                    {{ productDisplayName }}
                 </h1>
                 <p :id="progressId" class="mb-setup-card__progress" aria-live="polite">
                     {{ progressText }}

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * count-lines.mjs — the committed line counter for material-bluemap.
+ * count-lines.mjs — the committed line counter for Worldlens.
  *
  * This is the single source of the line-count table that a release publishes. CI runs
  * it over the tagged commit and pastes `--format=markdown` into the release notes, so
@@ -760,7 +760,7 @@ const AUTHOR_ALIGNS = ["left", "right", "right", "right", "right"];
 
 function renderText(report) {
     const out = [];
-    out.push("material-bluemap — lines of code");
+    out.push("Worldlens — lines of code");
     out.push(
         `commit ${report.headShort}  ${report.headDate}${report.dirty ? "  (working tree is DIRTY — these are not a commit's numbers)" : ""}`,
     );
@@ -873,7 +873,7 @@ function renderMarkdown(report) {
 /* Entry point                                                                 */
 /* -------------------------------------------------------------------------- */
 
-const HELP = `count-lines.mjs — the committed line counter for material-bluemap
+const HELP = `count-lines.mjs — the committed line counter for Worldlens
 
   node scripts/count-lines.mjs [options]
 

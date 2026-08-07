@@ -45,9 +45,9 @@ export interface TextPair {
     readonly secondary: string | null;
 }
 
-const MODE_KEY = "material-bluemap.language.mode";
-const FUNNY_EN_KEY = "material-bluemap.language.funny.en";
-const FUNNY_YUE_KEY = "material-bluemap.language.funny.yue";
+const MODE_KEY = "worldlens.language.mode";
+const FUNNY_EN_KEY = "worldlens.language.funny.en";
+const FUNNY_YUE_KEY = "worldlens.language.funny.yue";
 
 interface SetupI18nState {
     mode: LanguageMode;

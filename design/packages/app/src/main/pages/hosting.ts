@@ -12,7 +12,7 @@
  *
  * ## The fact the whole feature rests on
  *
- * `@material-bluemap/render-actions`'s `prepareStaticHost` carries the explanation in full,
+ * `@worldlens/render-actions`'s `prepareStaticHost` carries the explanation in full,
  * and it is worth repeating in one line because everything here is downstream of it: the
  * engine writes `0.prbm.gz`, the viewer asks for `0.prbm`, and only a web server that
  * rewrites the name makes those two agree. GitHub Pages does not rewrite anything. So the
@@ -65,8 +65,8 @@
 
 import { mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { prepareStaticHost, StaticHostError } from "@material-bluemap/render-actions";
-import type { StaticHostReport } from "@material-bluemap/render-actions";
+import { prepareStaticHost, StaticHostError } from "@worldlens/render-actions";
+import type { StaticHostReport } from "@worldlens/render-actions";
 import { ActionsCallError } from "../cirender/actions.js";
 import { GH_COMMAND, detectGh, ghApiJson, ghApiSend, nodeProcessRunner } from "../cirender/gh.js";
 import type { GhStatus, ProcessRunner } from "../cirender/gh.js";
@@ -79,13 +79,15 @@ export const GIT_COMMAND = "git";
 export const DEFAULT_PAGES_BRANCH = "gh-pages";
 
 /** The file that says a branch belongs to this application, and to which render. */
-export const PAGES_MARKER_FILE = ".material-bluemap-map.json";
+export const PAGES_MARKER_FILE = ".worldlens-map.json";
+export const LEGACY_PAGES_MARKER_FILE = ".material-bluemap-map.json";
 
 /** Bumped only if the marker's shape changes. An unknown version is still *ours*. */
 export const PAGES_MARKER_VERSION = 1;
 
 /** The value of the marker's `tool` field. Nothing else is accepted as ours. */
-export const PAGES_MARKER_TOOL = "material-bluemap";
+export const PAGES_MARKER_TOOL = "worldlens";
+export const LEGACY_PAGES_MARKER_TOOL = "material-bluemap";
 
 /** How long a Pages build is waited for before the result is reported as still building. */
 export const DEFAULT_POLL_INTERVAL_MS = 5_000;
@@ -325,8 +327,8 @@ export interface PagesHostOptions {
 }
 
 const DEFAULT_COMMITTER = {
-    name: "Material BlueMap",
-    email: "material-bluemap@users.noreply.github.com",
+    name: "Worldlens",
+    email: "worldlens@users.noreply.github.com",
 } as const;
 
 /* -------------------------------------------------------------------------- */
@@ -392,7 +394,9 @@ export function readMarker(payload: unknown): PagesMarker | null {
         }
     }
     if (source === null) return null;
-    if (source["tool"] !== PAGES_MARKER_TOOL) return null;
+    if (source["tool"] !== PAGES_MARKER_TOOL && source["tool"] !== LEGACY_PAGES_MARKER_TOOL) {
+        return null;
+    }
 
     const renderId = text(source["renderId"]);
     const publishedAt = text(source["publishedAt"]);
@@ -739,12 +743,17 @@ export class PagesHost {
             const branchInfo = await ghJsonOrNull(`repos/${owner}/${repo}/branches/${branch}`, call);
             let marker: PagesMarker | null = null;
             if (branchInfo !== null) {
-                marker = readMarker(
-                    await ghJsonOrNull(
-                        `repos/${owner}/${repo}/contents/${PAGES_MARKER_FILE}?ref=${branch}`,
-                        call,
-                    ),
+                const currentMarker = await ghJsonOrNull(
+                    `repos/${owner}/${repo}/contents/${PAGES_MARKER_FILE}?ref=${branch}`,
+                    call,
                 );
+                const markerPayload =
+                    currentMarker ??
+                    (await ghJsonOrNull(
+                        `repos/${owner}/${repo}/contents/${LEGACY_PAGES_MARKER_FILE}?ref=${branch}`,
+                        call,
+                    ));
+                marker = readMarker(markerPayload);
             }
 
             return {
@@ -1378,7 +1387,7 @@ export class PagesHost {
                 `${owner}/${repo}`,
                 wanted === "private" ? "--private" : "--public",
                 "--description",
-                "A BlueMap map published by Material BlueMap",
+                "A BlueMap map published by Worldlens",
             ],
             { signal },
         );

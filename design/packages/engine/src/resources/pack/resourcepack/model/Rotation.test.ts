@@ -1,4 +1,4 @@
-import { MatrixM4f, Vector3f, VectorM3f } from "@material-bluemap/shared";
+import { MatrixM4f, Vector3f, VectorM3f } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 import { parse } from "../../../adapter/JsonMapper.js";
 import { Axis } from "../../../../util/math/Axis.js";

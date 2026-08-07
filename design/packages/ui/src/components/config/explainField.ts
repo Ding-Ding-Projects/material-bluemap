@@ -27,7 +27,7 @@
  * rather than requiring a mounted component for every case.
  */
 
-import type { FieldMeta, PlainValue } from "@material-bluemap/config";
+import type { FieldMeta, PlainValue } from "@worldlens/config";
 import { isDefaultValue, valueToText } from "./fieldValue.js";
 
 /**

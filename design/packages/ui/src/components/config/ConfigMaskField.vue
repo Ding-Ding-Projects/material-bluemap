@@ -27,7 +27,7 @@ import {
     MASK_TYPE_OPTIONS,
     type FieldMeta,
     type PlainValue,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 import ConfigControl from "./ConfigControl.vue";
 import ConfigListField from "./ConfigListField.vue";
 import { docShownText, isDocLong, provenanceOf } from "./explainField.js";
@@ -54,7 +54,7 @@ const DRAWABLE_KINDS: readonly ShapeKind[] = ["box", "circle", "ellipse", "polyg
  * refused it would refuse a file BlueMap loads.
  *
  * The shape list and every shape's fields come from `MASK_SHAPES` in
- * `@material-bluemap/config`, so a shape added to BlueMap's registry and to that
+ * `@worldlens/config`, so a shape added to BlueMap's registry and to that
  * table appears here with its controls and its documentation already attached.
  */
 const props = withDefaults(

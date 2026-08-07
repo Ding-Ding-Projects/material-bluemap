@@ -58,7 +58,7 @@ Bug-for-bug-preserved oddities are NOT listed here — only actual changes.
   these types do not exist upstream, so there is no JS-visible change.
 - **`Utils.ts` (package root)** — `fetchHocon` no longer uses the `hocon-parser` package
   that upstream declares in the webapp `package.json`; it calls `parseHocon` from
-  `@material-bluemap/shared` instead, because `hocon-parser` resolves substitutions with
+  `@worldlens/shared` instead, because `hocon-parser` resolves substitutions with
   `eval` and the app's CSP forbids that. See "HOCON is parsed by a hand-written subset
   parser" under the shared package below.
 
@@ -199,7 +199,7 @@ erased types / missing reflection:
   `BufferedCompression` takes a `{stream, buffer}` pair where upstream takes a single
   `StreamTransformer` constructor-ref. `CompressedInputStream` is a
   (Buffer, Compression) pair (`getBuffer()` replaces reading the delegate stream);
-  errors are `IOException`/`EOFException` from `@material-bluemap/nbt`.
+  errors are `IOException`/`EOFException` from `@worldlens/nbt`.
 - **ZSTD** — upstream's `io.airlift` `ZstdOutputStream`/`ZstdInputStream` stream
   incrementally; the port uses `@bokuweb/zstd-wasm`'s one-shot codecs (compression
   level 3 = airlift's/zstd's default), so the zstd node-stream API collects the whole
@@ -1161,7 +1161,7 @@ below are all cases where the *shape* of the code differs while the numbers do n
 from `(float) Math.sin`, and `cos(pi/2)` comes back as 4.37e-8 rather than 6.12e-17. A port
 that reached for `Math.sin` would emit different bytes for every rotated model.
 
-The port of it lives in `@material-bluemap/shared` (`math/TrigMath.ts`), because the
+The port of it lives in `@worldlens/shared` (`math/TrigMath.ts`), because the
 matrices rotate with it too and there must only be one; its own deviations are recorded
 with that package. `map/hires/ArrayTileModel.ts` imports it, and
 `util/math/TrigMath.test.ts` pins the pairing the engine depends on — the exact half-angles

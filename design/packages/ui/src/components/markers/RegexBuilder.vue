@@ -236,7 +236,7 @@ function setRegexMode(on: boolean): void {
 
 async function copy(text: string): Promise<void> {
     try {
-        const bridge = window.materialBluemap;
+        const bridge = window.worldlens;
         if (bridge) await bridge.writeClipboardText(text);
         else await navigator.clipboard.writeText(text);
         notice.value = tx("markerRegex.copied", "Copied to the clipboard.");

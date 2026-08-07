@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { BoxMask, CircleMask, EllipseMask, MaskConfig, PolygonMask } from "@material-bluemap/config";
+import type { BoxMask, CircleMask, EllipseMask, MaskConfig, PolygonMask } from "@worldlens/config";
 import {
     BLOCKS_PER_CHUNK_SIDE,
     BLOCKS_PER_REGION_SIDE,

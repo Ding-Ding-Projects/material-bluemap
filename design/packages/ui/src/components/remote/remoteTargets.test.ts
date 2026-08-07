@@ -117,7 +117,7 @@ describe("the stored list", () => {
 
     it("costs one row rather than the whole list when an entry is corrupt", () => {
         const storage = memoryStorage({
-            "material-bluemap-remote-targets": JSON.stringify({
+            "worldlens-remote-targets": JSON.stringify({
                 version: 1,
                 targets: [target, { host: "" }, "nonsense", { ...target, id: "t-2", host: "other.lan" }],
             }),
@@ -127,8 +127,8 @@ describe("the stored list", () => {
     });
 
     it("answers with an empty list rather than throwing on rubbish, or on no storage at all", () => {
-        expect(loadTargets(memoryStorage({ "material-bluemap-remote-targets": "{{{" }))).toEqual([]);
-        expect(loadTargets(memoryStorage({ "material-bluemap-remote-targets": "[]" }))).toEqual([]);
+        expect(loadTargets(memoryStorage({ "worldlens-remote-targets": "{{{" }))).toEqual([]);
+        expect(loadTargets(memoryStorage({ "worldlens-remote-targets": "[]" }))).toEqual([]);
         expect(loadTargets(null)).toEqual([]);
     });
 

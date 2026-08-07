@@ -1,5 +1,5 @@
 {
-    "name": "@material-bluemap/config",
+    "name": "@worldlens/config",
     "version": "0.1.0",
     "private": true,
     "type": "module",

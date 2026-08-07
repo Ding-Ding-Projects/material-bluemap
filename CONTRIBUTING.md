@@ -1,7 +1,6 @@
-
 # Contributing
 
-material-bluemap is a fidelity-first port of [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap)
+Worldlens is a fidelity-first port of [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap)
 from Java and JavaScript into TypeScript. Most of the work is mechanical in the best sense: read
 the upstream file, write the same thing in TypeScript, prove it behaves identically. That shapes
 everything below.
@@ -21,6 +20,9 @@ cd design
 pnpm install
 ```
 
+The clone URL and directory above are the repository's current hosting path during the rename;
+they are not the product name. Use the current host until the separate repository rename lands.
+
 The submodule is not optional. It is the specification you are porting from, and it is pinned at
 upstream commit `e664c1a`. Legacy Minecraft 1.12 sources come from upstream tag
 `v0.10.3-mc1.12`; fetch them with `git fetch --tags` in `vendor/BlueMap` and read a file with
@@ -30,14 +32,14 @@ upstream commit `e664c1a`. Legacy Minecraft 1.12 sources come from upstream tag
 
 All of these run from `design/`.
 
-| Command | What it does |
-|---|---|
-| `pnpm build` | Builds every package in `packages/*` |
-| `pnpm test` | Runs the full vitest suite once |
-| `pnpm test:watch` | vitest in watch mode |
-| `pnpm lint` | ESLint over the workspace |
-| `pnpm format` | Prettier write |
-| `pnpm format:check` | Prettier check, no writes |
+| Command             | What it does                         |
+| ------------------- | ------------------------------------ |
+| `pnpm build`        | Builds every package in `packages/*` |
+| `pnpm test`         | Runs the full vitest suite once      |
+| `pnpm test:watch`   | vitest in watch mode                 |
+| `pnpm lint`         | ESLint over the workspace            |
+| `pnpm format`       | Prettier write                       |
+| `pnpm format:check` | Prettier check, no writes            |
 
 Type-check a single package without building:
 

@@ -177,7 +177,7 @@ export function createPresetsPanel(options: PresetsPanelOptions): PresetsPanelVi
         const theme = store.exportPresets(ids);
         const stamp = new Date().toISOString().slice(0, 10);
         downloadFile(
-            `material-bluemap-presets-selected-${stamp}.json`,
+            `worldlens-presets-selected-${stamp}.json`,
             `${JSON.stringify(theme, null, 4)}\n`,
             "application/json"
         );
@@ -209,7 +209,7 @@ export function createPresetsPanel(options: PresetsPanelOptions): PresetsPanelVi
         const theme = store.exportTheme(options.settingsSnapshot());
         const stamp = new Date().toISOString().slice(0, 10);
         downloadFile(
-            `material-bluemap-theme-${stamp}.json`,
+            `worldlens-theme-${stamp}.json`,
             `${JSON.stringify(theme, null, 4)}\n`,
             "application/json"
         );

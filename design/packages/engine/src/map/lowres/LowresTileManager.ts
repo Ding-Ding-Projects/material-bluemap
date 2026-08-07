@@ -1,4 +1,4 @@
-import { Color, type Grid } from "@material-bluemap/shared";
+import { Color, type Grid } from "@worldlens/shared";
 import type { MapStorage } from "../../storage/MapStorage.js";
 import { BmMap } from "../BmMap.js";
 import type { TileMetaConsumer } from "../TileMetaConsumer.js";

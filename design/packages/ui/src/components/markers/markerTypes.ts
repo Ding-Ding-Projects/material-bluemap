@@ -1,4 +1,4 @@
-import type { MarkerData, MarkerSetData } from "@material-bluemap/viewer";
+import type { MarkerData, MarkerSetData } from "@worldlens/viewer";
 
 /**
  * The marker menu never sees the three.js marker objects, only the reactive `data`

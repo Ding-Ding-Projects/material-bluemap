@@ -618,7 +618,7 @@ type BlueMapGitHubRepositoryAccess =
           };
       };
 
-interface MaterialBlueMapBridge {
+interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
@@ -1001,5 +1001,5 @@ type BackupAnswer<T> =
     | { readonly ok: false; readonly message: string };
 
 interface Window {
-    materialBluemap?: MaterialBlueMapBridge;
+    worldlens?: WorldlensBridge;
 }

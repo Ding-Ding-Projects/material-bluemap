@@ -52,10 +52,10 @@ describe("describeEngine", () => {
     it("names the TypeScript engine as itself rather than as the new one", () => {
         // D17 and D18 have both engines in the tree during the changeover. Calling one
         // "legacy" would have somebody re-render a map that is perfectly current.
-        expect(RENDER_ENGINE_LABELS.typescript).toBe("Material BlueMap engine (TypeScript)");
+        expect(RENDER_ENGINE_LABELS.typescript).toBe("Worldlens engine (TypeScript)");
         expect(
             describeEngine({ ...RECORD, engine: "typescript", javaVersion: null, engineVersion: "0.1.0" }),
-        ).toBe("Material BlueMap engine (TypeScript) 0.1.0");
+        ).toBe("Worldlens engine (TypeScript) 0.1.0");
     });
 });
 

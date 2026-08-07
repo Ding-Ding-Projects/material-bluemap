@@ -4,7 +4,7 @@
  * The editor never rebuilds a config file from a plain object. It parses the file
  * BlueMap generated, changes the one key the user changed, and writes the
  * document back, so every comment, blank line and hand-written note survives.
- * That is the whole reason `@material-bluemap/config` carries a round-tripping
+ * That is the whole reason `@worldlens/config` carries a round-tripping
  * HOCON reader rather than `JSON.parse` over a converted file.
  *
  * Every function here returns a new value; nothing is mutated. That keeps the
@@ -27,7 +27,7 @@ import {
     type FieldMeta,
     type HoconDocument,
     type PlainValue,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 
 /** A descriptor with its value type erased, which is all the GUI needs. */
 export type AnyDescriptor = ConfigFileDescriptor<unknown>;

@@ -1,5 +1,5 @@
-import { TypeToken } from "@material-bluemap/nbt";
-import { Key, Registry, type Keyed } from "@material-bluemap/shared";
+import { TypeToken } from "@worldlens/nbt";
+import { Key, Registry, type Keyed } from "@worldlens/shared";
 import type { BlockEntity } from "../../BlockEntity.js";
 import { SIGN_BLOCK_ENTITY_TOKEN } from "./SignBlockEntity.js";
 import { SKULL_BLOCK_ENTITY_TOKEN } from "./SkullBlockEntity.js";

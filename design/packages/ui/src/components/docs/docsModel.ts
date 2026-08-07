@@ -88,6 +88,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "dependency-provisioning.md",
     "gh-cli-accounts.md",
     "automatic-updates.md",
+    "worldlens-migration.md",
     "render-console.md",
     "renders-in-progress.md",
     "live-render-speed.md",

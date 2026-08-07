@@ -47,7 +47,7 @@ import { resolveBackupBridge } from "../backup/backupBridge.js";
 import type { BackupBridge, RepositoryChoice } from "../backup/backupBridge.js";
 import { useProjectHost } from "../project/projectHost.js";
 import type { ProjectHost } from "../project/projectHost.js";
-import type { ProjectFile } from "@material-bluemap/config";
+import type { ProjectFile } from "@worldlens/config";
 import {
     DEFAULT_WORLD_BRANCH,
     createWorldRepo,

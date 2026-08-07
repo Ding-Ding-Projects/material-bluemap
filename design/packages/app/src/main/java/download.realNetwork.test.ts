@@ -56,7 +56,7 @@ describe.skipIf(!shouldRun)("downloadVerified against real HTTP", () => {
         "refuses a real download whose digest does not match what was expected",
         { timeout: 60_000 },
         async () => {
-            const dataDir = mkdtempSync(join(tmpdir(), "material-bluemap-real-digest-"));
+            const dataDir = mkdtempSync(join(tmpdir(), "worldlens-real-digest-"));
             try {
                 // Adoptium's own published checksum sidecar for the Windows/x64 JDK -
                 // a few dozen real bytes, fetched over real HTTPS from GitHub's release
@@ -92,7 +92,7 @@ describe.skipIf(!shouldRun)("downloadVerified against real HTTP", () => {
         "resumes a real transfer that was genuinely interrupted, rather than restarting it",
         { timeout: 10 * 60 * 1000 },
         async () => {
-            const dataDir = mkdtempSync(join(tmpdir(), "material-bluemap-real-resume-"));
+            const dataDir = mkdtempSync(join(tmpdir(), "worldlens-real-resume-"));
             try {
                 const release = await resolveTemurinRelease({
                     feature: 25,

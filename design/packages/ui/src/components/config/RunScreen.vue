@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiConsole, mdiContentCopy, mdiInformationOutline } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardText, VCardTitle, VChip, VDivider, VIcon, VSwitch, VTextField } from "vuetify/components";
-import { CLI_FLAGS, buildCliArgs, formatCliCommand, resolveCliActions, type CliFlag, type CliInvocation, type PlainValue } from "@material-bluemap/config";
+import { CLI_FLAGS, buildCliArgs, formatCliCommand, resolveCliActions, type CliFlag, type CliInvocation, type PlainValue } from "@worldlens/config";
 import ConfigControl from "./ConfigControl.vue";
 import ConfigSearchField from "./ConfigSearchField.vue";
 import { FLAG_GROUPS, flagSearchText, flagValue, flagsInGroup, withFlagValue, type FlagValue } from "./cliRun.js";

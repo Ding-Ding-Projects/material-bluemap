@@ -68,12 +68,12 @@ afterEach(() => {
 
 describe("mirroring into the main process's own history", () => {
     afterEach(() => {
-        delete (window as unknown as { materialBluemap?: unknown }).materialBluemap;
+        delete (window as unknown as { worldlens?: unknown }).worldlens;
     });
 
     it("calls profilesHistory.save with the current list, fire-and-forget, whenever it mutates", async () => {
         const saved: unknown[] = [];
-        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+        (window as unknown as { worldlens: unknown }).worldlens = {
             syncProfiles: () => Promise.resolve(),
             profilesHistory: {
                 save: (state: unknown) => {
@@ -98,7 +98,7 @@ describe("mirroring into the main process's own history", () => {
     });
 
     it("does not throw, and does not block localStorage persistence, when the bridge's save rejects", async () => {
-        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+        (window as unknown as { worldlens: unknown }).worldlens = {
             syncProfiles: () => Promise.resolve(),
             profilesHistory: {
                 save: () => Promise.reject(new Error("git is unavailable")),
@@ -123,7 +123,7 @@ describe("mirroring into the main process's own history", () => {
     });
 
     it("is a plain no-op on a build with no bridge at all, exactly like a browser tab", async () => {
-        // No `window.materialBluemap` set - the default state every test in this file
+        // No `window.worldlens` set - the default state every test in this file
         // starts from otherwise, restated here so this test does not depend on running
         // after one that also left it unset.
         expect(() => {

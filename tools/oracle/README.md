@@ -36,7 +36,7 @@ is built and runnable on this machine. That turns "is the port correct?" from a 
 call into a byte comparison: the same world, the same config, two engines, and a
 `diff`. Everything here exists to make that diff cheap to run and useful to read.
 
-The world comes from `@material-bluemap/worldgen`, which writes Anvil format directly
+The world comes from `@worldlens/worldgen`, which writes Anvil format directly
 from this repository. No Minecraft server, no client, nothing downloaded at generation
 time, and byte-identical for a given seed — so the two renders are genuinely reading the
 same bytes.
@@ -84,7 +84,7 @@ node tools/oracle/compare.mjs --json tools/oracle/out/gate/report.json
   `vendor/BlueMap/implementations/cli/build/libs/cli-*-shadow.jar`. Build it with
   `node tools/build-jars.mjs --only cli`, or pass `--build-jar`.
 - **The built world generator** at `design/packages/worldgen/dist/cli.js`
-  (`pnpm --filter @material-bluemap/worldgen build` inside `design/`).
+  (`pnpm --filter @worldlens/worldgen build` inside `design/`).
 - **The built engine** at `design/packages/engine/dist/index.js` for the TypeScript half
   (`pnpm -r build` inside `design/`). Without it the harness still runs and reports that
   the engine produced no output.
@@ -281,7 +281,7 @@ and that runs as a child process against the built `design/packages/engine/dist`
 `--build-jar`. Note that Gradle needs the vendored submodules and full tags; see
 `tools/README.md`.
 
-**"the world generator is not built"** — `pnpm --filter @material-bluemap/worldgen build`
+**"the world generator is not built"** — `pnpm --filter @worldlens/worldgen build`
 inside `design/`.
 
 **"the java render produced no map directory"** — almost always the working-directory

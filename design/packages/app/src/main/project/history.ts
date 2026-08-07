@@ -62,7 +62,7 @@ import {
     type RestoreResult,
 } from "../history/index.js";
 
-import { PROJECT_FILE_NAME, parseProjectFile, type ProjectFile } from "@material-bluemap/config";
+import { PROJECT_FILE_NAME, parseProjectFile, type ProjectFile } from "@worldlens/config";
 
 import { describeProjectChange, describeProjectRestore } from "./describe.js";
 import { checkProjectPath, deleteProject, readProjectText, writeProjectText } from "./file.js";

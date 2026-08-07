@@ -103,7 +103,7 @@ function deviceFlowRoutes(login: string, id: number, token: string): Record<stri
 let directory: string;
 
 beforeEach(async () => {
-    directory = await mkdtemp(join(tmpdir(), "material-bluemap-accounts-"));
+    directory = await mkdtemp(join(tmpdir(), "worldlens-accounts-"));
 });
 
 afterEach(async () => {

@@ -60,7 +60,7 @@ import {
 } from "./links.js";
 
 export const home: HomeContent = {
-    title: "material-bluemap",
+    title: "worldlens",
     tagline:
         "A from-scratch TypeScript port of BlueMap, the Minecraft world renderer and 3D web map.",
     summary:
@@ -72,7 +72,7 @@ export const home: HomeContent = {
             content: [
                 { link: "BlueMap", href: UPSTREAM_URL, external: true },
                 " renders a Minecraft world into 3D map tiles and serves them to a browser. ",
-                "material-bluemap ports that renderer from Java to TypeScript, and builds two things on ",
+                "worldlens ports that renderer from Java to TypeScript, and builds two things on ",
                 "top of it: a Material Design 3 desktop application, and a way to render a world on ",
                 "GitHub's runners with nothing installed locally. A headless server serving the same map ",
                 "to an ordinary browser is planned and is not built.",
@@ -852,7 +852,7 @@ export const home: HomeContent = {
             phase: "I",
             scope: "Local live players, measurement and waypoints, screenshot gallery, scheduled renders, multi-server dashboard, update checker, packaging",
             status: "pending",
-            note: "The update checker landed early, out of order: it checks a signed feed on startup and on a bounded schedule, stages a verified download without interrupting active work, and shows the persistent restart banner. Local live players, measurement and waypoints, the screenshot gallery, scheduled renders, the multi-server dashboard and packaging remain untouched.",
+            note: "The update checker landed early, out of order: it checks the unsigned Squirrel feed on startup and on a bounded schedule, verifies its advertised package hash without claiming publisher authenticity, and shows the persistent restart banner. Local live players, measurement and waypoints, the screenshot gallery, scheduled renders, the multi-server dashboard and packaging remain untouched.",
         },
         {
             phase: "Contracts",

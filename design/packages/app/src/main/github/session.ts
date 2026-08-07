@@ -255,8 +255,8 @@ export class GitHubSession {
                 message:
                     "This build has no GitHub application configured, so it cannot start the" +
                     " browser sign-in. Sign in with a personal access token instead, or set" +
-                    " MATERIAL_BLUEMAP_GITHUB_CLIENT_ID to your own application's client id" +
-                    " and MATERIAL_BLUEMAP_GITHUB_CLIENT_KIND to app or oauth.",
+                    " WORLDLENS_GITHUB_CLIENT_ID to your own application's client id" +
+                    " and WORLDLENS_GITHUB_CLIENT_KIND to app or oauth.",
             });
         }
 

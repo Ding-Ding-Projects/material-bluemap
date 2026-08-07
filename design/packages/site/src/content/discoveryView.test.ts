@@ -29,7 +29,7 @@ describe("discovery group searches", () => {
             stripId: "main",
             stripLabel: "Main tabs",
             windowId: "window-main",
-            windowLabel: "Material BlueMap",
+            windowLabel: "Worldlens",
             collapsed: false,
             tabCount: 1,
         };

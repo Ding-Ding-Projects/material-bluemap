@@ -108,7 +108,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 
 /** The repair bridge, or null when this build cannot diagnose or repair a failed run. */
 export function resolveRepairBridge(): RepairBridge | null {
-    const host = (globalThis as { materialBluemap?: { repair?: unknown } }).materialBluemap;
+    const host = (globalThis as { worldlens?: { repair?: unknown } }).worldlens;
     if (host === undefined) return null;
     const api = host.repair;
     if (typeof api !== "object" || api === null) return null;

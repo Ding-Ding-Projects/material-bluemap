@@ -1,7 +1,7 @@
 /**
  * Reading, writing and finding a project file inside somebody's Minecraft world.
  *
- * The shape of a project is fixed elsewhere - `@material-bluemap/config` owns the schema,
+ * The shape of a project is fixed elsewhere - `@worldlens/config` owns the schema,
  * the file name, the format version, and the pure text-to-project reader. Nothing here
  * re-decides any of that. This module is the other half of that seam: the only code in the
  * application allowed to put a byte inside a world folder, written the way `config/ipc.ts`
@@ -43,13 +43,15 @@ import { lstat, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { isAbsolute, join, resolve } from "node:path";
 
 import {
+    LEGACY_PROJECT_FILE_NAME,
     PROJECT_FILE_NAME,
+    PROJECT_FILE_NAMES,
     PROJECT_FORMAT_VERSION,
     parseProjectFile,
     serializeProjectFile,
     type ProjectFile,
     type ProjectReadFailure,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 
 /**
  * The largest project file this reads or writes.
@@ -116,7 +118,8 @@ export type ProjectPathCheck =
 /**
  * Whether a name relative to the world folder is the project file.
  *
- * There is exactly one answer, and that is the point of having the function at all. It
+ * There are exactly two accepted input names during the rename window, and that is the point
+ * of having the function at all. Both resolve to the one current output name. It
  * guards the one place a path arrives from somewhere other than this module: a restore
  * takes file names out of a recorded revision, and a revision is a directory on the same
  * disk as everything else. Comparing against the one legal name means a repository somebody
@@ -124,7 +127,7 @@ export type ProjectPathCheck =
  */
 export function checkProjectPath(relative: string): ProjectPathCheck {
     const given = relative.trim().replace(/\\/g, "/");
-    if (given !== PROJECT_FILE_NAME) {
+    if (!(PROJECT_FILE_NAMES as readonly string[]).includes(given)) {
         return {
             ok: false,
             reason: `${relative} is not the project file. A world holds exactly one, named ${PROJECT_FILE_NAME}.`,
@@ -181,9 +184,17 @@ export async function readProjectText(worldFolder: string): Promise<ProjectTextR
         return { ok: false, path: "", failure: { kind: "unreadable", message: checked.reason } };
     }
 
-    const path = projectFilePath(checked.folder);
-    const stats = await lstat(path).catch(() => null);
-    if (stats === null) return { ok: false, path, failure: { kind: "absent" } };
+    const candidates = [
+        projectFilePath(checked.folder),
+        resolve(join(checked.folder, LEGACY_PROJECT_FILE_NAME)),
+    ];
+    let path = candidates[0]!;
+    let stats = await lstat(path).catch(() => null);
+    if (stats === null) {
+        path = candidates[1]!;
+        stats = await lstat(path).catch(() => null);
+    }
+    if (stats === null) return { ok: false, path: candidates[0]!, failure: { kind: "absent" } };
     if (!stats.isFile()) {
         return {
             ok: false,
@@ -433,7 +444,7 @@ export async function writeProject(
             ok: false,
             failure: existing.failure,
             reason:
-                `This world's project was made by a newer version of Material BlueMap ` +
+                `This world's project was made by a newer version of Worldlens ` +
                 `(format ${String(existing.failure.version)}, this build reads ${String(PROJECT_FORMAT_VERSION)}). ` +
                 `Saving over it would throw away every setting this version does not know about, so ` +
                 `nothing was written. Update the app to open it.`,
@@ -469,23 +480,30 @@ export async function deleteProject(worldFolder: string): Promise<{ ok: true } |
     const checked = checkWorldFolder(worldFolder);
     if (!checked.ok) return { ok: false, reason: checked.reason };
 
-    const path = projectFilePath(checked.folder);
-    const stats = await lstat(path).catch(() => null);
-    if (stats === null) return { ok: true };
-    if (!stats.isFile()) {
-        return {
-            ok: false,
-            reason: `${path} is not a file, so it was left alone.`,
-        };
+    const candidates = [
+        projectFilePath(checked.folder),
+        resolve(join(checked.folder, LEGACY_PROJECT_FILE_NAME)),
+    ];
+    const present: string[] = [];
+    // Validate both candidates before deleting either. Otherwise a valid current file could be
+    // removed before a legacy path that is unexpectedly a directory makes the operation refuse.
+    for (const path of candidates) {
+        const stats = await lstat(path).catch(() => null);
+        if (stats === null) continue;
+        if (!stats.isFile()) {
+            return { ok: false, reason: `${path} is not a file, so it was left alone.` };
+        }
+        present.push(path);
     }
-
-    try {
-        await unlink(path);
-    } catch (error) {
-        return {
-            ok: false,
-            reason: `${path} could not be removed: ${error instanceof Error ? error.message : String(error)}`,
-        };
+    for (const path of present) {
+        try {
+            await unlink(path);
+        } catch (error) {
+            return {
+                ok: false,
+                reason: `${path} could not be removed: ${error instanceof Error ? error.message : String(error)}`,
+            };
+        }
     }
     return { ok: true };
 }

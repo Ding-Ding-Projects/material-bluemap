@@ -12,7 +12,7 @@
  * concludes a setting does not exist.
  */
 
-import type { FieldMeta } from "@material-bluemap/config";
+import type { FieldMeta } from "@worldlens/config";
 import { fieldValue, type EditableConfigFile } from "./configModel.js";
 import { searchTextForField, valueToText } from "./fieldValue.js";
 import { createSettingMatcher, type SettingMatcher } from "./regexEngine.js";

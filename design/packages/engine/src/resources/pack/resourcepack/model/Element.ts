@@ -1,4 +1,4 @@
-import { Vector3f, Vector4f } from "@material-bluemap/shared";
+import { Vector3f, Vector4f } from "@worldlens/shared";
 import type { JsonAdapter } from "../../../adapter/AbstractTypeAdapterFactory.js";
 import { asObject, nextBoolean, nextInt, type JsonValue } from "../../../adapter/JsonMapper.js";
 import { postDeserialize } from "../../../adapter/PostDeserializeAdapterFactory.js";

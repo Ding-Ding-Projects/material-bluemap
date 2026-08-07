@@ -41,8 +41,8 @@ const REMOTE: RemoteHandoffTarget = {
     identityFile: null,
     docker: "docker",
     keepRemoteFiles: false,
-    root: "/srv/material-bluemap/world-abc123",
-    storageRoot: "/srv/material-bluemap/world-abc123/web/maps",
+    root: "/srv/worldlens/world-abc123",
+    storageRoot: "/srv/worldlens/world-abc123/web/maps",
 };
 
 beforeEach(async () => {
@@ -57,7 +57,7 @@ function record(overrides: Partial<ContainerHandoff> = {}): ContainerHandoff {
     return {
         ...newContainerHandoff({
             renderId: "world-abc123",
-            containerName: "material-bluemap-world-abc123",
+            containerName: "worldlens-world-abc123",
             mode: "docker",
             mapIds: ["overworld"],
             docker: "docker",
@@ -150,7 +150,7 @@ describe("the store", () => {
         const store = new ContainerHandoffStore({ storageDir, instanceId: "instance-one" });
         await store.start({
             renderId: "world-abc123",
-            containerName: "material-bluemap-world-abc123",
+            containerName: "worldlens-world-abc123",
             mode: "docker",
             mapIds: ["overworld"],
             docker: "docker",

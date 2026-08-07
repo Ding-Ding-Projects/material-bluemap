@@ -44,7 +44,7 @@
 
 import { CHEAP_LFS_LEGACY_MAXIMUM_PART_SIZE_BYTES, inspectBackupSource } from "../backup/index.js";
 import type { FetchLike, RepositoryReport } from "../backup/index.js";
-import type { ProjectFile, ProjectMap } from "@material-bluemap/config";
+import type { ProjectFile, ProjectMap } from "@worldlens/config";
 import type { LocalMapHandler } from "../render/LocalMapHandler.js";
 import { ActionsCallError, RENDER_WORKFLOW_FILE } from "./actions.js";
 import type { RunStatus, WorkflowJob, WorkflowRun } from "./actions.js";

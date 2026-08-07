@@ -32,9 +32,9 @@ import { computed, ref, type ComputedRef, type Ref } from "vue";
 import { setupStorage, type SetupStorage } from "../setup/setupPrefs.js";
 import { TUTORIAL_STEPS, type TutorialStep } from "./tutorialSteps.js";
 
-const COMPLETED_KEY = "material-bluemap.tutorial.completed";
-const OFFERED_KEY = "material-bluemap.tutorial.offered";
-const PROGRESS_KEY = "material-bluemap.tutorial.progress";
+const COMPLETED_KEY = "worldlens.tutorial.completed";
+const OFFERED_KEY = "worldlens.tutorial.offered";
+const PROGRESS_KEY = "worldlens.tutorial.progress";
 
 export interface TutorialController {
     /** Whether the overlay should be on screen. */

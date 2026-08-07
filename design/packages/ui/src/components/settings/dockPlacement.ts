@@ -78,7 +78,7 @@ export function dockAxis(edge: DockedEdge): "horizontal" | "vertical" {
 /* Persistence                                                                */
 /* -------------------------------------------------------------------------- */
 
-const STORAGE_KEY = "material-bluemap-dock-placement";
+const STORAGE_KEY = "worldlens-dock-placement";
 
 /** Bumped when the stored shape changes in a way an older reader cannot repair. */
 export const DOCK_STORAGE_VERSION = 1;
@@ -198,7 +198,7 @@ export function clearDockPlacements(storage: DockStorage | null = defaultStorage
 /* the same surface docked to the top a moment later.                        */
 /* -------------------------------------------------------------------------- */
 
-const SIZE_STORAGE_KEY = "material-bluemap-dock-size";
+const SIZE_STORAGE_KEY = "worldlens-dock-size";
 
 /** Bumped when the stored shape changes in a way an older reader cannot repair. */
 export const DOCK_SIZE_STORAGE_VERSION = 1;
@@ -283,7 +283,7 @@ export function clearDockSizes(storage: DockStorage | null = defaultStorage()): 
     }
 }
 
-const FLOATING_STORAGE_KEY = "material-bluemap-dock-floating";
+const FLOATING_STORAGE_KEY = "worldlens-dock-floating";
 
 /** Bumped when the stored shape changes in a way an older reader cannot repair. */
 export const DOCK_FLOATING_STORAGE_VERSION = 1;

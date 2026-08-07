@@ -23,7 +23,7 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
-import { READ_CHUNK_BYTES } from "@material-bluemap/parts";
+import { READ_CHUNK_BYTES } from "@worldlens/parts";
 
 export interface DigestedPart {
     readonly name: string;

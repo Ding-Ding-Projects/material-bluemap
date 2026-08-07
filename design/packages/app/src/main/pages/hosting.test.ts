@@ -22,7 +22,15 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { PAGES_MARKER_FILE, PAGES_MARKER_TOOL, PagesHost, normaliseBranch, readMarker } from "./hosting.js";
+import {
+    LEGACY_PAGES_MARKER_FILE,
+    LEGACY_PAGES_MARKER_TOOL,
+    PAGES_MARKER_FILE,
+    PAGES_MARKER_TOOL,
+    PagesHost,
+    normaliseBranch,
+    readMarker,
+} from "./hosting.js";
 import type { ProcessResult, ProcessRunner } from "../cirender/gh.js";
 
 /* -------------------------------------------------------------------------- */
@@ -246,6 +254,16 @@ describe("the branch name", () => {
 describe("the marker", () => {
     it("reads one out of what the contents API answers", () => {
         expect(readMarker(markerPayload("r1"))?.renderId).toBe("r1");
+    });
+
+    it("reads the legacy tool while reserving the Worldlens filename for new writes", () => {
+        const payload = markerPayload("legacy") as { content: string };
+        const parsed = JSON.parse(Buffer.from(payload.content, "base64").toString("utf8")) as Record<string, unknown>;
+        parsed.tool = LEGACY_PAGES_MARKER_TOOL;
+        payload.content = Buffer.from(JSON.stringify(parsed)).toString("base64");
+        expect(readMarker(payload)?.renderId).toBe("legacy");
+        expect(PAGES_MARKER_FILE).toBe(".worldlens-map.json");
+        expect(LEGACY_PAGES_MARKER_FILE).toBe(".material-bluemap-map.json");
     });
 
     it("refuses to call somebody else's file ours, however plausible it looks", () => {

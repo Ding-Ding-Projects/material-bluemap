@@ -2,7 +2,7 @@
  * The seam between the Pages-hosting surface and the main process.
  *
  * Every type here is a structural mirror of the one the Electron preload exposes on
- * `window.materialBluemap`, **restated rather than imported**, for the same reason
+ * `window.worldlens`, **restated rather than imported**, for the same reason
  * `ciRenderBridge.ts` and `backupBridge.ts` restate theirs: this package compiles and runs in
  * three places and only one of them has a preload. Importing across that boundary would also
  * drag `node:fs`, a git driver and a process spawner into the renderer's bundle, which is
@@ -305,7 +305,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
  * a degradation worth shipping.
  */
 export function resolvePagesBridge(): PagesBridge | null {
-    const host = (globalThis as { materialBluemap?: Host }).materialBluemap;
+    const host = (globalThis as { worldlens?: Host }).worldlens;
     if (host === undefined) return null;
 
     const { pagesRenders, pagesPreflight, publishPages, onPagesEvent } = host;

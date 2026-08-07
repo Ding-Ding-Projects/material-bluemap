@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { PNG } from "pngjs";
 import { describe, expect, it } from "vitest";
 import { parse, type JsonObject } from "../../../adapter/JsonMapper.js";

@@ -13,7 +13,7 @@ import {
     VTextarea,
     VTooltip,
 } from "vuetify/components";
-import { formatKey, type Control, type PlainValue, type SelectOption } from "@material-bluemap/config";
+import { formatKey, type Control, type PlainValue, type SelectOption } from "@worldlens/config";
 import ColorField from "../appearance/ColorField.vue";
 import PathField from "../PathField.vue";
 import { formatHex } from "../appearance/colorFormat.js";
@@ -37,7 +37,7 @@ import {
  * uses, and what keeps the mask editor from re-implementing number entry.
  *
  * The control rendered is chosen entirely by `FieldMeta.control`, which comes
- * from `@material-bluemap/config`. No control is written per setting, so a
+ * from `@worldlens/config`. No control is written per setting, so a
  * setting added to the schema arrives here with the right editor already.
  */
 const props = withDefaults(

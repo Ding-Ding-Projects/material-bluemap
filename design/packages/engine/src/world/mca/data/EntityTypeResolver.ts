@@ -1,4 +1,4 @@
-import { TypeToken, type IOException, type TypeResolver } from "@material-bluemap/nbt";
+import { TypeToken, type IOException, type TypeResolver } from "@worldlens/nbt";
 import type { Entity } from "../../Entity.js";
 import { EntityType } from "../entity/EntityType.js";
 import { MCAEntity, MCA_ENTITY_TOKEN } from "../entity/MCAEntity.js";

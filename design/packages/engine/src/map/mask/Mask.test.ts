@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Vector2d, Vector3i } from "@material-bluemap/shared";
+import { Vector2d, Vector3i } from "@worldlens/shared";
 import { Tristate } from "../../util/Tristate.js";
 import { BlurMask } from "./BlurMask.js";
 import { BoxMask } from "./BoxMask.js";

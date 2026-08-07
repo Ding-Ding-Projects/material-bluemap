@@ -8,7 +8,7 @@
  * ## Guided, never a cron expression
  *
  * The cadence is one of exactly four names - `CI_SCHEDULE_CADENCES`, re-exported from
- * `@material-bluemap/render-actions` so the app and the workflow can never disagree about
+ * `@worldlens/render-actions` so the app and the workflow can never disagree about
  * what "daily" means in milliseconds. Nothing here accepts free text for it.
  *
  * ## What "configuring" actually writes
@@ -26,8 +26,8 @@ import {
     describeCadenceCost,
     isCadenceDue,
     isCiScheduleCadence,
-} from "@material-bluemap/render-actions";
-import type { CiScheduleCadence } from "@material-bluemap/render-actions";
+} from "@worldlens/render-actions";
+import type { CiScheduleCadence } from "@worldlens/render-actions";
 import type { CiTransport } from "./transport.js";
 import type { CiSyncState } from "./state.js";
 

@@ -1,4 +1,4 @@
-import { IOException, NBTReader, TagType } from "@material-bluemap/nbt";
+import { IOException, NBTReader, TagType } from "@worldlens/nbt";
 import type {
     BlueNBT,
     NBTWriter,
@@ -6,8 +6,8 @@ import type {
     TypeDeserializer,
     TypeSerializer,
     TypeToken,
-} from "@material-bluemap/nbt";
-import type { Key } from "@material-bluemap/shared";
+} from "@worldlens/nbt";
+import type { Key } from "@worldlens/shared";
 import type { RenderTask } from "../RenderTask.js";
 import type { Serialized } from "./SerializableRenderTask.js";
 

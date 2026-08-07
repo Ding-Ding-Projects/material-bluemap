@@ -192,7 +192,7 @@ afterEach(() => {
     wrapper?.unmount();
     wrapper = null;
     document.body.innerHTML = "";
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
 });
 
 describe("the changelog viewer", () => {
@@ -305,7 +305,7 @@ describe("the changelog viewer", () => {
 
     it("copies through the desktop shell's clipboard channel when there is one", async () => {
         const writeClipboardText = vi.fn().mockResolvedValue(undefined);
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = { writeClipboardText };
+        (globalThis as { worldlens?: unknown }).worldlens = { writeClipboardText };
 
         wrapper = render();
         const copy = (wrapper.vm as unknown as { copy: (kind: "markdown" | "text") => Promise<void> }).copy;
@@ -323,7 +323,7 @@ describe("the changelog viewer", () => {
 
     it("exports only the selection once entries are selected", async () => {
         const writeClipboardText = vi.fn().mockResolvedValue(undefined);
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = { writeClipboardText };
+        (globalThis as { worldlens?: unknown }).worldlens = { writeClipboardText };
 
         wrapper = render();
         const vm = wrapper.vm as unknown as {
@@ -341,7 +341,7 @@ describe("the changelog viewer", () => {
     });
 
     it("reports a clipboard that cannot be reached instead of looking like it worked", async () => {
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = {
+        (globalThis as { worldlens?: unknown }).worldlens = {
             writeClipboardText: vi.fn().mockRejectedValue(new Error("denied")),
         };
         wrapper = render();
@@ -418,7 +418,7 @@ describe("the Copy and Export menus", () => {
 
     it("copies the chosen format through the desktop shell's clipboard channel and closes", async () => {
         const writeClipboardText = vi.fn().mockResolvedValue(undefined);
-        (globalThis as { materialBluemap?: unknown }).materialBluemap = { writeClipboardText };
+        (globalThis as { worldlens?: unknown }).worldlens = { writeClipboardText };
 
         wrapper = renderAttached();
         await openMenu(wrapper, "Copy");

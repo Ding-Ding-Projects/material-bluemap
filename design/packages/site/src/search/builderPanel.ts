@@ -88,7 +88,7 @@ const FLAG_LABELS: Record<SupportedFlag, SearchStringKey> = {
     y: "flagSticky",
 };
 
-const DEFAULT_SAMPLE = "material-bluemap 0.1.0\nBuild 42 patterns\n砌 42 個規則";
+const DEFAULT_SAMPLE = "worldlens 0.1.0\nBuild 42 patterns\n砌 42 個規則";
 
 export interface RegexBuilderOptions {
     readonly model: SearchQueryModel;

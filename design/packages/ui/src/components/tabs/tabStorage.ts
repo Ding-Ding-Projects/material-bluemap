@@ -60,7 +60,7 @@ import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
  * which is a worse bug than the one this file exists to prevent: a settings
  * tab order that occasionally reverts to the map shell's.
  */
-export const DEFAULT_TAB_STORAGE_KEY = "material-bluemap-tabs";
+export const DEFAULT_TAB_STORAGE_KEY = "worldlens-tabs";
 
 /**
  * The shape written today.

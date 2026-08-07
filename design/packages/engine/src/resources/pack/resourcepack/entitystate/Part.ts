@@ -1,4 +1,4 @@
-import { MatrixM4f, Vector3f } from "@material-bluemap/shared";
+import { MatrixM4f, Vector3f } from "@worldlens/shared";
 import { EntityRendererType } from "../../../../map/hires/entity/EntityRendererType.js";
 import { ResourcePath } from "../../../ResourcePath.js";
 import type { JsonAdapter } from "../../../adapter/AbstractTypeAdapterFactory.js";

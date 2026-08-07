@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from "vue-i18n";
 import { mdiMinus, mdiPlus } from "@mdi/js";
-import { MapControls } from "@material-bluemap/viewer";
+import { MapControls } from "@worldlens/viewer";
 import { blueMapApp } from "../../stores/bluemap.js";
 
 /**

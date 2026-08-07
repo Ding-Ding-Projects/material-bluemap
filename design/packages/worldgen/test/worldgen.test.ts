@@ -15,8 +15,8 @@ import {
     type Biome,
     type Chunk,
     type DataPack,
-} from "@material-bluemap/engine";
-import { Color, Key } from "@material-bluemap/shared";
+} from "@worldlens/engine";
+import { Color, Key } from "@worldlens/shared";
 import {
     ALL_BIOMES,
     MIN_Y,

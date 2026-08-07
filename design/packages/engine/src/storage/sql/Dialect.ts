@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import type { SqlDriverAdapter } from "./Database.js";
 import type { CommandSet } from "./commandset/CommandSet.js";
 import { MySQLCommandSet } from "./commandset/MySQLCommandSet.js";

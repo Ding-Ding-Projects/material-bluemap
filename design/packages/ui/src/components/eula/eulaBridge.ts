@@ -57,8 +57,8 @@ export interface EulaBridge {
 }
 
 export function resolveEulaBridge(): EulaBridge | null {
-    const host = globalThis as { materialBluemap?: EulaBridge };
-    return host.materialBluemap ?? null;
+    const host = globalThis as { worldlens?: EulaBridge };
+    return host.worldlens ?? null;
 }
 
 /**

@@ -123,7 +123,7 @@ export function createSchedulePanel(options: SchedulePanelOptions): SchedulePane
     refreshButton.addEventListener("click", () => void applyNow());
     exportButton.addEventListener("click", () => {
         downloadFile(
-            "material-bluemap-scheduled-settings.json",
+            "worldlens-scheduled-settings.json",
             `${JSON.stringify(options.repository.load(), null, 2)}\n`,
             "application/json;charset=utf-8",
         );

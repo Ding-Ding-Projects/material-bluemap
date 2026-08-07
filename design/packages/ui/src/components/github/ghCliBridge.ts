@@ -10,7 +10,7 @@
  * this module has to avoid giving.
  *
  * Every type here is a structural mirror of what the Electron preload exposes on
- * `window.materialBluemap`, restated rather than imported, for the same reason
+ * `window.worldlens`, restated rather than imported, for the same reason
  * `githubBridge.ts` restates its own slice: this package compiles and runs in three places
  * (the desktop app, a browser tab, and under Vitest) and only the first of them has a
  * preload.
@@ -76,7 +76,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 
 /** The preload, or null when there is none. */
 export function resolveGhCliBridge(): GhCliBridge | null {
-    const host = (globalThis as { materialBluemap?: GhCliBridge }).materialBluemap;
+    const host = (globalThis as { worldlens?: GhCliBridge }).worldlens;
     return host ?? null;
 }
 

@@ -123,7 +123,7 @@ function describeCapture(file) {
             displayScale: `${percent}%`,
             colourScheme: HARNESS_DEFAULT_SCHEME,
             configurationKnown: true,
-            alt: `The material-bluemap application window at ${percent} percent display scale, ${HARNESS_DEFAULT_WINDOW} pixels.`,
+            alt: `The worldlens application window at ${percent} percent display scale, ${HARNESS_DEFAULT_WINDOW} pixels.`,
         };
     }
 
@@ -137,7 +137,7 @@ function describeCapture(file) {
             displayScale: HARNESS_DEFAULT_SCALE,
             colourScheme: HARNESS_DEFAULT_SCHEME,
             configurationKnown: true,
-            alt: `The material-bluemap application window at ${window} pixels${qualifier}.`,
+            alt: `The worldlens application window at ${window} pixels${qualifier}.`,
         };
     }
 
@@ -150,7 +150,7 @@ function describeCapture(file) {
             displayScale: HARNESS_DEFAULT_SCALE,
             colourScheme: scheme,
             configurationKnown: true,
-            alt: `The material-bluemap application window rendered with the ${scheme} colour scheme.`,
+            alt: `The worldlens application window rendered with the ${scheme} colour scheme.`,
         };
     }
 
@@ -163,7 +163,7 @@ function describeCapture(file) {
             displayScale: HARNESS_DEFAULT_SCALE,
             colourScheme: HARNESS_DEFAULT_SCHEME,
             configurationKnown: true,
-            alt: `The ${label} destination of the material-bluemap application, opened from the navigation drawer.`,
+            alt: `The ${label} destination of the worldlens application, opened from the navigation drawer.`,
         };
     }
 
@@ -185,7 +185,7 @@ function describeCapture(file) {
         displayScale: "not recorded",
         colourScheme: HARNESS_DEFAULT_SCHEME,
         configurationKnown: false,
-        alt: `A capture named ${file} from the material-bluemap screenshot harness. Its configuration is not recorded.`,
+        alt: `A capture named ${file} from the worldlens screenshot harness. Its configuration is not recorded.`,
     };
 }
 
@@ -247,7 +247,7 @@ async function collect(repo, workflow, branch, outDir, publicPath) {
     const run = await findRunWithArtifact(repo, workflow, branch);
     log(SCRIPT, `using run ${run.runId} at commit ${run.commit}`);
 
-    const staging = await mkdtemp(join(tmpdir(), "material-bluemap-screenshots-"));
+    const staging = await mkdtemp(join(tmpdir(), "worldlens-screenshots-"));
     try {
         await gh(["run", "download", run.runId, "--repo", repo, "--name", ARTIFACT_NAME, "--dir", staging]);
 

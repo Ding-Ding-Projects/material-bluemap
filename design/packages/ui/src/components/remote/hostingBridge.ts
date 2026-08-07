@@ -135,7 +135,7 @@ function isFunction(value: unknown): value is (...args: never[]) => unknown {
 }
 
 function host(): Host | undefined {
-    return (globalThis as { materialBluemap?: Host }).materialBluemap;
+    return (globalThis as { worldlens?: Host }).worldlens;
 }
 
 /**

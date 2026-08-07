@@ -85,7 +85,7 @@ export type PartialRemoteTarget = Partial<Record<keyof RemoteTarget, unknown>>;
 export const DEFAULT_SSH_PORT = 22;
 
 /** Where a render stages by default: under the remote account's own home, not `/tmp`. */
-export const DEFAULT_WORK_DIR = "~/.material-bluemap/renders";
+export const DEFAULT_WORK_DIR = "~/.worldlens/renders";
 
 /**
  * A host name, an IPv4 address, or an IPv6 address in brackets.
@@ -258,7 +258,7 @@ export function checkWorkDir(value: string): WorkDirCheck {
  *
  * Shorter than the local list on purpose. `/home` and `/var` are missing because that is
  * where a server's own accounts and its ordinary scratch space live, and a render staging
- * under `/home/renderer/...` or `/var/lib/material-bluemap` is doing exactly the right
+ * under `/home/renderer/...` or `/var/lib/worldlens` is doing exactly the right
  * thing. What is here is what a bind mount of it would hand the container.
  */
 const REFUSED_REMOTE_ROOTS = ["/bin", "/boot", "/dev", "/etc", "/lib", "/proc", "/sbin", "/sys", "/usr"];

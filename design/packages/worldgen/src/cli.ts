@@ -23,7 +23,7 @@ const FORMATS: readonly { format: WorldFormat; dataVersion: number; versionName:
     { format: "1.12.2", dataVersion: LEGACY_DATA_VERSION, versionName: LEGACY_VERSION_NAME },
 ];
 
-const USAGE = `material-bluemap worldgen
+const USAGE = `worldlens worldgen
 
 Generates a deterministic synthetic Minecraft world directly in anvil format.
 It is written byte by byte by this repository; no Minecraft server or client is

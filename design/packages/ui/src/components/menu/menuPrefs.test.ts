@@ -31,13 +31,13 @@ beforeAll(() => {
 });
 
 afterEach(() => {
-    delete (window as unknown as { materialBluemap?: unknown }).materialBluemap;
+    delete (window as unknown as { worldlens?: unknown }).worldlens;
 });
 
 describe("mirroring into the application-settings history", () => {
     it("calls appSettingsHistory.save under the menuSearch key when a surface opens", async () => {
         const saved: unknown[] = [];
-        (window as unknown as { materialBluemap: unknown }).materialBluemap = {
+        (window as unknown as { worldlens: unknown }).worldlens = {
             appSettingsHistory: {
                 save: (state: unknown) => {
                     saved.push(state);

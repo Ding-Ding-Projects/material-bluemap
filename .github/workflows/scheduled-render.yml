@@ -85,7 +85,7 @@ jobs:
 
       - name: Build the planner
         working-directory: design
-        run: pnpm --filter "@material-bluemap/render-actions..." run build
+        run: pnpm --filter "@worldlens/render-actions..." run build
 
       - name: Read the schedule configuration
         id: config

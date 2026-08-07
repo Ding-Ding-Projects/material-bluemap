@@ -11,7 +11,13 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { CI_BOOTSTRAP_MARKER_FILE, CI_BOOTSTRAP_MARKER_TOOL, bootstrapCiRepository } from "./bootstrap.js";
+import {
+    CI_BOOTSTRAP_MARKER_FILE,
+    CI_BOOTSTRAP_MARKER_TOOL,
+    LEGACY_CI_BOOTSTRAP_MARKER_FILE,
+    LEGACY_CI_BOOTSTRAP_MARKER_TOOL,
+    bootstrapCiRepository,
+} from "./bootstrap.js";
 import type { CiBootstrapEvent, CiWorkflowTemplate } from "./bootstrap.js";
 import type { ProcessResult, ProcessRunner, ProcessToFileResult } from "./gh.js";
 
@@ -339,6 +345,32 @@ describe("a user-authored file sitting at the same path", () => {
 
         expect(result.ok).toBe(true);
         expect(repo.files.get(CI_BOOTSTRAP_MARKER_FILE)?.content).not.toBe(ours);
+    });
+
+    it("uses a legacy marker filename to update an owned workflow, then writes only Worldlens", async () => {
+        const repo = new FakeRepo({ files: { [WORKFLOW_A.path]: "old" } });
+        repo.files.set(LEGACY_CI_BOOTSTRAP_MARKER_FILE, {
+            content: JSON.stringify({
+                tool: LEGACY_CI_BOOTSTRAP_MARKER_TOOL,
+                version: 1,
+                templateVersion: "old",
+                files: [WORKFLOW_A.path],
+                preparedAt: "2026-01-01T00:00:00.000Z",
+            }),
+            sha: "legacy-marker-sha",
+        });
+
+        const result = await run(repo, { templates: [WORKFLOW_A] });
+
+        expect(result.ok).toBe(true);
+        expect(repo.files.get(WORKFLOW_A.path)?.content).toBe(WORKFLOW_A.content);
+        expect(repo.files.has(CI_BOOTSTRAP_MARKER_FILE)).toBe(true);
+        expect(JSON.parse(repo.files.get(CI_BOOTSTRAP_MARKER_FILE)?.content ?? "{}")).toMatchObject({
+            tool: CI_BOOTSTRAP_MARKER_TOOL,
+        });
+        expect(repo.files.get(LEGACY_CI_BOOTSTRAP_MARKER_FILE)?.content).toContain(
+            LEGACY_CI_BOOTSTRAP_MARKER_TOOL,
+        );
     });
 
     it("refuses the whole run even when only one of several files conflicts", async () => {

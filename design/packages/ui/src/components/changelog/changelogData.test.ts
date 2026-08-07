@@ -64,7 +64,11 @@ describe("the generated changelog", () => {
     });
 
     it("resolves its commit links against this repository", () => {
-        expect(CHANGELOG_REPOSITORY_URL).toBe("https://github.com/Ding-Ding-Projects/material-bluemap");
+        // GitHub preserves repository redirects after a rename, so current changelog links use
+        // the final Worldlens address while historical entry text remains untouched.
+        expect(CHANGELOG_REPOSITORY_URL).toBe(
+            "https://github.com/Ding-Ding-Projects/material-bluemap",
+        );
     });
 
     it("carries a full SHA on every entry, with the short form a real prefix of it", () => {
@@ -102,7 +106,9 @@ describe("the generated changelog", () => {
             expect(entry.subject.trim().length).toBeGreaterThan(0);
             // `git log %cI` prints `Z` rather than `+00:00` for a commit made in UTC, and CI
             // makes plenty of those, so both spellings of the offset are the real shape here.
-            expect(entry.date).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[+-]\d{2}:\d{2}|Z)$/);
+            expect(entry.date).toMatch(
+                /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[+-]\d{2}:\d{2}|Z)$/,
+            );
             expect(isDayKey(entry.date.slice(0, 10))).toBe(true);
         }
     });
@@ -121,7 +127,10 @@ describe("the generated changelog", () => {
     });
 
     it.runIf(complete)("references only commits that exist in this repository", () => {
-        const shas = [...entries.map((entry) => entry.sha), ...CHANGELOG_VERSIONS.map((v) => v.commit)];
+        const shas = [
+            ...entries.map((entry) => entry.sha),
+            ...CHANGELOG_VERSIONS.map((v) => v.commit),
+        ];
         const answers = execFileSync("git", ["cat-file", "--batch-check"], {
             encoding: "utf8",
             input: shas.map((sha) => `${sha}^{commit}`).join("\n") + "\n",
@@ -131,7 +140,9 @@ describe("the generated changelog", () => {
             .filter((line) => line.trim().length > 0);
 
         const dead = answers.filter((answer) => !/^[0-9a-f]{40} commit \d+$/.test(answer));
-        expect(dead, "the changelog references commits that are not in this repository").toEqual([]);
+        expect(dead, "the changelog references commits that are not in this repository").toEqual(
+            [],
+        );
         expect(answers).toHaveLength(shas.length);
     });
 

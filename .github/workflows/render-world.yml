@@ -229,15 +229,15 @@ jobs:
         working-directory: design
         run: pnpm install --frozen-lockfile
 
-      # `@material-bluemap/parts` is built beside the planner because the release-asset
+      # `@worldlens/parts` is built beside the planner because the release-asset
       # source rejoins split archives with `scripts/join-parts.mjs`, which is a thin
       # command line over that package. The `...` suffix pulls each filter's own
       # dependencies; `parts` is not one of the planner's, so it is named separately.
       - name: Build the planner
         working-directory: design
         run: |
-          pnpm --filter "@material-bluemap/render-actions..." run build
-          pnpm --filter "@material-bluemap/parts" run build
+          pnpm --filter "@worldlens/render-actions..." run build
+          pnpm --filter "@worldlens/parts" run build
 
       - name: Fetch the world
         id: fetch
@@ -807,7 +807,7 @@ jobs:
 
       - name: Build the planner
         working-directory: design
-        run: pnpm --filter "@material-bluemap/render-actions..." run build
+        run: pnpm --filter "@worldlens/render-actions..." run build
 
       - uses: actions/download-artifact@v4
         with:
@@ -938,7 +938,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile
-          pnpm --filter @material-bluemap/site build
+          pnpm --filter @worldlens/site build
           node packages/site/scripts/assert-base-path.mjs
 
       # Pages serves the files that exist, under the names they have. The engine stores
@@ -1027,7 +1027,7 @@ jobs:
 
       - name: Build the planner
         working-directory: design
-        run: pnpm --filter "@material-bluemap/render-actions..." run build
+        run: pnpm --filter "@worldlens/render-actions..." run build
 
       - uses: actions/download-artifact@v4
         with:

@@ -110,6 +110,103 @@ the follow-up uses only two adjacent, explained suppressions. Exact `b2e4338` br
 `31149413047` was in progress when this handoff entry was written. No release was published and no
 workflow was manually dispatched. The reviewed phase is integrated at `e21aaee`; issue #90 stays
 open until exact-main CI, release-note, asset and published-record proof are terminal and read back.
+## Update, 2026-08-07 — Worldlens identity and lossless migration
+
+The product, workspace packages, preload namespace, installer, data root, marker writes and
+project schema now use Worldlens. The migration reads both generations and writes only current
+identifiers. A one-time consented profile copy stages and SHA-256-verifies every file, retains the
+legacy profile, refuses divergent collisions, quarantines interrupted staging, and rolls back a
+failed activation. A real-profile copy migrated 885 files / 347,197,060 bytes with source
+unchanged and target byte-matched.
+
+The final residual-identity pass is `637cc69`. A hand-written inventory now guards every touched
+current-write and current-display surface, with legacy names permitted only through an explicit
+per-file compatibility allowlist. Release titles, helper output, capture variables, the standalone
+regex builder, generated changelog links and current documentation use Worldlens. The builder and
+capture harness read the current storage or environment key first, copy or fall back from the old
+key without deleting it, and tests cover precedence. Current live repository, Pages, policy and
+legal links remain reachable until the actual repository rename; the committed
+`scripts/finalize-worldlens-repository.mjs` preflights their exact occurrence counts, stages all
+eight files, and verifies the final state. Installation and verification are one rollback
+transaction with an explicit committed state. Backup cleanup happens only after that boundary and
+cannot call rollback: a cleanup-only failure keeps every finalized target, retains each backup it
+did not delete, and reports the exact recovery paths. The reviewed screenshot-label activation fix
+is incorporated as `522e3b5` without merging the default branch.
+
+Local verification at `522e3b5` is green: the focused identity/capture/changelog set passes 43
+tests with one historical-data test skipped; `pnpm test:ci` exits 0 in 356.9 seconds; recursive
+typecheck and build cover all 13 package targets; repository lint passes; and the unsigned package
+build produces a 204,521,984-byte `release/win-unpacked/Worldlens.exe`. Authenticode reports
+`NotSigned` with no signer certificate. Actionlint's YAML/expression pass is green; its
+ShellCheck-enabled run exceeded the 184.1-second local command limit without a verdict. Exact
+branch run `31170094158` supplied that boundary: ShellCheck-enabled actionlint and all 24 required
+screenshots passed at commit `5652d185e67c381364b57ec42d5dcebab82762dd`.
+
+The transaction correction is exercised against a disposable eight-file fixture, not only by
+testing string helpers. Its five executable cases prove read-only `--check-ready` hashes and
+nanosecond modification times, normal apply/verify, exact rollback after the fourth backup, exact
+rollback after verification, and cleanup failure after one backup deletion with all final targets
+and the other seven backups intact. Fault injection is import-only for tests; no production CLI
+flag or environment variable enables it. The legacy capture allowance is now pinned to the four
+exact current-first compatibility lookups, and a deliberate former-variable write makes the audit
+fail. The two `AGENTS.md` repository-name occurrences are classified as preserved instruction
+metadata; that file and its managed mirror were not edited.
+
+Local correction verification is green: 36/36 focused tests, full `test:ci` in 341.8 seconds,
+recursive typecheck and build across all 13 package targets, repository lint, and a fresh Windows
+package. The resulting `Worldlens.exe` is 204,521,984 bytes; Authenticode reports `NotSigned` and
+no signer certificate. Workflow `31170094158` proved the transaction correction at exact commit
+`5652d185e67c381364b57ec42d5dcebab82762dd`: 9,623 tests and all 24 required screenshot surfaces
+passed before integration.
+
+Independent review found the original activation sequence was not crash-safe after the current
+root had been renamed aside. The correction writes a flushed transaction journal before that
+rename and performs startup preflight recovery. Tests inject failures and process crashes before
+and after backup rename, receipt write, staging activation, verification and rollback; retries
+preserve both legacy data and files that existed only in the current Worldlens root.
+
+A second independent pass rejected commit `ad7f1ee88e8d1a45636f8069baee7c1af5975b3d` after its
+Ubuntu CI run exposed a POSIX containment regression. The current correction uses
+platform-correct relative-path containment, rejects linked roots and linked-parent escapes before
+copying, treats case-only names as collisions under Windows filesystem semantics, and records
+both source and current manifests. Worldlens holds Electron's single-instance lock during startup
+and revalidates the exact current and legacy manifests immediately before activation, so a
+concurrent write aborts into quarantine instead of being overwritten. Commit `fddf3608dd1d126abd0e179fb656e5951de20e6d`
+passed the complete Linux build/test job, including 650 test files and 9,584 tests; its overall
+workflow stayed red only because the stale Options-tab click hit a nested close button. That
+separate harness defect is the `522e3b5` correction above and requires one new exact-commit CI
+verdict before the branch can be considered fully verified.
+
+Local correction evidence is green: the 77 focused migration/feed/controller tests pass;
+`pnpm test:ci` exits 0 after 385.4 seconds; recursive typecheck covers all 13 package targets;
+lint and the 13-package production build pass; and `pnpm --filter @worldlens/app package` produces
+`release/win-unpacked/Worldlens.exe`. PowerShell reports that executable as `NotSigned` with no
+signer certificate. The required POSIX execution proof remains the new exact-commit GitHub Actions
+run, because Windows cannot execute the POSIX branch of the path implementation.
+
+Renderer and documentation-site localStorage namespaces migrate before store hydration; current
+values win and old cells remain. Worldlens environment variables take precedence while legacy
+update, GitHub-client and consent names remain readable. Encrypted private-render payloads use
+Worldlens ids and AES-GCM associated-data contexts for new writes while the opener recognizes the
+legacy generation. The cosmetic display name reaches the title bar, About, notifications and
+introductions without changing diagnostics or machine ids.
+
+Packaged bridge builds carry the Worldlens feed plus the former repository as a bounded fallback.
+A stable repository/channel identity pair is written only after a current-feed download; it omits
+the installed version suffix, so a confirmation written by build 100 is still recognized by build
+101 on the same repository, architecture and channel. A repository, architecture or channel
+change invalidates that confirmation. This is code/build verified, not an installed three-version
+proof.
+
+Windows packages are permanently unsigned: `forceCodeSigning`, `signExecutable` and
+`signAndEditExecutable` are false and signing inputs are cleared. HTTPS identifies the contacted
+host and protects transport; feed metadata and package hashes detect changed bytes, but neither
+authenticates the publisher of an unsigned package. A packaged `Worldlens.exe` was built with electron-builder 26.15.3;
+PowerShell reported `NotSigned` and no signer certificate. Repository rename, release publication,
+and package deletion remain intentionally outside this phase. The freshly packaged migration
+consent gate was captured without touching the visible desktop at
+`docs/screenshots/worldlens-profile-migration-consent.png`; its copy identifies immutable folder
+names without exposing the host's absolute user-profile path.
 
 ## Update, 2026-08-07 — screenshot harness no longer closes a tab it meant to select
 
@@ -125,7 +222,8 @@ for an eighth entry it had removed itself.
 The required-surface inventory and every timeout remain unchanged. Local verification built all
 13 workspace packages; app typecheck, focused formatting and lint passed; and the app suite
 passed 2,625 tests across 173 files with seven opt-in tests skipped. Exact cloud screenshot proof
-belongs to the branch workflow for the fix commit and must be checked before the issue closes.
+is green on exact Worldlens branch run `31170094158`; main integration still needs its own
+exact-SHA run before the issue closes.
 
 ## Update, 2026-08-06 — four-edge tabs, real Project Editor input and complete restart fields
 
@@ -413,9 +511,9 @@ with transfer messages and cancellation. Success feeds the resulting local folde
 the wizard's ordinary `inspect` path.
 
 The renderer seam is feature-detected from the real nested
-`window.materialBluemap.sshWorldSource` namespace and refuses a partial bridge. Focused evidence:
+`window.worldlens.sshWorldSource` namespace and refuses a partial bridge. Focused evidence:
 21/21 mounted/seam/wizard/preload tests pass; the five relevant surface policies pass 55/55;
-`@material-bluemap/ui` typecheck passes; and the production workspace build selected 13 of 14
+`@worldlens/ui` typecheck passes; and the production workspace build selected 13 of 14
 packages and built the UI from 1,553 modules. The language/funny catalogue now covers every
 `components/world` key (the remaining catalogue gap is only `components/project`).
 
@@ -1568,7 +1666,7 @@ being restructured by a different task in the same pass, so the API stops at a c
 ### The CLI and a Dockerfile that was actually built and run (issue #42)
 
 `packages/cli/src/index.ts` was one line, `export {};`. It now mirrors `BlueMapCLI.main
-()`'s real branching, reusing `@material-bluemap/config`'s existing `cli/flags.ts` model
+()`'s real branching, reusing `@worldlens/config`'s existing `cli/flags.ts` model
 rather than a second copy of it, so the GUI and this real CLI cannot quietly drift apart on
 what a flag combination does. It loads a config folder the way `BlueMapConfigManager` does
 (per-file/per-folder defaults, never a single-shot dump), resolves resources through
@@ -1857,7 +1955,7 @@ half-finished edit, not a landed fault.
 1. **The screenshot tool photographs a build, and it is not the build you think it is.**
    Running the build command in `design/packages/app` rebuilds only the background part of
    the app. Everything you can _see_ is built by `design/packages/ui`
-   (`pnpm --filter @material-bluemap/ui run build`). Fixing a component, rebuilding the app,
+   (`pnpm --filter @worldlens/ui run build`). Fixing a component, rebuilding the app,
    and taking a new screenshot gives you a picture of the **old** interface, with every test
    still passing. A correct one-line fix was rewritten three times because of this. There is
    now a guard: `design/packages/app/test/freshBundle.ts` refuses to run the screenshot tool
@@ -2109,7 +2207,7 @@ declared the call twelve minutes later and the file now passes its 14 tests on i
 never a defect in anything committed at `9f34cff`. The tree is moving fast enough to watch: a
 run five minutes before this one reported 353 files and 5,721 tests.
 
-`pnpm --filter @material-bluemap/ui build` succeeds locally, which is the exact step that
+`pnpm --filter @worldlens/ui build` succeeds locally, which is the exact step that
 failed on the hosted runner for `80369ec`.
 
 ### CI, stated exactly
@@ -2264,12 +2362,12 @@ still need to be re-run for this additional change.
 
 ## Update, 2026-08-04 — site gate re-run after menu integration
 
-The Pages package now passes `pnpm --filter @material-bluemap/site typecheck`, repository lint,
+The Pages package now passes `pnpm --filter @worldlens/site typecheck`, repository lint,
 the full site Vitest suite (**132 tests across 16 files**), `pnpm --filter
-@material-bluemap/site build` (211 modules), and `git diff --check`. The site build retains the
+@worldlens/site build` (211 modules), and `git diff --check`. The site build retains the
 existing non-failing warning about the main JavaScript chunk exceeding 500 kB. The repository-wide
 Vitest command is not a clean gate on this checkout: 21 engine tests cannot resolve the unbuilt
-`@material-bluemap/nbt` package entry, and config fixture tests fail on the checkout's CRLF/LF
+`@worldlens/nbt` package entry, and config fixture tests fail on the checkout's CRLF/LF
 byte boundary; those failures are outside this Pages change and are reported as such.
 
 The generated changelog was refreshed with `node scripts/build-changelog.mjs` and its check passes
@@ -2499,7 +2597,7 @@ remains a separate cross-surface gap.
 
 Verification in this linked worktree:
 
-- `pnpm --filter @material-bluemap/site typecheck` — passed.
+- `pnpm --filter @worldlens/site typecheck` — passed.
 - Focused site tests — **127 passed** across 13 files, including localization, article-command,
   settings-tab search, content, date-range, changelog and search suites.
 - `pnpm lint` — passed.
@@ -2537,9 +2635,9 @@ authorization slider with Escape and reduced-motion handling.
 
 Evidence from the clean linked worktree:
 
-- `pnpm --filter @material-bluemap/site typecheck` — passed.
-- `pnpm --filter @material-bluemap/site exec vitest run` — 119 tests passed across 9 files.
-- `pnpm --filter @material-bluemap/site build` — Vite production build passed (140 modules).
+- `pnpm --filter @worldlens/site typecheck` — passed.
+- `pnpm --filter @worldlens/site exec vitest run` — 119 tests passed across 9 files.
+- `pnpm --filter @worldlens/site build` — Vite production build passed (140 modules).
 
 This is source, type, unit, and production-bundle evidence. A cheap headless Windows capture of
 the live GitHub Pages site remains a separate runtime/UI boundary and is not claimed by these checks.
@@ -3133,7 +3231,7 @@ A 12-agent reachability audit (mount graph from `App.vue`, three-way IPC parity 
 invoke channels, asset wiring) confirmed the recurring pattern at three layers at once:
 **9 of 72 components were orphans** (the whole `ConfigScreen` subtree, `ConfigNotifications`,
 `MenuChoice`), the **GitHub sign-in and release-download features were complete in main and
-preload with zero renderer lines**, the `window.materialBluemap.config` bridge the options
+preload with zero renderer lines**, the `window.worldlens.config` bridge the options
 GUI probes for **had never existed at all**, and the typefaces every stylesheet names —
 Roboto and Roboto Mono — were bundled nowhere, so the whole chrome rendered in Arial.
 
@@ -3696,7 +3794,7 @@ over:**
    warning path is dead code on both sides of the comparison. Recorded so it is not
    forgotten if a second `World` implementation is ever added.
 
-Verification for this section: `pnpm --filter @material-bluemap/cli run typecheck` — clean.
+Verification for this section: `pnpm --filter @worldlens/cli run typecheck` — clean.
 `npx eslint packages/cli` — clean, after fixing one real `prefer-const` error the change
 introduced. `npx vitest run packages/cli` — **29 passed, 0 skipped, 4 test files**.
 `npx vitest run packages/server` — **42 passed** (`MapUpdateService` itself is untouched by

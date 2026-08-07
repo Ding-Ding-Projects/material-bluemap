@@ -62,7 +62,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
+  WORLDLENS_ACCEPT_DOWNLOAD: ${{ vars.BLUEMAP_ACCEPT_DOWNLOAD == 'false' && '0' || '1' }}
   # Deliberately fixed rather than an input. A map id ends up in paths, in commands and
   # therefore in this public log; a real world's name in that position would leak the one
   # thing this whole arrangement exists to keep. The map can be renamed on the private
@@ -104,7 +104,7 @@ jobs:
 
       - name: Build the transport
         working-directory: design
-        run: pnpm --filter "@material-bluemap/render-actions..." run build
+        run: pnpm --filter "@worldlens/render-actions..." run build
 
       # Reads the key, checks it is a real 32-byte key, and names any secret that is not
       # set. Prints neither the key nor anything derived from the private side.
@@ -234,7 +234,7 @@ jobs:
 
       - name: Build the planner
         working-directory: design
-        run: pnpm --filter "@material-bluemap/render-actions..." run build
+        run: pnpm --filter "@worldlens/render-actions..." run build
 
       - name: Fetch the sealed world
         env:
@@ -342,7 +342,7 @@ jobs:
 
       - name: Build the planner
         working-directory: design
-        run: pnpm --filter "@material-bluemap/render-actions..." run build
+        run: pnpm --filter "@worldlens/render-actions..." run build
 
       - uses: actions/download-artifact@v4
         with:
@@ -393,7 +393,7 @@ jobs:
             --web-root "$GITHUB_WORKSPACE/bluemap-out" \
             --map-name "$MAP_NAME" \
             --threads 4 \
-            --accept-download "$MATERIAL_BLUEMAP_ACCEPT_DOWNLOAD"
+            --accept-download "$WORLDLENS_ACCEPT_DOWNLOAD"
 
       - name: Render
         run: java -Xmx10G -jar "$GITHUB_WORKSPACE/cli/bluemap-cli.jar" -c "$GITHUB_WORKSPACE/bluemap-config" -r -g
@@ -469,7 +469,7 @@ jobs:
 
       - name: Build the merger
         working-directory: design
-        run: pnpm --filter "@material-bluemap/render-actions..." run build
+        run: pnpm --filter "@worldlens/render-actions..." run build
 
       - name: Collect every shard
         env:

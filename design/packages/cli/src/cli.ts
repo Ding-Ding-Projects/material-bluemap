@@ -7,8 +7,8 @@
 
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { RenderManager, type BmMap } from "@material-bluemap/engine";
-import { resolveCliActions, parseCliArgs, type ResolvedCliActions } from "@material-bluemap/config";
+import { RenderManager, type BmMap } from "@worldlens/engine";
+import { resolveCliActions, parseCliArgs, type ResolvedCliActions } from "@worldlens/config";
 import { formatHelp, formatVersion } from "./args.js";
 import { bootstrapConfig, DEFAULT_CONFIG_FOLDER, type LoadedConfig } from "./config.js";
 import { createLogger, type Logger } from "./logger.js";

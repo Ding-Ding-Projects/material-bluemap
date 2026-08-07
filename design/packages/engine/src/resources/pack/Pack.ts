@@ -1,4 +1,4 @@
-import type { Key } from "@material-bluemap/shared";
+import type { Key } from "@worldlens/shared";
 import { asArray, asObject, nextString, parse } from "../adapter/JsonMapper.js";
 import { PackMeta } from "./PackMeta.js";
 import type { PackVersion } from "./PackVersion.js";

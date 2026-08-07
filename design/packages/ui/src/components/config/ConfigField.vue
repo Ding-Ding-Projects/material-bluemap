@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiAlertOutline, mdiBackupRestore, mdiChevronDown, mdiChevronUp, mdiRefreshAuto, mdiShieldCheckOutline } from "@mdi/js";
 import { VAlert, VBtn, VChip, VIcon, VTooltip } from "vuetify/components";
-import type { FieldMeta, PlainValue } from "@material-bluemap/config";
+import type { FieldMeta, PlainValue } from "@worldlens/config";
 import ConfigControl from "./ConfigControl.vue";
 import ConfigKeyValueField from "./ConfigKeyValueField.vue";
 import ConfigListField from "./ConfigListField.vue";
@@ -18,7 +18,7 @@ import { UNKNOWN_WORLD, type WorldOrientation } from "./maskCanvas.js";
  * open in a text editor beside it.
  *
  * The documentation shown is upstream BlueMap's own comment for the setting,
- * carried verbatim by `@material-bluemap/config`, so the interface explains a
+ * carried verbatim by `@worldlens/config`, so the interface explains a
  * setting at least as well as the generated file did. Nothing here is written
  * per setting: the control, the documentation, the default, the advisory range
  * and the re-render warning all come from the schema.

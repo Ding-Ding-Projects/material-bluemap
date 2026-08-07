@@ -20,7 +20,7 @@ function strip(overrides: Partial<TabStripState> = {}): TabStripState {
         id: "s1",
         label: "Main",
         windowId: "window-1",
-        windowLabel: "Material BlueMap",
+        windowLabel: "Worldlens",
         placement: "left",
         tabs: [],
         pinnedOrder: [],

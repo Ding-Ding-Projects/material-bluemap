@@ -507,7 +507,7 @@ async function postForm(
                 // become much harder to tell apart than they need to be.
                 Accept: "application/json",
                 "Content-Type": "application/x-www-form-urlencoded",
-                "User-Agent": "material-bluemap",
+                "User-Agent": "worldlens",
             },
             body,
             ...(signal === undefined ? {} : { signal }),

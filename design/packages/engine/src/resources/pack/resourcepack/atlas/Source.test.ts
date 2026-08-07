@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { PNG } from "pngjs";
 import { afterAll, describe, expect, it } from "vitest";
 import { parse } from "../../../adapter/JsonMapper.js";

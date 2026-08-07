@@ -3,7 +3,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiArrowDown, mdiArrowUp, mdiClose, mdiPlus } from "@mdi/js";
 import { VAlert, VBtn, VTooltip } from "vuetify/components";
-import type { ListControl, PlainValue } from "@material-bluemap/config";
+import type { ListControl, PlainValue } from "@worldlens/config";
 import ConfigControl from "./ConfigControl.vue";
 import { blankValueFor, valueToText } from "./fieldValue.js";
 

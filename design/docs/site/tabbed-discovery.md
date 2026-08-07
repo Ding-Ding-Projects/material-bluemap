@@ -30,7 +30,7 @@ claiming they closed. Only visible labels/titles are searched; hidden metadata i
 
 ## Verification
 
-`pnpm --filter @material-bluemap/site typecheck`, the site Vitest suite, and the Vite production
+`pnpm --filter @worldlens/site typecheck`, the site Vitest suite, and the Vite production
 build pass in the Pages rewrite worktree. The discovery regression test mutates the group list and
 proves that the independent group fields appear and disappear with it; `Menu.test.ts` proves the
 menu-owned field filters commands, exposes its builder affordance and reports an honest empty

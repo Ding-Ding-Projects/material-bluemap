@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { Key, Registry, Vector2i, type Keyed } from "@material-bluemap/shared";
+import { Key, Registry, Vector2i, type Keyed } from "@worldlens/shared";
 import type { Region } from "../../Region.js";
 import type { ChunkLoader } from "../ChunkLoader.js";
 import { javaParseInt, NumberFormatError } from "../MCAUtil.js";

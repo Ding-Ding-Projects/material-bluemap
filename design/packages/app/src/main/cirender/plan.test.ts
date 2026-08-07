@@ -12,7 +12,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { ProjectFile, ProjectMap } from "@material-bluemap/config";
+import type { ProjectFile, ProjectMap } from "@worldlens/config";
+import { LEGACY_PROJECT_FILE_NAME } from "@worldlens/config";
 import {
     DEFAULT_BUDGET_MINUTES,
     DEFAULT_MAX_JOBS,
@@ -222,5 +223,16 @@ describe("reading the project off a world", () => {
         const result = await readProjectAt(workDir);
         expect(result.ok).toBe(true);
         expect(result.ok && result.project.maps[0]?.id).toBe("world");
+    });
+
+    it("reads the legacy project filename when the Worldlens filename is absent", async () => {
+        await writeFile(
+            join(workDir, LEGACY_PROJECT_FILE_NAME),
+            JSON.stringify(project([map({ id: "legacy" })]), null, 4),
+            "utf8",
+        );
+        const result = await readProjectAt(workDir);
+        expect(result.ok).toBe(true);
+        expect(result.ok && result.project.maps[0]?.id).toBe("legacy");
     });
 });

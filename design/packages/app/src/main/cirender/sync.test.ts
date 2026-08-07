@@ -62,7 +62,7 @@ beforeEach(async () => {
     await mkdir(join(world, "region"), { recursive: true });
     await writeFile(join(world, "level.dat"), "level");
     await writeFile(join(world, "region", "r.0.0.mca"), "region bytes");
-    await writeFile(join(world, "material-bluemap.project.json"), projectFile(), "utf8");
+    await writeFile(join(world, "worldlens.project.json"), projectFile(), "utf8");
 });
 
 afterEach(async () => {
@@ -997,7 +997,7 @@ describe("refusals are values, and none of them is a stack", () => {
 
     it("refuses a project whose map renders a dimension the workflow does not offer", async () => {
         await writeFile(
-            join(world, "material-bluemap.project.json"),
+            join(world, "worldlens.project.json"),
             projectFile().replace("minecraft:overworld", "mystcraft:age_12"),
             "utf8",
         );
@@ -1013,7 +1013,7 @@ describe("refusals are values, and none of them is a stack", () => {
     });
 
     it("refuses a world with no project file, and says where one comes from", async () => {
-        await rm(join(world, "material-bluemap.project.json"));
+        await rm(join(world, "worldlens.project.json"));
         const github = baseRoutes(new RecordingGitHub());
         const sync = makeSync({ github, backup: fakeBackup(true) });
 

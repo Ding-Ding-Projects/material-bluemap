@@ -28,6 +28,7 @@ export {
 
 export {
     assetPattern,
+    deriveLegacyProjectId,
     deriveProjectId,
     manifestAssetName,
     partAssetName,
@@ -38,6 +39,8 @@ export {
     PRIVATE_PART_BYTES,
     PrivatePayloadError,
     isPrivateTransportError,
+    legacyManifestAad,
+    legacyPartAad,
     manifestAad,
     openPayload,
     partAad,

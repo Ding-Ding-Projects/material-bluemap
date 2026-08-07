@@ -1,4 +1,4 @@
-import { MatrixM4f, TrigMath, type MatrixM3f } from "@material-bluemap/shared";
+import { MatrixM4f, TrigMath, type MatrixM3f } from "@worldlens/shared";
 import { InstancePool } from "../../util/InstancePool.js";
 import { compareInt, mergeSortInt } from "../../util/MergeSort.js";
 import { toRadians, javaCastToInt } from "../../util/math/JavaMath.js";

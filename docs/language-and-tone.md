@@ -13,9 +13,9 @@ The code is `design/packages/ui/src/copy/` for the words and the wiring, and
 
 | Setting | Values | Default | Stored under |
 |---|---|---|---|
-| Language mode | `en`, `yue`, `bilingual` | `en` | `material-bluemap.language.mode` |
-| English funny level | 1 to 5 | 3 | `material-bluemap.language.funny.en` |
-| Cantonese funny level | 1 to 5 | 3 | `material-bluemap.language.funny.yue` |
+| Language mode | `en`, `yue`, `bilingual` | `en` | `worldlens.language.mode` |
+| English funny level | 1 to 5 | 3 | `worldlens.language.funny.en` |
+| Cantonese funny level | 1 to 5 | 3 | `worldlens.language.funny.yue` |
 
 Two sliders, not one. English can stay buttoned up while Cantonese lets loose, and neither moves
 when the other does. All three persist immediately, so a choice survives closing the application

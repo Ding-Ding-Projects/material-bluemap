@@ -6,8 +6,8 @@ import {
     mapOf,
     type BlueNBT,
     type ObjectSchema,
-} from "@material-bluemap/nbt";
-import { Key, Vector3i } from "@material-bluemap/shared";
+} from "@worldlens/nbt";
+import { Key, Vector3i } from "@worldlens/shared";
 import { DataPack } from "../../../resources/pack/datapack/DataPack.js";
 import { DimensionSettings, DIMENSION_SETTINGS_TOKEN } from "./DimensionSettings.js";
 import { KEY_TOKEN } from "./KeyDeserializer.js";

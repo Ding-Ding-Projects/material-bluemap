@@ -16,7 +16,7 @@ import { mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp, VBtn } from "vuetify/components";
-import { MASK_SHAPES, type PlainValue } from "@material-bluemap/config";
+import { MASK_SHAPES, type PlainValue } from "@worldlens/config";
 import ConfigMaskField from "./ConfigMaskField.vue";
 
 beforeAll(() => {

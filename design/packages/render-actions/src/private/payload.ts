@@ -91,12 +91,40 @@ export class PrivatePayloadError extends Error {
 
 /** The associated data binding one part to its position in one payload. */
 export function partAad(projectId: string, index: number, bytes: number): string {
-    return `material-bluemap/private-transport/1|${projectId}|part|${index}|${bytes}`;
+    return `worldlens/private-transport/1|${projectId}|part|${index}|${bytes}`;
 }
 
 /** The associated data binding a manifest to its payload. */
 export function manifestAad(projectId: string): string {
+    return `worldlens/private-transport/1|${projectId}|manifest`;
+}
+
+/** Read-only AAD for a part sealed before the Worldlens rename. */
+export function legacyPartAad(projectId: string, index: number, bytes: number): string {
+    return `material-bluemap/private-transport/1|${projectId}|part|${index}|${bytes}`;
+}
+
+/** Read-only AAD for a manifest sealed before the Worldlens rename. */
+export function legacyManifestAad(projectId: string): string {
     return `material-bluemap/private-transport/1|${projectId}|manifest`;
+}
+
+function unsealCompatible(
+    key: Buffer,
+    currentAad: string,
+    legacyAad: string,
+    sealed: Buffer,
+): Buffer {
+    try {
+        return unseal(key, currentAad, sealed);
+    } catch (currentError) {
+        if (!(currentError instanceof PrivateCryptoError)) throw currentError;
+        try {
+            return unseal(key, legacyAad, sealed);
+        } catch {
+            throw currentError;
+        }
+    }
 }
 
 export interface SealOptions {
@@ -257,9 +285,10 @@ export async function openPayload(options: OpenOptions): Promise<OpenReport> {
 
             // Any tampering, substitution or reordering fails inside here, and `unseal`
             // throws rather than returning something to check.
-            const plaintext = unseal(
+            const plaintext = unsealCompatible(
                 options.key,
                 partAad(options.projectId, record.index, record.bytes),
+                legacyPartAad(options.projectId, record.index, record.bytes),
                 sealed,
             );
 
@@ -326,7 +355,12 @@ export async function readManifest(options: {
         );
     }
 
-    const plaintext = unseal(options.key, manifestAad(options.projectId), sealed);
+    const plaintext = unsealCompatible(
+        options.key,
+        manifestAad(options.projectId),
+        legacyManifestAad(options.projectId),
+        sealed,
+    );
 
     let parsed: unknown;
     try {

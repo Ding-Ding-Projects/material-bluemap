@@ -1,4 +1,4 @@
-import { NBTWriter } from "@material-bluemap/nbt";
+import { NBTWriter } from "@worldlens/nbt";
 import {
     DATA_VERSION,
     LEVEL_FORMAT_VERSION,

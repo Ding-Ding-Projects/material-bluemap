@@ -17,6 +17,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
     DEFAULT_WORLD_BRANCH,
+    LEGACY_WORLD_REPO_MARKER_FILE,
+    LEGACY_WORLD_REPO_MARKER_TOOL,
     WORLD_REPO_MARKER_FILE,
     WORLD_REPO_MARKER_TOOL,
     WorldRepoHost,
@@ -166,6 +168,16 @@ afterEach(async () => {
 describe("the marker", () => {
     it("reads one out of what the contents API answers", () => {
         expect(readWorldMarker(markerPayload("world"))?.branch).toBe("world");
+    });
+
+    it("reads the legacy tool while reserving the Worldlens filename for new writes", () => {
+        const payload = markerPayload("legacy") as { content: string };
+        const parsed = JSON.parse(Buffer.from(payload.content, "base64").toString("utf8")) as Record<string, unknown>;
+        parsed.tool = LEGACY_WORLD_REPO_MARKER_TOOL;
+        payload.content = Buffer.from(JSON.stringify(parsed)).toString("base64");
+        expect(readWorldMarker(payload)?.branch).toBe("legacy");
+        expect(WORLD_REPO_MARKER_FILE).toBe(".worldlens-world.json");
+        expect(LEGACY_WORLD_REPO_MARKER_FILE).toBe(".material-bluemap-world.json");
     });
 
     it("refuses to call somebody else's file ours", () => {

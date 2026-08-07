@@ -25,7 +25,7 @@ import type { UpdateCopyKey } from "./updateCopy.js";
 import type { UpdateState, UpdateStatus } from "./updateBridge.js";
 
 /** Where a dismissed version is remembered, so a restart does not resurrect the banner. */
-const DISMISSED_KEY = "material-bluemap.update.dismissed";
+const DISMISSED_KEY = "worldlens.update.dismissed";
 
 /** The version whose banner the user put away, or null. */
 export function readDismissedUpdate(): string | null {

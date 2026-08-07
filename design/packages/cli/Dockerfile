@@ -8,27 +8,27 @@
 # same MIT-licensed static bundle `bluemap-cli -g` itself would otherwise need
 # to be told about at run time; see `packages/cli/scripts/copy-webapp.mjs`):
 #
-#   docker build -f design/packages/cli/Dockerfile -t material-bluemap-cli .
+#   docker build -f design/packages/cli/Dockerfile -t worldlens-cli .
 #
 # Render a world:
 #
 #   docker run --rm \
 #     -v "$PWD/my-config:/data/config" \
 #     -v "$PWD/my-world:/data/world:ro" \
-#     material-bluemap-cli -c /data/config -r
+#     worldlens-cli -c /data/config -r
 #
 # Serve what was rendered:
 #
 #   docker run --rm -p 8100:8100 \
 #     -v "$PWD/my-config:/data/config" \
-#     material-bluemap-cli -c /data/config -w
+#     worldlens-cli -c /data/config -w
 #
 # Both in one run (render once, then keep serving the result):
 #
 #   docker run --rm -p 8100:8100 \
 #     -v "$PWD/my-config:/data/config" \
 #     -v "$PWD/my-world:/data/world:ro" \
-#     material-bluemap-cli -c /data/config -r -w
+#     worldlens-cli -c /data/config -r -w
 #
 # `-c /data/config`'s `maps/*.conf` `world` setting has to point at whatever
 # path the world is mounted at inside the container (`/data/world` above) —
@@ -40,7 +40,7 @@
 # `--workdir /data` and point the config at a folder there.
 
 ###############################################################################
-# Stage 1 — install and build only what @material-bluemap/cli needs
+# Stage 1 — install and build only what @worldlens/cli needs
 ###############################################################################
 FROM node:22-slim AS build
 
@@ -65,7 +65,7 @@ COPY design/tools ./design/tools
 # copy-webapp.mjs only ever reads common/webapp/dist.
 COPY vendor/BlueMap/common/webapp/dist ./vendor/BlueMap/common/webapp/dist
 
-# --filter "@material-bluemap/cli..." installs the CLI and everything it
+# --filter "@worldlens/cli..." installs the CLI and everything it
 # actually depends on — never the Electron desktop app, the UI package, or
 # their native/heavy build steps (electron's own binary download,
 # better-sqlite3's native compile), which this standalone server CLI has
@@ -77,15 +77,15 @@ COPY vendor/BlueMap/common/webapp/dist ./vendor/BlueMap/common/webapp/dist
 # "Aborted removal of modules directory due to no TTY" — so one install that
 # already includes dev deps is the correct shape here, not a workaround.)
 WORKDIR /repo/design
-RUN pnpm install --frozen-lockfile --filter "@material-bluemap/cli..."
+RUN pnpm install --frozen-lockfile --filter "@worldlens/cli..."
 
 # Runs each dependency's own "build" script in dependency order (pnpm reads
 # the workspace:* graph itself), then the CLI's own build, which — per its
 # package.json — also runs scripts/copy-webapp.mjs, now able to find the real
 # webapp bundle copied in above.
-RUN pnpm --filter "@material-bluemap/cli..." run build
+RUN pnpm --filter "@worldlens/cli..." run build
 
-# `pnpm deploy` prunes the result down to exactly what @material-bluemap/cli
+# `pnpm deploy` prunes the result down to exactly what @worldlens/cli
 # needs at runtime: real (non-symlinked) copies of its own dist/ and of every
 # workspace + external dependency it actually resolved, with devDependencies
 # and every unrelated workspace package left out entirely. `--legacy`: pnpm
@@ -94,7 +94,7 @@ RUN pnpm --filter "@material-bluemap/cli..." run build
 # (ERR_PNPM_DEPLOY_NONINJECTED_WORKSPACE) — this workspace has not, and does
 # not need to just to satisfy this one build step, so the flag pnpm's own
 # error message names is the direct fix, not a workaround.
-RUN pnpm --filter @material-bluemap/cli deploy --prod --legacy /app
+RUN pnpm --filter @worldlens/cli deploy --prod --legacy /app
 
 ###############################################################################
 # Stage 2 — a slim runtime image with nothing but the Node runtime and /app

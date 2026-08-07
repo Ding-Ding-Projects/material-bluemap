@@ -6,7 +6,7 @@
  */
 
 import type * as http from "node:http";
-import { TileUpdateStrategy, type BmMap } from "@material-bluemap/engine";
+import { TileUpdateStrategy, type BmMap } from "@worldlens/engine";
 import type { HttpHandler } from "./HttpServer.js";
 import type { RenderDriver } from "../render/RenderDriver.js";
 

@@ -30,6 +30,7 @@ import { createMapStorageSetting } from "./mapStorageSetting.js";
 import { createRenderMemorySetting } from "./renderMemorySetting.js";
 import RenderMemoryRow from "./RenderMemoryRow.vue";
 import NotificationDurationRow from "./NotificationDurationRow.vue";
+import ProductDisplayNameRow from "./ProductDisplayNameRow.vue";
 import { createDownloadConcurrencySetting } from "./downloadConcurrencySetting.js";
 import DownloadConcurrencyRow from "./DownloadConcurrencyRow.vue";
 import {
@@ -47,6 +48,7 @@ import {
     type SettingsSectionAnchor,
     type SettingsSectionText,
 } from "./settingsSections.js";
+import { productDisplayName } from "../../stores/productName.js";
 
 /**
  * The settings surface a failed render points at.
@@ -120,7 +122,7 @@ const emit = defineEmits<{ "update:open": [value: boolean] }>();
 const { t } = useI18n();
 
 /**
- * The bridge is resolved by the controllers themselves, from `globalThis.materialBluemap`,
+ * The bridge is resolved by the controllers themselves, from `globalThis.worldlens`,
  * exactly as the setup flow and the render flow resolve theirs. It is deliberately not a
  * prop: the shell mounts this with three props and nothing else, and a fourth for
  * plumbing would be a fourth thing for it to get wrong.
@@ -160,18 +162,18 @@ const historySection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const diagnosticsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 
 /**
- * Resolved once, from the same `globalThis.materialBluemap` every other controller on this
+ * Resolved once, from the same `globalThis.worldlens` every other controller on this
  * surface probes, rather than handed down: this surface mounts with three props and
  * nothing else, and a fourth pair for two capabilities most builds and most sessions never
  * touch would be plumbing for its own sake. Null in a browser tab, exactly like every other
  * bridge-backed capability here.
  */
 const profilesHistoryHost = simpleHistoryHostFrom(
-    typeof window === "undefined" ? null : window.materialBluemap,
+    typeof window === "undefined" ? null : window.worldlens,
     "profilesHistory",
 );
 const appSettingsHistoryHost = simpleHistoryHostFrom(
-    typeof window === "undefined" ? null : window.materialBluemap,
+    typeof window === "undefined" ? null : window.worldlens,
     "appSettingsHistory",
 );
 
@@ -273,7 +275,7 @@ const sections = computed<SettingsSectionText[]>(() => {
             anchor: "language-and-tone",
             title: text["language-and-tone"].title,
             description: text["language-and-tone"].description,
-            values: languageSearchLabels(),
+            values: [...languageSearchLabels(), productDisplayName.value, "Worldlens", "display name"],
         },
         // The names of the panels that are open and the five placements they can take, so
         // somebody who can read "Docked to the bottom" on screen finds this row by typing
@@ -676,7 +678,7 @@ function onDrawer(value: boolean): void {
             <TabbedNavigation
                 ref="tabsNav"
                 :pages="settingsPages"
-                storage-key="material-bluemap-settings-tabs"
+                storage-key="worldlens-settings-tabs"
                 :strip-label="t('settings.tabs.strip', 'Settings sections')"
                 :window-label="t('settings.title', 'Settings')"
             >
@@ -775,6 +777,7 @@ function onDrawer(value: boolean): void {
                         :description="copy['language-and-tone'].description"
                     >
                         <LanguageSettingsRow />
+                        <ProductDisplayNameRow />
                     </SettingsSection>
                 </template>
 

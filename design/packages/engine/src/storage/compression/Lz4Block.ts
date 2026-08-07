@@ -1,7 +1,7 @@
 import { Transform, type TransformCallback } from "node:stream";
 import { compressBlock, decompressBlock } from "lz4js";
 import xxhash from "xxhash-wasm";
-import { EOFException, IOException, IllegalArgumentException } from "@material-bluemap/nbt";
+import { EOFException, IOException, IllegalArgumentException } from "@worldlens/nbt";
 
 /**
  * lz4-java block-stream framing ({@code net.jpountz.lz4.LZ4BlockOutputStream} /

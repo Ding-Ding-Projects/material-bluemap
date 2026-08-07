@@ -14,17 +14,19 @@
  */
 
 import { afterAll, describe, expect, it } from "vitest";
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
+    LEGACY_PROJECT_FILE_NAME,
     PROJECT_FILE_NAME,
     PROJECT_FORMAT_VERSION,
+    PROJECT_SCHEMA_ID,
     projectFileSchema,
     serializeProjectFile,
     type ProjectFile,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 
 import {
     PROJECT_TEMP_SUFFIX,
@@ -97,7 +99,24 @@ describe("reading a project out of a world folder", () => {
 
         const read = await readProject(folder);
         expect(read.ok).toBe(true);
-        if (read.ok) expect(read.project).toEqual(original);
+        if (read.ok) expect(read.project).toEqual({ ...original, schema: PROJECT_SCHEMA_ID });
+    });
+
+    it("reads the legacy project name and migrates its schema in memory", async () => {
+        const folder = await worldFolder();
+        const original = { ...project({ name: "Legacy survival" }), version: 1 };
+        await writeFile(join(folder, LEGACY_PROJECT_FILE_NAME), JSON.stringify(original), "utf8");
+
+        const read = await readProject(folder);
+        expect(read.ok).toBe(true);
+        expect(read.path).toBe(join(folder, LEGACY_PROJECT_FILE_NAME));
+        if (read.ok) {
+            expect(read.project).toEqual({
+                ...original,
+                version: PROJECT_FORMAT_VERSION,
+                schema: PROJECT_SCHEMA_ID,
+            });
+        }
     });
 
     it("says plainly when the file is not JSON at all, rather than crashing on it", async () => {
@@ -157,6 +176,24 @@ describe("writing a project into somebody's world", () => {
         // The temporary file the write goes through is gone. One left behind would sit in a
         // world folder forever, looking to every backup tool like a file that matters.
         expect(await contents(folder)).toEqual([PROJECT_FILE_NAME]);
+    });
+
+    it("reads legacy state but writes updates only to the Worldlens project name", async () => {
+        const folder = await worldFolder();
+        await writeFile(
+            join(folder, LEGACY_PROJECT_FILE_NAME),
+            JSON.stringify({ ...project({ name: "Before rename" }), version: 1 }),
+            "utf8",
+        );
+
+        const written = await writeProject(folder, project({ name: "After rename" }));
+        expect(written.ok).toBe(true);
+        expect(await contents(folder)).toEqual([LEGACY_PROJECT_FILE_NAME, PROJECT_FILE_NAME]);
+        expect(JSON.parse(await readFile(join(folder, PROJECT_FILE_NAME), "utf8"))).toMatchObject({
+            schema: PROJECT_SCHEMA_ID,
+            version: PROJECT_FORMAT_VERSION,
+            name: "After rename",
+        });
     });
 
     it("never writes the project's own path directly, only a temporary beside it", async () => {
@@ -333,6 +370,7 @@ describe("nothing is written outside the world folder", () => {
 
     it("refuses everything that is not the one file a world holds", () => {
         expect(checkProjectPath(PROJECT_FILE_NAME).ok).toBe(true);
+        expect(checkProjectPath(LEGACY_PROJECT_FILE_NAME)).toEqual({ ok: true, path: PROJECT_FILE_NAME });
         // Forward and back slashes are the same name, so a Windows spelling still matches.
         expect(checkProjectPath(`\\${PROJECT_FILE_NAME}`).ok).toBe(false);
 
@@ -374,6 +412,25 @@ describe("the remaining edges", () => {
         await writeProject(folder, project());
         expect((await deleteProject(folder)).ok).toBe(true);
         expect(await contents(folder)).toEqual([]);
+    });
+
+    it("removes both current and legacy project files during an explicit delete", async () => {
+        const folder = await worldFolder();
+        await writeFile(join(folder, LEGACY_PROJECT_FILE_NAME), "legacy", "utf8");
+        await writeFile(join(folder, PROJECT_FILE_NAME), "current", "utf8");
+
+        expect((await deleteProject(folder)).ok).toBe(true);
+        expect(await contents(folder)).toEqual([]);
+    });
+
+    it("validates both project paths before deleting either one", async () => {
+        const folder = await worldFolder();
+        await writeFile(join(folder, PROJECT_FILE_NAME), "current", "utf8");
+        await mkdir(join(folder, LEGACY_PROJECT_FILE_NAME));
+
+        const deleted = await deleteProject(folder);
+        expect(deleted.ok).toBe(false);
+        expect(await readFile(join(folder, PROJECT_FILE_NAME), "utf8")).toBe("current");
     });
 
     it("validates a project that arrived as an object through the same reader the disk uses", () => {

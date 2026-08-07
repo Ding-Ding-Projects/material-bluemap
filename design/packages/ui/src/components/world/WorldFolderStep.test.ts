@@ -287,7 +287,7 @@ describe("the folder step's way out for somebody with no world", () => {
  * `main/bedrock/ipc.ts` registers `bedrock:detect`, `bedrock:convert` and the rest on every
  * launch, fully unit-tested in isolation - and until the preload bridge and this note
  * existed, nothing in the running app ever called any of them. `BedrockConversionNote`
- * resolves its own bridge from `globalThis.materialBluemap`, the same way `MinecraftWorldList`
+ * resolves its own bridge from `globalThis.worldlens`, the same way `MinecraftWorldList`
  * finds its catalog bridge, so this proves the chain the same way "the chain from the screen
  * the app mounts" below proves the downloader's: stub the global, mount the real step, and
  * check the note a Bedrock folder is supposed to produce actually reaches the DOM.
@@ -313,7 +313,7 @@ describe("the Bedrock conversion note this step now mounts", () => {
             memory: null,
             error: null,
         }));
-        vi.stubGlobal("materialBluemap", {
+        vi.stubGlobal("worldlens", {
             bedrock: {
                 detect,
                 chunkerStatus: vi.fn(),
@@ -353,7 +353,7 @@ describe("the chain from the screen the app mounts", () => {
         const fake = fakePreload();
         // Nothing is passed down to it: the wizard does not know downloads exist, so the
         // surface has to feature-detect the preload from three components deep.
-        vi.stubGlobal("materialBluemap", fake.bridge);
+        vi.stubGlobal("worldlens", fake.bridge);
 
         const wrapper = mount(WorldScreen, {
             props: { bridge: null, optionalBridge: null, host: null },

@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { describe, expect, it } from "vitest";
 import { BlockProperties } from "../../../world/BlockProperties.js";
 import { BlockState } from "../../../world/BlockState.js";

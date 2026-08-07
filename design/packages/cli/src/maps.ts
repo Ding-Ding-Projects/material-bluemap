@@ -29,9 +29,9 @@ import {
     type DataPack,
     type ResourcePack,
     type Shape,
-} from "@material-bluemap/engine";
-import { Key, Vector2d, Vector2i, Vector3i } from "@material-bluemap/shared";
-import type { MapConfig, MaskConfig } from "@material-bluemap/config";
+} from "@worldlens/engine";
+import { Key, Vector2d, Vector2i, Vector3i } from "@worldlens/shared";
+import type { MapConfig, MaskConfig } from "@worldlens/config";
 import type { LoadedConfig, StorageEntry } from "./config.js";
 import type { Logger } from "./logger.js";
 

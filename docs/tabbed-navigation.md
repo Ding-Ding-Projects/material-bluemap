@@ -15,12 +15,12 @@ Every settings-style surface in the desktop app now carries its own `TabbedNavig
 a bespoke `v-tabs`/`v-window` pair, each under its own `storageKey` so one surface's layout can
 never overwrite another's:
 
-| Surface | `storageKey` | What each tab is |
-|---|---|---|
-| The application shell (`App.vue`) | `material-bluemap-tabs` (the default) | Map, world wizard, servers, projects, backups, GitHub runners, Pages hosting |
-| Settings (`AppSettings.vue`) | `material-bluemap-settings-tabs` | One tab per setting section - consent, Java, storage folder, world folder, GitHub account, language and tone, panel placement |
-| The options editor (`ConfigScreen.vue`) | `material-bluemap-config-editor-tabs` | One tab per config screen, plus history |
-| The project editor (`ProjectEditor.vue`) | `material-bluemap-project-editor-tabs` | Maps, storages, how it renders, and the four whole-file singletons |
+| Surface                                  | `storageKey`                    | What each tab is                                                                                                              |
+| ---------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| The application shell (`App.vue`)        | `worldlens-tabs` (the default)  | Map, world wizard, servers, projects, backups, GitHub runners, Pages hosting                                                  |
+| Settings (`AppSettings.vue`)             | `worldlens-settings-tabs`       | One tab per setting section - consent, Java, storage folder, world folder, GitHub account, language and tone, panel placement |
+| The options editor (`ConfigScreen.vue`)  | `worldlens-config-editor-tabs`  | One tab per config screen, plus history                                                                                       |
+| The project editor (`ProjectEditor.vue`) | `worldlens-project-editor-tabs` | Maps, storages, how it renders, and the four whole-file singletons                                                            |
 
 `renamePage(pageId, label)` is what a host uses to keep a tab's label current after the fact - a
 page's own `label` is read only once, when a tab for it is first seeded or opened, so a live count
@@ -42,12 +42,12 @@ builder, because the regex-builder rule has no such size exemption.
 parts of browser-style tabs are ordering rules rather than rendering, and each order has exactly
 one field that owns it, with nothing else allowed to imply it.
 
-| Field | The order it owns |
-|---|---|
-| `tabs` | The set of tabs, keyed by id. Its array order carries no meaning. |
-| `pinnedOrder` | The pinned region, left to right. |
-| `slots` | The ordinary region, where a slot is either one ungrouped tab or one whole group. One list, so the ordinary tab order and the group order cannot contradict each other. |
-| `TabGroup.tabIds` | The order inside that group. |
+| Field             | The order it owns                                                                                                                                                       |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tabs`            | The set of tabs, keyed by id. Its array order carries no meaning.                                                                                                       |
+| `pinnedOrder`     | The pinned region, left to right.                                                                                                                                       |
+| `slots`           | The ordinary region, where a slot is either one ungrouped tab or one whole group. One list, so the ordinary tab order and the group order cannot contradict each other. |
+| `TabGroup.tabIds` | The order inside that group.                                                                                                                                            |
 
 Every id therefore appears in exactly one place, and `normalizeStrip` enforces that on anything
 read back from disk. The alternative, one array of tabs with the rest derived by filtering, reads
@@ -134,12 +134,12 @@ Each is a separate function over the scope it searches and a matcher the caller 
 query, mode and flags. Nothing in `tabSearch.ts` holds state, so four fields means four matchers
 and there is no shared thing left for them to leak through.
 
-| Search | Scope | Where it renders |
-|---|---|---|
-| `searchStripTabs` | The current strip, including tabs in the overflow surface and members of collapsed groups | `TabFinder` |
-| `searchGroupTabs` | One named group and nothing outside it | `TabGroupMenu` |
-| `searchGroups` | Group names, across every strip | `TabFinder` |
-| `searchAllTabs` | Every tab in every strip in every window | `TabFinder` |
+| Search            | Scope                                                                                     | Where it renders |
+| ----------------- | ----------------------------------------------------------------------------------------- | ---------------- |
+| `searchStripTabs` | The current strip, including tabs in the overflow surface and members of collapsed groups | `TabFinder`      |
+| `searchGroupTabs` | One named group and nothing outside it                                                    | `TabGroupMenu`   |
+| `searchGroups`    | Group names, across every strip                                                           | `TabFinder`      |
+| `searchAllTabs`   | Every tab in every strip in every window                                                  | `TabFinder`      |
 
 What is searched is the visible label and only the visible label: not the page behind the tab, not
 an id, not anything the tab is holding. A person searching a tab strip is looking for a word they
@@ -161,7 +161,7 @@ query, in either mode, the two sets are disjoint and together cover every eligib
 
 **Every function returns a plan and closes nothing.** The plan states the matching mode, which
 tabs are in scope, which will close, which were protected for being pinned and which hold unsaved
-work, before a single tab goes. The reviewable preview *is* the plan rather than a second
+work, before a single tab goes. The reviewable preview _is_ the plan rather than a second
 calculation of it, so the preview and the close cannot disagree about the count. The plan carries
 its own scope, so the sentence on screen and the set being closed come from the same place and a
 scoped action cannot quietly cross a group boundary.
@@ -175,11 +175,11 @@ reported as a whole one. Running a plan goes through the
 
 ## Configuration
 
-| Setting | Value |
-|---|---|
-| Storage key | `material-bluemap-tabs` in `localStorage` by default; every host passes its own `storageKey` prop instead - see [Where it is mounted](#where-it-is-mounted) |
-| Stored shape version | `TAB_STORAGE_VERSION`, currently 2, shared across every `storageKey`; version 1 migrates without losing its existing layout |
-| Group colours | `primary`, `secondary`, `tertiary`, `success`, `warning`, `error`, `info`; default `primary` |
+| Setting              | Value                                                                                                                                                                                                                                                |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Storage key          | `worldlens-tabs` in `localStorage` by default; every host passes its own `storageKey` prop instead - see [Where it is mounted](#where-it-is-mounted). Former `material-bluemap-*` keys are copied only when the corresponding current key is absent. |
+| Stored shape version | `TAB_STORAGE_VERSION`, currently 2, shared across every `storageKey`; version 1 migrates without losing its existing layout                                                                                                                          |
+| Group colours        | `primary`, `secondary`, `tertiary`, `success`, `warning`, `error`, `info`; default `primary`                                                                                                                                                         |
 
 Persisted: strip placement, tab order, pinned order, groups, group order, collapsed state,
 membership, and each tab's and group's opaque appearance record.
@@ -246,15 +246,15 @@ filtering a menu is typing what they can read on it.
 
 ## Verification
 
-| Test | What it holds |
-|---|---|
-| `tabModel.test.ts` | Every ordering rule: where an unpinned tab lands, what happens to a removed group's members, which tab becomes active when the active one closes, that pinning clears membership, that every id lives in exactly one place after `normalizeStrip`, the four valid placements, and the overflow arithmetic including paying for the overflow button. |
-| `tabSearch.test.ts` | Four scopes searched independently, collapsed group members found, hits carrying window, strip, group, pinned state and index, and only the visible label matched. |
-| `closePlans.test.ts` | The partition property for any query in either mode, plans that close nothing on an empty or uncompilable query, pinned and unsaved tabs held back and named, scope carried on the plan, and `applyClosePlan` reporting kept tabs honestly. |
-| `tabStorage.test.ts` | Placement and the six persisted orderings round-tripping, schema-v1 migration defaulting only the missing edge to left, `dirty` dropped, queries and patterns never written, appearance records preserved verbatim, a blocked storage staying silent, and a file this build cannot read seeding defaults instead. |
-| `tabMenus.test.ts` | The menu's own search filters its items without changing what they do. |
-| `TabbedNavigation.test.ts` | Mounted: roles and roving focus, selection moving panel and tab order together, axis-aware arrows on all four edges including RTL, Enter/Space activation, Home and End, the advertised keyboard commands, the placement picker and persisted restoration, a compact pinned tab keeping its name, a collapsed group drawn as a header with name, count and state and its members out of the focus order, expanding writing the preference, `revealPage` activating an existing tab or reopening a closed one, and `renamePage` relabelling every open tab for a page without touching one that shows a different page. |
-| `projectSurfaceSizing.test.ts` | The project editor, tab strip, search controls and live-speed controls keep 44px targets, wrapping text, responsive stacking and viewport-bounded scrollable overlays rather than clipping at narrow widths. |
+| Test                           | What it holds                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tabModel.test.ts`             | Every ordering rule: where an unpinned tab lands, what happens to a removed group's members, which tab becomes active when the active one closes, that pinning clears membership, that every id lives in exactly one place after `normalizeStrip`, the four valid placements, and the overflow arithmetic including paying for the overflow button.                                                                                                                                                                                                                                                                    |
+| `tabSearch.test.ts`            | Four scopes searched independently, collapsed group members found, hits carrying window, strip, group, pinned state and index, and only the visible label matched.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `closePlans.test.ts`           | The partition property for any query in either mode, plans that close nothing on an empty or uncompilable query, pinned and unsaved tabs held back and named, scope carried on the plan, and `applyClosePlan` reporting kept tabs honestly.                                                                                                                                                                                                                                                                                                                                                                            |
+| `tabStorage.test.ts`           | Placement and the six persisted orderings round-tripping, schema-v1 migration defaulting only the missing edge to left, `dirty` dropped, queries and patterns never written, appearance records preserved verbatim, a blocked storage staying silent, and a file this build cannot read seeding defaults instead.                                                                                                                                                                                                                                                                                                      |
+| `tabMenus.test.ts`             | The menu's own search filters its items without changing what they do.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `TabbedNavigation.test.ts`     | Mounted: roles and roving focus, selection moving panel and tab order together, axis-aware arrows on all four edges including RTL, Enter/Space activation, Home and End, the advertised keyboard commands, the placement picker and persisted restoration, a compact pinned tab keeping its name, a collapsed group drawn as a header with name, count and state and its members out of the focus order, expanding writing the preference, `revealPage` activating an existing tab or reopening a closed one, and `renamePage` relabelling every open tab for a page without touching one that shows a different page. |
+| `projectSurfaceSizing.test.ts` | The project editor, tab strip, search controls and live-speed controls keep 44px targets, wrapping text, responsive stacking and viewport-bounded scrollable overlays rather than clipping at narrow widths.                                                                                                                                                                                                                                                                                                                                                                                                           |
 
 Run them with `npx vitest run packages/ui/src/components/tabs` from `design/`.
 

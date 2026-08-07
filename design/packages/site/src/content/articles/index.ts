@@ -25,6 +25,7 @@ import { viewerRemoteMode } from "./viewer-remote-mode.js";
 import { embeddedServer } from "./embedded-server.js";
 import { electronSecurity } from "./electron-security.js";
 import { firstRunConsent } from "./first-run-consent.js";
+import { worldlensMigration } from "./worldlens-migration.js";
 import { desktopShellChrome } from "./desktop-shell-chrome.js";
 import { optionsGui } from "./options-gui.js";
 import { configRichControls } from "./config-rich-controls.js";
@@ -76,6 +77,7 @@ export const articles: readonly Article[] = [
     embeddedServer,
     electronSecurity,
     desktopShellChrome,
+    worldlensMigration,
     firstRunConsent,
     optionsGui,
     configRichControls,

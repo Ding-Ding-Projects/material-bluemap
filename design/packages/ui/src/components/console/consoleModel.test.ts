@@ -260,10 +260,10 @@ describe("taking the console away", () => {
             annotations: annotationsFor("Address already in use"),
         };
 
-        const text = consoleText([row(annotated)], () => "Material BlueMap: something already has that port.");
+        const text = consoleText([row(annotated)], () => "Worldlens: something already has that port.");
 
         expect(text.split("\n")[0]).toContain("Address already in use");
-        expect(text.split("\n")[1]).toContain("> Material BlueMap: something already has that port.");
+        expect(text.split("\n")[1]).toContain("> Worldlens: something already has that port.");
     });
 
     it("puts the header first, because an export that does not say what it covers misleads", () => {

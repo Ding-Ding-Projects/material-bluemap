@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DimensionType } from "../../../world/DimensionType.js";
 import { PackVersion } from "../PackVersion.js";

@@ -21,7 +21,7 @@
  * saves and draws using the last value that was actually valid.
  */
 
-import type { Control, FieldMeta, MaskShapeMeta, PlainValue } from "@material-bluemap/config";
+import type { Control, FieldMeta, MaskShapeMeta, PlainValue } from "@worldlens/config";
 import { parseNumberInput } from "./fieldValue.js";
 
 export interface MaskFieldDraft {

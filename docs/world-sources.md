@@ -35,7 +35,7 @@ https://github.com/cafepromenade/Andyville-World/releases/tag/andyville-backup-2
 ```
 
 The last one carries a tag, and carrying it through is the point: somebody who pasted a link to
-*that* release means that release, and quietly fetching `latest` instead would hand them a
+_that_ release means that release, and quietly fetching `latest` instead would hand them a
 different world with nothing on screen to say so.
 
 Everything else is refused rather than encoded and hoped about. `owner` and `repo` end up in a
@@ -105,13 +105,13 @@ back with no change of its own.
 
 Under the hood, `main/worldsource/` is deliberately thin. Everything already solved is reused:
 
-| What | Where it comes from |
-|---|---|
+| What                                                                  | Where it comes from        |
+| --------------------------------------------------------------------- | -------------------------- |
 | the release lookup, the token decision, the CDN-versus-API URL choice | `main/download/release.ts` |
-| the resumable ranged transfer | `main/download/http.ts` |
-| the safe unpack | `main/download/extract.ts` |
-| the join, with its per-part re-check and its resume | `@material-bluemap/parts` |
-| the progress events, the failure codes, the on-disk workspace | `main/download/` |
+| the resumable ranged transfer                                         | `main/download/http.ts`    |
+| the safe unpack                                                       | `main/download/extract.ts` |
+| the join, with its per-part re-check and its resume                   | `@worldlens/parts`         |
+| the progress events, the failure codes, the on-disk workspace         | `main/download/`           |
 
 A manifest-shaped or unsplit download is handed straight to the existing `ReleaseDownloader`, which
 already does it and already does it better. The genuinely new path is the checksum-list one, and it
@@ -138,11 +138,11 @@ of them would be a download the other could not see or cancel.
 `Render world` takes a `world-repository` input beside `world`. Leave it blank for this repository;
 set it to `owner/name` for anybody else's:
 
-| Input | Value |
-|---|---|
-| `world-source` | `release-asset` |
-| `world-repository` | `cafepromenade/Andyville-World` |
-| `world` | `andyville-backup-20260804-160001/andyville-world-20260804-160001.zip` |
+| Input              | Value                                                                  |
+| ------------------ | ---------------------------------------------------------------------- |
+| `world-source`     | `release-asset`                                                        |
+| `world-repository` | `cafepromenade/Andyville-World`                                        |
+| `world`            | `andyville-backup-20260804-160001/andyville-world-20260804-160001.zip` |
 
 The `world` field is still `asset` or `tag/asset`; a release asset's name cannot contain a slash, so
 splitting on the **last** one is unambiguous and keeps a tag with slashes in it (`release/1.4`)
@@ -174,14 +174,14 @@ The workflow input cap is also a real limit: GitHub documents **ten** `workflow_
 
 ## What is verified, and what happens when a check fails
 
-| Layout | Per-part digest | Whole-archive digest |
-|---|---|---|
-| `<name>.parts.json` | published, checked | published, checked |
-| `SHA256SUMS` | published, checked | **derived locally**, checked against the join |
-| a single asset | none published | recorded, not checked |
+| Layout              | Per-part digest    | Whole-archive digest                          |
+| ------------------- | ------------------ | --------------------------------------------- |
+| `<name>.parts.json` | published, checked | published, checked                            |
+| `SHA256SUMS`        | published, checked | **derived locally**, checked against the join |
+| a single asset      | none published     | recorded, not checked                         |
 
 The derived digest is worth stating precisely, because calling it "verification" would be a claim
-the code cannot support. It is computed from the parts *after* they have been checked against the
+the code cannot support. It is computed from the parts _after_ they have been checked against the
 release's own list, and the join is then made to reproduce it. So it proves the join wrote what it
 read — a truncated write, a full disk, a copy that stopped halfway — and proves nothing at all about
 whether the publisher's file was right. **The per-part digests are the only external authority**, and
@@ -202,17 +202,17 @@ resumable download, and a cancellation is not a failure and is never shown as on
 
 ## Failure modes
 
-| What happened | What is reported |
-|---|---|
-| the text is not a repository | the field simply stays invalid; nothing is requested |
-| the repository or release does not exist | `release-not-found`, with the URL that was asked for |
-| the release has nothing by that name | `asset-not-found`, listing what it does have |
-| the release offers several worlds and none was named | refused, listing them, rather than guessing |
-| the split has a gap in it | `manifest-invalid`, naming the two parts it jumps between |
-| `SHA256SUMS` has a line that is not a digest | `manifest-invalid`; the file is refused whole rather than partly parsed |
-| a part does not match its digest | `integrity-failed`, naming the part and both digests |
-| the download folder cannot be written | `storage-unwritable`, pointing at the storage setting |
-| the person cancelled | `cancelled`, which is not an error |
+| What happened                                        | What is reported                                                        |
+| ---------------------------------------------------- | ----------------------------------------------------------------------- |
+| the text is not a repository                         | the field simply stays invalid; nothing is requested                    |
+| the repository or release does not exist             | `release-not-found`, with the URL that was asked for                    |
+| the release has nothing by that name                 | `asset-not-found`, listing what it does have                            |
+| the release offers several worlds and none was named | refused, listing them, rather than guessing                             |
+| the split has a gap in it                            | `manifest-invalid`, naming the two parts it jumps between               |
+| `SHA256SUMS` has a line that is not a digest         | `manifest-invalid`; the file is refused whole rather than partly parsed |
+| a part does not match its digest                     | `integrity-failed`, naming the part and both digests                    |
+| the download folder cannot be written                | `storage-unwritable`, pointing at the storage setting                   |
+| the person cancelled                                 | `cancelled`, which is not an error                                      |
 
 ## Security notes
 
@@ -237,13 +237,13 @@ resumable download, and a cancellation is not a failure and is never shown as on
 `design/packages/app/src/main/worldsource/` has 51 tests, and not one of them needs the network, a
 token or a GitHub account:
 
-| File | What it proves |
-|---|---|
-| `repository.test.ts` | every URL spelling reads to the same pair; a tag in a release link survives; names GitHub could not have are refused |
-| `checksums.test.ts` | the **real** Andyville `SHA256SUMS`, verbatim; GNU and BSD spellings; a partial parse is refused; a name that is not a plain file name is refused |
-| `layout.test.ts` | the real four-part Andyville release reads as one 6.6 GB world; a gap is refused by name; a manifest beats a checksum list |
-| `fetcher.test.ts` | the whole path end to end against a real zip, really split, really served: a cross-repository release, a part that fails its digest and is repaired, a part that stays wrong and leaves nothing behind, a part the list never mentions, the derived manifest, and a cancellation |
-| `ipc.test.ts` | the channels register and dispose exactly, and no handler rejects |
+| File                 | What it proves                                                                                                                                                                                                                                                                   |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `repository.test.ts` | every URL spelling reads to the same pair; a tag in a release link survives; names GitHub could not have are refused                                                                                                                                                             |
+| `checksums.test.ts`  | the **real** Andyville `SHA256SUMS`, verbatim; GNU and BSD spellings; a partial parse is refused; a name that is not a plain file name is refused                                                                                                                                |
+| `layout.test.ts`     | the real four-part Andyville release reads as one 6.6 GB world; a gap is refused by name; a manifest beats a checksum list                                                                                                                                                       |
+| `fetcher.test.ts`    | the whole path end to end against a real zip, really split, really served: a cross-repository release, a part that fails its digest and is repaired, a part that stays wrong and leaves nothing behind, a part the list never mentions, the derived manifest, and a cancellation |
+| `ipc.test.ts`        | the channels register and dispose exactly, and no handler rejects                                                                                                                                                                                                                |
 
 The desktop UI's wiring to those channels - the part this section used to carry a warning
 about - has its own coverage. `preload/worldSourceBridge.test.ts` has 8 tests proving the

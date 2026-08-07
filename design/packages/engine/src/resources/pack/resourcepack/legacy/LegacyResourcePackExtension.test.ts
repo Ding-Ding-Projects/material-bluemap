@@ -1,4 +1,4 @@
-import { Key } from "@material-bluemap/shared";
+import { Key } from "@worldlens/shared";
 import { PNG } from "pngjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BlockState as WorldBlockState } from "../../../../world/BlockState.js";

@@ -24,6 +24,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import InfoPage from "./InfoPage.vue";
+import { productDisplayName } from "../../stores/productName.js";
 
 /**
  * A stand-in for `info.content`, in the shape every real translation has: an unlabelled
@@ -51,9 +52,9 @@ function i18n(content: string | null = CONTENT) {
 
 /** Installs a preload, or removes it, exactly as the component feature-detects one. */
 function setBridge(bridge: { getVersion?: () => Promise<string> } | null): void {
-    const scope = globalThis as { materialBluemap?: unknown };
-    if (bridge === null) delete scope.materialBluemap;
-    else scope.materialBluemap = bridge;
+    const scope = globalThis as { worldlens?: unknown };
+    if (bridge === null) delete scope.worldlens;
+    else scope.worldlens = bridge;
 }
 
 async function render(bridge: { getVersion?: () => Promise<string> } | null, content?: string | null) {
@@ -63,13 +64,24 @@ async function render(bridge: { getVersion?: () => Promise<string> } | null, con
     return wrapper;
 }
 
-afterEach(() => setBridge(null));
+afterEach(() => {
+    setBridge(null);
+    productDisplayName.value = "Worldlens";
+});
 
 describe("the application's own version", () => {
     it("states the version the shell reports", async () => {
         const wrapper = await render({ getVersion: () => Promise.resolve("0.4.2") });
 
-        expect(wrapper.text()).toContain("Material BlueMap 0.4.2");
+        expect(wrapper.text()).toContain("Worldlens 0.4.2");
+        wrapper.unmount();
+    });
+
+    it("uses the cosmetic display name in About without changing the version", async () => {
+        productDisplayName.value = "My Map Desk";
+        const wrapper = await render({ getVersion: () => Promise.resolve("0.4.2") });
+
+        expect(wrapper.text()).toContain("My Map Desk 0.4.2");
         wrapper.unmount();
     });
 
@@ -77,7 +89,7 @@ describe("the application's own version", () => {
         const wrapper = await render(null);
 
         expect(wrapper.find(".mb-info-page__version").exists()).toBe(false);
-        expect(wrapper.text()).not.toContain("Material BlueMap");
+        expect(wrapper.text()).not.toContain("Worldlens");
         wrapper.unmount();
     });
 
@@ -116,7 +128,7 @@ describe("the application's own version", () => {
         const wrapper = await render({ getVersion: () => Promise.resolve("0.4.2") });
 
         expect(wrapper.text()).toContain("Generated with BlueMap");
-        expect(wrapper.text()).toContain("Material BlueMap 0.4.2");
+        expect(wrapper.text()).toContain("Worldlens 0.4.2");
         wrapper.unmount();
     });
 });

@@ -1,5 +1,5 @@
-import type { TypeToken } from "@material-bluemap/nbt";
-import { Registry, type Key, type Keyed } from "@material-bluemap/shared";
+import type { TypeToken } from "@worldlens/nbt";
+import { Registry, type Key, type Keyed } from "@worldlens/shared";
 import type { Entity } from "../../Entity.js";
 
 export interface EntityType extends Keyed {

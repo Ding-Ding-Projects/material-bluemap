@@ -17,7 +17,7 @@
  * available - the same reason `ProfileManager.test.ts`, `CommandPalette.test.ts` and
  * `tabs/TabbedNavigation.test.ts` each install a map-backed stand-in rather than relying on
  * the real thing. This file mounts `TabbedNavigation` too, and it persists the active tab
- * under `material-bluemap-settings-tabs`, so without that same stand-in the anchored-open
+ * under `worldlens-settings-tabs`, so without that same stand-in the anchored-open
  * loop below would have nowhere to write and the leak would go unnoticed here while still
  * biting wherever `localStorage` genuinely works. The stand-in is installed below and
  * cleared before every test, exactly like those other files, so the loop's last-opened
@@ -260,13 +260,13 @@ beforeEach(() => {
     setSetupStorage(memoryStorage());
     reloadSetupLanguage();
     scrollIntoView.mockClear();
-    (globalThis as { materialBluemap?: unknown }).materialBluemap = fakeBridge();
+    (globalThis as { worldlens?: unknown }).worldlens = fakeBridge();
 });
 
 afterEach(() => {
     wrapper?.unmount();
     wrapper = null;
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
     document.body.innerHTML = "";
 });
 

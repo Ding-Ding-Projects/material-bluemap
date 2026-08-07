@@ -397,8 +397,8 @@ const playfulYue: Partial<Record<StringKey, string>> = {
     searchStatusIdle: "打字啦，個清單等緊你。",
 };
 
-const LOCALE_STORAGE_KEY = "material-bluemap-site-locale";
-const LANGUAGE_STORAGE_KEY = "material-bluemap-site-language";
+const LOCALE_STORAGE_KEY = "worldlens-site-locale";
+const LANGUAGE_STORAGE_KEY = "worldlens-site-language";
 
 let locale: SearchLocale = readStoredLocale();
 const listeners = new Set<(next: SearchLocale) => void>();

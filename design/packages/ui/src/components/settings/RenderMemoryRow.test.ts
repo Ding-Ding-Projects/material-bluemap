@@ -89,7 +89,7 @@ function fakeBridge(): SettingsBridge & { readonly written: RenderMemoryWriteReq
 }
 
 afterEach(() => {
-    delete (globalThis as { materialBluemap?: unknown }).materialBluemap;
+    delete (globalThis as { worldlens?: unknown }).worldlens;
 });
 
 describe("the default view", () => {

@@ -199,9 +199,9 @@ describe("a merge that cannot be done says so instead of half doing it", () => {
 describe("JSON is merged too, and says that its layout will change", () => {
     it("puts one key back and re-serialises the rest", () => {
         const plan = mergeSettingsBack(
-            [{ path: "material-bluemap.project.json", key: "render.threads" }],
-            texts([["material-bluemap.project.json", '{"version":1,"render":{"threads":2}}']]),
-            texts([["material-bluemap.project.json", '{"version":1,"render":{"threads":8}}']]),
+            [{ path: "worldlens.project.json", key: "render.threads" }],
+            texts([["worldlens.project.json", '{"version":1,"render":{"threads":2}}']]),
+            texts([["worldlens.project.json", '{"version":1,"render":{"threads":8}}']]),
         );
 
         expect(plan.files).toHaveLength(1);
@@ -212,11 +212,11 @@ describe("JSON is merged too, and says that its layout will change", () => {
 
     it("warns that the layout is rewritten, because JSON has no comments to keep", () => {
         const plan = mergeSettingsBack(
-            [{ path: "material-bluemap.project.json", key: "version" }],
-            texts([["material-bluemap.project.json", '{"version":1}']]),
-            texts([["material-bluemap.project.json", '{"version":2}']]),
+            [{ path: "worldlens.project.json", key: "version" }],
+            texts([["worldlens.project.json", '{"version":1}']]),
+            texts([["worldlens.project.json", '{"version":2}']]),
         );
-        expect(plan.reformatted).toEqual(["material-bluemap.project.json"]);
+        expect(plan.reformatted).toEqual(["worldlens.project.json"]);
     });
 
     it("refuses a JSON file that is a list rather than settings", () => {

@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { VDivider, VList } from "vuetify/components";
-import type { BlueMapApp } from "@material-bluemap/viewer";
+import type { BlueMapApp } from "@worldlens/viewer";
 import InfoPage from "./InfoPage.vue";
 import MapsMenu from "./MapsMenu.vue";
 import MenuOption from "./MenuOption.vue";

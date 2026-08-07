@@ -39,8 +39,8 @@
 
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
-import { sha256File, splitFile } from "@material-bluemap/parts";
-import type { PartsManifest } from "@material-bluemap/parts";
+import { sha256File, splitFile } from "@worldlens/parts";
+import type { PartsManifest } from "@worldlens/parts";
 import { estimateEta, formatEta } from "../download/downloader.js";
 import { packFolder } from "./archive.js";
 import type { FetchLike, BackupRelease, GitHubCallOptions } from "./github.js";
@@ -886,7 +886,7 @@ export function partAssetName(archiveName: string, index: number, sha256: string
 function backupReleaseBody(kind: BackupSourceKind, source: BackupSource): string {
     const what = kind === "world" ? "Minecraft world" : "rendered map";
     return [
-        `A Material BlueMap backup of the ${what} \`${source.label}\`.`,
+        `A Worldlens backup of the ${what} \`${source.label}\`.`,
         "",
         "The bytes are the release assets on this release. `backup.json` says what was backed",
         "up and when; the `.cheaplfs` file is a Cheap LFS v1 pointer naming every part and its",

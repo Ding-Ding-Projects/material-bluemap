@@ -55,6 +55,38 @@ installer and test-world bytes without claiming the producer itself is trusted. 
 43/43 on Windows and Linux; Ubuntu 24.04 actionlint 1.7.12 with real shellcheck passes locally over
 every workflow. The source is integrated at `e21aaee`; exact-main CI and release read-back remain
 evidence-gated. See `../docs/release-workflow-security.md` and issue #90.
+## Worldlens rename and migration (2026-08-07)
+
+**Implemented on the phase branch; independent review corrections add crash recovery, guarded
+filesystem containment, exact pre-cutover manifest revalidation and a version-independent
+dual-feed installed-client bridge, while repository rename and release publication remain external
+follow-up gates.** Code/package/preload/installer/data identifiers now use Worldlens. Legacy
+profiles, localStorage preferences, environment variables, project files and ownership markers
+have explicit compatibility adapters; current writes never create another legacy identifier.
+Unknown project fields survive the v1-to-v2 schema adapter.
+
+The final current-identity inventory is implemented in `637cc69`: release and helper output,
+standalone regex-builder branding and storage, capture automation, generated changelog targets and
+current feature documentation use Worldlens, while each retained legacy reader is named in an
+explicit allowlist. The eight-file repository, Pages, policy and legal switch is staged behind a
+deterministic preflight/apply/verify finalizer until the real repository rename succeeds. Its
+install-and-verify transaction now reaches an explicit committed state before cleanup begins;
+cleanup failure preserves every finalized target and retains the backups it did not remove. A
+disposable eight-file integration matrix proves no-write readiness, normal completion, both
+pre-commit rollback boundaries, and cleanup-only failure. The capture legacy allowance is pinned
+to exact current-first alias sites and includes a negative write probe; the two former names in
+`AGENTS.md` remain untouched as classified project-instruction metadata. The reviewed Options-tab
+screenshot activation repair is incorporated as `522e3b5` without a default-branch merge. Local
+focused tests pass 36/36; full `test:ci`, 13-package typecheck/build, lint and unsigned Windows
+packaging pass. Exact branch run `31170094158` passed 9,623 tests, all 24 required screenshots,
+the installer, Java builds, real CLI round trip and generated-world render at commit `5652d185`.
+
+Packaging is permanently unsigned and verified as such at the built executable. The migration
+has unit coverage for POSIX containment, linked-root escape rejection, Windows case-only
+collisions and injected concurrent current-profile writes, plus an isolated copy of the actual
+885-file legacy profile. Final completion still requires default-branch integration, repository rename, exact-SHA CI/release proof, and
+fresh cheap-headless screenshots from the integrated packaged build. The phase branch's freshly
+packaged migration-consent gate has already been captured off-screen as a pre-integration proof.
 
 ## Screenshot required-surface interaction repair (2026-08-07)
 
@@ -67,8 +99,8 @@ entry the harness itself had deleted.
 
 The hard `REQUIRED_SURFACES` assertion is unchanged, as are the element and surface timeouts.
 Local workspace build, app typecheck, focused formatting/lint, and 2,625 app tests passed. The
-phase is not complete until a GitHub-hosted cloud run captures all Options editor tabs and the
-required-surface gate is green at the exact integrated commit.
+branch proof is green in run `31170094158`; the phase still needs an exact-main run after
+integration before the issue can close.
 
 ## Four-edge tabs and nested-editor interaction repair (2026-08-06)
 
@@ -180,7 +212,7 @@ exclusions **S2 and S4 are withdrawn**; S1 and S3 still stand.
 | F         | Full options GUI (all settings, map wizard, storage editors, config import)                                                                                                                | **Reachable, and it now opens on settings.** `App.vue` mounts the Material title bar, the world wizard, first-run setup and the settings surface. Three gaps closed: the preload never exposed the window controls (a frameless window with no minimise or close); only 6 of a map's 92 settings could reach a render; and (`5c810d0`) the editor opened on "Nothing is open yet" with no tabs once it resolved a real bridge, so it now opens on the config folder BlueMap already uses, or on BlueMap's defaults labelled as unsaved. Its controls were swept in `6b8ef7b`: registry-key selects no longer render blank against values BlueMap writes, and both colour fields use the continuous picker with alpha, kept true by `packages/config/test/controlPolicy.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | G         | Docker hosting GUI (dockerode instance manager)                                                                                                                                            | Pending                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | H         | SQL storages, command palette, marker editor, JS addon system, static export, three.js upgrade                                                                                             | **Part done.** SQL storages ported and proven against real MySQL/MariaDB/PostgreSQL servers, and now proven cross-compatible with upstream's real Java engine over a shared MariaDB database, both directions (issue #32, closed — see below); command palette, marker editor, JS addon system, static export and the three.js upgrade remain Pending                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| I         | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging                                                                          | **Part done, landed early, out of order.** The update checker is built and wired into the main process (`packages/app/src/main/update`, `docs/automatic-updates.md`): it checks a signed feed on startup and on a bounded schedule, stages a verified download without interrupting active work, and shows the persistent restart banner. Local live players, measurement/waypoints/gallery/scheduler/dashboard and packaging remain Pending                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| I         | Local live players (playerdata/RCON), measurement/waypoints/gallery/scheduler/dashboard/update checker, packaging                                                                          | **Part done, landed early, out of order.** The update checker is built and wired into the main process (`packages/app/src/main/update`, `docs/automatic-updates.md`): it checks the unsigned Squirrel feed on a bounded schedule, verifies the advertised package hash, and shows the persistent restart banner without claiming publisher authenticity. Local live players, measurement/waypoints/gallery/scheduler/dashboard and packaging remain Pending                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Contracts | Regex builder everywhere · full tab system · per-element appearance editors · EN/HK-Cantonese/bilingual + funny-level · super confirmation · local version history (see `docs/contracts/`) | Pages mounts the discovery searches, live-localized command palette, anchored changelog range picker, notification centre, and two-key gate. **Local version history landed for config folders** (`1b77779`, `docs/config-history.md`): an isolated git repository beside the app data directory, append-only including restore, a History tab, and trim behind the two-key gate. **Projects joined it on 2026-08-04** (`f4d3abd`, `packages/app/src/main/project/history.ts`), under their own repository root so one repository never mirrors two folders. **Server profiles and application settings joined it on 2026-08-05** (issue #35, `profiles/history.ts` and `settings/history.ts`), each under their own repository root; the maps-and-servers list is covered by the same profiles history, per the issue's own text that it is one store viewed two ways. Remaining desktop-app contract work is tracked in the open issues                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Pages     | Material 3 GitHub Pages shell, tabbed discovery, repository-backed changelog, command palette, notification centre and responsive documentation surface                                    | **Built and locally verified; the newest hosted proof is still a Pages deployment, not a CI verdict.** The site adds every-rendered-element appearance coverage, dynamic per-group discovery searches, searchable tab/group/overflow menus with adjacent builders, cross-platform config line-ending preservation, and a site-owned super-confirmation gate for notification clearing, tab closes, group removal and bulk-close actions (`2ba959d`). The desktop app now also has a `Publish to Pages` tab (`22b475a`, `e7bd403`) with preflight size/limit facts, guarded branch ownership, live-only status, durable resume checkpoints, recorded-site status refresh and a two-key stop-hosting gate. The screenshot harness captures it and refuses stale UI/main/preload bundles (`54559eb`). Local continuation verification is **381 files, 6,174 passed, 3 skipped** before this follow-up; the Pages host now adds 37 main-process tests for resume and refresh. Site typecheck/build and repository lint remain required. Pages run `30949965713` succeeded for `ecc5168` and run `30943812059` succeeded for `80369ec`, whose live site returned 200 with the menu-search, regex-builder, appearance-coverage and dynamic-group-search markers. The exact latest CI `30960216270` and Pages `30960216143` runs for `54559eb` have both completed: Pages `30960216143` succeeded, but CI `30960216270` was cancelled rather than passed, so `54559eb` itself is not CI-verified by that run. The `site` package contributes 132 of the workspace's tests. A runtime/headless capture of the live site remains a separate boundary |
 | Delivery  | Sign-in, private worlds, split archives, resumable renders, Actions rendering, packaging pipeline                                                                                          | **Landed.** Not a plan phase; see below                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
@@ -217,7 +249,7 @@ Not fully ported, and so keeping this phase open:
 
 - **The standalone server CLI and its Dockerfile — built on 2026-08-05 (issue #42), still
   short of what upstream's CLI does.** `packages/cli` was a one-line stub with no tests; it
-  now mirrors `BlueMapCLI.main()`'s real branching (reusing `@material-bluemap/config`'s
+  now mirrors `BlueMapCLI.main()`'s real branching (reusing `@worldlens/config`'s
   `cli/flags.ts` model, not a second copy of it), loads a real config folder the way
   `BlueMapConfigManager` does — writing upstream's own per-file/per-folder defaults, never
   a single-shot dump — resolves real resources through `MinecraftVersion`'s real
@@ -235,7 +267,7 @@ Not fully ported, and so keeping this phase open:
   pack and serves it, and a real subprocess spawn of the built `dist/index.js`.
   **`packages/cli/Dockerfile` was built and run for real**, not authored blind: `docker
 build -f design/packages/cli/Dockerfile .` from the repository root (`pnpm --filter
-"@material-bluemap/cli..." install`/`build`, then a `pnpm deploy --legacy` prune) produced
+"@worldlens/cli..." install`/`build`, then a `pnpm deploy --legacy` prune) produced
   a runtime image that rendered a real `packages/worldgen` world mounted read-only, served
   a real hires tile, `index.html` and `settings.json` over its mapped port, answered a real
   `POST /maps/{id}/update`, and — checked with `docker exec ... id` — runs as `uid=1000
@@ -321,7 +353,7 @@ update for region-file:"` log line rather than a queue count, since the live wor
 .createRegionWatchService()` never throws and is the only real `World` implementation
        in this port, so the path is dead today.
 
-Verification for this block: `pnpm --filter @material-bluemap/cli run typecheck` clean;
+Verification for this block: `pnpm --filter @worldlens/cli run typecheck` clean;
 `npx eslint packages/cli` clean (after fixing one real `prefer-const` error the change
 introduced); `npx vitest run packages/cli` — **29 passed, 0 skipped, 4 test files**; `npx
 vitest run packages/server` — **42 passed** (`MapUpdateService` untouched). Both
@@ -381,7 +413,7 @@ Ported on 2026-08-05 (issue #30), in `packages/engine/src/map/rendermanager/seri
 
 - **`SerializableRenderTask`, the polymorphic `RenderTaskAdapter`, `BmMapAdapter` and
   `Vector2iAdapter`** — upstream's four `serialization/` files, ported onto this package's
-  own `@material-bluemap/nbt` (BlueNBT) implementation rather than JSON, matching upstream's
+  own `@worldlens/nbt` (BlueNBT) implementation rather than JSON, matching upstream's
   on-disk shape. `RenderTaskAdapter` dispatches by a stable `{ type, data }` key
   (`map-purge`/`map-save`/`map-update`/`region-update`, upstream's own keys); an unknown
   `type` on read is refused with a readable `IOException` rather than guessed at.
@@ -627,7 +659,7 @@ does. Every dialect's SQL text is transcribed verbatim from `AbstractCommandSet.
 the three `*CommandSet.java` files, checked by a 90-assertion statement-for-statement
 contract test rather than eyeballed. `packages/engine/src/storage/StorageFactory.ts` is
 new: the seam that turns a parsed `FileStorageConfig`/`SqlStorageConfig` from
-`@material-bluemap/config` into a real, working `Storage` — before this, nothing built an
+`@worldlens/config` into a real, working `Storage` — before this, nothing built an
 SQL storage from config at all, which was the defect issue #32 opened over.
 
 Drivers are optional dependencies (`sql.js`, `mysql2`, `pg` — all pure JavaScript/WASM, no
@@ -808,7 +840,7 @@ at `80369ec` — **failure**, `Could not resolve "../console/annotations.js" fro
 knowing exactly, because it is invisible on a developer machine where the file is simply
 present: `f4d3abd` committed the import, and the file it imports was not committed until
 `897ecad`, three commits later. `80369ec` sits between them. The console files were tracked
-correctly by the time this pass started, and `pnpm --filter @material-bluemap/ui build`
+correctly by the time this pass started, and `pnpm --filter @worldlens/ui build`
 succeeds locally, so that specific cause is gone — but a _different_ cause has kept every run
 in the pass below red, and it is real, not a re-run of this one.
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ALL_DESCRIPTORS, generateConfigSet, renderPluginTemplate } from "@material-bluemap/config";
+import { ALL_DESCRIPTORS, generateConfigSet, renderPluginTemplate } from "@worldlens/config";
 import {
     SCREENS,
     buildSettingIndex,

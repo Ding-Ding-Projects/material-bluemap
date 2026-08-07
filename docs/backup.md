@@ -27,7 +27,7 @@ SHA-256.
 ## Why this is not Git LFS
 
 Git LFS is the obvious answer and the expensive one. On GitHub a free account gets **1 GB of LFS
-storage and 1 GB of bandwidth a month**; the bandwidth is metered against every *restore*, not just
+storage and 1 GB of bandwidth a month**; the bandwidth is metered against every _restore_, not just
 every upload, and past it you buy data packs. A rendered map or a Minecraft world is routinely
 several gigabytes, so:
 
@@ -36,10 +36,10 @@ several gigabytes, so:
 - an accidental second copy of a large world is a bill, not a warning.
 
 GitHub **release assets** have a completely different cost model. They are free on a public
-repository, they are capped at 2 GB *per asset* rather than in total, and downloading one is not
+repository, they are capped at 2 GB _per asset_ rather than in total, and downloading one is not
 metered against an LFS bandwidth quota. The only thing they cannot do is hold a single file larger
 than the cap — which is exactly the problem this project already solved, twice over:
-[`@material-bluemap/parts`](./large-worlds.md) splits a file into checksummed parts and rejoins
+[`@worldlens/parts`](./large-worlds.md) splits a file into checksummed parts and rejoins
 them, and the downloads surface already fetches parts, verifies each one, rejoins them and unpacks
 the result.
 
@@ -56,10 +56,10 @@ other.
 
 The canonical files, in that repository:
 
-| File | What it is |
-|---|---|
-| `app/src/lib/cheap-lfs/pointer.ts` | The canonical v1 contract: the grammar, the bounds, the parser |
-| `docs/features/repository-management/release-backed-cheap-lfs.md` | The design, and why it is deliberately not Git LFS |
+| File                                                                          | What it is                                                              |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `app/src/lib/cheap-lfs/pointer.ts`                                            | The canonical v1 contract: the grammar, the bounds, the parser          |
+| `docs/features/repository-management/release-backed-cheap-lfs.md`             | The design, and why it is deliberately not Git LFS                      |
 | `docs/features/repository-management/cheap-lfs-release-payload-encryption.md` | The optional password encryption, which this application does not write |
 
 A v1 pointer is five head lines, plus one line per part when the file was split:
@@ -153,12 +153,12 @@ SHA-256. It is there for a specific reason — see [resuming](#stopping-and-carr
 
 Two kinds, and the application refuses a folder that is not the kind it was offered as:
 
-| Kind | What it is | What is checked |
-|---|---|---|
-| **World** | A Minecraft save: `level.dat` and the region folders | There is a `level.dat` directly inside |
-| **Render** | One render workspace under the maps folder | There is a `render.json`, or a `web/` folder |
+| Kind       | What it is                                           | What is checked                              |
+| ---------- | ---------------------------------------------------- | -------------------------------------------- |
+| **World**  | A Minecraft save: `level.dat` and the region folders | There is a `level.dat` directly inside       |
+| **Render** | One render workspace under the maps folder           | There is a `render.json`, or a `web/` folder |
 
-Picking the folder *above* a world is the most common mistake and the most expensive: without the
+Picking the folder _above_ a world is the most common mistake and the most expensive: without the
 check, an hour is spent packing the wrong tree and the mistake surfaces as a restore that produces
 a folder Minecraft will not open. The refusal names the folder and says what was looked for.
 
@@ -195,7 +195,7 @@ the picker and the owner/repository fields already live on, rather than opening 
 
 - **The owner is either your own account or an organisation you belong to.** GitHub uses two
   different endpoints for the two cases — `POST /user/repos` for a personal repository, `POST
-  /orgs/{org}/repos` for one under an organisation — so this screen asks which one applies with a
+/orgs/{org}/repos` for one under an organisation — so this screen asks which one applies with a
   two-choice picker rather than guessing from the typed name.
 - **Visibility is a real choice, with the consequence stated in the same words as everywhere else
   on this screen:** PUBLIC means anybody can download it, private means only granted accounts can
@@ -234,7 +234,7 @@ this account genuinely has none, and no loaded repository matched the current se
 1. **Read the folder.** Count the files, total the bytes, name anything that will be left out.
 2. **Read the repository.** Visibility, and whether this account may actually write to it.
 3. **Pack** the folder into one deterministic Zip64 archive, streamed, hashing as it is written.
-4. **Split** it into 500 MiB parts with `@material-bluemap/parts`, each with its own SHA-256.
+4. **Split** it into 500 MiB parts with `@worldlens/parts`, each with its own SHA-256.
 5. **Publish** a new release under a unique tag.
 6. **Upload** every part, then `backup.json`, then the pointer.
 
@@ -276,14 +276,14 @@ used to say the opposite — that a backup restored is a release downloaded thro
 [Large worlds and rendered maps](./large-worlds.md) documents — and that was never true. That path
 understands exactly one split format: a `<name>.parts.json` manifest beside `<name>.001`,
 `<name>.002`, … A backup's parts are named `<archive>.<index>-<sha16>` and no `.parts.json` is ever
-published beside them — the Cheap LFS pointer *is* the manifest, in a shape that has to stay
+published beside them — the Cheap LFS pointer _is_ the manifest, in a shape that has to stay
 byte-for-byte what `desktop-material`'s own parser accepts — so the downloads surface's own
 discovery never recognised a Cheap LFS release as a split download at all, and nothing before
 `restore.ts` existed had exercised the claim against a real release to find out.
 
 `restore.ts` reads a release's sidecar and pointer, refuses one whose upload never finished (no
 pointer, no whole-file digest to trust), fetches every part with a resumable ranged request,
-translates the pointer into a `@material-bluemap/parts` manifest in memory so the existing rejoin —
+translates the pointer into a `@worldlens/parts` manifest in memory so the existing rejoin —
 per-part digest, resumable prefix verification, whole-file digest — is reused rather than
 reimplemented, and then unpacks the verified archive. Every restored payload is hashed on arrival
 and must equal the pointer's digest and byte size before it may replace anything; downloaded bytes
@@ -336,12 +336,12 @@ the worst an accident can do is make one more release.
 There is nothing to configure. The pieces that could be settings are decided by the format or by
 the cost model:
 
-| Thing | Value | Why it is not a setting |
-|---|---|---|
-| Part size | 500 MiB | The canonical Cheap LFS write size. Changing it would produce pointers that differ from the sibling application's for no benefit. |
-| Compression | None | See above: the payload is already-compressed tiles and region files. |
-| Release visibility | Prerelease | A backup quietly becoming somebody's "latest release" would break installer links and release feeds. |
-| Where it is staged | `<map storage>/backups/<id>/` | Follows the map storage folder chosen during setup, so a backup does not fill a disk somebody moved away from. |
+| Thing              | Value                         | Why it is not a setting                                                                                                           |
+| ------------------ | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Part size          | 500 MiB                       | The canonical Cheap LFS write size. Changing it would produce pointers that differ from the sibling application's for no benefit. |
+| Compression        | None                          | See above: the payload is already-compressed tiles and region files.                                                              |
+| Release visibility | Prerelease                    | A backup quietly becoming somebody's "latest release" would break installer links and release feeds.                              |
+| Where it is staged | `<map storage>/backups/<id>/` | Follows the map storage folder chosen during setup, so a backup does not fill a disk somebody moved away from.                    |
 
 The GitHub sign-in is shared with the rest of the application and is configured in Settings. A
 backup needs an account with **push access** to the chosen repository; the `repo` scope is what
@@ -357,19 +357,19 @@ the unsupported `--hostname` flag.
 
 ## Failure modes
 
-| What happens | What is reported | What is left behind |
-|---|---|---|
-| Nobody is signed in | "Sign in from Settings", before any network call is made | Nothing; no request was sent |
-| The folder is not a world | The folder's path and what was looked for, before any network call | Nothing |
-| The folder is empty | A refusal saying an empty backup is worse than none, because it looks like one | Nothing |
-| The account cannot write to the repository | Named, with the repository | Nothing; no release was created |
-| The repository is public and unacknowledged | The warning, and "Nothing was uploaded" | Nothing |
-| The tag already exists | A refusal saying nothing was changed and the existing release was left alone | Nothing |
-| The token is refused (401) | The refusal, plus a route to sign in again at the surface where it happened | Whatever had uploaded |
-| The selected `gh` account is missing, unhealthy, cannot be switched, or verifies as a different identity | The exact account/host refusal and **Open GitHub accounts** beside it | Existing uploaded parts remain; no new release command runs under the wrong identity |
-| The connection drops mid-upload | The failure, and the row offers to carry on | The staged archive, the parts, and every asset already uploaded |
-| Cancelled | "Everything already packed and uploaded is kept" | The same |
-| The pack is cancelled or fails | The failure | Nothing: a partial archive is deleted, because a half-written zip looks exactly like a finished one to anything that only checks the name |
+| What happens                                                                                             | What is reported                                                               | What is left behind                                                                                                                       |
+| -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Nobody is signed in                                                                                      | "Sign in from Settings", before any network call is made                       | Nothing; no request was sent                                                                                                              |
+| The folder is not a world                                                                                | The folder's path and what was looked for, before any network call             | Nothing                                                                                                                                   |
+| The folder is empty                                                                                      | A refusal saying an empty backup is worse than none, because it looks like one | Nothing                                                                                                                                   |
+| The account cannot write to the repository                                                               | Named, with the repository                                                     | Nothing; no release was created                                                                                                           |
+| The repository is public and unacknowledged                                                              | The warning, and "Nothing was uploaded"                                        | Nothing                                                                                                                                   |
+| The tag already exists                                                                                   | A refusal saying nothing was changed and the existing release was left alone   | Nothing                                                                                                                                   |
+| The token is refused (401)                                                                               | The refusal, plus a route to sign in again at the surface where it happened    | Whatever had uploaded                                                                                                                     |
+| The selected `gh` account is missing, unhealthy, cannot be switched, or verifies as a different identity | The exact account/host refusal and **Open GitHub accounts** beside it          | Existing uploaded parts remain; no new release command runs under the wrong identity                                                      |
+| The connection drops mid-upload                                                                          | The failure, and the row offers to carry on                                    | The staged archive, the parts, and every asset already uploaded                                                                           |
+| Cancelled                                                                                                | "Everything already packed and uploaded is kept"                               | The same                                                                                                                                  |
+| The pack is cancelled or fails                                                                           | The failure                                                                    | Nothing: a partial archive is deleted, because a half-written zip looks exactly like a finished one to anything that only checks the name |
 
 Every failure is reported in the main process's own words. Nothing is retried silently, and no
 failure is reported as a success.
@@ -413,22 +413,22 @@ npx vitest run packages/app packages/ui
 
 The tests for this feature, and what each one is for:
 
-| File | What it pins |
-|---|---|
-| `main/backup/pointer.test.ts` | The canonical v1 regular expressions, copied verbatim, applied to what this writer produces; the five-line single-asset form; the part-sum rule; encrypted and deflated pointers named as unsupported rather than broken |
-| `main/backup/archive.test.ts` | The same folder packs to the same digest twice; what is written opens in this project's own `ZipReader` and unpacks through `extractZip` into an identical tree; a cancelled pack leaves nothing behind |
-| `main/backup/source.test.ts` | A world without a `level.dat` is refused; the folder above a world is refused by name; an empty folder is refused; tags and archive names are safe for a tag, a file name and a URL at once |
-| `main/backup/sidecar.test.ts` | Every field proved before a listing trusts it; a bad version, kind, digest or count makes the record null |
-| `main/backup/github.test.ts` | Only repositories with push access are offered; a genuine taken-tag 422 (matched by GitHub's own `errors[].code`) says nothing was changed; an *empty-repository* 422 — the same status, a different body — is told apart and named correctly rather than reported as a taken tag; an upload streams rather than buffering; no method other than `GET` or `POST` is ever sent |
-| `main/backup/runner.test.ts` | A whole backup against real folders and a fake GitHub: the pointer's parts hash to what landed and rejoin to the promised archive; the pointer goes up last; a public repository is refused unacknowledged and uploads nothing; a resume skips digest-matched parts and re-uploads a truncated one; a cancel mid-part keeps what was already up and never leaves a pointer |
-| `main/backup/restore.ts` (`restore.test.ts`) | A real `BackupRunner` upload round-tripped through the real restorer, byte for byte, including the single-asset (unsplit) form; a stopped upload with parts but no pointer is refused as incomplete rather than restored; a corrupted part is caught before anything unpacks; cancellation is reported as cancellation, not failure |
-| `main/backup/backup.realGithub.test.ts` | Skipped unless `MBM_TEST_BACKUP_LIVE=1`. Packs, publishes, cancels mid-upload, resumes under the same tag, and restores — against real `api.github.com` and `uploads.github.com`, not a fake — with the restored folder checked byte-for-byte against the original both times |
-| `main/backup/ipc.test.ts` | Exactly the named channels are registered and removed; the token appears in no answer; being signed out is an answer rather than a crash |
-| `components/backup/backups.test.ts` | Events land in the right row; a refusal with no id is reported beside the form, not as a phantom row; reading a repository clears the previous answer first |
-| `components/backup/BackupScreen.test.ts` | A build with no bridge says what is needed; the public warning and its acknowledgement render; restoring emits the release's coordinates and fetches nothing itself; an unfinished backup offers no restore |
-| `components/backup/BackupRunCard.test.ts` | The log toggle's `aria-controls` names the revealed list; the auto-scroll checkbox is on by default with a real accessible name; the log is a `role="log"` region with `aria-live="off"`; new lines scroll the view while checked and do not once unchecked; scrolling away pauses without unticking the checkbox and shows a jump control; scrolling back to the bottom resumes and hides it; an active text selection inside the log is never scrolled away from; keyboard focus is never moved; the preference survives a fresh mount |
-| `main/cirender/transport.test.ts` | The shared upload transport's exact `gh release` command shape on github.com and enterprise hosts; auto-switch and identity verification; success, refusal and resume; and no release call after missing-account, switch-failure or identity-mismatch guards |
-| `components/cirender/CiRenderScreen.test.ts` | A blocked selected `gh` account exposes **Open GitHub accounts** beside the route failure, not in a distant menu |
+| File                                         | What it pins                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `main/backup/pointer.test.ts`                | The canonical v1 regular expressions, copied verbatim, applied to what this writer produces; the five-line single-asset form; the part-sum rule; encrypted and deflated pointers named as unsupported rather than broken                                                                                                                                                                                                                                                                                                                 |
+| `main/backup/archive.test.ts`                | The same folder packs to the same digest twice; what is written opens in this project's own `ZipReader` and unpacks through `extractZip` into an identical tree; a cancelled pack leaves nothing behind                                                                                                                                                                                                                                                                                                                                  |
+| `main/backup/source.test.ts`                 | A world without a `level.dat` is refused; the folder above a world is refused by name; an empty folder is refused; tags and archive names are safe for a tag, a file name and a URL at once                                                                                                                                                                                                                                                                                                                                              |
+| `main/backup/sidecar.test.ts`                | Every field proved before a listing trusts it; a bad version, kind, digest or count makes the record null                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `main/backup/github.test.ts`                 | Only repositories with push access are offered; a genuine taken-tag 422 (matched by GitHub's own `errors[].code`) says nothing was changed; an _empty-repository_ 422 — the same status, a different body — is told apart and named correctly rather than reported as a taken tag; an upload streams rather than buffering; no method other than `GET` or `POST` is ever sent                                                                                                                                                            |
+| `main/backup/runner.test.ts`                 | A whole backup against real folders and a fake GitHub: the pointer's parts hash to what landed and rejoin to the promised archive; the pointer goes up last; a public repository is refused unacknowledged and uploads nothing; a resume skips digest-matched parts and re-uploads a truncated one; a cancel mid-part keeps what was already up and never leaves a pointer                                                                                                                                                               |
+| `main/backup/restore.ts` (`restore.test.ts`) | A real `BackupRunner` upload round-tripped through the real restorer, byte for byte, including the single-asset (unsplit) form; a stopped upload with parts but no pointer is refused as incomplete rather than restored; a corrupted part is caught before anything unpacks; cancellation is reported as cancellation, not failure                                                                                                                                                                                                      |
+| `main/backup/backup.realGithub.test.ts`      | Skipped unless `MBM_TEST_BACKUP_LIVE=1`. Packs, publishes, cancels mid-upload, resumes under the same tag, and restores — against real `api.github.com` and `uploads.github.com`, not a fake — with the restored folder checked byte-for-byte against the original both times                                                                                                                                                                                                                                                            |
+| `main/backup/ipc.test.ts`                    | Exactly the named channels are registered and removed; the token appears in no answer; being signed out is an answer rather than a crash                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `components/backup/backups.test.ts`          | Events land in the right row; a refusal with no id is reported beside the form, not as a phantom row; reading a repository clears the previous answer first                                                                                                                                                                                                                                                                                                                                                                              |
+| `components/backup/BackupScreen.test.ts`     | A build with no bridge says what is needed; the public warning and its acknowledgement render; restoring emits the release's coordinates and fetches nothing itself; an unfinished backup offers no restore                                                                                                                                                                                                                                                                                                                              |
+| `components/backup/BackupRunCard.test.ts`    | The log toggle's `aria-controls` names the revealed list; the auto-scroll checkbox is on by default with a real accessible name; the log is a `role="log"` region with `aria-live="off"`; new lines scroll the view while checked and do not once unchecked; scrolling away pauses without unticking the checkbox and shows a jump control; scrolling back to the bottom resumes and hides it; an active text selection inside the log is never scrolled away from; keyboard focus is never moved; the preference survives a fresh mount |
+| `main/cirender/transport.test.ts`            | The shared upload transport's exact `gh release` command shape on github.com and enterprise hosts; auto-switch and identity verification; success, refusal and resume; and no release call after missing-account, switch-failure or identity-mismatch guards                                                                                                                                                                                                                                                                             |
+| `components/cirender/CiRenderScreen.test.ts` | A blocked selected `gh` account exposes **Open GitHub accounts** beside the route failure, not in a distant menu                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 What has **not** been verified, stated plainly:
 

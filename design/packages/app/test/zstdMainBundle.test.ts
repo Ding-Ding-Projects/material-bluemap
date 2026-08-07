@@ -32,7 +32,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { copyZstdWasmAsset, nodeBuiltinRequireShimBanner } from "../build.mjs";
 
-const ROUND_TRIP_TEXT = "material-bluemap zstd main-process bundle regression test";
+const ROUND_TRIP_TEXT = "worldlens zstd main-process bundle regression test";
 
 /**
  * The banner `build.mjs` shipped before this fix: a real `require`, but no `__dirname`/

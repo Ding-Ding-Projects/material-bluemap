@@ -25,7 +25,7 @@ import {
     projectFileSchema,
     type ProjectFile,
     type ProjectMap,
-} from "@material-bluemap/config";
+} from "@worldlens/config";
 
 import { historyRoot, runGit, type GitResult, type GitRunner, type HistoryWrite, type RestoreResult } from "../history/index.js";
 

@@ -15,7 +15,7 @@ import { mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp, VBtn } from "vuetify/components";
-import { coreConfigDescriptor } from "@material-bluemap/config";
+import { coreConfigDescriptor } from "@worldlens/config";
 import SpeedControl from "./SpeedControl.vue";
 import { openConfigFile } from "./configModel.js";
 
