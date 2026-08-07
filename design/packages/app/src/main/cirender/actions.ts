@@ -120,12 +120,15 @@ export interface WorkflowArtifact {
 export class ActionsCallError extends Error {
     readonly status: number;
     readonly url: string;
+    /** True when the failing surface should offer its GitHub-accounts recovery action. */
+    readonly needsSignIn: boolean;
 
-    constructor(message: string, status: number, url: string) {
+    constructor(message: string, status: number, url: string, needsSignIn = false) {
         super(message);
         this.name = "ActionsCallError";
         this.status = status;
         this.url = url;
+        this.needsSignIn = needsSignIn;
     }
 }
 

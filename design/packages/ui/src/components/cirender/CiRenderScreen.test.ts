@@ -586,6 +586,38 @@ describe("which credential is in play is on screen before the button", () => {
         await check(wrapper);
         expect(wrapper.find('[data-test="blocked"]').text()).toContain("Neither GitHub route");
     });
+
+    it("offers the gh account recovery action on the same card as an identity refusal", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(
+                preflight({
+                    routeReport: routeReport({
+                        route: null,
+                        ready: false,
+                        canUpload: false,
+                        describe: "octocat is not signed in to gh on github.com. Nothing was uploaded.",
+                        gh: {
+                            availability: "ready",
+                            version: "gh version 2.96.0",
+                            account: null,
+                            host: null,
+                            message: "The selected account needs attention.",
+                            usable: false,
+                            reason: "The selected account needs attention.",
+                            recovery: "github-settings",
+                        },
+                    }),
+                }),
+            ),
+        );
+        await check(wrapper);
+
+        const recovery = wrapper.find('[data-test="route-gh-recovery"]');
+        expect(recovery.exists()).toBe(true);
+        expect(recovery.text()).toContain("Open GitHub accounts");
+        await recovery.trigger("click");
+        expect(wrapper.emitted("signIn")).toBeTruthy();
+    });
 });
 
 describe("what it says about an upload", () => {
@@ -987,6 +1019,12 @@ describe("render as: which stored GitHub account this render authenticates as", 
         expect(select?.props("disabled")).toBe(true);
         expect(wrapper.find('[data-test="account-select-disabled"]').text()).toContain(
             "Only one GitHub account is signed in",
+        );
+        expect(wrapper.find('[data-test="gh-auto-switch-warning"]').text()).toContain(
+            "whole computer",
+        );
+        expect(wrapper.find('[data-test="gh-auto-switch-warning"]').text()).toContain(
+            "remains active afterward",
         );
     });
 

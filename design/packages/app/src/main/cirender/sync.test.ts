@@ -1139,7 +1139,10 @@ describe("the gh command-line tool is a real fallback, not an error message", ()
             async run(_command, args, runOptions) {
                 calls.push([...args]);
                 if (args.includes("--version")) return await ok("gh version 2.62.0\n");
-                if (args.includes("status")) return await ok("✓ Logged in to github.com account octocat\n");
+                if (args.includes("status")) {
+                    return await ok("✓ Logged in to github.com account octocat\n  - Active account: true\n");
+                }
+                if (args.includes(".login")) return await ok("octocat\n");
 
                 if (args[0] === "release" && args[1] === "create") {
                     const tag = args[2] as string;

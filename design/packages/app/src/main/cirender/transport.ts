@@ -86,8 +86,10 @@ import type {
     WorkflowRun,
     WorkflowSummary,
 } from "./actions.js";
-import { GH_COMMAND, GH_LOGIN_COMMAND, detectGh, ghApiJson, ghApiPost, ghApiSend, ghApiToFile } from "./gh.js";
+import { GH_COMMAND, GH_LOGIN_COMMAND, ghApiJson, ghApiPost, ghApiSend, ghApiToFile } from "./gh.js";
 import type { GhStatus, ProcessRunner } from "./gh.js";
+import { listGhCliAccounts, switchGhCliAccount } from "../ghcli/accounts.js";
+import type { GhCliAccountSummary, GhCliAccountsStatus } from "../ghcli/accounts.js";
 
 export type CiRoute = "session" | "gh";
 
@@ -418,9 +420,64 @@ export function sessionTransport(options: SessionTransportOptions): CiTransport 
 export interface GhTransportOptions {
     readonly runner: ProcessRunner;
     readonly signal?: AbortSignal | undefined;
-    /** The host `gh auth status` reported. Passed through so an enterprise host is kept. */
-    readonly host?: string | undefined;
-    readonly account?: string | null | undefined;
+    /** A host/account pair read from `gh auth status --json hosts`, never free text. */
+    readonly host: string;
+    readonly account: string;
+}
+
+/**
+ * Makes the selected, stored gh account active and proves the identity the next command
+ * will actually use. Both host and login came from gh's own account inventory before this
+ * function is called; callers never manufacture a token or trust a free-text identity.
+ */
+async function ensureGhIdentity(options: GhTransportOptions, what: string): Promise<void> {
+    const status = await listGhCliAccounts({
+        runner: options.runner,
+        ...(options.signal === undefined ? {} : { signal: options.signal }),
+    });
+    const stored = status.accounts.find(
+        (candidate) =>
+            candidate.host.toLowerCase() === options.host.toLowerCase() &&
+            candidate.login.toLowerCase() === options.account.toLowerCase(),
+    );
+    if (stored === undefined || !stored.healthy) {
+        throw ghAccountRecoveryError(
+            stored === undefined
+                ? `${options.account} is not signed in to gh on ${options.host}, so ${what} was not attempted.`
+                : `${options.account} is signed in to gh on ${options.host}, but gh reports that account as ${stored.stateDetail ?? "unhealthy"}, so ${what} was not attempted.`,
+            what,
+        );
+    }
+
+    if (!stored.active) {
+        const switched = await switchGhCliAccount(
+            {
+                runner: options.runner,
+                ...(options.signal === undefined ? {} : { signal: options.signal }),
+            },
+            stored.host,
+            stored.login,
+        );
+        if (!switched.ok) throw ghAccountRecoveryError(`${switched.message} ${what} was not attempted.`, what);
+    }
+
+    // This uses the same host and credential resolution as the release command. The
+    // account-list re-read proves gh's stored active bit; this proves the effective caller,
+    // including any environment override inherited by the desktop process.
+    const identity = await options.runner.run(
+        GH_COMMAND,
+        ["api", "--hostname", options.host, "user", "--jq", ".login"],
+        options.signal === undefined ? {} : { signal: options.signal },
+    );
+    const actual = identity.stdout.trim();
+    if (!identity.started || identity.code !== 0 || actual.toLowerCase() !== options.account.toLowerCase()) {
+        const detail = actual === "" ? firstGhLine(identity.stderr) : `gh authenticated as ${actual}, not ${options.account}`;
+        throw ghAccountRecoveryError(
+            `The active gh identity on ${options.host} could not be verified as ${options.account}, so ${what} was not attempted.` +
+                (detail === "" ? "" : ` ${detail}.`),
+            what,
+        );
+    }
 }
 
 /**
@@ -447,17 +504,29 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
     const api = {
         runner: options.runner,
         ...(options.signal === undefined ? {} : { signal: options.signal }),
-        ...(options.host === undefined ? {} : { host: options.host }),
+        host: options.host,
     };
     const path = (owner: string, repo: string): string =>
         `repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
 
-    /** `--repo owner/name`, plus the host when `gh auth status` named an enterprise one. */
-    const where = (owner: string, repo: string): string[] => {
-        const args = ["--repo", `${owner}/${repo}`];
-        if (options.host !== undefined && options.host.length > 0) args.push("--hostname", options.host);
-        return args;
-    };
+    /**
+     * `gh release` has no `--hostname` flag. Its inherited `--repo` flag accepts
+     * `[HOST/]OWNER/REPO`, which keeps enterprise routing explicit without depending on the
+     * checkout's own repository or silently dropping back to github.com.
+     */
+    const where = (owner: string, repo: string): string[] => [
+        "--repo",
+        `${options.host}/${owner}/${repo}`,
+    ];
+
+    /**
+     * Re-establishes and proves the selected gh identity immediately before a release read
+     * or write. Packing a large world can take hours after preflight; trusting the account
+     * that was active then would let another terminal's later `gh auth switch` redirect the
+     * upload. The selected account is left active, matching gh's existing machine-wide
+     * switching contract rather than silently restoring a different identity afterwards.
+     */
+    const ensureReleaseIdentity = (what: string): Promise<void> => ensureGhIdentity(options, what);
 
     /** Runs one `gh` subcommand, turning a refusal into the error type both routes raise. */
     const runGh = async (args: readonly string[], what: string): Promise<void> => {
@@ -476,6 +545,7 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
     };
 
     const readRelease = async (owner: string, repo: string, tag: string): Promise<unknown | null> => {
+        await ensureReleaseIdentity(`reading the release tagged ${tag}`);
         try {
             return await ghApiJson(`${path(owner, repo)}/releases/tags/${encodeURIComponent(tag)}`, api);
         } catch (error) {
@@ -496,7 +566,10 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
         let body: unknown;
         try {
             body = await readRelease(owner, repo, tag);
-        } catch {
+        } catch (error) {
+            // A missing/changed selected account is not an unreadable release. Swallowing
+            // that guard would let resume continue under an unverified identity.
+            if (error instanceof ActionsCallError && error.needsSignIn) throw error;
             // Same rule as the API route: a release that cannot be read holds nothing as
             // far as this is concerned, so its contents are uploaded again.
             return found;
@@ -519,9 +592,7 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
     return {
         route: "gh",
         describe:
-            options.account === null || options.account === undefined
-                ? `the ${GH_COMMAND} command-line tool`
-                : `the ${GH_COMMAND} command-line tool (${options.account})`,
+            `the ${GH_COMMAND} command-line tool (${options.account} on ${options.host})`,
         // The transfer below is route-aware, so somebody signed in to `gh` and not to this
         // application can publish a world as well as render one. The packer is still the
         // single one in `main/backup/`; only the four calls that move bytes differ.
@@ -734,6 +805,7 @@ export function ghTransport(options: GhTransportOptions): CiTransport {
                 );
             }
 
+            await ensureReleaseIdentity(`uploading ${upload.assetName}`);
             await runGh(
                 [
                     "release",
@@ -909,6 +981,20 @@ function ghCommandFailure(stderr: string, what: string): ActionsCallError {
     );
 }
 
+function firstGhLine(text: string): string {
+    return (text.split(/\r?\n/)[0] ?? "").trim();
+}
+
+/** A selected gh account needs attention; the visible failure card offers Settings beside it. */
+function ghAccountRecoveryError(message: string, what: string): ActionsCallError {
+    return new ActionsCallError(
+        `${message} Open Settings → GitHub, repair or add that gh command-line account, then carry on; no release data was changed.`,
+        401,
+        what,
+        true,
+    );
+}
+
 /**
  * `gh api` on a `/logs` endpoint follows the redirect and prints plain text, which is not
  * JSON - so the JSON call throws and this reads the same endpoint as text instead. Both
@@ -958,6 +1044,8 @@ export interface RouteGhReport extends Omit<GhStatus, "availability"> {
     readonly availability: GhStatus["availability"] | "not-checked";
     readonly usable: boolean;
     readonly reason: string | null;
+    /** The same-surface recovery the renderer should offer when this route is blocked. */
+    readonly recovery: "github-settings" | "dependencies" | null;
 }
 
 export interface RouteReport {
@@ -980,6 +1068,12 @@ export interface ResolveTransportOptions {
     /** The in-app token, or null when nobody is signed in to the application. */
     readonly token: string | null;
     readonly account?: string | null | undefined;
+    /**
+     * An explicit gh identity selected from `gh auth status --json hosts`.
+     * It is still revalidated against the live inventory before use; callers cannot turn a
+     * free-text login or host into authority merely by putting it here.
+     */
+    readonly ghTarget?: { readonly host: string; readonly login: string } | undefined;
     readonly fetch: FetchLike;
     readonly runner: ProcessRunner;
     readonly signal?: AbortSignal | undefined;
@@ -998,6 +1092,95 @@ export interface ResolveTransportOptions {
      * start with.
      */
     readonly probe?: ((transport: CiTransport, owner: string, repo: string) => Promise<unknown>) | undefined;
+}
+
+interface GhAccountChoice {
+    readonly account: GhCliAccountSummary | null;
+    readonly reason: string | null;
+    readonly recovery: "github-settings" | "dependencies" | null;
+}
+
+/** Selects only from gh's live signed-in inventory; never fabricates an identity. */
+function chooseGhAccount(
+    status: GhCliAccountsStatus,
+    target: { readonly host?: string | undefined; readonly login: string } | null,
+): GhAccountChoice {
+    if (status.availability !== "ready") {
+        return {
+            account: null,
+            reason: status.message,
+            recovery: status.availability === "not-installed" ? "dependencies" : "github-settings",
+        };
+    }
+
+    const healthy = status.accounts.filter((candidate) => candidate.healthy);
+    if (target !== null) {
+        const matching = healthy.filter(
+            (candidate) =>
+                candidate.login.toLowerCase() === target.login.toLowerCase() &&
+                (target.host === undefined || candidate.host.toLowerCase() === target.host.toLowerCase()),
+        );
+        const onGithubCom = matching.filter((candidate) => candidate.host.toLowerCase() === "github.com");
+        const active = matching.filter((candidate) => candidate.active);
+        const picked =
+            matching.length === 1
+                ? matching[0]!
+                : onGithubCom.length === 1
+                  ? onGithubCom[0]!
+                  : active.length === 1
+                    ? active[0]!
+                    : null;
+        if (picked !== null) return { account: picked, reason: null, recovery: null };
+        if (matching.length === 0) {
+            return {
+                account: null,
+                reason:
+                    `${target.login}` +
+                    (target.host === undefined ? "" : ` on ${target.host}`) +
+                    " is not a healthy account in gh's signed-in account list. Open GitHub settings, sign it in or repair it, then check again.",
+                recovery: "github-settings",
+            };
+        }
+        return {
+            account: null,
+            reason:
+                `${target.login} is signed in to gh on more than one host, so the application will not guess which account should publish the release. ` +
+                "Choose the exact gh account in GitHub settings, then check again.",
+            recovery: "github-settings",
+        };
+    }
+
+    const active = healthy.filter((candidate) => candidate.active);
+    const activeGithubCom = active.filter((candidate) => candidate.host.toLowerCase() === "github.com");
+    const picked = activeGithubCom.length === 1 ? activeGithubCom[0]! : active.length === 1 ? active[0]! : null;
+    if (picked !== null) return { account: picked, reason: null, recovery: null };
+    return {
+        account: null,
+        reason:
+            "gh has more than one possible active host and no exact account was selected, so the application will not guess which identity should publish the release. Choose an account in GitHub settings, then check again.",
+        recovery: "github-settings",
+    };
+}
+
+function ghStatusFrom(status: GhCliAccountsStatus, account: GhCliAccountSummary | null): GhStatus {
+    if (account !== null) {
+        return {
+            availability: "ready",
+            version: status.version,
+            account: account.login,
+            host: account.host,
+            scopes: account.scopesReported ? account.scopes : null,
+            message: `${GH_COMMAND} is signed in as ${account.login} on ${account.host}.`,
+        };
+    }
+    return {
+        availability: status.availability === "not-installed" ? "not-installed" : "signed-out",
+        version: status.version,
+        account: null,
+        host: null,
+        scopes: null,
+        message: status.message,
+    };
 }
 
 export interface ResolvedTransport {
@@ -1073,6 +1256,7 @@ export async function resolveTransport(options: ResolveTransportOptions): Promis
                     message: `${GH_COMMAND} was not checked: the sign-in in this application worked.`,
                     usable: false,
                     reason: "not needed",
+                    recovery: null,
                 },
                 ready: true,
                 canUpload: true,
@@ -1080,25 +1264,36 @@ export async function resolveTransport(options: ResolveTransportOptions): Promis
         };
     }
 
-    const gh = await detectGh(options.runner, {
+    const ghAccounts = await listGhCliAccounts({
+        runner: options.runner,
         ...(options.signal === undefined ? {} : { signal: options.signal }),
     });
+    const selected = chooseGhAccount(
+        ghAccounts,
+        options.ghTarget ??
+            (options.account !== null && options.account !== undefined ? { login: options.account } : null),
+    );
+    const gh = ghStatusFrom(ghAccounts, selected.account);
     let ghUsable = false;
-    let ghReason: string | null = gh.availability === "ready" ? null : gh.message;
+    let ghReason: string | null = selected.reason ?? (gh.availability === "ready" ? null : gh.message);
+    let ghRecovery = selected.recovery;
 
     let ghRoute: CiTransport | null = null;
-    if (gh.availability === "ready") {
-        ghRoute = ghTransport({
+    if (selected.account !== null) {
+        const ghOptions: GhTransportOptions = {
             runner: options.runner,
             ...(options.signal === undefined ? {} : { signal: options.signal }),
-            ...(gh.host === null ? {} : { host: gh.host }),
-            account: gh.account,
-        });
+            host: selected.account.host,
+            account: selected.account.login,
+        };
         try {
+            await ensureGhIdentity(ghOptions, `checking ${options.owner}/${options.repo}`);
+            ghRoute = ghTransport(ghOptions);
             await probe(ghRoute, options.owner, options.repo);
             ghUsable = true;
         } catch (error) {
             ghReason = error instanceof Error ? error.message : String(error);
+            if (error instanceof ActionsCallError && error.needsSignIn) ghRecovery = "github-settings";
             ghRoute = null;
         }
     }
@@ -1112,7 +1307,7 @@ export async function resolveTransport(options: ResolveTransportOptions): Promis
                     `Using ${ghRoute.describe}` +
                     (sessionReason === null ? "." : `, because the sign-in in this application could not: ${sessionReason}`),
                 session: { signedIn: options.token !== null, usable: false, reason: sessionReason },
-                gh: { ...gh, usable: true, reason: null },
+                gh: { ...gh, usable: true, reason: null, recovery: null },
                 ready: true,
                 // A real fallback, not a read-only one: the transfer is route-aware, so
                 // this route publishes the world as well as rendering it.
@@ -1131,7 +1326,7 @@ export async function resolveTransport(options: ResolveTransportOptions): Promis
                 `${GH_COMMAND}: ${ghReason ?? gh.message}` +
                 (gh.availability === "signed-out" ? ` Run \`${GH_LOGIN_COMMAND}\` in a terminal.` : ""),
             session: { signedIn: options.token !== null, usable: false, reason: sessionReason },
-            gh: { ...gh, usable: false, reason: ghReason },
+            gh: { ...gh, usable: false, reason: ghReason, recovery: ghRecovery },
             ready: false,
             canUpload: false,
         },

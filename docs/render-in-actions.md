@@ -259,6 +259,12 @@ has already authorised, or scopes the in-app flow never asked for. So:
 - whichever is chosen **drives every call of that sync**. Dispatching on one credential and
   downloading on another works on a machine where both are authorised and fails halfway
   through on one where only one is;
+- when the selected in-app account has to fall back to `gh`, the application finds that login
+  in `gh`'s real signed-in account inventory. If it is signed in but inactive, the application
+  runs `gh auth switch --hostname <host> --user <login>`, re-reads the inventory, and verifies
+  `gh api user` before any release is created. The switch is machine-wide and is deliberately
+  left active, matching `gh`'s established account-switch contract rather than quietly restoring
+  a different identity after the upload;
 - the route is shown on the screen before the button and named on every failure, because
   "permission denied" is unactionable when a person cannot tell which of their two sign-ins
   was refused.
@@ -266,10 +272,12 @@ has already authorised, or scopes the in-app flow never asked for. So:
 `gh auth login` is **never** driven from inside the app. It suppresses its device-code
 prompt when stdin is not a terminal, so a spawned one prints nothing and hangs for ever;
 the app says which command to run in a real terminal and detects the result on the next
-check. Uploading is the one thing `gh` cannot do here: an upload is a backup, and rerouting
-it would mean a second uploader with its own release rules. With only `gh` available a
-world that is already published renders, and one that needs uploading is refused with that
-exact reason.
+check. Uploading uses the same packer, part names, digests and resume rules on both credential
+routes; only the transport changes. `gh release create` and `gh release upload` receive the
+target as `--repo [HOST/]OWNER/REPO`, because those commands do not support `--hostname`.
+Enterprise routing is therefore explicit without passing a token or silently falling back to
+github.com. A missing account, refused switch, unhealthy account, or identity mismatch stops
+before the release command and offers the GitHub accounts settings from the same panel.
 
 ### What the workflow cannot be told
 

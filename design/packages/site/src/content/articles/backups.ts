@@ -164,9 +164,12 @@ export const backups: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "The GitHub sign-in is the application's own, configured in Settings. A backup needs an ",
-                        "account with push access to the chosen repository, and a refusal that is probably a ",
-                        "missing scope says so rather than reporting a bare 403.",
+                        "The Backup screen uses the application's own GitHub sign-in from Settings. CI rendering ",
+                        "can use that same route or the gh command-line account selected for the target host. The ",
+                        "command-line route validates the live signed-in account inventory again at the release ",
+                        "boundary, switches to the exact selected host/login when necessary, verifies the effective ",
+                        "identity, and only then creates or resumes a release. That switch changes gh's active ",
+                        "account for the whole computer and deliberately leaves the selected account active.",
                     ],
                 },
                 {
@@ -200,6 +203,7 @@ export const backups: Article = {
                         ["The folder is not the kind it was offered as", "The folder's path and what was looked for, before any network call", "Nothing"],
                         ["The folder is empty", "A refusal saying an empty backup is worse than none, because it looks like one", "Nothing"],
                         ["The account cannot write to the repository", "Named, with the repository", "Nothing; no release was created"],
+                        ["The selected gh account is missing, cannot be switched to, or resolves to a different identity", "Open GitHub accounts from the same surface; the exact host and login are named", "Nothing; release creation and upload are not attempted"],
                         ["The repository is public and unacknowledged", "The warning, and that nothing was uploaded", "Nothing"],
                         ["The tag already exists", "A refusal saying nothing was changed and the existing release was left alone", "Nothing"],
                         ["The token is refused", "The refusal, plus a route to sign in again at the surface where it happened", "Whatever had uploaded"],
@@ -226,6 +230,7 @@ export const backups: Article = {
                     kind: "list",
                     items: [
                         "The token never crosses to the renderer. The main process holds the GitHub session and resolves a token per operation, nothing on the bridge carries a credential in either direction, and a test walks every channel's answer asserting the token does not appear in it.",
+                        "The gh route never guesses another account. It accepts only a host/login pair found in the live gh account inventory, switches with gh auth switch when needed, verifies the effective identity with gh api, and addresses releases with --repo [HOST/]OWNER/REPO. The selected account remains active for the whole computer after the operation.",
                         "Publishing a world is publishing everything in it. A save carries coordinates, builds, inventories and anything a guest left behind, and once it is up, deleting the release later does not recall what was already downloaded. That is why the public warning blocks rather than informs.",
                         "Links are not followed. A link inside a world folder is skipped and named, so a backup cannot be talked into packing a home directory.",
                         "Everything read back off a release is untrusted input. Anybody with write access to that repository could have replaced the sidecar or the pointer, so both are size-bounded before they are fetched and every field is proved before a listing shows any of it. Anything doubtful makes the whole record unreadable rather than a half-populated row, and part names are treated as plain file names rather than resolved against a directory unchecked.",
@@ -268,6 +273,10 @@ export const backups: Article = {
                         [
                             { code: "main/backup/runner.test.ts" },
                             "A whole backup against real folders and a fake GitHub: the pointer's parts hash to what landed and rejoin to the promised archive; the pointer goes up last; a public repository is refused unacknowledged and uploads nothing; a resume skips digest-matched parts and re-uploads a truncated one; a cancel mid-part keeps what was already up and never leaves a pointer.",
+                        ],
+                        [
+                            { code: "main/cirender/transport.test.ts" },
+                            "The CI-render release transport covers already-active and inactive accounts, an automatic switch, missing accounts, switch refusal, effective-identity mismatch, enterprise hosts, create failure, and resumed upload. Every identity failure proves that no release command ran; successful enterprise release commands use --repo HOST/OWNER/REPO and never the unsupported release --hostname flag.",
                         ],
                         [
                             { code: "main/backup/restore.ts / restore.test.ts" },

@@ -1636,7 +1636,7 @@ function fromError(error: unknown, route: CiRoute | null = null): CiSyncFailure 
             // A 403 on the `gh` route is very often an organisation that has not
             // authorised that credential for SSO rather than a missing scope, so signing
             // in to the application again would not help and is not offered.
-            needsSignIn: route !== "gh" && (error.status === 401 || error.status === 403),
+            needsSignIn: error.needsSignIn || (route !== "gh" && (error.status === 401 || error.status === 403)),
             route,
         });
     }

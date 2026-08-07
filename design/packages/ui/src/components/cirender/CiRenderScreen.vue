@@ -759,6 +759,14 @@ const routeAside = computed<string | null>(() => {
     return reason === null || reason === "not needed" ? null : reason;
 });
 
+/** The selected gh account can be repaired from the same card that reports the refusal. */
+const showGhAccountRecovery = computed(
+    () =>
+        props.canOpenSettings &&
+        routeReport.value?.ready === false &&
+        routeReport.value.gh.recovery === "github-settings",
+);
+
 /**
  * Whether the button may be pressed.
  *
@@ -1035,6 +1043,20 @@ onBeforeUnmount(() => {
                             </VBtn>
                         </VAlert>
                         <template v-else>
+                            <VAlert
+                                type="warning"
+                                variant="tonal"
+                                density="compact"
+                                class="mb-3"
+                                data-test="gh-auto-switch-warning"
+                            >
+                                {{
+                                    t(
+                                        "cirender.account.ghSwitchWarning",
+                                        "If this render uses gh, checking or uploading may switch gh's active account for the whole computer. The selected account remains active afterward.",
+                                    )
+                                }}
+                            </VAlert>
                             <VSelect
                                 :items="accountItems"
                                 :model-value="selectedAccountId ?? accountsList.activeId.value"
@@ -1318,6 +1340,16 @@ onBeforeUnmount(() => {
                         <p v-if="ghState !== null" class="mt-1 text-medium-emphasis" data-test="route-gh">
                             {{ ghState.text }}
                         </p>
+                        <VBtn
+                            v-if="showGhAccountRecovery"
+                            size="small"
+                            variant="tonal"
+                            class="mt-2"
+                            data-test="route-gh-recovery"
+                            @click="emit('signIn')"
+                        >
+                            {{ t("cirender.gh.openAccounts", "Open GitHub accounts") }}
+                        </VBtn>
                     </VAlert>
 
                     <!--
@@ -1605,7 +1637,11 @@ onBeforeUnmount(() => {
                     class="mt-2"
                     @click="emit('signIn')"
                 >
-                    {{ t("cirender.signIn", "Open the GitHub sign-in") }}
+                    {{
+                        renders.startFailure.value.route === "gh"
+                            ? t("cirender.gh.openAccounts", "Open GitHub accounts")
+                            : t("cirender.signIn", "Open the GitHub sign-in")
+                    }}
                 </VBtn>
                 <VBtn
                     v-if="renders.startFailure.value.needsEula && props.canOpenSettings"

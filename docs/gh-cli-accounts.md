@@ -85,6 +85,20 @@ languages by `GHCLIACCOUNTS_FACTS` in `packages/ui/src/copy/surfaces/ghCliAccoun
 level styles the surrounding voice, never the "whole computer" fact itself. A successful switch's own
 confirmation message repeats that machine-wide consequence.
 
+The CI-render upload route applies the same switch automatically when a render was assigned to an
+account that is signed in to `gh` but is not active there. It does not restore the previous account
+afterwards: `gh auth switch` is a whole-computer choice, and silently switching it back would
+contradict the account list's existing contract. The render card says this before the upload starts.
+Immediately before every release read, create, or upload, the main process re-reads the signed-in
+inventory, switches if needed, and verifies the effective login through
+`gh api --hostname <host> user --jq .login`. This last check also catches an environment override
+that would make the next command authenticate as somebody other than the selected account.
+
+Release subcommands keep the host through their supported repository grammar:
+`gh release create ... --repo <host>/<owner>/<repository>` and the corresponding upload command.
+They are never given `--hostname`; unlike `gh api` and `gh auth switch`, `gh release create` and
+`gh release upload` do not define that flag.
+
 ### Falling back to gh when the app's own sign-in fails
 
 `main/ghcli/routing.ts` gives the rest of the application a shared way to retry a failed GitHub
@@ -139,6 +153,9 @@ rule the app's own account list already follows.
 | `gh` answers a shape this build does not recognise (a very old or very new `gh`) | "gh answered … in a format this application does not recognise, so its accounts cannot be listed safely." Never reported as zero accounts. |
 | An account's token is short a scope this application needs | A warning on that account's own row, naming the missing scopes and the exact `gh auth refresh` command. |
 | `gh auth switch` reports success but the account did not actually become active | Reported as a failure, with `gh`'s own message — never a false "Active" chip. |
+| The selected account is signed in but inactive when a release operation begins | The app switches to it with the exact host and login, re-reads the account inventory, verifies the effective API identity, and leaves it active machine-wide. |
+| The selected account is missing, unhealthy, the switch is refused, or the effective identity differs | The release command is not run. The upload panel names the account and host, says no release data changed, and offers **Open GitHub accounts** beside the failure. |
+| An enterprise host is selected | Release commands use `--repo <host>/<owner>/<repository>`; no unsupported `--hostname` flag is added. |
 | A search matches nothing, while accounts exist | "Nothing here matches that search. Clearing it brings the whole list back." — distinct from either "installed and signed in as nobody" or "not installed". |
 
 ## Security considerations
@@ -159,6 +176,9 @@ rule the app's own account list already follows.
   `decideWriteRoute` is the one gate every write-capable caller of `routeWithFallback` goes through;
   it refuses automatically the moment the fallback account differs from the one selected, which is
   the one shape of "silent surprise" this feature could otherwise introduce.
+- **Identity is checked at the write boundary, not only at preflight.** Packing thousands of files
+  can take hours, during which another terminal can change `gh`'s active account. Every release
+  read/create/upload rechecks the selected host and login and stops before mutation on any mismatch.
 
 ## Verification
 
@@ -187,7 +207,16 @@ rule the app's own account list already follows.
   states render their own distinct message (and the not-installed state's button reaches
   `open-dependencies`); a search with no matches is distinguished from having no accounts at all; the
   two-stores explainer is always present; and nothing token-shaped ever renders.
+- `design/packages/app/src/main/cirender/transport.test.ts` — 32 tests, including the exact
+  `gh release create` and `gh release upload` argument arrays on github.com and an enterprise host;
+  already-active and inactive selected accounts; the machine-wide auto-switch; missing-account,
+  refused-switch and effective-identity-mismatch refusals; release-create failure; resume upload;
+  and proof that no release command contains the unsupported `--hostname` flag or runs after an
+  identity failure.
+- `design/packages/ui/src/components/cirender/CiRenderScreen.test.ts` — the route refusal renders
+  **Open GitHub accounts** on the same card and returns through the existing Settings action.
 
-70 tests total, all passing against the code in this repository — none of them against a real `gh`
-process or a real account, so a run of this suite never depends on, or changes, anything about the
-machine's real `gh` sign-in.
+The account and transport suites are all local fakes: they never mutate the machine's real `gh`
+sign-in and never publish a release. The exact command grammar was also checked against the installed
+`gh release create --help` / `gh release upload --help`; a real enterprise-account switch and a real
+multi-gigabyte upload remain external-account/runtime proof, not claims made by these tests.

@@ -196,6 +196,8 @@ export interface RouteReport {
         readonly message: string;
         readonly usable: boolean;
         readonly reason: string | null;
+        /** Optional for compatibility with a preload from before account recovery was surfaced. */
+        readonly recovery?: "github-settings" | "dependencies" | null;
     };
     readonly ready: boolean;
     /**

@@ -348,6 +348,13 @@ backup needs an account with **push access** to the chosen repository; the `repo
 publishing a release requires, and a refusal that is probably a missing scope says so rather than
 reporting a bare 403.
 
+When the CI-render surface uses `gh` as its credential route, it still uses this same packer,
+splitter, pointer and resume logic. Before a release is read, created or uploaded, the selected
+account is matched against `gh`'s real signed-in inventory, switched active when necessary, and
+verified through `gh api user`. That switch affects the whole computer and is left active. Release
+commands carry an enterprise host through `--repo <host>/<owner>/<repository>`; they never receive
+the unsupported `--hostname` flag.
+
 ## Failure modes
 
 | What happens | What is reported | What is left behind |
@@ -359,6 +366,7 @@ reporting a bare 403.
 | The repository is public and unacknowledged | The warning, and "Nothing was uploaded" | Nothing |
 | The tag already exists | A refusal saying nothing was changed and the existing release was left alone | Nothing |
 | The token is refused (401) | The refusal, plus a route to sign in again at the surface where it happened | Whatever had uploaded |
+| The selected `gh` account is missing, unhealthy, cannot be switched, or verifies as a different identity | The exact account/host refusal and **Open GitHub accounts** beside it | Existing uploaded parts remain; no new release command runs under the wrong identity |
 | The connection drops mid-upload | The failure, and the row offers to carry on | The staged archive, the parts, and every asset already uploaded |
 | Cancelled | "Everything already packed and uploaded is kept" | The same |
 | The pack is cancelled or fails | The failure | Nothing: a partial archive is deleted, because a half-written zip looks exactly like a finished one to anything that only checks the name |
@@ -388,6 +396,9 @@ failure is reported as a success.
 - **Nothing existing is ever changed.** The append-only rule is not a convention; the functions that
   would break it are not in the module, and a test watches every request across a full backup and a
   resume, asserting that the only methods used are `GET` and `POST`.
+- **A CLI fallback cannot drift to another identity.** The selected host/login is sourced from
+  `gh auth status --json hosts`, auto-switched with `gh auth switch`, re-read, then verified with
+  `gh api user` immediately before release operations. No token appears in arguments or messages.
 
 ## Verification
 
@@ -416,6 +427,8 @@ The tests for this feature, and what each one is for:
 | `components/backup/backups.test.ts` | Events land in the right row; a refusal with no id is reported beside the form, not as a phantom row; reading a repository clears the previous answer first |
 | `components/backup/BackupScreen.test.ts` | A build with no bridge says what is needed; the public warning and its acknowledgement render; restoring emits the release's coordinates and fetches nothing itself; an unfinished backup offers no restore |
 | `components/backup/BackupRunCard.test.ts` | The log toggle's `aria-controls` names the revealed list; the auto-scroll checkbox is on by default with a real accessible name; the log is a `role="log"` region with `aria-live="off"`; new lines scroll the view while checked and do not once unchecked; scrolling away pauses without unticking the checkbox and shows a jump control; scrolling back to the bottom resumes and hides it; an active text selection inside the log is never scrolled away from; keyboard focus is never moved; the preference survives a fresh mount |
+| `main/cirender/transport.test.ts` | The shared upload transport's exact `gh release` command shape on github.com and enterprise hosts; auto-switch and identity verification; success, refusal and resume; and no release call after missing-account, switch-failure or identity-mismatch guards |
+| `components/cirender/CiRenderScreen.test.ts` | A blocked selected `gh` account exposes **Open GitHub accounts** beside the route failure, not in a distant menu |
 
 What has **not** been verified, stated plainly:
 
@@ -430,6 +443,9 @@ What has **not** been verified, stated plainly:
   records are written for every entry rather than only for large ones precisely so the 4 GB
   boundary is not a code path that only runs on the archives nobody can afford to test with, but
   that boundary has not been crossed with real data here.
+- The repaired CLI route has not uploaded the reported 1.99 GB / 6,472-piece world, and no test
+  changes the machine's real active `gh` account. Command shape, account switching and failure
+  containment are locally proven; a real account/network run remains external verification.
 
 ## Related reading
 
