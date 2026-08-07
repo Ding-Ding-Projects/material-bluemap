@@ -383,6 +383,18 @@ async function copyText(): Promise<void> {
     gap: 8px;
     flex-wrap: wrap;
     padding: 4px 8px;
+    /*
+     * `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
+     * white-space: nowrap` for a single-line block title. Flexing it (above) leaves
+     * all three in place: `overflow: hidden` still clips, and the inherited `nowrap`
+     * reaches every `.v-btn__content` inside too, so the "Show the file as it will be
+     * written" / "Copy" buttons could be silently cut off at a narrow width or in
+     * bilingual mode rather than wrapping to a second line. Same fix as
+     * `DockerWorldSourcePanel.vue`'s `.mb-docker-world__card > .v-card-title`.
+     */
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 .mb-config-form__pre,

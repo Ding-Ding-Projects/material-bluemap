@@ -279,3 +279,27 @@ describe("a build with no bridge at all", () => {
         view.unmount();
     });
 });
+
+describe("the panel head, which shares its <v-card-title> with a rescan button", () => {
+    /**
+     * Regression: `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
+     * white-space: nowrap` for a single-line block title (Vuetify's own `VCard.css`).
+     * `.mb-discovered__head` turns it into a flex row so the "Look again" button sits beside
+     * the title, but `display: flex` alone does not clear any of the three inherited
+     * properties: `overflow: hidden` still clips, and the inherited `nowrap` means the title
+     * can never wrap even though it now shares its row with a button. The bilingual title
+     * was silently cut off with no ellipsis and no indication anything was missing.
+     * `test.css` is not enabled for this suite's `vitest.config.ts`, so a `?raw` import
+     * reads the exact rule the fix landed in, the same way `ConfigApplyDialog.test.ts` does
+     * for its own CSS fix.
+     */
+    it("clears the inherited overflow, text-overflow and white-space so the title can wrap", async () => {
+        const source = (await import("./DiscoveredWorldsPanel.vue?raw")).default as string;
+        const match = /\.mb-discovered__head\s*\{[^}]*\}/.exec(source);
+        expect(match).not.toBeNull();
+        const rule = match?.[0] ?? "";
+        expect(rule).toMatch(/overflow:\s*visible/);
+        expect(rule).toMatch(/text-overflow:\s*clip/);
+        expect(rule).toMatch(/white-space:\s*normal/);
+    });
+});

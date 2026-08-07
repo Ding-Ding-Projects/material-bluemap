@@ -288,3 +288,27 @@ describe("the builder, opened from this field", () => {
         wrapper.unmount();
     });
 });
+
+describe("the card head, which shares its <v-card-title> with an engine chip", () => {
+    /**
+     * Regression: `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
+     * white-space: nowrap` for a single-line block title (Vuetify's own `VCard.css`).
+     * `.mb-world-resume__head` turns it into a flex row so the engine chip sits beside the
+     * joined map-name list, but `display: flex` alone does not clear any of the three
+     * inherited properties: `overflow: hidden` still clips, and the inherited `nowrap` means
+     * the joined names (or the render id they fall back to) never get a line to break on. A
+     * render with several dimensions had its title silently cut off with no ellipsis and no
+     * indication anything was missing. `test.css` is not enabled for this suite's
+     * `vitest.config.ts`, so a `?raw` import reads the exact rule the fix landed in, the
+     * same way `ConfigApplyDialog.test.ts` does for its own CSS fix.
+     */
+    it("clears the inherited overflow, text-overflow and white-space so the title can wrap", async () => {
+        const source = (await import("./InterruptedRenders.vue?raw")).default as string;
+        const match = /\.mb-world-resume__head\s*\{[^}]*\}/.exec(source);
+        expect(match).not.toBeNull();
+        const rule = match?.[0] ?? "";
+        expect(rule).toMatch(/overflow:\s*visible/);
+        expect(rule).toMatch(/text-overflow:\s*clip/);
+        expect(rule).toMatch(/white-space:\s*normal/);
+    });
+});

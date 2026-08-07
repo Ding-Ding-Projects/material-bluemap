@@ -201,3 +201,27 @@ describe("the config folder path, above the file list", () => {
         expect(match?.[0] ?? "").toMatch(/overflow-wrap:\s*anywhere/);
     });
 });
+
+describe("the dialog's own title, in its <v-card-title>", () => {
+    /**
+     * Regression: `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
+     * white-space: nowrap` for a single-line block title (Vuetify's own `VCard.css`, the
+     * same default the file comment above `.mb-config-apply__title` and the suite above
+     * already document for `.v-list-item-title`). `.mb-config-apply__title` turns it into a
+     * flex row so the icon sits beside the title, but `display: flex` alone does not clear
+     * any of the three inherited properties: `overflow: hidden` still clips, and the
+     * inherited `nowrap` means the title can never wrap. The bilingual title of this
+     * specific dialog - the one dialog whose entire job is letting somebody verify what is
+     * about to be overwritten or deleted - was silently cut off with no ellipsis and no
+     * indication anything was missing.
+     */
+    it("clears the inherited overflow, text-overflow and white-space so the title can wrap", async () => {
+        const source = (await import("./ConfigApplyDialog.vue?raw")).default as string;
+        const match = /\.mb-config-apply__title\s*\{[^}]*\}/.exec(source);
+        expect(match).not.toBeNull();
+        const rule = match?.[0] ?? "";
+        expect(rule).toMatch(/overflow:\s*visible/);
+        expect(rule).toMatch(/text-overflow:\s*clip/);
+        expect(rule).toMatch(/white-space:\s*normal/);
+    });
+});

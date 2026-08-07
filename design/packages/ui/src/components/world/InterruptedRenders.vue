@@ -247,6 +247,18 @@ function when(iso: string | null): string {
     gap: 8px;
     flex-wrap: wrap;
     font-size: 0.9375rem;
+    /*
+     * `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
+     * white-space: nowrap` for a single-line block title. Flexing it (above) leaves
+     * all three in place: `overflow: hidden` still clips, and the inherited `nowrap`
+     * means the joined map-name list (or the render id it falls back to) never gets a
+     * line to break on, so a render with several dimensions had its title silently cut
+     * off with no ellipsis and no indication anything was missing. Same fix as
+     * `DockerWorldSourcePanel.vue`'s `.mb-docker-world__card > .v-card-title`.
+     */
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 .mb-world-resume__line {

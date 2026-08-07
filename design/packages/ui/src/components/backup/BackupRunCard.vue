@@ -383,6 +383,19 @@ const cardLabel = computed(() =>
     gap: 8px;
     font-size: 0.9375rem;
     line-height: 1.3;
+    /*
+     * `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
+     * white-space: nowrap` for a single-line block title. Turning it into a flex row
+     * (above) does not clear any of the three: `text-overflow` stops doing anything
+     * useful once the box is a flex container, but `overflow: hidden` still clips and
+     * the inherited `nowrap` still stops `.mb-backup-row__name`'s own `overflow-wrap`
+     * from ever having a line to break - so a long run name was silently cut off with
+     * no ellipsis and no indication anything was missing. Same fix as
+     * `DockerWorldSourcePanel.vue`'s `.mb-docker-world__card > .v-card-title`.
+     */
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 .mb-backup-row__name {

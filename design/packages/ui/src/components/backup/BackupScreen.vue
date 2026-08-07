@@ -1273,5 +1273,16 @@ defineExpose({
     gap: 8px;
     font-size: 0.9375rem;
     font-weight: 500;
+    /*
+     * `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
+     * white-space: nowrap` for a single-line block title. Flexing it (above) leaves
+     * all three in place: `overflow: hidden` still clips, and the inherited `nowrap`
+     * means `listing.label` never gets a line to break on, so a long listing name was
+     * silently cut off with no ellipsis and no indication anything was missing. Same
+     * fix as `DockerWorldSourcePanel.vue`'s `.mb-docker-world__card > .v-card-title`.
+     */
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 </style>

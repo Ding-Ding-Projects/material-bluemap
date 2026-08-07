@@ -295,3 +295,28 @@ describe("the log's auto-scroll checkbox", () => {
         second.unmount();
     });
 });
+
+describe("the run's own head row, which shares its <v-card-title> with a state chip", () => {
+    /**
+     * Regression: `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
+     * white-space: nowrap` for a single-line block title (Vuetify's own `VCard.css`).
+     * `.mb-backup-row__head` turns it into a flex row so the state chip sits beside the run
+     * name, but `display: flex` alone does not clear any of the three inherited properties:
+     * `overflow: hidden` still clips, and the inherited `nowrap` means
+     * `.mb-backup-row__name`'s own `overflow-wrap: anywhere` never gets a line to break on
+     * (`overflow-wrap` only has an effect when `white-space` allows wrapping). A long run
+     * name was silently cut off with no ellipsis and no indication anything was missing.
+     * `test.css` is not enabled for this suite's `vitest.config.ts`, so a `?raw` import
+     * reads the exact rule the fix landed in, the same way `ConfigApplyDialog.test.ts` does
+     * for its own CSS fix.
+     */
+    it("clears the inherited overflow, text-overflow and white-space so the name can wrap", async () => {
+        const source = (await import("./BackupRunCard.vue?raw")).default as string;
+        const match = /\.mb-backup-row__head\s*\{[^}]*\}/.exec(source);
+        expect(match).not.toBeNull();
+        const rule = match?.[0] ?? "";
+        expect(rule).toMatch(/overflow:\s*visible/);
+        expect(rule).toMatch(/text-overflow:\s*clip/);
+        expect(rule).toMatch(/white-space:\s*normal/);
+    });
+});
