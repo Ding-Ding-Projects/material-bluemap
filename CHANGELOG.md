@@ -22,6 +22,35 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Wire masks to measured world context - [`5d511478a1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5d511478a17d687971c4fcff506e3dca41801830)
+- Teleport wizard errors to their exact settings - [`62027cfd9d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/62027cfd9d3f149579f1ea094405e9b0b774ce23)
+- Make render-mask route parity visible in the editor - [`15ab02823e`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/15ab02823e48dd11b851ec9654d146c2f7ceef55)
+
+### Rendering and world data
+
+- Carry complete map configs through Actions renders - [`7e5ecc9f44`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7e5ecc9f444ac4c14378dacb03e7374e4d65a75a)
+
+### Server, CLI and configuration
+
+- Port every render-mask shape into cloud renders - [`88f50a2c99`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/88f50a2c999af47ae0410499135334c89fe2d8a5)
+
+### Build, release and tooling
+
+- Merge pull request #54 from Ding-Ding-Projects/dingdingchae-refactored-funicular - [`0181d72c47`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0181d72c47e07bdb179334d6a16a93cfc24f72fb) _(summary of 2 commits, also listed here)_
+- test: add canvas devDependency to satisfy HTMLCanvasElement.getContext in vitest (fix CI)\n\n測試：加入 canvas 開發相依以解決 HTMLCanvasElement.getContext() 在 Vitest 中未實作的錯誤。\n\nCo-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com> - [`25166b22db`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/25166b22db7ca258f450b3d52acaba7785732ac5)
+- Merge pull request #53 from Ding-Ding-Projects/dingdingchae-refactored-funicular - [`83f56fa730`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/83f56fa7305172a1e0726c2a1b6712b32cc0d2fb) _(summary of 2 commits, also listed here)_
+- ci: allow workflow to publish releases (grant contents write)\n\nci: 允許工作流程發佈版本，將 contents 權限改為 write。\n\nCo-authored-by: Copilot App <223556219+Copilot@users.noreply.github.com> - [`b9f6ba2298`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b9f6ba2298137324968fa998e23e7fbf5e17d227)
+
+### Documentation
+
+- Document exact render-mask parity - [`6019c145b8`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6019c145b8fe55eeb38f107493aa0d46ffd9bb1b)
+
+## 0.1.0-build.613 - 2026-08-06
+
+Tagged at [`aa5574ed65`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/aa5574ed6560ff087e3f83eefe513c42e5343526).
+
+### Interface
+
 - Repair release gates for copy, docs, and watcher readiness - [`77c12224d2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/77c12224d20f76e691d72f2b943a2494be68d23e)
 - Wrap compact Minecraft folder action - [`4f7c71c163`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4f7c71c163fea47509f28d4c8a56ad8a02eac959)
 - Prove Docker world-source compact layout - [`7c343fbb84`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7c343fbb84176ddfed9c5687e085b6b5aa047732)
