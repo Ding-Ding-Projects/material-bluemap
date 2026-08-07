@@ -101,6 +101,102 @@ export const FINALIZATION_REPLACEMENTS = Object.freeze([
       ],
     ],
   },
+  {
+    file: "design/packages/app/src/main/index.ts",
+    changes: [
+      [
+        "https://github.com/Ding-Ding-Projects/material-bluemap/issues",
+        "https://github.com/Ding-Ding-Projects/worldlens/issues",
+        1,
+      ],
+    ],
+  },
+  {
+    file: "design/packages/site/index.html",
+    changes: [
+      [
+        "https://github.com/Ding-Ding-Projects/material-bluemap",
+        "https://github.com/Ding-Ding-Projects/worldlens",
+        1,
+      ],
+    ],
+  },
+  {
+    file: "design/packages/site/src/content/home.ts",
+    changes: [
+      [
+        "https://github.com/Ding-Ding-Projects/material-bluemap.git",
+        "https://github.com/Ding-Ding-Projects/worldlens.git",
+        1,
+      ],
+      ["cd material-bluemap", "cd worldlens", 1],
+    ],
+  },
+  {
+    file: "design/packages/site/src/content/links.ts",
+    changes: [
+      [
+        'export const REPO_NAME = "material-bluemap";',
+        'export const REPO_NAME = "worldlens";',
+        1,
+      ],
+      [
+        'export const SITE_BASE_PATH = "/material-bluemap/";',
+        'export const SITE_BASE_PATH = "/worldlens/";',
+        1,
+      ],
+    ],
+  },
+  {
+    file: "design/packages/site/src/main.ts",
+    changes: [
+      [
+        "https://github.com/Ding-Ding-Projects/material-bluemap/issues",
+        "https://github.com/Ding-Ding-Projects/worldlens/issues",
+        1,
+      ],
+    ],
+  },
+  {
+    file: "design/packages/site/scripts/compact-proof.mjs",
+    changes: [
+      [
+        'candidate.url.includes("/material-bluemap/")',
+        'candidate.url.includes("/worldlens/")',
+        1,
+      ],
+    ],
+  },
+  {
+    file: "scripts/build-changelog.mjs",
+    changes: [
+      [
+        'const REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/material-bluemap";',
+        'const REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/worldlens";',
+        1,
+      ],
+    ],
+  },
+  {
+    file: "CHANGELOG.md",
+    changes: [
+      [
+        "https://github.com/Ding-Ding-Projects/material-bluemap",
+        "https://github.com/Ding-Ding-Projects/worldlens",
+        788,
+      ],
+    ],
+  },
+  {
+    file: "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+    changes: [
+      [
+        'export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/material-bluemap";',
+        'export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/worldlens";',
+        1,
+      ],
+    ],
+  },
 ]);
 
 function occurrences(text, needle) {

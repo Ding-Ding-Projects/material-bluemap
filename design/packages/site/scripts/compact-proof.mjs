@@ -50,7 +50,7 @@ const targets = await fetch(`http://127.0.0.1:${cdpPort}/json/list`).then((respo
     response.json(),
 );
 const target = targets.find(
-    (candidate) => candidate.type === "page" && candidate.url.includes("/material-bluemap/"),
+    (candidate) => candidate.type === "page" && candidate.url.includes("/worldlens/"),
 );
 if (target?.webSocketDebuggerUrl === undefined) {
     throw new Error(`No Pages target is available on CDP port ${cdpPort}.`);

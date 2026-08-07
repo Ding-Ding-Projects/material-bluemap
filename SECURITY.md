@@ -5,7 +5,7 @@
 **Do not open a public issue for a security problem.**
 
 Report it privately through GitHub's private vulnerability reporting: go to the
-[Security tab](https://github.com/Ding-Ding-Projects/material-bluemap/security) of this
+[Security tab](https://github.com/Ding-Ding-Projects/worldlens/security) of this
 repository and use **Report a vulnerability**. That opens a draft advisory visible only to the
 maintainers. If private reporting is not available to you, open a normal issue that says only
 that you have a security report and asks for a private channel, with no details in it.

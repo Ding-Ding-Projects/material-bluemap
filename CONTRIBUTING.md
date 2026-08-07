@@ -13,8 +13,8 @@ before your first change. [`AGENTS.md`](AGENTS.md) carries the same rules for au
 Requires **Node 22+** and **pnpm 10** (the workspace pins `pnpm@10.33.0` via `packageManager`).
 
 ```sh
-git clone https://github.com/Ding-Ding-Projects/material-bluemap.git
-cd material-bluemap
+git clone https://github.com/Ding-Ding-Projects/worldlens.git
+cd worldlens
 git submodule update --init --recursive   # vendor/BlueMap, the upstream reference
 cd design
 pnpm install
