@@ -65,6 +65,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Document action-specific artwork - [`26286d9e2c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/26286d9e2ca261acc73488d67a55dc9267469f9e)
 - Document exact render-mask parity - [`f8261e5bf6`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f8261e5bf6bf30fe9a437da9368ac05f12d845d0)
 
 ### Elsewhere in the repository

@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "26286d9e2ca261acc73488d67a55dc9267469f9e",
+        shortSha: "26286d9e2c",
+        date: "2026-08-06T23:23:19-04:00",
+        subject: "Document action-specific artwork",
+        details: "The app, offline docs browser, and Pages catalogue now agree on which five actions own which five images, so the documentation cannot politely forget the pictures exist.\\n\\n應用程式、離線文件瀏覽器同 Pages 目錄而家都講清楚五個動作各自用邊張圖，唔畀文件扮失憶漏咗成棚相。",
+        category: "docs",
+        areas: ["docs", "site", "interface"],
+        files: 10,
+    },
+    {
         sha: "f8261e5bf6bf30fe9a437da9368ac05f12d845d0",
         shortSha: "f8261e5bf6",
         date: "2026-08-06T23:19:26-04:00",
