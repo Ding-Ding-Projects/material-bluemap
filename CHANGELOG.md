@@ -57,6 +57,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Preserve live repository paths through Worldlens integration - [`eaa89eada4`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/eaa89eada4112076a18368a0447f22f0699f16bb)
 - Harden Worldlens finalizer commit boundary - [`5652d185e6`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5652d185e67c381364b57ec42d5dcebab82762dd)
 - Record Worldlens residual verification - [`fb06f471bd`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/fb06f471bd530d4dc39d7912639ad81865dd5a7f)
 - Repair Options tab screenshot activation - [`522e3b5ffc`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/522e3b5ffc020f9bb07a4a5dad4e4131a3cd4475)

@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "eaa89eada4112076a18368a0447f22f0699f16bb",
+        shortSha: "eaa89eada4",
+        date: "2026-08-07T09:21:03-04:00",
+        subject: "Preserve live repository paths through Worldlens integration",
+        details: "The rename is staged, but the repository has not teleported yet. Keep live links and the Pages base on material-bluemap, allow only those reviewed physical-path references, and record the exact-main compact proof.\n\n改名餐牌已經準備好，但間舖未搬就唔好叫客人去隔籬食閉門羹。保留 material-bluemap 真實連結同 Pages 路徑，只放行經審核嘅實體路徑，兼記低 exact-main compact proof。",
+        category: "docs",
+        areas: ["docs", "interface", "shell", "site"],
+        files: 6,
+    },
+    {
         sha: "f713d1a5dcbc2209711f24b3ca5b7a2b3c584916",
         shortSha: "f713d1a5dc",
         date: "2026-08-07T08:57:18-04:00",
