@@ -369,6 +369,10 @@ function windowsPathKey(path: string): string {
     return path.normalize("NFC").toLowerCase();
 }
 
+function comparePaths(left: string, right: string): number {
+    return left < right ? -1 : left > right ? 1 : 0;
+}
+
 async function collisions(legacy: string, current: string, trustedRoot: string): Promise<string[]> {
     const legacyPaths = await filesUnder(legacy, trustedRoot);
     const currentPaths = (await filesUnder(current, trustedRoot)).filter(
@@ -387,8 +391,8 @@ async function collisions(legacy: string, current: string, trustedRoot: string):
     const conflicts: string[] = [];
     const keys = new Set([...legacyByKey.keys(), ...currentByKey.keys()]);
     for (const key of keys) {
-        const legacyMatches = legacyByKey.get(key) ?? [];
-        const currentMatches = currentByKey.get(key) ?? [];
+        const legacyMatches = [...(legacyByKey.get(key) ?? [])].sort(comparePaths);
+        const currentMatches = [...(currentByKey.get(key) ?? [])].sort(comparePaths);
         if (legacyMatches.length > 1) conflicts.push(legacyMatches.join(" ↔ "));
         if (currentMatches.length > 1) conflicts.push(currentMatches.join(" ↔ "));
         if (legacyMatches.length !== 1 || currentMatches.length !== 1) continue;
@@ -404,7 +408,7 @@ async function collisions(legacy: string, current: string, trustedRoot: string):
         ]);
         if (left.bytes !== right.bytes || left.sha256 !== right.sha256) conflicts.push(currentPath);
     }
-    return [...new Set(conflicts)].sort((left, right) => left.localeCompare(right));
+    return [...new Set(conflicts)].sort(comparePaths);
 }
 
 async function verifyManifest(
