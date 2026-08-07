@@ -16,6 +16,17 @@ rephrases the evidence without weakening the scanner, and adds direct regression
 compact rail sizing and the 44 CSS pixel startup-surprise dismiss target. Do not describe that first
 workflow as green.
 
+The next branch workflow, run `31157361045`, stopped even earlier at typecheck: the new policy-row
+test used a Vitest assertion as though it narrowed the `PagesFeatureCoverage` discriminated union.
+It does not. The correction uses a real `status === "implemented"` guard before reading verification
+evidence, with no cast. The first complete local `pnpm test:ci` after that repair then found the new
+article indexed under Rendering even though the site article declares itself an Application feature,
+and absent from the in-app docs browser's hand-written application order. The canonical index now
+lists it under **The application**, and `APPLICATION_ORDER` names it explicitly. Focused docs/policy
+tests pass 49/49; root build and all 13 package typechecks pass; the second complete local
+`pnpm test:ci` is terminal green in 344.7 seconds. These local results justify the next branch update,
+but do not predict its hosted result.
+
 Runtime proof uses `packages/site/scripts/compact-proof.mjs` against a production site build on an
 isolated off-screen desktop. Committed JSON and real captures cover 360×640@1, 390×844@1,
 414×896@1, bilingual 390×844@2 collapsed and expanded, and 1024×768@1 desktop. Every record reports

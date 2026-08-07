@@ -91,6 +91,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "render-console.md",
     "renders-in-progress.md",
     "live-render-speed.md",
+    "pages-feature-parity.md",
 ];
 
 /** The same, for the "Rendering" table. */

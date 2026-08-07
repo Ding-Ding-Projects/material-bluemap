@@ -40,6 +40,7 @@ because two copies of one explanation drift apart and only one of them gets edit
 | [Render console](./render-console.md) | The bounded, searchable render log: level text beside colour, detached-scroll state, advice links, copy/export, and an honest dropped-line count. |
 | [Renders in progress](./renders-in-progress.md) | Every render this application knows about across all three routes in one list, including a container found running from an earlier launch and a render on GitHub's runners entirely independent of this window - with a live count in the tab strip so navigating away never again means losing sight of one. |
 | [Adjusting a render's speed while it runs](./live-render-speed.md) | A second 1-5 dial, beside a render that is already going: real OS process priority locally, a running container's real CPU quota under Docker, disabled with its exact reason on GitHub's runners, live throughput evidence beside it, and an explicit restart carrying both deferred thread fields through the packaged bridge. |
+| [GitHub Pages feature parity](./pages-feature-parity.md) | The documentation site's persisted collapsible mobile side rail, desktop/mobile shared-feature inventory, explicit browser-only boundaries, and compact headless proof. |
 
 ## Rendering
 
@@ -54,7 +55,6 @@ because two copies of one explanation drift apart and only one of them gets edit
 | [Release workflow security boundary](./release-workflow-security.md) | Keeping network-derived catalog metadata out of executable workflow text, the hand-written provenance and sink guard, release-only write permission, bounded PNG chunk/CRC verification, and exact historical red fixtures. |
 | [Scheduled re-rendering](./scheduled-render.md) | Checking a configured world for changes on a cadence and rendering only when it actually changed — the honest cadence set, cheap per-source change detection, what it reports, and its cost. |
 | [Publishing a rendered map to GitHub Pages](./pages-hosting.md) | The app's preflight, guarded static branch, Pages enablement, live HTTP verification, limits, failure modes and stop-hosting gate. |
-| [GitHub Pages feature parity](./pages-feature-parity.md) | The documentation site's persisted collapsible mobile side rail, desktop/mobile shared-feature inventory, explicit browser-only boundaries, and compact headless proof. |
 | [Watching a render live, in a real browser tab](./live-preview.md) | Serving a render's own output straight off this computer's disk while it is still running — loopback by default, a warned network opt-in, why the browser's own tile cache can go stale and how the on-page banner handles it, and the honest per-route answer for local, container and GitHub-runner renders. |
 | [Renders that survive being interrupted](./resumable-renders.md) | Render-state caches, completion markers, and resuming rather than restarting. |
 | [Large worlds and rendered maps](./large-worlds.md) | Splitting anything past a release asset's ceiling into checksummed parts, and rejoining it. |

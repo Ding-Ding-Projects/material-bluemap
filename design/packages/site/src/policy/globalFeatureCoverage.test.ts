@@ -48,11 +48,14 @@ describe("hand-written GitHub Pages global-feature coverage", () => {
 
     it("describes the no-solicitation policy without repeating copy the shipped-copy scanner rejects", () => {
         const policy = PAGES_FEATURE_COVERAGE.find((item) => item.id === "no-promotional-nags");
-        expect(policy?.status).toBe("implemented");
-        expect(policy?.verification).toContain(
+        expect(policy).toBeDefined();
+        if (policy?.status !== "implemented") {
+            throw new Error("no-promotional-nags must remain an implemented coverage row");
+        }
+        expect(policy.verification).toContain(
             "design/packages/site/src/notifications/notificationPolicy.test.ts",
         );
-        expect(policy?.title).toBe(
+        expect(policy.title).toBe(
             "The shipped-copy policy guard rejects every unwanted solicitation pattern",
         );
     });

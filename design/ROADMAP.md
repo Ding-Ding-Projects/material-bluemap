@@ -15,8 +15,11 @@ narrator each state a substantial public reason. Six exact headless proofs cover
 report zero document/body horizontal overflow, clipped controls, or undersized targets, and focus
 stays on the toggle through both transitions. The runtime pass also corrected the expanded compact
 rail width and the startup-surprise dismiss target. See `../docs/pages-feature-parity.md` and issue
-#92. A local build is not evidence of the live Pages deployment; that exact URL and workflow remain
-open until this branch is integrated and the hosted run is read back.
+#92. The final local gate passed root build, all 13 package typechecks, 49 focused docs/policy tests,
+and the complete `pnpm test:ci` suite in 344.7 seconds after the in-app documentation index was
+aligned with the article's Application category. A local build is not evidence of the live Pages
+deployment; that exact URL and workflow remain open until this branch is integrated and the hosted
+run is read back.
 
 ## Release expression and catalog-metadata hardening (2026-08-07)
 
