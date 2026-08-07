@@ -35,27 +35,105 @@ const CURRENT_WRITE_AND_DISPLAY_FILES = [
 // Legacy strings are allowed only where they are an explicit read-only compatibility input or
 // a still-live hosting URL covered by the rename finalizer. Historical records are intentionally
 // outside the current-write/current-display inventory and remain untouched.
-const LEGACY_ALLOWLIST: Readonly<Record<string, readonly RegExp[]>> = {
+interface LegacyAllowance {
+    readonly pattern: RegExp;
+    readonly expectedMatches: number;
+    readonly reason: string;
+}
+
+const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
     "design/tools/regex-builder-reference/regex-builder.html": [
-        /https:\/\/github\.com\/Ding-Ding-Projects\/material-bluemap/g,
+        {
+            pattern: /https:\/\/github\.com\/Ding-Ding-Projects\/material-bluemap/g,
+            expectedMatches: 4,
+            reason: "rename-time repository links covered by the atomic finalizer",
+        },
     ],
-    "design/tools/regex-builder-reference/regex-builder.js": [/material-bluemap-regex-language/g],
-    "design/packages/app/test/captureTarget.ts": [/MATERIAL_BLUEMAP_CAPTURE_/g],
-    "design/packages/app/test/screenshots.spec.ts": [/MATERIAL_BLUEMAP_CAPTURE_WORLD/g],
-    "docs/repository-adoption.md": [/\.material-bluemap-(?:world|ci)\.json/g],
-    "docs/world-git-repository.md": [/\.material-bluemap-world\.json/g],
-    "docs/pages-hosting.md": [/\.material-bluemap-map\.json/g],
+    "design/tools/regex-builder-reference/regex-builder.js": [
+        {
+            pattern: /material-bluemap-regex-language/g,
+            expectedMatches: 1,
+            reason: "read-only local-storage migration key",
+        },
+    ],
+    "design/packages/app/test/captureTarget.ts": [
+        {
+            pattern: /The former `MATERIAL_BLUEMAP_CAPTURE_\*` names remain read-only aliases\./g,
+            expectedMatches: 1,
+            reason: "documentation for the four explicit read-only aliases below",
+        },
+        {
+            pattern:
+                /migrationEnvironment\(\s*process\.env,\s*"WORLDLENS_CAPTURE_MODE",\s*"MATERIAL_BLUEMAP_CAPTURE_MODE",\s*\)/g,
+            expectedMatches: 1,
+            reason: "read-only mode alias at its exact current-first lookup site",
+        },
+        {
+            pattern:
+                /migrationEnvironment\(\s*process\.env,\s*"WORLDLENS_CAPTURE_REMOTE_URL",\s*"MATERIAL_BLUEMAP_CAPTURE_REMOTE_URL",\s*\)/g,
+            expectedMatches: 1,
+            reason: "read-only remote URL alias at its exact current-first lookup site",
+        },
+        {
+            pattern:
+                /migrationEnvironment\(\s*process\.env,\s*"WORLDLENS_CAPTURE_MAP",\s*"MATERIAL_BLUEMAP_CAPTURE_MAP",\s*\)/g,
+            expectedMatches: 1,
+            reason: "read-only map alias at its exact current-first lookup site",
+        },
+        {
+            pattern:
+                /migrationEnvironment\(\s*process\.env,\s*"WORLDLENS_CAPTURE_PROVENANCE",\s*"MATERIAL_BLUEMAP_CAPTURE_PROVENANCE",\s*\)/g,
+            expectedMatches: 1,
+            reason: "read-only provenance alias at its exact current-first lookup site",
+        },
+    ],
+    "design/packages/app/test/screenshots.spec.ts": [
+        {
+            pattern:
+                /migrationEnvironment\(\s*process\.env,\s*"WORLDLENS_CAPTURE_WORLD",\s*"MATERIAL_BLUEMAP_CAPTURE_WORLD",\s*\)/g,
+            expectedMatches: 1,
+            reason: "read-only world alias at its exact current-first lookup site",
+        },
+    ],
+    "docs/repository-adoption.md": [
+        {
+            pattern: /\.material-bluemap-(?:world|ci)\.json/g,
+            expectedMatches: 2,
+            reason: "documented legacy filenames accepted for import",
+        },
+    ],
+    "docs/world-git-repository.md": [
+        {
+            pattern: /\.material-bluemap-world\.json/g,
+            expectedMatches: 1,
+            reason: "documented legacy filename accepted for import",
+        },
+    ],
+    "docs/pages-hosting.md": [
+        {
+            pattern: /\.material-bluemap-map\.json/g,
+            expectedMatches: 1,
+            reason: "documented legacy filename accepted for import",
+        },
+    ],
 };
 
 const OLD_IDENTITY = /material[-_ ]bluemap|materialbluemap|@material-bluemap|MATERIAL_BLUEMAP/gi;
 const root = resolve(fileURLToPath(new URL("../../../..", import.meta.url)));
 
+function unallowlistedFormerIdentity(file: string, source: string): string[] {
+    let remainder = source;
+    for (const { pattern } of LEGACY_ALLOWLIST[file] ?? []) {
+        remainder = remainder.replace(pattern, "");
+    }
+    return remainder.match(OLD_IDENTITY) ?? [];
+}
+
 describe("the current Worldlens identity inventory", () => {
     for (const file of CURRENT_WRITE_AND_DISPLAY_FILES) {
         it(`${file} contains no unallowlisted former current identity`, async () => {
-            let text = await readFile(resolve(root, file), "utf8");
-            for (const allowed of LEGACY_ALLOWLIST[file] ?? []) text = text.replace(allowed, "");
-            expect(text.match(OLD_IDENTITY) ?? []).toEqual([]);
+            const text = await readFile(resolve(root, file), "utf8");
+            expect(unallowlistedFormerIdentity(file, text)).toEqual([]);
         });
     }
 
@@ -65,6 +143,44 @@ describe("the current Worldlens identity inventory", () => {
                 CURRENT_WRITE_AND_DISPLAY_FILES.includes(file as never),
             ),
         ).toBe(true);
+    });
+
+    it("keeps each compatibility allowance pinned to its documented exact site", async () => {
+        for (const [file, allowances] of Object.entries(LEGACY_ALLOWLIST)) {
+            const source = await readFile(resolve(root, file), "utf8");
+            for (const allowance of allowances) {
+                expect(source.match(allowance.pattern)?.length ?? 0, allowance.reason).toBe(
+                    allowance.expectedMatches,
+                );
+            }
+        }
+    });
+
+    it("rejects a new current write through a former capture variable", async () => {
+        const file = "design/packages/app/test/captureTarget.ts";
+        const source = await readFile(resolve(root, file), "utf8");
+        const negativeProbe = `${source}\nprocess.env.MATERIAL_BLUEMAP_CAPTURE_MODE = "remote";\n`;
+        expect(unallowlistedFormerIdentity(file, negativeProbe)).toEqual(["MATERIAL_BLUEMAP"]);
+    });
+
+    it("classifies the two former repository names in AGENTS.md as preserved instruction metadata", async () => {
+        const source = await readFile(resolve(root, "AGENTS.md"), "utf8");
+        // These label the mirror's repository-specific instruction provenance, not a current
+        // product write or display. AGENTS.md stays untouched so the managed mirror is preserved.
+        const preservedMetadata = [
+            "It is specific to material-bluemap and it is where the porting discipline lives.",
+            "They are how material-bluemap is built, and they win over",
+        ] as const;
+        for (const text of preservedMetadata) {
+            expect(source.split(text).length - 1).toBe(1);
+        }
+        expect(source).toContain("## Repository-specific rules");
+        expect(source.indexOf(preservedMetadata[0])).toBeLessThan(
+            source.indexOf("## Repository-specific rules"),
+        );
+        expect(source.indexOf(preservedMetadata[1])).toBeGreaterThan(
+            source.indexOf("## Repository-specific rules"),
+        );
     });
 
     it("migrates the standalone builder language into the current key without deleting legacy state", async () => {

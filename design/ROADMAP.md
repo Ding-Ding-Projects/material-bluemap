@@ -14,11 +14,17 @@ The final current-identity inventory is implemented in `637cc69`: release and he
 standalone regex-builder branding and storage, capture automation, generated changelog targets and
 current feature documentation use Worldlens, while each retained legacy reader is named in an
 explicit allowlist. The eight-file repository, Pages, policy and legal switch is staged behind a
-deterministic preflight/apply/verify finalizer until the real repository rename succeeds. The
-reviewed Options-tab screenshot activation repair is incorporated as `522e3b5` without a
-default-branch merge. Local focused tests pass 43 with one historical-data skip; full `test:ci`,
-13-package typecheck/build, lint and unsigned Windows packaging pass. Exact pushed workflow proof
-remains the closing gate.
+deterministic preflight/apply/verify finalizer until the real repository rename succeeds. Its
+install-and-verify transaction now reaches an explicit committed state before cleanup begins;
+cleanup failure preserves every finalized target and retains the backups it did not remove. A
+disposable eight-file integration matrix proves no-write readiness, normal completion, both
+pre-commit rollback boundaries, and cleanup-only failure. The capture legacy allowance is pinned
+to exact current-first alias sites and includes a negative write probe; the two former names in
+`AGENTS.md` remain untouched as classified project-instruction metadata. The reviewed Options-tab
+screenshot activation repair is incorporated as `522e3b5` without a default-branch merge. Local
+focused tests pass 36/36; full `test:ci`, 13-package typecheck/build, lint and unsigned Windows
+packaging pass. Exact pushed workflow proof for the transaction correction remains the closing
+gate.
 
 Packaging is permanently unsigned and verified as such at the built executable. The migration
 has unit coverage for POSIX containment, linked-root escape rejection, Windows case-only
@@ -26,6 +32,7 @@ collisions and injected concurrent current-profile writes, plus an isolated copy
 885-file legacy profile. Final completion still requires default-branch integration, repository rename, exact-SHA CI/release proof, and
 fresh cheap-headless screenshots from the integrated packaged build. The phase branch's freshly
 packaged migration-consent gate has already been captured off-screen as a pre-integration proof.
+
 ## Screenshot required-surface interaction repair (2026-08-07)
 
 **Implemented on `codex/phase-screenshot-ci-repair`; exact cloud screenshot verification is
@@ -39,6 +46,7 @@ The hard `REQUIRED_SURFACES` assertion is unchanged, as are the element and surf
 Local workspace build, app typecheck, focused formatting/lint, and 2,625 app tests passed. The
 phase is not complete until a GitHub-hosted cloud run captures all Options editor tabs and the
 required-surface gate is green at the exact branch commit.
+
 ## Four-edge tabs and nested-editor interaction repair (2026-08-06)
 
 **Implemented and integrated; packaged hidden-desktop capture remains a separate runtime gate.**

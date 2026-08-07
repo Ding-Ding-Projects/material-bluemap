@@ -145,29 +145,58 @@ async function loadPlan(root) {
     );
 }
 
-async function main() {
-    const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
-    const mode = process.argv[2] ?? "--check-ready";
+export const FINALIZER_TEST_FAULT_POINTS = Object.freeze({
+    afterBackup: "after-backup",
+    afterVerification: "after-verification",
+    beforeBackupCleanup: "before-backup-cleanup",
+});
+
+async function invokeTestFault(testFault, point, index, file) {
+    if (testFault !== undefined) await testFault({ point, index, file });
+}
+
+async function removeTemporaryFiles(staged) {
+    const failures = [];
+    for (const entry of staged) {
+        try {
+            await rm(entry.temporary, { force: true });
+        } catch (error) {
+            failures.push(error);
+        }
+    }
+    return failures;
+}
+
+async function rollbackInstall(installed) {
+    const failures = [];
+    for (const entry of [...installed].reverse()) {
+        try {
+            await rm(entry.path, { force: true });
+            await rename(entry.backup, entry.path);
+        } catch (error) {
+            failures.push(error);
+        }
+    }
+    return failures;
+}
+
+async function executeFinalizer({ root, mode, testFault }) {
     if (mode === "--verify-final") {
         for (const { file } of FINALIZATION_REPLACEMENTS) {
             verifyFinalText(file, await readFile(resolve(root, file), "utf8"));
         }
-        console.log(
-            `Worldlens repository identity is final in ${FINALIZATION_REPLACEMENTS.length} files.`,
-        );
-        return;
+        return `Worldlens repository identity is final in ${FINALIZATION_REPLACEMENTS.length} files.`;
     }
+    if (mode !== "--check-ready" && mode !== "--apply") {
+        throw new Error("Use --check-ready, --apply, or --verify-final.");
+    }
+
     const plan = await loadPlan(root);
     if (mode === "--check-ready") {
-        console.log(
-            `Worldlens rename finalizer is ready for ${plan.length} files; no file was changed.`,
-        );
-        return;
+        return `Worldlens rename finalizer is ready for ${plan.length} files; no file was changed.`;
     }
-    if (mode !== "--apply") throw new Error("Use --check-ready, --apply, or --verify-final.");
 
     const staged = [];
-    const backedUp = [];
     try {
         for (const entry of plan) {
             const temporary = `${entry.path}.worldlens-finalize-${process.pid}`;
@@ -178,37 +207,101 @@ async function main() {
                 backup: `${entry.path}.worldlens-finalize-backup-${process.pid}`,
             });
         }
-        for (const entry of staged) {
-            await rm(entry.backup, { force: true });
-            await rename(entry.path, entry.backup);
-            backedUp.push(entry);
-            await rename(entry.temporary, entry.path);
-        }
-        for (const { file, path } of plan) verifyFinalText(file, await readFile(path, "utf8"));
-        await Promise.all(backedUp.map(({ backup }) => rm(backup, { force: true })));
     } catch (error) {
-        const rollbackFailures = [];
-        for (const entry of backedUp.reverse()) {
-            try {
-                await rm(entry.path, { force: true });
-                await rename(entry.backup, entry.path);
-            } catch (rollbackError) {
-                rollbackFailures.push(rollbackError);
-            }
-        }
-        if (rollbackFailures.length > 0) {
+        const cleanupFailures = await removeTemporaryFiles(staged);
+        if (cleanupFailures.length > 0) {
             throw new AggregateError(
-                [error, ...rollbackFailures],
-                "Worldlens finalization failed and one or more original files could not be restored. Retained backup paths end in .worldlens-finalize-backup-<pid>.",
+                [error, ...cleanupFailures],
+                "Worldlens finalization could not stage every replacement, and one or more temporary files could not be removed. Retained temporary paths end in .worldlens-finalize-<pid>.",
             );
         }
         throw error;
-    } finally {
-        await Promise.all(staged.map(({ temporary }) => rm(temporary, { force: true })));
     }
-    console.log(
-        `Finalized Worldlens repository identity in ${plan.length} files. Commit all changes together.`,
-    );
+
+    const installed = [];
+    let transactionState = "prepared";
+    try {
+        for (const [index, entry] of staged.entries()) {
+            await rm(entry.backup, { force: true });
+            await rename(entry.path, entry.backup);
+            installed.push(entry);
+            await invokeTestFault(
+                testFault,
+                FINALIZER_TEST_FAULT_POINTS.afterBackup,
+                index,
+                entry.file,
+            );
+            await rename(entry.temporary, entry.path);
+        }
+        for (const { file, path } of plan) verifyFinalText(file, await readFile(path, "utf8"));
+        await invokeTestFault(
+            testFault,
+            FINALIZER_TEST_FAULT_POINTS.afterVerification,
+            undefined,
+            undefined,
+        );
+        transactionState = "committed";
+    } catch (error) {
+        const rollbackFailures = await rollbackInstall(installed);
+        const temporaryCleanupFailures = await removeTemporaryFiles(staged);
+        if (rollbackFailures.length > 0 || temporaryCleanupFailures.length > 0) {
+            throw new AggregateError(
+                [error, ...rollbackFailures, ...temporaryCleanupFailures],
+                "Worldlens finalization failed before commit, and one or more original or temporary files could not be restored or removed. Retained recovery paths end in .worldlens-finalize-backup-<pid> or .worldlens-finalize-<pid>.",
+            );
+        }
+        throw error;
+    }
+
+    if (transactionState !== "committed") {
+        throw new Error("Worldlens finalization reached an invalid transaction state.");
+    }
+
+    // The transaction is committed. Cleanup is deliberately outside the rollback catch above:
+    // a cleanup-only failure must never remove an already-verified finalized target.
+    const temporaryCleanupFailures = await removeTemporaryFiles(staged);
+    if (temporaryCleanupFailures.length > 0) {
+        throw new AggregateError(
+            temporaryCleanupFailures,
+            "Worldlens finalization committed and every target remains finalized, but temporary cleanup failed. No rollback was attempted. Review and remove retained .worldlens-finalize-<pid> files manually.",
+        );
+    }
+
+    for (const [index, entry] of staged.entries()) {
+        try {
+            await invokeTestFault(
+                testFault,
+                FINALIZER_TEST_FAULT_POINTS.beforeBackupCleanup,
+                index,
+                entry.file,
+            );
+            await rm(entry.backup);
+        } catch (error) {
+            const retainedBackups = staged.slice(index).map(({ backup }) => backup);
+            throw new AggregateError(
+                [error],
+                `Worldlens finalization committed and every target remains finalized, but backup cleanup stopped at ${entry.file}. No rollback was attempted. Retained backups for manual recovery: ${retainedBackups.join(
+                    ", ",
+                )}. Review them, then remove them manually.`,
+            );
+        }
+    }
+
+    return `Finalized Worldlens repository identity in ${plan.length} files. Commit all changes together.`;
+}
+
+/**
+ * Test-only filesystem integration seam. Production CLI execution never accepts a fixture root
+ * or fault hook, and no environment variable or command-line flag can enable fault injection.
+ */
+export async function runFinalizerForTest({ root, mode, fault }) {
+    return executeFinalizer({ root: resolve(root), mode, testFault: fault });
+}
+
+async function main() {
+    const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
+    const mode = process.argv[2] ?? "--check-ready";
+    console.log(await executeFinalizer({ root, mode }));
 }
 
 if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

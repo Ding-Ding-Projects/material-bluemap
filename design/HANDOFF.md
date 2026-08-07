@@ -17,9 +17,11 @@ capture harness read the current storage or environment key first, copy or fall 
 key without deleting it, and tests cover precedence. Current live repository, Pages, policy and
 legal links remain reachable until the actual repository rename; the committed
 `scripts/finalize-worldlens-repository.mjs` preflights their exact occurrence counts, stages all
-eight files, rolls back installed replacements on failure and verifies the final state. The
-reviewed screenshot-label activation fix is incorporated as `522e3b5` without merging the default
-branch.
+eight files, and verifies the final state. Installation and verification are one rollback
+transaction with an explicit committed state. Backup cleanup happens only after that boundary and
+cannot call rollback: a cleanup-only failure keeps every finalized target, retains each backup it
+did not delete, and reports the exact recovery paths. The reviewed screenshot-label activation fix
+is incorporated as `522e3b5` without merging the default branch.
 
 Local verification at `522e3b5` is green: the focused identity/capture/changelog set passes 43
 tests with one historical-data test skipped; `pnpm test:ci` exits 0 in 356.9 seconds; recursive
@@ -28,6 +30,23 @@ build produces a 204,521,984-byte `release/win-unpacked/Worldlens.exe`. Authenti
 `NotSigned` with no signer certificate. Actionlint's YAML/expression pass is green; its
 ShellCheck-enabled run exceeded the 184.1-second local command limit without a verdict, so the
 exact pushed workflow remains the authoritative shell-check and screenshot verdict.
+
+The transaction correction is exercised against a disposable eight-file fixture, not only by
+testing string helpers. Its five executable cases prove read-only `--check-ready` hashes and
+nanosecond modification times, normal apply/verify, exact rollback after the fourth backup, exact
+rollback after verification, and cleanup failure after one backup deletion with all final targets
+and the other seven backups intact. Fault injection is import-only for tests; no production CLI
+flag or environment variable enables it. The legacy capture allowance is now pinned to the four
+exact current-first compatibility lookups, and a deliberate former-variable write makes the audit
+fail. The two `AGENTS.md` repository-name occurrences are classified as preserved instruction
+metadata; that file and its managed mirror were not edited.
+
+Local correction verification is green: 36/36 focused tests, full `test:ci` in 341.8 seconds,
+recursive typecheck and build across all 13 package targets, repository lint, and a fresh Windows
+package. The resulting `Worldlens.exe` is 204,521,984 bytes; Authenticode reports `NotSigned` and
+no signer certificate. Workflow `31165238775` previously proved `fb06f47` green, including 24/24
+required screenshot surfaces, but the transaction correction still needs its own exact-commit
+workflow verdict before integration.
 
 Independent review found the original activation sequence was not crash-safe after the current
 root had been renamed aside. The correction writes a flushed transaction journal before that
@@ -77,6 +96,7 @@ and package deletion remain intentionally outside this phase. The freshly packag
 consent gate was captured without touching the visible desktop at
 `docs/screenshots/worldlens-profile-migration-consent.png`; its copy identifies immutable folder
 names without exposing the host's absolute user-profile path.
+
 ## Update, 2026-08-07 — screenshot harness no longer closes a tab it meant to select
 
 Runs `31145108097` and `31145929626` reached the real Options editor, captured seven of its
@@ -92,6 +112,7 @@ The required-surface inventory and every timeout remain unchanged. Local verific
 13 workspace packages; app typecheck, focused formatting and lint passed; and the app suite
 passed 2,625 tests across 173 files with seven opt-in tests skipped. Exact cloud screenshot proof
 belongs to the branch workflow for the fix commit and must be checked before integration.
+
 ## Update, 2026-08-06 — four-edge tabs, real Project Editor input and complete restart fields
 
 The desktop and documentation-site tab strips now dock to the physical left, right, top or bottom
