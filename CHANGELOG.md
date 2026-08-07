@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Fix cloud-safe Vue source assertions - [`88fb85eb52`](https://github.com/Ding-Ding-Projects/worldlens/commit/88fb85eb5240e33a2950fd00c5e5c6aac4f83191)
 - fix(tabs): keep the overflow menu reachable on a vertical dock below 720px - [`37597e230e`](https://github.com/Ding-Ding-Projects/worldlens/commit/37597e230e905ae385fbee2654338c582f51fa09)
 - fix(ui): stop flexed v-card-title rows from silently clipping long names - [`b563046225`](https://github.com/Ding-Ding-Projects/worldlens/commit/b5630462255698b925166f02206614fd3996937d)
 
@@ -36,6 +37,7 @@ full message for the in-app changelog viewer.
 
 ### Landing page and documentation site
 
+- Finalize the Worldlens repository identity - [`ea97ee8aa0`](https://github.com/Ding-Ding-Projects/worldlens/commit/ea97ee8aa020ea9d364879d8f534874d2e009a64)
 - Auto commit 2026-08-07 14:43:49.681Z - [`b4b9a47f88`](https://github.com/Ding-Ding-Projects/worldlens/commit/b4b9a47f889efe35ad96da9681e91e93777d5edc)
 
 ## 0.1.0-build.734 - 2026-08-07
