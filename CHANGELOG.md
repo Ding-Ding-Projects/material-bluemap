@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Repair release gates for copy, docs, and watcher readiness - [`77c12224d2`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/77c12224d20f76e691d72f2b943a2494be68d23e)
 - Wrap compact Minecraft folder action - [`4f7c71c163`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4f7c71c163fea47509f28d4c8a56ad8a02eac959)
 - Prove Docker world-source compact layout - [`7c343fbb84`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7c343fbb84176ddfed9c5687e085b6b5aa047732)
 - Merge corrected main into Docker world-source phase - [`f876961f74`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f876961f74f4bc3ac22f397adef737c05a416add) _(summary of 6 commits, also listed here)_
@@ -56,6 +57,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Record the recovered exact-SHA release gate - [`d3c6354e15`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d3c6354e15c83954672b27eeeeabf5882616cf14)
 - Document and index the gh release repair - [`c6093b3914`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c6093b3914701b40744ff4893364b8409be54200)
 - Merge cloud-runner phase into gh release repair - [`4a7ea0f843`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4a7ea0f8438612cd7a541eec64f0568a62f502fe) _(summary of 5 commits, also listed here)_
 - Repair hosted-runner documentation links - [`7bf8e2a3d1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7bf8e2a3d1344d38e971ee54f4dad1ec0341d082)

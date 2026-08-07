@@ -26,6 +26,26 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "d3c6354e15c83954672b27eeeeabf5882616cf14",
+        shortSha: "d3c6354e15",
+        date: "2026-08-06T21:28:49-04:00",
+        subject: "Record the recovered exact-SHA release gate",
+        details: "Document the four repaired failures, the watcher readiness root cause, and the terminal local evidence without claiming a remote workflow or release. The release paperwork now reports the gate it actually saw instead of giving four failures witness protection.\n\n記低四個已修復失敗、watcher readiness 根因同終端本機證據，亦冇扮有遠端 workflow 或 release 結果。今次 release 文件終於照直講守門員見過乜，唔再幫四個失敗安排證人保護計劃。",
+        category: "docs",
+        areas: ["docs"],
+        files: 2,
+    },
+    {
+        sha: "77c12224d20f76e691d72f2b943a2494be68d23e",
+        shortSha: "77c12224d2",
+        date: "2026-08-06T21:27:40-04:00",
+        subject: "Repair release gates for copy, docs, and watcher readiness",
+        details: "Add complete bilingual five-level CI-render warning copy and the missing GitHub-account action label, register the cloud-runner article in the in-app Rendering inventory, and expose chokidar readiness so the real CLI watcher test waits on an event instead of racing its own initial scan. The guards can stop admiring the empty spaces now; every missing label and category has turned up for work.\n\n補齊 CI 算圖警告嘅英粵雙語五級文案同 GitHub 帳戶動作標籤，將 cloud runner 文章正式排入程式內 Rendering 文件名冊，亦公開 chokidar readiness，等真正 CLI watcher 測試等事件而唔係同初次掃描鬥快。幾道守門員終於唔使再對住啲空位扮欣賞現代藝術，漏咗嘅標籤同分類全部返齊工。",
+        category: "interface",
+        areas: ["interface", "engine", "services"],
+        files: 7,
+    },
+    {
         sha: "c6093b3914701b40744ff4893364b8409be54200",
         shortSha: "c6093b3914",
         date: "2026-08-06T20:45:58-04:00",
