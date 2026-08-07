@@ -41,12 +41,27 @@ beforeAll(() => {
 const vuetify = createVuetify();
 
 function emptyI18n() {
-    return createI18n({ legacy: false, locale: "none", fallbackLocale: "none", silentFallbackWarn: true, missingWarn: false, fallbackWarn: false, messages: {} });
+    return createI18n({
+        legacy: false,
+        locale: "none",
+        fallbackLocale: "none",
+        silentFallbackWarn: true,
+        missingWarn: false,
+        fallbackWarn: false,
+        messages: {},
+    });
 }
 
 function mountMask(modelValue: PlainValue[]) {
     const host = defineComponent({
-        setup: () => () => h(VApp, () => [h(ConfigMaskField, { modelValue, label: "Render mask", "onUpdate:modelValue": () => {} })]),
+        setup: () => () =>
+            h(VApp, () => [
+                h(ConfigMaskField, {
+                    modelValue,
+                    label: "Render mask",
+                    "onUpdate:modelValue": () => {},
+                }),
+            ]),
     });
     return mount(host, { global: { plugins: [vuetify, emptyI18n()] } });
 }
@@ -55,7 +70,9 @@ describe("the doc disclosure, on a real shape field", () => {
     // `shape` on a polygon mask is the one deliberately written long enough (past
     // three lines) to prove the toggle really does something, rather than only
     // existing in a case nothing in the schema ever triggers.
-    const shapeField = MASK_SHAPES.find((shape) => shape.key === "polygon")!.fields.find((field) => field.path === "shape")!;
+    const shapeField = MASK_SHAPES.find((shape) => shape.key === "polygon")!.fields.find(
+        (field) => field.path === "shape",
+    )!;
 
     it("starts collapsed and shows the toggle for a doc past the preview length", () => {
         const wrapper = mountMask([{ type: "bluemap:polygon" }]);
@@ -66,7 +83,9 @@ describe("the doc disclosure, on a real shape field", () => {
 
     it("reveals the rest of the explanation once opened, and offers to collapse it again", async () => {
         const wrapper = mountMask([{ type: "bluemap:polygon" }]);
-        const toggle = wrapper.findAllComponents(VBtn).find((btn) => btn.text().includes("Show the rest of the explanation"));
+        const toggle = wrapper
+            .findAllComponents(VBtn)
+            .find((btn) => btn.text().includes("Show the rest of the explanation"));
         expect(toggle).toBeDefined();
 
         await toggle!.trigger("click");
@@ -129,54 +148,33 @@ describe("a spot check against the real schema behaviour", () => {
     });
 });
 
-/**
- * The list-level cloud/Actions fidelity warning: shown once for the whole mask, never per
- * shape. `cloudFidelityForMask` (`maskCanvas.ts`) is the pure rule this wires in; these tests
- * prove `ConfigMaskField.vue` actually calls it and renders the result, because two ordinary
- * boxes are exactly the case the per-shape `MaskDrawingCanvas.vue` warning cannot catch --
- * each box alone is honored, and only the list as a whole is not.
- */
-describe("the list-level cloud/Actions fidelity warning", () => {
-    const CLOUD_LABEL = "Cloud/Actions render";
-    const WARNING_SNIPPET = "single, non-subtracting box";
+describe("the list-level render-route parity status", () => {
+    const ROUTE_STATUS = "Cloud/Actions and local desktop renders";
 
-    it("does not fire for an empty mask -- no mask is the correct, honored case", () => {
-        const wrapper = mountMask([]);
-        expect(wrapper.text()).not.toContain(CLOUD_LABEL);
+    it.each([
+        ["empty", []],
+        ["box", [{ type: "bluemap:box" }]],
+        ["subtract", [{ type: "bluemap:box", subtract: true }]],
+        ["circle", [{ type: "bluemap:circle" }]],
+        ["two boxes", [{ type: "bluemap:box" }, { type: "bluemap:box", "min-x": 200 }]],
+    ])("confirms exact semantics for %s", (_name, masks) => {
+        const text = mountMask(masks).text();
+        expect(text).toContain(ROUTE_STATUS);
+        expect(text).toContain("subtract flag");
+        expect(text).toContain("nested blur");
+        expect(text).toContain("layer order exactly");
+        expect(text).not.toContain("single, non-subtracting box");
+        expect(text).not.toContain("completely unmasked");
     });
 
-    it("does not fire for exactly one plain box -- the one shape the cloud path actually translates", () => {
-        const wrapper = mountMask([{ type: "bluemap:box" }]);
-        expect(wrapper.text()).not.toContain(CLOUD_LABEL);
-    });
-
-    it("fires for two plain boxes -- the ordinary-looking case that silently loses the whole mask today", () => {
-        const wrapper = mountMask([{ type: "bluemap:box" }, { type: "bluemap:box", "min-x": 200 }]);
-        const text = wrapper.text();
-        expect(text).toContain(CLOUD_LABEL);
-        expect(text).toContain(WARNING_SNIPPET);
-        // The failure is total, never softened: "the whole world" renders, unmasked.
-        expect(text).toContain("whole world");
-        expect(text).toContain("unmasked");
-        // The working alternative is stated too, not just the failure.
-        expect(text.toLowerCase()).toContain("local");
-    });
-
-    it("fires for a single subtracting box", () => {
-        const wrapper = mountMask([{ type: "bluemap:box", subtract: true }]);
-        expect(wrapper.text()).toContain(CLOUD_LABEL);
-    });
-
-    it("fires for a single circle", () => {
-        const wrapper = mountMask([{ type: "bluemap:circle" }]);
-        expect(wrapper.text()).toContain(CLOUD_LABEL);
-    });
-
-    it("fires exactly once for a blur that nests two boxes -- the nested list never raises its own top-level warning", () => {
+    it("renders exactly once for a blur that nests two boxes", () => {
         const wrapper = mountMask([
-            { type: "bluemap:blur", masks: [{ type: "bluemap:box" }, { type: "bluemap:box", "min-x": 200 }] },
+            {
+                type: "bluemap:blur",
+                masks: [{ type: "bluemap:box" }, { type: "bluemap:box", "min-x": 200 }],
+            },
         ]);
-        const occurrences = wrapper.text().split(CLOUD_LABEL).length - 1;
+        const occurrences = wrapper.text().split(ROUTE_STATUS).length - 1;
         expect(occurrences).toBe(1);
     });
 });

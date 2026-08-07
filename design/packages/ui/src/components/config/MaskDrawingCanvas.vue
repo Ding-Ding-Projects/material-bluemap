@@ -28,7 +28,17 @@ import {
     mdiRestore,
     mdiUndo,
 } from "@mdi/js";
-import { VAlert, VBtn, VBtnToggle, VCard, VCardText, VChip, VIcon, VTextField, VTooltip } from "vuetify/components";
+import {
+    VAlert,
+    VBtn,
+    VBtnToggle,
+    VCard,
+    VCardText,
+    VChip,
+    VIcon,
+    VTextField,
+    VTooltip,
+} from "vuetify/components";
 import type { PlainValue } from "@material-bluemap/config";
 import {
     UNKNOWN_WORLD,
@@ -37,7 +47,6 @@ import {
     JAVA_INT_MIN,
     canRedo,
     canUndo,
-    cloudFidelityForSingleShape,
     defaultShapeFor,
     estimateArea,
     existingRegionsPreset,
@@ -73,7 +82,14 @@ import {
     type SnapMode,
     type WorldOrientation,
 } from "./maskCanvas.js";
-import { fitView, pointerToWorld, worldToPixel, zoomView, type PixelRect, type ViewState } from "./maskCanvasView.js";
+import {
+    fitView,
+    pointerToWorld,
+    worldToPixel,
+    zoomView,
+    type PixelRect,
+    type ViewState,
+} from "./maskCanvasView.js";
 
 const props = withDefaults(
     defineProps<{
@@ -102,7 +118,9 @@ const world = computed<WorldOrientation>(() => props.world);
 /* Shape state and history                                                    */
 /* -------------------------------------------------------------------------- */
 
-const history = ref<History<DrawableShape>>(initHistory(fromMaskRecord(props.modelValue, props.shapeKind)));
+const history = ref<History<DrawableShape>>(
+    initHistory(fromMaskRecord(props.modelValue, props.shapeKind)),
+);
 const shape = computed(() => history.value.present);
 
 /**
@@ -130,7 +148,11 @@ watch(
  * whatever kind the row happened to be a moment before.
  */
 function emitShape(next: DrawableShape): void {
-    emit("update:modelValue", { ...props.modelValue, ...toMaskRecord(next), type: `bluemap:${next.kind}` });
+    emit("update:modelValue", {
+        ...props.modelValue,
+        ...toMaskRecord(next),
+        type: `bluemap:${next.kind}`,
+    });
 }
 
 function commit(next: DrawableShape): void {
@@ -223,7 +245,11 @@ function exportShape(): void {
     URL.revokeObjectURL(url);
     fileStatus.value = {
         kind: "success",
-        text: t("mask.export.done", { shapes: 1, path: fileName }, "Saved {shapes} shapes to {path}, in blocks, Minecraft world coordinates."),
+        text: t(
+            "mask.export.done",
+            { shapes: 1, path: fileName },
+            "Saved {shapes} shapes to {path}, in blocks, Minecraft world coordinates.",
+        ),
     };
 }
 
@@ -255,13 +281,21 @@ async function onImportFileChosen(event: Event): Promise<void> {
         fitToShape();
         fileStatus.value = {
             kind: "success",
-            text: t("mask.import.done", { shapes: 1, path: file.name }, "Loaded {shapes} shapes from {path}."),
+            text: t(
+                "mask.import.done",
+                { shapes: 1, path: file.name },
+                "Loaded {shapes} shapes from {path}.",
+            ),
         };
     } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         fileStatus.value = {
             kind: "error",
-            text: t("mask.import.failed", { path: file.name, reason }, "Could not load {path}: {reason}"),
+            text: t(
+                "mask.import.failed",
+                { path: file.name, reason },
+                "Could not load {path}: {reason}",
+            ),
         };
     }
 }
@@ -280,7 +314,12 @@ function currentRect(): PixelRect {
     return { left: rect.left, top: rect.top, width: rect.width || 400, height: rect.height || 300 };
 }
 
-function shapeBounds(target: DrawableShape): { minX: number; maxX: number; minZ: number; maxZ: number } {
+function shapeBounds(target: DrawableShape): {
+    minX: number;
+    maxX: number;
+    minZ: number;
+    maxZ: number;
+} {
     switch (target.kind) {
         case "box":
             return { minX: target.minX, maxX: target.maxX, minZ: target.minZ, maxZ: target.maxZ };
@@ -301,7 +340,12 @@ function shapeBounds(target: DrawableShape): { minX: number; maxX: number; minZ:
         case "polygon": {
             const xs = target.points.map((point) => point.x);
             const zs = target.points.map((point) => point.z);
-            return { minX: Math.min(...xs), maxX: Math.max(...xs), minZ: Math.min(...zs), maxZ: Math.max(...zs) };
+            return {
+                minX: Math.min(...xs),
+                maxX: Math.max(...xs),
+                minZ: Math.min(...zs),
+                maxZ: Math.max(...zs),
+            };
         }
     }
 }
@@ -389,15 +433,29 @@ function onDragMove(event: PointerEvent): void {
 }
 
 /** Computes what one delta does to `current`, without touching history. `null` if the target does not match the shape's own kind. */
-function deltaShape(target: DragTarget, current: DrawableShape, dx: number, dz: number): DrawableShape | null {
+function deltaShape(
+    target: DragTarget,
+    current: DrawableShape,
+    dx: number,
+    dz: number,
+): DrawableShape | null {
     if (target.kind === "box-edge" && current.kind === "box") {
-        return moveBoxEdge(current, target.edge, target.edge === "minX" || target.edge === "maxX" ? dx : dz);
+        return moveBoxEdge(
+            current,
+            target.edge,
+            target.edge === "minX" || target.edge === "maxX" ? dx : dz,
+        );
     }
-    if (target.kind === "box-corner" && current.kind === "box") return moveBoxCorner(current, target.corner, dx, dz);
-    if (target.kind === "circle-radius" && current.kind === "circle") return resizeCircle(current, dx);
-    if (target.kind === "ellipse-radius-x" && current.kind === "ellipse") return resizeEllipseX(current, dx);
-    if (target.kind === "ellipse-radius-z" && current.kind === "ellipse") return resizeEllipseZ(current, dz);
-    if (target.kind === "polygon-point" && current.kind === "polygon") return movePolygonPoint(current, target.index, dx, dz);
+    if (target.kind === "box-corner" && current.kind === "box")
+        return moveBoxCorner(current, target.corner, dx, dz);
+    if (target.kind === "circle-radius" && current.kind === "circle")
+        return resizeCircle(current, dx);
+    if (target.kind === "ellipse-radius-x" && current.kind === "ellipse")
+        return resizeEllipseX(current, dx);
+    if (target.kind === "ellipse-radius-z" && current.kind === "ellipse")
+        return resizeEllipseZ(current, dz);
+    if (target.kind === "polygon-point" && current.kind === "polygon")
+        return movePolygonPoint(current, target.index, dx, dz);
     if (target.kind === "move") {
         if (current.kind === "box") return moveBox(current, dx, dz);
         if (current.kind === "circle") return moveCircleCenter(current, dx, dz);
@@ -412,7 +470,10 @@ function onDragEnd(event: PointerEvent): void {
     dragging.value = null;
     // One undo step for the whole gesture: the shape as it was before the drag becomes
     // the past entry, and whatever the drag left in `present` stays `present`.
-    history.value = pushHistory({ ...history.value, present: dragStartShape.value }, history.value.present);
+    history.value = pushHistory(
+        { ...history.value, present: dragStartShape.value },
+        history.value.present,
+    );
     dragStartShape.value = null;
     (event.currentTarget as Element).releasePointerCapture?.(event.pointerId);
 }
@@ -505,7 +566,13 @@ function addPointAfter(index: number): void {
     const a = current.points[index] ?? current.points[0];
     const b = current.points[(index + 1) % current.points.length] ?? a;
     if (a === undefined || b === undefined) return;
-    commit(addPolygonPoint(current, { x: Math.round((a.x + b.x) / 2), z: Math.round((a.z + b.z) / 2) }, index));
+    commit(
+        addPolygonPoint(
+            current,
+            { x: Math.round((a.x + b.x) / 2), z: Math.round((a.z + b.z) / 2) },
+            index,
+        ),
+    );
 }
 
 function removePoint(index: number): void {
@@ -523,12 +590,18 @@ const fieldErrors = ref<Record<string, string>>({});
 function setNumberField(setter: (value: number) => void, key: string, raw: string): void {
     const trimmed = raw.trim();
     if (trimmed === "" || trimmed === "-") {
-        fieldErrors.value = { ...fieldErrors.value, [key]: t("config.maskCanvas.numberIncomplete", "Keep typing a number.") };
+        fieldErrors.value = {
+            ...fieldErrors.value,
+            [key]: t("config.maskCanvas.numberIncomplete", "Keep typing a number."),
+        };
         return;
     }
     const value = Number(trimmed);
     if (!Number.isFinite(value)) {
-        fieldErrors.value = { ...fieldErrors.value, [key]: t("config.maskCanvas.numberInvalid", "That is not a number.") };
+        fieldErrors.value = {
+            ...fieldErrors.value,
+            [key]: t("config.maskCanvas.numberInvalid", "That is not a number."),
+        };
         return;
     }
     const { [key]: _dropped, ...rest } = fieldErrors.value;
@@ -558,7 +631,13 @@ function setPolygonPointField(index: number, axis: "x" | "z", raw: string): void
     if (shape.value.kind !== "polygon") return;
     const current = shape.value;
     setNumberField(
-        (value) => commit({ ...current, points: current.points.map((point, i) => (i === index ? { ...point, [axis]: value } : point)) } as PolygonShape),
+        (value) =>
+            commit({
+                ...current,
+                points: current.points.map((point, i) =>
+                    i === index ? { ...point, [axis]: value } : point,
+                ),
+            } as PolygonShape),
         `point:${index}:${axis}`,
         raw,
     );
@@ -573,21 +652,23 @@ const area = computed(() => estimateArea(shape.value));
 const worldFraction = computed(() => {
     const extent = props.world.extent;
     if (extent === null || area.value.blocks === null) return null;
-    const worldBlocks = Math.max(1, (extent.maxX - extent.minX + 1) * (extent.maxZ - extent.minZ + 1));
+    const worldBlocks = Math.max(
+        1,
+        (extent.maxX - extent.minX + 1) * (extent.maxZ - extent.minZ + 1),
+    );
     return area.value.blocks / worldBlocks;
 });
-
-/* -------------------------------------------------------------------------- */
-/* Cloud/Actions render fidelity: the approximation shown, never applied silently */
-/* -------------------------------------------------------------------------- */
-
-const subtractFlag = computed(() => props.modelValue["subtract"] === true);
-const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, subtractFlag.value));
 </script>
 
 <template>
     <div class="mb-mask-canvas" role="group" :aria-label="label">
-        <v-alert v-if="!orientationKnown" type="info" density="compact" variant="tonal" class="mb-mask-canvas__orientation">
+        <v-alert
+            v-if="!orientationKnown"
+            type="info"
+            density="compact"
+            variant="tonal"
+            class="mb-mask-canvas__orientation"
+        >
             {{
                 t(
                     "config.maskCanvas.orientationUnknown",
@@ -598,50 +679,142 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
         </v-alert>
 
         <div class="mb-mask-canvas__toolbar">
-            <v-btn-toggle v-model="snap" mandatory density="comfortable" variant="outlined" :disabled="isDisabled">
+            <v-btn-toggle
+                v-model="snap"
+                mandatory
+                density="comfortable"
+                variant="outlined"
+                :disabled="isDisabled"
+            >
                 <v-btn value="off">{{ t("config.maskCanvas.snapOff", "No snap") }}</v-btn>
-                <v-btn value="chunk">{{ t("config.maskCanvas.snapChunk", "Snap to chunk (16)") }}</v-btn>
-                <v-btn value="region">{{ t("config.maskCanvas.snapRegion", "Snap to region (512)") }}</v-btn>
+                <v-btn value="chunk">{{
+                    t("config.maskCanvas.snapChunk", "Snap to chunk (16)")
+                }}</v-btn>
+                <v-btn value="region">{{
+                    t("config.maskCanvas.snapRegion", "Snap to region (512)")
+                }}</v-btn>
             </v-btn-toggle>
-            <v-btn :prepend-icon="mdiMagnetOn" :disabled="isDisabled" variant="tonal" size="small" @click="applySnapNow">
+            <v-btn
+                :prepend-icon="mdiMagnetOn"
+                :disabled="isDisabled"
+                variant="tonal"
+                size="small"
+                @click="applySnapNow"
+            >
                 {{ t("config.maskCanvas.snapNow", "Snap current shape") }}
             </v-btn>
 
-            <v-btn :icon="mdiMagnifyPlusOutline" :aria-label="t('config.maskCanvas.zoomIn', 'Zoom in')" variant="text" size="small" @click="zoomIn" />
-            <v-btn :icon="mdiMagnifyMinusOutline" :aria-label="t('config.maskCanvas.zoomOut', 'Zoom out')" variant="text" size="small" @click="zoomOut" />
+            <v-btn
+                :icon="mdiMagnifyPlusOutline"
+                :aria-label="t('config.maskCanvas.zoomIn', 'Zoom in')"
+                variant="text"
+                size="small"
+                @click="zoomIn"
+            />
+            <v-btn
+                :icon="mdiMagnifyMinusOutline"
+                :aria-label="t('config.maskCanvas.zoomOut', 'Zoom out')"
+                variant="text"
+                size="small"
+                @click="zoomOut"
+            />
 
-            <v-btn :icon="mdiUndo" :aria-label="t('config.maskCanvas.undo', 'Undo')" :disabled="isDisabled || !canUndo(history)" variant="text" size="small" @click="doUndo" />
-            <v-btn :icon="mdiRedo" :aria-label="t('config.maskCanvas.redo', 'Redo')" :disabled="isDisabled || !canRedo(history)" variant="text" size="small" @click="doRedo" />
+            <v-btn
+                :icon="mdiUndo"
+                :aria-label="t('config.maskCanvas.undo', 'Undo')"
+                :disabled="isDisabled || !canUndo(history)"
+                variant="text"
+                size="small"
+                @click="doUndo"
+            />
+            <v-btn
+                :icon="mdiRedo"
+                :aria-label="t('config.maskCanvas.redo', 'Redo')"
+                :disabled="isDisabled || !canRedo(history)"
+                variant="text"
+                size="small"
+                @click="doRedo"
+            />
         </div>
 
         <div class="mb-mask-canvas__presets">
-            <v-btn :prepend-icon="mdiEarth" :disabled="isDisabled" variant="outlined" size="small" @click="applyWholeWorld">
+            <v-btn
+                :prepend-icon="mdiEarth"
+                :disabled="isDisabled"
+                variant="outlined"
+                size="small"
+                @click="applyWholeWorld"
+            >
                 {{ t("config.maskCanvas.presetWholeWorld", "Whole world") }}
             </v-btn>
-            <v-btn :prepend-icon="mdiMapMarker" :disabled="isDisabled" variant="outlined" size="small" @click="applyAroundSpawn">
+            <v-btn
+                :prepend-icon="mdiMapMarker"
+                :disabled="isDisabled"
+                variant="outlined"
+                size="small"
+                @click="applyAroundSpawn"
+            >
                 {{ t("config.maskCanvas.presetAroundSpawn", "Around spawn") }}
             </v-btn>
-            <v-btn :prepend-icon="mdiCrosshairsGps" :disabled="isDisabled || regionsPreset === null" variant="outlined" size="small" @click="applyExistingRegions">
+            <v-btn
+                :prepend-icon="mdiCrosshairsGps"
+                :disabled="isDisabled || regionsPreset === null"
+                variant="outlined"
+                size="small"
+                @click="applyExistingRegions"
+            >
                 {{ t("config.maskCanvas.presetExistingRegions", "Extent of existing regions") }}
             </v-btn>
             <v-tooltip v-if="regionsPreset === null" activator="parent" location="bottom">
-                {{ t("config.maskCanvas.presetExistingRegionsUnavailable", "Not available: the world's region files have not been measured.") }}
+                {{
+                    t(
+                        "config.maskCanvas.presetExistingRegionsUnavailable",
+                        "Not available: the world's region files have not been measured.",
+                    )
+                }}
             </v-tooltip>
 
-            <v-btn :prepend-icon="mdiRestore" :disabled="isDisabled" variant="text" size="small" @click="resetToWholeWorld">
+            <v-btn
+                :prepend-icon="mdiRestore"
+                :disabled="isDisabled"
+                variant="text"
+                size="small"
+                @click="resetToWholeWorld"
+            >
                 {{ t("config.maskCanvas.reset", "Reset to whole world") }}
             </v-btn>
 
-            <v-btn :prepend-icon="mdiExport" :disabled="isDisabled" variant="text" size="small" @click="exportShape">
+            <v-btn
+                :prepend-icon="mdiExport"
+                :disabled="isDisabled"
+                variant="text"
+                size="small"
+                @click="exportShape"
+            >
                 {{ t("mask.export.button", "Export mask…") }}
             </v-btn>
-            <v-btn :prepend-icon="mdiImport" :disabled="isDisabled" variant="text" size="small" @click="triggerImport">
+            <v-btn
+                :prepend-icon="mdiImport"
+                :disabled="isDisabled"
+                variant="text"
+                size="small"
+                @click="triggerImport"
+            >
                 {{ t("mask.import.button", "Import mask…") }}
             </v-btn>
-            <input ref="importInput" type="file" accept="application/json,.json" class="mb-mask-canvas__hiddenInput" @change="onImportFileChosen" />
+            <input
+                ref="importInput"
+                type="file"
+                accept="application/json,.json"
+                class="mb-mask-canvas__hiddenInput"
+                @change="onImportFileChosen"
+            />
         </div>
 
-        <p class="mb-mask-canvas__presetNote" v-if="shape.kind === 'box' && shape.minX === JAVA_INT_MIN">
+        <p
+            class="mb-mask-canvas__presetNote"
+            v-if="shape.kind === 'box' && shape.minX === JAVA_INT_MIN"
+        >
             {{ wholeWorldPreset().description }}
         </p>
 
@@ -668,13 +841,21 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
             class="mb-mask-canvas__surface"
             :class="{ 'mb-mask-canvas__surface--unknown': !orientationKnown }"
             role="img"
-            :aria-label="t('config.maskCanvas.surfaceLabel', 'A top-down drawing of the render mask shape')"
+            :aria-label="
+                t('config.maskCanvas.surfaceLabel', 'A top-down drawing of the render mask shape')
+            "
             tabindex="0"
             @pointermove="onPointerMoveOverCanvas"
             @pointerleave="onPointerLeaveCanvas"
             @keydown.enter="createFromKeyboard"
         >
-            <svg v-if="hasShape" class="mb-mask-canvas__svg" @pointermove="onDragMove" @pointerup="onDragEnd" @pointercancel="onDragEnd">
+            <svg
+                v-if="hasShape"
+                class="mb-mask-canvas__svg"
+                @pointermove="onDragMove"
+                @pointerup="onDragEnd"
+                @pointercancel="onDragEnd"
+            >
                 <!-- World origin crosshair, always drawn so raw coordinates stay orientable. -->
                 <line
                     :x1="pixelFor({ x: -1e9, z: 0 }).x"
@@ -695,12 +876,21 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                     v-if="world.extent !== null"
                     :x="pixelFor({ x: world.extent.minX, z: world.extent.minZ }).x"
                     :y="pixelFor({ x: world.extent.minX, z: world.extent.minZ }).y"
-                    :width="pixelFor({ x: world.extent.maxX, z: world.extent.maxZ }).x - pixelFor({ x: world.extent.minX, z: world.extent.minZ }).x"
-                    :height="pixelFor({ x: world.extent.maxX, z: world.extent.maxZ }).y - pixelFor({ x: world.extent.minX, z: world.extent.minZ }).y"
+                    :width="
+                        pixelFor({ x: world.extent.maxX, z: world.extent.maxZ }).x -
+                        pixelFor({ x: world.extent.minX, z: world.extent.minZ }).x
+                    "
+                    :height="
+                        pixelFor({ x: world.extent.maxX, z: world.extent.maxZ }).y -
+                        pixelFor({ x: world.extent.minX, z: world.extent.minZ }).y
+                    "
                     class="mb-mask-canvas__extent"
                 />
 
-                <g v-if="world.spawn !== null" :transform="`translate(${pixelFor(world.spawn).x}, ${pixelFor(world.spawn).y})`">
+                <g
+                    v-if="world.spawn !== null"
+                    :transform="`translate(${pixelFor(world.spawn).x}, ${pixelFor(world.spawn).y})`"
+                >
                     <circle r="5" class="mb-mask-canvas__spawn" />
                     <title>{{ t("config.maskCanvas.spawnMarker", "Spawn") }}</title>
                 </g>
@@ -710,31 +900,62 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                     <rect
                         :x="pixelFor({ x: shape.minX, z: shape.minZ }).x"
                         :y="pixelFor({ x: shape.minX, z: shape.minZ }).y"
-                        :width="pixelFor({ x: shape.maxX, z: shape.maxZ }).x - pixelFor({ x: shape.minX, z: shape.minZ }).x"
-                        :height="pixelFor({ x: shape.maxX, z: shape.maxZ }).y - pixelFor({ x: shape.minX, z: shape.minZ }).y"
+                        :width="
+                            pixelFor({ x: shape.maxX, z: shape.maxZ }).x -
+                            pixelFor({ x: shape.minX, z: shape.minZ }).x
+                        "
+                        :height="
+                            pixelFor({ x: shape.maxX, z: shape.maxZ }).y -
+                            pixelFor({ x: shape.minX, z: shape.minZ }).y
+                        "
                         class="mb-mask-canvas__shape"
                         tabindex="0"
                         role="slider"
                         :aria-label="t('config.maskCanvas.handleMove', 'Move the whole shape')"
                         :aria-valuetext="`X ${shape.minX}..${shape.maxX}, Z ${shape.minZ}..${shape.maxZ}`"
                         @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'move' }, event)"
-                        @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'move' }, event)"
+                        @keydown="
+                            (event: KeyboardEvent) => onHandleKeydown({ kind: 'move' }, event)
+                        "
                         @focus="selectHandle('move')"
                     />
                     <circle
-                        v-for="corner in (['nw', 'ne', 'sw', 'se'] as const)"
+                        v-for="corner in ['nw', 'ne', 'sw', 'se'] as const"
                         :key="corner"
-                        :cx="corner === 'nw' || corner === 'sw' ? pixelFor({ x: shape.minX, z: 0 }).x : pixelFor({ x: shape.maxX, z: 0 }).x"
-                        :cy="corner === 'nw' || corner === 'ne' ? pixelFor({ x: 0, z: shape.minZ }).y : pixelFor({ x: 0, z: shape.maxZ }).y"
+                        :cx="
+                            corner === 'nw' || corner === 'sw'
+                                ? pixelFor({ x: shape.minX, z: 0 }).x
+                                : pixelFor({ x: shape.maxX, z: 0 }).x
+                        "
+                        :cy="
+                            corner === 'nw' || corner === 'ne'
+                                ? pixelFor({ x: 0, z: shape.minZ }).y
+                                : pixelFor({ x: 0, z: shape.maxZ }).y
+                        "
                         r="6"
                         class="mb-mask-canvas__handle"
-                        :class="{ 'mb-mask-canvas__handle--selected': selectedHandle === `corner:${corner}` }"
+                        :class="{
+                            'mb-mask-canvas__handle--selected':
+                                selectedHandle === `corner:${corner}`,
+                        }"
                         tabindex="0"
                         role="slider"
-                        :aria-label="t('config.maskCanvas.handleCorner', { corner }, 'Resize corner {corner}')"
+                        :aria-label="
+                            t(
+                                'config.maskCanvas.handleCorner',
+                                { corner },
+                                'Resize corner {corner}',
+                            )
+                        "
                         :aria-valuetext="boxCornerValueText(corner, shape)"
-                        @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'box-corner', corner }, event)"
-                        @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'box-corner', corner }, event)"
+                        @pointerdown="
+                            (event: PointerEvent) =>
+                                beginDrag({ kind: 'box-corner', corner }, event)
+                        "
+                        @keydown="
+                            (event: KeyboardEvent) =>
+                                onHandleKeydown({ kind: 'box-corner', corner }, event)
+                        "
                         @focus="selectHandle(`corner:${corner}`)"
                     />
                 </template>
@@ -751,7 +972,9 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         :aria-label="t('config.maskCanvas.handleMove', 'Move the whole shape')"
                         :aria-valuetext="`X ${shape.centerX}, Z ${shape.centerZ}`"
                         @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'move' }, event)"
-                        @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'move' }, event)"
+                        @keydown="
+                            (event: KeyboardEvent) => onHandleKeydown({ kind: 'move' }, event)
+                        "
                         @focus="selectHandle('move')"
                     />
                     <circle
@@ -763,8 +986,13 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         role="slider"
                         :aria-label="t('config.maskCanvas.handleRadius', 'Resize radius')"
                         :aria-valuetext="`${shape.radius} blocks`"
-                        @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'circle-radius' }, event)"
-                        @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'circle-radius' }, event)"
+                        @pointerdown="
+                            (event: PointerEvent) => beginDrag({ kind: 'circle-radius' }, event)
+                        "
+                        @keydown="
+                            (event: KeyboardEvent) =>
+                                onHandleKeydown({ kind: 'circle-radius' }, event)
+                        "
                         @focus="selectHandle('circle-radius')"
                     />
                 </template>
@@ -782,7 +1010,9 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         :aria-label="t('config.maskCanvas.handleMove', 'Move the whole shape')"
                         :aria-valuetext="`X ${shape.centerX}, Z ${shape.centerZ}`"
                         @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'move' }, event)"
-                        @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'move' }, event)"
+                        @keydown="
+                            (event: KeyboardEvent) => onHandleKeydown({ kind: 'move' }, event)
+                        "
                         @focus="selectHandle('move')"
                     />
                     <circle
@@ -794,8 +1024,13 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         role="slider"
                         :aria-label="t('config.maskCanvas.handleRadiusX', 'Resize the X radius')"
                         :aria-valuetext="`${shape.radiusX} blocks`"
-                        @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'ellipse-radius-x' }, event)"
-                        @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'ellipse-radius-x' }, event)"
+                        @pointerdown="
+                            (event: PointerEvent) => beginDrag({ kind: 'ellipse-radius-x' }, event)
+                        "
+                        @keydown="
+                            (event: KeyboardEvent) =>
+                                onHandleKeydown({ kind: 'ellipse-radius-x' }, event)
+                        "
                         @focus="selectHandle('ellipse-radius-x')"
                     />
                     <circle
@@ -807,15 +1042,27 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         role="slider"
                         :aria-label="t('config.maskCanvas.handleRadiusZ', 'Resize the Z radius')"
                         :aria-valuetext="`${shape.radiusZ} blocks`"
-                        @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'ellipse-radius-z' }, event)"
-                        @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'ellipse-radius-z' }, event)"
+                        @pointerdown="
+                            (event: PointerEvent) => beginDrag({ kind: 'ellipse-radius-z' }, event)
+                        "
+                        @keydown="
+                            (event: KeyboardEvent) =>
+                                onHandleKeydown({ kind: 'ellipse-radius-z' }, event)
+                        "
                         @focus="selectHandle('ellipse-radius-z')"
                     />
                 </template>
 
                 <!-- Polygon -->
                 <template v-else-if="shape.kind === 'polygon'">
-                    <polygon :points="shape.points.map((point) => `${pixelFor(point).x},${pixelFor(point).y}`).join(' ')" class="mb-mask-canvas__shape" />
+                    <polygon
+                        :points="
+                            shape.points
+                                .map((point) => `${pixelFor(point).x},${pixelFor(point).y}`)
+                                .join(' ')
+                        "
+                        class="mb-mask-canvas__shape"
+                    />
                     <circle
                         v-for="(point, index) in shape.points"
                         :key="index"
@@ -823,13 +1070,27 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         :cy="pixelFor(point).y"
                         r="6"
                         class="mb-mask-canvas__handle"
-                        :class="{ 'mb-mask-canvas__handle--selected': selectedHandle === `point:${index}` }"
+                        :class="{
+                            'mb-mask-canvas__handle--selected': selectedHandle === `point:${index}`,
+                        }"
                         tabindex="0"
                         role="slider"
-                        :aria-label="t('config.maskCanvas.handlePoint', { index: index + 1 }, 'Move vertex {index}')"
+                        :aria-label="
+                            t(
+                                'config.maskCanvas.handlePoint',
+                                { index: index + 1 },
+                                'Move vertex {index}',
+                            )
+                        "
                         :aria-valuetext="`X ${point.x}, Z ${point.z}`"
-                        @pointerdown="(event: PointerEvent) => beginDrag({ kind: 'polygon-point', index }, event)"
-                        @keydown="(event: KeyboardEvent) => onHandleKeydown({ kind: 'polygon-point', index }, event)"
+                        @pointerdown="
+                            (event: PointerEvent) =>
+                                beginDrag({ kind: 'polygon-point', index }, event)
+                        "
+                        @keydown="
+                            (event: KeyboardEvent) =>
+                                onHandleKeydown({ kind: 'polygon-point', index }, event)
+                        "
                         @focus="selectHandle(`point:${index}`)"
                         @dblclick="removePoint(index)"
                     />
@@ -837,8 +1098,19 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
             </svg>
 
             <p v-else class="mb-mask-canvas__empty">
-                {{ t("config.maskCanvas.noShapeYet", "No shape yet. Press Enter to place one, or fill in the fields below.") }}
-                <v-btn size="small" variant="tonal" :prepend-icon="mdiPlus" @click="createFromKeyboard">{{ t("config.maskCanvas.createShape", "Create a shape") }}</v-btn>
+                {{
+                    t(
+                        "config.maskCanvas.noShapeYet",
+                        "No shape yet. Press Enter to place one, or fill in the fields below.",
+                    )
+                }}
+                <v-btn
+                    size="small"
+                    variant="tonal"
+                    :prepend-icon="mdiPlus"
+                    @click="createFromKeyboard"
+                    >{{ t("config.maskCanvas.createShape", "Create a shape") }}</v-btn
+                >
             </p>
         </div>
 
@@ -847,7 +1119,11 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                 {{
                     cursorWorld === null
                         ? t("config.maskCanvas.cursorNone", "Cursor: not over the canvas")
-                        : t("config.maskCanvas.cursorAt", { x: Math.round(cursorWorld.x), z: Math.round(cursorWorld.z) }, "Cursor: X {x}, Z {z}")
+                        : t(
+                              "config.maskCanvas.cursorAt",
+                              { x: Math.round(cursorWorld.x), z: Math.round(cursorWorld.z) },
+                              "Cursor: X {x}, Z {z}",
+                          )
                 }}
             </v-chip>
             <!--
@@ -861,44 +1137,36 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
             -->
             <v-chip size="small" variant="tonal" :color="area.unbounded ? 'warning' : undefined">
                 <template v-if="area.unbounded">
-                    {{ t("mask.cost.unbounded", "At least one shape has no limit on some axis, so no area number can be given.") }}
+                    {{
+                        t(
+                            "mask.cost.unbounded",
+                            "At least one shape has no limit on some axis, so no area number can be given.",
+                        )
+                    }}
                 </template>
                 <template v-else>
                     {{ t("mask.cost.label", "Selected area") }}:
-                    {{ (area.blocks ?? 0).toLocaleString() }} {{ t("mask.cost.units.blocks", "blocks") }},
-                    {{ (area.chunks ?? 0).toLocaleString() }} {{ t("mask.cost.units.chunks", "chunks") }},
-                    {{ (area.regions ?? 0).toLocaleString() }} {{ t("mask.cost.units.regions", "regions") }}
-                    <span v-if="!area.exact">{{ t("config.maskCanvas.areaEstimateTag", " (estimate)") }}</span>
+                    {{ (area.blocks ?? 0).toLocaleString() }}
+                    {{ t("mask.cost.units.blocks", "blocks") }},
+                    {{ (area.chunks ?? 0).toLocaleString() }}
+                    {{ t("mask.cost.units.chunks", "chunks") }},
+                    {{ (area.regions ?? 0).toLocaleString() }}
+                    {{ t("mask.cost.units.regions", "regions") }}
+                    <span v-if="!area.exact">{{
+                        t("config.maskCanvas.areaEstimateTag", " (estimate)")
+                    }}</span>
                 </template>
             </v-chip>
             <v-chip v-if="worldFraction !== null" size="small" variant="tonal">
-                {{ t("config.maskCanvas.worldFraction", { percent: (worldFraction * 100).toFixed(worldFraction < 0.01 ? 2 : 1) }, "{percent}% of the measured world") }}
-            </v-chip>
-        </div>
-
-        <!--
-          The one warning the design brief calls out by name: a shape this canvas can draw
-          perfectly well may still be silently replaced by "the whole world, unmasked" the
-          moment a cloud/Actions render runs it, because that render path only understands a
-          single non-subtracting box today. Showing this here is what keeps the substitution
-          from being silent.
-        -->
-        <v-alert v-if="!fidelity.honored" type="warning" density="compact" variant="tonal" class="mb-mask-canvas__fidelity">
-            <p>
-                <strong>{{ t("mask.fidelity.cloudLabel", "Cloud/Actions render") }}:</strong>
                 {{
                     t(
-                        "mask.fidelity.cloudUnsupported",
-                        { reason: fidelity.unsupportedReason ?? "" },
-                        "This mask is not supported by the cloud/Actions render path: {reason} The whole world will render there, unmasked.",
+                        "config.maskCanvas.worldFraction",
+                        { percent: (worldFraction * 100).toFixed(worldFraction < 0.01 ? 2 : 1) },
+                        "{percent}% of the measured world",
                     )
                 }}
-            </p>
-            <p>
-                <strong>{{ t("mask.fidelity.localLabel", "Local desktop render") }}:</strong>
-                {{ t("mask.fidelity.local", "The local desktop render always applies exactly this mask, whatever shape it is.") }}
-            </p>
-        </v-alert>
+            </v-chip>
+        </div>
 
         <!-- Numeric fields: the always-available equivalent path to the drawing above. -->
         <div class="mb-mask-canvas__fields">
@@ -1034,25 +1302,53 @@ const fidelity = computed(() => cloudFidelityForSingleShape(shape.value.kind, su
                         <v-text-field
                             :model-value="point.x"
                             type="number"
-                            :label="t('config.maskCanvas.fieldPointX', { index: index + 1 }, 'Point {index} X')"
+                            :label="
+                                t(
+                                    'config.maskCanvas.fieldPointX',
+                                    { index: index + 1 },
+                                    'Point {index} X',
+                                )
+                            "
                             density="compact"
                             variant="outlined"
                             hide-details="auto"
                             :disabled="isDisabled"
-                            @update:model-value="(value: string) => setPolygonPointField(index, 'x', value)"
+                            @update:model-value="
+                                (value: string) => setPolygonPointField(index, 'x', value)
+                            "
                         />
                         <v-text-field
                             :model-value="point.z"
                             type="number"
-                            :label="t('config.maskCanvas.fieldPointZ', { index: index + 1 }, 'Point {index} Z')"
+                            :label="
+                                t(
+                                    'config.maskCanvas.fieldPointZ',
+                                    { index: index + 1 },
+                                    'Point {index} Z',
+                                )
+                            "
                             density="compact"
                             variant="outlined"
                             hide-details="auto"
                             :disabled="isDisabled"
-                            @update:model-value="(value: string) => setPolygonPointField(index, 'z', value)"
+                            @update:model-value="
+                                (value: string) => setPolygonPointField(index, 'z', value)
+                            "
                         />
-                        <v-btn size="small" variant="text" :disabled="isDisabled" @click="addPointAfter(index)">{{ t("config.maskCanvas.addPoint", "Add point after") }}</v-btn>
-                        <v-btn size="small" variant="text" color="error" :disabled="isDisabled || shape.points.length <= 3" @click="removePoint(index)">
+                        <v-btn
+                            size="small"
+                            variant="text"
+                            :disabled="isDisabled"
+                            @click="addPointAfter(index)"
+                            >{{ t("config.maskCanvas.addPoint", "Add point after") }}</v-btn
+                        >
+                        <v-btn
+                            size="small"
+                            variant="text"
+                            color="error"
+                            :disabled="isDisabled || shape.points.length <= 3"
+                            @click="removePoint(index)"
+                        >
                             {{ t("config.maskCanvas.removePoint", "Remove") }}
                         </v-btn>
                     </li>

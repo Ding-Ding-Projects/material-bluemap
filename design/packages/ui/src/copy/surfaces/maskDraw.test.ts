@@ -85,7 +85,9 @@ describe("the levels are levels", () => {
     it("says the same thing in a different language, so the two are not copies", () => {
         for (const key of voicedKeys()) {
             for (let level = 0; level < 5; level++) {
-                expect(MASKDRAW_VOICED[key].en[level], `${key} L${level + 1}`).not.toBe(MASKDRAW_VOICED[key].yue[level]);
+                expect(MASKDRAW_VOICED[key].en[level], `${key} L${level + 1}`).not.toBe(
+                    MASKDRAW_VOICED[key].yue[level],
+                );
             }
         }
     });
@@ -120,14 +122,17 @@ describe("no level drops a value out of a sentence", () => {
             const expected = sorted(placeholdersIn(MASKDRAW_VOICED[key].en[0]));
             for (const language of LANGUAGES) {
                 MASKDRAW_VOICED[key][language].forEach((text, index) => {
-                    expect(sorted(placeholdersIn(text)), `${key} ${language} L${index + 1}`).toEqual(expected);
+                    expect(
+                        sorted(placeholdersIn(text)),
+                        `${key} ${language} L${index + 1}`,
+                    ).toEqual(expected);
                 });
             }
         }
     });
 });
 
-describe("the cloud-render fidelity warning never softens into a maybe", () => {
+describe("the render-route parity fact never drifts", () => {
     it("keeps every required fact at every level, in both languages", () => {
         const missing: string[] = [];
         for (const key of voicedKeys()) {
@@ -145,27 +150,16 @@ describe("the cloud-render fidelity warning never softens into a maybe", () => {
         expect(
             missing,
             "the funny level styles the voice and never the facts. A render-mask message that " +
-                "stops naming the real numbers, or stops saying 'whole world' for the one path " +
-                "that silently ignores an unsupported mask, is a broken warning rather than a " +
-                "funny one.",
+                "stops naming its real numbers or full route semantics is broken rather than funny.",
         ).toEqual([]);
     });
 
     it("names a fact for every voiced key, so nothing is quietly exempt", () => {
         const unguarded = voicedKeys().filter((key) => {
-            const entry = MASKDRAW_FACTS[key] as { en: readonly string[]; yue: readonly string[] } | undefined;
+            const entry = MASKDRAW_FACTS[key] as
+                { en: readonly string[]; yue: readonly string[] } | undefined;
             return entry === undefined || entry.en.length === 0 || entry.yue.length === 0;
         });
         expect(unguarded).toEqual([]);
-    });
-
-    it("never confuses the cloud warning with the local reassurance", () => {
-        for (let level = 0; level < 5; level++) {
-            for (const language of LANGUAGES) {
-                expect(MASKDRAW_VOICED["mask.fidelity.cloudUnsupported"][language][level]).not.toBe(
-                    MASKDRAW_VOICED["mask.fidelity.local"][language][level],
-                );
-            }
-        }
     });
 });
