@@ -229,6 +229,10 @@ export const firstRunConsent: Article = {
 
     suggested: [
         {
+            articleId: "worldlens-migration",
+            reason: "The separate one-time consent and verified copy used when a legacy product profile exists.",
+        },
+        {
             articleId: "java-render-path",
             reason: "What consent unlocks, and why a render reports a missing answer instead of asking for one.",
         },

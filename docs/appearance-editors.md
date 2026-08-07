@@ -141,8 +141,8 @@ report, rather than deleted.
 
 | Setting | Value |
 |---|---|
-| Storage key | `material-bluemap-appearance` in `localStorage` |
-| Export format marker | `material-bluemap-appearance` |
+| Storage key | `worldlens-appearance` in `localStorage`; the legacy key is copied once when current state is absent |
+| Export format marker | `worldlens-appearance`; legacy `material-bluemap-appearance` imports remain accepted |
 | Export version | `APPEARANCE_VERSION`, currently 1 |
 | Global layer id | `GLOBAL_TARGET`, the reserved element id `global` |
 | Context menu | **Edit appearance...** under the host's own menu items |

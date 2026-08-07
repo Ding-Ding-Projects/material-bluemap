@@ -1,5 +1,19 @@
 # Roadmap
 
+## Worldlens rename and migration (2026-08-07)
+
+**Implemented on the phase branch; repository rename and release publication remain external
+follow-up gates.** Code/package/preload/installer/data identifiers now use Worldlens. Legacy
+profiles, localStorage preferences, environment variables, project files and ownership markers
+have explicit compatibility adapters; current writes never create another legacy identifier.
+Unknown project fields survive the v1-to-v2 schema adapter.
+
+Packaging is permanently unsigned and verified as such at the built executable. The migration
+has unit coverage plus an isolated copy of the actual 885-file legacy profile. Final completion
+still requires default-branch integration, repository rename, exact-SHA CI/release proof, and
+fresh cheap-headless screenshots from the integrated packaged build. The phase branch's freshly
+packaged migration-consent gate has already been captured off-screen as a pre-integration proof.
+
 ## Four-edge tabs and nested-editor interaction repair (2026-08-06)
 
 **Implemented and integrated; packaged hidden-desktop capture remains a separate runtime gate.**

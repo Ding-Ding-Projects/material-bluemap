@@ -192,7 +192,7 @@ export const MENU_FIXED = {
     "info.logoAlt": { en: "The BlueMap logo", yue: "BlueMap 標誌" },
     /* Product name and version number, both identifiers, so the string is the same either
      * side of the language switch. */
-    "info.appVersion": { en: "Worldlens {version}", yue: "Worldlens {version}" },
+    "info.appVersion": { en: "{name} {version}", yue: "{name} {version}" },
     "info.changelog": {
         en: "Changelog, every released version",
         yue: "更新日誌，每一個已發佈版本",

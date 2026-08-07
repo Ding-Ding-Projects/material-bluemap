@@ -17,10 +17,12 @@ import { DEFAULT_NOTICE_DURATION_LEVEL } from "../components/config/noticeDurati
 import { readNoticeDurationLevel } from "../components/config/noticeDurationPrefs.js";
 import { memoryStorage, setSetupStorage } from "../components/setup/setupPrefs.js";
 import { changeNoticeDuration, notices, raiseNotice } from "./notices.js";
+import { productDisplayName } from "./productName.js";
 
 beforeEach(() => {
     dismissAll(notices);
     notices.history.length = 0;
+    productDisplayName.value = "Worldlens";
 });
 
 describe("the shared corner", () => {
@@ -29,6 +31,13 @@ describe("the shared corner", () => {
 
         expect(notices.live).toEqual([notice]);
         expect(notices.history).toEqual([notice]);
+        expect(notice.title).toBe("Worldlens");
+    });
+
+    it("uses the cosmetic display name as the default notification title", () => {
+        productDisplayName.value = "Andy's Atlas";
+        expect(raiseNotice("info", "Ready.").title).toBe("Andy's Atlas");
+        expect(raiseNotice("info", "Named.", { title: "Specific title" }).title).toBe("Specific title");
     });
 
     it("carries a detail through to the same state", () => {

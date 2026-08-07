@@ -2259,7 +2259,7 @@ interface BackupSourceReport {
     readonly skipped: readonly { readonly name: string; readonly reason: string }[];
 }
 
-interface MaterialBlueMapBridge {
+interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
@@ -3104,7 +3104,7 @@ interface MaterialBlueMapBridge {
     onBackupEvent(listener: (event: BackupEvent) => void): () => void;
 }
 
-const bridge: MaterialBlueMapBridge = {
+const bridge: WorldlensBridge = {
     syncProfiles: (profiles) => ipcRenderer.invoke("profiles:sync", profiles),
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
     getVersion: () => ipcRenderer.invoke("app:version"),

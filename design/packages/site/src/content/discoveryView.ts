@@ -56,15 +56,15 @@ export function createDiscoveryView(options: {
     root.append(settingsSection);
 
     const tabHost: TabSearchHost = {
-        listWindows: () => [{ id: "window-main", label: document.title || "Material Bluemap" }],
-        listStrips: (): readonly SearchableTabStrip[] => [{ id: STRIP_ID, label: "Main tabs", windowId: "window-main", windowLabel: document.title || "Material Bluemap" }],
+        listWindows: () => [{ id: "window-main", label: document.title || "Worldlens" }],
+        listStrips: (): readonly SearchableTabStrip[] => [{ id: STRIP_ID, label: "Main tabs", windowId: "window-main", windowLabel: document.title || "Worldlens" }],
         listGroups: (): readonly SearchableTabGroup[] => options.tabs.listGroups().map((group) => ({
             id: group.id,
             label: group.name,
             stripId: STRIP_ID,
             stripLabel: "Main tabs",
             windowId: "window-main",
-            windowLabel: document.title || "Material Bluemap",
+            windowLabel: document.title || "Worldlens",
             collapsed: group.collapsed,
             tabCount: options.tabs.listPages().filter((tab) => tab.groupId === group.id && !tab.closed).length,
         })),

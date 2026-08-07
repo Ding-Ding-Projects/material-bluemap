@@ -8,6 +8,7 @@ import { useBlueMap } from "./useBlueMap";
 import ChangelogViewer from "../changelog/ChangelogViewer.vue";
 import { onRevealRequested } from "../shell/revealRequests.js";
 import { tutorialCompleted } from "../tutorial/tutorialController.js";
+import { productDisplayName } from "../../stores/productName.js";
 
 /**
  * "Browse the documentation" - this page's own reachability path into the docs browser,
@@ -198,7 +199,7 @@ onMounted(() => {
       announcing it would interrupt that reading for a line the reader is about to reach.
     -->
     <p v-if="appVersion !== null" class="mb-info-page__version">
-        {{ t("info.appVersion", { version: appVersion }, "Worldlens {version}") }}
+        {{ t("info.appVersion", { name: productDisplayName, version: appVersion }, "{name} {version}") }}
     </p>
     <p v-else-if="versionFailure !== null" class="mb-info-page__version">
         {{

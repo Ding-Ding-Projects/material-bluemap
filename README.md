@@ -1,4 +1,4 @@
-# material-bluemap
+# Worldlens
 
 A from-scratch TypeScript port of [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap), the
 Minecraft 3D map renderer and web viewer. It is built to ship as two things from one codebase:
@@ -6,7 +6,7 @@ Minecraft 3D map renderer and web viewer. It is built to ship as two things from
 - a **Material Design 3 Electron desktop app** that renders local Minecraft worlds offline and
   connects to remote BlueMap servers — this is what ships today, and there is an installer
   below; and
-- a **standalone headless server** (`@material-bluemap/cli`) that renders and serves the map
+- a **standalone headless server** (`@worldlens/cli`) that renders and serves the map
   webapp to ordinary browsers — this is Phase E, and the CLI now really renders, serves,
   ships a Docker image, and its `--watch` flag really watches, wired to a real
   `MapUpdateService` per map (issue #40, closed 2026-08-06).
@@ -26,6 +26,12 @@ See [Rendering engines](#rendering-engines).
 **[Download the latest Windows installer](https://github.com/Ding-Ding-Projects/material-bluemap/releases/latest)**
 · [all releases](https://github.com/Ding-Ding-Projects/material-bluemap/releases)
 · [documentation site](https://ding-ding-projects.github.io/material-bluemap/)
+
+> **Rename in progress.** The product, packages, installer and machine identifiers are Worldlens.
+> The source repository and Pages URLs above retain their old path until the separate repository
+> rename is executed; keeping the currently live addresses here avoids publishing guessed links.
+> Existing profiles, project files, markers and environment variables are migrated through
+> explicit adapters. See [Migrating to Worldlens](docs/worldlens-migration.md).
 
 The documentation site is a Material 3 tabbed application, not a plain scroll: `Search` owns
 independent regex-builder-backed searches for documentation, settings, tabs, groups and bulk
@@ -94,7 +100,8 @@ states its behaviour, configuration, failure modes, security considerations and 
 | **Private worlds** | Sealed before they leave the machine, rendered on public runners, published only privately | [`docs/private-world-rendering.md`](docs/private-world-rendering.md) |
 | **World sources** | Fetches a world from any GitHub release, including one split into parts in another repository | [`docs/world-sources.md`](docs/world-sources.md) |
 | **Backups** | Packs a world or a rendered map, splits it and publishes it as release assets, with digests | [`docs/backup.md`](docs/backup.md) |
-| **Automatic updates** | Reads the Squirrel feed and offers a restart in a banner that never blocks | [`docs/automatic-updates.md`](docs/automatic-updates.md) |
+| **Worldlens migration** | Moves profiles and preferences without deleting the old copy; reads legacy project/marker/env names and writes current identifiers | [`docs/worldlens-migration.md`](docs/worldlens-migration.md) |
+| **Automatic updates** | Reads the unsigned Squirrel feed, checks its package hashes, and offers a restart in a banner that never blocks | [`docs/automatic-updates.md`](docs/automatic-updates.md) |
 | **EULA and consent** | The licence at first run, a tabbed viewer afterwards, and one remembered answer about Mojang downloads | [`docs/eula-and-consent.md`](docs/eula-and-consent.md) |
 | **Changelog viewer** | Every released version, with date filters, search and export | [`docs/changelog-viewer.md`](docs/changelog-viewer.md) |
 | **Command palette** | `Ctrl+Shift+F` over every command, page and setting | [`docs/command-palette.md`](docs/command-palette.md) |

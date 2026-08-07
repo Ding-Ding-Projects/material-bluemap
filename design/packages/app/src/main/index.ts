@@ -120,8 +120,8 @@ import { spawnProcessRunner } from "./sysdeps/process.js";
 import { registerGhCliHandlers } from "./ghcli/ipc.js";
 import type { GhCliIpc } from "./ghcli/ipc.js";
 import { nodeProcessRunner } from "./cirender/gh.js";
-import { WORLDLENS_IDENTITY } from "@worldlens/shared";
-import { migrateWorldlensProfile, type ProfileMigrationPlan } from "./migration/index.js";
+import { LEGACY_MATERIAL_BLUEMAP_IDENTITY, WORLDLENS_IDENTITY } from "@worldlens/shared";
+import { migrateWorldlensProfile } from "./migration/index.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -133,7 +133,7 @@ const applicationDataDirectory = app.getPath("appData");
 app.setName(WORLDLENS_IDENTITY.shippedName);
 app.setPath("userData", join(applicationDataDirectory, WORLDLENS_IDENTITY.dataDirectoryName));
 
-async function requestProfileMigrationConsent(plan: ProfileMigrationPlan): Promise<"accept" | "deny"> {
+async function requestProfileMigrationConsent(): Promise<"accept" | "deny"> {
     const answer = await dialog.showMessageBox({
         type: "question",
         title: "Bring your existing profile to Worldlens?",
@@ -141,7 +141,8 @@ async function requestProfileMigrationConsent(plan: ProfileMigrationPlan): Promi
         detail:
             "Copy and verify your consent record, settings, GitHub credential references, projects, histories, " +
             "cache and maps for Worldlens. The old profile stays in place so this can be retried or rolled back.\n\n" +
-            `Old profile: ${plan.legacyDirectory}\nWorldlens profile: ${plan.worldlensDirectory}`,
+            `Legacy profile folder: ${LEGACY_MATERIAL_BLUEMAP_IDENTITY.dataDirectorySegments.join("\\")}\n` +
+            `Worldlens profile folder: ${WORLDLENS_IDENTITY.dataDirectoryName}`,
         buttons: ["Copy and verify", "Not now"],
         defaultId: 0,
         cancelId: 1,

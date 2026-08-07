@@ -328,7 +328,7 @@ export interface PagesHostOptions {
 
 const DEFAULT_COMMITTER = {
     name: "Worldlens",
-    email: "material-bluemap@users.noreply.github.com",
+    email: "worldlens@users.noreply.github.com",
 } as const;
 
 /* -------------------------------------------------------------------------- */

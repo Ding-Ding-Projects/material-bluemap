@@ -150,7 +150,7 @@ sites regardless, since the catalogue is one merged set keyed by string.
 
 | Setting | Where it lives | Default |
 |---|---|---|
-| Whether the introduction is collapsed | `homeState.ts`, key `material-bluemap.home.introCollapsed`, through `setupStorage()` | Expanded |
+| Whether the introduction is collapsed | `homeState.ts`, key `worldlens.home.introCollapsed`, through `setupStorage()` | Expanded |
 | Whether Home's tab is pinned | `TabbedNavigation.vue`'s `pinnedPageIds` prop, applied once at the moment Home's tab first exists | Pinned; unpinning it by hand is never re-applied |
 
 Nothing else about Home persists on its own. The tab's position, its pinned state after that first

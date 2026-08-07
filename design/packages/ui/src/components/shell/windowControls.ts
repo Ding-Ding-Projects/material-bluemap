@@ -14,7 +14,7 @@
 
 import { readonly, ref, type Ref } from "vue";
 
-/** The window half of the preload bridge. Mirrors `MaterialBlueMapBridge`. */
+/** The window half of the preload bridge. Mirrors `WorldlensBridge`. */
 export interface WindowBridge {
     minimizeWindow(): Promise<void>;
     toggleMaximizeWindow(): Promise<boolean>;

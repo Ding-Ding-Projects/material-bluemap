@@ -367,7 +367,7 @@ export async function bootstrapCiRepository(
                 plan.template.path,
                 base64Of(plan.template.content),
                 `${plan.kind === "create" ? "Add" : "Update"} ${plan.template.path} for CI rendering ` +
-                    `(material-bluemap ${options.templateVersion})`,
+                    `(Worldlens ${options.templateVersion})`,
                 plan.kind === "update" && plan.existingSha !== null ? plan.existingSha : undefined,
             );
         }

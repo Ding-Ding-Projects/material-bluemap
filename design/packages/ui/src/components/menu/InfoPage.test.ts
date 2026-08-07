@@ -24,6 +24,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import InfoPage from "./InfoPage.vue";
+import { productDisplayName } from "../../stores/productName.js";
 
 /**
  * A stand-in for `info.content`, in the shape every real translation has: an unlabelled
@@ -63,13 +64,24 @@ async function render(bridge: { getVersion?: () => Promise<string> } | null, con
     return wrapper;
 }
 
-afterEach(() => setBridge(null));
+afterEach(() => {
+    setBridge(null);
+    productDisplayName.value = "Worldlens";
+});
 
 describe("the application's own version", () => {
     it("states the version the shell reports", async () => {
         const wrapper = await render({ getVersion: () => Promise.resolve("0.4.2") });
 
         expect(wrapper.text()).toContain("Worldlens 0.4.2");
+        wrapper.unmount();
+    });
+
+    it("uses the cosmetic display name in About without changing the version", async () => {
+        productDisplayName.value = "My Map Desk";
+        const wrapper = await render({ getVersion: () => Promise.resolve("0.4.2") });
+
+        expect(wrapper.text()).toContain("My Map Desk 0.4.2");
         wrapper.unmount();
     });
 

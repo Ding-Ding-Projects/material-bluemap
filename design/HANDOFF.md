@@ -1,5 +1,28 @@
 # Handoff
 
+## Update, 2026-08-07 — Worldlens identity and lossless migration
+
+The product, workspace packages, preload namespace, installer, data root, marker writes and
+project schema now use Worldlens. The migration reads both generations and writes only current
+identifiers. A one-time consented profile copy stages and SHA-256-verifies every file, retains the
+legacy profile, refuses divergent collisions, quarantines interrupted staging, and rolls back a
+failed activation. A real-profile copy migrated 885 files / 347,197,060 bytes with source
+unchanged and target byte-matched.
+
+Renderer and documentation-site localStorage namespaces migrate before store hydration; current
+values win and old cells remain. Worldlens environment variables take precedence while legacy
+update, GitHub-client and consent names remain readable. The cosmetic display name reaches the
+title bar, About, notifications and introductions without changing diagnostics or machine ids.
+
+Windows packages are permanently unsigned: `forceCodeSigning`, `signExecutable` and
+`signAndEditExecutable` are false, signing inputs are cleared, and updates rely on HTTPS, feed
+metadata and package hashes. A packaged `Worldlens.exe` was built with electron-builder 26.15.3;
+PowerShell reported `NotSigned` and no signer certificate. Repository rename, release publication,
+and package deletion remain intentionally outside this phase. The freshly packaged migration
+consent gate was captured without touching the visible desktop at
+`docs/screenshots/worldlens-profile-migration-consent.png`; its copy identifies immutable folder
+names without exposing the host's absolute user-profile path.
+
 ## Update, 2026-08-06 — four-edge tabs, real Project Editor input and complete restart fields
 
 The desktop and documentation-site tab strips now dock to the physical left, right, top or bottom
