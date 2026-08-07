@@ -1,5 +1,24 @@
 # Handoff
 
+## Update, 2026-08-06 — selected actions have unique bundled realistic artwork
+
+The cloud-render setup, local Speed control, restart-to-install banner, repository backup
+publication action, and config write/delete review now render five different local PNG files
+through `components/actionArtwork/ActionArtwork.vue`. The deletion artwork appears only when the
+save plan contains a real delete; write-only saves do not borrow its warning. The shared renderer
+provides semantic alternative text, a bounded 16:7 ordinary frame and 4:3 compact frame,
+`object-fit: cover`, centred subjects, and an explicit reduced-motion rule. The images contain no
+fake controls, and none replaces an existing permission check, consent, action, or super-confirm
+gate.
+
+`ActionArtwork.test.ts` is hand-written rather than glob-derived. It maps each action to its exact
+owner, unique filename, and semantic fallback; checks that the five files exist; rejects reused
+filenames; proves each owner renders its declared key; mounts fallback and translated alt text;
+and pins the narrow-width and reduced-motion CSS. The focused seven-file set passed 143/143 tests,
+including all five owner suites and catalogue completeness. `pnpm build` completed across 13 of
+14 workspace projects and Vite emitted five distinct hashed PNG files. No packaged runtime
+capture or release is claimed by this phase. See `docs/action-artwork.md`.
+
 ## Update, 2026-08-06 — the exact-SHA manual release gate is green again
 
 The manual release attempt from exact base `215307ac05ecf86728831da9429aac48d2bc03dd`

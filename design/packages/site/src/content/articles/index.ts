@@ -48,6 +48,7 @@ import { tabbedShell } from "./tabbed-shell.js";
 import { appearanceEditor } from "./appearance-editor.js";
 import { destructiveActionGate } from "./destructive-action-gate.js";
 import { languageAndTone } from "./language-and-tone.js";
+import { actionArtwork } from "./action-artwork.js";
 import { regexBuilderSurfaces } from "./regex-builder-surfaces.js";
 import { legacyWorldSupport } from "./legacy-world-support.js";
 import { contractRegexBuilder } from "./contract-regex-builder.js";
@@ -87,6 +88,7 @@ export const articles: readonly Article[] = [
     destructiveActionGate,
     regexBuilderSurfaces,
     languageAndTone,
+    actionArtwork,
     worldReading,
     worldDiscovery,
     legacyWorldSupport,
