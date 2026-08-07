@@ -54,7 +54,21 @@ and package deletion remain intentionally outside this phase. The freshly packag
 consent gate was captured without touching the visible desktop at
 `docs/screenshots/worldlens-profile-migration-consent.png`; its copy identifies immutable folder
 names without exposing the host's absolute user-profile path.
+## Update, 2026-08-07 — screenshot harness no longer closes a tab it meant to select
 
+Runs `31145108097` and `31145929626` reached the real Options editor, captured seven of its
+eight tabs, then failed the required-surface gate. The app was not slow: the harness clicked the
+whole `[role="tab"]` element. Each browser-style tab contains a 44 px close button, and for the
+longer **Server plugin** label Playwright's default centre point landed on that nested button. The
+harness closed the tab, shortened its live locator from eight entries to seven, and then waited
+for an eighth entry it had removed itself.
+
+`packages/app/test/screenshots.spec.ts` now activates each Options editor tab through its
+`.mb-tabs-strip__label`, matching the safe interaction already used elsewhere in the harness.
+The required-surface inventory and every timeout remain unchanged. Local verification built all
+13 workspace packages; app typecheck, focused formatting and lint passed; and the app suite
+passed 2,625 tests across 173 files with seven opt-in tests skipped. Exact cloud screenshot proof
+belongs to the branch workflow for the fix commit and must be checked before integration.
 ## Update, 2026-08-06 — four-edge tabs, real Project Editor input and complete restart fields
 
 The desktop and documentation-site tab strips now dock to the physical left, right, top or bottom

@@ -192,6 +192,11 @@ export const screenshotGallery: Article = {
                             description:
                                 "It is skipped and counted in the script's output. Nothing that failed to decode is written into the gallery.",
                         },
+                        {
+                            term: "A tab closes while the harness is trying to select it",
+                            description:
+                                "Browser-style tabs contain their own close button. The harness activates a tab through its label instead of clicking the parent tab's geometric centre, because the centre of a longer label can land on that nested close target. Required app-only surfaces still fail the run if any tab cannot be reached; the timeout and required-surface inventory are not relaxed.",
+                        },
                     ],
                 },
             ],
@@ -224,6 +229,7 @@ export const screenshotGallery: Article = {
                         "It records its own provenance in a manifest: the spec that captured, the method, the commit and the run.",
                         "The gallery page shows that provenance next to the images, so a reader can check which build they are looking at.",
                         "The capture job runs on every CI run, so a regression that blanks the window shows up as an image rather than as a bug report.",
+                        "Options-editor tab captures use the visible label as the activation target, keeping each tab's nested close button out of the interaction path while retaining the fail-closed required-surface check.",
                     ],
                 },
                 {
@@ -253,7 +259,10 @@ export const screenshotGallery: Article = {
     ],
 
     sources: [
-        { label: "packages/app/test/screenshots.spec.ts", href: repoFile("design/packages/app/test/screenshots.spec.ts") },
+        {
+            label: "packages/app/test/screenshots.spec.ts",
+            href: repoFile("design/packages/app/test/screenshots.spec.ts"),
+        },
         { label: ".github/workflows/ci.yml", href: CI_WORKFLOW_URL },
         { label: ".github/workflows/pages.yml", href: PAGES_WORKFLOW_URL },
         {

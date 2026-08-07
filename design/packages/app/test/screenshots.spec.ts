@@ -1544,7 +1544,21 @@ test("captures the options editor, its tabs and its dialogs", async () => {
         expect(count, "the options editor rendered no tabs").toBeGreaterThan(0);
         for (let i = 0; i < count; i += 1) {
             const label = readableLabel(await tabs.nth(i).innerText());
-            await tabs.nth(i).click({ timeout: ELEMENT_TIMEOUT });
+            /*
+             * Click the label, not the tab's geometric centre. A tab contains its own
+             * 44 px close button; for the longer "Server plugin" label that button sits
+             * under Playwright's default centre point. Clicking the parent therefore
+             * closed the tab, shortened this live locator from eight entries to seven,
+             * and left the next `innerText()` waiting for an eighth tab the harness had
+             * just removed. This is the same interaction rule `openShellTab()` and
+             * `ensureMapTabActive()` use: activate the tab through its label so the
+             * nested close affordance can only close when it is deliberately targeted.
+             */
+            await tabs
+                .nth(i)
+                .locator(".mb-tabs-strip__label")
+                .first()
+                .click({ timeout: ELEMENT_TIMEOUT });
             await page.waitForTimeout(700);
             await shoot(
                 `config-tab-${slug(label)}`,
