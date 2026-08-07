@@ -125,33 +125,53 @@ test("complete run and env fingerprints reject indirect execution and harmless d
   );
 });
 
-test("an adjacent executable release step cannot escape the reviewed inventory", () => {
-  const workflow = readFileSync(FILE, "utf8");
-  const publish = "      - name: Publish\n";
+function injectAdjacentReleaseStep(workflow) {
+  const publish = /^ {6}- name: Publish(?<newline>\r?\n)/m.exec(workflow);
+  assert.ok(publish, "the Publish step anchor must exist before mutation");
+  const newline = publish.groups.newline;
   const injected = workflow.replace(
-    publish,
-    "      - name: Unreviewed adjacent shell\n" +
-      '        run: echo "${{ github.event.issue.title }}"\n\n' +
-      publish,
+    publish[0],
+    "      - name: Unreviewed adjacent shell" +
+      newline +
+      '        run: echo "${{ github.event.issue.title }}"' +
+      newline +
+      newline +
+      "      - name: Publish" +
+      newline,
   );
-  const problems = [
-    ...lintText(injected, FILE, WATCHED, WATCHED_STEP_FINGERPRINTS[FILE]),
-    ...actionDependencyProblems(injected, FILE),
-  ];
-  assert.ok(
-    problems.some((problem) =>
-      problem.message.startsWith("Actions expression is interpolated"),
-    ),
+  assert.notEqual(
+    injected,
+    workflow,
+    "the adjacent-step fixture must change the workflow before diagnostics are checked",
   );
-  assert.ok(
-    problems.some((problem) =>
-      /complete release job changed outside its reviewed SHA-256 contract/.test(
-        problem.message,
+  return injected;
+}
+
+for (const [lineEnding, workflow] of [
+  ["LF", readFileSync(FILE, "utf8").replace(/\r\n/g, "\n")],
+  ["CRLF", readFileSync(FILE, "utf8").replace(/\r?\n/g, "\r\n")],
+]) {
+  test(`an adjacent executable release step cannot escape the reviewed inventory (${lineEnding})`, () => {
+    const injected = injectAdjacentReleaseStep(workflow);
+    const problems = [
+      ...lintText(injected, FILE, WATCHED, WATCHED_STEP_FINGERPRINTS[FILE]),
+      ...actionDependencyProblems(injected, FILE),
+    ];
+    assert.ok(
+      problems.some((problem) =>
+        problem.message.startsWith("Actions expression is interpolated"),
       ),
-    ),
-  );
-  assert.equal(jobFingerprint(workflow, "release"), RELEASE_JOB_FINGERPRINT);
-});
+    );
+    assert.ok(
+      problems.some((problem) =>
+        /complete release job changed outside its reviewed SHA-256 contract/.test(
+          problem.message,
+        ),
+      ),
+    );
+    assert.equal(jobFingerprint(workflow, "release"), RELEASE_JOB_FINGERPRINT);
+  });
+}
 
 test("all 49 release-chain actions are SHA-pinned and checkouts erase credentials", () => {
   for (const file of Object.keys(ACTION_INVENTORIES)) {
