@@ -754,6 +754,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     <TabbedNavigation
                         ref="tabs"
                         class="mb-shell-primary-tabs"
+                        panel-class="mb-shell-primary-panel"
                         :pages="pages"
                         :pinned-page-ids="[PAGE_HOME]"
                     >
@@ -1242,7 +1243,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  * events asks for them with `.mb-interactive`, which is the same bargain every floating
  * control in this shell already makes.
  */
-.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs__panel) {
+.mb-shell-tabs :deep(.mb-tabs__panel.mb-shell-primary-panel) {
     position: relative;
     pointer-events: none;
 }
@@ -1252,7 +1253,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
  * click-through layer is a button nobody can press; it also needs a surface of its own,
  * because centred text floating over a map render is text nobody can read.
  */
-.mb-shell-tabs :deep(.mb-shell-primary-tabs > .mb-tabs__empty) {
+.mb-shell-tabs :deep(.mb-tabs__empty.mb-shell-primary-panel) {
     pointer-events: auto;
     background: rgb(var(--v-theme-background));
 }

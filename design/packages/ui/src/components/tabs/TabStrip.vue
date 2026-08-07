@@ -436,6 +436,9 @@ function onTabKeydown(event: KeyboardEvent, tab: TabRecord): void {
     } else if (event.key === "Delete") {
         event.preventDefault();
         emit("close", tab.id, props.strip.id);
+    } else if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        goTo(tab.id);
     } else if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
         event.preventDefault();
         // This tab now owns the whole gesture, so the native event must not go on to
