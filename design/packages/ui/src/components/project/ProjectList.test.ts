@@ -18,6 +18,7 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import ProjectList from "./ProjectList.vue";
+import projectListSource from "./ProjectList.vue?raw";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import type { ProjectRow } from "./projectModel.js";
 
@@ -274,5 +275,30 @@ describe("rendering one straight from its row", () => {
 
         expect(wrapper.emitted("render")?.[0]).toEqual(["C:/saves/Survival"]);
         wrapper.unmount();
+    });
+});
+
+describe("the card's head row, which shares its <v-card-title> with two buttons", () => {
+    /**
+     * Regression: `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis;
+     * white-space: nowrap` (Vuetify's own `VCard.css`). `.mb-projects__head` makes it a
+     * flex row so "Look again" and "New project" sit beside the heading - but
+     * `display: flex` clears none of the three: `text-overflow` stops applying once the
+     * box is a flex container, `overflow: hidden` still clips, and `v-btn` declares no
+     * `white-space` of its own, so both button labels inherited the title's `nowrap` and
+     * had no line to break on. `flex-wrap: wrap` was already there and could only move
+     * whole buttons onto a second row, never shorten one, so on a narrow window a label
+     * was cut off mid-character with no ellipsis.
+     *
+     * `test.css` is not enabled for this workspace's `vitest.config.ts`, so no cascade is
+     * observable from a mounted component here; a `?raw` import reads the exact rule the
+     * fix landed in, the way `PagesScreen.test.ts` does for its own CSS fix.
+     */
+    it("clears the inherited overflow, text-overflow and white-space so the labels can wrap", () => {
+        const rule = /\.mb-projects__head\s*\{[^}]*\}/s.exec(projectListSource)?.[0] ?? "";
+        expect(rule).not.toBe("");
+        expect(rule).toContain("overflow: visible");
+        expect(rule).toContain("text-overflow: clip");
+        expect(rule).toContain("white-space: normal");
     });
 });

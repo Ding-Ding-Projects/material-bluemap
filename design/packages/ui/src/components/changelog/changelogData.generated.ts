@@ -26,90 +26,108 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
-        sha: "88fb85eb5240e33a2950fd00c5e5c6aac4f83191",
-        shortSha: "88fb85eb52",
-        date: "2026-08-07T11:06:12-04:00",
-        subject: "Fix cloud-safe Vue source assertions",
-        details: "Read the two component sources through Vite's stable raw-import path instead of asking an HTTP-flavoured import.meta.url to cosplay as a file URL. The CSS assertions now run on Windows and cloud runners without tripping over their own magnifying glass.\n\n兩個 CSS 測試改用 Vite 穩陣嘅 raw import，唔再逼個 HTTP 味 import.meta.url 扮本機檔案。今次放大鏡終於肯照程式碼，唔係先照爆自己。",
+        sha: "eb5b25a3299dbbbaf6594142a4eb72b87f090e1f",
+        shortSha: "eb5b25a329",
+        date: "2026-08-07T19:46:01+00:00",
+        subject: "fix(ui): finish the flexed v-card-title sweep, six titles it missed",
+        details: "The previous pass fixed nine `<v-card-title>` rows that had been turned into\nflex containers and left the clipping behind. It found those nine by hand, and\nby hand it stopped there: six more rules in this workspace do exactly the same\nthing and were never touched.\n\nThe bug is the one already described: `<v-card-title>` is built for a\nsingle-line block title and ships `overflow: hidden; text-overflow: ellipsis;\nwhite-space: nowrap`. Adding `display: flex` so a chip or a button can sit\nbeside the heading clears none of the three - it only stops `text-overflow`\nfrom doing anything, because ellipsis applies to block containers and not to\nflex ones. What is left is a box that still clips at its edge and still refuses\nto wrap, so an overrunning heading is cut off mid-character with no \"...\" and\nnothing to say that anything is missing. Four of the six already carried\n`flex-wrap: wrap`, which is why they looked fine: wrapping moves whole items\nonto a second row and can never make one item shorter, and in every one of\nthese six the item that overruns is a single one.\n\nEvery heading involved is a translated string, so its length is a property of\nthe locale rather than of the English in the source, and none of the six is a\nfixed-width surface: `RunLocationCard` and `WizardReviewStep` are rendered in\nthe wizard's narrow column, and `ProjectList`'s head carries two buttons whose\nlabels inherit the title's `nowrap` because `v-btn` declares no `white-space`\nof its own.\n\nSame three-line fix as the nine before them - `overflow: visible; text-overflow:\nclip; white-space: normal` - plus `row-gap: 4px` where a second row is now\nreachable, and `flex-wrap: wrap` on `RunScreen`'s heads, which carry an\nargument-count chip and had no wrap at all.\n\nFixed: config/RunScreen (both summary cards), preview/PreviewScreen,\nproject/ProjectList, remote/RunLocationCard, world/RenderRunPanel,\nworld/WizardReviewStep.\n\nChecked rather than assumed: the built stylesheet puts Vuetify's `.v-card-title`\nat byte 129515 and every one of these six rules well past byte 354000, so the\nequal-specificity ones win on source order and the scoped one wins outright.\nA regression test per component reads the shipped rule back out of the source\nwith a `?raw` import, the way `PagesScreen.test.ts` does - `test.css` is off in\nthis workspace's `vitest.config.ts`, so no cascade is observable from a mounted\ncomponent. `RunScreen` and `PreviewScreen` had no test file at all; they have\none now.\n\n上一轉執咗九個扮 flex row 嘅 `<v-card-title>`，係一個一個捉出嚟嘅，所以\n亦都一個一個咁漏低咗六個。同一單嘢：`<v-card-title>` 原裝已經上咗\n`overflow: hidden`、`text-overflow: ellipsis`、`white-space: nowrap` 三味\n藥，加句 `display: flex` 一味都解唔到，只係令 `text-overflow` 白做（佢\n唔管 flex container），個盒照鋤照唔肯換行，個標題長少少就靜雞雞畀人斬\n一截，連粒「...」都欠奉。\n\n六個之中四個本身有 `flex-wrap: wrap`，所以睇落冇事：換行淨係搬得成件\nitem 落第二行，搬極都唔會令一件 item 縮短，而呢六個爆界嘅偏偏都係得一\n件。標題全部係翻譯字串，長短睇 locale 唔係睇源碼嗰句英文；`RunLocationCard`\n同 `WizardReviewStep` 仲要係精靈嗰條窄柱裏面畫，`ProjectList` 個頭嗰兩粒\n掣連 `white-space` 都冇自己嘅，硬食阿爺個 `nowrap`。\n\n照舊三行走天下：`overflow: visible; text-overflow: clip; white-space: normal`，\n有需要開多行嘅補返 `row-gap: 4px`，`RunScreen` 嗰兩個頭本身冇 wrap，順手\n補埋。冇靠估：睇實 build 出嚟嗰份 CSS，Vuetify 嘅 `.v-card-title` 喺 129515\n位，呢六條全部三十五萬幾之後，同分嘅贏排位，scoped 嗰條直情贏硬。每個\ncomponent 補返一個 `?raw` 讀源碼嘅回歸測試，`RunScreen` 同 `PreviewScreen`\n本身連測試檔都冇，今次開返。",
         category: "interface",
         areas: ["interface"],
-        files: 2,
-    },
-    {
-        sha: "ea97ee8aa020ea9d364879d8f534874d2e009a64",
-        shortSha: "ea97ee8aa0",
-        date: "2026-08-07T11:03:11-04:00",
-        subject: "Finalize the Worldlens repository identity",
-        details: "The repository, release-facing links, site runtime, policy files, and generated changelog now agree on the new Worldlens home. Seventeen old-name holdouts have surrendered their mismatched name badges.\n\n倉庫、發佈連結、網站執行層、政策文件同生成版更新記錄而家全部認 Worldlens 新屋企。十七個舊名釘子戶終於交返錯門牌。",
-        category: "site",
-        areas: ["site", "docs", "other", "interface", "shell", "build"],
-        files: 17,
-    },
-    {
-        sha: "776c1f8fe80c8983583791403b2c16706f770bc9",
-        shortSha: "776c1f8fe8",
-        date: "2026-08-07T10:59:29-04:00",
-        subject: "Integrate the audited Worldlens cutover finalizer",
-        details: "The rename transaction now covers every current product-facing target while preserving the clipping fixes that landed first. The repository gets one atomic door change instead of seventeen labels arguing in the hallway.\n\nWorldlens 嘅改名交易而家包齊所有現役產品入口，仲保留先到步嘅防裁字修補。今次一次過換門牌，唔使十七張標籤喺走廊開會。",
-        category: "shell",
-        areas: ["shell", "docs", "interface", "site", "build"],
-        files: 13,
-        summarizes: 2,
-    },
-    {
-        sha: "0765ea8915af879d022fe08843011844c901bda5",
-        shortSha: "0765ea8915",
-        date: "2026-08-07T10:26:35-04:00",
-        subject: "Expand the Worldlens repository cutover transaction",
-        details: "Cover all 17 live repository, Pages, crash-report, and changelog references in one preflighted transaction. The old eight-file checklist was still counting while the integrated Pages site had already unpacked its luggage.\n\nGenerate pre-cutover transaction fixtures from the replacement contract, accept complete ready or finalized states, and reject a mixed cutover. Historical proof and compatibility readers keep their former identifiers on purpose.\n\n將 Worldlens 改 repository 前嘅原子切換擴到 17 個 live 位置，連 Pages、crash report 同 changelog 都一齊上車；舊八項清單仲喺月台數緊手指，Pages 已經搬埋梳化入屋。\n\n測試依家由 replacement contract 砌出 cutover 前 fixture，完整 ready 同完整 finalized 都識驗，半新半舊就即場截停；歷史證據同兼容 reader 繼續保留舊身份，唔會亂咁幫博物館換招牌。",
-        category: "shell",
-        areas: ["shell", "docs", "interface", "site", "build"],
-        files: 13,
-    },
-    {
-        sha: "b4b9a47f889efe35ad96da9681e91e93777d5edc",
-        shortSha: "b4b9a47f88",
-        date: "2026-08-07T10:44:01-04:00",
-        subject: "Auto commit 2026-08-07 14:43:49.681Z",
-        details: "2 files changed\n\n- design/packages/site/src/content/content.css\n- design/packages/site/src/content/content.css.test.ts",
-        category: "site",
-        areas: ["site"],
-        files: 2,
-    },
-    {
-        sha: "a9b70422dac740594ed318bc12b5a59b4a29b43c",
-        shortSha: "a9b70422da",
-        date: "2026-08-07T10:42:50-04:00",
-        subject: "viewer: stop the map popup losing its edges when it opens near the screen border",
-        details: "PopupMarker's block-coordinate popup and ObjectMarker's LabelPopup are anchored\nto a 3D point that can legitimately project anywhere on screen, including hard\nagainst an edge. The CSS2D layer that hosts them sets overflow:hidden on its\ncontainer (CSS2DRenderer.ts, MapViewer.ts), so any popup content crossing that\nedge was silently deleted with no scrollbar and no indication anything was\nmissing - clicking a block near the map's border could show \"x: 123 y: \" with\nthe z coordinate gone.\n\nAdds an opt-in CSS2DObject.keepInBounds flag (default off, so every ordinary\nmarker/label/nametag renders exactly as before) that measures the object's real\nrendered box after layout and nudges it back inside the CSS2D container with\nthe smallest possible shift - the popup still points at the clicked block,\nonly its own box moves to stay fully readable. Wired on for PopupMarker and\nLabelPopup only, the two interactive anchored popups a user directly asked to\nsee.\n\nRegression coverage: 9 new tests for the pure clampRectToBounds arithmetic\n(fits already, overflows each edge, both edges at once, oversized element,\nunmeasured/zero-size container) plus wiring smoke tests proving the default\npath is untouched. Verified red: temporarily inverted the right/bottom clamp\nformula, watched 2 of 9 tests fail with the exact wrong numbers, then reverted.\n\n冇人鍾意個提示框玩失蹤 - 撳到地圖邊邊,個座標彈出嚟就跟住邊界食螺絲,Z 座標\n食得一乾二淨。而家個提示框識自己揦返入嚟,唔會再俾 overflow:hidden 篤爆頭,\n新加嘅九個測試仲刻意整壞咗一次確認會變紅先收貨。",
-        category: "engine",
-        areas: ["engine"],
-        files: 4,
-    },
-    {
-        sha: "37597e230e905ae385fbee2654338c582f51fa09",
-        shortSha: "37597e230e",
-        date: "2026-08-07T10:41:11-04:00",
-        subject: "fix(tabs): keep the overflow menu reachable on a vertical dock below 720px",
-        details: "tabs.css's compact-width media query (<=720px) applied unconditionally to\nevery tab-strip placement, forcing scrollable-tabs mode (nowrap labels,\n`.tab-bar__overflow { display: none !important }`) even when the strip was\ndocked left or right. TabStrip.ts's own isCompact() deliberately excludes\nvertical placements at every width, so on a narrow vertical dock layout()\nkept computing real overflow and un-hiding the button - while this\nunscoped CSS kept it force-hidden and forced pinned-tab labels onto one\nline, which the vertical pinned region's always-on overflow-x:hidden then\nsilently clipped. Net effect: tabs vanish with literally no control left\nto reach them.\n\nFix: scope every rule in the block behind\n`.tab-bar:not([data-placement=\"left\"]):not([data-placement=\"right\"])`, so\nonly a genuinely horizontal dock ever takes the scrollable-tabs shortcut.\n\nAdded two regression tests to TabStrip.test.ts: a CSS-source check that\nevery compact-block rule carries the placement guard (and no unscoped\nduplicate survives), and a DOM-level test that forces real tab geometry\nto prove a left-docked strip still computes overflow and un-hides the\nbutton at 390px while a top-docked one still takes the scrollable\nshortcut. Both were verified red against the unfixed code before being\nrestored to green.\n\n一個裝喺側邊嘅分頁列,窄畫面嗰陣成個「仲有幾多頁」掣係咁畀CSS一巴閂死,\n啲分頁自己就咁人間蒸發,想搵返都冇門。而家幫呢個掣同啲標籤加返個位置\n判斷,淨係打橫擺嗰陣先躝去捲動模式,打側嗰陣照樣有得睇有得揀。",
-        category: "interface",
-        areas: ["interface", "site"],
-        files: 6,
-    },
-    {
-        sha: "b5630462255698b925166f02206614fd3996937d",
-        shortSha: "b563046225",
-        date: "2026-08-07T10:40:01-04:00",
-        subject: "fix(ui): stop flexed v-card-title rows from silently clipping long names",
-        details: "Vuetify's <v-card-title> defaults to `overflow: hidden; text-overflow:\nellipsis; white-space: nowrap` for a single-line block title. Nine card\ntitles in this app turn themselves into a flex row (`display: flex`) so a\nchip or a button can sit beside the heading, but that alone clears none\nof the three inherited properties: `overflow: hidden` keeps clipping,\nand `text-overflow: ellipsis` stops doing anything useful once the box\nis a flex container (it only applies to block containers), so a name\nthat overran the row was silently cut off mid-character with no \"...\"\nand no indication anything was missing. `DockerWorldSourcePanel.vue`\nhad already solved this once for its own <v-card-title> and never told\nthe other nine.\n\nSame three-line fix everywhere: `overflow: visible; text-overflow:\nclip; white-space: normal;`, plus one `?raw`-import regression test per\nfile that reads the shipped rule back out of the component source (this\nworkspace's `vitest.config.ts` does not enable `test.css`, so a real\ncascade is not observable from these suites - matching the pattern\n`ConfigApplyDialog.test.ts` already used for its own CSS fix).\n\nFixed: BackupRunCard, BackupScreen (listing card), ConfigApplyDialog,\nConfigFileForm, DownloadRowCard, DiscoveredWorldsPanel,\nDependencyInstallerPanel, world/ContainerOffers, world/InterruptedRenders.\n\n九個 <v-card-title> 見到隔籬個 chip 就手痕變埋 flex row，全部唔記得\nVuetify 原裝已經幫佢哋收埋 `overflow: hidden`、`text-overflow: ellipsis`\n同 `white-space: nowrap` 三寶。得個 `display: flex`，乜都冇解除：\n`overflow: hidden` 照鋤唔誤，`text-overflow: ellipsis` 就打咗白工（flex\ncontainer 唔受佢管），於是個名長少少就靜雞雞畀人齋斬一截，仲要冇個\n「...」報料。`DockerWorldSourcePanel.vue` 一早自己執過同一單嘢，淨係\n唔記得知會第九個師兄弟。\n\n執法劃一：`overflow: visible; text-overflow: clip; white-space: normal;`\n三行走天下，每個檔案加返一個 `?raw` 讀源碼嘅回歸測試，睇實佢唔會翻叮。",
-        category: "interface",
-        areas: ["interface"],
-        files: 18,
+        files: 12,
     }
 ];
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
+    {
+        version: "0.1.0-build.746",
+        tag: "v0.1.0-build.746",
+        date: "2026-08-07T11:06:48-04:00",
+        commit: "eef61990675997509559c85c7ae3c5e1b27a9b1f",
+        entries: [
+            {
+                sha: "88fb85eb5240e33a2950fd00c5e5c6aac4f83191",
+                shortSha: "88fb85eb52",
+                date: "2026-08-07T11:06:12-04:00",
+                subject: "Fix cloud-safe Vue source assertions",
+                details: "Read the two component sources through Vite's stable raw-import path instead of asking an HTTP-flavoured import.meta.url to cosplay as a file URL. The CSS assertions now run on Windows and cloud runners without tripping over their own magnifying glass.\n\n兩個 CSS 測試改用 Vite 穩陣嘅 raw import，唔再逼個 HTTP 味 import.meta.url 扮本機檔案。今次放大鏡終於肯照程式碼，唔係先照爆自己。",
+                category: "interface",
+                areas: ["interface"],
+                files: 2,
+            },
+            {
+                sha: "ea97ee8aa020ea9d364879d8f534874d2e009a64",
+                shortSha: "ea97ee8aa0",
+                date: "2026-08-07T11:03:11-04:00",
+                subject: "Finalize the Worldlens repository identity",
+                details: "The repository, release-facing links, site runtime, policy files, and generated changelog now agree on the new Worldlens home. Seventeen old-name holdouts have surrendered their mismatched name badges.\n\n倉庫、發佈連結、網站執行層、政策文件同生成版更新記錄而家全部認 Worldlens 新屋企。十七個舊名釘子戶終於交返錯門牌。",
+                category: "site",
+                areas: ["site", "docs", "other", "interface", "shell", "build"],
+                files: 17,
+            },
+            {
+                sha: "776c1f8fe80c8983583791403b2c16706f770bc9",
+                shortSha: "776c1f8fe8",
+                date: "2026-08-07T10:59:29-04:00",
+                subject: "Integrate the audited Worldlens cutover finalizer",
+                details: "The rename transaction now covers every current product-facing target while preserving the clipping fixes that landed first. The repository gets one atomic door change instead of seventeen labels arguing in the hallway.\n\nWorldlens 嘅改名交易而家包齊所有現役產品入口，仲保留先到步嘅防裁字修補。今次一次過換門牌，唔使十七張標籤喺走廊開會。",
+                category: "shell",
+                areas: ["shell", "docs", "interface", "site", "build"],
+                files: 13,
+                summarizes: 2,
+            },
+            {
+                sha: "0765ea8915af879d022fe08843011844c901bda5",
+                shortSha: "0765ea8915",
+                date: "2026-08-07T10:26:35-04:00",
+                subject: "Expand the Worldlens repository cutover transaction",
+                details: "Cover all 17 live repository, Pages, crash-report, and changelog references in one preflighted transaction. The old eight-file checklist was still counting while the integrated Pages site had already unpacked its luggage.\n\nGenerate pre-cutover transaction fixtures from the replacement contract, accept complete ready or finalized states, and reject a mixed cutover. Historical proof and compatibility readers keep their former identifiers on purpose.\n\n將 Worldlens 改 repository 前嘅原子切換擴到 17 個 live 位置，連 Pages、crash report 同 changelog 都一齊上車；舊八項清單仲喺月台數緊手指，Pages 已經搬埋梳化入屋。\n\n測試依家由 replacement contract 砌出 cutover 前 fixture，完整 ready 同完整 finalized 都識驗，半新半舊就即場截停；歷史證據同兼容 reader 繼續保留舊身份，唔會亂咁幫博物館換招牌。",
+                category: "shell",
+                areas: ["shell", "docs", "interface", "site", "build"],
+                files: 13,
+            },
+            {
+                sha: "b4b9a47f889efe35ad96da9681e91e93777d5edc",
+                shortSha: "b4b9a47f88",
+                date: "2026-08-07T10:44:01-04:00",
+                subject: "Auto commit 2026-08-07 14:43:49.681Z",
+                details: "2 files changed\n\n- design/packages/site/src/content/content.css\n- design/packages/site/src/content/content.css.test.ts",
+                category: "site",
+                areas: ["site"],
+                files: 2,
+            },
+            {
+                sha: "a9b70422dac740594ed318bc12b5a59b4a29b43c",
+                shortSha: "a9b70422da",
+                date: "2026-08-07T10:42:50-04:00",
+                subject: "viewer: stop the map popup losing its edges when it opens near the screen border",
+                details: "PopupMarker's block-coordinate popup and ObjectMarker's LabelPopup are anchored\nto a 3D point that can legitimately project anywhere on screen, including hard\nagainst an edge. The CSS2D layer that hosts them sets overflow:hidden on its\ncontainer (CSS2DRenderer.ts, MapViewer.ts), so any popup content crossing that\nedge was silently deleted with no scrollbar and no indication anything was\nmissing - clicking a block near the map's border could show \"x: 123 y: \" with\nthe z coordinate gone.\n\nAdds an opt-in CSS2DObject.keepInBounds flag (default off, so every ordinary\nmarker/label/nametag renders exactly as before) that measures the object's real\nrendered box after layout and nudges it back inside the CSS2D container with\nthe smallest possible shift - the popup still points at the clicked block,\nonly its own box moves to stay fully readable. Wired on for PopupMarker and\nLabelPopup only, the two interactive anchored popups a user directly asked to\nsee.\n\nRegression coverage: 9 new tests for the pure clampRectToBounds arithmetic\n(fits already, overflows each edge, both edges at once, oversized element,\nunmeasured/zero-size container) plus wiring smoke tests proving the default\npath is untouched. Verified red: temporarily inverted the right/bottom clamp\nformula, watched 2 of 9 tests fail with the exact wrong numbers, then reverted.\n\n冇人鍾意個提示框玩失蹤 - 撳到地圖邊邊,個座標彈出嚟就跟住邊界食螺絲,Z 座標\n食得一乾二淨。而家個提示框識自己揦返入嚟,唔會再俾 overflow:hidden 篤爆頭,\n新加嘅九個測試仲刻意整壞咗一次確認會變紅先收貨。",
+                category: "engine",
+                areas: ["engine"],
+                files: 4,
+            },
+            {
+                sha: "37597e230e905ae385fbee2654338c582f51fa09",
+                shortSha: "37597e230e",
+                date: "2026-08-07T10:41:11-04:00",
+                subject: "fix(tabs): keep the overflow menu reachable on a vertical dock below 720px",
+                details: "tabs.css's compact-width media query (<=720px) applied unconditionally to\nevery tab-strip placement, forcing scrollable-tabs mode (nowrap labels,\n`.tab-bar__overflow { display: none !important }`) even when the strip was\ndocked left or right. TabStrip.ts's own isCompact() deliberately excludes\nvertical placements at every width, so on a narrow vertical dock layout()\nkept computing real overflow and un-hiding the button - while this\nunscoped CSS kept it force-hidden and forced pinned-tab labels onto one\nline, which the vertical pinned region's always-on overflow-x:hidden then\nsilently clipped. Net effect: tabs vanish with literally no control left\nto reach them.\n\nFix: scope every rule in the block behind\n`.tab-bar:not([data-placement=\"left\"]):not([data-placement=\"right\"])`, so\nonly a genuinely horizontal dock ever takes the scrollable-tabs shortcut.\n\nAdded two regression tests to TabStrip.test.ts: a CSS-source check that\nevery compact-block rule carries the placement guard (and no unscoped\nduplicate survives), and a DOM-level test that forces real tab geometry\nto prove a left-docked strip still computes overflow and un-hides the\nbutton at 390px while a top-docked one still takes the scrollable\nshortcut. Both were verified red against the unfixed code before being\nrestored to green.\n\n一個裝喺側邊嘅分頁列,窄畫面嗰陣成個「仲有幾多頁」掣係咁畀CSS一巴閂死,\n啲分頁自己就咁人間蒸發,想搵返都冇門。而家幫呢個掣同啲標籤加返個位置\n判斷,淨係打橫擺嗰陣先躝去捲動模式,打側嗰陣照樣有得睇有得揀。",
+                category: "interface",
+                areas: ["interface", "site"],
+                files: 6,
+            },
+            {
+                sha: "b5630462255698b925166f02206614fd3996937d",
+                shortSha: "b563046225",
+                date: "2026-08-07T10:40:01-04:00",
+                subject: "fix(ui): stop flexed v-card-title rows from silently clipping long names",
+                details: "Vuetify's <v-card-title> defaults to `overflow: hidden; text-overflow:\nellipsis; white-space: nowrap` for a single-line block title. Nine card\ntitles in this app turn themselves into a flex row (`display: flex`) so a\nchip or a button can sit beside the heading, but that alone clears none\nof the three inherited properties: `overflow: hidden` keeps clipping,\nand `text-overflow: ellipsis` stops doing anything useful once the box\nis a flex container (it only applies to block containers), so a name\nthat overran the row was silently cut off mid-character with no \"...\"\nand no indication anything was missing. `DockerWorldSourcePanel.vue`\nhad already solved this once for its own <v-card-title> and never told\nthe other nine.\n\nSame three-line fix everywhere: `overflow: visible; text-overflow:\nclip; white-space: normal;`, plus one `?raw`-import regression test per\nfile that reads the shipped rule back out of the component source (this\nworkspace's `vitest.config.ts` does not enable `test.css`, so a real\ncascade is not observable from these suites - matching the pattern\n`ConfigApplyDialog.test.ts` already used for its own CSS fix).\n\nFixed: BackupRunCard, BackupScreen (listing card), ConfigApplyDialog,\nConfigFileForm, DownloadRowCard, DiscoveredWorldsPanel,\nDependencyInstallerPanel, world/ContainerOffers, world/InterruptedRenders.\n\n九個 <v-card-title> 見到隔籬個 chip 就手痕變埋 flex row，全部唔記得\nVuetify 原裝已經幫佢哋收埋 `overflow: hidden`、`text-overflow: ellipsis`\n同 `white-space: nowrap` 三寶。得個 `display: flex`，乜都冇解除：\n`overflow: hidden` 照鋤唔誤，`text-overflow: ellipsis` 就打咗白工（flex\ncontainer 唔受佢管），於是個名長少少就靜雞雞畀人齋斬一截，仲要冇個\n「...」報料。`DockerWorldSourcePanel.vue` 一早自己執過同一單嘢，淨係\n唔記得知會第九個師兄弟。\n\n執法劃一：`overflow: visible; text-overflow: clip; white-space: normal;`\n三行走天下，每個檔案加返一個 `?raw` 讀源碼嘅回歸測試，睇實佢唔會翻叮。",
+                category: "interface",
+                areas: ["interface"],
+                files: 18,
+            }
+        ],
+    },
     {
         version: "0.1.0-build.734",
         tag: "v0.1.0-build.734",
@@ -5593,22 +5611,6 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         ],
     },
     {
-        version: "0.1.0-build.11",
-        tag: "v0.1.0-build.11",
-        date: "2026-08-04T18:03:34-04:00",
-        commit: "de209a13a1bd1cbadab48dded613725582b32702",
-        entries: [
-        ],
-    },
-    {
-        version: "0.1.0-build.7",
-        tag: "v0.1.0-build.7",
-        date: "2026-08-04T17:07:01-04:00",
-        commit: "e68c670ea32df8fbe5891393deb4037499894fc8",
-        entries: [
-        ],
-    },
-    {
         version: "0.1.0-build.244",
         tag: "v0.1.0-build.244",
         date: "2026-08-04T16:53:46-04:00",
@@ -5990,14 +5992,6 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
                 areas: ["docs"],
                 files: 62,
             }
-        ],
-    },
-    {
-        version: "0.1.0-build.6",
-        tag: "v0.1.0-build.6",
-        date: "2026-08-04T16:45:39-04:00",
-        commit: "691e5769c8238bf6947814f2a5952438b59c91ed",
-        entries: [
         ],
     },
     {
@@ -6622,14 +6616,6 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
         ],
     },
     {
-        version: "0.1.0-build.3",
-        tag: "v0.1.0-build.3",
-        date: "2026-08-04T00:45:47-04:00",
-        commit: "f1b03475cdb565c74f3100ef0e4911691ae6e251",
-        entries: [
-        ],
-    },
-    {
         version: "0.1.0-build.123",
         tag: "v0.1.0-build.123",
         date: "2026-08-04T00:45:47-04:00",
@@ -6660,14 +6646,6 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
     {
         version: "0.1.0-build.121",
         tag: "v0.1.0-build.121",
-        date: "2026-08-04T00:37:25-04:00",
-        commit: "1997278fcba1143fd525eacdb033cbccadea4c11",
-        entries: [
-        ],
-    },
-    {
-        version: "0.1.0-build.1",
-        tag: "v0.1.0-build.1",
         date: "2026-08-04T00:37:25-04:00",
         commit: "1997278fcba1143fd525eacdb033cbccadea4c11",
         entries: [
@@ -7635,7 +7613,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "ee9a7ab80f13b8e78e8bfc9bd6ca3833e83f3ae6",
                 shortSha: "ee9a7ab80f",
-                date: "2026-08-03T01:23:48Z",
+                date: "2026-08-03T01:23:48+00:00",
                 subject: "WIP: Wave C1 ZipFileSystem (workflow still writing)",
                 details: "",
                 category: "engine",
@@ -7645,7 +7623,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "b293d4825dba2233ff467f416b28733977fdf767",
                 shortSha: "b293d4825d",
-                date: "2026-08-03T01:23:12Z",
+                date: "2026-08-03T01:23:12+00:00",
                 subject: "Handoff: Phase C Wave 1 WIP salvage + full handoff doc",
                 details: "Phases 0/A/B complete and verified on this branch (501 tests at Phase B\nexit). Commits here include in-progress Wave C1 files (resources root,\nadapters, shared vectors, util) — engine build may be red on these WIP\nfiles by design. HANDOFF.md carries the full continuation guide: wave\nstructure, contracts, process learnings (small waves + commit per wave),\nremaining phases, and the verify-from-clean checklist.",
                 category: "engine",
@@ -7655,7 +7633,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "a66d879960db51ffb691c5daa1339270f6c10b67",
                 shortSha: "a66d879960",
-                date: "2026-08-03T01:06:51Z",
+                date: "2026-08-03T01:06:51+00:00",
                 subject: "Prep Phase C: pngjs + yauzl-promise deps, bundle resourceExtensions assets",
                 details: "363 MIT resource-extension JSONs copied verbatim from vendor/BlueMap;\nroadmap updated (Phase B done).",
                 category: "engine",
@@ -7665,7 +7643,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "5704048830d495f43e145660dd7cf63f720f6739",
                 shortSha: "5704048830",
-                date: "2026-08-03T01:06:15Z",
+                date: "2026-08-03T01:06:15+00:00",
                 subject: "Complete Phase B: engine world layer green with 1.18 + 1.12.2 e2e proofs",
                 details: "Tristate ported; typed Phase C/D placeholder contracts (DataPack,\nResourcePack, RenderSettings, Mask); anvil WorldLoaderType wiring\nverified; world-e2e test builds synthetic 1.18 (padded paletted block\nstates) and 1.12.2 (nibble arrays) worlds byte-by-byte and asserts exact\nBlockState/biome/light decoding through MCAWorld, including legacy\nextension reconstruction (fence connections, snowy grass). Monorepo:\n501 tests across 50 files, build+lint clean.",
                 category: "engine",
@@ -7675,7 +7653,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "8b652f4538fcb98c5a4456b15d068635169fa235",
                 shortSha: "8b652f4538",
-                date: "2026-08-03T00:48:03Z",
+                date: "2026-08-03T00:48:03+00:00",
                 subject: "Phase B Wave 2: world model + MCA decoders 1.12.2-26.x (WIP: integration pending)",
                 details: "world/: BlockState (exact Java parse/hash semantics), Chunk/Region/World/\nDimensionType/LightData/BlockEntity/Entity, block cursors + neighborhood,\nbiomes with grass color modifiers. world/mca/: region reader (.mca +\nlinear, .mcc oversized, lz4 chunks), PackedIntArrayAccess (both packed\nlayouts via 32-bit halves), chunk decoders Chunk_1_13/1_15/1_16/1_18 +\nlegacy Chunk_1_12 with BlockIdMapper + 15 neighbor extensions, data\nschemas, MCAWorld/ChunkGrid/watch. Engine build pending Wave 3 stubs for\nPhase C/D contracts (Tristate/WatchService/DataPack/ResourcePack/\nRenderSettings/Mask).",
                 category: "engine",
@@ -7685,7 +7663,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "c8d4f0bf5947d5405bcd9509e9466093e262916d",
                 shortSha: "c8d4f0bf59",
-                date: "2026-08-02T23:27:25Z",
+                date: "2026-08-02T23:27:25+00:00",
                 subject: "Phase B Wave 1: complete shared foundations, NBT package, compression layer",
                 details: "shared: mutable vector math, tile path codec (both directions, upstream\nbug-for-bug), full barrel, 99 tests. nbt: BlueNBT-subset port — streaming\nbig-endian reader/writer (all 12 tag types, modified-UTF-8, zero-copy long\narrays), schema-mapped decode with adapters (paletted arrays, lenient\nlists, registry), gzip/zlib autodetect, 56 tests incl. real level.dat\nfixtures. engine: compression registry (none/gzip/deflate/zstd/lz4) with\nlz4-java block framing port. Monorepo: 299 tests green.",
                 category: "engine",
@@ -7695,7 +7673,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "8ae9eee5cda0392cdf297e20eaa7f006b2e82b1a",
                 shortSha: "8ae9eee5cd",
-                date: "2026-08-02T22:52:37Z",
+                date: "2026-08-02T22:52:37+00:00",
                 subject: "Fix unused-param lint in salvaged Grid.ts",
                 details: "",
                 category: "services",
@@ -7705,7 +7683,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "a9e93964760f6d5ff432363d9ce09f3cab15e285",
                 shortSha: "a9e9396476",
-                date: "2026-08-02T22:51:44Z",
+                date: "2026-08-02T22:51:44+00:00",
                 subject: "Salvage partial Phase B foundations (shared Key/Registry/Grid/math, nbt TagType)",
                 details: "Recovered from the interrupted engine-foundations run; builds and lints\nclean. Barrels and remaining foundation files land with Wave 1.",
                 category: "services",
@@ -7715,7 +7693,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "100b008e9ae84187106e5feaa231702a393ee4d0",
                 shortSha: "100b008e9a",
-                date: "2026-08-02T21:23:32Z",
+                date: "2026-08-02T21:23:32+00:00",
                 subject: "Add engine package dependencies for Phase B",
                 details: "lru-cache, chokidar, zstd-wasm, lz4js, xxhash-wasm, and the workspace\nlinks to shared and nbt.",
                 category: "build",
@@ -7725,7 +7703,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "b7680d01e36bdadd22267ff2db011ccd5eba9dae",
                 shortSha: "b7680d01e3",
-                date: "2026-08-02T21:23:02Z",
+                date: "2026-08-02T21:23:02+00:00",
                 subject: "Add ROADMAP/HANDOFF docs and legacy 1.12 mapping data",
                 details: "blockIds/biomes/blockProperties JSON extracted verbatim from upstream tag\nv0.10.3-mc1.12 into engine assets for the Chunk_1_12 decoder; roadmap and\nhandoff docs record phase status and verification evidence.",
                 category: "engine",
@@ -7735,7 +7713,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "c4832c84dda428d8c8cdb496e579db49e897e9df",
                 shortSha: "c4832c84dd",
-                date: "2026-08-02T21:16:29Z",
+                date: "2026-08-02T21:16:29+00:00",
                 subject: "Complete Phase A: full viewer port integrated, remote mode end-to-end",
                 details: "All 65 BlueMap viewer files ported to strict TypeScript (52 viewer tests,\nmakeReactive at all 9 upstream reactive() sites, DOMPurify'd marker HTML,\nCSP-safe popups, gated remote script/style injection); BlueMapApp gains\ndataRoot resolution and dispose() for profile switching; barrel exports\ni18n/sanitize seams; proxy no longer forwards encoding headers undici\nalready consumed; StaticHandler root resolved absolutely. Monorepo\nbuild+lint+57 tests green; UI + live-demo proxy smoke-tested end to end.",
                 category: "engine",
@@ -7745,7 +7723,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "0933934d543ed2b99baa4e853400daa8bc60a10e",
                 shortSha: "0933934d54",
-                date: "2026-08-02T20:31:25Z",
+                date: "2026-08-02T20:31:25+00:00",
                 subject: "WIP: viewer port in progress (util, map loaders, PRBM parser)",
                 details: "Snapshot of the in-flight TypeScript port of the BlueMap viewer library;\nthe port workflow is still running and the completed, integrated viewer\npackage lands in a follow-up commit.",
                 category: "engine",
@@ -7755,7 +7733,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "71fd14e788a38ac167cc96fb1dc2b8c976c2353c",
                 shortSha: "71fd14e788",
-                date: "2026-08-02T20:30:36Z",
+                date: "2026-08-02T20:30:36+00:00",
                 subject: "Adopt global product contracts: regex builder, tabs, appearance, i18n, super-confirm",
                 details: "Vendors the user's product contract docs into design/docs/contracts and the\nworker-isolated reference regex builder into design/tools; plan.md maps the\nfive contracts (every-search-bar regex builder, full browser-style tab\ncontract, per-element appearance editors with infinite color translation,\nEN/HK-Cantonese/bilingual modes with funny-level, super confirmation for\ndestructive actions) into the build phases.",
                 category: "docs",
@@ -7765,7 +7743,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "47e37d90f4ebb93df09a24d024fcc00fa4c5b443",
                 shortSha: "47e37d90f4",
-                date: "2026-08-02T20:24:33Z",
+                date: "2026-08-02T20:24:33+00:00",
                 subject: "Add MD3 UI shell and hardened Electron app shell (Phase A)",
                 details: "ui: Vue 3 + Vuetify (md3 blueprint) app bar/nav drawer, server profile\nmanager, MapView wiring, vue-i18n with the 30 upstream HOCON locales,\nMD3 theme bridge for the viewer's raw-DOM marker styles.\napp: Electron main with embedded token-gated localhost server (static UI\n+ remote proxy), strict CSP, sandboxed renderer, typed preload bridge\n(profile sync, clipboard), esbuild build for ESM main + CJS preload.",
                 category: "interface",
@@ -7775,7 +7753,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "095bd69adb5d59c9c08209efc2aff6a926375ecc",
                 shortSha: "095bd69adb",
-                date: "2026-08-02T20:19:29Z",
+                date: "2026-08-02T20:19:29+00:00",
                 subject: "Add Phase A embedded server: localhost HTTP server + remote reverse proxy",
                 details: "HttpServer (token-gated 127.0.0.1 binding), StaticHandler for the UI\nbundle, and RemoteProxyHandler mounting remote BlueMap instances at\n/remote/{profile} with conditional-header forwarding, 204 passthrough,\nand SSE streaming. Verified against the public BlueMap demo server.",
                 category: "services",
@@ -7785,7 +7763,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "70f58523b9243623d3991ef6fc1224cf09e0eed2",
                 shortSha: "70f58523b9",
-                date: "2026-08-02T20:14:57Z",
+                date: "2026-08-02T20:14:57+00:00",
                 subject: "Scaffold design/ TypeScript monorepo (Phase 0)",
                 details: "pnpm workspace with eight packages (shared, nbt, engine, server, cli,\nviewer, ui, app), strict TS base config, eslint/prettier/vitest, CI\nworkflow, MIT license and BlueMap attribution NOTICE.",
                 category: "build",
@@ -7795,7 +7773,7 @@ export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
             {
                 sha: "307d798460f986336b51e59b15285df56b082e14",
                 shortSha: "307d798460",
-                date: "2026-08-02T20:11:48Z",
+                date: "2026-08-02T20:11:48+00:00",
                 subject: "Add plan.md: full BlueMap port plan (design/ monorepo, Electron + server, MD3)",
                 details: "Plan for porting all of BlueMap (engine, server, webapp) to TypeScript under\ndesign/, shipped as a hardened Electron app and a standalone server, with\nMaterial Design 3 UI, Minecraft 1.12.2-26.x world support (legacy decoder\ncombined back from upstream tag v0.10.3-mc1.12), a full options GUI, and a\nDocker hosting GUI.",
                 category: "docs",

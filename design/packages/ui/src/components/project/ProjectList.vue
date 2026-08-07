@@ -803,6 +803,20 @@ function askToForget(world: string): void {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    row-gap: 4px;
+    /*
+     * `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis; white-space:
+     * nowrap`, and `display: flex` above clears none of the three: `text-overflow` stops
+     * applying once the box is a flex container, `overflow: hidden` still clips, and the
+     * inherited `nowrap` leaves each label one unbreakable line. `flex-wrap: wrap` moved
+     * whole items onto a second row but could not shorten one, so on a narrow window the
+     * two button labels here - "Look again" and "New project" in English, longer in
+     * several locales - were cut off mid-character with no ellipsis. Same fix as
+     * `DockerWorldSourcePanel.vue`'s `.mb-docker-world__card > .v-card-title`.
+     */
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 .mb-projects__blurb,

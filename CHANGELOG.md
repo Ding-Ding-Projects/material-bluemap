@@ -22,6 +22,14 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- fix(ui): finish the flexed v-card-title sweep, six titles it missed - [`eb5b25a329`](https://github.com/Ding-Ding-Projects/worldlens/commit/eb5b25a3299dbbbaf6594142a4eb72b87f090e1f)
+
+## 0.1.0-build.746 - 2026-08-07
+
+Tagged at [`eef6199067`](https://github.com/Ding-Ding-Projects/worldlens/commit/eef61990675997509559c85c7ae3c5e1b27a9b1f).
+
+### Interface
+
 - Fix cloud-safe Vue source assertions - [`88fb85eb52`](https://github.com/Ding-Ding-Projects/worldlens/commit/88fb85eb5240e33a2950fd00c5e5c6aac4f83191)
 - fix(tabs): keep the overflow menu reachable on a vertical dock below 720px - [`37597e230e`](https://github.com/Ding-Ding-Projects/worldlens/commit/37597e230e905ae385fbee2654338c582f51fa09)
 - fix(ui): stop flexed v-card-title rows from silently clipping long names - [`b563046225`](https://github.com/Ding-Ding-Projects/worldlens/commit/b5630462255698b925166f02206614fd3996937d)
@@ -1142,18 +1150,6 @@ Tagged at [`e680b40540`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 - Document Bedrock conversion honestly - [`216024ae7b`](https://github.com/Ding-Ding-Projects/worldlens/commit/216024ae7bfa937076abb9d2278a56796e0a0ec1)
 - Record render checkpoint parity - [`1e036c1aac`](https://github.com/Ding-Ding-Projects/worldlens/commit/1e036c1aacb7fb093a3356565040648306ed0cc0)
 
-## 0.1.0-build.11 - 2026-08-04
-
-Tagged at [`de209a13a1`](https://github.com/Ding-Ding-Projects/worldlens/commit/de209a13a1bd1cbadab48dded613725582b32702).
-
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
-
-## 0.1.0-build.7 - 2026-08-04
-
-Tagged at [`e68c670ea3`](https://github.com/Ding-Ding-Projects/worldlens/commit/e68c670ea32df8fbe5891393deb4037499894fc8).
-
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
-
 ## 0.1.0-build.244 - 2026-08-04
 
 Tagged at [`ecc5168e94`](https://github.com/Ding-Ding-Projects/worldlens/commit/ecc5168e94234f87ebdcd595a1655dfebfa723b6).
@@ -1209,12 +1205,6 @@ Tagged at [`ecc5168e94`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 - Merge current default work before integrating Pages docs - [`12432939ae`](https://github.com/Ding-Ding-Projects/worldlens/commit/12432939aec0a423693303b1f35719a3a18027ed) _(summary of 16 commits, also listed here)_
 - Mention the Pages tab appearance editor - [`542e7eeeaa`](https://github.com/Ding-Ding-Projects/worldlens/commit/542e7eeeaaac172737a1d093cade00ddc6d57c3a)
 - Photograph the History tab, and every wizard step, from a green run - [`531b817588`](https://github.com/Ding-Ding-Projects/worldlens/commit/531b8175889dfd9c7f50de9683dba48b5f84dc1e)
-
-## 0.1.0-build.6 - 2026-08-04
-
-Tagged at [`691e5769c8`](https://github.com/Ding-Ding-Projects/worldlens/commit/691e5769c8238bf6947814f2a5952438b59c91ed).
-
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
 
 ## 0.1.0-build.196 - 2026-08-04
 
@@ -1415,12 +1405,6 @@ Tagged at [`fc084e8b8d`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 - Give the app a palette, a notice history, a changelog, and a builder on every search - [`fc084e8b8d`](https://github.com/Ding-Ding-Projects/worldlens/commit/fc084e8b8d17e86bf3c082de208f9e5d36e168b2)
 
-## 0.1.0-build.3 - 2026-08-04
-
-Tagged at [`f1b03475cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/f1b03475cdb565c74f3100ef0e4911691ae6e251).
-
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
-
 ## 0.1.0-build.123 - 2026-08-04
 
 Tagged at [`f1b03475cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/f1b03475cdb565c74f3100ef0e4911691ae6e251).
@@ -1431,12 +1415,6 @@ Tagged at [`f1b03475cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 - Let the site know which repository it is being served from - [`81715bf346`](https://github.com/Ding-Ding-Projects/worldlens/commit/81715bf34696542939948994e64f1c277f29d544)
 
 ## 0.1.0-build.121 - 2026-08-04
-
-Tagged at [`1997278fcb`](https://github.com/Ding-Ding-Projects/worldlens/commit/1997278fcba1143fd525eacdb033cbccadea4c11).
-
-_No changes were recorded for this version: its tag points at a commit that an earlier tag already covered._
-
-## 0.1.0-build.1 - 2026-08-04
 
 Tagged at [`1997278fcb`](https://github.com/Ding-Ding-Projects/worldlens/commit/1997278fcba1143fd525eacdb033cbccadea4c11).
 

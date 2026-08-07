@@ -20,6 +20,7 @@ import { mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import RenderRunPanel from "./RenderRunPanel.vue";
+import renderRunPanelSource from "./RenderRunPanel.vue?raw";
 import { createRenderRun } from "./renderRun.js";
 import type {
     EngineDescription,
@@ -489,5 +490,29 @@ describe("the breakdown", () => {
         expect(wrapper.text()).not.toContain("left,");
         wrapper.unmount();
         run.dispose();
+    });
+});
+
+describe("the run's head row, which shares its <v-card-title> with chips", () => {
+    /**
+     * Regression: `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis;
+     * white-space: nowrap` (Vuetify's own `VCard.css`). `.mb-world-run__head` makes it a
+     * flex row so the state icon and the map-list and engine chips sit beside the state
+     * text - but `display: flex` clears none of the three: `text-overflow` stops applying
+     * once the box is a flex container, `overflow: hidden` still clips, and the inherited
+     * `nowrap` leaves the state text one unbreakable line. `flex-wrap: wrap` was already
+     * there and could only move whole items onto a second row, never shorten one, so the
+     * longest state sentence was cut off mid-character with no ellipsis.
+     *
+     * `test.css` is not enabled for this workspace's `vitest.config.ts`, so no cascade is
+     * observable from a mounted component here; a `?raw` import reads the exact rule the
+     * fix landed in, the way `PagesScreen.test.ts` does for its own CSS fix.
+     */
+    it("clears the inherited overflow, text-overflow and white-space so the state text can wrap", () => {
+        const rule = /\.mb-world-run__head\s*\{[^}]*\}/s.exec(renderRunPanelSource)?.[0] ?? "";
+        expect(rule).not.toBe("");
+        expect(rule).toContain("overflow: visible");
+        expect(rule).toContain("text-overflow: clip");
+        expect(rule).toContain("white-space: normal");
     });
 });
