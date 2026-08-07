@@ -14,6 +14,11 @@ persists; reset returns to the responsive default; and simply observing the comp
 longer writes a false user override. Top/bottom tabs remain horizontal; `aria-expanded`,
 `aria-controls`, labels and focus follow the real state.
 
+The final rejected-proof repair is
+`82139b484903d81997e11306292983dbd55a608f`: session-only Home Assistant credentials,
+lower-priority fallthrough, menu geometry, schema-v2 proof, compact appearance reflow, and the
+fresh 414×844 bilingual capture.
+
 The hand-written inventory now has 41 categories. Scheduled language and appearance rules cover
 date, time, weekday, timezone, cross-midnight and full-day equal-endpoint windows; priority and
 later-rule precedence; base recovery; bounded history; local, HTTPS/loopback JSON API and Home

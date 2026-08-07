@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "82139b484903d81997e11306292983dbd55a608f",
+        shortSha: "82139b4849",
+        date: "2026-08-07T07:10:14-04:00",
+        subject: "WEBSITE EDIT - Close remaining Pages parity proof gaps",
+        details: "Home Assistant credentials finally live where a static page can honestly keep them: this page session, not an imaginary vault with excellent branding and no address. Off now falls through, failures stay closed, every transient menu gets real geometry, and schema-v2 proof catches stale evidence before it can wear a green hat. / Home Assistant 憑證終於住喺靜態頁面真係住得到嘅地方：今次 session 記憶體，唔再靠一個名就威但地址都冇嘅幻想保險庫。Off 會向下搵規則、失敗照樣 fail closed、menu 全部有真 geometry，schema-v2 仲會捉走扮新嘅舊證據。",
+        category: "docs",
+        areas: ["docs", "site"],
+        files: 45,
+    },
+    {
         sha: "4fae06b6c4914825a6d196a134cfe7ee7ac11519",
         shortSha: "4fae06b6c4",
         date: "2026-08-07T05:46:12-04:00",

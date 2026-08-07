@@ -32,6 +32,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- WEBSITE EDIT - Close remaining Pages parity proof gaps - [`82139b4849`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/82139b484903d81997e11306292983dbd55a608f)
 - WEBSITE EDIT - Complete Pages parity proof and guided controls - [`10c8881bdf`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/10c8881bdf787c229bfa9ac0ead2327cb1e1f25f)
 - WEBSITE EDIT - Align Pages article coverage types - [`ab64ed6f44`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ab64ed6f44a62b40eb8b9b6548bd7f5f9c724e99)
 - WEBSITE EDIT - Prove compact navigation without clipping - [`11a5c21310`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/11a5c2131099eefa1773e153c4c0be974d23a33a)
