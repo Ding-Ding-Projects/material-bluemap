@@ -57,6 +57,8 @@ export interface RenderRequest {
     readonly fixEdges?: boolean;
     readonly metrics?: boolean;
     readonly renderThreads?: number;
+    /** `core.conf` render-thread-priority, read by BlueMap when this render starts. */
+    readonly renderThreadPriority?: number;
 }
 
 /** Where the interface should send somebody to fix a failure. */
@@ -307,6 +309,7 @@ export function resolveWorldBridge(): WorldBridge | null {
     const required = [
         host.startRender,
         host.cancelRender,
+        host.adjustRenderSpeed,
         host.listRenders,
         host.interruptedRenders,
         host.resumeRender,
@@ -319,20 +322,9 @@ export function resolveWorldBridge(): WorldBridge | null {
     return {
         startRender: (request) => complete.startRender(request),
         cancelRender: (renderId) => complete.cancelRender(renderId),
-        adjustRenderSpeed: (renderId, level) =>
-            isFunction(host.adjustRenderSpeed)
-                ? host.adjustRenderSpeed(renderId, level)
-                : Promise.resolve({
-                      ok: false,
-                      renderId,
-                      level,
-                      route: "unsupported",
-                      appliedNow: false,
-                      needsRestart: false,
-                      reason: "not-running",
-                      message: "This build cannot adjust a render's speed while it is running yet.",
-                      detail: null,
-                  }),
+        // Required by the packaged bridge probe above. A stale preload now fails the bridge
+        // resolution loudly instead of disguising a missing IPC seam as an unsupported route.
+        adjustRenderSpeed: (renderId, level) => complete.adjustRenderSpeed!(renderId, level),
         listRenders: () => complete.listRenders(),
         renderEngine: (renderId) =>
             isFunction(host.renderEngine) ? complete.renderEngine(renderId) : Promise.resolve(null),

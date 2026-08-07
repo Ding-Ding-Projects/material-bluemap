@@ -248,6 +248,7 @@ export interface RenderRequest {
     fixEdges?: boolean;
     metrics?: boolean;
     renderThreads?: number;
+    renderThreadPriority?: number;
 }
 
 /** Where the interface should send somebody to fix a failure. */
