@@ -104,6 +104,10 @@
     padding-inline: var(--md-sys-spacing-2);
 }
 
+.mb-schedule .mb-check-row {
+    min-height: 44px;
+}
+
 .mb-schedule-value {
     display: grid;
     grid-template-columns: minmax(10rem, 1fr) minmax(9rem, 1fr) 48px;

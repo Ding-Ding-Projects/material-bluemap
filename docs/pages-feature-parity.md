@@ -40,6 +40,18 @@ and page destinations, then collapse it to give the current page the maximum ava
 command palette remains available through <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F</kbd> whether the
 rail is open or closed.
 
+Settings can also be scheduled instead of being changed by hand every time. **Settings →
+Schedules** creates versioned, bounded rules for language and appearance values. A rule can use a
+local date/time/weekday window, a bounded JSON API, or a Home Assistant boolean entity. Cross-midnight
+windows, equal start/end times, timezone selection, priority, later-rule precedence, base-value
+recovery, import/export and append-only rule history are explicit rather than hidden heuristics.
+See [Scheduled settings and external sources](scheduled-settings-and-external-sources.md).
+
+Every panel class in the site inventory uses the same geometry controller. Settings and ordinary
+tab panels resize; floating anchored panels and interactive overlays also drag by their header.
+Geometry stays inside the viewport, persists per surface, resets visibly, and supports keyboard
+move/resize controls. See [Resizable and draggable panel geometry](panel-geometry.md).
+
 ## Failure modes
 
 - If browser storage is blocked or full, collapse and expand still work for the current page load,
@@ -51,6 +63,11 @@ rail is open or closed.
   leaves an invisible navigation region intercepting input.
 - At compact widths the main page is allowed to shrink (`min-width: 0`) while cards, controls, and
   overlays wrap or scroll internally. The layout must not create document-level horizontal overflow.
+- A scheduled external source that times out, redirects outside its allowed boundary, exceeds the
+  response limit, returns malformed JSON, or loses its credential-vault reference fails closed. The
+  last safe base value remains active and a reviewable notification names the failed rule.
+- Corrupt or out-of-range stored panel geometry is clamped to the current viewport instead of
+  restoring an unreachable handle or off-screen body.
 
 ## Security considerations
 
@@ -61,6 +78,12 @@ queries.
 
 The feature-parity inventory contains source paths and public reasons only. It contains no host,
 credential, account, or private-infrastructure details.
+
+External schedule rules store only a credential-vault key, never a token. API sources are restricted
+to HTTPS or loopback, validate redirects and response size, apply an eight-second timeout, and bound
+their polling interval. Home Assistant sources accept only `input_boolean` and `binary_sensor`
+entities. Rules and history are versioned and bounded so an import cannot turn browser storage into
+an unbounded log.
 
 ## Verification
 
@@ -73,14 +96,22 @@ credential, account, or private-infrastructure details.
   `design/packages/site/scripts/compact-proof.mjs`; it talks to the isolated browser target through
   Chrome DevTools Protocol without using the visitor's browser profile, foreground window, pointer,
   or keyboard.
-- Compact proof covers `360×640@1`, `390×844@1`, `414×896@1`, and bilingual `390×844@2`, requiring
-  the exact viewport, no document/body horizontal overflow, no clipped controls, and no undersized
-  targets.
-- The six machine-readable records are under `docs/runtime-proof/pages-parity-*.json`; the matching
-  real rendered captures are under `docs/screenshots/pages-parity-*.png`. They include compact
-  collapsed, compact bilingual collapsed and expanded, and wide desktop expanded states. All six
-  records report zero document/body horizontal overflow, zero clipped controls and zero undersized
-  targets; both expand/collapse clicks retain focus.
+- Compact proof covers Home, Settings, Schedules/external sources, Search/regex, command-palette
+  teleport, appearance, notification history, changelog/date filtering, tab/group menus, and
+  exports/bulk actions. It uses `360×640@1`, `390×844@1`, `414×896@1`, desktop `1024×768@1`, and
+  bilingual `390×844@2` states.
+- The driver records every candidate overflow element instead of truncating the list. Each one is
+  classified as an accidental clip or a deliberate internal scroller; an accidental result fails
+  the run. It also checks the exact final collapse state, toggle visibility, hidden navigation state,
+  `aria-controls`, focus retention, minimum 44 CSS-pixel targets and the requested viewport.
+- Eighteen machine-readable records are under `docs/runtime-proof/pages-parity-*.json`; fourteen
+  matching real rendered captures are under `docs/screenshots/pages-parity-*.png`. Every record
+  reports zero accidental clipping and zero undersized targets. Deliberate bounded scrollers, such
+  as the typography editor at a narrow bilingual width, remain visible in the record instead of
+  being misreported as document overflow.
+- `schedule.test.ts` covers 15 engine cases and `schedulePanel.test.ts` covers the guided editor.
+  `PanelGeometry.test.ts` covers persistence, viewport clamping, pointer and keyboard movement, and
+  `panelGeometryCoverage.test.ts` checks the hand-written list of all four panel classes.
 - Publication is not proven by a local build. The integration owner records the exact default-branch
   commit, Pages workflow run, and live URL after deployment.
 
@@ -91,3 +122,5 @@ credential, account, or private-infrastructure details.
 - [Appearance editors](appearance-editors.md)
 - [Language and tone](language-and-tone.md)
 - [Notification centre](notification-centre.md)
+- [Scheduled settings and external sources](scheduled-settings-and-external-sources.md)
+- [Resizable and draggable panel geometry](panel-geometry.md)

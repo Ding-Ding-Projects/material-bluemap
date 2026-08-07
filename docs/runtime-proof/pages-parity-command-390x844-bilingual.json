@@ -1,12 +1,12 @@
 {
-  "generatedAt": "2026-08-07T09:21:10.472Z",
+  "generatedAt": "2026-08-07T09:14:08.345Z",
   "requested": {
     "width": 390,
     "height": 844,
-    "scale": 2,
+    "scale": 1,
     "mode": "bilingual",
     "finalState": "collapsed",
-    "scenario": "home"
+    "scenario": "command"
   },
   "interaction": {
     "available": true,
@@ -31,9 +31,9 @@
     }
   },
   "scenario": {
-    "scenario": "home",
+    "scenario": "command",
     "opened": true,
-    "selector": "#panel-home",
+    "selector": ".mb-command-palette:not([hidden])",
     "targetPresent": true,
     "targetVisible": true
   },
@@ -41,7 +41,7 @@
     "viewport": {
       "width": 390,
       "height": 844,
-      "scale": 2
+      "scale": 1
     },
     "compact": true,
     "documentOverflowX": 0,
@@ -60,7 +60,7 @@
     },
     "language": {
       "mode": "bilingual",
-      "englishNodes": 512,
+      "englishNodes": 777,
       "cantoneseNodes": 72
     },
     "clippedControls": [],

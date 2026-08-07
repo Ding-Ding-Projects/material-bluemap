@@ -486,7 +486,8 @@ textarea {
 /* ---- Buttons ----------------------------------------------------------------------- */
 
 .md-button {
-    --md-comp-button-height: max(40px, calc(40px * var(--md-sys-density-scale)));
+    /* M3's visual button sits inside this site's required 44px minimum target. */
+    --md-comp-button-height: max(44px, calc(44px * var(--md-sys-density-scale)));
     --md-comp-button-container: transparent;
     --md-comp-button-label: var(--md-sys-color-primary);
     --md-comp-button-outline: transparent;

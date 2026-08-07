@@ -52,6 +52,8 @@ export const pagesFeatureParity: Article = {
                         "The collapse control is present only for left and right placements. Top and bottom remain complete horizontal strips.",
                         "Ctrl+Shift+F opens the command palette whether the rail is open or closed, and selecting a setting teleports to its exact row.",
                         "Language, both funny levels, theme, density, accent, typography, appearance presets, import, export and reset remain available from the Settings tab.",
+                        "Settings → Schedules creates bounded, versioned language and appearance rules driven by local time windows, bounded JSON APIs, or Home Assistant boolean entities.",
+                        "Every panel class uses shared viewport-bounded geometry: ordinary panels resize, floating panels drag, and all geometry persists, resets and has keyboard controls.",
                     ],
                 },
             ],
@@ -67,6 +69,8 @@ export const pagesFeatureParity: Article = {
                         "A malformed stored value is ignored and the responsive default is used.",
                         "A horizontal placement never inherits the side rail's hidden state.",
                         "An overlay that cannot fit becomes a bounded sheet with internal scrolling rather than painting off screen or hiding content past a height cap.",
+                        "An external schedule timeout, unsafe redirect, oversized response, malformed JSON or missing vault reference fails closed and leaves the last safe base value active.",
+                        "Stored panel geometry is clamped to the current viewport, so a smaller screen never restores an unreachable handle.",
                     ],
                 },
                 {
@@ -88,6 +92,7 @@ export const pagesFeatureParity: Article = {
                         "Collapse state and other visitor preferences stay in namespaced browser storage and are never transmitted.",
                         "The site bundles its scripts, styles, fonts and images and runs no analytics.",
                         "The explicit exclusions avoid asking a static page for filesystem, editor-discovery, forge-token or local-Git authority it does not need.",
+                        "Schedule rules keep only a credential-vault key, restrict API sources to HTTPS or loopback, bound response size and time, and allow only Home Assistant input_boolean or binary_sensor entities.",
                     ],
                 },
             ],
@@ -101,7 +106,9 @@ export const pagesFeatureParity: Article = {
                     items: [
                         "SidebarNavigation.test.ts checks responsive defaults, persistence, reset, accessible state, focus retention and all four tab placements.",
                         "globalFeatureCoverage.test.ts fails if an expected requirement disappears, evidence points to a missing file, or an exclusion has no concrete reason.",
-                        "Compact runtime proof covers 360×640, 390×844, 414×896, and bilingual 390×844 at device scale 2, with DOM overflow and control-size metrics.",
+                        "Eighteen compact-runtime records and fourteen genuine headless captures cover Home, Settings, Schedules, Search/regex, command-palette teleport, appearance, notifications, changelog/date filters, tab/group menus, and exports/bulk actions.",
+                        "The driver records every overflow candidate without truncation, distinguishes intentional internal scrollers from accidental clipping, and fails accidental overflow, undersized targets, broken aria-controls, or an incorrect final navigation state.",
+                        "Schedule and panel-geometry suites cover engine boundaries, guided editing, persistence, viewport clamping, pointer and keyboard movement, and the complete hand-written panel-class inventory.",
                         "The exact Pages workflow and live URL are required after integration; a local production build is not described as deployment proof.",
                     ],
                 },
@@ -124,6 +131,14 @@ export const pagesFeatureParity: Article = {
         {
             articleId: "regex-builder-surfaces",
             reason: "The full anchored builder behind every search field.",
+        },
+        {
+            articleId: "scheduled-settings",
+            reason: "Date, time, weekday, API and Home Assistant rules for language and appearance.",
+        },
+        {
+            articleId: "panel-geometry",
+            reason: "Shared resize, drag, viewport, persistence, reset and keyboard behaviour.",
         },
     ],
     sources: [

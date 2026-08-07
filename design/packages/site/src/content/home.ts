@@ -39,6 +39,7 @@ import {
     LEGACY_WORLDS_DOC_URL,
     NOTIFICATION_CENTRE_DOC_URL,
     PAGES_FEATURE_PARITY_DOC_URL,
+    PANEL_GEOMETRY_DOC_URL,
     PLAN_URL,
     PRIVATE_WORLD_DOC_URL,
     REGEX_BUILDER_DOC_URL,
@@ -49,6 +50,7 @@ import {
     RENDER_WORLD_WORKFLOW_URL,
     REPO_URL,
     RESUMABLE_RENDERS_DOC_URL,
+    SCHEDULED_SETTINGS_DOC_URL,
     ROADMAP_URL,
     SSH_WORLD_SOURCES_DOC_URL,
     SUPER_CONFIRMATION_DOC_URL,
@@ -563,6 +565,29 @@ export const home: HomeContent = {
                             href: PAGES_FEATURE_PARITY_DOC_URL,
                         },
                     ],
+                },
+                {
+                    title: "Language and appearance that can keep a timetable",
+                    body: "A versioned rule can apply the site's real language and appearance settings by date, time, weekday and timezone. Values can live in the rule, arrive from a bounded HTTPS JSON endpoint, or wait for a Home Assistant boolean entity; the stored base always returns when the rule is inactive or fails.",
+                    status: "shipped",
+                    statusNote:
+                        "The guided Schedules settings tab, precedence and cross-midnight engine, bounded history, import/export, API and Home Assistant safety boundaries, search destinations, tests and compact bilingual runtime proof are implemented. The static site stores only a credential-vault reference, never a Home Assistant token.",
+                    articleId: "scheduled-settings",
+                    reading: [
+                        {
+                            label: "docs/scheduled-settings-and-external-sources.md",
+                            href: SCHEDULED_SETTINGS_DOC_URL,
+                        },
+                    ],
+                },
+                {
+                    title: "Panels that resize, move, remember and come back",
+                    body: "Every settings and page panel resizes. Floating interactive panels also drag by a visible toolbar, stay inside the viewport, remember geometry per surface, reset independently, and expose keyboard move and resize paths.",
+                    status: "shipped",
+                    statusNote:
+                        "A hand-written four-surface inventory covers settings panels, site page panels, anchored panels and interactive overlays. The guard proves each owner attaches the shared controller; compact appearance and schedule captures show the real bounded surfaces.",
+                    articleId: "panel-geometry",
+                    reading: [{ label: "docs/panel-geometry.md", href: PANEL_GEOMETRY_DOC_URL }],
                 },
                 {
                     title: "One shortcut over every command and setting",

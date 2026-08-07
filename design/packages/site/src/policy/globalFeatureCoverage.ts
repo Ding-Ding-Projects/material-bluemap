@@ -13,6 +13,7 @@ export const REQUIRED_PAGES_FEATURE_IDS = [
     "language-modes",
     "independent-funny-levels",
     "settings-tabs-and-search",
+    "scheduled-settings-external-sources",
     "anchored-regex-builders",
     "tab-overflow-reorder-pin-group",
     "four-tab-searches",
@@ -26,6 +27,7 @@ export const REQUIRED_PAGES_FEATURE_IDS = [
     "notification-history-bulk-export",
     "destructive-super-confirmation",
     "painted-bounded-overlays",
+    "resizable-draggable-panels",
     "collapsible-search-controls",
     "accessibility-and-target-sizing",
     "compact-bilingual-layout",
@@ -114,6 +116,18 @@ export const PAGES_FEATURE_COVERAGE: readonly PagesFeatureCoverage[] = [
         [
             "design/packages/site/src/settings/settingsChrome.test.ts",
             "design/packages/site/src/settings/tabSearch.test.ts",
+        ],
+    ),
+    implemented(
+        "scheduled-settings-external-sources",
+        "Versioned scheduled language and appearance rules with bounded API and Home Assistant sources",
+        [
+            "design/packages/site/src/settings/schedule.ts",
+            "design/packages/site/src/settings/schedulePanel.ts",
+        ],
+        [
+            "design/packages/site/src/settings/schedule.test.ts",
+            "design/packages/site/src/settings/schedulePanel.test.ts",
         ],
     ),
     implemented(
@@ -238,6 +252,15 @@ export const PAGES_FEATURE_COVERAGE: readonly PagesFeatureCoverage[] = [
             "design/packages/site/src/search/anchoredPanelFocusReturn.test.ts",
             "design/packages/site/src/search/anchoredPanelDismissalPolicy.test.ts",
         ],
+    ),
+    implemented(
+        "resizable-draggable-panels",
+        "Resizable panels and draggable floating panels with persisted geometry",
+        [
+            "design/packages/site/src/platform/PanelGeometry.ts",
+            "design/packages/site/src/platform/panelGeometryCoverage.ts",
+        ],
+        ["design/packages/site/src/platform/PanelGeometry.test.ts"],
     ),
     implemented(
         "collapsible-search-controls",

@@ -134,7 +134,7 @@
 }
 
 .tab-bar__overflow {
-    --md-comp-button-height: 36px;
+    --md-comp-button-height: 44px;
 
     flex: none;
     padding: 0 var(--md-sys-spacing-2);

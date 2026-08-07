@@ -79,6 +79,10 @@ export const AUTOMATIC_REPAIR_DOC_URL = repoFile("docs/automatic-repair.md");
 export const FINDING_WORLDS_DOC_URL = repoFile("docs/finding-worlds.md");
 export const BEDROCK_WORLDS_DOC_URL = repoFile("docs/bedrock-worlds.md");
 export const PAGES_FEATURE_PARITY_DOC_URL = repoFile("docs/pages-feature-parity.md");
+export const SCHEDULED_SETTINGS_DOC_URL = repoFile(
+    "docs/scheduled-settings-and-external-sources.md",
+);
+export const PANEL_GEOMETRY_DOC_URL = repoFile("docs/panel-geometry.md");
 
 /** Upstream BlueMap, the project this is a port of. */
 export const UPSTREAM_URL = "https://github.com/BlueMap-Minecraft/BlueMap";

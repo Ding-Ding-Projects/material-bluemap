@@ -1,0 +1,70 @@
+{
+  "generatedAt": "2026-08-07T09:09:31.764Z",
+  "requested": {
+    "width": 1024,
+    "height": 768,
+    "scale": 1,
+    "mode": "english",
+    "finalState": "expanded",
+    "scenario": "settings"
+  },
+  "interaction": {
+    "available": true,
+    "initial": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase"
+    },
+    "afterFirst": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase",
+      "focusStayed": true
+    },
+    "afterSecond": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase",
+      "focusStayed": true
+    },
+    "final": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase",
+      "focusStayed": true
+    }
+  },
+  "scenario": {
+    "scenario": "settings",
+    "opened": true,
+    "selector": "#mb-panel-general",
+    "targetPresent": true,
+    "targetVisible": true
+  },
+  "metrics": {
+    "viewport": {
+      "width": 1024,
+      "height": 768,
+      "scale": 1
+    },
+    "compact": false,
+    "documentOverflowX": 0,
+    "bodyOverflowX": 0,
+    "workspace": {
+      "placement": "left",
+      "sidebarCollapsed": "false"
+    },
+    "navigation": {
+      "hidden": false,
+      "toggleVisible": true,
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase",
+      "controls": "site-primary-navigation",
+      "controlledElementExists": true
+    },
+    "language": {
+      "mode": "en",
+      "englishNodes": 77,
+      "cantoneseNodes": 0
+    },
+    "clippedControls": [],
+    "undersized": [],
+    "overflowingElements": []
+  }
+}

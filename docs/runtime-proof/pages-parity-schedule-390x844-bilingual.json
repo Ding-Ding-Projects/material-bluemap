@@ -1,0 +1,231 @@
+{
+  "generatedAt": "2026-08-07T09:13:34.471Z",
+  "requested": {
+    "width": 390,
+    "height": 844,
+    "scale": 1,
+    "mode": "bilingual",
+    "finalState": "collapsed",
+    "scenario": "schedule"
+  },
+  "interaction": {
+    "available": true,
+    "initial": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase / 放側邊導航出返迷你喼仔"
+    },
+    "afterFirst": {
+      "expanded": "true",
+      "label": "Pack the side navigation into its tiny suitcase / 將側邊導航塞入迷你喼仔",
+      "focusStayed": true
+    },
+    "afterSecond": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase / 放側邊導航出返迷你喼仔",
+      "focusStayed": true
+    },
+    "final": {
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase / 放側邊導航出返迷你喼仔",
+      "focusStayed": true
+    }
+  },
+  "scenario": {
+    "scenario": "schedule",
+    "opened": true,
+    "selector": "[data-schedule-surface='rules']",
+    "targetPresent": true,
+    "targetVisible": true
+  },
+  "metrics": {
+    "viewport": {
+      "width": 390,
+      "height": 844,
+      "scale": 1
+    },
+    "compact": true,
+    "documentOverflowX": 0,
+    "bodyOverflowX": 0,
+    "workspace": {
+      "placement": "left",
+      "sidebarCollapsed": "true"
+    },
+    "navigation": {
+      "hidden": true,
+      "toggleVisible": true,
+      "expanded": "false",
+      "label": "Let the side navigation out of its tiny suitcase / 放側邊導航出返迷你喼仔",
+      "controls": "site-primary-navigation",
+      "controlledElementExists": true
+    },
+    "language": {
+      "mode": "bilingual",
+      "englishNodes": 62,
+      "cantoneseNodes": 46
+    },
+    "clippedControls": [],
+    "undersized": [],
+    "overflowingElements": [
+      {
+        "tag": "BUTTON",
+        "id": "mb-tab-appearance",
+        "className": "mb-tab",
+        "left": 291.9375,
+        "right": 410.453125,
+        "width": 118.515625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-tab-label",
+        "left": 307.9375,
+        "right": 394.453125,
+        "width": 86.515625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-primary",
+        "left": 307.9375,
+        "right": 394.453125,
+        "width": 86.515625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 307.9375,
+        "right": 394.453125,
+        "width": 86.515625,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "mb-tab-access",
+        "className": "mb-tab",
+        "left": 412.453125,
+        "right": 532.8125,
+        "width": 120.359375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-tab-label",
+        "left": 428.453125,
+        "right": 516.8125,
+        "width": 88.359375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-primary",
+        "left": 428.453125,
+        "right": 516.8125,
+        "width": 88.359375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 428.453125,
+        "right": 516.8125,
+        "width": 88.359375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "mb-tab-automation",
+        "className": "mb-tab",
+        "left": 534.8125,
+        "right": 639.421875,
+        "width": 104.609375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-tab-label",
+        "left": 550.8125,
+        "right": 623.421875,
+        "width": 72.609375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-primary",
+        "left": 550.8125,
+        "right": 623.421875,
+        "width": 72.609375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 550.8125,
+        "right": 623.421875,
+        "width": 72.609375,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "mb-tab-data",
+        "className": "mb-tab",
+        "left": 641.421875,
+        "right": 707.390625,
+        "width": 65.96875,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "mb-tab-label",
+        "left": 657.421875,
+        "right": 691.390625,
+        "width": 33.96875,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-primary",
+        "left": 657.421875,
+        "right": 691.390625,
+        "width": 33.96875,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      },
+      {
+        "tag": "SPAN",
+        "id": "",
+        "className": "i18n-secondary",
+        "left": 657.421875,
+        "right": 691.390625,
+        "width": 33.96875,
+        "classification": "intentional-horizontal-scroller",
+        "scrollOwner": "mb-tabstrip"
+      }
+    ]
+  }
+}
