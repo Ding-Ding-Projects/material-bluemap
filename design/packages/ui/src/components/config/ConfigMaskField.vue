@@ -1,14 +1,43 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiArrowDown, mdiArrowUp, mdiChevronDown, mdiChevronUp, mdiClose, mdiPencilRuler, mdiPlus, mdiVectorDifference } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText, VChip, VDivider, VSelect, VSwitch, VTooltip } from "vuetify/components";
-import { MASK_SHAPES, MASK_TYPE_OPTIONS, type FieldMeta, type PlainValue } from "@material-bluemap/config";
+import {
+    mdiArrowDown,
+    mdiArrowUp,
+    mdiChevronDown,
+    mdiChevronUp,
+    mdiClose,
+    mdiPencilRuler,
+    mdiPlus,
+    mdiVectorDifference,
+} from "@mdi/js";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VCardText,
+    VChip,
+    VDivider,
+    VSelect,
+    VSwitch,
+    VTooltip,
+} from "vuetify/components";
+import {
+    MASK_SHAPES,
+    MASK_TYPE_OPTIONS,
+    type FieldMeta,
+    type PlainValue,
+} from "@material-bluemap/config";
 import ConfigControl from "./ConfigControl.vue";
 import ConfigListField from "./ConfigListField.vue";
 import { docShownText, isDocLong, provenanceOf } from "./explainField.js";
 import MaskDrawingCanvas from "./MaskDrawingCanvas.vue";
-import { UNKNOWN_WORLD, cloudFidelityForMask, type ShapeKind, type WorldOrientation } from "./maskCanvas.js";
+import {
+    UNKNOWN_WORLD,
+    cloudFidelityForMask,
+    type ShapeKind,
+    type WorldOrientation,
+} from "./maskCanvas.js";
 import { estimateRenderCost } from "./maskGeometry.js";
 import { normalizeMaskList } from "./maskRecordNormalize.js";
 
@@ -68,24 +97,17 @@ const worldOrientation = computed<WorldOrientation>(() => props.world);
  * overlap is not worth computing here), and a shape left unbounded on some axis (no number
  * at all rather than an invented one).
  */
-const wholeMaskCost = computed(() => (depthValue.value === 0 ? estimateRenderCost(normalizeMaskList(props.modelValue)) : null));
+const wholeMaskCost = computed(() =>
+    depthValue.value === 0 ? estimateRenderCost(normalizeMaskList(props.modelValue)) : null,
+);
 
 /**
- * The whole render-mask's honest cloud/Actions fidelity, shown only at the top level for the
- * same reason `wholeMaskCost` is: a blur's own nested list is a softening of its parent's
- * shapes, not a mask of its own, so it never raises a second top-level warning underneath the
- * one its parent already shows.
- *
- * This is the check the per-shape warning inside `MaskDrawingCanvas.vue`
- * (`cloudFidelityForSingleShape`) cannot make on its own: that check only ever asks "if this
- * shape were the mask's only entry, would the cloud path translate it?", so two perfectly
- * ordinary boxes -- each individually honored -- raise no warning there at all, even though the
- * cloud path only ever keeps a list of exactly one shape and would render the whole world,
- * unmasked, for exactly that mask. `cloudFidelityForMask` asks the question for the list as a
- * whole instead.
+ * Route parity is stated once at the top level. A blur's nested list is part of its parent
+ * mask, so it does not repeat the same status inside every recursive editor.
  */
-const maskFidelity = computed(() => (depthValue.value === 0 ? cloudFidelityForMask(normalizeMaskList(props.modelValue)) : null));
-
+const maskFidelity = computed(() =>
+    depthValue.value === 0 ? cloudFidelityForMask(normalizeMaskList(props.modelValue)) : null,
+);
 
 interface ShapeRow {
     readonly index: number;
@@ -108,7 +130,12 @@ const rows = computed<ShapeRow[]>(() =>
         const record = asRecord(item);
         const rawType = typeof record["type"] === "string" ? record["type"] : "box";
         const typeKey = formatKey(rawType);
-        return { index, record, typeKey, shape: MASK_SHAPES.find((candidate) => candidate.formattedKey === typeKey) };
+        return {
+            index,
+            record,
+            typeKey,
+            shape: MASK_SHAPES.find((candidate) => candidate.formattedKey === typeKey),
+        };
     }),
 );
 
@@ -251,7 +278,9 @@ function shapeSummary(row: ShapeRow): string {
     // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n compiles the
     // message itself, so it consumes `{shape}` as its own named parameter and a later
     // `replace` finds nothing left to substitute — the row would summarise as ", subtracted".
-    return row.record["subtract"] === true ? t("config.mask.subtracts", { shape: name }, "{shape}, subtracted") : name;
+    return row.record["subtract"] === true
+        ? t("config.mask.subtracts", { shape: name }, "{shape}, subtracted")
+        : name;
 }
 </script>
 
@@ -273,7 +302,12 @@ function shapeSummary(row: ShapeRow): string {
                 {{ t("mask.cost.wholeWorld", "No mask, so the whole world renders.") }}
             </template>
             <template v-else-if="wholeMaskCost.basis === 'unbounded'">
-                {{ t("mask.cost.unbounded", "At least one shape has no limit on some axis, so no area number can be given.") }}
+                {{
+                    t(
+                        "mask.cost.unbounded",
+                        "At least one shape has no limit on some axis, so no area number can be given.",
+                    )
+                }}
             </template>
             <template v-else-if="wholeMaskCost.basis === 'exact'">
                 {{ t("mask.cost.label", "Selected area") }}:
@@ -304,41 +338,28 @@ function shapeSummary(row: ShapeRow): string {
                 }}
             </template>
             <span v-if="wholeMaskCost.extent !== null" class="mb-config-mask__extentLine">
-                {{ t("mask.cost.extentLabel", "Extent") }}:
-                X {{ wholeMaskCost.extent.minX }}..{{ wholeMaskCost.extent.maxX }},
-                Z {{ wholeMaskCost.extent.minZ }}..{{ wholeMaskCost.extent.maxZ }}
-                ({{ t("mask.cost.units.blocks", "blocks") }})
+                {{ t("mask.cost.extentLabel", "Extent") }}: X {{ wholeMaskCost.extent.minX }}..{{
+                    wholeMaskCost.extent.maxX
+                }}, Z {{ wholeMaskCost.extent.minZ }}..{{ wholeMaskCost.extent.maxZ }} ({{
+                    t("mask.cost.units.blocks", "blocks")
+                }})
             </span>
         </v-alert>
 
-        <!--
-          The list-level cloud/Actions fidelity warning: shown once for the whole mask, never
-          per shape, and never for a blur's own nested list (gated the same way `wholeMaskCost`
-          above is). This is the one MaskDrawingCanvas.vue's own per-shape warning cannot catch:
-          two ordinary, individually-honored boxes still lose the whole mask on the cloud path,
-          because that path only ever keeps a list of exactly one shape.
-        -->
+        <!-- Route parity is a top-level fact, never repeated inside a blur's nested list. -->
         <v-alert
-            v-if="maskFidelity !== null && !maskFidelity.honored"
-            type="warning"
+            v-if="maskFidelity !== null && maskFidelity.honored"
+            type="success"
             density="compact"
             variant="tonal"
             class="mb-config-mask__fidelity"
         >
-            <p>
-                <strong>{{ t("mask.fidelity.cloudLabel", "Cloud/Actions render") }}:</strong>
-                {{
-                    t(
-                        "mask.fidelity.listUnsupported",
-                        { reason: maskFidelity.unsupportedReason ?? "" },
-                        "This mask is not supported by the cloud/Actions render path: {reason} That path only ever translates a single, non-subtracting box, so it renders the whole world there instead, completely unmasked.",
-                    )
-                }}
-            </p>
-            <p>
-                <strong>{{ t("mask.fidelity.localLabel", "Local desktop render") }}:</strong>
-                {{ t("mask.fidelity.local", "The local desktop render always applies exactly this mask, whatever shape it is.") }}
-            </p>
+            {{
+                t(
+                    "mask.fidelity.routesExact",
+                    "Cloud/Actions and local desktop renders both apply every configured mask shape, subtract flag, nested blur, and layer order exactly.",
+                )
+            }}
         </v-alert>
 
         <p v-if="rows.length === 0" class="mb-config-mask__empty">
@@ -356,7 +377,11 @@ function shapeSummary(row: ShapeRow): string {
                     <v-card-text>
                         <div class="mb-config-mask__head">
                             <v-chip size="small" variant="flat" :prepend-icon="mdiVectorDifference">
-                                {{ depthValue > 0 ? `${depthValue}.${row.index + 1}` : String(row.index + 1) }}
+                                {{
+                                    depthValue > 0
+                                        ? `${depthValue}.${row.index + 1}`
+                                        : String(row.index + 1)
+                                }}
                             </v-chip>
                             <span class="mb-config-mask__summary">{{ shapeSummary(row) }}</span>
                             <div class="mb-config-mask__actions">
@@ -370,7 +395,11 @@ function shapeSummary(row: ShapeRow): string {
                                     density="comfortable"
                                     @click="toggleDraw(row.index)"
                                 >
-                                    {{ isDrawOpen(row.index) ? t("config.mask.hideDraw", "Hide drawing") : t("config.mask.draw", "Draw…") }}
+                                    {{
+                                        isDrawOpen(row.index)
+                                            ? t("config.mask.hideDraw", "Hide drawing")
+                                            : t("config.mask.draw", "Draw…")
+                                    }}
                                 </v-btn>
                                 <v-btn
                                     :icon="mdiArrowUp"
@@ -423,7 +452,13 @@ function shapeSummary(row: ShapeRow): string {
                             v-if="isDrawOpen(row.index) && drawableKind(row) !== null"
                             :model-value="row.record"
                             :shape-kind="drawableKind(row)!"
-                            :label="t('config.mask.drawLabel', { index: row.index + 1 }, 'Drawing surface for shape {index}')"
+                            :label="
+                                t(
+                                    'config.mask.drawLabel',
+                                    { index: row.index + 1 },
+                                    'Drawing surface for shape {index}',
+                                )
+                            "
                             :world="worldOrientation"
                             :disabled="isDisabled"
                             class="mb-config-mask__canvas"
@@ -438,7 +473,9 @@ function shapeSummary(row: ShapeRow): string {
                             density="compact"
                             hide-details="auto"
                             inset
-                            @update:model-value="(value: boolean | null) => setSubtract(row.index, value === true)"
+                            @update:model-value="
+                                (value: boolean | null) => setSubtract(row.index, value === true)
+                            "
                         />
 
                         <template v-if="row.shape">
@@ -453,15 +490,25 @@ function shapeSummary(row: ShapeRow): string {
                                         :disabled="isDisabled"
                                         :depth="depthValue + 1"
                                         :world="worldOrientation"
-                                        @update:model-value="(value: PlainValue[]) => setField(row.index, field, value)"
+                                        @update:model-value="
+                                            (value: PlainValue[]) =>
+                                                setField(row.index, field, value)
+                                        "
                                     />
                                     <ConfigListField
                                         v-else-if="field.control.kind === 'list'"
                                         :control="field.control"
-                                        :model-value="Array.isArray(fieldValueOf(row, field)) ? (fieldValueOf(row, field) as PlainValue[]) : []"
+                                        :model-value="
+                                            Array.isArray(fieldValueOf(row, field))
+                                                ? (fieldValueOf(row, field) as PlainValue[])
+                                                : []
+                                        "
                                         :label="field.label"
                                         :disabled="isDisabled"
-                                        @update:model-value="(value: PlainValue[]) => setField(row.index, field, value)"
+                                        @update:model-value="
+                                            (value: PlainValue[]) =>
+                                                setField(row.index, field, value)
+                                        "
                                     />
                                     <ConfigControl
                                         v-else
@@ -469,7 +516,9 @@ function shapeSummary(row: ShapeRow): string {
                                         :model-value="fieldValueOf(row, field)"
                                         :label="field.label"
                                         :disabled="isDisabled"
-                                        @update:model-value="(value: PlainValue) => setField(row.index, field, value)"
+                                        @update:model-value="
+                                            (value: PlainValue) => setField(row.index, field, value)
+                                        "
                                     />
                                 </template>
 
@@ -479,11 +528,19 @@ function shapeSummary(row: ShapeRow): string {
                                   it gets the same doc and the same "did this file set it"
                                   answer as every other setting here.
                                 -->
-                                <p class="mb-config-mask__doc">{{ docShownText(field.doc, isDocOpen(row.index, field.path)) }}</p>
+                                <p class="mb-config-mask__doc">
+                                    {{ docShownText(field.doc, isDocOpen(row.index, field.path)) }}
+                                </p>
                                 <v-btn
                                     v-if="isDocLong(field.doc)"
-                                    :append-icon="isDocOpen(row.index, field.path) ? mdiChevronUp : mdiChevronDown"
-                                    :aria-expanded="isDocOpen(row.index, field.path) ? 'true' : 'false'"
+                                    :append-icon="
+                                        isDocOpen(row.index, field.path)
+                                            ? mdiChevronUp
+                                            : mdiChevronDown
+                                    "
+                                    :aria-expanded="
+                                        isDocOpen(row.index, field.path) ? 'true' : 'false'
+                                    "
                                     variant="text"
                                     size="x-small"
                                     density="comfortable"
@@ -492,10 +549,17 @@ function shapeSummary(row: ShapeRow): string {
                                     {{
                                         isDocOpen(row.index, field.path)
                                             ? t("config.explain.less", "Show less")
-                                            : t("config.explain.more", "Show the rest of the explanation")
+                                            : t(
+                                                  "config.explain.more",
+                                                  "Show the rest of the explanation",
+                                              )
                                     }}
                                 </v-btn>
-                                <v-chip v-if="field.docSource === 'authored'" size="x-small" variant="outlined">
+                                <v-chip
+                                    v-if="field.docSource === 'authored'"
+                                    size="x-small"
+                                    variant="outlined"
+                                >
                                     {{ t("config.explain.authored", "Explained for this app") }}
                                     <v-tooltip
                                         activator="parent"
@@ -513,19 +577,32 @@ function shapeSummary(row: ShapeRow): string {
                                         {{
                                             t(
                                                 "config.explain.inherited",
-                                                { value: maskProvenance(row, field).defaultText || t("config.explain.nothing", "nothing") },
+                                                {
+                                                    value:
+                                                        maskProvenance(row, field).defaultText ||
+                                                        t("config.explain.nothing", "nothing"),
+                                                },
                                                 "Not set here, so BlueMap uses {value}.",
                                             )
                                         }}
                                     </span>
                                     <span v-else-if="maskProvenance(row, field).usingDefault">
-                                        {{ t("config.explain.setToDefault", "Set here, and it matches BlueMap's default.") }}
+                                        {{
+                                            t(
+                                                "config.explain.setToDefault",
+                                                "Set here, and it matches BlueMap's default.",
+                                            )
+                                        }}
                                     </span>
                                     <span v-else>
                                         {{
                                             t(
                                                 "config.explain.changed",
-                                                { value: maskProvenance(row, field).defaultText || t("config.explain.nothing", "nothing") },
+                                                {
+                                                    value:
+                                                        maskProvenance(row, field).defaultText ||
+                                                        t("config.explain.nothing", "nothing"),
+                                                },
                                                 "Set here. BlueMap's default is {value}.",
                                             )
                                         }}
@@ -547,7 +624,15 @@ function shapeSummary(row: ShapeRow): string {
             </li>
         </ol>
 
-        <v-btn :prepend-icon="mdiPlus" :disabled="isDisabled" variant="tonal" size="small" density="comfortable" class="mt-2" @click="addShape">
+        <v-btn
+            :prepend-icon="mdiPlus"
+            :disabled="isDisabled"
+            variant="tonal"
+            size="small"
+            density="comfortable"
+            class="mt-2"
+            @click="addShape"
+        >
             {{ t("config.mask.add", "Add a shape") }}
         </v-btn>
 

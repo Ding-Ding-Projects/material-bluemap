@@ -172,7 +172,13 @@ describe("circle: drawn and edited", () => {
     it("round-trips through the mask record", () => {
         const shape = circle();
         const record = toMaskRecord(shape);
-        expect(record).toEqual({ "center-x": 0, "center-z": 0, radius: 100, "min-y": JAVA_INT_MIN, "max-y": JAVA_INT_MAX });
+        expect(record).toEqual({
+            "center-x": 0,
+            "center-z": 0,
+            radius: 100,
+            "min-y": JAVA_INT_MIN,
+            "max-y": JAVA_INT_MAX,
+        });
         expect(fromMaskRecord(record, "circle")).toEqual(shape);
     });
 
@@ -216,7 +222,13 @@ describe("polygon: drawn and edited", () => {
     });
 
     it("removes a vertex, but refuses to go below the minimum a polygon needs", () => {
-        const triangle = polygon({ points: [{ x: 0, z: 0 }, { x: 10, z: 0 }, { x: 5, z: 10 }] });
+        const triangle = polygon({
+            points: [
+                { x: 0, z: 0 },
+                { x: 10, z: 0 },
+                { x: 5, z: 10 },
+            ],
+        });
         expect(triangle.points).toHaveLength(MIN_POLYGON_POINTS);
         const attempt = removePolygonPoint(triangle, 0);
         expect(attempt.points).toHaveLength(MIN_POLYGON_POINTS);
@@ -245,7 +257,10 @@ describe("polygon: drawn and edited", () => {
 
 describe("snapping", () => {
     it("snaps a box's edges to whole chunks, growing the span rather than shrinking it", () => {
-        const snapped = snapShape(box({ minX: 3, maxX: 19, minZ: -3, maxZ: 5 }), "chunk") as BoxShape;
+        const snapped = snapShape(
+            box({ minX: 3, maxX: 19, minZ: -3, maxZ: 5 }),
+            "chunk",
+        ) as BoxShape;
         expect(snapped.minX % CHUNK_BLOCKS).toBe(0);
         expect((snapped.maxX + 1) % CHUNK_BLOCKS).toBe(0);
         // The unsnapped span [3, 19] must stay fully covered, never trimmed away.
@@ -254,20 +269,35 @@ describe("snapping", () => {
     });
 
     it("snaps a box to whole regions the same way, at the region grid size", () => {
-        const snapped = snapShape(box({ minX: 10, maxX: 600, minZ: 10, maxZ: 600 }), "region") as BoxShape;
+        const snapped = snapShape(
+            box({ minX: 10, maxX: 600, minZ: 10, maxZ: 600 }),
+            "region",
+        ) as BoxShape;
         expect(snapped.minX % REGION_BLOCKS).toBe(0);
         expect((snapped.maxX + 1) % REGION_BLOCKS).toBe(0);
     });
 
     it("snaps a circle's center and radius to the grid", () => {
-        const snapped = snapShape(circle({ centerX: 9, centerZ: 9, radius: 55 }), "chunk") as CircleShape;
+        const snapped = snapShape(
+            circle({ centerX: 9, centerZ: 9, radius: 55 }),
+            "chunk",
+        ) as CircleShape;
         expect(snapped.centerX % CHUNK_BLOCKS).toBe(0);
         expect(snapped.centerZ % CHUNK_BLOCKS).toBe(0);
         expect(snapped.radius % CHUNK_BLOCKS).toBe(0);
     });
 
     it("snaps every polygon vertex independently", () => {
-        const snapped = snapShape(polygon({ points: [{ x: 3, z: 5 }, { x: 20, z: 5 }, { x: 20, z: 30 }] }), "chunk") as PolygonShape;
+        const snapped = snapShape(
+            polygon({
+                points: [
+                    { x: 3, z: 5 },
+                    { x: 20, z: 5 },
+                    { x: 20, z: 30 },
+                ],
+            }),
+            "chunk",
+        ) as PolygonShape;
         for (const point of snapped.points) {
             expect(point.x % CHUNK_BLOCKS).toBe(0);
             expect(point.z % CHUNK_BLOCKS).toBe(0);
@@ -433,7 +463,14 @@ describe("area readout", () => {
 
     it("is exact-shape (labelled estimate) for a polygon, matching the shoelace area of a known square", () => {
         // A 100x100 axis-aligned square drawn as a polygon has an unambiguous exact area.
-        const shape = polygon({ points: [{ x: 0, z: 0 }, { x: 100, z: 0 }, { x: 100, z: 100 }, { x: 0, z: 100 }] });
+        const shape = polygon({
+            points: [
+                { x: 0, z: 0 },
+                { x: 100, z: 0 },
+                { x: 100, z: 100 },
+                { x: 0, z: 100 },
+            ],
+        });
         const area = estimateArea(shape);
         expect(area.exact).toBe(false);
         expect(area.blocks).toBe(10_000);
@@ -441,16 +478,24 @@ describe("area readout", () => {
 
     it("grows when the shape is dragged bigger, and shrinks when it is dragged smaller", () => {
         const before = estimateArea(box({ minX: 0, maxX: 9, minZ: 0, maxZ: 9 }));
-        const grown = estimateArea(moveBoxEdge(box({ minX: 0, maxX: 9, minZ: 0, maxZ: 9 }), "maxX", 90));
+        const grown = estimateArea(
+            moveBoxEdge(box({ minX: 0, maxX: 9, minZ: 0, maxZ: 9 }), "maxX", 90),
+        );
         expect(realBlocks(grown)).toBeGreaterThan(realBlocks(before));
 
-        const shrunk = estimateArea(moveBoxEdge(box({ minX: 0, maxX: 99, minZ: 0, maxZ: 9 }), "maxX", -90));
-        expect(realBlocks(shrunk)).toBeLessThan(realBlocks(estimateArea(box({ minX: 0, maxX: 99, minZ: 0, maxZ: 9 }))));
+        const shrunk = estimateArea(
+            moveBoxEdge(box({ minX: 0, maxX: 99, minZ: 0, maxZ: 9 }), "maxX", -90),
+        );
+        expect(realBlocks(shrunk)).toBeLessThan(
+            realBlocks(estimateArea(box({ minX: 0, maxX: 99, minZ: 0, maxZ: 9 }))),
+        );
     });
 
     it("gives no invented number at all for a box left unbounded on an axis -- never a 4-billion-block figure", () => {
         // This is the exact shape `wholeWorldPreset()` and `resetToWholeWorld` produce.
-        const area = estimateArea(box({ minX: JAVA_INT_MIN, maxX: JAVA_INT_MAX, minZ: JAVA_INT_MIN, maxZ: JAVA_INT_MAX }));
+        const area = estimateArea(
+            box({ minX: JAVA_INT_MIN, maxX: JAVA_INT_MAX, minZ: JAVA_INT_MIN, maxZ: JAVA_INT_MAX }),
+        );
         expect(area.unbounded).toBe(true);
         expect(area.blocks).toBeNull();
         expect(area.chunks).toBeNull();
@@ -459,7 +504,9 @@ describe("area readout", () => {
 
     it("gives no invented number for a circle or ellipse left at the unbounded radius sentinel", () => {
         expect(estimateArea(circle({ radius: JAVA_DOUBLE_MAX })).unbounded).toBe(true);
-        expect(estimateArea(ellipse({ radiusX: JAVA_DOUBLE_MAX, radiusZ: 40 })).unbounded).toBe(true);
+        expect(estimateArea(ellipse({ radiusX: JAVA_DOUBLE_MAX, radiusZ: 40 })).unbounded).toBe(
+            true,
+        );
     });
 });
 
@@ -514,7 +561,12 @@ describe("presets", () => {
 
     it("wholeWorldPreset sets every axis to the unbounded sentinel and says so", () => {
         const preset = wholeWorldPreset();
-        expect(preset.shape).toMatchObject({ minX: JAVA_INT_MIN, maxX: JAVA_INT_MAX, minZ: JAVA_INT_MIN, maxZ: JAVA_INT_MAX });
+        expect(preset.shape).toMatchObject({
+            minX: JAVA_INT_MIN,
+            maxX: JAVA_INT_MAX,
+            minZ: JAVA_INT_MIN,
+            maxZ: JAVA_INT_MAX,
+        });
         expect(preset.description).toMatch(/unlimited|no mask/i);
     });
 
@@ -559,8 +611,14 @@ describe("presets", () => {
     it("existingRegionsPreset's circle and ellipse variants are centered on the extent's own real center", () => {
         const expectedX = Math.round((measuredWorld.extent!.minX + measuredWorld.extent!.maxX) / 2);
         const expectedZ = Math.round((measuredWorld.extent!.minZ + measuredWorld.extent!.maxZ) / 2);
-        expect(existingRegionsPreset(measuredWorld, "circle")!.shape).toMatchObject({ centerX: expectedX, centerZ: expectedZ });
-        expect(existingRegionsPreset(measuredWorld, "ellipse")!.shape).toMatchObject({ centerX: expectedX, centerZ: expectedZ });
+        expect(existingRegionsPreset(measuredWorld, "circle")!.shape).toMatchObject({
+            centerX: expectedX,
+            centerZ: expectedZ,
+        });
+        expect(existingRegionsPreset(measuredWorld, "ellipse")!.shape).toMatchObject({
+            centerX: expectedX,
+            centerZ: expectedZ,
+        });
     });
 
     it("existingRegionsPreset is unavailable, honestly, when the extent has not been measured, for every kind", () => {
@@ -571,7 +629,12 @@ describe("presets", () => {
 
     it("aroundSpawnPreset centers exactly on the real spawn point when spawn is known", () => {
         const preset = aroundSpawnPreset(measuredWorld, "circle", 64);
-        expect(preset.shape).toMatchObject({ kind: "circle", centerX: 12, centerZ: -34, radius: 64 });
+        expect(preset.shape).toMatchObject({
+            kind: "circle",
+            centerX: 12,
+            centerZ: -34,
+            radius: 64,
+        });
         expect(preset.description).toContain("12");
         expect(preset.description).toContain("-34");
     });
@@ -584,11 +647,21 @@ describe("presets", () => {
 
     it("aroundSpawnPreset's box variant is centered exactly on spawn with the given half-span", () => {
         const preset = aroundSpawnPreset(measuredWorld, "box", 64);
-        expect(preset.shape).toMatchObject({ kind: "box", minX: 12 - 64, maxX: 12 + 64, minZ: -34 - 64, maxZ: -34 + 64 });
+        expect(preset.shape).toMatchObject({
+            kind: "box",
+            minX: 12 - 64,
+            maxX: 12 + 64,
+            minZ: -34 - 64,
+            maxZ: -34 + 64,
+        });
     });
 
     it("aroundSpawnPreset falls back to the extent's real center, and says spawn was unknown", () => {
-        const worldWithoutSpawn: WorldOrientation = { ...measuredWorld, spawn: null, spawnUnavailableReason: "not known" };
+        const worldWithoutSpawn: WorldOrientation = {
+            ...measuredWorld,
+            spawn: null,
+            spawnUnavailableReason: "not known",
+        };
         const preset = aroundSpawnPreset(worldWithoutSpawn, "circle", 64);
         const expectedX = Math.round((measuredWorld.extent!.minX + measuredWorld.extent!.maxX) / 2);
         const expectedZ = Math.round((measuredWorld.extent!.minZ + measuredWorld.extent!.maxZ) / 2);
@@ -603,7 +676,11 @@ describe("presets", () => {
     });
 
     it("every preset's description is non-empty and states real numbers", () => {
-        for (const preset of [wholeWorldPreset(), existingRegionsPreset(measuredWorld)!, aroundSpawnPreset(measuredWorld)]) {
+        for (const preset of [
+            wholeWorldPreset(),
+            existingRegionsPreset(measuredWorld)!,
+            aroundSpawnPreset(measuredWorld),
+        ]) {
             expect(preset.description.length).toBeGreaterThan(0);
         }
     });
@@ -615,7 +692,11 @@ describe("presets", () => {
 
 describe("defaultShapeFor", () => {
     it("anchors a new shape on spawn when spawn is known", () => {
-        const world: WorldOrientation = { ...UNKNOWN_WORLD, spawn: { x: 40, z: 40 }, spawnUnavailableReason: null };
+        const world: WorldOrientation = {
+            ...UNKNOWN_WORLD,
+            spawn: { x: 40, z: 40 },
+            spawnUnavailableReason: null,
+        };
         const shape = defaultShapeFor("circle", world) as CircleShape;
         expect(shape).toMatchObject({ centerX: 40, centerZ: 40 });
     });
@@ -645,12 +726,27 @@ describe("defaultShapeFor", () => {
 
 describe("fromMaskRecord / toMaskRecord round-tripping", () => {
     it("reads a hand-typed box exactly, including a partially-unbounded axis", () => {
-        const shape = fromMaskRecord({ "min-x": -10, "max-x": 10, "min-z": JAVA_INT_MIN, "max-z": JAVA_INT_MAX }, "box");
-        expect(shape).toMatchObject({ minX: -10, maxX: 10, minZ: JAVA_INT_MIN, maxZ: JAVA_INT_MAX });
+        const shape = fromMaskRecord(
+            { "min-x": -10, "max-x": 10, "min-z": JAVA_INT_MIN, "max-z": JAVA_INT_MAX },
+            "box",
+        );
+        expect(shape).toMatchObject({
+            minX: -10,
+            maxX: 10,
+            minZ: JAVA_INT_MIN,
+            maxZ: JAVA_INT_MAX,
+        });
     });
 
     it("carries an existing height range through a footprint-only edit untouched", () => {
-        const record = { "min-x": 0, "max-x": 10, "min-z": 0, "max-z": 10, "min-y": 40, "max-y": 90 };
+        const record = {
+            "min-x": 0,
+            "max-x": 10,
+            "min-z": 0,
+            "max-z": 10,
+            "min-y": 40,
+            "max-y": 90,
+        };
         const shape = fromMaskRecord(record, "box") as BoxShape;
         const edited = moveBoxEdge(shape, "maxX", 5);
         expect(edited.minY).toBe(40);
@@ -663,31 +759,23 @@ describe("fromMaskRecord / toMaskRecord round-tripping", () => {
 /* -------------------------------------------------------------------------- */
 
 describe("cloudFidelityForSingleShape", () => {
-    it("honors a plain, non-subtracting box -- the one case the cloud path actually translates", () => {
-        expect(cloudFidelityForSingleShape("box", false)).toEqual({ honored: true, unsupportedReason: null });
-    });
-
-    it("names the box's own subtract flag as the reason it is not honored", () => {
-        const result = cloudFidelityForSingleShape("box", true);
-        expect(result.honored).toBe(false);
-        expect(result.unsupportedReason).toMatch(/subtract/i);
-    });
-
-    it("names the real shape kind as the reason for every other shape, never a generic message", () => {
-        for (const kind of ["circle", "ellipse", "polygon"] as const) {
-            const result = cloudFidelityForSingleShape(kind, false);
-            expect(result.honored).toBe(false);
-            expect(result.unsupportedReason).toContain(kind);
-        }
+    it.each([
+        ["box", false],
+        ["box", true],
+        ["circle", false],
+        ["ellipse", false],
+        ["polygon", false],
+    ] as const)("honors %s with subtract=%s", (kind, subtract) => {
+        expect(cloudFidelityForSingleShape(kind, subtract)).toEqual({
+            honored: true,
+            unsupportedReason: null,
+        });
     });
 });
 
 /**
- * `cloudFidelityForMask` is the list-level twin of `cloudFidelityForSingleShape` above: it
- * mirrors `app/src/main/render/maskFidelity.ts`'s own `checkCloudFidelity` by hand, the same
- * way that file mirrors `packages/cli/src/maps.ts`'s `maskFor`. These cases are deliberately
- * the same ones `maskFidelity.test.ts` exercises, so a hand-sync missed on either side is a
- * red test rather than a silent drift.
+ * These are deliberately the same route cases `maskFidelity.test.ts` and the CLI converter
+ * exercise, so a package-boundary hand-sync missed on either side is a red test.
  */
 describe("cloudFidelityForMask", () => {
     const BOX: BoxMask = {
@@ -711,29 +799,24 @@ describe("cloudFidelityForMask", () => {
         "max-y": 320,
     };
 
-    it("honors an empty mask list -- no mask, the whole world, and that is correct", () => {
-        expect(cloudFidelityForMask([])).toEqual({ honored: true, unsupportedReason: null });
-    });
-
-    it("honors exactly one non-subtracting box", () => {
-        expect(cloudFidelityForMask([BOX])).toEqual({ honored: true, unsupportedReason: null });
-    });
-
-    it("does NOT honor a single subtracting box", () => {
-        const result = cloudFidelityForMask([{ ...BOX, subtract: true }]);
-        expect(result.honored).toBe(false);
-        expect(result.unsupportedReason).toMatch(/subtract/i);
-    });
-
-    it("does NOT honor a single circle", () => {
-        const result = cloudFidelityForMask([CIRCLE]);
-        expect(result.honored).toBe(false);
-        expect(result.unsupportedReason).toMatch(/circle/i);
-    });
-
-    it("does NOT honor two plain boxes -- the ordinary-looking case that silently loses the whole mask today", () => {
-        const result = cloudFidelityForMask([BOX, { ...BOX, "min-x": 200, "max-x": 300 } satisfies MaskConfig]);
-        expect(result.honored).toBe(false);
-        expect(result.unsupportedReason).toMatch(/2 shapes/i);
+    it.each([
+        ["empty", []],
+        ["one box", [BOX]],
+        ["subtracting box", [{ ...BOX, subtract: true }]],
+        ["circle", [CIRCLE]],
+        ["ordered list", [BOX, { ...BOX, "min-x": 200, "max-x": 300 } satisfies MaskConfig]],
+        [
+            "nested blur",
+            [
+                {
+                    type: "bluemap:blur",
+                    subtract: false,
+                    size: 5,
+                    masks: [BOX, { ...CIRCLE, subtract: true }],
+                } satisfies MaskConfig,
+            ],
+        ],
+    ] as const)("honors %s", (_name, masks) => {
+        expect(cloudFidelityForMask(masks)).toEqual({ honored: true, unsupportedReason: null });
     });
 });

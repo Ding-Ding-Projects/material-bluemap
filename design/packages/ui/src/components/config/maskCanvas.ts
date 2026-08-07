@@ -234,7 +234,12 @@ export function moveBoxEdge(shape: BoxShape, edge: BoxEdge, delta: number): BoxS
 }
 
 /** Moves both edges of a corner at once, for a diagonal drag or a diagonal keyboard nudge. */
-export function moveBoxCorner(shape: BoxShape, corner: BoxCorner, dx: number, dz: number): BoxShape {
+export function moveBoxCorner(
+    shape: BoxShape,
+    corner: BoxCorner,
+    dx: number,
+    dz: number,
+): BoxShape {
     const [xEdge, zEdge] = CORNER_EDGES[corner];
     const next: BoxShape = { ...shape, [xEdge]: shape[xEdge] + dx, [zEdge]: shape[zEdge] + dz };
     return normalizeBox(clampBoxSpan(next));
@@ -289,7 +294,12 @@ export function resizeEllipseZ(shape: EllipseShape, delta: number): EllipseShape
 /* Editing: polygon                                                           */
 /* -------------------------------------------------------------------------- */
 
-export function movePolygonPoint(shape: PolygonShape, index: number, dx: number, dz: number): PolygonShape {
+export function movePolygonPoint(
+    shape: PolygonShape,
+    index: number,
+    dx: number,
+    dz: number,
+): PolygonShape {
     if (index < 0 || index >= shape.points.length) return shape;
     const points = shape.points.map((point, candidate) =>
         candidate === index ? { x: point.x + dx, z: point.z + dz } : point,
@@ -298,7 +308,11 @@ export function movePolygonPoint(shape: PolygonShape, index: number, dx: number,
 }
 
 /** Inserts a new vertex after `afterIndex` (or at the end when omitted). */
-export function addPolygonPoint(shape: PolygonShape, point: Point, afterIndex?: number): PolygonShape {
+export function addPolygonPoint(
+    shape: PolygonShape,
+    point: Point,
+    afterIndex?: number,
+): PolygonShape {
     const at = afterIndex === undefined ? shape.points.length : afterIndex + 1;
     const points = [...shape.points.slice(0, at), point, ...shape.points.slice(at)];
     return { ...shape, points };
@@ -311,7 +325,10 @@ export function removePolygonPoint(shape: PolygonShape, index: number): PolygonS
 }
 
 export function movePolygon(shape: PolygonShape, dx: number, dz: number): PolygonShape {
-    return { ...shape, points: shape.points.map((point) => ({ x: point.x + dx, z: point.z + dz })) };
+    return {
+        ...shape,
+        points: shape.points.map((point) => ({ x: point.x + dx, z: point.z + dz })),
+    };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -360,7 +377,13 @@ export interface AreaEstimate {
     readonly unbounded: boolean;
 }
 
-const UNBOUNDED_AREA: AreaEstimate = { blocks: null, chunks: null, regions: null, exact: false, unbounded: true };
+const UNBOUNDED_AREA: AreaEstimate = {
+    blocks: null,
+    chunks: null,
+    regions: null,
+    exact: false,
+    unbounded: true,
+};
 
 /** Counts the whole-cell span a `[min, max]` inclusive range touches, on a `size`-block grid. */
 function cellSpan(min: number, max: number, size: number): number {
@@ -372,12 +395,21 @@ function cellSpan(min: number, max: number, size: number): number {
 export function estimateArea(shape: DrawableShape): AreaEstimate {
     switch (shape.kind) {
         case "box": {
-            if (isUnboundedSentinel(shape.minX) || isUnboundedSentinel(shape.maxX) || isUnboundedSentinel(shape.minZ) || isUnboundedSentinel(shape.maxZ)) {
+            if (
+                isUnboundedSentinel(shape.minX) ||
+                isUnboundedSentinel(shape.maxX) ||
+                isUnboundedSentinel(shape.minZ) ||
+                isUnboundedSentinel(shape.maxZ)
+            ) {
                 return UNBOUNDED_AREA;
             }
             const blocks = (shape.maxX - shape.minX + 1) * (shape.maxZ - shape.minZ + 1);
-            const chunks = cellSpan(shape.minX, shape.maxX, CHUNK_BLOCKS) * cellSpan(shape.minZ, shape.maxZ, CHUNK_BLOCKS);
-            const regions = cellSpan(shape.minX, shape.maxX, REGION_BLOCKS) * cellSpan(shape.minZ, shape.maxZ, REGION_BLOCKS);
+            const chunks =
+                cellSpan(shape.minX, shape.maxX, CHUNK_BLOCKS) *
+                cellSpan(shape.minZ, shape.maxZ, CHUNK_BLOCKS);
+            const regions =
+                cellSpan(shape.minX, shape.maxX, REGION_BLOCKS) *
+                cellSpan(shape.minZ, shape.maxZ, REGION_BLOCKS);
             return { blocks, chunks, regions, exact: true, unbounded: false };
         }
         case "circle": {
@@ -386,7 +418,13 @@ export function estimateArea(shape: DrawableShape): AreaEstimate {
             return areaCells(blocks);
         }
         case "ellipse": {
-            if (isUnboundedSentinel(shape.radiusX) || isUnboundedSentinel(shape.radiusZ) || shape.radiusX <= 0 || shape.radiusZ <= 0) return UNBOUNDED_AREA;
+            if (
+                isUnboundedSentinel(shape.radiusX) ||
+                isUnboundedSentinel(shape.radiusZ) ||
+                shape.radiusX <= 0 ||
+                shape.radiusZ <= 0
+            )
+                return UNBOUNDED_AREA;
             const blocks = Math.PI * shape.radiusX * shape.radiusZ;
             return areaCells(blocks);
         }
@@ -451,7 +489,8 @@ export interface WorldOrientation {
 /** The honest starting point: nothing known yet, e.g. before a world is chosen. */
 export const UNKNOWN_WORLD: WorldOrientation = {
     extent: null,
-    extentUnavailableReason: "No world is open, so the extent of its region files is not known yet.",
+    extentUnavailableReason:
+        "No world is open, so the extent of its region files is not known yet.",
     spawn: null,
     spawnUnavailableReason: "No world is open, so its spawn point is not known yet.",
     regionCount: null,
@@ -487,8 +526,16 @@ const UNBOUNDED_HEIGHT: HeightRange = { minY: JAVA_INT_MIN, maxY: JAVA_INT_MAX }
  */
 export function wholeWorldPreset(): Preset {
     return {
-        shape: { kind: "box", minX: JAVA_INT_MIN, maxX: JAVA_INT_MAX, minZ: JAVA_INT_MIN, maxZ: JAVA_INT_MAX, ...UNBOUNDED_HEIGHT },
-        description: "Every axis set to BlueMap's own unlimited sentinel -- the same as having no mask at all.",
+        shape: {
+            kind: "box",
+            minX: JAVA_INT_MIN,
+            maxX: JAVA_INT_MAX,
+            minZ: JAVA_INT_MIN,
+            maxZ: JAVA_INT_MAX,
+            ...UNBOUNDED_HEIGHT,
+        },
+        description:
+            "Every axis set to BlueMap's own unlimited sentinel -- the same as having no mask at all.",
     };
 }
 
@@ -502,19 +549,31 @@ export function wholeWorldPreset(): Preset {
  * `null` when the extent has not been measured, with the reason attached so the caller can
  * show it rather than silently disabling the preset.
  */
-export function existingRegionsPreset(world: WorldOrientation, kind: ShapeKind = "box"): Preset | null {
+export function existingRegionsPreset(
+    world: WorldOrientation,
+    kind: ShapeKind = "box",
+): Preset | null {
     if (world.extent === null) return null;
     const { minX, maxX, minZ, maxZ } = world.extent;
-    const regionNote = world.regionCount === null ? "" : ` across ${world.regionCount} region file${world.regionCount === 1 ? "" : "s"}`;
+    const regionNote =
+        world.regionCount === null
+            ? ""
+            : ` across ${world.regionCount} region file${world.regionCount === 1 ? "" : "s"}`;
     const extentFacts = `The measured extent of the region files on disk${regionNote}: X ${minX}..${maxX}, Z ${minZ}..${maxZ}.`;
     const centerX = Math.round((minX + maxX) / 2);
     const centerZ = Math.round((minZ + maxZ) / 2);
 
     switch (kind) {
         case "box":
-            return { shape: { kind: "box", minX, maxX, minZ, maxZ, ...UNBOUNDED_HEIGHT }, description: extentFacts };
+            return {
+                shape: { kind: "box", minX, maxX, minZ, maxZ, ...UNBOUNDED_HEIGHT },
+                description: extentFacts,
+            };
         case "circle": {
-            const radius = Math.max(MIN_EXTENT, Math.round(Math.hypot(maxX - minX, maxZ - minZ) / 2));
+            const radius = Math.max(
+                MIN_EXTENT,
+                Math.round(Math.hypot(maxX - minX, maxZ - minZ) / 2),
+            );
             return {
                 shape: { kind: "circle", centerX, centerZ, radius, ...UNBOUNDED_HEIGHT },
                 description: `${extentFacts} Drawn as a ${radius}-block-radius circle centered on that extent, since a circle cannot follow a rectangle's own corners.`,
@@ -555,10 +614,19 @@ export const DEFAULT_SPAWN_RADIUS = 128;
  * is currently being edited -- a box gets a square of the same half-span, an ellipse gets
  * equal X/Z radii, and a polygon gets a small square outline.
  */
-export function aroundSpawnPreset(world: WorldOrientation, kind: ShapeKind = "circle", radius: number = DEFAULT_SPAWN_RADIUS): Preset {
-    const anchor = world.spawn ?? (world.extent === null
-        ? null
-        : { x: Math.round((world.extent.minX + world.extent.maxX) / 2), z: Math.round((world.extent.minZ + world.extent.maxZ) / 2) });
+export function aroundSpawnPreset(
+    world: WorldOrientation,
+    kind: ShapeKind = "circle",
+    radius: number = DEFAULT_SPAWN_RADIUS,
+): Preset {
+    const anchor =
+        world.spawn ??
+        (world.extent === null
+            ? null
+            : {
+                  x: Math.round((world.extent.minX + world.extent.maxX) / 2),
+                  z: Math.round((world.extent.minZ + world.extent.maxZ) / 2),
+              });
     const point = anchor ?? { x: 0, z: 0 };
     const anchorNote =
         world.spawn !== null
@@ -569,15 +637,38 @@ export function aroundSpawnPreset(world: WorldOrientation, kind: ShapeKind = "ci
 
     switch (kind) {
         case "circle":
-            return { shape: { kind: "circle", centerX: point.x, centerZ: point.z, radius, ...UNBOUNDED_HEIGHT }, description: `A ${radius}-block circle around ${anchorNote}.` };
+            return {
+                shape: {
+                    kind: "circle",
+                    centerX: point.x,
+                    centerZ: point.z,
+                    radius,
+                    ...UNBOUNDED_HEIGHT,
+                },
+                description: `A ${radius}-block circle around ${anchorNote}.`,
+            };
         case "ellipse":
             return {
-                shape: { kind: "ellipse", centerX: point.x, centerZ: point.z, radiusX: radius, radiusZ: radius, ...UNBOUNDED_HEIGHT },
+                shape: {
+                    kind: "ellipse",
+                    centerX: point.x,
+                    centerZ: point.z,
+                    radiusX: radius,
+                    radiusZ: radius,
+                    ...UNBOUNDED_HEIGHT,
+                },
                 description: `A ${radius}-block ellipse (equal on both axes) around ${anchorNote}.`,
             };
         case "box":
             return {
-                shape: { kind: "box", minX: point.x - radius, maxX: point.x + radius, minZ: point.z - radius, maxZ: point.z + radius, ...UNBOUNDED_HEIGHT },
+                shape: {
+                    kind: "box",
+                    minX: point.x - radius,
+                    maxX: point.x + radius,
+                    minZ: point.z - radius,
+                    maxZ: point.z + radius,
+                    ...UNBOUNDED_HEIGHT,
+                },
                 description: `A ${radius * 2}-block-wide box around ${anchorNote}.`,
             };
         case "polygon":
@@ -605,9 +696,14 @@ const DEFAULT_SPAN = 64;
 
 /** A sensible starting shape when a new one of `kind` is drawn, anchored on whatever of the world is known. */
 export function defaultShapeFor(kind: ShapeKind, world: WorldOrientation): DrawableShape {
-    const anchor = world.spawn ?? (world.extent === null
-        ? { x: 0, z: 0 }
-        : { x: Math.round((world.extent.minX + world.extent.maxX) / 2), z: Math.round((world.extent.minZ + world.extent.maxZ) / 2) });
+    const anchor =
+        world.spawn ??
+        (world.extent === null
+            ? { x: 0, z: 0 }
+            : {
+                  x: Math.round((world.extent.minX + world.extent.maxX) / 2),
+                  z: Math.round((world.extent.minZ + world.extent.maxZ) / 2),
+              });
 
     switch (kind) {
         case "box":
@@ -620,7 +716,13 @@ export function defaultShapeFor(kind: ShapeKind, world: WorldOrientation): Drawa
                 ...UNBOUNDED_HEIGHT,
             };
         case "circle":
-            return { kind: "circle", centerX: anchor.x, centerZ: anchor.z, radius: DEFAULT_SPAN, ...UNBOUNDED_HEIGHT };
+            return {
+                kind: "circle",
+                centerX: anchor.x,
+                centerZ: anchor.z,
+                radius: DEFAULT_SPAN,
+                ...UNBOUNDED_HEIGHT,
+            };
         case "ellipse":
             return {
                 kind: "ellipse",
@@ -739,7 +841,10 @@ export function fromMaskRecord(record: PlainRecord, kind: ShapeKind): DrawableSh
             const raw = record["shape"];
             const points: Point[] = Array.isArray(raw)
                 ? raw
-                      .filter((entry): entry is PlainRecord => typeof entry === "object" && entry !== null)
+                      .filter(
+                          (entry): entry is PlainRecord =>
+                              typeof entry === "object" && entry !== null,
+                      )
                       .map((entry) => ({ x: num(entry, "x", 0), z: num(entry, "z", 0) }))
                 : [];
             return { kind: "polygon", points, minY, maxY };
@@ -752,9 +857,20 @@ export function toMaskRecord(shape: DrawableShape): Record<string, PlainValue> {
     const height = { "min-y": shape.minY, "max-y": shape.maxY };
     switch (shape.kind) {
         case "box":
-            return { "min-x": shape.minX, "max-x": shape.maxX, "min-z": shape.minZ, "max-z": shape.maxZ, ...height };
+            return {
+                "min-x": shape.minX,
+                "max-x": shape.maxX,
+                "min-z": shape.minZ,
+                "max-z": shape.maxZ,
+                ...height,
+            };
         case "circle":
-            return { "center-x": shape.centerX, "center-z": shape.centerZ, radius: shape.radius, ...height };
+            return {
+                "center-x": shape.centerX,
+                "center-z": shape.centerZ,
+                radius: shape.radius,
+                ...height,
+            };
         case "ellipse":
             return {
                 "center-x": shape.centerX,
@@ -769,103 +885,40 @@ export function toMaskRecord(shape: DrawableShape): Record<string, PlainValue> {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Cloud/Actions render fidelity, for the one shape this canvas is editing    */
+/* Cloud/Actions render parity                                                */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Whether the shape this canvas is drawing would survive the cloud/Actions render path
- * *as the mask's only entry*.
- *
- * The full answer -- which considers every shape in the whole `render-mask` list, not just
- * this one -- lives in `app/src/main/render/maskFidelity.ts::checkCloudFidelity`, which
- * mirrors the cloud renderer's own `maskFor` in `packages/cli/src/maps.ts` by hand because
- * that package is not on this one's build graph. This is a second, narrower hand-mirror of
- * the exact same one rule (`packages/config/src/schema/mask.ts`'s single-shape special
- * case), kept here because `packages/ui` cannot import an Electron main-process module
- * either. Keep this in agreement with `checkCloudFidelity` if that rule ever changes --
- * `maskCanvas.test.ts` exercises the same cases `maskFidelity.test.ts` does, so a hand-sync
- * that is missed is a red test on both sides, never a silent drift.
- *
- * This only ever answers for a mask list that is exactly this one shape; a caller that
- * knows the shape sits alongside others in a longer list should ask the fuller check
- * instead (today that means: *any* second shape makes the cloud path fall back to the
- * whole, unmasked world, regardless of what this shape is).
+ * The name is retained for the drawing surface's existing contract. Every schema-valid
+ * shape now survives the cloud/Actions path exactly, including subtractive layers; the CLI
+ * ports BlueMap's concrete MaskConfig constructors rather than special-casing a box.
  */
 export interface SingleShapeCloudFidelity {
-    /** `true` only when this shape, alone, is exactly what the cloud path also renders. */
+    /** Always true for a schema-valid shape. */
     readonly honored: boolean;
     /** Named, not guessed. `null` exactly when `honored` is `true`. */
     readonly unsupportedReason: string | null;
 }
 
-export function cloudFidelityForSingleShape(kind: ShapeKind, subtract: boolean): SingleShapeCloudFidelity {
-    if (subtract) {
-        return {
-            honored: false,
-            unsupportedReason: "This shape is set to subtract; the cloud/Actions render path only translates a single, non-subtracting shape today.",
-        };
-    }
-    if (kind === "box") return { honored: true, unsupportedReason: null };
-    return {
-        honored: false,
-        unsupportedReason: `This is a ${kind}; the cloud/Actions render path only translates a box shape today.`,
-    };
+export function cloudFidelityForSingleShape(
+    _kind: ShapeKind,
+    _subtract: boolean,
+): SingleShapeCloudFidelity {
+    return { honored: true, unsupportedReason: null };
 }
 
 /**
- * Whether the **whole** render-mask list -- every shape in it, not just one -- would survive
- * the cloud/Actions render path.
- *
- * This is `cloudFidelityForSingleShape`'s list-level twin, and the gap it closes: a person can
- * draw two ordinary, non-subtracting boxes -- an entirely unremarkable thing to do -- and every
- * per-shape canvas alert stays quiet, because `cloudFidelityForSingleShape` only ever asks "if
- * this shape were the mask's only entry, would it translate?" and the answer for each box alone
- * is yes. The list as a whole is a different question, and `maskFor` in
- * `packages/cli/src/maps.ts` answers it the same way for every list longer than one shape: the
- * whole world renders, unmasked.
- *
- * A byte-for-byte hand mirror of `app/src/main/render/maskFidelity.ts`'s own `checkCloudFidelity`
- * -- which itself hand-mirrors `maskFor` -- because `packages/ui` cannot import an Electron
- * main-process module any more than that module can import back into this package. Keep this in
- * agreement with `checkCloudFidelity` if that rule ever changes; `maskCanvas.test.ts` exercises
- * the same cases `maskFidelity.test.ts` does, so a hand-sync that is missed is a red test on both
- * sides, never a silent drift.
+ * Whether the **whole** render-mask list reaches the cloud/Actions path exactly. The UI cannot
+ * import the Electron main-process fidelity service or the CLI, so this small boundary contract
+ * is tested against the same empty, multi-layer, subtractive, and recursive-shape cases.
  */
 export interface MaskListCloudFidelity {
-    /** `true` only when the cloud path renders exactly this whole render-mask list. */
+    /** Always true for a schema-valid render-mask list. */
     readonly honored: boolean;
     /** Named, not guessed. `null` exactly when `honored` is `true`. */
     readonly unsupportedReason: string | null;
 }
 
-export function cloudFidelityForMask(masks: readonly MaskConfig[]): MaskListCloudFidelity {
-    if (masks.length === 0) {
-        return { honored: true, unsupportedReason: null };
-    }
-    if (masks.length === 1 && masks[0]!.type === "bluemap:box" && !masks[0]!.subtract) {
-        return { honored: true, unsupportedReason: null };
-    }
-    return { honored: false, unsupportedReason: unsupportedMaskListReason(masks) };
-}
-
-function unsupportedMaskListReason(masks: readonly MaskConfig[]): string {
-    if (masks.length > 1) {
-        return `${masks.length} shapes are configured; the cloud/Actions render path only translates a single shape today.`;
-    }
-    const only = masks[0]!;
-    if (only.subtract) {
-        return "This shape is set to subtract; the cloud/Actions render path only translates a single, non-subtracting shape today.";
-    }
-    switch (only.type) {
-        case "bluemap:circle":
-            return "This is a circle; the cloud/Actions render path only translates a box shape today.";
-        case "bluemap:ellipse":
-            return "This is an ellipse; the cloud/Actions render path only translates a box shape today.";
-        case "bluemap:polygon":
-            return "This is a polygon; the cloud/Actions render path only translates a box shape today.";
-        case "bluemap:blur":
-            return "This is a blur; the cloud/Actions render path only translates a box shape today.";
-        default:
-            return "This shape is not translated by the cloud/Actions render path today.";
-    }
+export function cloudFidelityForMask(_masks: readonly MaskConfig[]): MaskListCloudFidelity {
+    return { honored: true, unsupportedReason: null };
 }

@@ -1,38 +1,20 @@
 /**
- * The render mask drawing surface: what a drawn shape costs to render, and — the one warning
- * that must survive every funny level unchanged — what happens to a drawn shape the cloud
- * render path cannot translate.
+ * The render mask drawing surface: what a drawn shape costs to render, and the route-parity
+ * fact that survives every funny level unchanged.
  *
- * `maskGeometry.ts` and `maskFidelity.ts` compute the numbers and the fact this copy narrates;
+ * `maskGeometry.ts` and the route-fidelity contracts compute the facts this copy narrates;
  * this file only says them. It is spread into `SURFACE_VOICED`/`SURFACE_FIXED`/`SURFACE_FACTS`
  * in `surfaces/index.ts` alongside `maskDrawCanvas.ts` (that file's own toolbar, preset and
  * field labels), now that `components/config/MaskDrawingCanvas.vue` calls these keys directly
- * for its cost readout and its cloud/Actions fidelity warning — the drawing canvas this file's
+ * for its cost readout and route-parity status — the drawing canvas this file's
  * own header used to say did not exist yet.
  *
- * ## The one fact every level has to keep
- *
- * `mask.fidelity.cloudUnsupported` is the load-bearing string in this file. It reports that
- * the cloud/Actions render path silently ignores a mask it cannot translate and renders the
- * **whole world** instead of the shape that was drawn — not a bounding-box approximation of
- * it, the whole world. A rewrite that softens "the whole world renders, unmasked" into
- * something that sounds like a harmless simplification would turn a warning about wasted CI
- * minutes and a wrong deliverable into a message nobody could act on. `mask.fidelity.local`
- * carries the reassuring half at every level too: the local desktop render always applies
- * exactly what was drawn, so the warning is about one path, not about the mask being unusable.
- *
- * `mask.fidelity.listUnsupported` is that same fact restated for the **whole render-mask
- * list** rather than one shape: `ConfigMaskField.vue`'s own top-level fidelity check
- * (`cloudFidelityForMask` in `maskCanvas.ts`) fires for the one case the per-shape warning
- * above cannot catch — two or more perfectly ordinary boxes, each individually translatable,
- * but the cloud path only ever keeps a list of exactly one. Unlike the per-shape reason, this
- * key states the general rule itself as fixed prose ("only a single, non-subtracting box"),
- * not only through the dynamic `{reason}`, so the rule survives even if a future reason string
- * is ever rewritten to omit it.
+ * `mask.fidelity.routesExact` is load-bearing. Every level says the cloud/Actions and local
+ * desktop routes both apply every shape, subtract flag, nested blur, and layer order exactly.
+ * If one route ever diverges again this becomes a failing contract, not stale reassurance.
  *
  * `MASKDRAW_FACTS` pins the real numbers and the real words: `{blocks}`, `{chunks}`,
- * `{regions}`, and — for the fidelity warnings — "whole world" itself, because a message that
- * stops naming what actually gets rendered is not a funnier message, it is a useless one.
+ * `{regions}`, plus every route-parity semantic named above.
  */
 
 import type { FixedString, VoicedString } from "../../components/setup/setupStrings.js";
@@ -106,65 +88,21 @@ export const MASKDRAW_VOICED = {
             "起碼有一個形狀喺某一軸擺明冇設限，所以真係冇數畀到你：屈個數出嚟只不過係有小數點嘅大話。",
         ],
     },
-    /*
-     * The load-bearing warning. Every level names: the cloud/Actions render path specifically,
-     * that it ignores the mask, and that the whole world renders as a result — never softened
-     * to "may not match" or "could differ".
-     */
-    "mask.fidelity.cloudUnsupported": {
+    /* One route-parity statement, shown once for the complete top-level mask. */
+    "mask.fidelity.routesExact": {
         en: [
-            "This mask is not supported by the cloud/Actions render path: {reason} The whole world will render there, unmasked.",
-            "This mask is not supported by the cloud/Actions render path: {reason} The whole world will render there, unmasked.",
-            "The cloud/Actions render path cannot translate this mask: {reason} It will render the whole world there, completely unmasked.",
-            "The cloud/Actions render path cannot translate this mask yet: {reason} A render started there renders the whole world, completely unmasked, not an approximation of what was drawn.",
-            "Heads up: the cloud/Actions render path cannot translate this mask yet ({reason}), so a render started there renders the whole world, completely unmasked, not a bounding box, not an approximation, the whole thing.",
+            "Cloud/Actions and local desktop renders both apply every configured mask shape, subtract flag, nested blur, and layer order exactly.",
+            "Cloud/Actions and local desktop renders both apply every configured mask shape, subtract flag, nested blur, and layer order exactly.",
+            "Cloud/Actions and local desktop renders now apply every mask shape, subtract flag, nested blur, and layer order exactly alike.",
+            "Cloud/Actions and local desktop renders apply every shape, subtract flag, nested blur, and layer order exactly, so the route changes and the mask does not.",
+            "Cloud/Actions and local desktop renders apply every shape, subtract flag, nested blur, and layer order exactly. The two engines finally read the same mask instead of one wearing a cardboard box costume.",
         ],
         yue: [
-            "呢個遮罩喺雲端／Actions 算圖路線唔支援：{reason} 喺嗰邊會算成個世界，完全冇遮罩。",
-            "呢個遮罩喺雲端／Actions 算圖路線唔支援：{reason} 喺嗰邊會算成個世界，完全冇遮罩。",
-            "雲端／Actions 算圖路線譯唔到呢個遮罩：{reason} 喺嗰邊起render會算成個世界，完全冇遮罩。",
-            "雲端／Actions 算圖路線而家仲譯唔到呢個遮罩：{reason} 喺嗰邊起嘅render會算成個世界，完全冇遮罩，唔係約莫畫嗰個形狀，係成個世界。",
-            "friendly reminder：雲端／Actions 算圖路線而家仲譯唔到呢個遮罩（{reason}），所以喺嗰邊起嘅render會算晒成個世界，完全冇遮罩，唔係一個大概嘅範圍，唔係約莫，係成個世界都走唔甩。",
-        ],
-    },
-    /*
-     * The list-level warning: fires once for the whole render-mask list rather than per shape,
-     * and specifically covers the case the per-shape warning above cannot -- more than one
-     * shape, each individually fine, but the cloud path only ever keeps a list of exactly one.
-     * Every level states the general rule as fixed prose ("a single, non-subtracting box"), not
-     * only through {reason}, plus the same "whole world"/"unmasked" total-failure fact.
-     */
-    "mask.fidelity.listUnsupported": {
-        en: [
-            "This mask is not supported by the cloud/Actions render path: {reason} That path only ever translates a single, non-subtracting box, so it renders the whole world there instead, completely unmasked.",
-            "This mask is not supported by the cloud/Actions render path: {reason} That path only ever translates a single, non-subtracting box, so it renders the whole world there instead, completely unmasked.",
-            "The cloud/Actions render path cannot translate this mask: {reason} It only understands a single, non-subtracting box shape, so a render started there renders the whole world instead, completely unmasked.",
-            "The cloud/Actions render path cannot translate this mask yet: {reason} It only ever understands a single, non-subtracting box shape, so a render started there renders the whole world, completely unmasked, not an approximation of what was drawn.",
-            "Heads up: the cloud/Actions render path only understands a single, non-subtracting box shape, and this mask is not that ({reason}), so a render started there renders the whole world, completely unmasked, not a bounding box, not an approximation, the whole thing.",
-        ],
-        yue: [
-            "呢個遮罩喺雲端／Actions 算圖路線唔支援：{reason} 嗰條路線淨係譯得一個唔相減嘅箱形，所以喺嗰邊會算成個世界，完全冇遮罩。",
-            "呢個遮罩喺雲端／Actions 算圖路線唔支援：{reason} 嗰條路線淨係譯得一個唔相減嘅箱形，所以喺嗰邊會算成個世界，完全冇遮罩。",
-            "雲端／Actions 算圖路線譯唔到呢個遮罩：{reason} 佢淨係識一個唔相減嘅箱形，所以喺嗰邊起嘅render會算成個世界，完全冇遮罩。",
-            "雲端／Actions 算圖路線而家仲譯唔到呢個遮罩：{reason} 佢淨係識一個唔相減嘅箱形，所以喺嗰邊起嘅render會算成個世界，完全冇遮罩，唔係約莫畫嗰個形狀。",
-            "friendly reminder：雲端／Actions 算圖路線淨係識一個唔相減嘅箱形，呢個遮罩唔係咁款（{reason}），所以喺嗰邊起嘅render會算晒成個世界，完全冇遮罩，唔係一個大概嘅範圍，唔係約莫，係成個世界都走唔甩。",
-        ],
-    },
-    /* The reassuring half, always paired with the warning above. */
-    "mask.fidelity.local": {
-        en: [
-            "The local desktop render always applies exactly this mask, whatever shape it is.",
-            "The local desktop render always applies exactly this mask, whatever shape it is.",
-            "The local desktop render always applies exactly this mask, no matter what shape it is.",
-            "The local desktop render always applies exactly this mask, no matter what shape it is. The cloud limitation above is only about the cloud/Actions path.",
-            "The local desktop render always applies exactly this mask, whatever shape it is. The warning above is strictly about the cloud/Actions path, and only that one.",
-        ],
-        yue: [
-            "本機桌面算圖一律會照呢個遮罩嚟算，唔理係咩形狀。",
-            "本機桌面算圖一律會照呢個遮罩嚟算，唔理係咩形狀。",
-            "本機桌面算圖一律照呢個遮罩嚟算，唔理係咩形狀。",
-            "本機桌面算圖一律照呢個遮罩嚟算，唔理係咩形狀。上面嗰個限制淨係關雲端／Actions 路線事。",
-            "本機桌面算圖一律照足呢個遮罩嚟算，唔理係咩形狀。上面嗰個警告淨係講緊雲端／Actions 嗰條路，第二條路冇事。",
+            "雲端／Actions 同本機桌面算圖都會準確套用每個遮罩形狀、相減旗標、巢狀 blur 同圖層次序。",
+            "雲端／Actions 同本機桌面算圖都會準確套用每個遮罩形狀、相減旗標、巢狀 blur 同圖層次序。",
+            "雲端／Actions 同本機桌面算圖而家都會準確跟足每個遮罩形狀、相減旗標、巢狀 blur 同圖層次序。",
+            "雲端／Actions 同本機桌面算圖會準確跟足每個形狀、相減旗標、巢狀 blur 同圖層次序，轉路線都唔會變遮罩。",
+            "雲端／Actions 同本機桌面算圖會準確跟足每個形狀、相減旗標、巢狀 blur 同圖層次序。兩個引擎終於睇緊同一份遮罩，唔再得個紙皮箱扮全能。",
         ],
     },
     /* Confirms a mask file was written. */
@@ -226,30 +164,40 @@ export const MASKDRAW_FIXED = {
     "mask.cost.units.blocks": { en: "blocks", yue: "方塊" },
     "mask.cost.units.chunks": { en: "chunks", yue: "chunk" },
     "mask.cost.units.regions": { en: "regions", yue: "region" },
-    "mask.fidelity.cloudLabel": { en: "Cloud/Actions render", yue: "雲端／Actions 算圖" },
-    "mask.fidelity.localLabel": { en: "Local desktop render", yue: "本機桌面算圖" },
     "mask.export.button": { en: "Export mask…", yue: "匯出遮罩…" },
     "mask.import.button": { en: "Import mask…", yue: "匯入遮罩…" },
 } as const satisfies Record<string, FixedString>;
 
 export const MASKDRAW_FACTS = {
-    "mask.cost.exact": { en: ["{blocks}", "{chunks}", "{regions}"], yue: ["{blocks}", "{chunks}", "{regions}"] },
+    "mask.cost.exact": {
+        en: ["{blocks}", "{chunks}", "{regions}"],
+        yue: ["{blocks}", "{chunks}", "{regions}"],
+    },
     "mask.cost.upperBound": {
         en: ["{blocks}", "{chunks}", "{regions}", "smaller"],
         yue: ["{blocks}", "{chunks}", "{regions}", "細"],
     },
     "mask.cost.wholeWorld": { en: ["whole world"], yue: ["成個世界"] },
     "mask.cost.unbounded": { en: ["no area number"], yue: ["冇數畀"] },
-    "mask.fidelity.cloudUnsupported": {
-        en: ["cloud/Actions", "{reason}", "whole world", "unmasked"],
-        yue: ["雲端／Actions", "{reason}", "成個世界", "冇遮罩"],
+    "mask.fidelity.routesExact": {
+        en: [
+            "Cloud/Actions",
+            "local desktop",
+            "every",
+            "subtract",
+            "blur",
+            "layer order",
+            "exactly",
+        ],
+        yue: ["雲端／Actions", "本機桌面", "每", "相減", "blur", "圖層次序", "準確"],
     },
-    "mask.fidelity.listUnsupported": {
-        en: ["cloud/Actions", "{reason}", "single, non-subtracting box", "whole world", "unmasked"],
-        yue: ["雲端／Actions", "{reason}", "一個唔相減嘅箱形", "成個世界", "冇遮罩"],
+    "mask.export.done": {
+        en: ["{shapes}", "{path}", "blocks", "Minecraft world coordinates"],
+        yue: ["{shapes}", "{path}", "方塊", "Minecraft 世界座標"],
     },
-    "mask.fidelity.local": { en: ["local desktop render", "exactly this mask"], yue: ["本機桌面算圖", "呢個遮罩"] },
-    "mask.export.done": { en: ["{shapes}", "{path}", "blocks", "Minecraft world coordinates"], yue: ["{shapes}", "{path}", "方塊", "Minecraft 世界座標"] },
     "mask.import.done": { en: ["{shapes}", "{path}"], yue: ["{shapes}", "{path}"] },
     "mask.import.failed": { en: ["{path}", "{reason}"], yue: ["{path}", "{reason}"] },
-} as const satisfies Record<keyof typeof MASKDRAW_VOICED, { en: readonly string[]; yue: readonly string[] }>;
+} as const satisfies Record<
+    keyof typeof MASKDRAW_VOICED,
+    { en: readonly string[]; yue: readonly string[] }
+>;

@@ -19,7 +19,13 @@ import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
 import type { PlainValue } from "@material-bluemap/config";
 import MaskDrawingCanvas from "./MaskDrawingCanvas.vue";
-import { JAVA_INT_MAX, JAVA_INT_MIN, UNKNOWN_WORLD, type ShapeKind, type WorldOrientation } from "./maskCanvas.js";
+import {
+    JAVA_INT_MAX,
+    JAVA_INT_MIN,
+    UNKNOWN_WORLD,
+    type ShapeKind,
+    type WorldOrientation,
+} from "./maskCanvas.js";
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -52,7 +58,15 @@ beforeAll(() => {
 const vuetify = createVuetify();
 
 function emptyI18n() {
-    return createI18n({ legacy: false, locale: "none", fallbackLocale: "none", silentFallbackWarn: true, missingWarn: false, fallbackWarn: false, messages: {} });
+    return createI18n({
+        legacy: false,
+        locale: "none",
+        fallbackLocale: "none",
+        silentFallbackWarn: true,
+        missingWarn: false,
+        fallbackWarn: false,
+        messages: {},
+    });
 }
 
 const MEASURED_WORLD: WorldOrientation = {
@@ -79,22 +93,21 @@ function lastEmitted(wrapper: VueWrapper): Record<string, PlainValue> | undefine
 
 function mountCanvas(options: MountOptions) {
     const host = defineComponent({
-        setup: () =>
-            () =>
-                h(VApp, () => [
-                    h(MaskDrawingCanvas, {
-                        modelValue: options.modelValue,
-                        shapeKind: options.shapeKind,
-                        label: "Render mask shape",
-                        // Always a real value: `withDefaults` makes `world` non-optional in
-                        // the component's own public prop type, so forwarding `undefined`
-                        // here is a type error even though the component's default is the
-                        // same `UNKNOWN_WORLD` this falls back to.
-                        world: options.world ?? UNKNOWN_WORLD,
-                        disabled: options.disabled ?? false,
-                        "onUpdate:modelValue": () => {},
-                    }),
-                ]),
+        setup: () => () =>
+            h(VApp, () => [
+                h(MaskDrawingCanvas, {
+                    modelValue: options.modelValue,
+                    shapeKind: options.shapeKind,
+                    label: "Render mask shape",
+                    // Always a real value: `withDefaults` makes `world` non-optional in
+                    // the component's own public prop type, so forwarding `undefined`
+                    // here is a type error even though the component's default is the
+                    // same `UNKNOWN_WORLD` this falls back to.
+                    world: options.world ?? UNKNOWN_WORLD,
+                    disabled: options.disabled ?? false,
+                    "onUpdate:modelValue": () => {},
+                }),
+            ]),
     });
     return mount(host, { global: { plugins: [vuetify, emptyI18n()] } });
 }
@@ -120,7 +133,9 @@ describe("numeric fields", () => {
 
     it("typing a new number moves the shape live and emits the updated record", async () => {
         const wrapper = mountCanvas({ modelValue: boxRecord(), shapeKind: "box" });
-        const maxXField = wrapper.findAll("input[type=number]").find((input) => (input.element as HTMLInputElement).value === "100");
+        const maxXField = wrapper
+            .findAll("input[type=number]")
+            .find((input) => (input.element as HTMLInputElement).value === "100");
         expect(maxXField).toBeDefined();
 
         await maxXField!.setValue("250");
@@ -133,7 +148,9 @@ describe("numeric fields", () => {
 
     it("reports a partially-typed number inline, without discarding the last committed shape", async () => {
         const wrapper = mountCanvas({ modelValue: boxRecord(), shapeKind: "box" });
-        const maxXField = wrapper.findAll("input[type=number]").find((input) => (input.element as HTMLInputElement).value === "100");
+        const maxXField = wrapper
+            .findAll("input[type=number]")
+            .find((input) => (input.element as HTMLInputElement).value === "100");
 
         // A native `type="number"` field only ever holds a real number or empty text -- a
         // browser rejects anything else outright -- so "still typing" is the field reading
@@ -154,7 +171,10 @@ describe("numeric fields", () => {
 
 describe("keyboard creation and adjustment", () => {
     it("shows the empty state for a polygon row with no points yet, and creates one on Enter", async () => {
-        const wrapper = mountCanvas({ modelValue: { type: "bluemap:polygon" }, shapeKind: "polygon" });
+        const wrapper = mountCanvas({
+            modelValue: { type: "bluemap:polygon" },
+            shapeKind: "polygon",
+        });
         expect(wrapper.text()).toMatch(/no shape yet/i);
 
         await wrapper.find(".mb-mask-canvas__surface").trigger("keydown", { key: "Enter" });
@@ -250,8 +270,13 @@ describe("snapping", () => {
     });
 
     it("the explicit Snap button grows the current shape's edges to whole chunks", async () => {
-        const wrapper = mountCanvas({ modelValue: boxRecord({ "min-x": -100, "max-x": 100, "min-z": 3, "max-z": 19 }), shapeKind: "box" });
-        const snapNowButtons = wrapper.findAll("button").filter((btn) => btn.text().includes("Snap current shape"));
+        const wrapper = mountCanvas({
+            modelValue: boxRecord({ "min-x": -100, "max-x": 100, "min-z": 3, "max-z": 19 }),
+            shapeKind: "box",
+        });
+        const snapNowButtons = wrapper
+            .findAll("button")
+            .filter((btn) => btn.text().includes("Snap current shape"));
         expect(snapNowButtons.length).toBeGreaterThan(0);
 
         await snapNowButtons[0]!.trigger("click");
@@ -269,7 +294,9 @@ describe("snapping", () => {
 describe("undo and redo", () => {
     it("undoes a numeric-field edit back to the previous value, and redo re-applies it", async () => {
         const wrapper = mountCanvas({ modelValue: boxRecord(), shapeKind: "box" });
-        const maxXField = wrapper.findAll("input[type=number]").find((input) => (input.element as HTMLInputElement).value === "100");
+        const maxXField = wrapper
+            .findAll("input[type=number]")
+            .find((input) => (input.element as HTMLInputElement).value === "100");
         await maxXField!.setValue("250");
         expect(lastEmitted(wrapper)?.["max-x"]).toBe(250);
 
@@ -299,13 +326,19 @@ describe("area readout", () => {
     it("shows the real block/chunk/region count for a tidy box", () => {
         // 200 blocks (min -100 to max 100 inclusive is actually 201, but this fixture keeps
         // round numbers deliberately: a 32x32 box is 2x2 chunks, one sixteenth of a region.
-        const wrapper = mountCanvas({ modelValue: boxRecord({ "min-x": 0, "max-x": 31, "min-z": 0, "max-z": 31 }), shapeKind: "box" });
+        const wrapper = mountCanvas({
+            modelValue: boxRecord({ "min-x": 0, "max-x": 31, "min-z": 0, "max-z": 31 }),
+            shapeKind: "box",
+        });
         expect(wrapper.text()).toContain((32 * 32).toLocaleString());
         expect(wrapper.text()).toContain("2");
     });
 
     it("says plainly that no area number can be given for a shape left unbounded on an axis", () => {
-        const wrapper = mountCanvas({ modelValue: boxRecord({ "min-x": JAVA_INT_MIN, "max-x": JAVA_INT_MAX }), shapeKind: "box" });
+        const wrapper = mountCanvas({
+            modelValue: boxRecord({ "min-x": JAVA_INT_MIN, "max-x": JAVA_INT_MAX }),
+            shapeKind: "box",
+        });
         expect(wrapper.text()).toMatch(/no area number/i);
     });
 });
@@ -317,8 +350,13 @@ describe("area readout", () => {
 describe("reset to the whole world", () => {
     it("sets every axis to BlueMap's own unbounded sentinel, and converts the row's own type to box", async () => {
         // Starting from a circle row on purpose: reset is a genuine start-over.
-        const wrapper = mountCanvas({ modelValue: { type: "bluemap:circle", "center-x": 5, "center-z": 5, radius: 40 }, shapeKind: "circle" });
-        const resetButtons = wrapper.findAll("button").filter((btn) => btn.text().includes("Reset to whole world"));
+        const wrapper = mountCanvas({
+            modelValue: { type: "bluemap:circle", "center-x": 5, "center-z": 5, radius: 40 },
+            shapeKind: "circle",
+        });
+        const resetButtons = wrapper
+            .findAll("button")
+            .filter((btn) => btn.text().includes("Reset to whole world"));
         await resetButtons[0]!.trigger("click");
 
         const record = lastEmitted(wrapper);
@@ -337,7 +375,9 @@ describe("reset to the whole world", () => {
 describe("presets", () => {
     it("Whole world sets the unbounded sentinel on every axis", async () => {
         const wrapper = mountCanvas({ modelValue: boxRecord(), shapeKind: "box" });
-        const wholeWorldButtons = wrapper.findAll("button").filter((btn) => btn.text().includes("Whole world"));
+        const wholeWorldButtons = wrapper
+            .findAll("button")
+            .filter((btn) => btn.text().includes("Whole world"));
         await wholeWorldButtons[0]!.trigger("click");
 
         const record = lastEmitted(wrapper);
@@ -351,7 +391,9 @@ describe("presets", () => {
             shapeKind: "circle",
             world: MEASURED_WORLD,
         });
-        const buttons = wrapper.findAll("button").filter((btn) => btn.text().includes("Around spawn"));
+        const buttons = wrapper
+            .findAll("button")
+            .filter((btn) => btn.text().includes("Around spawn"));
         await buttons[0]!.trigger("click");
 
         const record = lastEmitted(wrapper);
@@ -361,8 +403,14 @@ describe("presets", () => {
     });
 
     it("Around spawn on a box row produces a box centered on spawn, not a circle", async () => {
-        const wrapper = mountCanvas({ modelValue: boxRecord(), shapeKind: "box", world: MEASURED_WORLD });
-        const buttons = wrapper.findAll("button").filter((btn) => btn.text().includes("Around spawn"));
+        const wrapper = mountCanvas({
+            modelValue: boxRecord(),
+            shapeKind: "box",
+            world: MEASURED_WORLD,
+        });
+        const buttons = wrapper
+            .findAll("button")
+            .filter((btn) => btn.text().includes("Around spawn"));
         await buttons[0]!.trigger("click");
 
         const record = lastEmitted(wrapper);
@@ -373,8 +421,14 @@ describe("presets", () => {
     });
 
     it("Extent of existing regions sets exactly the measured extent for a box row", async () => {
-        const wrapper = mountCanvas({ modelValue: boxRecord(), shapeKind: "box", world: MEASURED_WORLD });
-        const buttons = wrapper.findAll("button").filter((btn) => btn.text().includes("Extent of existing regions"));
+        const wrapper = mountCanvas({
+            modelValue: boxRecord(),
+            shapeKind: "box",
+            world: MEASURED_WORLD,
+        });
+        const buttons = wrapper
+            .findAll("button")
+            .filter((btn) => btn.text().includes("Extent of existing regions"));
         await buttons[0]!.trigger("click");
 
         const record = lastEmitted(wrapper);
@@ -386,7 +440,9 @@ describe("presets", () => {
 
     it("Extent of existing regions is disabled, honestly, when the world has not been measured", () => {
         const wrapper = mountCanvas({ modelValue: boxRecord(), shapeKind: "box" });
-        const buttons = wrapper.findAll("button").filter((btn) => btn.text().includes("Extent of existing regions"));
+        const buttons = wrapper
+            .findAll("button")
+            .filter((btn) => btn.text().includes("Extent of existing regions"));
         expect(buttons[0]!.attributes("disabled")).toBeDefined();
     });
 });
@@ -402,30 +458,36 @@ describe("orientation", () => {
     });
 
     it("shows no such banner once a real extent is known", () => {
-        const wrapper = mountCanvas({ modelValue: boxRecord(), shapeKind: "box", world: MEASURED_WORLD });
+        const wrapper = mountCanvas({
+            modelValue: boxRecord(),
+            shapeKind: "box",
+            world: MEASURED_WORLD,
+        });
         expect(wrapper.text()).not.toMatch(/extent could not be determined/i);
     });
 });
 
 /* -------------------------------------------------------------------------- */
-/* Cloud/Actions render fidelity: shown, never silently applied              */
+/* Cloud/Actions render parity: obsolete limitation warning stays gone       */
 /* -------------------------------------------------------------------------- */
 
 describe("cloud render fidelity", () => {
-    it("warns, naming the real shape kind, when the shape the cloud path cannot translate is being drawn", () => {
-        const wrapper = mountCanvas({ modelValue: { type: "bluemap:circle", "center-x": 0, "center-z": 0, radius: 10 }, shapeKind: "circle" });
-        expect(wrapper.text()).toMatch(/cloud\/actions render path/i);
-        expect(wrapper.text()).toContain("circle");
-    });
-
-    it("shows no warning for the one case the cloud path does translate: a plain, non-subtracting box", () => {
-        const wrapper = mountCanvas({ modelValue: boxRecord(), shapeKind: "box" });
+    it("does not claim a circle is unsupported", () => {
+        const wrapper = mountCanvas({
+            modelValue: { type: "bluemap:circle", "center-x": 0, "center-z": 0, radius: 10 },
+            shapeKind: "circle",
+        });
         expect(wrapper.text()).not.toMatch(/cloud\/actions render path/i);
+        expect(wrapper.text()).not.toMatch(/whole world.*unmasked/i);
     });
 
-    it("warns for a box that is set to subtract, naming the real reason", () => {
-        const wrapper = mountCanvas({ modelValue: boxRecord({ subtract: true }), shapeKind: "box" });
-        expect(wrapper.text()).toMatch(/subtract/i);
+    it("does not claim a subtractive box is unsupported", () => {
+        const wrapper = mountCanvas({
+            modelValue: boxRecord({ subtract: true }),
+            shapeKind: "box",
+        });
+        expect(wrapper.text()).not.toMatch(/cloud\/actions render path/i);
+        expect(wrapper.text()).not.toMatch(/whole world.*unmasked/i);
     });
 });
 
