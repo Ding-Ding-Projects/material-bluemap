@@ -1,5 +1,19 @@
 # Roadmap
 
+## Screenshot required-surface interaction repair (2026-08-07)
+
+**Implemented on `codex/phase-screenshot-ci-repair`; exact cloud screenshot verification is
+pending.** The Options editor capture loop now activates a tab through its visible label rather
+than clicking the parent tab's geometric centre. This prevents the longer **Server plugin** tab's
+nested 44 px close button from receiving what was intended as an activation click. The previous
+interaction removed one of eight tabs and made the following `innerText()` lookup wait for an
+entry the harness itself had deleted.
+
+The hard `REQUIRED_SURFACES` assertion is unchanged, as are the element and surface timeouts.
+Local workspace build, app typecheck, focused formatting/lint, and 2,625 app tests passed. The
+phase is not complete until a GitHub-hosted cloud run captures all Options editor tabs and the
+required-surface gate is green at the exact branch commit.
+
 ## Four-edge tabs and nested-editor interaction repair (2026-08-06)
 
 **Implemented and integrated; packaged hidden-desktop capture remains a separate runtime gate.**
