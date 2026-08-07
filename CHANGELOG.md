@@ -22,6 +22,18 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Add unique artwork to high-impact actions - [`a90ba4439d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a90ba4439d0f5056fb1061268fe3236c940e708f)
+- Wire masks to measured world context - [`5d511478a1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5d511478a17d687971c4fcff506e3dca41801830)
+- Teleport wizard errors to their exact settings - [`62027cfd9d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/62027cfd9d3f149579f1ea094405e9b0b774ce23)
+- Make render-mask route parity visible in the editor - [`15ab02823e`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/15ab02823e48dd11b851ec9654d146c2f7ceef55)
+- Harden project and live-speed layouts - [`d25a6c9510`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d25a6c9510ba6f69177c18499b09361535bd262b)
+- Reset nested panel pointer input - [`75540679ab`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/75540679abbbd713f4733220549ee9a0ccc87412)
+- Bind panel pointer behavior directly - [`209e80789a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/209e80789a97437ffd8bbdf273dbadab697a87ef)
+- Own shell panel pointer routing - [`313c858b7a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/313c858b7a826348704b40988897bf82f904e3ad)
+- Activate nested tabs from the keyboard - [`92bb12ed91`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/92bb12ed916b57d9ea9988392c9ebbccad0be060)
+- Restore project editor interactions - [`ea04164829`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ea04164829d8ca30280a0d8ece7391d9ba5a0920)
+- Align tab tests with docked axes - [`e9050451f7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/e9050451f754c54fecc41ddeb66d173193db087d)
+- Add four-edge desktop tab docking - [`09b05a1c7b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/09b05a1c7b382fc99ee6d4b80e3fa18ac3ff5e19)
 - Add unique artwork to high-impact actions - [`128bf214bb`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/128bf214bb723c9618c01129ec9f618080384e7f)
 - Wire masks to measured world context - [`d8cc7f23f8`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/d8cc7f23f82e1e480d4077194fb2ab5aae67aa5c)
 - Harden project and live-speed layouts - [`bafe088f33`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/bafe088f33397b6bd6d199d16a39b4ab9dce0df7)
@@ -37,25 +49,33 @@ full message for the in-app changelog viewer.
 
 ### Rendering and world data
 
+- Carry complete map configs through Actions renders - [`7e5ecc9f44`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7e5ecc9f444ac4c14378dacb03e7374e4d65a75a)
 - Carry complete map configs through Actions renders - [`6f606918da`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6f606918da3c6e2a9eaaf1630735c206ec0a0775)
 
 ### Server, CLI and configuration
 
+- Port every render-mask shape into cloud renders - [`88f50a2c99`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/88f50a2c999af47ae0410499135334c89fe2d8a5)
 - Implement full TypeScript render-mask translation - [`3b9b283169`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/3b9b28316966a5c87279635db0061675424d3481)
 
 ### Desktop shell
 
+- Complete the packaged live-speed bridge - [`3c1ccd102f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/3c1ccd102f9ee6fd8bcf24b2e854feb857ef10f7)
+- Support linked worktrees in repository discovery - [`121f5e04a1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/121f5e04a14d2d46d6cbdcf385720a3ec407c07a)
 - Complete the packaged live-speed bridge - [`dfc1b31818`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/dfc1b318189f04861f5bc5476975d060a2c75c4f)
 - Support linked worktrees in repository discovery - [`4c66cdab10`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4c66cdab10d0199f1c1acd8a6c8227d389f9e301)
 
 ### Landing page and documentation site
 
+- Document and verify four-edge tabs - [`4fe11e7052`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4fe11e70524548647fd3b5a99d08de71b423fe82)
+- Preserve topbar elevation across edge docking - [`26d142081a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/26d142081a02b50698351cead2097e91cc147ca3)
+- Dock site tabs on every edge - [`2cb8033592`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/2cb8033592fb862b6cdde2e00c12b93079c58130)
 - Document and verify four-edge tabs - [`56a7ab6410`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/56a7ab6410a4533fb89f852fecbc4854ac6f1151)
 - Preserve topbar elevation across edge docking - [`4b79d5f64a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4b79d5f64abec0bbf4e20defe596f4d7c2b2462d)
 - Dock site tabs on every edge - [`20cbaef19d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/20cbaef19d134510cd4c1359889c5e737930bfd7)
 
 ### Build, release and tooling
 
+- Remove invalid canvas test dependencies - [`da20fd548d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/da20fd548dd31b7143fd07aa2d5063a688924454)
 - fix: remove invalid @types_node entry from package.json - [`c55862b37f`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c55862b37f9470482a9dcb544b4c3b342da59268)
 - Remove invalid canvas test dependencies - [`7a94124051`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7a94124051bde902ef0e63e4b2c10c6446ae7b55)
 - Merge pull request #54 from Ding-Ding-Projects/dingdingchae-refactored-funicular - [`0181d72c47`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0181d72c47e07bdb179334d6a16a93cfc24f72fb) _(summary of 2 commits, also listed here)_
@@ -65,11 +85,17 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Document action-specific artwork - [`26ce07f4b7`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/26ce07f4b7a0e896a9094b83c2ea1c53da1fa4f3)
+- Document exact render-mask parity - [`6019c145b8`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6019c145b8fe55eeb38f107493aa0d46ffd9bb1b)
 - Document action-specific artwork - [`26286d9e2c`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/26286d9e2ca261acc73488d67a55dc9267469f9e)
 - Document exact render-mask parity - [`f8261e5bf6`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/f8261e5bf6bf30fe9a437da9368ac05f12d845d0)
 
 ### Elsewhere in the repository
 
+- Merge the dialog artwork phase ancestry - [`53dade7127`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/53dade712771471613bc79d98f4f75e216e0a4c4) _(summary of 5 commits, also listed here)_
+- Merge the renderer-mask phase ancestry - [`cc0aae6290`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cc0aae6290fdba3a6b510cbaa0e54f18663932ef) _(summary of 8 commits, also listed here)_
+- Merge the four-edge tab phase ancestry - [`767e15bddb`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/767e15bddb0fdd45ddd9b856a945ba0fa9411623) _(summary of 13 commits, also listed here)_
+- Merge the cloud-verdict phase ancestry - [`6caa0d9617`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6caa0d9617393fae142317d0cc6332a689501851) _(summary of 3 commits, also listed here)_
 - Integrate upstream dependency repair - [`8b500ab182`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/8b500ab182f864698b038c6272cabed32b69f953) _(summary of 3 commits, also listed here)_
 - Merge pull request #55 from Ding-Ding-Projects/dingdingchae-refactored-funicular - [`76125ce006`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/76125ce006ce046b2e2f4d5c680def23aaea1f9d) _(summary of 2 commits, also listed here)_
 
