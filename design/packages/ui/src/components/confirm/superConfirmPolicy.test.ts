@@ -105,12 +105,21 @@ const DESTRUCTIVE_CALLS: readonly { readonly label: string; readonly pattern: Re
         pattern:
             /(?<![A-Za-z0-9_$])(?:delete|remove|destroy|purge|wipe|erase|revoke|discard)(?!(?:EventListener|Property|Child|Attribute|ObjectURL)\s*\()[A-Z][A-Za-z0-9_$]*\s*\(/g,
     },
-    { label: "signs out of GitHub and revokes the token", pattern: /(?<![A-Za-z0-9_$])signOut\s*\(/g },
+    {
+        label: "signs out of GitHub and revokes the token",
+        pattern: /(?<![A-Za-z0-9_$])signOut\s*\(/g,
+    },
     { label: "clears every saved setting", pattern: /(?<![A-Za-z0-9_$])resetSettings\s*\(/g },
-    { label: "forgets the map storage directory", pattern: /(?<![A-Za-z0-9_$])clearMapStorageDir\s*\(/g },
+    {
+        label: "forgets the map storage directory",
+        pattern: /(?<![A-Za-z0-9_$])clearMapStorageDir\s*\(/g,
+    },
     { label: "closes tabs in bulk", pattern: /(?<![A-Za-z0-9_$])applyClosePlan\s*\(/g },
     { label: "stops a render that is running", pattern: /\brun\.cancel\s*\(/g },
-    { label: "aborts a download that is running", pattern: /(?<![A-Za-z0-9_$])cancelDownload\s*\(/g },
+    {
+        label: "aborts a download that is running",
+        pattern: /(?<![A-Za-z0-9_$])cancelDownload\s*\(/g,
+    },
     { label: "deletes a tracked world's repository branch", pattern: /\bwr\.remove\s*\(/g },
     { label: "empties web storage outright", pattern: /(?:local|session)Storage\.clear\s*\(/g },
 ];
@@ -195,7 +204,8 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
     },
     "components/ProfileManager.vue": {
         count: 1,
-        destroys: "a saved map or server entry, and with it the only route this application keeps to a locally rendered map",
+        destroys:
+            "a saved map or server entry, and with it the only route this application keeps to a locally rendered map",
         standing: "gated",
         gatedIn: "components/ProfileManager.vue",
     },
@@ -329,7 +339,8 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
     },
     "components/github/GitHubStatusRow.vue": {
         count: 1,
-        destroys: "the stored GitHub token, and the grant on the account when GitHub honours the revocation",
+        destroys:
+            "the stored GitHub token, and the grant on the account when GitHub honours the revocation",
         standing: "gated",
         gatedIn: "components/github/GitHubStatusRow.vue",
         note:
@@ -339,7 +350,8 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
     },
     "components/github/githubAccount.ts": {
         count: 1,
-        destroys: "the stored GitHub token, and the grant on the account when GitHub honours the revocation",
+        destroys:
+            "the stored GitHub token, and the grant on the account when GitHub honours the revocation",
         standing: "gated",
         gatedIn: "components/github/GitHubStatusRow.vue",
         note:
@@ -406,7 +418,8 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
     },
     "components/history/historyRestore.ts": {
         count: 1,
-        destroys: "one setting's entry in an in-memory copy of a config file that is about to be written back",
+        destroys:
+            "one setting's entry in an in-memory copy of a config file that is about to be written back",
         standing: "buffer",
         note:
             "A pure transform of a parsed HOCON document, and the same call the config editor " +
@@ -463,8 +476,7 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
     },
     "components/project/projectHost.ts": {
         count: 0,
-        destroys:
-            "a world's project file, through the host adapter every project surface shares",
+        destroys: "a world's project file, through the host adapter every project surface shares",
         standing: "type-only",
         note:
             "The seam rather than the deletion, exactly as components/history/historyHost.ts " +
@@ -490,7 +502,8 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
     },
     "components/remote/RemoteTargetEditor.vue": {
         count: 1,
-        destroys: "one saved remote machine: its host, port, account name and the path to its key file",
+        destroys:
+            "one saved remote machine: its host, port, account name and the path to its key file",
         standing: "reversible",
         note:
             "Nothing on any disk and nothing on the remote host. What is forgotten is four " +
@@ -653,6 +666,16 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "the full-range slider authorize it. The three actual calls are the single-row gate's " +
             "inline removeOne(record) boundary and the two wr.remove calls that reach the host. " +
             "Function declarations are deliberately not inventory entries.",
+    },
+    "stores/productName.ts": {
+        count: 2,
+        destroys: "the saved cosmetic product display-name preference on this device",
+        standing: "reversible",
+        note:
+            "One match is the storage interface declaration and one is the reset call. The " +
+            "reset returns to the immutable Worldlens name and records that settings change " +
+            "through recordAppSetting, while the previous saved value remains in the local " +
+            "application-settings history and can be restored from the History tab.",
     },
     "stores/profiles.ts": {
         count: 0,
@@ -855,7 +878,9 @@ describe("both gates are the same gate", () => {
     it("runs both of them on the shared state machine rather than their own arithmetic", () => {
         for (const gate of GATES) {
             const text = read(gate);
-            expect(text, `${gate} does not use the shared gate`).toContain("createSuperConfirmGate");
+            expect(text, `${gate} does not use the shared gate`).toContain(
+                "createSuperConfirmGate",
+            );
             expect(text, `${gate} reimplements the travel end`).not.toMatch(/>=\s*100/);
         }
     });
@@ -876,7 +901,10 @@ const REQUIRED_PARTS: readonly { readonly part: string; readonly needle: RegExp 
     { part: "a first key control", needle: /gate\.keyOne/ },
     { part: "a second, independent key control", needle: /gate\.keyTwo/ },
     { part: "a full-range slider", needle: /<v-slider/ },
-    { part: "the slider disabled until both keys are turned", needle: /:disabled="!armed \|\| done"/ },
+    {
+        part: "the slider disabled until both keys are turned",
+        needle: /:disabled="!armed \|\| done"/,
+    },
     { part: "a progress animation while the slider travels", needle: /progress--live/ },
     { part: "a distinct completion animation", needle: /--authorized/ },
     { part: "an Emergency exit", needle: /Emergency exit/ },

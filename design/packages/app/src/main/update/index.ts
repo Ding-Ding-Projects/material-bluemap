@@ -17,13 +17,14 @@
  *         platform: process.platform,
  *         arch: process.arch,
  *         version: app.getVersion(),
- *         // Baked in by build.mjs's esbuild `define` - see src/main/globals.d.ts - never a
- *         // literal here. A hardcoded string is exactly what shipped in 114 installers
- *         // before this and would go silently stale the moment the repository moves.
+ *         // Both values are baked in by build.mjs. The former repository is a bounded
+ *         // bridge, not a dependency on a rename redirect.
  *         repository: __WORLDLENS_REPOSITORY__,
+ *         legacyRepository: __WORLDLENS_LEGACY_REPOSITORY__,
  *         environment: process.env,
  *     }),
  *     engine: process.platform === "win32" ? engineFromAutoUpdater(autoUpdater) : null,
+ *     feedHandoff: createFileUpdateFeedHandoff(app.getPath("userData")),
  *     renderInProgress: () => render.orchestrator.activeRenderIds().length > 0,
  *     broadcast: (state) => {
  *         for (const window of BrowserWindow.getAllWindows()) {
@@ -59,6 +60,12 @@ export {
     type FeedInputs,
     type FeedResolution,
 } from "./feed.js";
+
+export {
+    UPDATE_FEED_HANDOFF_FILE,
+    createFileUpdateFeedHandoff,
+    type UpdateFeedHandoff,
+} from "./feedHandoff.js";
 
 export {
     initialUpdateState,

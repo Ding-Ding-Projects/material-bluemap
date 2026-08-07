@@ -5,7 +5,7 @@ already lives on a machine you own — a home server, a VPS, a Windows box runni
 server — and that machine answers SSH, this reads the world from where it already is.
 
 This is the read side. [Rendering on a remote host](./remote-render.md) is the other
-direction — sending a render *to* a machine over SSH — and both share the same connection,
+direction — sending a render _to_ a machine over SSH — and both share the same connection,
 host-key and transfer code in `main/remote/`. This feature adds nothing new to that trust
 model; it reuses it.
 
@@ -48,7 +48,7 @@ any host missing either end of the pair, and says so in the message it returns:
 
 Nothing new was built for that fallback; it is `main/remote/rsync.ts`'s own honesty, reused.
 
-What Windows *does* need that Linux does not is a way to even ask "what kind of host is this"
+What Windows _does_ need that Linux does not is a way to even ask "what kind of host is this"
 without knowing in advance which shell answers an SSH command. OpenSSH Server on Windows
 defaults its login shell to `cmd.exe`; an administrator can configure it to PowerShell instead.
 Writing quoting for "the" Windows shell would mean guessing which of those two a given host
@@ -80,7 +80,7 @@ was never shown working.
 Exactly the same rule [remote rendering](./remote-render.md#the-host-key-is-a-decision-not-a-default)
 already documents, because it is the same code: `StrictHostKeyChecking=yes`, always. A host
 this application has never seen offers its fingerprints for a person to compare against the
-machine itself; a host whose key has *changed* is refused outright, with no button anywhere,
+machine itself; a host whose key has _changed_ is refused outright, with no button anywhere,
 because a rebuilt server and an intercepted connection look identical from here.
 
 ## The cheap change check
@@ -100,15 +100,15 @@ find out.
 
 ## Failure modes
 
-| What happened | What is reported |
-|---|---|
-| the host never answers | `unreachable`, the same code an unreachable remote-render target uses |
-| the host key is unknown | `host-key-unknown`, with fingerprints to compare |
-| the host key has changed | `host-key-changed`, refused, no button |
-| the account is refused | `auth-refused` — this app never offers a password |
-| the given path is not shaped like a path on the detected host | `invalid-target`, naming the grammar it expected |
-| a transfer is interrupted | `transfer-failed`, with whatever `rsync` or `scp` said; nothing local is deleted |
-| the person cancelled | `cancelled`, which is not an error |
+| What happened                                                 | What is reported                                                                 |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| the host never answers                                        | `unreachable`, the same code an unreachable remote-render target uses            |
+| the host key is unknown                                       | `host-key-unknown`, with fingerprints to compare                                 |
+| the host key has changed                                      | `host-key-changed`, refused, no button                                           |
+| the account is refused                                        | `auth-refused` — this app never offers a password                                |
+| the given path is not shaped like a path on the detected host | `invalid-target`, naming the grammar it expected                                 |
+| a transfer is interrupted                                     | `transfer-failed`, with whatever `rsync` or `scp` said; nothing local is deleted |
+| the person cancelled                                          | `cancelled`, which is not an error                                               |
 
 ## Security notes
 
@@ -133,22 +133,22 @@ tests**, all of them against fake SSH and process runners. The reachable wizard 
 **15 focused UI/preload tests** (three renderer seam/likelihood tests, two mounted guided-flow
 tests, and the existing ten preload channel tests):
 
-| File | What it proves |
-|---|---|
-| `windowsShell.test.ts` | PowerShell single-quote escaping, Base64 round-trips, and that the encoded form contains no shell metacharacter |
-| `worldsource.test.ts` | host detection (POSIX, Windows, unknown), path grammar per host kind, the POSIX and PowerShell survey parsers, survey diffing, and the full fetch orchestration — an unreachable host, a host-key mismatch, a Windows host falling back to scp, a partial/interrupted transfer, permission denied, an invalid path for the detected host, and cancellation |
-| `sshFetcher.test.ts` | id assignment, active-fetch tracking, and that cancelling aborts the signal the transfer is actually awaiting |
-| `sshIpc.test.ts` | the nine channels register and dispose exactly, no handler rejects, and a host key is only ever trusted by re-scanned fingerprint |
-| `sshWorldSourceBridge.test.ts` | the renderer resolves the real nested `window.materialBluemap.sshWorldSource` namespace only when all ten methods exist, and a survey needs both `level.dat` and a real region file before it is called a world |
-| `SshWorldSourcePanel.test.ts` | mounted unknown-key review, explicit trust, POSIX detection, survey, transfer events, local destination calculation and the final handoff into the ordinary wizard path |
-| `preload/sshWorldSourceBridge.test.ts` | all nine invoke channels and the event listener keep the exact positional shape the main-process handlers read |
+| File                                   | What it proves                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `windowsShell.test.ts`                 | PowerShell single-quote escaping, Base64 round-trips, and that the encoded form contains no shell metacharacter                                                                                                                                                                                                                                            |
+| `worldsource.test.ts`                  | host detection (POSIX, Windows, unknown), path grammar per host kind, the POSIX and PowerShell survey parsers, survey diffing, and the full fetch orchestration — an unreachable host, a host-key mismatch, a Windows host falling back to scp, a partial/interrupted transfer, permission denied, an invalid path for the detected host, and cancellation |
+| `sshFetcher.test.ts`                   | id assignment, active-fetch tracking, and that cancelling aborts the signal the transfer is actually awaiting                                                                                                                                                                                                                                              |
+| `sshIpc.test.ts`                       | the nine channels register and dispose exactly, no handler rejects, and a host key is only ever trusted by re-scanned fingerprint                                                                                                                                                                                                                          |
+| `sshWorldSourceBridge.test.ts`         | the renderer resolves the real nested `window.worldlens.sshWorldSource` namespace only when all ten methods exist, and a survey needs both `level.dat` and a real region file before it is called a world                                                                                                                                                  |
+| `SshWorldSourcePanel.test.ts`          | mounted unknown-key review, explicit trust, POSIX detection, survey, transfer events, local destination calculation and the final handoff into the ordinary wizard path                                                                                                                                                                                    |
+| `preload/sshWorldSourceBridge.test.ts` | all nine invoke channels and the event listener keep the exact positional shape the main-process handlers read                                                                                                                                                                                                                                             |
 
 Run them with `npx vitest run packages/app` from `design/`.
 
 **Not yet run against a real host of either kind.** Every scenario above — including the
 Windows detection and survey, and the scp fallback — is proven against fakes that answer
 exactly as OpenSSH, PowerShell and `find` are documented to, not against a genuine Windows
-OpenSSH server or a real Linux box. The connection, host-key and transfer *code paths* are the
+OpenSSH server or a real Linux box. The connection, host-key and transfer _code paths_ are the
 same ones `remote-render.md` already reports verified against a real Linux host; the
 Windows-specific probe and survey scripts in `windowsShell.ts` have not had that same real-host
 pass yet.

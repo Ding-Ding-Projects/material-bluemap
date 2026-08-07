@@ -104,7 +104,7 @@ still marked `running` whose owner is not this instance is, by construction, a r
 application is gone. That is detected on launch, written back so the file stops claiming
 something untrue, and offered.
 
-It is *offered*, and never acted on. Silently restarting hours of rendering because
+It is _offered_, and never acted on. Silently restarting hours of rendering because
 somebody opened the application is not a favour, and silently discarding the record throws
 away the only evidence that the work exists. The interface asks, and the answer is
 remembered: a declined offer is not made again at the next launch.
@@ -118,10 +118,10 @@ Cancellation is a first-class outcome. Somebody who pressed Cancel got exactly w
 asked for, and telling them their render "was interrupted" would have them looking for a
 problem that does not exist. So the reason is kept, and the three read differently:
 
-| Reason | What the offer says |
-| --- | --- |
-| `cancelled` | "You stopped rendering 'Overworld' at 62.4% of updating map 'overworld'." |
-| `failed` | "Rendering 'Overworld' stopped at 62.4% ... (cli-failed)." |
+| Reason         | What the offer says                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------------------ |
+| `cancelled`    | "You stopped rendering 'Overworld' at 62.4% of updating map 'overworld'."                              |
+| `failed`       | "Rendering 'Overworld' stopped at 62.4% ... (cli-failed)."                                             |
 | `process-gone` | "Rendering 'Overworld' was cut off at 62.4% ..., without the application getting a chance to stop it." |
 
 All three are still offered, because the tiles that finished are finished either way.
@@ -170,16 +170,16 @@ to somebody.
 
 Three new channels, and three bridge methods mirroring them.
 
-| Channel | Arguments | Returns |
-| --- | --- | --- |
-| `render:interrupted` | none | `InterruptedRenderSummary[]`, newest first |
-| `render:resume` | `renderId`, optional `maps` | `{ started: true, result }` or `{ started: false, refusal }` |
-| `render:dismissResume` | `renderId` | `boolean` |
+| Channel                | Arguments                   | Returns                                                      |
+| ---------------------- | --------------------------- | ------------------------------------------------------------ |
+| `render:interrupted`   | none                        | `InterruptedRenderSummary[]`, newest first                   |
+| `render:resume`        | `renderId`, optional `maps` | `{ started: true, result }` or `{ started: false, refusal }` |
+| `render:dismissResume` | `renderId`                  | `boolean`                                                    |
 
 ```ts
-window.materialBluemap.interruptedRenders(): Promise<InterruptedRenderSummary[]>
-window.materialBluemap.resumeRender(renderId: string, maps?: RenderMapRequest[]): Promise<ResumeResult>
-window.materialBluemap.dismissResume(renderId: string): Promise<boolean>
+window.worldlens.interruptedRenders(): Promise<InterruptedRenderSummary[]>
+window.worldlens.resumeRender(renderId: string, maps?: RenderMapRequest[]): Promise<ResumeResult>
+window.worldlens.dismissResume(renderId: string): Promise<boolean>
 ```
 
 A summary carries `renderId`, `reason`, `maps`, `startedAt`, `interruptedAt`, `percent`,
@@ -204,12 +204,12 @@ A shard that hits the job ceiling has spent hours producing tiles that are sitti
 runner about to be thrown away. There are two ways off it, and they are not
 interchangeable.
 
-| | Holds | Why that one |
-| --- | --- | --- |
+|                 | Holds                                                                          | Why that one                                                                                                                                                                             |
+| --------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `actions/cache` | the shard's map directory **including `rstate`**, and BlueMap's data directory | Keyed and restored at the start of a job, which is the shape of "carry on where you left off". Allowed to disappear: an evicted cache costs one shard a full re-render and nothing else. |
-| artifact | the finished shard map and its completion marker | What the merge consumes and what a person downloads. Immutable, and not competing with the cache's eviction policy. |
+| artifact        | the finished shard map and its completion marker                               | What the merge consumes and what a person downloads. Immutable, and not competing with the cache's eviction policy.                                                                      |
 
-The important difference is *when* each is written. The artifact is written once, at the
+The important difference is _when_ each is written. The artifact is written once, at the
 end. The cache is written by every shard whether it finished or not, which is the entire
 point.
 
@@ -237,8 +237,8 @@ restore-keys: bluemap-shard-state-v1-<planFingerprint16>-shard-7-
 The prefix ends in a separator so `shard-1-` cannot match a key for shard 10.
 
 **The plan fingerprint in the prefix is not decoration.** Restoring a cache saved under a
-different plan would drop tiles and `rstate` from a shard that covered a *different
-rectangle of the world* on top of this one. `rstate` would then claim work this shard never
+different plan would drop tiles and `rstate` from a shard that covered a _different
+rectangle of the world_ on top of this one. `rstate` would then claim work this shard never
 did, BlueMap would skip it, and the result is a hole in the map with nothing reporting a
 problem. The fingerprint is a digest of the map id, the dimension, the world as measured,
 the grid, the layout constants and every shard's own bounds. The estimate is not in it:
@@ -354,7 +354,7 @@ point:
 Group merges compose. Merging (A, B) and then (AB, C) gives the same lod-1 pixels as
 merging (A, B, C) in one go, because each pixel is decided by a ranking - rendered terrain
 beats an erasure beats an untouched pixel - and taking the best of a set is the same in one
-pass or in stages. Two groups holding *different* terrain for one pixel remains impossible
+pass or in stages. Two groups holding _different_ terrain for one pixel remains impossible
 when every column belongs to exactly one shard, and remains an error rather than a guess.
 
 A group merge passes `--lod-count 1`, so it does not build coarse lods that the final step
@@ -384,10 +384,10 @@ merged copy would make a later incremental render skip tiles it never actually d
 **Nothing here changes that.** The two facts are consistent because they are about
 different journeys:
 
-| | Where it goes | Is it valid there |
-| --- | --- | --- |
-| Cached `rstate` | back to the same shard, rendering the same rectangle, with the same config, in a later run | Yes. It is precisely the record of what that shard has already done. |
-| Merged `rstate` | into a map assembled from several shards | No. It describes one shard's rectangle and would make an incremental render of the merged map skip tiles no shard did. |
+|                 | Where it goes                                                                              | Is it valid there                                                                                                      |
+| --------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| Cached `rstate` | back to the same shard, rendering the same rectangle, with the same config, in a later run | Yes. It is precisely the record of what that shard has already done.                                                   |
+| Merged `rstate` | into a map assembled from several shards                                                   | No. It describes one shard's rectangle and would make an incremental render of the merged map skip tiles no shard did. |
 
 Concretely: `rstate` is cached per shard, under a key nothing else can restore, because the
 key's prefix carries the plan fingerprint. It travels in the cache and never in the shard

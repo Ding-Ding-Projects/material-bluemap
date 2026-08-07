@@ -8,8 +8,8 @@ This is how that is done here, what it actually protects, and — the part worth
 before you decide — what it does not.
 
 The public render path is documented separately in
-[render-in-actions.md](./render-in-actions.md). Everything there about *how a world is
-split and put back together* applies here unchanged. This document is only about the
+[render-in-actions.md](./render-in-actions.md). Everything there about _how a world is
+split and put back together_ applies here unchanged. This document is only about the
 things that are different because the world is private.
 
 ---
@@ -38,8 +38,8 @@ This is the section to read twice.
 
 **The decrypted world, in full, in memory and on its disk, for the duration of the job.**
 There is no way around this. Rendering means reading every chunk and turning it into
-tiles; a renderer cannot work on ciphertext. The encryption protects the world *in
-transit* and *at rest on the public side's storage*. It does not protect it from the
+tiles; a renderer cannot work on ciphertext. The encryption protects the world _in
+transit_ and _at rest on the public side's storage_. It does not protect it from the
 machine doing the rendering, because that machine has to be handed the key.
 
 Concretely, during a run the runner holds:
@@ -86,7 +86,7 @@ Being precise about this is the point of the section:
 - **How long it took**, which is the same information again from a different angle.
 - **That the person running it has a private repository**, though not which one.
 
-If the *existence* of the world is itself the secret, this arrangement does not deliver
+If the _existence_ of the world is itself the secret, this arrangement does not deliver
 that, and no amount of encryption in it would.
 
 ### What would break it
@@ -115,13 +115,13 @@ publish them as surely as committing them.
 
 So the private path uses a different transport for the same data:
 
-| | public path | private path |
-| --- | --- | --- |
-| world to render jobs | one artifact, downloaded by each shard | encrypted release assets on the private repository, downloaded and verified by each shard |
-| shard output to merge | artifact per shard | encrypted release assets on a temporary staging release |
-| shard plan | artifact | encrypted, staged with everything else |
-| renderer jar | artifact | **artifact** — it is built from vendored public sources and holds no world data |
-| final map | artifact on this repository, or Pages | encrypted release on the private repository |
+|                       | public path                            | private path                                                                              |
+| --------------------- | -------------------------------------- | ----------------------------------------------------------------------------------------- |
+| world to render jobs  | one artifact, downloaded by each shard | encrypted release assets on the private repository, downloaded and verified by each shard |
+| shard output to merge | artifact per shard                     | encrypted release assets on a temporary staging release                                   |
+| shard plan            | artifact                               | encrypted, staged with everything else                                                    |
+| renderer jar          | artifact                               | **artifact** — it is built from vendored public sources and holds no world data           |
+| final map             | artifact on this repository, or Pages  | encrypted release on the private repository                                               |
 
 The staging release is a prerelease created at the start of a run and deleted at the end,
 including when the run fails. Its tag is derived from the run id as well as the label, so
@@ -140,7 +140,7 @@ than hidden because on a very large world it is the dominant cost.
 written into any file in either repository.
 
 The authentication tag is the point rather than a detail. Unauthenticated encryption
-would let a payload be altered in transit and still decrypt — into *different bytes*,
+would let a payload be altered in transit and still decrypt — into _different bytes_,
 which would then be fed to a renderer as though they were a world. Every failure to
 authenticate stops the run instead.
 
@@ -156,7 +156,7 @@ A payload is cut into parts of **50 MB**, each sealed on its own with:
 
 A sealed **manifest** accompanies the parts and records the count, each part's digest and
 a digest of the whole. Per-part authentication proves each part is genuine; only the
-manifest can prove that *all of them are here, in order, and belong to the same payload*.
+manifest can prove that _all of them are here, in order, and belong to the same payload_.
 That distinction is not academic — a dropped upload, a retry that leaves an older part
 behind, and two runs writing to one place all produce sets of perfectly genuine parts that
 do not belong together.
@@ -172,7 +172,7 @@ the old contexts are read-only compatibility so an encrypted payload is not stra
 the product rename.
 
 > **50 MB is this transport's part size and nothing else.** It is not the release-asset
-> size limit used when publishing a large *public* world, which is a different problem
+> size limit used when publishing a large _public_ world, which is a different problem
 > with a much larger number. Raising this one to match that one would put gigabyte
 > buffers in every job on this path for no benefit.
 
@@ -181,17 +181,17 @@ the product rename.
 There is no path in this code that carries on with something unencrypted. Each of the
 following stops the run with a message saying what happened:
 
-| what went wrong | what happens |
-| --- | --- |
-| the key secret is not set | refused before anything is fetched, naming the variable |
-| the key is not 32 bytes | refused, without printing the key or its length |
-| a required secret is not set | refused in the first job, naming which |
-| a part fails its authentication tag | refused; nothing is written |
-| a part decrypts but is not the one the manifest describes | refused |
-| a part is missing | refused, naming which of how many |
-| the manifest is absent | refused as an incomplete payload |
-| the reassembled payload's digest does not match | refused, and the partial output deleted |
-| the input to seal is empty | refused, rather than producing a payload that renders nothing |
+| what went wrong                                           | what happens                                                  |
+| --------------------------------------------------------- | ------------------------------------------------------------- |
+| the key secret is not set                                 | refused before anything is fetched, naming the variable       |
+| the key is not 32 bytes                                   | refused, without printing the key or its length               |
+| a required secret is not set                              | refused in the first job, naming which                        |
+| a part fails its authentication tag                       | refused; nothing is written                                   |
+| a part decrypts but is not the one the manifest describes | refused                                                       |
+| a part is missing                                         | refused, naming which of how many                             |
+| the manifest is absent                                    | refused as an incomplete payload                              |
+| the reassembled payload's digest does not match           | refused, and the partial output deleted                       |
+| the input to seal is empty                                | refused, rather than producing a payload that renders nothing |
 
 The partial-output deletion matters more than it looks. A three-quarters-written world
 tar looks exactly like a world tar to every later step.
@@ -211,13 +211,13 @@ the rendered map that comes back.
 
 ### 2. Add the secrets to this repository
 
-| secret | what it is |
-| --- | --- |
-| `PRIVATE_WORLD_KEY` | the 32-byte key, as 64 hex characters or base64 |
-| `PRIVATE_WORLD_REPO` | `owner/name` of the private repository |
-| `PRIVATE_WORLD_TOKEN` | a token that can read releases from and create releases on that repository, and nothing else |
-| `PRIVATE_WORLD_LABEL` | any string. Every opaque identifier is derived from it. It never appears in a log |
-| `PRIVATE_WORLD_SOURCE_TAG` | the release tag in the private repository holding the sealed world |
+| secret                     | what it is                                                                                   |
+| -------------------------- | -------------------------------------------------------------------------------------------- |
+| `PRIVATE_WORLD_KEY`        | the 32-byte key, as 64 hex characters or base64                                              |
+| `PRIVATE_WORLD_REPO`       | `owner/name` of the private repository                                                       |
+| `PRIVATE_WORLD_TOKEN`      | a token that can read releases from and create releases on that repository, and nothing else |
+| `PRIVATE_WORLD_LABEL`      | any string. Every opaque identifier is derived from it. It never appears in a log            |
+| `PRIVATE_WORLD_SOURCE_TAG` | the release tag in the private repository holding the sealed world                           |
 
 Secrets are masked in logs, but do not rely on masking for the tag: derive an opaque one
 with the CLI below and use that.
@@ -226,7 +226,7 @@ with the CLI below and use that.
 
 ```sh
 cd design
-pnpm --filter "@material-bluemap/render-actions..." run build
+pnpm --filter "@worldlens/render-actions..." run build
 
 export PRIVATE_WORLD_KEY=<the key>
 export PRIVATE_WORLD_LABEL=<the label>
@@ -282,12 +282,12 @@ the webapp fetches its tiles.
 main `cli.js`: everything in it handles a key, and a separate entry point means the public
 render path cannot grow a flag that takes one.
 
-| command | what it does |
-| --- | --- |
-| `id` | derives an opaque identifier from the label, without touching any data |
-| `seal` | encrypts a file into parts plus a manifest |
-| `open` | verifies and decrypts current or legacy-generation parts back into the original file |
-| `check` | proves the key and the required secrets are present before anything runs |
+| command | what it does                                                                         |
+| ------- | ------------------------------------------------------------------------------------ |
+| `id`    | derives an opaque identifier from the label, without touching any data               |
+| `seal`  | encrypts a file into parts plus a manifest                                           |
+| `open`  | verifies and decrypts current or legacy-generation parts back into the original file |
+| `check` | proves the key and the required secrets are present before anything runs             |
 
 The label is passed as `--label-env <VAR>` rather than `--label <text>` so that it never
 appears in a process list, which on a shared runner is readable. `--suffix` extends it

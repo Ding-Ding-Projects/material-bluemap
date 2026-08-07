@@ -83,31 +83,30 @@ export function copyZstdWasmAsset(destDir) {
 }
 
 /**
- * The repository a build with no CI signal and no explicit override names.
+ * The current and former repositories a build with no explicit override names.
  *
- * Real - it is this project's actual repository today - so a plain `pnpm build` on a
- * workstation still produces something that would work if that build were ever installed,
- * rather than a placeholder that would silently fail to update. It is not used inside CI;
- * see the throw below for why that distinction matters.
+ * The current value is the intended Worldlens home. The legacy value is the repository's
+ * present hosting path during the rename and exists only as a bridge feed.
  */
 export const DEFAULT_REPOSITORY = "Ding-Ding-Projects/worldlens";
+export const DEFAULT_LEGACY_REPOSITORY = "Ding-Ding-Projects/material-bluemap";
 export const BUILD_REPOSITORY_VARIABLE = "WORLDLENS_BUILD_REPOSITORY";
+export const BUILD_LEGACY_REPOSITORY_VARIABLE = "WORLDLENS_LEGACY_BUILD_REPOSITORY";
 export const LEGACY_BUILD_REPOSITORY_VARIABLE = "MATERIAL_BLUEMAP_BUILD_REPOSITORY";
 
 /** What `resolveFeed` (main/update/feed.ts) itself accepts: `owner/repo`, nothing else. */
 const REPOSITORY_PATTERN = /^[\w.-]+\/[\w.-]+$/;
 
 /**
- * Which repository this build's shipped updater should ask - decided once, here, at bundle
- * time, and frozen into the bundle by esbuild's `define` in {@link main}.
+ * Which current and legacy repositories this build's shipped updater should ask - decided
+ * once here and frozen into the bundle by esbuild's `define` in {@link main}.
  *
  * This cannot be read from `process.env` at *runtime* the way `packages/site/vite.config.ts`
  * reads `GITHUB_REPOSITORY` for the Pages base path: a site rebuilds and redeploys on every
  * push, but an installed Electron app is a binary sitting on someone's disk with no
- * `GITHUB_REPOSITORY` anywhere near it. Whatever this function returns during `node
- * build.mjs` is what every future launch of that binary asks, until the person reinstalls it
- * or sets `MATERIAL_BLUEMAP_UPDATE_FEED` (`src/main/update/feed.ts`'s `FEED_URL_VARIABLE`), the
- * runtime override that needs no rebuild and is exactly what a rename leans on.
+ * `GITHUB_REPOSITORY` anywhere near it. The runtime `WORLDLENS_UPDATE_FEED` override still
+ * replaces both built-in feeds, but the ordinary rename path does not require an operator to
+ * set it: the bundle carries the current feed and a bounded former-repository fallback.
  *
  * That permanence is exactly why this refuses rather than guesses. 114 installers already
  * shipped with the repository hardcoded as a string literal at the call site; a value that
@@ -115,13 +114,13 @@ const REPOSITORY_PATTERN = /^[\w.-]+\/[\w.-]+$/;
  * a client asking a dead or wrong feed does not error, it just never hears about an update
  * again. So:
  *
- *  - An explicit `MATERIAL_BLUEMAP_BUILD_REPOSITORY` always wins, for a fork or a staging
- *    build that wants to publish somewhere other than where CI would guess.
- *  - Otherwise, GitHub Actions' own `GITHUB_REPOSITORY` is trusted, because every job GitHub
- *    runs sets it unconditionally - this is the same signal `vite.config.ts` and
- *    `scripts/shared.mjs` already use for the same "which repo published this" question.
- *  - Outside CI, with neither set, {@link DEFAULT_REPOSITORY} lets a local `pnpm build` /
- *    `pnpm run make` keep working the way it always did.
+ *  - `WORLDLENS_BUILD_REPOSITORY` explicitly names the current feed.
+ *  - `WORLDLENS_LEGACY_BUILD_REPOSITORY`, or its old build-variable alias, explicitly names
+ *    the bridge feed.
+ *  - While CI still runs from the former repository, `GITHUB_REPOSITORY` becomes the legacy
+ *    feed and the current feed remains {@link DEFAULT_REPOSITORY}.
+ *  - After CI moves to Worldlens, the same default legacy feed stays available for bridge
+ *    clients. An unrelated fork uses itself as current and gets no implicit project fallback.
  *  - **Inside CI** (`CI` or `GITHUB_ACTIONS` is set) **with `GITHUB_REPOSITORY` missing or
  *    malformed, this throws instead of falling back.** GitHub Actions setting that variable
  *    is not optional, so its absence there means something is wrong with the job - a
@@ -131,57 +130,77 @@ const REPOSITORY_PATTERN = /^[\w.-]+\/[\w.-]+$/;
  *    time, in a log a release fails loudly on, instead of shipping a binary that asks the
  *    wrong address forever.
  */
-export function resolveBuildRepository(env) {
+function validateRepository(value, variable) {
+    if (!REPOSITORY_PATTERN.test(value)) {
+        throw new Error(
+            `${variable}="${value}" is not a well-formed "owner/repo" value, so the bundle cannot use it as an update repository.`,
+        );
+    }
+    return value;
+}
+
+export function resolveBuildRepositories(env) {
     const current = env[BUILD_REPOSITORY_VARIABLE]?.trim();
-    const legacy = env[LEGACY_BUILD_REPOSITORY_VARIABLE]?.trim();
-    const explicit = current || legacy;
-    if (explicit !== undefined && explicit !== "") {
-        if (!REPOSITORY_PATTERN.test(explicit)) {
-            throw new Error(
-                `${current ? BUILD_REPOSITORY_VARIABLE : LEGACY_BUILD_REPOSITORY_VARIABLE}="${explicit}" is not a well-formed "owner/repo" value, so ` +
-                    "the bundle cannot be given it as the update feed's repository.",
-            );
-        }
-        return explicit;
+    const legacyCurrentOverride = env[LEGACY_BUILD_REPOSITORY_VARIABLE]?.trim();
+    const legacy = env[BUILD_LEGACY_REPOSITORY_VARIABLE]?.trim() || legacyCurrentOverride;
+    if (current) validateRepository(current, BUILD_REPOSITORY_VARIABLE);
+    if (legacy) {
+        validateRepository(
+            legacy,
+            env[BUILD_LEGACY_REPOSITORY_VARIABLE]?.trim()
+                ? BUILD_LEGACY_REPOSITORY_VARIABLE
+                : LEGACY_BUILD_REPOSITORY_VARIABLE,
+        );
     }
 
     const fromCi = env["GITHUB_REPOSITORY"]?.trim();
     if (fromCi !== undefined && fromCi !== "") {
-        if (!REPOSITORY_PATTERN.test(fromCi)) {
-            throw new Error(
-                `GITHUB_REPOSITORY="${fromCi}" is not a well-formed "owner/repo" value, so the bundle cannot be ` +
-                    "given it as the update feed's repository. This is what GitHub Actions itself set - report it " +
-                    "as a workflow bug rather than working around it here.",
-            );
-        }
-        return fromCi;
+        validateRepository(fromCi, "GITHUB_REPOSITORY");
     }
 
-    if (env["GITHUB_ACTIONS"] === "true" || env["CI"] === "true") {
+    if (
+        (env["GITHUB_ACTIONS"] === "true" || env["CI"] === "true") &&
+        (fromCi === undefined || fromCi === "")
+    ) {
         throw new Error(
             "This build is running inside CI (CI or GITHUB_ACTIONS is set) but GITHUB_REPOSITORY is missing or " +
                 "empty, so there is no way to know which repository this build's shipped update feed should ask. " +
                 `Refusing to fall back to ${DEFAULT_REPOSITORY}: a wrong repository baked into a real release is ` +
                 "invisible until an update silently stops arriving, which is exactly the failure this check " +
                 "exists to catch. Set GITHUB_REPOSITORY (GitHub Actions does this automatically for every job) " +
-                `or ${BUILD_REPOSITORY_VARIABLE} explicitly, then rebuild.`,
+                `or ${BUILD_REPOSITORY_VARIABLE} and ${BUILD_LEGACY_REPOSITORY_VARIABLE} explicitly, then rebuild.`,
         );
     }
 
-    return DEFAULT_REPOSITORY;
+    const currentRepository =
+        current || (fromCi && fromCi !== DEFAULT_LEGACY_REPOSITORY ? fromCi : DEFAULT_REPOSITORY);
+    const legacyRepository =
+        legacy ||
+        (fromCi === DEFAULT_LEGACY_REPOSITORY
+            ? fromCi
+            : currentRepository === DEFAULT_REPOSITORY
+              ? DEFAULT_LEGACY_REPOSITORY
+              : null);
+    return { current: currentRepository, legacy: legacyRepository };
+}
+
+/** Backward-compatible single-value helper for callers that only need the current feed. */
+export function resolveBuildRepository(env) {
+    return resolveBuildRepositories(env).current;
 }
 
 async function main() {
-    const repository = resolveBuildRepository(process.env);
+    const repositories = resolveBuildRepositories(process.env);
     if (
         !process.env[BUILD_REPOSITORY_VARIABLE]?.trim() &&
         process.env[LEGACY_BUILD_REPOSITORY_VARIABLE]?.trim()
     ) {
         console.warn(
-            `app build: ${LEGACY_BUILD_REPOSITORY_VARIABLE} is deprecated; use ${BUILD_REPOSITORY_VARIABLE}.`,
+            `app build: ${LEGACY_BUILD_REPOSITORY_VARIABLE} is deprecated; use ${BUILD_LEGACY_REPOSITORY_VARIABLE}.`,
         );
     }
-    console.log(`app build: update feed repository = ${repository}`);
+    console.log(`app build: current update feed repository = ${repositories.current}`);
+    console.log(`app build: legacy update bridge repository = ${repositories.legacy ?? "none"}`);
 
     /** Main process: ESM (Electron ≥28 supports ESM entry points). */
     await build({
@@ -197,7 +216,10 @@ async function main() {
         // Textual substitution: every occurrence of this identifier in the bundled source
         // becomes this JSON string literal. `src/main/globals.d.ts` declares the identifier
         // for TypeScript; `src/main/index.ts` is the only place that reads it.
-        define: { __WORLDLENS_REPOSITORY__: JSON.stringify(repository) },
+        define: {
+            __WORLDLENS_REPOSITORY__: JSON.stringify(repositories.current),
+            __WORLDLENS_LEGACY_REPOSITORY__: JSON.stringify(repositories.legacy),
+        },
     });
 
     copyZstdWasmAsset("dist/main");

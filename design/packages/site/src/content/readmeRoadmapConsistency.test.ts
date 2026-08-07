@@ -26,7 +26,7 @@ const roadmap = readFileSync(resolve(repoRoot, "design", "ROADMAP.md"), "utf-8")
 
 describe("README.md stays in step with design/ROADMAP.md's phase table", () => {
     it("does not claim Phase C's exit criteria are unrun once ROADMAP says they passed", () => {
-        expect(roadmap).toMatch(/\| C \|[^|]*\|\s*\*\*Done\.\*\*/);
+        expect(roadmap).toMatch(/\|\s*C\s*\|[^|]*\|\s*\*\*Done\.\*\*/);
         expect(readme).not.toMatch(/exit criteria not\s+yet run/);
     });
 
@@ -37,7 +37,7 @@ describe("README.md stays in step with design/ROADMAP.md's phase table", () => {
     });
 
     it("does not lump Phase H in with the still-pending phases once ROADMAP marks it part done", () => {
-        expect(roadmap).toMatch(/\| H \|[^|]*\|\s*\*\*Part done\.\*\*/);
+        expect(roadmap).toMatch(/\|\s*H\s*\|[^|]*\|\s*\*\*Part done\.\*\*/);
         expect(readme).not.toMatch(/G, H and I are pending/);
     });
 

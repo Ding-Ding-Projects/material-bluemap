@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -6,8 +6,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
     PROFILE_MIGRATION_CONSENT_FILE,
     PROFILE_MIGRATION_RECEIPT_FILE,
+    PROFILE_MIGRATION_TRANSACTION_FILE,
     migrateWorldlensProfile,
     profileMigrationPlan,
+    type ProfileMigrationCheckpoint,
 } from "./profileMigration.js";
 
 const roots: string[] = [];
@@ -29,6 +31,16 @@ async function put(path: string, text: string): Promise<void> {
     await writeFile(join(path, "nested", "history.json"), `${text}-history`, "utf8");
 }
 
+async function exists(path: string): Promise<boolean> {
+    try {
+        await stat(path);
+        return true;
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+        throw error;
+    }
+}
+
 describe("Worldlens profile migration", () => {
     it("migrates an old-only profile through verified staging and keeps the old copy", async () => {
         const appData = root();
@@ -41,18 +53,29 @@ describe("Worldlens profile migration", () => {
         );
         const requestConsent = vi.fn().mockResolvedValue("accept");
 
-        const outcome = await migrateWorldlensProfile({ appDataDirectory: appData, requestConsent, now });
+        const outcome = await migrateWorldlensProfile({
+            appDataDirectory: appData,
+            requestConsent,
+            now,
+        });
 
         expect(outcome).toMatchObject({ kind: "migrated", files: 3 });
         expect(requestConsent).toHaveBeenCalledOnce();
-        expect(await readFile(join(plan.worldlensDirectory, "settings.json"), "utf8")).toBe("legacy");
-        expect(await readFile(join(plan.legacyDirectory, "settings.json"), "utf8")).toBe("legacy");
-        expect(await readFile(join(plan.worldlensDirectory, "github-account.json"), "utf8")).toContain(
-            "os-credential-store:account-1",
+        expect(await readFile(join(plan.worldlensDirectory, "settings.json"), "utf8")).toBe(
+            "legacy",
         );
+        expect(await readFile(join(plan.legacyDirectory, "settings.json"), "utf8")).toBe("legacy");
+        expect(
+            await readFile(join(plan.worldlensDirectory, "github-account.json"), "utf8"),
+        ).toContain("os-credential-store:account-1");
         expect(JSON.stringify(outcome)).not.toContain("os-credential-store:account-1");
         expect(
-            JSON.parse(await readFile(join(plan.worldlensDirectory, PROFILE_MIGRATION_RECEIPT_FILE), "utf8")),
+            JSON.parse(
+                await readFile(
+                    join(plan.worldlensDirectory, PROFILE_MIGRATION_RECEIPT_FILE),
+                    "utf8",
+                ),
+            ),
         ).toMatchObject({ product: "Worldlens", oldProfileRetained: true, status: "verified" });
     });
 
@@ -61,7 +84,9 @@ describe("Worldlens profile migration", () => {
         const plan = profileMigrationPlan(appData);
         await put(plan.worldlensDirectory, "current");
         const requestConsent = vi.fn().mockResolvedValue("accept");
-        expect(await migrateWorldlensProfile({ appDataDirectory: appData, requestConsent, now })).toMatchObject({
+        expect(
+            await migrateWorldlensProfile({ appDataDirectory: appData, requestConsent, now }),
+        ).toMatchObject({
             kind: "no-legacy-profile",
         });
         expect(requestConsent).not.toHaveBeenCalled();
@@ -83,7 +108,9 @@ describe("Worldlens profile migration", () => {
         expect(outcome.kind).toBe("migrated");
         expect(await readFile(join(plan.worldlensDirectory, "legacy.json"), "utf8")).toBe("old");
         expect(await readFile(join(plan.worldlensDirectory, "new.json"), "utf8")).toBe("new");
-        expect((await readdir(appData)).some((name) => name.startsWith("Worldlens.pre-migration-"))).toBe(true);
+        expect(
+            (await readdir(appData)).some((name) => name.startsWith("Worldlens.pre-migration-")),
+        ).toBe(true);
     });
 
     it("refuses divergent collisions without changing either root", async () => {
@@ -99,7 +126,9 @@ describe("Worldlens profile migration", () => {
             requestConsent: async () => "accept",
             now,
         });
-        expect(outcome).toEqual(expect.objectContaining({ kind: "collision", paths: ["settings.json"] }));
+        expect(outcome).toEqual(
+            expect.objectContaining({ kind: "collision", paths: ["settings.json"] }),
+        );
         expect(await readFile(join(plan.legacyDirectory, "settings.json"), "utf8")).toBe("old");
         expect(await readFile(join(plan.worldlensDirectory, "settings.json"), "utf8")).toBe("new");
     });
@@ -117,8 +146,12 @@ describe("Worldlens profile migration", () => {
             now,
         });
         expect(outcome.kind).toBe("migrated");
-        expect((await readdir(appData)).some((name) => name.includes("staging.partial-"))).toBe(true);
-        expect(await readFile(join(plan.worldlensDirectory, "settings.json"), "utf8")).toBe("legacy");
+        expect((await readdir(appData)).some((name) => name.includes("staging.partial-"))).toBe(
+            true,
+        );
+        expect(await readFile(join(plan.worldlensDirectory, "settings.json"), "utf8")).toBe(
+            "legacy",
+        );
     });
 
     it("persists denial, does not nag, and supports an explicit retry", async () => {
@@ -126,7 +159,9 @@ describe("Worldlens profile migration", () => {
         const plan = profileMigrationPlan(appData);
         await put(plan.legacyDirectory, "legacy");
         const deny = vi.fn().mockResolvedValue("deny");
-        expect(await migrateWorldlensProfile({ appDataDirectory: appData, requestConsent: deny, now })).toMatchObject({
+        expect(
+            await migrateWorldlensProfile({ appDataDirectory: appData, requestConsent: deny, now }),
+        ).toMatchObject({
             kind: "denied",
         });
         expect(deny).toHaveBeenCalledOnce();
@@ -136,7 +171,11 @@ describe("Worldlens profile migration", () => {
 
         const shouldNotRun = vi.fn().mockResolvedValue("accept");
         expect(
-            await migrateWorldlensProfile({ appDataDirectory: appData, requestConsent: shouldNotRun, now }),
+            await migrateWorldlensProfile({
+                appDataDirectory: appData,
+                requestConsent: shouldNotRun,
+                now,
+            }),
         ).toMatchObject({ kind: "denied" });
         expect(shouldNotRun).not.toHaveBeenCalled();
 
@@ -156,17 +195,51 @@ describe("Worldlens profile migration", () => {
         await put(plan.legacyDirectory, "legacy");
         await writeFile(join(appData, PROFILE_MIGRATION_CONSENT_FILE), "not json", "utf8");
         expect(
-            await migrateWorldlensProfile({ appDataDirectory: appData, requestConsent: async () => "accept", now }),
+            await migrateWorldlensProfile({
+                appDataDirectory: appData,
+                requestConsent: async () => "accept",
+                now,
+            }),
         ).toMatchObject({ kind: "corrupt" });
 
         const second = root();
         const secondPlan = profileMigrationPlan(second);
         await put(secondPlan.legacyDirectory, "legacy");
         await mkdir(secondPlan.worldlensDirectory, { recursive: true });
-        await writeFile(join(secondPlan.worldlensDirectory, PROFILE_MIGRATION_RECEIPT_FILE), "{}", "utf8");
+        await writeFile(
+            join(secondPlan.worldlensDirectory, PROFILE_MIGRATION_RECEIPT_FILE),
+            "{}",
+            "utf8",
+        );
         expect(
-            await migrateWorldlensProfile({ appDataDirectory: second, requestConsent: async () => "accept", now }),
+            await migrateWorldlensProfile({
+                appDataDirectory: second,
+                requestConsent: async () => "accept",
+                now,
+            }),
         ).toMatchObject({ kind: "corrupt" });
+    });
+
+    it("refuses a corrupt transaction journal before touching either profile", async () => {
+        const appData = root();
+        const plan = profileMigrationPlan(appData);
+        await mkdir(plan.legacyDirectory, { recursive: true });
+        await writeFile(join(plan.legacyDirectory, "legacy.json"), "old", "utf8");
+        await mkdir(plan.worldlensDirectory, { recursive: true });
+        await writeFile(join(plan.worldlensDirectory, "current.json"), "current", "utf8");
+        await writeFile(join(appData, PROFILE_MIGRATION_TRANSACTION_FILE), "{}", "utf8");
+
+        const outcome = await migrateWorldlensProfile({
+            appDataDirectory: appData,
+            requestConsent: async () => "accept",
+            now,
+        });
+
+        expect(outcome).toMatchObject({ kind: "corrupt" });
+        expect(await readFile(join(plan.legacyDirectory, "legacy.json"), "utf8")).toBe("old");
+        expect(await readFile(join(plan.worldlensDirectory, "current.json"), "utf8")).toBe(
+            "current",
+        );
     });
 
     it("rolls activation back to a pre-existing Worldlens root when read-back fails", async () => {
@@ -185,21 +258,171 @@ describe("Worldlens profile migration", () => {
                 throw new Error("simulated disk read-back failure");
             },
         });
-        expect(outcome).toMatchObject({ kind: "failed", message: "simulated disk read-back failure" });
+        expect(outcome).toMatchObject({
+            kind: "failed",
+            message: "simulated disk read-back failure",
+        });
         expect(await readFile(join(plan.worldlensDirectory, "new.json"), "utf8")).toBe("new");
         expect(await readFile(join(plan.legacyDirectory, "legacy.json"), "utf8")).toBe("old");
-        expect((await readdir(appData)).some((name) => name.startsWith("Worldlens.failed-"))).toBe(true);
+        expect((await readdir(appData)).some((name) => name.startsWith("Worldlens.failed-"))).toBe(
+            true,
+        );
     });
+
+    const activationCheckpoints: readonly ProfileMigrationCheckpoint[] = [
+        "before-backup-rename",
+        "after-backup-rename",
+        "before-receipt-write",
+        "after-receipt-write",
+        "before-staging-activation",
+        "after-staging-activation",
+        "before-verification",
+        "after-verification",
+    ];
+
+    for (const crashAt of activationCheckpoints) {
+        it(`recovers a process crash at ${crashAt} without stranding either profile`, async () => {
+            const appData = root();
+            const plan = profileMigrationPlan(appData);
+            await mkdir(plan.legacyDirectory, { recursive: true });
+            await writeFile(join(plan.legacyDirectory, "legacy.json"), "old", "utf8");
+            await mkdir(plan.worldlensDirectory, { recursive: true });
+            await writeFile(join(plan.worldlensDirectory, "current.json"), "current", "utf8");
+
+            await expect(
+                migrateWorldlensProfile({
+                    appDataDirectory: appData,
+                    requestConsent: async () => "accept",
+                    now,
+                    onCheckpoint: async (point) =>
+                        point === crashAt ? "simulate-crash" : undefined,
+                }),
+            ).rejects.toThrow(`Simulated process crash at ${crashAt}.`);
+
+            const recovered = await migrateWorldlensProfile({
+                appDataDirectory: appData,
+                requestConsent: async () => "accept",
+                now,
+            });
+
+            expect(["migrated", "already-migrated"]).toContain(recovered.kind);
+            expect(await readFile(join(plan.worldlensDirectory, "current.json"), "utf8")).toBe(
+                "current",
+            );
+            expect(await readFile(join(plan.worldlensDirectory, "legacy.json"), "utf8")).toBe(
+                "old",
+            );
+            expect(await readFile(join(plan.legacyDirectory, "legacy.json"), "utf8")).toBe("old");
+            expect(await exists(join(appData, PROFILE_MIGRATION_TRANSACTION_FILE))).toBe(false);
+        });
+    }
+
+    for (const failAt of [
+        "before-backup-rename",
+        "after-backup-rename",
+        "before-receipt-write",
+        "after-receipt-write",
+        "before-staging-activation",
+        "after-staging-activation",
+    ] as const) {
+        it(`recovers an ordinary failure at ${failAt} and permits a clean retry`, async () => {
+            const appData = root();
+            const plan = profileMigrationPlan(appData);
+            await mkdir(plan.legacyDirectory, { recursive: true });
+            await writeFile(join(plan.legacyDirectory, "legacy.json"), "old", "utf8");
+            await mkdir(plan.worldlensDirectory, { recursive: true });
+            await writeFile(join(plan.worldlensDirectory, "current.json"), "current", "utf8");
+
+            const failed = await migrateWorldlensProfile({
+                appDataDirectory: appData,
+                requestConsent: async () => "accept",
+                now,
+                onCheckpoint: async (point) => {
+                    if (point === failAt) throw new Error(`injected failure at ${failAt}`);
+                },
+            });
+            expect(failed).toMatchObject({
+                kind: "failed",
+                message: `injected failure at ${failAt}`,
+            });
+            expect(await readFile(join(plan.legacyDirectory, "legacy.json"), "utf8")).toBe("old");
+            expect(await exists(join(appData, PROFILE_MIGRATION_TRANSACTION_FILE))).toBe(false);
+
+            const retried = await migrateWorldlensProfile({
+                appDataDirectory: appData,
+                requestConsent: async () => "accept",
+                now,
+            });
+            expect(["migrated", "already-migrated"]).toContain(retried.kind);
+            expect(await readFile(join(plan.worldlensDirectory, "current.json"), "utf8")).toBe(
+                "current",
+            );
+            expect(await readFile(join(plan.worldlensDirectory, "legacy.json"), "utf8")).toBe(
+                "old",
+            );
+        });
+    }
+
+    for (const crashAt of ["before-rollback", "after-rollback"] as const) {
+        it(`finishes a rollback interrupted at ${crashAt} and preserves current-only data`, async () => {
+            const appData = root();
+            const plan = profileMigrationPlan(appData);
+            await mkdir(plan.legacyDirectory, { recursive: true });
+            await writeFile(join(plan.legacyDirectory, "legacy.json"), "old", "utf8");
+            await mkdir(plan.worldlensDirectory, { recursive: true });
+            await writeFile(join(plan.worldlensDirectory, "current.json"), "current", "utf8");
+
+            await expect(
+                migrateWorldlensProfile({
+                    appDataDirectory: appData,
+                    requestConsent: async () => "accept",
+                    now,
+                    verifyActivatedProfile: async () => {
+                        throw new Error("injected verification failure");
+                    },
+                    onCheckpoint: async (point) =>
+                        point === crashAt ? "simulate-crash" : undefined,
+                }),
+            ).rejects.toThrow(`Simulated process crash at ${crashAt}.`);
+
+            const retried = await migrateWorldlensProfile({
+                appDataDirectory: appData,
+                requestConsent: async () => "accept",
+                now,
+            });
+            expect(["migrated", "already-migrated"]).toContain(retried.kind);
+            expect(await readFile(join(plan.worldlensDirectory, "current.json"), "utf8")).toBe(
+                "current",
+            );
+            expect(await readFile(join(plan.worldlensDirectory, "legacy.json"), "utf8")).toBe(
+                "old",
+            );
+            expect(await readFile(join(plan.legacyDirectory, "legacy.json"), "utf8")).toBe("old");
+            expect(await exists(join(appData, PROFILE_MIGRATION_TRANSACTION_FILE))).toBe(false);
+        });
+    }
 
     it("is idempotent after a verified receipt", async () => {
         const appData = root();
         const plan = profileMigrationPlan(appData);
         await put(plan.legacyDirectory, "legacy");
         const consent = vi.fn().mockResolvedValue("accept");
-        expect(await migrateWorldlensProfile({ appDataDirectory: appData, requestConsent: consent, now })).toMatchObject({
+        expect(
+            await migrateWorldlensProfile({
+                appDataDirectory: appData,
+                requestConsent: consent,
+                now,
+            }),
+        ).toMatchObject({
             kind: "migrated",
         });
-        expect(await migrateWorldlensProfile({ appDataDirectory: appData, requestConsent: consent, now })).toMatchObject({
+        expect(
+            await migrateWorldlensProfile({
+                appDataDirectory: appData,
+                requestConsent: consent,
+                now,
+            }),
+        ).toMatchObject({
             kind: "already-migrated",
         });
         expect(consent).toHaveBeenCalledOnce();

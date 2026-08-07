@@ -56,6 +56,8 @@ export interface FeedInputs {
     readonly version: string;
     /** `owner/repo` of the repository publishing the releases, or null for none. */
     readonly repository: string | null;
+    /** Previous `owner/repo`, retained only as a bridge feed during the rename. */
+    readonly legacyRepository?: string | null;
     /** `process.env`, passed in so this whole module is testable without one. */
     readonly environment: Readonly<Record<string, string | undefined>>;
 }
@@ -68,7 +70,11 @@ export interface FeedConfiguration {
 }
 
 export type FeedResolution =
-    | { readonly ok: true; readonly feed: FeedConfiguration }
+    | {
+          readonly ok: true;
+          readonly feed: FeedConfiguration;
+          readonly legacyFallback: FeedConfiguration | null;
+      }
     | { readonly ok: false; readonly reason: string };
 
 /** True for an https URL. An update fetched over http is an update anybody can replace. */
@@ -82,7 +88,10 @@ export function isSecureFeedUrl(value: string): boolean {
     if (parsed.protocol === "https:") return true;
     // Loopback over http is allowed so a test server needs no certificate. Nothing else
     // is: on any other host, plaintext means the installer can be swapped in transit.
-    return parsed.protocol === "http:" && (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost");
+    return (
+        parsed.protocol === "http:" &&
+        (parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost")
+    );
 }
 
 function truthy(value: string | undefined): boolean {
@@ -148,7 +157,11 @@ export function resolveFeed(inputs: FeedInputs): FeedResolution {
                     "updater must not allow.",
             };
         }
-        return { ok: true, feed: { url: override, headers, serverType: "default" } };
+        return {
+            ok: true,
+            feed: { url: override, headers, serverType: "default" },
+            legacyFallback: null,
+        };
     }
 
     if (inputs.platform !== "win32") {
@@ -181,8 +194,30 @@ export function resolveFeed(inputs: FeedInputs): FeedResolution {
 
     // `win32-<arch>` is the service's own channel spelling, and the version goes in the
     // path rather than a query string because that is the route it documents.
-    const url = `${PUBLIC_FEED_HOST}/${repository}/win32-${inputs.arch}/${encodeURIComponent(inputs.version)}`;
-    return { ok: true, feed: { url, headers, serverType: "default" } };
+    const urlFor = (source: string): string =>
+        `${PUBLIC_FEED_HOST}/${source}/win32-${inputs.arch}/${encodeURIComponent(inputs.version)}`;
+    const legacyRepository = inputs.legacyRepository?.trim();
+    if (
+        legacyRepository !== undefined &&
+        legacyRepository !== "" &&
+        !/^[\w.-]+\/[\w.-]+$/.test(legacyRepository)
+    ) {
+        return {
+            ok: false,
+            reason:
+                "This build's legacy release repository is malformed, so the update bridge was disabled " +
+                "instead of contacting a guessed address.",
+        };
+    }
+    const legacyFallback =
+        legacyRepository === undefined || legacyRepository === "" || legacyRepository === repository
+            ? null
+            : { url: urlFor(legacyRepository), headers, serverType: "default" as const };
+    return {
+        ok: true,
+        feed: { url: urlFor(repository), headers, serverType: "default" },
+        legacyFallback,
+    };
 }
 
 /**

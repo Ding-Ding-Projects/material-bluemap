@@ -34,6 +34,7 @@
 
 import {
     PROJECT_FORMAT_VERSION,
+    PROJECT_SCHEMA_ID,
     descriptorFor,
     findField,
     renderFileStorageTemplate,
@@ -211,6 +212,7 @@ export const EMPTY_RENDER: ProjectRender = {
  */
 export function createProject(name: string, stamp: ProjectStamp = defaultStamp()): ProjectFile {
     return {
+        schema: PROJECT_SCHEMA_ID,
         version: PROJECT_FORMAT_VERSION,
         id: stamp.id,
         name: name.trim() === "" ? "Untitled project" : name.trim(),
@@ -306,7 +308,10 @@ export function worldLeaf(path: string): string {
  * clears `fromWizard`: the moment somebody changes anything in the editor, the claim that
  * the guide wrote this and nothing has touched it stops being true.
  */
-export function touch(project: ProjectFile, stamp: Pick<ProjectStamp, "now" | "appVersion"> = { now: nowStamp() }): ProjectFile {
+export function touch(
+    project: ProjectFile,
+    stamp: Pick<ProjectStamp, "now" | "appVersion"> = { now: nowStamp() },
+): ProjectFile {
     return {
         ...project,
         updatedAt: stamp.now,
@@ -344,7 +349,11 @@ export function mapIds(project: ProjectFile, except: string | null = null): stri
 }
 
 /** The dimension a new map should default to: the first one nothing has claimed yet. */
-export const DEFAULT_DIMENSIONS: readonly { readonly key: string; readonly preset: MapPreset; readonly sorting: number }[] = [
+export const DEFAULT_DIMENSIONS: readonly {
+    readonly key: string;
+    readonly preset: MapPreset;
+    readonly sorting: number;
+}[] = [
     { key: "minecraft:overworld", preset: "overworld", sorting: 0 },
     { key: "minecraft:the_nether", preset: "nether", sorting: 100 },
     { key: "minecraft:the_end", preset: "end", sorting: 200 },
@@ -461,7 +470,11 @@ export interface MapIdentity {
  * the dimension it used to be. A world with a custom dimension type has said something this
  * has no business overwriting.
  */
-export function withMapIdentity(project: ProjectFile, id: string, identity: MapIdentity): ProjectFile {
+export function withMapIdentity(
+    project: ProjectFile,
+    id: string,
+    identity: MapIdentity,
+): ProjectFile {
     const map = findMap(project, id);
     if (map === undefined) return project;
 
@@ -471,7 +484,10 @@ export function withMapIdentity(project: ProjectFile, id: string, identity: MapI
     const next: ProjectMap = {
         ...map,
         id: nextId,
-        name: identity.name === undefined || identity.name.trim() === "" ? map.name : identity.name.trim(),
+        name:
+            identity.name === undefined || identity.name.trim() === ""
+                ? map.name
+                : identity.name.trim(),
         dimension: identity.dimension ?? map.dimension,
         sorting: identity.sorting ?? map.sorting,
         storage: identity.storage ?? map.storage,
@@ -514,7 +530,10 @@ export function syncMapConfig(map: ProjectMap, previousDimension: string | null 
 
     const typeField = findField(file.descriptor, "dimension-type");
     if (typeField !== undefined && isExplicit(file, typeField)) {
-        const stated = file.value === null ? undefined : (file.value as Record<string, unknown>)["dimension-type"];
+        const stated =
+            file.value === null
+                ? undefined
+                : (file.value as Record<string, unknown>)["dimension-type"];
         // Only when the file was following the dimension already. A custom dimension type
         // is a deliberate statement and is left exactly as written.
         if (previousDimension !== null && stated === previousDimension) {
@@ -554,8 +573,18 @@ export function withMapMoved(project: ProjectFile, id: string, delta: -1 | 1): P
     return {
         ...project,
         maps: project.maps.map((map) => {
-            if (map.id === moving.id) return { ...map, sorting: movingSorting, config: syncMapConfig({ ...map, sorting: movingSorting }) };
-            if (map.id === other.id) return { ...map, sorting: otherSorting, config: syncMapConfig({ ...map, sorting: otherSorting }) };
+            if (map.id === moving.id)
+                return {
+                    ...map,
+                    sorting: movingSorting,
+                    config: syncMapConfig({ ...map, sorting: movingSorting }),
+                };
+            if (map.id === other.id)
+                return {
+                    ...map,
+                    sorting: otherSorting,
+                    config: syncMapConfig({ ...map, sorting: otherSorting }),
+                };
             return map;
         }),
     };
@@ -583,7 +612,9 @@ export function withStorageAdded(project: ProjectFile, id: string, config: strin
 export function withStorageConfig(project: ProjectFile, id: string, config: string): ProjectFile {
     return {
         ...project,
-        storages: project.storages.map((storage) => (storage.id === id ? { ...storage, config } : storage)),
+        storages: project.storages.map((storage) =>
+            storage.id === id ? { ...storage, config } : storage,
+        ),
     };
 }
 
@@ -655,20 +686,33 @@ export function storageIdProblem(id: string, taken: readonly string[] = []): IdP
  * the one key both descriptors share.
  */
 export function storageDescriptorForText(text: string): AnyDescriptor {
-    const probe = openConfigFile(descriptorFor("storage-file") as AnyDescriptor, "storages/probe.conf", text);
-    const raw = probe.value === null ? "file" : ((probe.value as Record<string, unknown>)["storage-type"] ?? "file");
+    const probe = openConfigFile(
+        descriptorFor("storage-file") as AnyDescriptor,
+        "storages/probe.conf",
+        text,
+    );
+    const raw =
+        probe.value === null
+            ? "file"
+            : ((probe.value as Record<string, unknown>)["storage-type"] ?? "file");
     const resolved = storageDescriptorFor(typeof raw === "string" ? raw : "file");
     return (resolved ?? descriptorFor("storage-file")) as AnyDescriptor;
 }
 
 /** One storage's config text, opened for the settings form. */
 export function openStorageFile(storage: ProjectStorage): EditableConfigFile {
-    return openConfigFile(storageDescriptorForText(storage.config), `storages/${storage.id}.conf`, storage.config);
+    return openConfigFile(
+        storageDescriptorForText(storage.config),
+        `storages/${storage.id}.conf`,
+        storage.config,
+    );
 }
 
 /** A brand new storage, from upstream's own template for the type asked for. */
 export function newStorageText(type: "file" | "sql", root: string, separator = "/"): string {
-    return type === "file" ? renderFileStorageTemplate({ root, separator }) : renderSqlStorageTemplate();
+    return type === "file"
+        ? renderFileStorageTemplate({ root, separator })
+        : renderSqlStorageTemplate();
 }
 
 /**
@@ -692,7 +736,8 @@ export function withStorageType(
 /** Which of the two shapes a storage's text currently describes. */
 export function storageTypeOf(storage: ProjectStorage): "file" | "sql" {
     const file = openStorageFile(storage);
-    const stated = file.value === null ? null : (file.value as Record<string, unknown>)["storage-type"];
+    const stated =
+        file.value === null ? null : (file.value as Record<string, unknown>)["storage-type"];
     return stated === "sql" ? "sql" : "file";
 }
 
@@ -740,7 +785,11 @@ export function singletonText(project: ProjectFile, kind: SingletonKind): string
  * BlueMap's default", and an empty file is "this project deliberately wants a file with
  * nothing in it". Only the first of those is ever what somebody meant by clearing the form.
  */
-export function withSingleton(project: ProjectFile, kind: SingletonKind, text: string | null): ProjectFile {
+export function withSingleton(
+    project: ProjectFile,
+    kind: SingletonKind,
+    text: string | null,
+): ProjectFile {
     const value = text === null || text.trim() === "" ? null : text;
     return { ...project, [kind]: value };
 }
@@ -763,15 +812,29 @@ export function openSingletonFile(project: ProjectFile, kind: SingletonKind): Ed
  * names, through the same schema-driven path every other edit in this module already
  * takes, rather than growing a second way to touch a map's config text.
  */
-export function withMapFieldSet(project: ProjectFile, id: string, path: string, value: PlainValue): ProjectFile {
+export function withMapFieldSet(
+    project: ProjectFile,
+    id: string,
+    path: string,
+    value: PlainValue,
+): ProjectFile {
     const map = findMap(project, id);
     if (map === undefined) return project;
     return withMapConfig(project, id, writeField(openMapFile(map), path, value).text);
 }
 
 /** The same, for one of the four whole-project singletons. */
-export function withSingletonFieldSet(project: ProjectFile, kind: SingletonKind, path: string, value: PlainValue): ProjectFile {
-    return withSingleton(project, kind, writeField(openSingletonFile(project, kind), path, value).text);
+export function withSingletonFieldSet(
+    project: ProjectFile,
+    kind: SingletonKind,
+    path: string,
+    value: PlainValue,
+): ProjectFile {
+    return withSingleton(
+        project,
+        kind,
+        writeField(openSingletonFile(project, kind), path, value).text,
+    );
 }
 
 /**
@@ -788,7 +851,11 @@ const PRESET_MAP: Readonly<Record<string, { readonly id: string; readonly name: 
     "minecraft:the_end": { id: "end", name: "End" },
 };
 
-const ALL_VANILLA_DIMENSIONS: readonly string[] = ["minecraft:overworld", "minecraft:the_nether", "minecraft:the_end"];
+const ALL_VANILLA_DIMENSIONS: readonly string[] = [
+    "minecraft:overworld",
+    "minecraft:the_nether",
+    "minecraft:the_end",
+];
 
 export type ProjectPresetId = "overworldOnly" | "allDimensions" | "webServerOff" | "fastRender";
 
@@ -844,7 +911,9 @@ export const PROJECT_PRESETS: readonly ProjectPreset[] = [
  * has to render one.
  */
 export function findPreset(id: ProjectPresetId): ProjectPreset {
-    return PROJECT_PRESETS.find((preset) => preset.id === id) ?? (PROJECT_PRESETS[0] as ProjectPreset);
+    return (
+        PROJECT_PRESETS.find((preset) => preset.id === id) ?? (PROJECT_PRESETS[0] as ProjectPreset)
+    );
 }
 
 export interface ApplyPresetOptions {
@@ -883,12 +952,20 @@ export interface PresetApplication {
  * safe to offer with no destructive-action gate: it never overwrites anything that was
  * already there.
  */
-export function applyPreset(project: ProjectFile, preset: ProjectPreset, options: ApplyPresetOptions): PresetApplication {
+export function applyPreset(
+    project: ProjectFile,
+    preset: ProjectPreset,
+    options: ApplyPresetOptions,
+): PresetApplication {
     let next = project;
 
     const storageAdded = findStorage(next, "file") === undefined;
     if (storageAdded) {
-        next = withStorageAdded(next, "file", newStorageText("file", options.storageRoot, options.separator ?? "/"));
+        next = withStorageAdded(
+            next,
+            "file",
+            newStorageText("file", options.storageRoot, options.separator ?? "/"),
+        );
     }
 
     const mapsAdded: string[] = [];
@@ -915,7 +992,12 @@ export function applyPreset(project: ProjectFile, preset: ProjectPreset, options
 
     const webserverWritten = preset.webserverEnabled !== undefined && next.webserver === null;
     if (webserverWritten) {
-        next = withSingletonFieldSet(next, "webserver", "enabled", preset.webserverEnabled as PlainValue);
+        next = withSingletonFieldSet(
+            next,
+            "webserver",
+            "enabled",
+            preset.webserverEnabled as PlainValue,
+        );
     }
 
     return { project: next, mapsAdded, mapsSkipped, storageAdded, webserverWritten };
@@ -928,7 +1010,11 @@ export function applyPreset(project: ProjectFile, preset: ProjectPreset, options
  * project that already has some of this says so, rather than claiming credit for work it
  * did not do.
  */
-export function presetApplicationLines(preset: ProjectPreset, application: PresetApplication, t: Translate): string[] {
+export function presetApplicationLines(
+    preset: ProjectPreset,
+    application: PresetApplication,
+    t: Translate,
+): string[] {
     const lines: string[] = [];
 
     if (application.mapsAdded.length > 0) {
@@ -936,7 +1022,11 @@ export function presetApplicationLines(preset: ProjectPreset, application: Prese
             .map((id) => Object.values(PRESET_MAP).find((entry) => entry.id === id)?.name ?? id)
             .join(", ");
         lines.push(
-            t("project.presets.appliedMaps", { maps: application.mapsAdded.length, names }, "{maps} map(s) added: {names}."),
+            t(
+                "project.presets.appliedMaps",
+                { maps: application.mapsAdded.length, names },
+                "{maps} map(s) added: {names}.",
+            ),
         );
     } else {
         lines.push(
@@ -949,8 +1039,14 @@ export function presetApplicationLines(preset: ProjectPreset, application: Prese
 
     lines.push(
         application.storageAdded
-            ? t("project.presets.appliedStorage", "Added the file storage, since this project did not have one yet.")
-            : t("project.presets.appliedStorageSkipped", "The file storage already existed, so it was left as is."),
+            ? t(
+                  "project.presets.appliedStorage",
+                  "Added the file storage, since this project did not have one yet.",
+              )
+            : t(
+                  "project.presets.appliedStorageSkipped",
+                  "The file storage already existed, so it was left as is.",
+              ),
     );
 
     if (preset.webserverEnabled !== undefined) {
@@ -1105,9 +1201,10 @@ export function formatWhen(value: string): string | null {
     const parsed = Date.parse(value);
     if (Number.isNaN(parsed)) return null;
     try {
-        return new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
-            new Date(parsed),
-        );
+        return new Intl.DateTimeFormat(undefined, {
+            dateStyle: "medium",
+            timeStyle: "short",
+        }).format(new Date(parsed));
     } catch {
         return new Date(parsed).toISOString();
     }
@@ -1207,12 +1304,16 @@ export function exportProjects(rows: readonly ProjectRow[], format: ExportFormat
     }
     if (format === "csv") {
         const head = EXPORT_COLUMNS.join(",");
-        const body = rows.map((row) => EXPORT_COLUMNS.map((column) => csvCell(row[column])).join(","));
+        const body = rows.map((row) =>
+            EXPORT_COLUMNS.map((column) => csvCell(row[column])).join(","),
+        );
         return `${[head, ...body].join("\n")}\n`;
     }
     const head = `| ${EXPORT_COLUMNS.join(" | ")} |`;
     const rule = `| ${EXPORT_COLUMNS.map(() => "---").join(" | ")} |`;
-    const body = rows.map((row) => `| ${EXPORT_COLUMNS.map((column) => String(row[column] ?? "")).join(" | ")} |`);
+    const body = rows.map(
+        (row) => `| ${EXPORT_COLUMNS.map((column) => String(row[column] ?? "")).join(" | ")} |`,
+    );
     return `${[head, rule, ...body].join("\n")}\n`;
 }
 

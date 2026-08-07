@@ -9,6 +9,12 @@ legacy profile, refuses divergent collisions, quarantines interrupted staging, a
 failed activation. A real-profile copy migrated 885 files / 347,197,060 bytes with source
 unchanged and target byte-matched.
 
+Independent review found the original activation sequence was not crash-safe after the current
+root had been renamed aside. The correction writes a flushed transaction journal before that
+rename and performs startup preflight recovery. Tests inject failures and process crashes before
+and after backup rename, receipt write, staging activation, verification and rollback; retries
+preserve both legacy data and files that existed only in the current Worldlens root.
+
 Renderer and documentation-site localStorage namespaces migrate before store hydration; current
 values win and old cells remain. Worldlens environment variables take precedence while legacy
 update, GitHub-client and consent names remain readable. Encrypted private-render payloads use
@@ -16,9 +22,14 @@ Worldlens ids and AES-GCM associated-data contexts for new writes while the open
 legacy generation. The cosmetic display name reaches the title bar, About, notifications and
 introductions without changing diagnostics or machine ids.
 
+Packaged bridge builds carry the Worldlens feed plus the former repository as a bounded fallback.
+An exact-pair handoff record is written only after a current-feed download; later launches then
+stop consulting the old source. This is code/build verified, not an installed three-version proof.
+
 Windows packages are permanently unsigned: `forceCodeSigning`, `signExecutable` and
-`signAndEditExecutable` are false, signing inputs are cleared, and updates rely on HTTPS, feed
-metadata and package hashes. A packaged `Worldlens.exe` was built with electron-builder 26.15.3;
+`signAndEditExecutable` are false and signing inputs are cleared. HTTPS identifies the contacted
+host and protects transport; feed metadata and package hashes detect changed bytes, but neither
+authenticates the publisher of an unsigned package. A packaged `Worldlens.exe` was built with electron-builder 26.15.3;
 PowerShell reported `NotSigned` and no signer certificate. Repository rename, release publication,
 and package deletion remain intentionally outside this phase. The freshly packaged migration
 consent gate was captured without touching the visible desktop at
@@ -276,27 +287,27 @@ document says so.
 
 ### Glossary
 
-| Term | Meaning |
-|---|---|
-| **The port** | Rewriting BlueMap's Java code as TypeScript, file by file |
-| **`design/`** | The folder holding all the TypeScript code, as a pnpm monorepo of 13 packages |
-| **The app** | The Electron desktop application (`design/packages/app` is the main process, `design/packages/ui` is the interface) |
-| **The engine / the mesher** | `design/packages/engine`. Turns Minecraft world files into 3D map tiles. This is the largest and hardest part of the port |
-| **Hires tile** | A 3D mesh file covering a small square of the world. Written in a binary format called **PRBM**, then gzipped. The file name looks like `tiles/0/x3/z7.prbm.gz` |
-| **Lowres tile** | A PNG image used when the camera is far away. Lower level of detail |
-| **`textures.json`** | A list of every block texture the map uses. Hires tiles refer to textures by their position (index) in this list |
-| **A render task** | One unit of rendering work the engine can be asked to do, such as "update this map" or "delete this map's tiles". It is not a background thread; it is an object with a `doWork()` method that is called over and over |
-| **The render manager** | `design/packages/engine/src/map/rendermanager/RenderManager.ts`. Holds a queue of render tasks and a pool of workers that drive them. Ported on 2026-08-04 |
-| **A project** | A saved set of maps, storages and settings that the app edits as one document, like a file in a word processor. Added on 2026-08-04 |
-| **Phase D** | The project phase that ports the mesher. Phases are named A through J; their status is in `ROADMAP.md` |
-| **The gate** | Phase D's exit test: a whole world rendered by both engines must come out byte-identical (PRBM bytes equal, PNG pixels equal) |
-| **The oracle** | `tools/oracle/compare.mjs`. Renders one generated world twice (Java engine, then TypeScript engine) and reports every byte that differs. This is how the gate is measured |
-| **D17, D18** | Numbered project decisions, recorded in `design/docs/decisions.md`. D17: the app ships and uses the original Java engine, and stays on it as a standing default (amended 2026-08-05) even now that the mesher's parity gate has closed — the mesher takes over only through a later, separately verified switch decision. D18: the six Minecraft server plugins are built and shipped too |
-| **Squirrel** | The Windows installer technology the app ships with |
-| **The contracts** | Product rules every user-facing surface must follow (regex builder on every search bar, browser-style tabs, appearance editors, language modes, super-confirmation for destructive actions). Tracked as GitHub issues #6 to #13, all now closed |
-| **The recurring defect** | "Built, tested, unreachable": code that works and has green tests, but no user can reach it, because nothing mounts it or wires it. It has happened repeatedly. An audit on 2026-08-03 found nine more cases; on 2026-08-04 the tab system, the appearance editors, the language section, the remote-render subsystem, the world-source subsystem and the update banner were each mounted after being built, tested and reachable by nobody |
-| **The flattening** | A change Minecraft made in version 1.13. Before it, a block was a number plus four extra bits (stone was `1`, andesite was `1:5`). After it, a block is a name (`minecraft:andesite`). Worlds from 1.12.2 and older use the old numbers. Some names also changed meaning: `minecraft:grass` used to be the grass **block** and now means a small grass **plant** |
-| **`worldgen`** | `design/packages/worldgen`. Makes a fake Minecraft world from a number (a "seed"), so tests have a real world to read without downloading one. It can write the modern format or the 1.12.2 one |
+| Term                        | Meaning                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **The port**                | Rewriting BlueMap's Java code as TypeScript, file by file                                                                                                                                                                                                                                                                                                                                                                                   |
+| **`design/`**               | The folder holding all the TypeScript code, as a pnpm monorepo of 13 packages                                                                                                                                                                                                                                                                                                                                                               |
+| **The app**                 | The Electron desktop application (`design/packages/app` is the main process, `design/packages/ui` is the interface)                                                                                                                                                                                                                                                                                                                         |
+| **The engine / the mesher** | `design/packages/engine`. Turns Minecraft world files into 3D map tiles. This is the largest and hardest part of the port                                                                                                                                                                                                                                                                                                                   |
+| **Hires tile**              | A 3D mesh file covering a small square of the world. Written in a binary format called **PRBM**, then gzipped. The file name looks like `tiles/0/x3/z7.prbm.gz`                                                                                                                                                                                                                                                                             |
+| **Lowres tile**             | A PNG image used when the camera is far away. Lower level of detail                                                                                                                                                                                                                                                                                                                                                                         |
+| **`textures.json`**         | A list of every block texture the map uses. Hires tiles refer to textures by their position (index) in this list                                                                                                                                                                                                                                                                                                                            |
+| **A render task**           | One unit of rendering work the engine can be asked to do, such as "update this map" or "delete this map's tiles". It is not a background thread; it is an object with a `doWork()` method that is called over and over                                                                                                                                                                                                                      |
+| **The render manager**      | `design/packages/engine/src/map/rendermanager/RenderManager.ts`. Holds a queue of render tasks and a pool of workers that drive them. Ported on 2026-08-04                                                                                                                                                                                                                                                                                  |
+| **A project**               | A saved set of maps, storages and settings that the app edits as one document, like a file in a word processor. Added on 2026-08-04                                                                                                                                                                                                                                                                                                         |
+| **Phase D**                 | The project phase that ports the mesher. Phases are named A through J; their status is in `ROADMAP.md`                                                                                                                                                                                                                                                                                                                                      |
+| **The gate**                | Phase D's exit test: a whole world rendered by both engines must come out byte-identical (PRBM bytes equal, PNG pixels equal)                                                                                                                                                                                                                                                                                                               |
+| **The oracle**              | `tools/oracle/compare.mjs`. Renders one generated world twice (Java engine, then TypeScript engine) and reports every byte that differs. This is how the gate is measured                                                                                                                                                                                                                                                                   |
+| **D17, D18**                | Numbered project decisions, recorded in `design/docs/decisions.md`. D17: the app ships and uses the original Java engine, and stays on it as a standing default (amended 2026-08-05) even now that the mesher's parity gate has closed — the mesher takes over only through a later, separately verified switch decision. D18: the six Minecraft server plugins are built and shipped too                                                   |
+| **Squirrel**                | The Windows installer technology the app ships with                                                                                                                                                                                                                                                                                                                                                                                         |
+| **The contracts**           | Product rules every user-facing surface must follow (regex builder on every search bar, browser-style tabs, appearance editors, language modes, super-confirmation for destructive actions). Tracked as GitHub issues #6 to #13, all now closed                                                                                                                                                                                             |
+| **The recurring defect**    | "Built, tested, unreachable": code that works and has green tests, but no user can reach it, because nothing mounts it or wires it. It has happened repeatedly. An audit on 2026-08-03 found nine more cases; on 2026-08-04 the tab system, the appearance editors, the language section, the remote-render subsystem, the world-source subsystem and the update banner were each mounted after being built, tested and reachable by nobody |
+| **The flattening**          | A change Minecraft made in version 1.13. Before it, a block was a number plus four extra bits (stone was `1`, andesite was `1:5`). After it, a block is a name (`minecraft:andesite`). Worlds from 1.12.2 and older use the old numbers. Some names also changed meaning: `minecraft:grass` used to be the grass **block** and now means a small grass **plant**                                                                            |
+| **`worldgen`**              | `design/packages/worldgen`. Makes a fake Minecraft world from a number (a "seed"), so tests have a real world to read without downloading one. It can write the modern format or the 1.12.2 one                                                                                                                                                                                                                                             |
 
 ## Update, 2026-08-06 — SSH world sources are reachable from the map wizard
 
@@ -548,7 +559,7 @@ contract articles record the boundary and updated test inventory.
   Both were found while porting the task layer; watch this space rather than assume either
   is still open without checking the 2026-08-05 entry below.
 - **A warning for anyone measuring the gate: build first.** `tools/oracle` runs the
-  *compiled* engine, so a run measures the last build rather than the current source. It
+  _compiled_ engine, so a run measures the last build rather than the current source. It
   now compiles automatically, but a report older than 2026-08-03 late-evening may have been
   grading a stale build.
 - **Phase E is now mostly done.** As of 2026-08-05 its worker pool, task layer,
@@ -592,7 +603,7 @@ contract articles record the boundary and updated test inventory.
 ### The state of the automated checks, stated exactly
 
 **Superseded by the entry directly below this summary — read that first.** This subsection
-is kept because it is the accurate record of *why* hosted CI was red for most of this pass,
+is kept because it is the accurate record of _why_ hosted CI was red for most of this pass,
 which the fix narrative below assumes as background. It describes the state as of commit
 `0bc90c2`; it does **not** describe the current tip.
 
@@ -650,12 +661,12 @@ further down for the wrong conclusion its absence produced.
    directly below this summary — is pushed but still queued or in progress as of this
    writing; run `gh run list --branch main --limit 10` before assuming either "still red" or
    "green by now." Read the dated entry titled "CI goes green for the first time in this
-   pass" for the four-cause repair narrative that got the *first* green run in this pass. The
+   pass" for the four-cause repair narrative that got the _first_ green run in this pass. The
    most useful next pieces of work, none of them CI blockers: wiring `RenderManager`'s
    save/load-queue methods and `packages/server`'s `MapUpdateService` into something that
    actually calls them at startup; joining `packages/cli`'s `-u`/`--watch` to the same
    service; proving SQLite/PostgreSQL cross-compatibility with the real Java engine (only
-   MariaDB has had that specific proof); and running a genuinely large world's *merge* step
+   MariaDB has had that specific proof); and running a genuinely large world's _merge_ step
    (not just its wave dispatch) through `render-world.yml` with `df -h` evidence.
 3. Compare against the Java source in
    `vendor/BlueMap/core/src/main/java/de/bluecolored/bluemap/core/`. Never weaken a
@@ -743,7 +754,7 @@ left gutter sized to the stack's own footprint, for the page's whole scrollable 
 than only what is visible on first open, with a CSS-source regression test tying the gutter
 width to the stack's own geometry so the two numbers cannot drift apart unnoticed.
 
-The audit had flagged what looked like a *ninth* instance, against the Settings drawer's own
+The audit had flagged what looked like a _ninth_ instance, against the Settings drawer's own
 screenshot. `cf80e54` checked it and found it was the same eighth instance seen through a
 doorway: the capture runs right after the Backups tab test with no tab switch in between, so
 the docked-right Settings drawer (narrower than the page behind it) simply left the
@@ -820,7 +831,7 @@ let a sighted, mouse-driven reader recover what was cut.
 
 Three of the four (`7601828` is a different bug — a flex child with no `min-width: 0`) share
 one root cause worth remembering for the next surface that hits it: **`<v-list-item
-:title="...">` binds Vuetify's own `title` *prop*** — the text it renders — **never an HTML
+:title="...">` binds Vuetify's own `title` _prop_** — the text it renders — **never an HTML
 `title` attribute**. `VListItem.js` only ever calls `toDisplayString(props.title)`; there is
 no native, hoverable tooltip behind that binding at all, so once `.v-list-item-title`'s
 default `overflow: hidden; text-overflow: ellipsis; white-space: nowrap` actually truncated
@@ -853,7 +864,7 @@ two real bugs by chasing failures that only reproduced inside the full suite, ne
 isolation:
 
 - **`c533c8c`** — `BackupRunner#run` rebuilt the archive name (and therefore every part's
-  asset name, which is prefixed with it) from *that call's own* clock even when resuming,
+  asset name, which is prefixed with it) from _that call's own_ clock even when resuming,
   instead of reusing the name the original attempt minted. Any resume that began in a
   different UTC second than the first attempt (the stamp has one-second resolution; anything
   that takes real time crosses that boundary routinely) silently matched no already-uploaded
@@ -897,7 +908,7 @@ defects that did not hold up are both the kind a passing test suite cannot see o
 fixed-position element with no reserved clearance, and a caption whose collision depends on
 which font a given language happens to fall back to. Neither had an assertion anywhere in the
 suite that would have caught it before this; both are pinned by new regression tests written
-*after* the audit found them — that order is the point.
+_after_ the audit found them — that order is the point.
 
 ### Smaller fixes in the same window
 
@@ -970,7 +981,7 @@ A second, different failure appeared on the very next full run:
 `backup/runner.test.ts`'s resume test, intermittently re-uploading every part of a backup
 that should have been skipped as already-present. This one was a real bug, not a timing
 accident: `BackupRunner#run` rebuilt the archive name (and therefore every part's asset
-name, which is prefixed with it) from *this* call's own clock even when resuming, instead
+name, which is prefixed with it) from _this_ call's own clock even when resuming, instead
 of reusing the name the original backup minted — so a resume that began in a different
 UTC second than the first attempt (`archiveNameFor`'s stamp has one-second resolution)
 silently missed every already-uploaded part by name and re-uploaded the lot, defeating
@@ -1102,7 +1113,7 @@ retry (a genuine test failure alongside the unrelated RPC-timeout noise, not a f
 
 - `e569e47` — `eulaStorage.test.ts`'s "still mirrors when there is no local storage to write
   to at all" expected `recordAppSetting` once and saw it zero times. `writeEulaStrip` sited
-  its history-mirror call *after* the `if (storage === null) return;` guard, so the one case
+  its history-mirror call _after_ the `if (storage === null) return;` guard, so the one case
   the test exists to cover returned before the mirror was ever reached. Moved the call ahead
   of the guard, matching every sibling module this session wired into the same mirror.
 - `cfab9a1` — the identical bug, present in four more files wired into the mirror this
@@ -1115,7 +1126,7 @@ retry (a genuine test failure alongside the unrelated RPC-timeout noise, not a f
   in a row, nor with every other localStorage-installing sibling file run alongside it three
   times over. The actual cause: this file installed no `localStorage` stand-in of its own,
   unlike its siblings, so it always happened to pass in isolation — until it landed in a
-  vitest worker that already held a *working* stand-in some other file had installed via
+  vitest worker that already held a _working_ stand-in some other file had installed via
   `Object.defineProperty`, silently inheriting whatever key that file had left behind. Vitest
   does not guarantee that mutation is undone between files sharing a worker, and which files
   share a worker is not something a test author controls or a `git log` entry can see, which
@@ -1326,7 +1337,8 @@ finding written where the fix actually lives.
 ---
 
 ## Update, 2026-08-05 — a large concurrent pass: seven issues closed, three server pieces
-   landed, one giant commit is a cautionary tale, and CI is still red
+
+landed, one giant commit is a cautionary tale, and CI is still red
 
 **Read this one first. It is the newest.**
 
@@ -1381,7 +1393,7 @@ or (for #45) a re-check of evidence that already existed — never against a cla
   count for a remote transfer, CI upload-byte correlation, which wave a shard belongs to,
   which of the four render routes is active) were re-checked one at a time against the
   panel's own "never invent a denominator" rule. Four were genuinely closed; the wave-shard
-  gap's *first* "closed" claim was wrong in a specific, findable way — the visible summary
+  gap's _first_ "closed" claim was wrong in a specific, findable way — the visible summary
   in `CiRenderScreen.vue` had been fixed, but `ciProgress.ts`, the file the issue actually
   named, still carried a stale doc comment claiming waves are never published and fired its
   "unknown wave" note unconditionally. That gap is the reason this entry says "re-checked"
@@ -1429,7 +1441,7 @@ took it to a real HTTP layer:
 2. **`00261d4`** — `SseConnectionManager.ts` and `LiveDataBroadcaster.ts` port
    `SseConnection`/`SseConnectionManager`/`LiveDataSupplierBroadcaster.java`: real
    Server-Sent Events (confirmed from the Java source, not assumed — `MapRequestHandler
-   .java` is the only upstream web file mentioning `text/event-stream`), with a mounted map
+.java` is the only upstream web file mentioning `text/event-stream`), with a mounted map
    always answering `live/players.json`/`live/markers.json` with upstream's own honest
    empty shape (`{"players":[]}`, `{}`) when nothing real is wired in yet. The tests caught
    a real bug before shipping: Node buffers HTTP response headers until the first `write`,
@@ -1437,7 +1449,7 @@ took it to a real HTTP layer:
    would have hung forever waiting for headers. Fixed with `res.flushHeaders()`. 8 new tests.
 3. **`19103df`** — `RenderDriver.ts` and its HTTP surface `RenderUpdateHandler.ts`
    (`POST`/`GET /maps/{id}/update`) call `MapUpdatePreparationTask.updateMap(map,
-   renderManager)` — the exact function upstream's own plugin command calls — against a
+renderManager)` — the exact function upstream's own plugin command calls — against a
    real, unmocked `RenderManager` and a real, unmocked `HiresModelManager`, asserting real
    tile files land in a real `FileMapStorage`. A follow-up test (`2b86de9`) went further:
    it loads a real `packages/worldgen`-generated world through the real `MCAWorld.load`
@@ -1455,7 +1467,7 @@ as `packages/server/src/plugin/MapUpdateService.ts` (`50e4b1a`), a port of upstr
 `common/plugin/MapUpdateService.java`: a per-region debounce timer that coalesces a burst of
 writes into one task, and no new dedup logic at all, because `RenderManager.
 scheduleRenderTask`'s own equals-based queue-containment check already refuses a duplicate —
-deliberately *except* at the head of the queue, so a new event for a region already being
+deliberately _except_ at the head of the queue, so a new event for a region already being
 rendered queues safely behind it instead of racing or being dropped. A follow-up test
 (`d948635`) proves that head-of-queue exemption directly against the real queue rather than
 assuming it. **Not wired into `packages/cli`'s `-u`/`--watch` flag** — that package was
@@ -1505,7 +1517,7 @@ id once and reuses it.
 
 **The proof that matters is a simulated crash, not just a round trip.** A two-region
 `MapUpdateTask` is driven partway into its second region, serialized, then restored against
-a *freshly constructed* `BmMap` over the same on-disk storage — not the same in-memory
+a _freshly constructed_ `BmMap` over the same on-disk storage — not the same in-memory
 object, a genuine simulated restart — and the test proves by tile coordinate that the
 finished region is never touched again while the interrupted one is fully re-rendered from
 scratch. `rendermanager/`'s own test total is now 129 (was 110).
@@ -1646,7 +1658,7 @@ why.
 viewer asks for `0.prbm.gz` instead, and unzips the file itself in the browser. So before
 publishing, the app turns that setting on. It then **checks that the files the viewer will
 now ask for really exist on disk**, because turning the setting on for a map that was saved
-*without* compression breaks it in the opposite direction.
+_without_ compression breaks it in the opposite direction.
 
 The code is `design/packages/render-actions/src/pages/staticHost.ts`, function
 `prepareStaticHost`. It also writes a file called `.nojekyll` (without it, GitHub deletes
@@ -1672,7 +1684,7 @@ screenshot.
 - Publishing a **big** map. The test map was 70 files and 5.8 MB. A real world is tens of
   thousands of files and several gigabytes. Nobody has measured that.
 - **Resume after a crash.** The code exists and was run once, and it correctly reused the
-  old commit instead of uploading everything again. But it still *announces* the steps
+  old commit instead of uploading everything again. But it still _announces_ the steps
   "staging" and "pushing" while doing neither. Either it is telling the user something
   untrue, or the shortcut is not working. See issue **#45**. The test needed is one that
   counts how many times `git add` really runs.
@@ -1680,8 +1692,8 @@ screenshot.
 ### 2. The planner was choosing slow renders
 
 When a world is too big for one computer, the work is split into pieces called **shards**,
-and GitHub runs them at the same time. The planner used to ask *"what is the smallest number
-of shards that still finishes in time?"* For a big world that answer was **6**, each taking
+and GitHub runs them at the same time. The planner used to ask _"what is the smallest number
+of shards that still finishes in time?"_ For a big world that answer was **6**, each taking
 almost 3 hours — while **64** slots sat empty. It met the deadline and wasted most of a day.
 
 It now asks for as many shards as are useful, and stops when a shard would spend more time
@@ -1711,11 +1723,11 @@ Fixed in this session:
 
 **Not finished** — these are the next obvious jobs:
 
-| What | Where it stands | Size |
-|---|---|---|
-| Spoken copy for the **world** screens | 15 of 234 pieces done | large |
-| Spoken copy for the **project** screens | 5 of 184 done | large |
-| Spoken copy for the **command palette** | 0 of 81 done | medium |
+| What                                    | Where it stands       | Size   |
+| --------------------------------------- | --------------------- | ------ |
+| Spoken copy for the **world** screens   | 15 of 234 pieces done | large  |
+| Spoken copy for the **project** screens | 5 of 184 done         | large  |
+| Spoken copy for the **command palette** | 0 of 81 done          | medium |
 
 The guard test `design/packages/ui/src/copy/catalogueCoverage.test.ts` lists exactly which
 screens are finished. Add a screen to that list when you finish it.
@@ -1727,7 +1739,7 @@ afternoon, no run ever finished, so the branch had no pass and no fail — which
 "everything is fine" to anyone glancing at it, and is worse than a failure, because a
 failure is at least visible.
 
-The cause is that runs shared a *concurrency group*. Two separate things cancel a run in a
+The cause is that runs shared a _concurrency group_. Two separate things cancel a run in a
 shared group, so the group was removed from `.github/workflows/ci.yml` entirely. Only the
 **release** step still shares one, because the dim sum code name for a release is chosen by
 counting how many releases already exist — two releases at once would pick the same name.
@@ -1753,7 +1765,7 @@ half-finished edit, not a landed fault.
 
 1. **The screenshot tool photographs a build, and it is not the build you think it is.**
    Running the build command in `design/packages/app` rebuilds only the background part of
-   the app. Everything you can *see* is built by `design/packages/ui`
+   the app. Everything you can _see_ is built by `design/packages/ui`
    (`pnpm --filter @worldlens/ui run build`). Fixing a component, rebuilding the app,
    and taking a new screenshot gives you a picture of the **old** interface, with every test
    still passing. A correct one-line fix was rewritten three times because of this. There is
@@ -1762,7 +1774,7 @@ half-finished edit, not a landed fault.
 2. **A rule test catches a thing done wrongly, and never a thing not done at all.** A screen
    with no search box passes a rule about search boxes. A screen with no spoken copy passes a
    rule about spoken copy being well formed. Whenever you add a rule test, add the opposite
-   assertion beside it: a written list of the screens that must *have* the thing.
+   assertion beside it: a written list of the screens that must _have_ the thing.
 
 ---
 
@@ -1776,14 +1788,14 @@ A person can now take a map this computer rendered and put it on the internet, f
 ### The one fact everything here rests on
 
 The engine writes hires tiles gzip-compressed (`0.prbm.gz`), and the viewer by default asks
-for the *uncompressed* name (`0.prbm`). BlueMap's own web server, and this app's embedded
+for the _uncompressed_ name (`0.prbm`). BlueMap's own web server, and this app's embedded
 one, answer the uncompressed name out of the compressed file. **GitHub Pages does not**, and
 has no configuration that could. So a map copied there 404s on every tile.
 
 The fix is one flag: `clientDecompression: true` in the web app's `settings.json`, which makes
 the viewer ask for the `.gz` names and inflate them itself. `prepareStaticHost` in
-`packages/render-actions/src/pages/staticHost.ts` sets it and then *checks it against the files
-actually on disk*, because a flag pointing the viewer at files nobody wrote is exactly as
+`packages/render-actions/src/pages/staticHost.ts` sets it and then _checks it against the files
+actually on disk_, because a flag pointing the viewer at files nobody wrote is exactly as
 broken as the problem it fixes.
 
 That module was already proved against a **real** published site before this work: on
@@ -1807,7 +1819,7 @@ headless browser. The flag is genuinely load-bearing, and that is measured rathe
 - `stopHosting` disables Pages and deletes the publishing branch.
 
 **The guard that matters.** Every publish writes `.material-bluemap-map.json` at the site root.
-Before anything is pushed, *and again before anything is deleted*, the target branch is read: a
+Before anything is pushed, _and again before anything is deleted_, the target branch is read: a
 branch that exists and carries no such marker is **refused**. Publishing force-replaces the
 branch, so without that check one mistyped repository name destroys somebody else's website.
 There is no override and no fallback on that path, deliberately.
@@ -1892,9 +1904,9 @@ every full render went through the vendored jar. This is that layer: `RenderMana
 lines), `ProgressTracker.ts` (148), and the task classes listed under the next commit.
 
 **The structural fact worth keeping, and the one a plausible-looking version gets wrong: the
-pool is not N tasks running side by side.** Every worker calls `doWork()` on the *same*
+pool is not N tasks running side by side.** Every worker calls `doWork()` on the _same_
 head-of-queue task until that task reports it has no more work, and only then does the head
-retire. The parallelism lives *inside* a task. Giving each worker its own task would
+retire. The parallelism lives _inside_ a task. Giving each worker its own task would
 benchmark faster and be a different program.
 
 Java's locks became something else in five named places, and each one is written down where
@@ -1902,7 +1914,7 @@ it happened, because "JavaScript is single-threaded so this is fine" is how thes
 break. The load-bearing one pairs the head of the queue with the count of workers currently
 in flight: retiring a task is only safe when there is no more work **and** nothing is in
 flight, read at the same instant. Reading those two at two different moments retires a task
-somebody is still working on, whose completion then decrements the count against the *next*
+somebody is still working on, whose completion then decrements the count against the _next_
 task, which never retires. The queue hangs rather than failing, which is the worst kind of
 bug to find later. The guarantee is now syntactic — there is no `await` between the head
 read and the return — so it can be checked by reading it.
@@ -1972,33 +1984,33 @@ never caught them. **This is work for the next person**: fix them, then re-run
 
 ### The rest of what landed on 2026-08-04, verified by `git show --stat`
 
-| Commit | What it added |
-|---|---|
-| `d7cbd34` | Render in a Docker container or on this machine, a deterministic repair pass that diagnoses a failure instead of guessing, the project main process, and the history manager. Docs: `docs/docker-and-local.md`, `docs/automatic-repair.md` |
-| `4a8a570` | The automatic-update subsystem: feed, controller, schedule, state, failure handling, the update banner and its status row. Also the reveal-in-Explorer path, the OneDrive Documents redirect, and a `-Xmx` heap ceiling for the render process. Doc: `docs/automatic-updates.md` |
-| `039ee26` | Turned that updater on in the main process and exposed it across the bridge |
-| `180c862` | Handing a render to GitHub's machines: plan, transport, sync, collect, fingerprint, and the CI-render screen. Doc: `docs/render-in-actions.md` |
-| `b600dc3` | Let the renderer ask for a render it will not run itself, over the bridge |
-| `f4d3abd` | A project is the thing you edit and the wizard is the quick way in: the projects screen, editor, maps and storages panels, plus the consent-staleness fix |
-| `80369ec` | The EULA in front of people at first run, a tabbed EULA viewer, and per-surface dock placement. Doc: `docs/eula-and-consent.md` |
+| Commit    | What it added                                                                                                                                                                                                                                                                        |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `d7cbd34` | Render in a Docker container or on this machine, a deterministic repair pass that diagnoses a failure instead of guessing, the project main process, and the history manager. Docs: `docs/docker-and-local.md`, `docs/automatic-repair.md`                                           |
+| `4a8a570` | The automatic-update subsystem: feed, controller, schedule, state, failure handling, the update banner and its status row. Also the reveal-in-Explorer path, the OneDrive Documents redirect, and a `-Xmx` heap ceiling for the render process. Doc: `docs/automatic-updates.md`     |
+| `039ee26` | Turned that updater on in the main process and exposed it across the bridge                                                                                                                                                                                                          |
+| `180c862` | Handing a render to GitHub's machines: plan, transport, sync, collect, fingerprint, and the CI-render screen. Doc: `docs/render-in-actions.md`                                                                                                                                       |
+| `b600dc3` | Let the renderer ask for a render it will not run itself, over the bridge                                                                                                                                                                                                            |
+| `f4d3abd` | A project is the thing you edit and the wizard is the quick way in: the projects screen, editor, maps and storages panels, plus the consent-staleness fix                                                                                                                            |
+| `80369ec` | The EULA in front of people at first run, a tabbed EULA viewer, and per-surface dock placement. Doc: `docs/eula-and-consent.md`                                                                                                                                                      |
 | `897ecad` | Remote renders over SSH, worlds from any release including split parts in another repository, and the render console. Docs: `docs/remote-render.md`, `docs/world-sources.md`. This is also the commit that finally tracked the console files `f4d3abd` had already started importing |
-| `92c392f` | Fixed a projects-list adapter that read a result union as if it were the payload |
-| `56fcd97` | Registered the remote-render and world-source subsystems, which nothing could reach, and mounted the update banner |
+| `92c392f` | Fixed a projects-list adapter that read a result union as if it were the payload                                                                                                                                                                                                     |
+| `56fcd97` | Registered the remote-render and world-source subsystems, which nothing could reach, and mounted the update banner                                                                                                                                                                   |
 
 ### Measurement
 
 `npx vitest run` from `design/`, 2026-08-04 evening: **355 files, 5,745 tests, 5,741 passed,
 3 skipped, 1 failed**, about 50 seconds.
 
-| Package | Files | Passed | Package | Files | Passed |
-|---|---|---|---|---|---|
-| `ui` | 104 | 2,078 (1 failed, 1 skipped) | `app` | 98 | 1,542 |
-| `engine` | 88 | 1,258 (1 skipped) | `config` | 8 | 205 (1 skipped) |
-| `shared` | 9 | 196 | `render-actions` | 11 | 147 |
-| `site` | 16 | 132 | `viewer` | 7 | 57 |
-| `nbt` | 8 | 56 | `parts` | 2 | 33 |
-| `worldgen` | 3 | 32 | `server` | 1 | 5 |
-| `cli` | none yet | | | | |
+| Package    | Files    | Passed                      | Package          | Files | Passed          |
+| ---------- | -------- | --------------------------- | ---------------- | ----- | --------------- |
+| `ui`       | 104      | 2,078 (1 failed, 1 skipped) | `app`            | 98    | 1,542           |
+| `engine`   | 88       | 1,258 (1 skipped)           | `config`         | 8     | 205 (1 skipped) |
+| `shared`   | 9        | 196                         | `render-actions` | 11    | 147             |
+| `site`     | 16       | 132                         | `viewer`         | 7     | 57              |
+| `nbt`      | 8        | 56                          | `parts`          | 2     | 33              |
+| `worldgen` | 3        | 32                          | `server`         | 1     | 5               |
+| `cli`      | none yet |                             |                  |       |                 |
 
 The single failure was `superConfirmPolicy.test.ts` reacting to a then-uncommitted file,
 `packages/ui/src/components/remote/remoteTargets.ts`, from a concurrent session. That session
@@ -2270,7 +2282,7 @@ on "Nothing is open yet" with **no tabs at all** until a folder existed. That is
 report "I don't see all bluemap configs available in gui" was actually about.
 
 It now opens on the config folder BlueMap already uses when that folder is really on disk,
-and otherwise on BlueMap's own defaults, labelled as not yet saved — deliberately *not*
+and otherwise on BlueMap's own defaults, labelled as not yet saved — deliberately _not_
 reusing the no-bridge wording, which says "this build cannot write one". The commit records
 154 settings across all eight tabs in both states; that figure is the commit's, not an
 independent measurement here. What was checked here is the tab set:
@@ -2294,7 +2306,7 @@ Three selectors had been photographing around broken navigation:
    the harness now opens the tab, and clicks the tab's **label** rather than the tab, because
    a tab carries its own close button and a click on its centre is a coin toss between
    selecting and closing it.
-2. It then waited for the profile list to be *visible*. The listbox is always rendered, but
+2. It then waited for the profile list to be _visible_. The listbox is always rendered, but
    with no maps and no servers it has no rows and therefore no height, and a zero-height
    element is invisible by Playwright's definition — so the wait was really waiting for
    somebody to add a server. It now waits for the element to be attached.
@@ -2312,42 +2324,42 @@ Three selectors had been photographing around broken navigation:
 
 Per package, from the same run:
 
-| Package | Tests | Package | Tests |
-|---|---|---|---|
-| `ui` | 1663 (1 skipped) | `engine` | 1150 (1 skipped) |
-| `app` | 809 | `shared` | 196 |
-| `config` | 190 (1 skipped) | `render-actions` | 147 |
-| `site` | 127 | `viewer` | 57 |
-| `nbt` | 56 | `worldgen` | 32 |
-| `parts` | 25 | `server` | 5 |
-| `cli` | none yet | | |
+| Package  | Tests            | Package          | Tests            |
+| -------- | ---------------- | ---------------- | ---------------- |
+| `ui`     | 1663 (1 skipped) | `engine`         | 1150 (1 skipped) |
+| `app`    | 809              | `shared`         | 196              |
+| `config` | 190 (1 skipped)  | `render-actions` | 147              |
+| `site`   | 127              | `viewer`         | 57               |
+| `nbt`    | 56               | `worldgen`       | 32               |
+| `parts`  | 25               | `server`         | 5                |
+| `cli`    | none yet         |                  |                  |
 
 ### CI, as it actually stands
 
 These are read from the run list, not predicted. `success` and `failure` are recorded
 verdicts; `in progress` means exactly that at the time of writing and nothing more.
 
-| Commit | CI run | Verdict |
-|---|---|---|
-| `6b8ef7b` | 30923535221, 30924515607 | success |
-| `1b77779` | 30924158389 | cancelled (superseded by a later push) |
-| `157f4c3` | 30924276107, 30926223701 | success |
-| `8cbac63` | 30926226591 | cancelled (superseded by a later push) |
-| `5c810d0` | 30926891432 | **failure** — the `Screenshots` job, on the new gate |
-| `5c810d0` | 30927851530 | **failure** — `Lint, build, test` |
-| `8491f0d` | 30928687703 | in progress at the time of writing |
-| `49af181` | 30929184907 | queued at the time of writing |
+| Commit    | CI run                   | Verdict                                              |
+| --------- | ------------------------ | ---------------------------------------------------- |
+| `6b8ef7b` | 30923535221, 30924515607 | success                                              |
+| `1b77779` | 30924158389              | cancelled (superseded by a later push)               |
+| `157f4c3` | 30924276107, 30926223701 | success                                              |
+| `8cbac63` | 30926226591              | cancelled (superseded by a later push)               |
+| `5c810d0` | 30926891432              | **failure** — the `Screenshots` job, on the new gate |
+| `5c810d0` | 30927851530              | **failure** — `Lint, build, test`                    |
+| `8491f0d` | 30928687703              | in progress at the time of writing                   |
+| `49af181` | 30929184907              | queued at the time of writing                        |
 
 The two failures are different, and both matter:
 
 - **30926891432** is the gate doing its job. The `captured every surface that needs nothing
-  but the application` test failed with `Profile manager` and `Notification corner` in the
+but the application` test failed with `Profile manager` and `Notification corner` in the
   skipped list, both `locator.click: Timeout 15000ms exceeded`. Those are the selectors
   `8491f0d` then fixed.
 - **30927851530** is a different and still-open problem. `Lint, build, test` reported **1
   failed, 4435 passed, 24 skipped**, and the failure was
   `packages/app/src/main/backup/archive.test.ts > survives a file large enough to need more
-  than one read chunk`, `Test timed out in 5000ms`. That file passes locally (11 tests). It
+than one read chunk`, `Test timed out in 5000ms`. That file passes locally (11 tests). It
   is a timeout on a slower machine, not a wrong answer, and it needs an explicit timeout or a
   smaller fixture rather than a re-run.
 
@@ -2469,15 +2481,15 @@ writes `render.json` naming the engine that produced it.
 
 ### The Java render path, by hand, on one Windows machine
 
-| Step | Result |
-|---|---|
-| `./gradlew :cli:shadowJar` | `implementations/cli/build/libs/cli-5.22-27-shadow.jar`, 6.4 MB, 34s warm |
-| Gradle project paths | bare: `:cli`, `:fabric`, `:forge`, `:neoforge`, `:paper`, `:spigot`, `:sponge`. **Not** `:implementations:cli` |
-| Toolchain | host Temurin 25.0.3; upstream pins `JavaLanguageVersion.of(25)` |
-| Gradle home | `GRADLE_USER_HOME` points at `tools/oracle/.gradle`, gitignored, already over a gigabyte. Nothing machine-wide is touched |
-| `java -jar <jar> -c <configDir>` | writes `core.conf`, `webapp.conf`, `webserver.conf`, `maps/{overworld,nether,end}.conf`, `storages/{file,sql}.conf` |
-| `java -jar <jar> -c <configDir> -r -g` | a generated 1000x1000 world rendered to **961 hires PRBM tiles** plus lowres PNGs and `textures.json.gz`, in 80 seconds |
-| Progress format | `[11:28:40 INFO] updating map 'overworld': 25.663% (ETA: 47 seconds)`, ending `Your maps are now all up-to-date!` |
+| Step                                   | Result                                                                                                                    |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `./gradlew :cli:shadowJar`             | `implementations/cli/build/libs/cli-5.22-27-shadow.jar`, 6.4 MB, 34s warm                                                 |
+| Gradle project paths                   | bare: `:cli`, `:fabric`, `:forge`, `:neoforge`, `:paper`, `:spigot`, `:sponge`. **Not** `:implementations:cli`            |
+| Toolchain                              | host Temurin 25.0.3; upstream pins `JavaLanguageVersion.of(25)`                                                           |
+| Gradle home                            | `GRADLE_USER_HOME` points at `tools/oracle/.gradle`, gitignored, already over a gigabyte. Nothing machine-wide is touched |
+| `java -jar <jar> -c <configDir>`       | writes `core.conf`, `webapp.conf`, `webserver.conf`, `maps/{overworld,nether,end}.conf`, `storages/{file,sql}.conf`       |
+| `java -jar <jar> -c <configDir> -r -g` | a generated 1000x1000 world rendered to **961 hires PRBM tiles** plus lowres PNGs and `textures.json.gz`, in 80 seconds   |
+| Progress format                        | `[11:28:40 INFO] updating map 'overworld': 25.663% (ETA: 47 seconds)`, ending `Your maps are now all up-to-date!`         |
 
 **Two sharp edges, both found the expensive way.** The CLI resolves its storage root and
 data folder relative to the **working directory**, not the config folder: running it from
@@ -2491,14 +2503,14 @@ which is why consent is a persisted first-class decision rather than a config de
 
 `npx vitest run` from `design/`, run 2026-08-03: **143 files, 2157 passed, 2 skipped**.
 
-| Package | Tests | Package | Tests |
-|---|---|---|---|
-| `engine` | 882 (1 skipped) | `app` | 286 |
-| `ui` | 311 | `shared` | 187 |
-| `config` | 175 (1 skipped) | `site` | 107 |
-| `render-actions` | 79 | `nbt` | 56 |
-| `viewer` | 52 | `worldgen` | 19 |
-| `server` | 5 | `cli` | none yet |
+| Package          | Tests           | Package    | Tests    |
+| ---------------- | --------------- | ---------- | -------- |
+| `engine`         | 882 (1 skipped) | `app`      | 286      |
+| `ui`             | 311             | `shared`   | 187      |
+| `config`         | 175 (1 skipped) | `site`     | 107      |
+| `render-actions` | 79              | `nbt`      | 56       |
+| `viewer`         | 52              | `worldgen` | 19       |
+| `server`         | 5               | `cli`      | none yet |
 
 Green means the ported code does what its own tests say. It is not parity with upstream;
 that is what the phase exit criteria in `ROADMAP.md` are for.
@@ -2557,14 +2569,14 @@ Say this plainly to whoever asks; none of it has a green check yet.
 Concurrent workflows are writing in these areas. Do not edit another workflow's files;
 report the markup or the seam you need and let the orchestrator apply it.
 
-| Area | Files | State |
-|---|---|---|
-| Phase D mesher | `packages/engine/src/map/hires/{block,entity}/`, `TileModelView.ts`, `map/mask/`, `map/TextureGallery.ts` | Being written. Expect these to move under you |
-| Viewer UI | `packages/ui/src/components/{controlbar,controls,menu,markers}/`, `ui/src/App.vue`, `components/MapView.vue`, `styles/global.scss` | Owned by a separate workflow |
-| Options GUI | `packages/ui/src/components/config/`, backed by `packages/config` | Landed and tested; Phase F continues |
-| First-run and consent surfaces | `packages/ui/src/components/setup/` | Landed and tested |
-| Java toolchain + render path | `packages/app/src/main/java/`, `packages/app/src/main/render/`, `consent.ts` | Landed and tested |
-| Documentation site | `packages/site/` | Landed; articles updated per surface |
+| Area                           | Files                                                                                                                              | State                                         |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| Phase D mesher                 | `packages/engine/src/map/hires/{block,entity}/`, `TileModelView.ts`, `map/mask/`, `map/TextureGallery.ts`                          | Being written. Expect these to move under you |
+| Viewer UI                      | `packages/ui/src/components/{controlbar,controls,menu,markers}/`, `ui/src/App.vue`, `components/MapView.vue`, `styles/global.scss` | Owned by a separate workflow                  |
+| Options GUI                    | `packages/ui/src/components/config/`, backed by `packages/config`                                                                  | Landed and tested; Phase F continues          |
+| First-run and consent surfaces | `packages/ui/src/components/setup/`                                                                                                | Landed and tested                             |
+| Java toolchain + render path   | `packages/app/src/main/java/`, `packages/app/src/main/render/`, `consent.ts`                                                       | Landed and tested                             |
+| Documentation site             | `packages/site/`                                                                                                                   | Landed; articles updated per surface          |
 
 ## Wave discipline (this is process, and it is load-bearing)
 
@@ -2579,11 +2591,11 @@ report the markup or the seam you need and let the orchestrator apply it.
   verification output they actually ran. The orchestrator commits.
 - **Every agent verifies its own package before reporting**, and pastes the output:
 
-  ```sh
-  cd design && npx tsc -p packages/<pkg>/tsconfig.json --noEmit
-  cd design && npx eslint packages/<pkg>
-  cd design && npx vitest run packages/<pkg>
-  ```
+    ```sh
+    cd design && npx tsc -p packages/<pkg>/tsconfig.json --noEmit
+    cd design && npx eslint packages/<pkg>
+    cd design && npx vitest run packages/<pkg>
+    ```
 
 - **Deviations discipline**: every intentional difference from upstream goes in
   `docs/deviations.md`.
@@ -2716,7 +2728,7 @@ a JDK matching upstream's toolchain, Gradle, the seven BlueMap jars and the Play
 browsers. It verifies rather than checks for presence, which is not pedantry: Electron here
 had a `dist/` holding only `locales/`, and its own installer kept exiting 0 because the folder
 existed. The archive was fine and verified against Electron's published checksum; the
-*extractor* was silently dying partway through, so bootstrap extracts it another way.
+_extractor_ was silently dying partway through, so bootstrap extracts it another way.
 
 ### In flight at the time of writing
 
@@ -2763,7 +2775,7 @@ product has a door.
 - **Copying from the map did nothing.** The viewer uses `navigator.clipboard`, and the permission
   handler allowed only pointer lock and fullscreen. Inconsistent as well as broken: the app
   already grants clipboard writes through IPC, so only the web API was shut.
-- **A fresh install contacted a third party.** The public BlueMap demo was the *active* profile,
+- **A fresh install contacted a third party.** The public BlueMap demo was the _active_ profile,
   so every launch of every copy fetched from a machine somebody else pays for before being asked.
   The offline guard in the capture harness caught it. It is still listed, one click away, no
   longer opened for you.
@@ -2828,14 +2840,14 @@ there. That is what caught the `platform`-argument path bug recorded above, and 
 
 ### The door was still missing
 
-The previous entry named the pattern — *green tests over something no user can reach* — and
+The previous entry named the pattern — _green tests over something no user can reach_ — and
 then the fix for it did not land: the wizard was written, tested at 87 tests, and `App.vue` was
 never touched. A workflow reported success with one of its two agents having returned nothing.
 **A partially-failed fan-out reads exactly like a completed one unless the output is checked
 against the file system**, which is now the second time that has cost a session.
 
 `App.vue` now mounts, in this order: the Material title bar, the map view, the viewer chrome
-*only when there is a map*, the world wizard when there is not, first-run setup, and the
+_only when there is a map_, the world wizard when there is not, first-run setup, and the
 settings surface. What was one grey line reading "No map loaded." is the screen that makes a
 map.
 
@@ -2848,7 +2860,7 @@ persistence and the map list are reused rather than reimplemented.
 
 Two details that are load-bearing rather than cosmetic:
 
-- **Local profiles are excluded from `syncProfiles`.** That call registers a *remote proxy*
+- **Local profiles are excluded from `syncProfiles`.** That call registers a _remote proxy_
   target; registering a local map would hand it an empty base URL to forward to.
 - **The list shows which kind each entry is.** A local map has no URL, so it would have rendered
   a blank subtitle — and two entries whose only visible difference is that one has an empty
@@ -2859,13 +2871,13 @@ Two details that are load-bearing rather than cosmetic:
 Each of these had a complete main-process implementation and no way for the renderer to reach
 it. This is the same shape as the unreachable options GUI, one layer lower down:
 
-| Feature | Main process | Preload | Consequence |
-|---|---|---|---|
-| Window buttons | four `window:*` handlers + a `maximizedChanged` push | *nothing* | frameless window with no minimise or close — <kbd>Alt</kbd>+<kbd>F4</kbd> was the only exit |
-| World folder check | — | *nothing* | wizard could not tell a world from any other folder |
-| The map's 92 settings | `mapConf()` wrote 6 keys | no field to carry the rest | 86 settings collected by the wizard and silently discarded |
+| Feature               | Main process                                         | Preload                    | Consequence                                                                                 |
+| --------------------- | ---------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------- |
+| Window buttons        | four `window:*` handlers + a `maximizedChanged` push | _nothing_                  | frameless window with no minimise or close — <kbd>Alt</kbd>+<kbd>F4</kbd> was the only exit |
+| World folder check    | —                                                    | _nothing_                  | wizard could not tell a world from any other folder                                         |
+| The map's 92 settings | `mapConf()` wrote 6 keys                             | no field to carry the rest | 86 settings collected by the wizard and silently discarded                                  |
 
-The third is the worst of the three, because the interface *said* it had applied them. The
+The third is the worst of the three, because the interface _said_ it had applied them. The
 request type now carries the whole `maps/<id>.conf` body as text, and the main process overrides
 only the structural keys (`world`, `dimension`, `storage`) — a render whose storage points
 somewhere the app does not serve produces tiles nobody can see.
@@ -2879,7 +2891,7 @@ whole Actions rendering path — sequential waves, resumable shards, tree merges
 
 **The cause was a single expression:** `${{ fromJSON(needs.plan.outputs.group-count) - 1 }}`.
 GitHub's expression language has **no arithmetic operators** — only comparison and logic — so
-`- 1` is a parse error, and a parse error anywhere in the file stops the *whole workflow* from
+`- 1` is a parse error, and a parse error anywhere in the file stops the _whole workflow_ from
 being registered. The value now crosses into the step as an env var and bash does the
 subtraction.
 
@@ -2890,7 +2902,7 @@ subtraction.
 > defensible, but it was **not** what broke the file, and I had asserted that it was.
 >
 > What found the real cause was `actionlint`, in one line, immediately. `yaml.safe_load()` had
-> said the file was fine, because it *was* fine as YAML — the error was one level up, in the
+> said the file was fine, because it _was_ fine as YAML — the error was one level up, in the
 > expression language embedded inside a string. **A YAML file that parses is not a workflow that
 > registers**, and neither is one that a careful reading makes sense of.
 
@@ -2931,8 +2943,8 @@ may be marked as running.
 `AppSettings` is mounted and carries the four anchors a failed render points at. Three notes on
 what is real in it and what is not, because the distinction is the point:
 
-- **Mojang consent** mounts the *existing* `ConsentSettingsRow` rather than a copy of it.
-- **The storage folder** validates and writes, asking the bridge *before* the local store so a
+- **Mojang consent** mounts the _existing_ `ConsentSettingsRow` rather than a copy of it.
+- **The storage folder** validates and writes, asking the bridge _before_ the local store so a
   refusal leaves neither side changed.
 - **The Java runtime** says plainly that this build cannot read it. `discoverJava()` exists and
   is tested; there was simply no IPC handler and no preload method. The honest empty state was
@@ -2963,8 +2975,8 @@ before `.replace` ever runs. The correct call is the three-argument form,
 
 **69 call sites across 22 files** — 12 files in `components/config`, 7 in `components/world`,
 3 in `components/menu`. These are validation errors, render failure reasons, chunk counts,
-durations and file paths: the messages where a missing value turns *"Storage 'sql' is already
-defined"* into *"Storage '' is already defined"*, and a render failure into one that names
+durations and file paths: the messages where a missing value turns _"Storage 'sql' is already
+defined"_ into _"Storage '' is already defined"_, and a render failure into one that names
 nothing.
 
 Nothing caught it because **nothing ever asserted the rendered text of a fallback message**. A
@@ -3062,7 +3074,7 @@ Landed since, each verified and pushed separately:
 CI note for whoever reads a red X: the first run that ever reached the rewritten publish
 job died on `installer-out/Squirrel.exe`, a file electron-builder has never emitted, and
 the workflow lint died on its own step's comment — `# shellcheck is present…` parses as a
-malformed shellcheck *directive*. Both fixed; `.nupkg` + `RELEASES` stay hard requirements
+malformed shellcheck _directive_. Both fixed; `.nupkg` + `RELEASES` stay hard requirements
 and the comment no longer opens with the magic word.
 
 ### The second wave: the two renderer-less features, and what the captures showed
@@ -3118,13 +3130,13 @@ that must not hide behind it. (`lib/util.mjs`'s `run` gained an opt-in `shell`, 
 
 ### What the gate actually says now, measured against a fresh build
 
-| | before | after |
-|---|---|---|
-| `textures.json.gz` first differing byte | 55 | **499** |
+|                                          | before  | after       |
+| ---------------------------------------- | ------- | ----------- |
+| `textures.json.gz` first differing byte  | 55      | **499**     |
 | hires `tiles/0/x0/z0.prbm.gz` (ts bytes) | 193 116 | **232 740** |
-| compared / differing | 57 / 48 | 57 / 49 |
+| compared / differing                     | 57 / 48 | 57 / 49     |
 
-The differing count went *up* by one because a lowres tile that previously matched by
+The differing count went _up_ by one because a lowres tile that previously matched by
 accident now does not; the two headline numbers are real movement.
 
 ### textures.json: the writer is now gson-exact, and what remains is a png encoder
@@ -3169,7 +3181,7 @@ Diagnosed and adversarially verified: **`WorldRegionUpdateTask` is not ported.**
   count. Upstream's gate is `checkTileRenderPreconditions`
   (`common/.../rendermanager/WorldRegionUpdateTask.java:341-384`), whose non-null return
   means `unrenderTile`, never `renderTile`.
-- The `rstate/` files are empty for the same reason. The renderstate layer *is* ported and
+- The `rstate/` files are empty for the same reason. The renderstate layer _is_ ported and
   correctly wired into `BmMap` (constructed at `BmMap.ts:154-156`, saved at `:322-324`,
   paths and `SHIFT` values byte-matching upstream). But `CellStorage.saveCell` early-returns
   on an unmodified cell, and the only production callers of `set(...)` live in that same
@@ -3210,7 +3222,7 @@ the Phase D gate. The 1.12.2 half had never been exercised past a single hand-bu
 two-chunk fixture, so this session built a real 1.12.2 world and rendered it.
 
 **Read this part first if you read nothing else:** the chunk reader is correct and is now
-proved exhaustively; the *render* of a 1.12.2 world against a modern resource pack is not,
+proved exhaustively; the _render_ of a 1.12.2 world against a modern resource pack is not,
 and four block-states come out wrong. Neither statement is a guess — both are measured, and
 the second names the exact blocks.
 
@@ -3230,8 +3242,8 @@ were used instead, and both are weaker claims than byte equality:
 2. **A control render of the same terrain.** Both formats are written from the same
    `TerrainGenerator`, so seed N produces literally the same blocks in a 1.12.2 world and a
    1.20.4 world. Rendering both and diffing the material tables isolates the format:
-   anything in one and not the other is a difference in how the world was *read and
-   resolved*, not in what was generated.
+   anything in one and not the other is a difference in how the world was _read and
+   resolved_, not in what was generated.
 
 ### What was added
 
@@ -3265,7 +3277,7 @@ have, so they are never written.
 exactly the block-state that position's numeric id and metadata nibble mean. The expected
 value is resolved the long way round — writer's id/meta, then the same
 `assets/legacy/blockIds.json` the reader consults — so an id both sides agree on but that
-is *wrong* cannot pass. Also asserted: `DataVersion` 1343 dispatches to `Chunk_1_12`; the
+is _wrong_ cannot pass. Also asserted: `DataVersion` 1343 dispatches to `Chunk_1_12`; the
 metadata nibbles survive (granite and andesite are not stone, spruce and birch logs are not
 oak); bedrock sits at y=0 and every y below reads back as air; every biome byte resolves
 through the bundled legacy table; `HeightMap` comes back as an absolute y with no
@@ -3280,7 +3292,7 @@ no properties at all.
 (8x8 chunks, five biomes). The 1.12.2 world renders: **9 hires tiles, 306,252 vertices, 23
 distinct materials**, and
 
-- every tile parses as valid PRBM with a generic reader that arrives *exactly* at the end
+- every tile parses as valid PRBM with a generic reader that arrives _exactly_ at the end
   of the file, so no tile is truncated, mis-padded or inconsistent with its own vertex
   count;
 - every tile carries the seven vertex attributes the viewer reads, in order;
@@ -3300,17 +3312,17 @@ back precisely the pre-flattening block name the numeric id means; nothing then 
 that name into a modern one before the resource pack is asked for a model. Three
 qualitatively different failures follow:
 
-| Block-state | What the generator wrote | What happens | Why |
-|---|---|---|---|
-| `minecraft:grass` | the grass **block** (id 2) | renders as a grass **tuft** | `resourceExtensions.zip`'s `mc1_20_3` overlay defines `minecraft:grass` as the modern tuft (1.20.3 renamed the tuft to `short_grass`). The two names swapped meaning at the flattening |
-| `minecraft:snow` | the snow **block** (id 80) | renders as nothing | mirror image: in a modern pack `minecraft:snow` is the snow **layer**, whose variants are keyed on `layers`, which the legacy state has no way to carry |
-| `minecraft:snow_layer` | a snow layer (id 78) | renders as nothing | the name was removed by the flattening; no blockstate answers to it |
-| `minecraft:podzol` | podzol (id 3, meta 2) | renders as nothing | survived the flattening but gained a `snowy` property, and 26.2 keys its variants on it, so no variant matches |
+| Block-state            | What the generator wrote   | What happens                | Why                                                                                                                                                                                    |
+| ---------------------- | -------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `minecraft:grass`      | the grass **block** (id 2) | renders as a grass **tuft** | `resourceExtensions.zip`'s `mc1_20_3` overlay defines `minecraft:grass` as the modern tuft (1.20.3 renamed the tuft to `short_grass`). The two names swapped meaning at the flattening |
+| `minecraft:snow`       | the snow **block** (id 80) | renders as nothing          | mirror image: in a modern pack `minecraft:snow` is the snow **layer**, whose variants are keyed on `layers`, which the legacy state has no way to carry                                |
+| `minecraft:snow_layer` | a snow layer (id 78)       | renders as nothing          | the name was removed by the flattening; no blockstate answers to it                                                                                                                    |
+| `minecraft:podzol`     | podzol (id 3, meta 2)      | renders as nothing          | survived the flattening but gained a `snowy` property, and 26.2 keys its variants on it, so no variant matches                                                                         |
 
-The most damaging is `minecraft:grass`, because it fails *confidently*: roughly eleven and a
+The most damaging is `minecraft:grass`, because it fails _confidently_: roughly eleven and a
 half thousand grass cubes became that many cross-shaped plants (a cross is 12 vertices, so
 the arithmetic is visible in the numbers below). `short_grass` carries **139,728 vertices
-against the control's 1,944 (71.9x)** — the control's figure being the world's *actual*
+against the control's 1,944 (71.9x)** — the control's figure being the world's _actual_
 grass tufts — and with the ground no longer occluding, `dirt` (10.0x) and
 `stone` (10.4x) become visible through it. A set difference alone would have missed this
 entirely — the texture is present in both renders — which is why the harness also compares
@@ -3416,11 +3428,11 @@ era-matched pack that resolved the un-renamed key correctly two lines earlier.
 seed `render-1-12.mjs` uses (22, 128×128): **zero grass-family texture vertices anywhere in
 the gallery**, and `minecraft:blocks/dirt` at **43.6%** of the render vs **4.3%** in a
 modern-pack control on the identical world — the same "ground no longer occluded from
-above" signature this file's 2026-08-04 section recorded for the *original* modern-pack
+above" signature this file's 2026-08-04 section recorded for the _original_ modern-pack
 grass bug, now reproduced the other direction. `BlockStateModelRenderer.ts`'s
 `if (stateResource == null) return;` means the block is not drawn wrong, it is **skipped in
 total silence** — arguably worse than the gap this rename table exists to fix, since the
-modern-pack bug at least drew *something*. `podzol` is the clean counter-example: its rule
+modern-pack bug at least drew _something_. `podzol` is the clean counter-example: its rule
 only injects a `snowy` property (`withDefault`) rather than renaming the key, so
 `minecraft:podzol` still means `minecraft:podzol` after the rename, and it renders correctly
 under both packs — confirmed against the real `podzol.json`, which also keys on `snowy` in
@@ -3433,7 +3445,7 @@ Verification for this section:
 `BLUEMAP_E2E_DOWNLOAD=1 BLUEMAP_ACCEPT_DOWNLOAD=1 npx vitest run
 packages/engine/test/resourcepack-e2e.test.ts` — **13 passed**; `node
 tools/oracle/render-1-12-era-matched.mjs --accept-download` — 2/2 structural checks pass
-(real geometry, no crash). *Update, same day:* the FlatteningRename finding above was real
+(real geometry, no crash). _Update, same day:_ the FlatteningRename finding above was real
 and is now fixed — see issue #46 and the dated section below. The script now asserts on
 the fix rather than only logging it.
 
@@ -3586,7 +3598,7 @@ over:**
    the simplification — and that decision was not this task's to make unilaterally.
 2. **Exception granularity is currently unreachable, not wrong.** Upstream distinguishes an
    `IOException` (logged as an error) from an `UnsupportedOperationException` — "not
-   supported for the world-type", logged as a *warning* — when constructing a watcher for a
+   supported for the world-type", logged as a _warning_ — when constructing a watcher for a
    map fails. `startWatchers` collapses both into a single `catch` that always logs an
    error. In practice this changes nothing today: `MCAWorld.createRegionWatchService()`
    never throws, and it is the only real `World` implementation this port has, so the
@@ -3606,6 +3618,7 @@ test red, and changing `> 0` to `>= 0` turned the no-timer test red. `design/ROA
 Phase E section is updated below to close this half of issue #40; the two upstream
 deviations above are recorded there too rather than only here. **CI has not run against
 this change yet** — everything above is local verification only.
+
 ## 2026-08-06 — gh release host and selected-account repair
 
 CI-render release creation no longer passes the API-only `--hostname` flag to `gh release`.

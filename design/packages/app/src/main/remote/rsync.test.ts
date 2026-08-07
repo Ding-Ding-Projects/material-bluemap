@@ -97,7 +97,9 @@ describe("the command rsync is given", () => {
             ...OPTIONS,
             knownHostsFile: "C:\\Users\\me\\AppData\\Roaming\\Worldlens\\known_hosts",
         });
-        expect(shell).toContain('"UserKnownHostsFile=');
+        expect(shell).toContain(
+            'UserKnownHostsFile="C:\\Users\\me\\AppData\\Roaming\\Worldlens\\known_hosts"',
+        );
     });
 });
 
@@ -161,7 +163,10 @@ describe("resuming a transfer", () => {
         // flags rather than about a host that would have answered 400 either way.
         const host = fakeHost(1_000);
         host.present("renderer@render.example:'/stage/render/worlds/overworld'", 600);
-        await host.runner("rsync", ["-a", "renderer@render.example:'/stage/render/worlds/overworld'"]);
+        await host.runner("rsync", [
+            "-a",
+            "renderer@render.example:'/stage/render/worlds/overworld'",
+        ]);
         expect(host.moved).toEqual([1_000]);
     });
 
@@ -192,7 +197,11 @@ describe("resuming a transfer", () => {
         const controller = new AbortController();
         controller.abort();
         const runner = fakeRunner([{ when: /.*/, answer: output() }]);
-        const transfer = rsyncTransfer({ ...OPTIONS, runner: runner.runner, shell: fakeTransfer() });
+        const transfer = rsyncTransfer({
+            ...OPTIONS,
+            runner: runner.runner,
+            shell: fakeTransfer(),
+        });
         await expect(
             transfer.uploadFile("a", "/stage/b", { signal: controller.signal }),
         ).rejects.toThrow();
@@ -246,7 +255,9 @@ describe("choosing, and falling back where anybody can see it", () => {
         const broken: FileTransfer = {
             ...scp,
             uploadDirectory: () =>
-                Promise.reject(new TransferError("Sending C:\\saves\\world failed.", "rsync: -e", 1)),
+                Promise.reject(
+                    new TransferError("Sending C:\\saves\\world failed.", "rsync: -e", 1),
+                ),
         };
 
         const transfer = withScpFallback(broken, scp, (line) => lines.push(line));

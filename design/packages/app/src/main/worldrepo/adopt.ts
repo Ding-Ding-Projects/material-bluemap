@@ -103,7 +103,13 @@ import {
     type ProjectReadFailure,
 } from "@worldlens/config";
 import { ActionsCallError } from "../cirender/actions.js";
-import { CI_BOOTSTRAP_MARKER_FILE, CI_BOOTSTRAP_MARKER_TOOL, CI_BOOTSTRAP_MARKER_VERSION } from "../cirender/bootstrap.js";
+import {
+    CI_BOOTSTRAP_MARKER_FILE,
+    CI_BOOTSTRAP_MARKER_TOOL,
+    CI_BOOTSTRAP_MARKER_VERSION,
+    LEGACY_CI_BOOTSTRAP_MARKER_FILE,
+    LEGACY_CI_BOOTSTRAP_MARKER_TOOL,
+} from "../cirender/bootstrap.js";
 import type { CiBootstrapMarker } from "../cirender/bootstrap.js";
 import { ghApiJson } from "../cirender/gh.js";
 import type { ProcessRunner } from "../cirender/gh.js";
@@ -169,7 +175,10 @@ type CiBootstrapProbe =
  * damaged marker rather than as "no marker" would be guessing at bytes nothing wrote for
  * this purpose.
  */
-function readCiBootstrapMarker(payload: unknown): CiBootstrapMarker | null {
+function readCiBootstrapMarker(
+    payload: unknown,
+    acceptedTool: typeof CI_BOOTSTRAP_MARKER_TOOL | typeof LEGACY_CI_BOOTSTRAP_MARKER_TOOL,
+): CiBootstrapMarker | null {
     const row = record(payload);
     if (row === null) return null;
     const encoded = text(row["content"]);
@@ -183,12 +192,14 @@ function readCiBootstrapMarker(payload: unknown): CiBootstrapMarker | null {
         return null;
     }
     const body = record(source);
-    if (body === null || body["tool"] !== CI_BOOTSTRAP_MARKER_TOOL) return null;
+    if (body === null || body["tool"] !== acceptedTool) return null;
 
     const templateVersion = text(body["templateVersion"]) ?? "";
     const preparedAt = text(body["preparedAt"]) ?? "";
     const version = typeof body["version"] === "number" ? body["version"] : 0;
-    const files = Array.isArray(body["files"]) ? body["files"].filter((entry): entry is string => typeof entry === "string") : [];
+    const files = Array.isArray(body["files"])
+        ? body["files"].filter((entry): entry is string => typeof entry === "string")
+        : [];
     return { tool: CI_BOOTSTRAP_MARKER_TOOL, version, templateVersion, files, preparedAt };
 }
 
@@ -207,15 +218,26 @@ async function probeCiBootstrapMarker(
     runner: ProcessRunner,
     signal: AbortSignal | undefined,
 ): Promise<CiBootstrapProbe> {
-    let payload: unknown;
-    try {
-        payload = await ghJsonOrNull(`repos/${owner}/${repo}/contents/${CI_BOOTSTRAP_MARKER_FILE}`, runner, signal);
-    } catch (error) {
-        return { outcome: "unknown", message: sentence(error) };
+    const candidates = [
+        { file: CI_BOOTSTRAP_MARKER_FILE, tool: CI_BOOTSTRAP_MARKER_TOOL },
+        { file: LEGACY_CI_BOOTSTRAP_MARKER_FILE, tool: LEGACY_CI_BOOTSTRAP_MARKER_TOOL },
+    ] as const;
+    for (const candidate of candidates) {
+        let payload: unknown;
+        try {
+            payload = await ghJsonOrNull(
+                `repos/${owner}/${repo}/contents/${candidate.file}`,
+                runner,
+                signal,
+            );
+        } catch (error) {
+            return { outcome: "unknown", message: sentence(error) };
+        }
+        if (payload === null) continue;
+        const marker = readCiBootstrapMarker(payload, candidate.tool);
+        if (marker !== null) return { outcome: "found", marker };
     }
-    if (payload === null) return { outcome: "absent" };
-    const marker = readCiBootstrapMarker(payload);
-    return marker === null ? { outcome: "absent" } : { outcome: "found", marker };
+    return { outcome: "absent" };
 }
 
 /** One repository to check, exactly as much as the check needs. */
@@ -285,7 +307,8 @@ export function describeAdoptionSignal(
     const worldNewer = worldMarker !== null && worldMarker.version > WORLD_REPO_MARKER_VERSION;
 
     const bootstrapMarker = bootstrap.outcome === "found" ? bootstrap.marker : null;
-    const bootstrapNewer = bootstrapMarker !== null && bootstrapMarker.version > CI_BOOTSTRAP_MARKER_VERSION;
+    const bootstrapNewer =
+        bootstrapMarker !== null && bootstrapMarker.version > CI_BOOTSTRAP_MARKER_VERSION;
 
     if (worldMarker !== null || bootstrapMarker !== null) {
         const found: string[] = [];
@@ -314,9 +337,10 @@ export function describeAdoptionSignal(
     }
 
     if (worldBranchFailure !== null || bootstrap.outcome === "unknown") {
-        const reasons = [worldBranchFailure, bootstrap.outcome === "unknown" ? bootstrap.message : null].filter(
-            (value): value is string => value !== null,
-        );
+        const reasons = [
+            worldBranchFailure,
+            bootstrap.outcome === "unknown" ? bootstrap.message : null,
+        ].filter((value): value is string => value !== null);
         return {
             fullName,
             branch,
@@ -403,11 +427,7 @@ export async function probeAdoptionCandidates(
 
 /** Which kind of machine-specific gap a needs-attention item names. */
 export type AdoptionAttentionId =
-    | "world-folder"
-    | "dependencies"
-    | "remote-host"
-    | "output-folder"
-    | "linked-world";
+    "world-folder" | "dependencies" | "remote-host" | "output-folder" | "linked-world";
 
 export interface AdoptionAttentionItem {
     readonly id: AdoptionAttentionId;
@@ -420,7 +440,11 @@ export interface AdoptionRestoreSummary {
     readonly projectName: string;
     /** True when the project was never opened in the full editor - see `project.ts`. */
     readonly fromWizard: boolean;
-    readonly maps: readonly { readonly id: string; readonly name: string; readonly dimension: string }[];
+    readonly maps: readonly {
+        readonly id: string;
+        readonly name: string;
+        readonly dimension: string;
+    }[];
     readonly storageIds: readonly string[];
     /** Short, human sentences naming the non-default render options this project set. */
     readonly renderNotes: readonly string[];
@@ -511,7 +535,11 @@ function summarizeRestore(project: ProjectFile): AdoptionRestoreSummary {
     return {
         projectName: project.name,
         fromWizard: project.fromWizard,
-        maps: project.maps.map((entry) => ({ id: entry.id, name: entry.name, dimension: entry.dimension })),
+        maps: project.maps.map((entry) => ({
+            id: entry.id,
+            name: entry.name,
+            dimension: entry.dimension,
+        })),
         storageIds: project.storages.map((entry) => entry.id),
         renderNotes,
         coreCustomized: project.core !== null,
@@ -558,7 +586,10 @@ function buildAttentionItems(project: ProjectFile): AdoptionAttentionItem[] {
         },
     ];
 
-    if (project.render.outputFolder !== null && looksLikeAbsolutePath(project.render.outputFolder)) {
+    if (
+        project.render.outputFolder !== null &&
+        looksLikeAbsolutePath(project.render.outputFolder)
+    ) {
         items.push({
             id: "output-folder",
             mapId: null,
@@ -619,7 +650,10 @@ async function fetchRepositoryFileText(
     branch: string,
     runner: ProcessRunner,
     signal: AbortSignal | undefined,
-): Promise<{ readonly ok: true; readonly text: string } | { readonly ok: false; readonly absent: boolean; readonly message: string }> {
+): Promise<
+    | { readonly ok: true; readonly text: string }
+    | { readonly ok: false; readonly absent: boolean; readonly message: string }
+> {
     let payload: unknown;
     try {
         payload = await ghJsonOrNull(
@@ -661,7 +695,11 @@ async function fetchRepositoryFileText(
     }
     const blobContent = text(record(blob)?.["content"]);
     if (blobContent === null) {
-        return { ok: false, absent: false, message: `${path} could not be read past the inline size limit.` };
+        return {
+            ok: false,
+            absent: false,
+            message: `${path} could not be read past the inline size limit.`,
+        };
     }
     const decoded = decodeBase64(blobContent);
     return decoded === null
@@ -698,7 +736,8 @@ export async function buildAdoptionPlan(
             repo,
             branch,
             reason: "repository-unreadable",
-            message: report.failure ?? `${owner}/${repo} does not exist, or this account cannot see it.`,
+            message:
+                report.failure ?? `${owner}/${repo} does not exist, or this account cannot see it.`,
             marker: null,
             bootstrapMarker: null,
             foundFormatVersion: null,
@@ -754,7 +793,14 @@ export async function buildAdoptionPlan(
     const bootstrap = await probeCiBootstrapMarker(owner, repo, runner, signal);
     const bootstrapMarker = bootstrap.outcome === "found" ? bootstrap.marker : null;
 
-    let projectFile = await fetchRepositoryFileText(owner, repo, PROJECT_FILE_NAME, branch, runner, signal);
+    let projectFile = await fetchRepositoryFileText(
+        owner,
+        repo,
+        PROJECT_FILE_NAME,
+        branch,
+        runner,
+        signal,
+    );
     if (!projectFile.ok && projectFile.absent) {
         projectFile = await fetchRepositoryFileText(
             owner,
@@ -824,7 +870,11 @@ export async function buildAdoptionPlan(
         alreadyLocal:
             existing === undefined
                 ? null
-                : { worldPath: existing.worldPath, branch: existing.branch, syncedAt: existing.syncedAt },
+                : {
+                      worldPath: existing.worldPath,
+                      branch: existing.branch,
+                      syncedAt: existing.syncedAt,
+                  },
     };
 }
 

@@ -31,6 +31,28 @@ describe("resolveFeed", () => {
         );
         expect(resolution.feed.serverType).toBe("default");
         expect(resolution.feed.headers).toEqual({});
+        expect(resolution.legacyFallback).toBeNull();
+    });
+
+    it("resolves a distinct legacy repository as a bounded fallback", () => {
+        const resolution = resolveFeed({
+            ...packagedWindows,
+            legacyRepository: "Ding-Ding-Projects/material-bluemap",
+        });
+        expect(resolution.ok).toBe(true);
+        if (!resolution.ok) return;
+        expect(resolution.feed.url).toContain("Ding-Ding-Projects/worldlens");
+        expect(resolution.legacyFallback?.url).toContain("Ding-Ding-Projects/material-bluemap");
+    });
+
+    it("refuses a malformed legacy repository instead of inventing a bridge URL", () => {
+        const resolution = resolveFeed({
+            ...packagedWindows,
+            legacyRepository: "not/a/repository/name",
+        });
+        expect(resolution.ok).toBe(false);
+        if (resolution.ok) return;
+        expect(resolution.reason).toContain("legacy release repository is malformed");
     });
 
     it("refuses, with a reason, when the build was not installed by its installer", () => {
@@ -66,6 +88,7 @@ describe("resolveFeed", () => {
         expect(resolution.ok).toBe(true);
         if (!resolution.ok) return;
         expect(resolution.feed.url).toBe("https://feed.example/win32-x64/0.1.0");
+        expect(resolution.legacyFallback).toBeNull();
     });
 
     it("refuses a plain-http override, because an update fetched over http can be replaced", () => {

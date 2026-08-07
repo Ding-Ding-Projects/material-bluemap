@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { UpdateController, type UpdateEngine, type UpdateTimers } from "./controller.js";
 import { resolveFeed, type FeedResolution } from "./feed.js";
+import type { UpdateFeedHandoff } from "./feedHandoff.js";
 import type { UpdateState } from "./state.js";
 
 /**
@@ -12,17 +13,37 @@ import type { UpdateState } from "./state.js";
  * build and an installer to reach them.
  */
 class FakeEngine implements UpdateEngine {
-    feed: { url: string; headers?: Record<string, string>; serverType?: "default" | "json" } | null = null;
+    feed: {
+        url: string;
+        headers?: Record<string, string>;
+        serverType?: "default" | "json";
+    } | null = null;
+    readonly feeds: {
+        url: string;
+        headers?: Record<string, string>;
+        serverType?: "default" | "json";
+    }[] = [];
     checks = 0;
     installs = 0;
     setFeedThrows: Error | null = null;
+    setFeedThrowsFor: string | null = null;
     installThrows: Error | null = null;
 
     private readonly listeners = new Map<string, ((...args: unknown[]) => void)[]>();
 
-    setFeedURL(options: { url: string; headers?: Record<string, string>; serverType?: "default" | "json" }): void {
-        if (this.setFeedThrows !== null) throw this.setFeedThrows;
+    setFeedURL(options: {
+        url: string;
+        headers?: Record<string, string>;
+        serverType?: "default" | "json";
+    }): void {
+        if (
+            this.setFeedThrows !== null ||
+            (this.setFeedThrowsFor !== null && options.url.includes(this.setFeedThrowsFor))
+        ) {
+            throw this.setFeedThrows ?? new Error(`refused feed ${options.url}`);
+        }
         this.feed = options;
+        this.feeds.push(options);
     }
 
     checkForUpdates(): void {
@@ -81,6 +102,30 @@ const workingFeed: FeedResolution = resolveFeed({
     environment: {},
 });
 
+const bridgedFeed: FeedResolution = resolveFeed({
+    packaged: true,
+    platform: "win32",
+    arch: "x64",
+    version: "0.1.0",
+    repository: "Ding-Ding-Projects/worldlens",
+    legacyRepository: "Ding-Ding-Projects/material-bluemap",
+    environment: {},
+});
+
+class MemoryHandoff implements UpdateFeedHandoff {
+    confirmed = false;
+    confirmations = 0;
+
+    isCurrentConfirmed(): boolean {
+        return this.confirmed;
+    }
+
+    confirmCurrent(): void {
+        this.confirmed = true;
+        this.confirmations += 1;
+    }
+}
+
 interface Harness {
     readonly controller: UpdateController;
     readonly engine: FakeEngine;
@@ -89,7 +134,13 @@ interface Harness {
     rendering: boolean;
 }
 
-function harness(options: { readonly feed?: FeedResolution; readonly engine?: FakeEngine | null } = {}): Harness {
+function harness(
+    options: {
+        readonly feed?: FeedResolution;
+        readonly engine?: FakeEngine | null;
+        readonly feedHandoff?: UpdateFeedHandoff;
+    } = {},
+): Harness {
     const engine = options.engine === undefined ? new FakeEngine() : options.engine;
     const timers = fakeTimers();
     const published: UpdateState[] = [];
@@ -101,6 +152,7 @@ function harness(options: { readonly feed?: FeedResolution; readonly engine?: Fa
         engine,
         renderInProgress: () => state.rendering,
         onChange: (next) => published.push(next),
+        ...(options.feedHandoff === undefined ? {} : { feedHandoff: options.feedHandoff }),
         timers,
         now: () => new Date("2026-08-04T10:00:00Z"),
     });
@@ -132,6 +184,67 @@ describe("UpdateController", () => {
 
         test.timers.fire();
         expect(test.engine.checks).toBe(1);
+    });
+
+    it("falls back to the legacy feed for an unconfirmed profile, then restores current", () => {
+        const test = harness({ feed: bridgedFeed, feedHandoff: new MemoryHandoff() });
+        test.controller.start();
+        test.controller.check({ manual: true });
+        test.engine.emit("error", new Error("404 from current feed"));
+
+        expect(test.engine.feeds.map((feed) => feed.url)).toEqual([
+            expect.stringContaining("Ding-Ding-Projects/worldlens"),
+            expect.stringContaining("Ding-Ding-Projects/material-bluemap"),
+        ]);
+        expect(test.engine.checks).toBe(2);
+
+        test.engine.emit("update-not-available");
+        expect(test.controller.current().status).toBe("up-to-date");
+        expect(test.engine.feed?.url).toContain("Ding-Ding-Projects/worldlens");
+    });
+
+    it("keeps the current no-update result when selecting the legacy bridge is refused", () => {
+        const engine = new FakeEngine();
+        const test = harness({ feed: bridgedFeed, feedHandoff: new MemoryHandoff(), engine });
+        test.controller.start();
+        test.controller.check({ manual: true });
+        engine.setFeedThrowsFor = "Ding-Ding-Projects/material-bluemap";
+
+        engine.emit("update-not-available");
+
+        expect(test.controller.current().status).toBe("up-to-date");
+        expect(engine.feed?.url).toContain("Ding-Ding-Projects/worldlens");
+    });
+
+    it("persists a current-feed download and skips the legacy bridge on the next launch", () => {
+        const handoff = new MemoryHandoff();
+        const first = harness({ feed: bridgedFeed, feedHandoff: handoff });
+        first.controller.start();
+        first.controller.check({ manual: true });
+        first.engine.emit("update-downloaded", {}, null, "0.2.0", new Date(), null);
+        expect(handoff.confirmed).toBe(true);
+        expect(handoff.confirmations).toBe(1);
+
+        const next = harness({ feed: bridgedFeed, feedHandoff: handoff });
+        next.controller.start();
+        next.controller.check({ manual: true });
+        next.engine.emit("error", new Error("current feed offline"));
+
+        expect(next.engine.feeds).toHaveLength(1);
+        expect(next.engine.feed?.url).toContain("Ding-Ding-Projects/worldlens");
+        expect(next.controller.current().status).toBe("failed");
+    });
+
+    it("does not confirm the current feed when the bridge release came from legacy", () => {
+        const handoff = new MemoryHandoff();
+        const test = harness({ feed: bridgedFeed, feedHandoff: handoff });
+        test.controller.start();
+        test.controller.check({ manual: true });
+        test.engine.emit("error", new Error("current feed not ready"));
+        test.engine.emit("update-downloaded", {}, null, "0.1.1", new Date(), null);
+
+        expect(test.engine.feed?.url).toContain("Ding-Ding-Projects/material-bluemap");
+        expect(handoff.confirmed).toBe(false);
     });
 
     it("reports up to date when there is no update", () => {
@@ -350,7 +463,11 @@ describe("UpdateController", () => {
             onChange: (state) => published.push(state),
             timers,
             probe: () =>
-                Promise.resolve({ newer: true, version: "0.2.0", notesUrl: "https://example.test/r" }),
+                Promise.resolve({
+                    newer: true,
+                    version: "0.2.0",
+                    notesUrl: "https://example.test/r",
+                }),
         });
         controller.start();
 
