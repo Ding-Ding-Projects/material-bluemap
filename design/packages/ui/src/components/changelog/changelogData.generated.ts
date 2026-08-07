@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "4fae06b6c4914825a6d196a134cfe7ee7ac11519",
+        shortSha: "4fae06b6c4",
+        date: "2026-08-07T05:46:12-04:00",
+        subject: "WEBSITE EDIT - Match the panel inventory to tracked case",
+        details: "Linux found the one capital letter Windows politely pretended was fine. The inventory now names the file exactly as Git stores it, so the guard checks a real owner on every runner.\n\nLinux 捉到 Windows 好客氣扮冇事嗰粒大楷字。Inventory 而家照 Git 真名寫，所有 runner 都會驗到同一個真主人。",
+        category: "site",
+        areas: ["site"],
+        files: 1,
+    },
+    {
         sha: "890b93473201120429f2d57bb50d1cc12b6310e4",
         shortSha: "890b934732",
         date: "2026-08-07T05:35:42-04:00",
