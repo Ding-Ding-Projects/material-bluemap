@@ -838,7 +838,9 @@ jobs:
               printf '**Code name: %s · %s**\n\n' "$DISH_NAME_EN" "$DISH_NAME_ZH"
               printf '![%s](https://github.com/%s/releases/download/%s/%s)\n\n' \
                 "$DISH_ALT_EN" "$GITHUB_REPOSITORY" "$RELEASE_TAG" "$DISH_FILE_NAME"
-              printf 'Photo from the public `Ding-Ding-Projects/dim-sum-photos` catalog, volume `%s`, downloaded unchanged at release time and verified to decode. It is not stored in this repository.\n' \
+              # The backticks are literal Markdown delimiters in a static format.
+              # shellcheck disable=SC2016
+              printf 'Photo from the public `Ding-Ding-Projects/dim-sum-photos` catalog, volume `%s`, downloaded unchanged at release time and checked for manifest size plus a bounded PNG envelope. It is not stored in this repository.\n' \
                 "$DISH_VOLUME"
             else
               echo "> [!NOTE]"
@@ -855,6 +857,8 @@ jobs:
             if [ "$SPLIT" = "1" ]; then
               echo "## One download arrived in pieces"
               echo
+              # The backticks are literal Markdown delimiters in a static format.
+              # shellcheck disable=SC2016
               printf 'A GitHub release asset cannot be larger than 2 GB, and this one is: `%s`. It is published as `<name>.001`, `<name>.002`, ... beside a `<name>.parts.json` that carries the size and SHA-256 of every part and of the whole file.\n' \
                 "$SPLIT_NAMES"
               echo
@@ -909,23 +913,25 @@ jobs:
           jars="bluemap-server-plugins-${BLUEMAP_VERSION}"
           mkdir -p "$jars"
           cp jars-out/bluemap-*.jar jars-out/bluemap-jars.sha256.txt jars-out/bluemap-jars.json "$jars/"
-          cat > "$jars/README.txt" <<TXT
-          BlueMap $BLUEMAP_VERSION server plugins
+          {
+            printf 'BlueMap %s server plugins\n\n' "$BLUEMAP_VERSION"
+            cat <<'TXT'
 
-          One jar per Minecraft server platform, built from the upstream source
-          vendored in this repository. Take only the one your server runs:
+            One jar per Minecraft server platform, built from the upstream source
+            vendored in this repository. Take only the one your server runs:
 
-            bluemap-*-paper.jar     Paper
-            bluemap-*-spigot.jar    Spigot
-            bluemap-*-fabric.jar    Fabric
-            bluemap-*-forge.jar     Forge
-            bluemap-*-neoforge.jar  NeoForge
-            bluemap-*-sponge.jar    Sponge
-            bluemap-*-cli.jar       command line renderer, no server needed
+              bluemap-*-paper.jar     Paper
+              bluemap-*-spigot.jar    Spigot
+              bluemap-*-fabric.jar    Fabric
+              bluemap-*-forge.jar     Forge
+              bluemap-*-neoforge.jar  NeoForge
+              bluemap-*-sponge.jar    Sponge
+              bluemap-*-cli.jar       command line renderer, no server needed
 
-          Verify with bluemap-jars.sha256.txt. These are builds of upstream BlueMap,
-          not a reimplementation.
+            Verify with bluemap-jars.sha256.txt. These are builds of upstream BlueMap,
+            not a reimplementation.
           TXT
+          } > "$jars/README.txt"
           zip -qr "$jars.zip" "$jars"
 
           # Everything else that is not the installer and not the plugins.
@@ -942,18 +948,20 @@ jobs:
           if [ -e installer-out/Squirrel.exe ]; then
             cp installer-out/Squirrel.exe "$extras/update/"
           fi
-          cat > "$extras/README.txt" <<TXT
-          material-bluemap $RELEASE_TAG - extras
+          {
+            printf 'material-bluemap %s - extras\n\n' "$RELEASE_TAG"
+            cat <<'TXT'
 
-          test-world/  A Minecraft save this project generated in anvil format, with
-                       the seed in its file name. No Minecraft installation and no
-                       Mojang download are needed to render it.
-          update/      Squirrel update files that accompany the installer. You do not
-                       need these to install; they are here so the set is complete.
+            test-world/  A Minecraft save this project generated in anvil format, with
+                         the seed in its file name. No Minecraft installation and no
+                         Mojang download are needed to render it.
+            update/      Squirrel update files that accompany the installer. You do not
+                         need these to install; they are here so the set is complete.
 
-          The installer and the server plugins are separate downloads on the release
-          page.
+            The installer and the server plugins are separate downloads on the release
+            page.
           TXT
+          } > "$extras/README.txt"
           zip -qr "$extras.zip" "$extras"
           echo "server plugins: $(du -h "$jars.zip" | cut -f1)   extras: $(du -h "$extras.zip" | cut -f1)"
 
@@ -1020,7 +1028,9 @@ jobs:
           gh release edit "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --notes-file release-notes.md
-          published_notes=$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body)
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body \
+            > published-release-notes.md
+          published_notes=$(<published-release-notes.md)
           for required_timing in "Workflow started:" "Workflow completed:" "Workflow duration:"; do
             if ! grep -Fq "$required_timing" <<< "$published_notes"; then
               echo "::error::published release notes are missing $required_timing"

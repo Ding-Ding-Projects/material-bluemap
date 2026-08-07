@@ -248,7 +248,12 @@ async function loadAssetIndex() {
     return index;
 }
 
-/** Verify the bytes really are a decodable PNG before anything ships them. */
+/**
+ * Verify the manifest size and a bounded PNG envelope before anything ships it.
+ * This is deliberately not described as a full decode: signature, terminal IEND
+ * marker and IHDR dimensions catch truncation and obvious substitutions, but do
+ * not parse every chunk or inflate pixel data.
+ */
 function verifyPng(buffer, expectedSize) {
     const problems = [];
     if (buffer.subarray(0, 8).toString("hex") !== PNG_SIGNATURE) {

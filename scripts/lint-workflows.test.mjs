@@ -1,66 +1,105 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 
-import { lintText, scriptRegions } from "./lint-workflows.mjs";
+import { WATCHED_SCRIPT_STEPS, lintText, scriptRegions } from "./lint-workflows.mjs";
 
-const WATCHED = ["Resolve dim sum code name", "Compose release notes", "Publish"];
+const FILE = ".github/workflows/ci.yml";
+const WATCHED = WATCHED_SCRIPT_STEPS[FILE];
+const ONE_INPUT = { Publish: { NAME: "steps.dish.outputs.name" } };
 
-const originalVulnerableShape = String.raw`
-jobs:
-  release:
-    steps:
-      - name: Resolve dim sum code name
-        run: node scripts/pick-dim-sum.mjs --ordinal "\${{ steps.tag.outputs.ordinal }}"
-      - name: Compose release notes
-        run: |
-          if [ -n "\${{ steps.dish.outputs.dish_name_en }}" ]; then
-            echo "\${{ steps.dish.outputs.dish_name_en }} · \${{ steps.dish.outputs.dish_name_zh }}"
-            echo "![\${{ steps.dish.outputs.dish_alt_en }}](release/\${{ steps.tag.outputs.tag }}/\${{ steps.dish.outputs.dish_file_name }})"
-            echo "\${{ steps.dish.outputs.dish_volume }}"
-          fi
-      - name: Publish
-        run: |
-          gh release create "\${{ steps.tag.outputs.tag }}" \
-            --title "material-bluemap \${{ steps.tag.outputs.tag }}"
-          gh release view "\${{ steps.tag.outputs.tag }}"
-`;
+function workflowAt(revision) {
+    return execFileSync("git", ["show", `${revision}:${FILE}`], { encoding: "utf8" });
+}
 
-test("the recovered original shape fails at all 11 executable expression sites", () => {
-    const problems = lintText(originalVulnerableShape, ".github/workflows/ci.yml", WATCHED);
-    assert.equal(problems.length, 11);
-    assert.ok(problems.every((problem) => problem.expression));
+function rawExpressionProblems(problems) {
+    return problems.filter((problem) =>
+        problem.message.startsWith("Actions expression is interpolated"),
+    );
+}
+
+function oneStep({ env = "NAME: ${{ steps.dish.outputs.name }}", run = 'printf \'%s\\n\' "$NAME"' }) {
+    return `jobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Publish\n        env:\n          ${env}\n        run: ${run}\n`;
+}
+
+test("the exact recovered workflow fails at its original 11 executable expression sites", () => {
+    const problems = lintText(workflowAt("98988e3"), FILE, WATCHED);
+    assert.equal(rawExpressionProblems(problems).length, 11);
 });
 
-test("env mappings with quoted shell reads pass", () => {
-    const safe = String.raw`
-jobs:
-  release:
-    steps:
-      - name: Resolve dim sum code name
-        env:
-          ORDINAL: \${{ steps.tag.outputs.ordinal }}
-        run: node scripts/pick-dim-sum.mjs --ordinal "$ORDINAL"
-      - name: Compose release notes
-        env:
-          NAME: \${{ steps.dish.outputs.dish_name_en }}
-        run: |
-          printf '%s\n' "$NAME"
-      - name: Publish
-        env:
-          TAG: \${{ steps.tag.outputs.tag }}
-        run: gh release view "$TAG"
-`;
-    assert.deepEqual(lintText(safe, ".github/workflows/ci.yml", WATCHED), []);
+test("the exact e137779 baseline exposes all 19 later executable expression sites", () => {
+    const problems = lintText(
+        workflowAt("e13777927876a3d7898778f18193e9465bc97cc2"),
+        FILE,
+        WATCHED,
+    );
+    assert.deepEqual(
+        rawExpressionProblems(problems).map((problem) => problem.line),
+        [803, 809, 810, 810, 812, 812, 812, 814, 827, 830, 878, 882, 901, 915, 952, 955, 989, 992, 999],
+    );
+});
+
+test("the checked-in workflow has exact provenance and quoted data-only sinks", () => {
+    assert.deepEqual(lintText(readFileSync(FILE, "utf8"), FILE, WATCHED), []);
 });
 
 test("the hand-written inventory fails when a watched step disappears", () => {
-    const problems = lintText(
-        "jobs:\n  release:\n    steps:\n      - name: Publish\n        run: echo safe\n",
-        ".github/workflows/ci.yml",
-        WATCHED,
-    );
-    assert.equal(problems.filter((problem) => !problem.expression).length, 2);
+    const problems = lintText(oneStep({}), FILE, WATCHED);
+    assert.equal(problems.filter((problem) => /must exist exactly once/.test(problem.message)).length, 2);
 });
+
+test("multiline Actions expressions in a block script are rejected", () => {
+    const workflow = `jobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Publish\n        env:\n          NAME: \${{ steps.dish.outputs.name }}\n        run: |\n          printf '%s\\n' "\${{\n            steps.dish.outputs.name\n          }}"\n`;
+    const problems = lintText(workflow, FILE, ONE_INPUT);
+    assert.equal(rawExpressionProblems(problems).length, 1);
+});
+
+test("YAML aliases cannot hide either a watched env mapping or watched script", () => {
+    const aliasedEnv = `x-release-env: &release-env\n  NAME: \${{ steps.dish.outputs.name }}\njobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Publish\n        env: *release-env\n        run: printf '%s\\n' "$NAME"\n`;
+    assert.ok(
+        lintText(aliasedEnv, FILE, ONE_INPUT).some((problem) =>
+            /canonical env binding/.test(problem.message),
+        ),
+    );
+
+    const aliasedRun = `x-release-script: &release-script |\n  printf '%s\\n' "$NAME"\njobs:\n  release:\n    runs-on: ubuntu-latest\n    steps:\n      - name: Publish\n        env:\n          NAME: \${{ steps.dish.outputs.name }}\n        run: *release-script\n`;
+    assert.ok(
+        lintText(aliasedRun, FILE, ONE_INPUT).some((problem) => /anchors or aliases/.test(problem.message)),
+    );
+});
+
+test("a watched binding must preserve its declared expression provenance", () => {
+    const workflow = oneStep({ env: "NAME: ${{ github.event.issue.title }}" });
+    assert.ok(
+        lintText(workflow, FILE, ONE_INPUT).some((problem) => /canonical env binding/.test(problem.message)),
+    );
+});
+
+test("watched variables must remain double-quoted", () => {
+    const workflow = oneStep({ run: "printf '%s\\n' $NAME" });
+    assert.ok(
+        lintText(workflow, FILE, ONE_INPUT).some((problem) => /inside double quotes/.test(problem.message)),
+    );
+});
+
+for (const [name, run] of [
+    ["eval", 'eval "$NAME"'],
+    ["bash -c", 'bash -c "$NAME"'],
+    ["source", 'source "$NAME"'],
+    ["dot source", '. "$NAME"'],
+    ["backtick substitution", 'result=`printf \'%s\' "$NAME"`'],
+    ["command substitution", 'result=$(printf \'%s\' "$NAME")'],
+    ["command position", '"$NAME" --version'],
+]) {
+    test(`quoted ${name} remains an execution sink and is rejected`, () => {
+        assert.ok(
+            lintText(oneStep({ run }), FILE, ONE_INPUT).some((problem) =>
+                /execution sink/.test(problem.message),
+            ),
+        );
+    });
+}
 
 test("block parsing keeps comments inside a script and ignores YAML comments", () => {
     const regions = scriptRegions(String.raw`
