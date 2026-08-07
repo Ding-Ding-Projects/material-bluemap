@@ -16,11 +16,19 @@ Declining is remembered without nagging; retry remains an explicit action.
 
 Before the existing Worldlens root can be renamed, migration writes and flushes
 `%APPDATA%\.worldlens-profile-migration-transaction.json`. The journal records the exact source,
-staging, current, backup and failed paths; the source manifest; and the durable phase. Every
+staging, current, backup and failed paths; both source and pre-existing-current manifests; and the durable phase. Every
 startup recovers that transaction before reading a success receipt: a completed activation is
 verified and finalized, while a partial or failed activation restores the retained current root
 and quarantines partial staging. A crash cannot turn a Worldlens-only file into an unreachable
 backup that the next launch ignores.
+
+The desktop process owns a single-instance lock before migration starts. Migration also rejects a
+legacy or current root that is itself a symbolic link, junction, reparse indirection, or resolves
+outside the application-data root. Collision keys use Windows case-insensitive semantics even in
+cross-platform tests, so `Settings.json` and `settings.json` stop before either root changes. The
+exact current manifest is checked again after staging and immediately before its atomic rename;
+any concurrent addition, removal, or content change aborts cutover, leaves the changed current root
+active, retains the legacy root, and quarantines staging for inspection.
 
 Renderer and documentation-site preferences migrate before stores hydrate. A current Worldlens
 value wins when both namespaces exist; otherwise the legacy value is copied to the new key. Old
@@ -51,8 +59,11 @@ when both names are set, the Worldlens value wins.
 
 Packaged bridge builds carry both release repositories. The Worldlens feed is tried first and the
 former repository is a bounded fallback until this profile has actually downloaded from the
-Worldlens feed. That exact URL-pair confirmation is persisted atomically; it prevents later
-launches from depending on the former repository or on a repository-rename redirect. See
+Worldlens feed. The repository-and-channel identity pair is persisted atomically without the
+installed version that appears at the end of the feed URL; build 101 therefore retains a
+confirmation written by build 100. Changing repository, architecture, or channel invalidates the
+confirmation. This prevents later launches from depending on the former repository or on a
+repository-rename redirect. See
 [Automatic updates](./automatic-updates.md) for the unverified three-version runtime boundary.
 
 The **Product display name** setting is cosmetic. It changes the title bar, About/version line,
@@ -90,8 +101,9 @@ unsigned, neither mechanism authenticates the publisher or author. See
 
 ## Verification
 
-Unit coverage exercises old-only, new-only, disjoint merge, divergent collision, denial/retry,
-corrupt records, partial staging, rollback, idempotence, legacy/current marker precedence,
+Unit coverage exercises old-only, new-only, disjoint merge, divergent and case-only collision,
+linked-root escape refusal, concurrent-current-write refusal, denial/retry, corrupt records,
+partial staging, rollback, idempotence, legacy/current marker precedence,
 schema adaptation, unknown-field preservation, preference migration, and environment aliases.
 The migration matrix also injects ordinary failures and simulated process crashes before and
 after backup rename, receipt write, staging activation, verification and rollback, then retries

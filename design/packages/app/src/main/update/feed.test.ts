@@ -31,6 +31,9 @@ describe("resolveFeed", () => {
         );
         expect(resolution.feed.serverType).toBe("default");
         expect(resolution.feed.headers).toEqual({});
+        expect(resolution.feed.handoffIdentity).toBe(
+            "github-release:Ding-Ding-Projects/worldlens:win32-x64",
+        );
         expect(resolution.legacyFallback).toBeNull();
     });
 
@@ -43,6 +46,30 @@ describe("resolveFeed", () => {
         if (!resolution.ok) return;
         expect(resolution.feed.url).toContain("Ding-Ding-Projects/worldlens");
         expect(resolution.legacyFallback?.url).toContain("Ding-Ding-Projects/material-bluemap");
+        expect(resolution.legacyFallback?.handoffIdentity).toBe(
+            "github-release:Ding-Ding-Projects/material-bluemap:win32-x64",
+        );
+    });
+
+    it("keeps handoff identity stable when the installed version changes", () => {
+        const build100 = resolveFeed({
+            ...packagedWindows,
+            version: "0.1.0-build.100",
+            legacyRepository: "Ding-Ding-Projects/material-bluemap",
+        });
+        const build101 = resolveFeed({
+            ...packagedWindows,
+            version: "0.1.0-build.101",
+            legacyRepository: "Ding-Ding-Projects/material-bluemap",
+        });
+        expect(build100.ok).toBe(true);
+        expect(build101.ok).toBe(true);
+        if (!build100.ok || !build101.ok) return;
+        expect(build100.feed.url).not.toBe(build101.feed.url);
+        expect(build100.feed.handoffIdentity).toBe(build101.feed.handoffIdentity);
+        expect(build100.legacyFallback?.handoffIdentity).toBe(
+            build101.legacyFallback?.handoffIdentity,
+        );
     });
 
     it("refuses a malformed legacy repository instead of inventing a bridge URL", () => {

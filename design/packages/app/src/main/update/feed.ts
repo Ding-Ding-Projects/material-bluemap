@@ -67,6 +67,8 @@ export interface FeedConfiguration {
     readonly url: string;
     readonly headers: Readonly<Record<string, string>>;
     readonly serverType: "default" | "json";
+    /** Stable repository/channel identity; deliberately excludes the installed version. */
+    readonly handoffIdentity: string;
 }
 
 export type FeedResolution =
@@ -159,7 +161,12 @@ export function resolveFeed(inputs: FeedInputs): FeedResolution {
         }
         return {
             ok: true,
-            feed: { url: override, headers, serverType: "default" },
+            feed: {
+                url: override,
+                headers,
+                serverType: "default",
+                handoffIdentity: `custom:${override}`,
+            },
             legacyFallback: null,
         };
     }
@@ -194,8 +201,10 @@ export function resolveFeed(inputs: FeedInputs): FeedResolution {
 
     // `win32-<arch>` is the service's own channel spelling, and the version goes in the
     // path rather than a query string because that is the route it documents.
+    const channel = `win32-${inputs.arch}`;
     const urlFor = (source: string): string =>
-        `${PUBLIC_FEED_HOST}/${source}/win32-${inputs.arch}/${encodeURIComponent(inputs.version)}`;
+        `${PUBLIC_FEED_HOST}/${source}/${channel}/${encodeURIComponent(inputs.version)}`;
+    const identityFor = (source: string): string => `github-release:${source}:${channel}`;
     const legacyRepository = inputs.legacyRepository?.trim();
     if (
         legacyRepository !== undefined &&
@@ -212,10 +221,20 @@ export function resolveFeed(inputs: FeedInputs): FeedResolution {
     const legacyFallback =
         legacyRepository === undefined || legacyRepository === "" || legacyRepository === repository
             ? null
-            : { url: urlFor(legacyRepository), headers, serverType: "default" as const };
+            : {
+                  url: urlFor(legacyRepository),
+                  headers,
+                  serverType: "default" as const,
+                  handoffIdentity: identityFor(legacyRepository),
+              };
     return {
         ok: true,
-        feed: { url: urlFor(repository), headers, serverType: "default" },
+        feed: {
+            url: urlFor(repository),
+            headers,
+            serverType: "default",
+            handoffIdentity: identityFor(repository),
+        },
         legacyFallback,
     };
 }

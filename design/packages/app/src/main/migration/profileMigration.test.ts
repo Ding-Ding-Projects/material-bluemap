@@ -1,4 +1,4 @@
-import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, stat, symlink, writeFile } from "node:fs/promises";
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -42,6 +42,66 @@ async function exists(path: string): Promise<boolean> {
 }
 
 describe("Worldlens profile migration", () => {
+    it("accepts absolute profile children on POSIX instead of mistaking the leading slash for an escape", () => {
+        if (process.platform === "win32") return;
+        const plan = profileMigrationPlan("/tmp/worldlens-profile-containment-regression");
+        expect(plan.legacyDirectory).toBe(
+            "/tmp/worldlens-profile-containment-regression/@material-bluemap/app",
+        );
+        expect(plan.worldlensDirectory).toBe(
+            "/tmp/worldlens-profile-containment-regression/Worldlens",
+        );
+    });
+
+    it("refuses a linked legacy root before any outside byte is copied", async () => {
+        const appData = root();
+        const outside = root();
+        const plan = profileMigrationPlan(appData);
+        await put(outside, "outside");
+        await mkdir(join(plan.legacyDirectory, ".."), { recursive: true });
+        await symlink(
+            outside,
+            plan.legacyDirectory,
+            process.platform === "win32" ? "junction" : "dir",
+        );
+
+        const outcome = await migrateWorldlensProfile({
+            appDataDirectory: appData,
+            requestConsent: async () => "accept",
+            now,
+        });
+
+        expect(outcome).toMatchObject({ kind: "failed" });
+        if (outcome.kind === "failed") expect(outcome.message).toMatch(/linked|resolved target/);
+        expect(await exists(plan.worldlensDirectory)).toBe(false);
+        expect(await readFile(join(outside, "settings.json"), "utf8")).toBe("outside");
+    });
+
+    it("refuses a legacy root whose linked parent resolves outside app data", async () => {
+        const appData = root();
+        const outside = root();
+        await put(join(outside, "app"), "outside-parent");
+        await symlink(
+            outside,
+            join(appData, "@material-bluemap"),
+            process.platform === "win32" ? "junction" : "dir",
+        );
+        const plan = profileMigrationPlan(appData);
+
+        const outcome = await migrateWorldlensProfile({
+            appDataDirectory: appData,
+            requestConsent: async () => "accept",
+            now,
+        });
+
+        expect(outcome).toMatchObject({ kind: "failed" });
+        if (outcome.kind === "failed") expect(outcome.message).toMatch(/resolved target/);
+        expect(await exists(plan.worldlensDirectory)).toBe(false);
+        expect(await readFile(join(outside, "app", "settings.json"), "utf8")).toBe(
+            "outside-parent",
+        );
+    });
+
     it("migrates an old-only profile through verified staging and keeps the old copy", async () => {
         const appData = root();
         const plan = profileMigrationPlan(appData);
@@ -131,6 +191,95 @@ describe("Worldlens profile migration", () => {
         );
         expect(await readFile(join(plan.legacyDirectory, "settings.json"), "utf8")).toBe("old");
         expect(await readFile(join(plan.worldlensDirectory, "settings.json"), "utf8")).toBe("new");
+    });
+
+    it("refuses case-only collisions using Windows filesystem semantics", async () => {
+        const appData = root();
+        const plan = profileMigrationPlan(appData);
+        await mkdir(plan.legacyDirectory, { recursive: true });
+        await mkdir(plan.worldlensDirectory, { recursive: true });
+        await writeFile(join(plan.legacyDirectory, "Settings.json"), "legacy", "utf8");
+        await writeFile(join(plan.worldlensDirectory, "settings.json"), "current", "utf8");
+
+        const outcome = await migrateWorldlensProfile({
+            appDataDirectory: appData,
+            requestConsent: async () => "accept",
+            now,
+        });
+
+        expect(outcome).toEqual(
+            expect.objectContaining({
+                kind: "collision",
+                paths: ["Settings.json ↔ settings.json"],
+            }),
+        );
+        expect(await readFile(join(plan.legacyDirectory, "Settings.json"), "utf8")).toBe("legacy");
+        expect(await readFile(join(plan.worldlensDirectory, "settings.json"), "utf8")).toBe(
+            "current",
+        );
+        expect(
+            (await readdir(appData)).some((name) => name.startsWith("Worldlens.pre-migration-")),
+        ).toBe(false);
+    });
+
+    it("refuses case-only duplicates within a legacy-only profile", async () => {
+        if (process.platform === "win32") return;
+        const appData = root();
+        const plan = profileMigrationPlan(appData);
+        await mkdir(plan.legacyDirectory, { recursive: true });
+        await writeFile(join(plan.legacyDirectory, "Settings.json"), "upper", "utf8");
+        await writeFile(join(plan.legacyDirectory, "settings.json"), "lower", "utf8");
+
+        const outcome = await migrateWorldlensProfile({
+            appDataDirectory: appData,
+            requestConsent: async () => "accept",
+            now,
+        });
+
+        expect(outcome).toEqual(
+            expect.objectContaining({
+                kind: "collision",
+                paths: ["Settings.json ↔ settings.json"],
+            }),
+        );
+        expect(await exists(plan.worldlensDirectory)).toBe(false);
+    });
+
+    it("aborts cutover when the current profile changes after staging", async () => {
+        const appData = root();
+        const plan = profileMigrationPlan(appData);
+        await mkdir(plan.legacyDirectory, { recursive: true });
+        await writeFile(join(plan.legacyDirectory, "legacy.json"), "legacy", "utf8");
+        await mkdir(plan.worldlensDirectory, { recursive: true });
+        await writeFile(join(plan.worldlensDirectory, "current.json"), "before", "utf8");
+
+        const outcome = await migrateWorldlensProfile({
+            appDataDirectory: appData,
+            requestConsent: async () => "accept",
+            now,
+            onCheckpoint: async (point) => {
+                if (point === "before-current-revalidation") {
+                    await writeFile(
+                        join(plan.worldlensDirectory, "current.json"),
+                        "concurrent",
+                        "utf8",
+                    );
+                }
+            },
+        });
+
+        expect(outcome).toMatchObject({
+            kind: "failed",
+            message: "Verification failed for current.json.",
+        });
+        expect(await readFile(join(plan.worldlensDirectory, "current.json"), "utf8")).toBe(
+            "concurrent",
+        );
+        expect(await readFile(join(plan.legacyDirectory, "legacy.json"), "utf8")).toBe("legacy");
+        expect(await exists(join(plan.worldlensDirectory, "legacy.json"))).toBe(false);
+        expect((await readdir(appData)).some((name) => name.includes("staging.partial-"))).toBe(
+            true,
+        );
     });
 
     it("quarantines a partial staging directory and retries from the retained old profile", async () => {
@@ -271,6 +420,7 @@ describe("Worldlens profile migration", () => {
 
     const activationCheckpoints: readonly ProfileMigrationCheckpoint[] = [
         "before-backup-rename",
+        "before-current-revalidation",
         "after-backup-rename",
         "before-receipt-write",
         "after-receipt-write",
@@ -319,6 +469,7 @@ describe("Worldlens profile migration", () => {
 
     for (const failAt of [
         "before-backup-rename",
+        "before-current-revalidation",
         "after-backup-rename",
         "before-receipt-write",
         "after-receipt-write",

@@ -15,6 +15,22 @@ rename and performs startup preflight recovery. Tests inject failures and proces
 and after backup rename, receipt write, staging activation, verification and rollback; retries
 preserve both legacy data and files that existed only in the current Worldlens root.
 
+A second independent pass rejected commit `ad7f1ee88e8d1a45636f8069baee7c1af5975b3d` after its
+Ubuntu CI run exposed a POSIX containment regression. The current correction uses
+platform-correct relative-path containment, rejects linked roots and linked-parent escapes before
+copying, treats case-only names as collisions under Windows filesystem semantics, and records
+both source and current manifests. Worldlens holds Electron's single-instance lock during startup
+and revalidates the exact current and legacy manifests immediately before activation, so a
+concurrent write aborts into quarantine instead of being overwritten. These corrections require
+a new exact-commit CI verdict before the branch can be considered verified.
+
+Local correction evidence is green: the 77 focused migration/feed/controller tests pass;
+`pnpm test:ci` exits 0 after 385.4 seconds; recursive typecheck covers all 13 package targets;
+lint and the 13-package production build pass; and `pnpm --filter @worldlens/app package` produces
+`release/win-unpacked/Worldlens.exe`. PowerShell reports that executable as `NotSigned` with no
+signer certificate. The required POSIX execution proof remains the new exact-commit GitHub Actions
+run, because Windows cannot execute the POSIX branch of the path implementation.
+
 Renderer and documentation-site localStorage namespaces migrate before store hydration; current
 values win and old cells remain. Worldlens environment variables take precedence while legacy
 update, GitHub-client and consent names remain readable. Encrypted private-render payloads use
@@ -23,8 +39,11 @@ legacy generation. The cosmetic display name reaches the title bar, About, notif
 introductions without changing diagnostics or machine ids.
 
 Packaged bridge builds carry the Worldlens feed plus the former repository as a bounded fallback.
-An exact-pair handoff record is written only after a current-feed download; later launches then
-stop consulting the old source. This is code/build verified, not an installed three-version proof.
+A stable repository/channel identity pair is written only after a current-feed download; it omits
+the installed version suffix, so a confirmation written by build 100 is still recognized by build
+101 on the same repository, architecture and channel. A repository, architecture or channel
+change invalidates that confirmation. This is code/build verified, not an installed three-version
+proof.
 
 Windows packages are permanently unsigned: `forceCodeSigning`, `signExecutable` and
 `signAndEditExecutable` are false and signing inputs are cleared. HTTPS identifies the contacted

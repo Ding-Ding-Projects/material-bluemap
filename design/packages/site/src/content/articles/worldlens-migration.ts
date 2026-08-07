@@ -18,7 +18,7 @@ export const worldlensMigration: Article = {
                 {
                     kind: "paragraph",
                     content:
-                        "On first launch Worldlens asks once before copying the legacy profile through a verified staging directory. Before any current-profile rename it flushes a durable phase journal; startup verifies a completed activation or restores the retained current root after a crash. It also migrates browser preferences before stores load, reads old and current repository markers/project files and encrypted private-transport payloads, and writes only current Worldlens identifiers.",
+                        "On first launch Worldlens asks once before copying the legacy profile through a verified staging directory. Before any current-profile rename it flushes a durable phase journal containing both source and current manifests; startup verifies a completed activation or restores the retained current root after a crash. A single-instance gate and exact pre-cutover revalidation refuse concurrent current-profile changes. It also migrates browser preferences before stores load, reads old and current repository markers/project files and encrypted private-transport payloads, and writes only current Worldlens identifiers.",
                 },
                 {
                     kind: "callout",
@@ -48,6 +48,8 @@ export const worldlensMigration: Article = {
                     kind: "list",
                     items: [
                         "Divergent old/new profile collisions stop without replacing either root.",
+                        "Windows case-only collisions stop on every test platform; linked or out-of-root profile roots are refused before copying.",
+                        "A current-profile write after staging aborts cutover and remains active.",
                         "Corrupt consent or receipt files are refused rather than guessed.",
                         "Interrupted staging is quarantined; a failed activation restores the prior Worldlens root.",
                         "Blocked browser storage leaves legacy values intact for a future retry.",
@@ -62,7 +64,7 @@ export const worldlensMigration: Article = {
                 {
                     kind: "paragraph",
                     content:
-                        "Profile migration refuses symbolic links, hashes every copied file, never returns credential contents, and uses atomic consent, journal and receipt writes. Windows artifacts are intentionally unsigned: HTTPS identifies the contacted host and protects transport, while Squirrel metadata and hashes detect changed bytes; neither authenticates the publisher.",
+                        "Profile migration refuses symbolic links, root junctions and resolved paths outside app data, hashes every copied file, never returns credential contents, and uses atomic consent, journal and receipt writes. Update handoff persists repository/channel identity rather than a versioned URL. Windows artifacts are intentionally unsigned: HTTPS identifies the contacted host and protects transport, while Squirrel metadata and hashes detect changed bytes; neither authenticates the publisher.",
                 },
             ],
         },
@@ -73,7 +75,7 @@ export const worldlensMigration: Article = {
                 {
                     kind: "paragraph",
                     content:
-                        "The matrix covers old-only, new-only, merge, collision, denial/retry, corrupt records, partial staging, rollback, idempotence, both marker generations, schema field preservation, preference namespaces and environment aliases. An isolated copy of the actual legacy profile migrated 885 files and 347,197,060 bytes with source unchanged and target byte-matched.",
+                        "The matrix covers old-only, new-only, merge, divergent and case-only collision, linked-root escape refusal, concurrent-write refusal, denial/retry, corrupt records, partial staging, rollback, idempotence, both marker generations, schema field preservation, preference namespaces, environment aliases and feed confirmation across installed versions. An isolated copy of the actual legacy profile migrated 885 files and 347,197,060 bytes with source unchanged and target byte-matched.",
                 },
             ],
         },

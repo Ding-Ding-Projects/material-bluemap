@@ -123,9 +123,11 @@ A packaged bridge build carries two explicit repositories: the Worldlens release
 the former repository as a bounded fallback. It checks Worldlens first. Until that profile has
 actually downloaded an update from the Worldlens feed, a current-feed error or no-update answer
 may cause one check against the legacy feed. After a current-feed download, the exact current and
-legacy URL pair is written atomically to
+legacy **repository-and-channel identity** pair is written atomically to
 `%APPDATA%\Worldlens\.worldlens-update-feed-handoff.json`; later launches stop consulting the
-legacy source. Changing either URL invalidates the confirmation and safely re-enters the bridge.
+legacy source. The versioned suffix of the feed URL is deliberately excluded, so installing a new
+build does not forget an earlier confirmation. Changing repository, architecture, or channel
+invalidates the confirmation and safely re-enters the bridge.
 
 This is the installed-client route: an old installed build receives a bridge release from the
 old feed, that bridge knows both repositories, and the following Worldlens release can arrive
@@ -293,22 +295,22 @@ no OneDrive and no particular amount of RAM**. Electron's `autoUpdater`, the she
 system, the clock, the timers, the machine's memory and the render-activity probe are all
 injected seams.
 
-| Area                                                                                                                       | Where                                                                                                             |
-| -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Failure classification, every rule and the ordering between them                                                           | `main/update/failure.test.ts`                                                                                     |
-| Feed resolution, the three refusals, the https rule, the token redaction                                                   | `main/update/feed.test.ts`                                                                                        |
-| Current-first repository fallback, persisted exact-pair confirmation, corruption handling                                  | `main/update/feedHandoff.test.ts`, `main/update/controller.test.ts`, `test/updateFeedRepositoryInjection.test.ts` |
-| The state machine, including "ready survives a failure" and "unsupported is terminal"                                      | `main/update/state.test.ts`                                                                                       |
-| The schedule: interval, back-off, cap, floor, and stopping once staged                                                     | `main/update/schedule.test.ts`                                                                                    |
-| No update, available, downloading, ready, restart declined, offline, corrupt asset, cancellation, and a render in progress | `main/update/controller.test.ts`                                                                                  |
-| The channels, the push, and that no credential crosses them                                                                | `main/update/ipc.test.ts`                                                                                         |
-| The OneDrive redirect and the user-called-OneDrive guard                                                                   | `main/files/documents.test.ts`                                                                                    |
-| The reveal allowlist: prefix siblings, links, relative paths, missing roots, files versus folders                          | `main/files/reveal.test.ts`                                                                                       |
-| The memory ceiling: recommendation, bounds, persistence, corruption, and the arguments produced                            | `main/files/renderMemory.test.ts`                                                                                 |
-| The banner and the settings row as pure models                                                                             | `ui/components/update/updateModel.test.ts`                                                                        |
-| Three language modes, five levels each, and that no level touches a version or a button                                    | `ui/components/update/updateCopy.test.ts`                                                                         |
-| The live controller and the bridge probe                                                                                   | `ui/components/update/useUpdates.test.ts`                                                                         |
-| The banner mounted: held Restart, dismissal, bilingual `lang`, exact version at level 5                                    | `ui/components/update/UpdateBanner.test.ts`                                                                       |
+| Area                                                                                                                                         | Where                                                                                                             |
+| -------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Failure classification, every rule and the ordering between them                                                                             | `main/update/failure.test.ts`                                                                                     |
+| Feed resolution, the three refusals, the https rule, the token redaction                                                                     | `main/update/feed.test.ts`                                                                                        |
+| Current-first repository fallback, version-independent identity-pair confirmation, corruption handling                                       | `main/update/feedHandoff.test.ts`, `main/update/controller.test.ts`, `test/updateFeedRepositoryInjection.test.ts` |
+| The state machine, including "ready survives a failure" and "unsupported is terminal"                                                        | `main/update/state.test.ts`                                                                                       |
+| The schedule: interval, back-off, cap, floor, and stopping once staged                                                                       | `main/update/schedule.test.ts`                                                                                    |
+| No update, available, downloading, ready, restart declined, offline, corrupt asset, cancellation, render activity, and cross-version handoff | `main/update/controller.test.ts`                                                                                  |
+| The channels, the push, and that no credential crosses them                                                                                  | `main/update/ipc.test.ts`                                                                                         |
+| The OneDrive redirect and the user-called-OneDrive guard                                                                                     | `main/files/documents.test.ts`                                                                                    |
+| The reveal allowlist: prefix siblings, links, relative paths, missing roots, files versus folders                                            | `main/files/reveal.test.ts`                                                                                       |
+| The memory ceiling: recommendation, bounds, persistence, corruption, and the arguments produced                                              | `main/files/renderMemory.test.ts`                                                                                 |
+| The banner and the settings row as pure models                                                                                               | `ui/components/update/updateModel.test.ts`                                                                        |
+| Three language modes, five levels each, and that no level touches a version or a button                                                      | `ui/components/update/updateCopy.test.ts`                                                                         |
+| The live controller and the bridge probe                                                                                                     | `ui/components/update/useUpdates.test.ts`                                                                         |
+| The banner mounted: held Restart, dismissal, bilingual `lang`, exact version at level 5                                                      | `ui/components/update/UpdateBanner.test.ts`                                                                       |
 
 **Not verified by running it.** No packaged three-version chain has been installed and updated
 end to end by this work. The required runtime proof is: install the last old-identity release,

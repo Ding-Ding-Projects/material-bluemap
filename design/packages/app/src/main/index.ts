@@ -1330,17 +1330,34 @@ async function launch(): Promise<void> {
     }
 }
 
-app.whenReady().then(async () => {
-    if (!(await prepareWorldlensProfile())) {
-        app.exit(1);
-        return;
-    }
-    await launch();
-    app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0) void launch();
-    });
-});
+const ownsSingleInstance = app.requestSingleInstanceLock();
 
-app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") app.quit();
-});
+if (!ownsSingleInstance) {
+    // Profile migration happens before any window or writable app-owned store is opened.
+    // A second process must therefore stop here, before it can stage or cut over the same
+    // profile while the owning process is validating its exact current manifest.
+    app.quit();
+} else {
+    app.on("second-instance", () => {
+        const window = BrowserWindow.getAllWindows()[0];
+        if (window === undefined || window.isDestroyed()) return;
+        if (window.isMinimized()) window.restore();
+        window.show();
+        window.focus();
+    });
+
+    app.whenReady().then(async () => {
+        if (!(await prepareWorldlensProfile())) {
+            app.exit(1);
+            return;
+        }
+        await launch();
+        app.on("activate", () => {
+            if (BrowserWindow.getAllWindows().length === 0) void launch();
+        });
+    });
+
+    app.on("window-all-closed", () => {
+        if (process.platform !== "darwin") app.quit();
+    });
+}

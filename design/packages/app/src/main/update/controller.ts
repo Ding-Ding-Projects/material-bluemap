@@ -233,7 +233,10 @@ export class UpdateController {
         } else {
             try {
                 this.currentFeedConfirmed =
-                    this.options.feedHandoff?.isCurrentConfirmed(feed.url, fallback.url) ?? false;
+                    this.options.feedHandoff?.isCurrentConfirmed(
+                        feed.handoffIdentity,
+                        fallback.handoffIdentity,
+                    ) ?? false;
             } catch {
                 this.currentFeedConfirmed = false;
             }
@@ -487,8 +490,8 @@ export class UpdateController {
         this.currentFeedConfirmed = true;
         try {
             this.options.feedHandoff?.confirmCurrent(
-                this.options.feed.feed.url,
-                this.options.feed.legacyFallback.url,
+                this.options.feed.feed.handoffIdentity,
+                this.options.feed.legacyFallback.handoffIdentity,
             );
         } catch {
             // A persistence failure must not discard an update that was already downloaded.

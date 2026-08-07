@@ -102,26 +102,34 @@ const workingFeed: FeedResolution = resolveFeed({
     environment: {},
 });
 
-const bridgedFeed: FeedResolution = resolveFeed({
-    packaged: true,
-    platform: "win32",
-    arch: "x64",
-    version: "0.1.0",
-    repository: "Ding-Ding-Projects/worldlens",
-    legacyRepository: "Ding-Ding-Projects/material-bluemap",
-    environment: {},
-});
+function bridgedFeedFor(version: string): FeedResolution {
+    return resolveFeed({
+        packaged: true,
+        platform: "win32",
+        arch: "x64",
+        version,
+        repository: "Ding-Ding-Projects/worldlens",
+        legacyRepository: "Ding-Ding-Projects/material-bluemap",
+        environment: {},
+    });
+}
+
+const bridgedFeed: FeedResolution = bridgedFeedFor("0.1.0");
 
 class MemoryHandoff implements UpdateFeedHandoff {
-    confirmed = false;
+    private pair: string | null = null;
     confirmations = 0;
 
-    isCurrentConfirmed(): boolean {
-        return this.confirmed;
+    get confirmed(): boolean {
+        return this.pair !== null;
     }
 
-    confirmCurrent(): void {
-        this.confirmed = true;
+    isCurrentConfirmed(currentIdentity: string, legacyIdentity: string): boolean {
+        return this.pair === `${currentIdentity}\n${legacyIdentity}`;
+    }
+
+    confirmCurrent(currentIdentity: string, legacyIdentity: string): void {
+        this.pair = `${currentIdentity}\n${legacyIdentity}`;
         this.confirmations += 1;
     }
 }
@@ -233,6 +241,29 @@ describe("UpdateController", () => {
         expect(next.engine.feeds).toHaveLength(1);
         expect(next.engine.feed?.url).toContain("Ding-Ding-Projects/worldlens");
         expect(next.controller.current().status).toBe("failed");
+    });
+
+    it("keeps the current-feed confirmation across an installed-version change", () => {
+        const handoff = new MemoryHandoff();
+        const build100 = harness({
+            feed: bridgedFeedFor("0.1.0-build.100"),
+            feedHandoff: handoff,
+        });
+        build100.controller.start();
+        build100.controller.check({ manual: true });
+        build100.engine.emit("update-downloaded", {}, null, "0.1.0-build.101", new Date(), null);
+
+        const build101 = harness({
+            feed: bridgedFeedFor("0.1.0-build.101"),
+            feedHandoff: handoff,
+        });
+        build101.controller.start();
+        build101.controller.check({ manual: true });
+        build101.engine.emit("error", new Error("current feed offline"));
+
+        expect(build101.engine.feeds).toHaveLength(1);
+        expect(build101.engine.feed?.url).toContain("Ding-Ding-Projects/worldlens");
+        expect(build101.controller.current().status).toBe("failed");
     });
 
     it("does not confirm the current feed when the bridge release came from legacy", () => {

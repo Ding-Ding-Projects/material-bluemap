@@ -1,16 +1,18 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
     copyFile,
+    lstat,
     mkdir,
     open,
     readFile,
     readdir,
+    realpath,
     rename,
     rm,
     stat,
     writeFile,
 } from "node:fs/promises";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { LEGACY_MATERIAL_BLUEMAP_IDENTITY, WORLDLENS_IDENTITY } from "@worldlens/shared";
 
 export const PROFILE_MIGRATION_VERSION = 1;
@@ -73,6 +75,7 @@ interface Receipt {
 
 export type ProfileMigrationCheckpoint =
     | "before-backup-rename"
+    | "before-current-revalidation"
     | "after-backup-rename"
     | "before-receipt-write"
     | "after-receipt-write"
@@ -100,6 +103,7 @@ interface ProfileMigrationTransaction {
     readonly backupDirectory: string | null;
     readonly failedDirectory: string;
     readonly manifest: readonly ManifestEntry[];
+    readonly currentManifest: readonly ManifestEntry[];
     readonly files: number;
     readonly bytes: number;
     readonly startedAt: string;
@@ -124,11 +128,14 @@ export interface MigrateWorldlensProfileOptions {
     ) => Promise<void | "simulate-crash">;
 }
 
+function insideOrEqual(parent: string, child: string): boolean {
+    const rel = relative(resolve(parent), resolve(child));
+    return rel === "" || (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel));
+}
+
 function inside(parent: string, child: string): boolean {
     const rel = relative(resolve(parent), resolve(child));
-    return (
-        rel !== "" && rel !== ".." && !rel.startsWith(`..${sep}`) && !resolve(rel).startsWith(sep)
-    );
+    return rel !== "" && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
 }
 
 export function profileMigrationPlan(appDataDirectory: string): ProfileMigrationPlan {
@@ -154,6 +161,37 @@ async function exists(path: string): Promise<boolean> {
         if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
         throw error;
     }
+}
+
+/**
+ * Refuse a profile tree whose root is itself an indirection, and prove its resolved target
+ * remains below the trusted application-data root. `readdir()` follows a root junction even
+ * when every nested Dirent is ordinary, so the check has to happen before the first walk.
+ */
+async function assertSafeDirectoryRoot(path: string, trustedRoot: string): Promise<boolean> {
+    let entry;
+    try {
+        entry = await lstat(path);
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
+        throw error;
+    }
+    if (entry.isSymbolicLink()) {
+        throw new Error(`Profile migration refused linked or reparse-point root ${path}.`);
+    }
+    if (!entry.isDirectory()) {
+        throw new Error(`Profile migration expected a directory at ${path}.`);
+    }
+    const [actualRoot, actualTrustedRoot] = await Promise.all([
+        realpath(path),
+        realpath(trustedRoot),
+    ]);
+    if (!insideOrEqual(actualTrustedRoot, actualRoot)) {
+        throw new Error(
+            `Profile migration refused root ${path}; its resolved target leaves the application-data directory.`,
+        );
+    }
+    return true;
 }
 
 async function writeJsonAtomic(path: string, value: unknown): Promise<void> {
@@ -209,6 +247,27 @@ function receipt(value: unknown): Receipt | null {
     return candidate as Receipt;
 }
 
+function validManifest(value: unknown): value is readonly ManifestEntry[] {
+    if (!Array.isArray(value)) return false;
+    for (const entry of value) {
+        if (typeof entry !== "object" || entry === null) return false;
+        const typed = entry as ManifestEntry;
+        const segments = typeof typed.path === "string" ? typed.path.split("/") : [];
+        if (
+            typeof typed.path !== "string" ||
+            typed.path.includes("\\") ||
+            segments.length === 0 ||
+            segments.some((segment) => segment === "" || segment === "." || segment === "..") ||
+            !Number.isSafeInteger(typed.bytes) ||
+            typed.bytes < 0 ||
+            !/^[0-9a-f]{64}$/.test(typed.sha256)
+        ) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function transactionRecord(
     value: unknown,
     plan: ProfileMigrationPlan,
@@ -242,7 +301,8 @@ function transactionRecord(
                 !candidate.backupDirectory.startsWith(
                     `${plan.worldlensDirectory}.pre-migration-`,
                 ))) ||
-        !Array.isArray(candidate.manifest) ||
+        !validManifest(candidate.manifest) ||
+        !validManifest(candidate.currentManifest) ||
         typeof candidate.files !== "number" ||
         typeof candidate.bytes !== "number" ||
         typeof candidate.startedAt !== "string"
@@ -250,23 +310,7 @@ function transactionRecord(
         return null;
     }
     let manifestBytes = 0;
-    for (const entry of candidate.manifest) {
-        if (typeof entry !== "object" || entry === null) return null;
-        const typed = entry as ManifestEntry;
-        const segments = typeof typed.path === "string" ? typed.path.split("/") : [];
-        if (
-            typeof typed.path !== "string" ||
-            typed.path.includes("\\") ||
-            segments.length === 0 ||
-            segments.some((segment) => segment === "" || segment === "." || segment === "..") ||
-            !Number.isSafeInteger(typed.bytes) ||
-            typed.bytes < 0 ||
-            !/^[0-9a-f]{64}$/.test(typed.sha256)
-        ) {
-            return null;
-        }
-        manifestBytes += typed.bytes;
-    }
+    for (const entry of candidate.manifest) manifestBytes += entry.bytes;
     if (candidate.files !== candidate.manifest.length || candidate.bytes !== manifestBytes)
         return null;
     return candidate as ProfileMigrationTransaction;
@@ -277,8 +321,8 @@ async function hashFile(path: string): Promise<{ bytes: number; sha256: string }
     return { bytes: data.byteLength, sha256: createHash("sha256").update(data).digest("hex") };
 }
 
-async function filesUnder(root: string): Promise<string[]> {
-    if (!(await exists(root))) return [];
+async function filesUnder(root: string, trustedRoot: string): Promise<string[]> {
+    if (!(await assertSafeDirectoryRoot(root, trustedRoot))) return [];
     const found: string[] = [];
     const walk = async (directory: string): Promise<void> => {
         const entries = await readdir(directory, { withFileTypes: true });
@@ -312,8 +356,8 @@ function manifestDigest(manifest: readonly ManifestEntry[]): string {
     return createHash("sha256").update(JSON.stringify(manifest)).digest("hex");
 }
 
-async function copyTree(source: string, target: string): Promise<void> {
-    for (const path of await filesUnder(source)) {
+async function copyTree(source: string, target: string, trustedRoot: string): Promise<void> {
+    for (const path of await filesUnder(source, trustedRoot)) {
         const from = join(source, ...path.split("/"));
         const to = join(target, ...path.split("/"));
         await mkdir(dirname(to), { recursive: true });
@@ -321,34 +365,76 @@ async function copyTree(source: string, target: string): Promise<void> {
     }
 }
 
-async function collisions(legacy: string, current: string): Promise<string[]> {
-    if (!(await exists(current))) return [];
-    const legacyPaths = new Set(await filesUnder(legacy));
-    const currentPaths = (await filesUnder(current)).filter(
+function windowsPathKey(path: string): string {
+    return path.normalize("NFC").toLowerCase();
+}
+
+async function collisions(legacy: string, current: string, trustedRoot: string): Promise<string[]> {
+    const legacyPaths = await filesUnder(legacy, trustedRoot);
+    const currentPaths = (await filesUnder(current, trustedRoot)).filter(
         (path) => path !== PROFILE_MIGRATION_RECEIPT_FILE,
     );
-    const conflicts: string[] = [];
-    for (const path of currentPaths) {
-        if (!legacyPaths.has(path)) continue;
-        const [left, right] = await Promise.all([
-            hashFile(join(legacy, ...path.split("/"))),
-            hashFile(join(current, ...path.split("/"))),
-        ]);
-        if (left.bytes !== right.bytes || left.sha256 !== right.sha256) conflicts.push(path);
+    const legacyByKey = new Map<string, string[]>();
+    const currentByKey = new Map<string, string[]>();
+    for (const path of legacyPaths) {
+        const key = windowsPathKey(path);
+        legacyByKey.set(key, [...(legacyByKey.get(key) ?? []), path]);
     }
-    return conflicts;
+    for (const path of currentPaths) {
+        const key = windowsPathKey(path);
+        currentByKey.set(key, [...(currentByKey.get(key) ?? []), path]);
+    }
+    const conflicts: string[] = [];
+    const keys = new Set([...legacyByKey.keys(), ...currentByKey.keys()]);
+    for (const key of keys) {
+        const legacyMatches = legacyByKey.get(key) ?? [];
+        const currentMatches = currentByKey.get(key) ?? [];
+        if (legacyMatches.length > 1) conflicts.push(legacyMatches.join(" ↔ "));
+        if (currentMatches.length > 1) conflicts.push(currentMatches.join(" ↔ "));
+        if (legacyMatches.length !== 1 || currentMatches.length !== 1) continue;
+        const legacyPath = legacyMatches[0]!;
+        const currentPath = currentMatches[0]!;
+        if (legacyPath !== currentPath) {
+            conflicts.push(`${legacyPath} ↔ ${currentPath}`);
+            continue;
+        }
+        const [left, right] = await Promise.all([
+            hashFile(join(legacy, ...legacyPath.split("/"))),
+            hashFile(join(current, ...currentPath.split("/"))),
+        ]);
+        if (left.bytes !== right.bytes || left.sha256 !== right.sha256) conflicts.push(currentPath);
+    }
+    return [...new Set(conflicts)].sort((left, right) => left.localeCompare(right));
 }
 
 async function verifyManifest(
     directory: string,
     manifest: readonly ManifestEntry[],
+    trustedRoot: string,
 ): Promise<void> {
+    await assertSafeDirectoryRoot(directory, trustedRoot);
     for (const expected of manifest) {
         const actual = await hashFile(join(directory, ...expected.path.split("/")));
         if (actual.bytes !== expected.bytes || actual.sha256 !== expected.sha256) {
             throw new Error(`Verification failed for ${expected.path}.`);
         }
     }
+}
+
+async function verifyExactManifest(
+    directory: string,
+    manifest: readonly ManifestEntry[],
+    trustedRoot: string,
+): Promise<void> {
+    const actualPaths = await filesUnder(directory, trustedRoot);
+    const expectedPaths = manifest.map((entry) => entry.path);
+    if (
+        actualPaths.length !== expectedPaths.length ||
+        actualPaths.some((path, index) => path !== expectedPaths[index])
+    ) {
+        throw new Error("The current Worldlens profile changed while migration was staging it.");
+    }
+    await verifyManifest(directory, manifest, trustedRoot);
 }
 
 function timestampForPath(date: Date): string {
@@ -454,9 +540,22 @@ async function recoverProfileMigrationTransaction(
 
     if (activationMayHaveCompleted) {
         try {
-            await (options.verifyActivatedProfile ?? verifyManifest)(
+            if (options.verifyActivatedProfile !== undefined) {
+                await options.verifyActivatedProfile(
+                    transaction.worldlensDirectory,
+                    transaction.manifest,
+                );
+            } else {
+                await verifyManifest(
+                    transaction.worldlensDirectory,
+                    transaction.manifest,
+                    options.appDataDirectory,
+                );
+            }
+            await verifyManifest(
                 transaction.worldlensDirectory,
-                transaction.manifest,
+                transaction.currentManifest,
+                options.appDataDirectory,
             );
             const storedReceipt = receipt(
                 await readJson(
@@ -489,9 +588,13 @@ export async function migrateWorldlensProfile(
     const now = options.now ?? (() => new Date());
     const receiptPath = join(plan.worldlensDirectory, PROFILE_MIGRATION_RECEIPT_FILE);
     const journalPath = transactionPath(options.appDataDirectory);
+    const trustedRoot = resolve(options.appDataDirectory);
 
     try {
+        await assertSafeDirectoryRoot(plan.legacyDirectory, trustedRoot);
+        await assertSafeDirectoryRoot(plan.worldlensDirectory, trustedRoot);
         await recoverProfileMigrationTransaction(options, plan, now);
+        await assertSafeDirectoryRoot(plan.worldlensDirectory, trustedRoot);
 
         const existingReceipt = await readJson(receiptPath);
         if (existingReceipt !== null) {
@@ -504,7 +607,8 @@ export async function migrateWorldlensProfile(
             }
             return { kind: "already-migrated", plan };
         }
-        if (!(await exists(plan.legacyDirectory))) return { kind: "no-legacy-profile", plan };
+        if (!(await assertSafeDirectoryRoot(plan.legacyDirectory, trustedRoot)))
+            return { kind: "no-legacy-profile", plan };
 
         const consentPath = join(options.appDataDirectory, PROFILE_MIGRATION_CONSENT_FILE);
         const rawConsent = await readJson(consentPath);
@@ -528,26 +632,43 @@ export async function migrateWorldlensProfile(
             if (decision === "deny") return { kind: "denied", plan };
         }
 
-        const conflicts = await collisions(plan.legacyDirectory, plan.worldlensDirectory);
+        const conflicts = await collisions(
+            plan.legacyDirectory,
+            plan.worldlensDirectory,
+            trustedRoot,
+        );
         if (conflicts.length > 0) return { kind: "collision", plan, paths: conflicts };
+
+        const hasCurrentProfile = await assertSafeDirectoryRoot(
+            plan.worldlensDirectory,
+            trustedRoot,
+        );
+        const currentPaths = hasCurrentProfile
+            ? (await filesUnder(plan.worldlensDirectory, trustedRoot)).filter(
+                  (path) => path !== PROFILE_MIGRATION_RECEIPT_FILE,
+              )
+            : [];
+        const currentManifest = hasCurrentProfile
+            ? await manifestFor(plan.worldlensDirectory, currentPaths)
+            : [];
 
         if (await exists(plan.stagingDirectory)) {
             const partial = uniqueSiblingPath(`${plan.stagingDirectory}.partial`, now());
             await rename(plan.stagingDirectory, partial);
         }
         await mkdir(plan.stagingDirectory, { recursive: false });
-        if (await exists(plan.worldlensDirectory)) {
-            await copyTree(plan.worldlensDirectory, plan.stagingDirectory);
+        if (hasCurrentProfile) {
+            await copyTree(plan.worldlensDirectory, plan.stagingDirectory, trustedRoot);
         }
-        await copyTree(plan.legacyDirectory, plan.stagingDirectory);
+        await copyTree(plan.legacyDirectory, plan.stagingDirectory, trustedRoot);
 
-        const legacyPaths = await filesUnder(plan.legacyDirectory);
+        const legacyPaths = await filesUnder(plan.legacyDirectory, trustedRoot);
         const manifest = await manifestFor(plan.legacyDirectory, legacyPaths);
-        await verifyManifest(plan.stagingDirectory, manifest);
+        await verifyManifest(plan.stagingDirectory, currentManifest, trustedRoot);
+        await verifyManifest(plan.stagingDirectory, manifest, trustedRoot);
         const bytes = manifest.reduce((sum, entry) => sum + entry.bytes, 0);
 
         const startedAt = now();
-        const hasCurrentProfile = await exists(plan.worldlensDirectory);
         const backup = hasCurrentProfile
             ? uniqueSiblingPath(`${plan.worldlensDirectory}.pre-migration`, startedAt)
             : null;
@@ -560,6 +681,7 @@ export async function migrateWorldlensProfile(
             backupDirectory: backup,
             failedDirectory: uniqueSiblingPath(`${plan.worldlensDirectory}.failed`, startedAt),
             manifest,
+            currentManifest,
             files: manifest.length,
             bytes,
             startedAt: startedAt.toISOString(),
@@ -568,6 +690,8 @@ export async function migrateWorldlensProfile(
 
         if (backup !== null) {
             await checkpoint(options, "before-backup-rename");
+            await checkpoint(options, "before-current-revalidation");
+            await verifyExactManifest(plan.worldlensDirectory, currentManifest, trustedRoot);
             await rename(plan.worldlensDirectory, backup);
             transaction = await writeTransaction(journalPath, transaction, "backup-renamed");
             await checkpoint(options, "after-backup-rename");
@@ -595,12 +719,25 @@ export async function migrateWorldlensProfile(
         await checkpoint(options, "after-receipt-write");
 
         await checkpoint(options, "before-staging-activation");
+        await verifyExactManifest(plan.legacyDirectory, manifest, trustedRoot);
+        if (backup !== null) {
+            await verifyExactManifest(backup, currentManifest, trustedRoot);
+        } else if (await assertSafeDirectoryRoot(plan.worldlensDirectory, trustedRoot)) {
+            throw new Error(
+                "The current Worldlens profile appeared while migration was staging; activation was refused.",
+            );
+        }
         await rename(plan.stagingDirectory, plan.worldlensDirectory);
         transaction = await writeTransaction(journalPath, transaction, "activated");
         await checkpoint(options, "after-staging-activation");
 
         await checkpoint(options, "before-verification");
-        await (options.verifyActivatedProfile ?? verifyManifest)(plan.worldlensDirectory, manifest);
+        if (options.verifyActivatedProfile !== undefined) {
+            await options.verifyActivatedProfile(plan.worldlensDirectory, manifest);
+        } else {
+            await verifyManifest(plan.worldlensDirectory, manifest, trustedRoot);
+        }
+        await verifyManifest(plan.worldlensDirectory, currentManifest, trustedRoot);
         if (receipt(await readJson(receiptPath)) === null)
             throw new Error("Migration receipt read-back failed.");
         transaction = await writeTransaction(journalPath, transaction, "verified");
