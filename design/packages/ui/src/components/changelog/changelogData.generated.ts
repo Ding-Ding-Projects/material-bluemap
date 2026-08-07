@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "349178590bc79412923d76225390848f25e5e722",
+        shortSha: "349178590b",
+        date: "2026-08-07T02:08:44-04:00",
+        subject: "Publish verified Server plugin tab capture",
+        details: "The gallery now carries the exact image from terminal-green run 31150938432, where all eight tabs survived and the close button finally stopped auditioning as navigation.\n\n圖庫而家用 exact 綠色 run 31150938432 嗰張真圖，八個 tab 齊人，close 掣終於唔再走去應徵導航。",
+        category: "docs",
+        areas: ["docs"],
+        files: 1,
+    },
+    {
         sha: "4e087432fba694e55e905004fe5d71328b94b289",
         shortSha: "4e087432fb",
         date: "2026-08-07T01:32:12-04:00",

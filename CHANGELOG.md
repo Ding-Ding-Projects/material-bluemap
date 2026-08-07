@@ -32,6 +32,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Publish verified Server plugin tab capture - [`349178590b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/349178590bc79412923d76225390848f25e5e722)
 - Merge screenshot tab activation repair - [`4e087432fb`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4e087432fba694e55e905004fe5d71328b94b289) _(summary of 3 commits, also listed here)_
 - Repair Options tab screenshot activation - [`ae0a6894b5`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ae0a6894b52754a9339b8c17d4fa28a781811457)
 - Document the whole-job release guard - [`ad7e2cabcc`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/ad7e2cabcc1ec3f7de868cc919c0b32ce4f0b991)
