@@ -20,7 +20,6 @@
         "format:check": "prettier --check ."
     },
     "devDependencies": {
-        "@types_node": "^22.15.0",
         "@types/node": "^22.15.0",
         "@vitejs/plugin-vue": "^5.2.4",
         "eslint": "^9.30.0",
