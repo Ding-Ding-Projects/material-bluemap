@@ -55,6 +55,7 @@ const EMPTY: TabStripState = {
     label: "Main",
     windowId: "window-1",
     windowLabel: "Material BlueMap",
+    placement: "left",
     tabs: [],
     groups: [],
     pinnedOrder: [],
@@ -69,7 +70,10 @@ function saved(): TabWorkspaceState {
         EMPTY,
     );
     strip = pinTab(strip, "map");
-    strip = createGroup(strip, { id: "g-renders", name: "Renders", color: "tertiary" }, ["nether", "end"]);
+    strip = createGroup(strip, { id: "g-renders", name: "Renders", color: "tertiary" }, [
+        "nether",
+        "end",
+    ]);
     strip = createGroup(strip, { id: "g-admin", name: "Admin", color: "info" }, ["settings"]);
     strip = setGroupCollapsed(strip, "g-admin", true);
     strip = moveGroup(strip, "g-admin", -1);
@@ -89,7 +93,13 @@ describe("what survives a restart", () => {
     const original = before.strips[0] as TabStripState;
 
     it("restores the tabs themselves", () => {
-        expect(strip?.tabs.map((tab) => tab.id).sort()).toEqual(["end", "map", "nether", "notes", "settings"]);
+        expect(strip?.tabs.map((tab) => tab.id).sort()).toEqual([
+            "end",
+            "map",
+            "nether",
+            "notes",
+            "settings",
+        ]);
     });
 
     it("restores the left-to-right tab order", () => {
@@ -124,11 +134,24 @@ describe("what survives a restart", () => {
         expect(strip?.activeTabId).toBe(original.activeTabId);
     });
 
+    it("restores the strip edge independently of its ordering state", () => {
+        const workspace: TabWorkspaceState = {
+            strips: [{ ...(saved().strips[0] as TabStripState), placement: "right" }],
+        };
+        expect(roundTrip(workspace)?.strips[0]?.placement).toBe("right");
+    });
+
     it("carries an appearance record through verbatim, without looking inside it", () => {
         const decorated: TabWorkspaceState = {
-            strips: [setTabAppearance(original, "notes", { font: { family: "Roboto", axes: { wght: 620 } } })],
+            strips: [
+                setTabAppearance(original, "notes", {
+                    font: { family: "Roboto", axes: { wght: 620 } },
+                }),
+            ],
         };
-        expect(roundTrip(decorated)?.strips[0]?.tabs.find((tab) => tab.id === "notes")?.appearance).toEqual({
+        expect(
+            roundTrip(decorated)?.strips[0]?.tabs.find((tab) => tab.id === "notes")?.appearance,
+        ).toEqual({
             font: { family: "Roboto", axes: { wght: 620 } },
         });
     });
@@ -136,7 +159,9 @@ describe("what survives a restart", () => {
 
 describe("what deliberately does not survive", () => {
     it("forgets that a tab held unsaved work, because it no longer does", () => {
-        const dirty: TabWorkspaceState = { strips: [setTabDirty(saved().strips[0] as TabStripState, "notes", true)] };
+        const dirty: TabWorkspaceState = {
+            strips: [setTabDirty(saved().strips[0] as TabStripState, "notes", true)],
+        };
         expect(roundTrip(dirty)?.strips[0]?.tabs.every((tab) => !tab.dirty)).toBe(true);
     });
 
@@ -151,8 +176,28 @@ describe("what deliberately does not survive", () => {
 });
 
 describe("files this build did not write", () => {
+    it("migrates a version-1 record to the left edge without losing its tabs", () => {
+        const storage = memoryStorage();
+        writeTabWorkspace(saved(), storage);
+        const parsed = JSON.parse(storage.cells.get(DEFAULT_TAB_STORAGE_KEY) ?? "{}") as {
+            version?: number;
+            strips?: Record<string, unknown>[];
+        };
+        parsed.version = 1;
+        delete parsed.strips?.[0]?.["placement"];
+        storage.cells.set(DEFAULT_TAB_STORAGE_KEY, JSON.stringify(parsed));
+
+        const migrated = readTabWorkspace(storage)?.strips[0];
+        expect(migrated?.placement).toBe("left");
+        expect(migrated?.tabs).toHaveLength(5);
+        expect(migrated?.groups).toHaveLength(2);
+        expect(migrated?.pinnedOrder).toEqual(["map"]);
+    });
+
     it("refuses a version it does not understand rather than half-reading it", () => {
-        const storage = memoryStorage(JSON.stringify({ version: TAB_STORAGE_VERSION + 1, strips: [] }));
+        const storage = memoryStorage(
+            JSON.stringify({ version: TAB_STORAGE_VERSION + 1, strips: [] }),
+        );
         expect(readTabWorkspace(storage)).toBeNull();
     });
 
@@ -171,10 +216,16 @@ describe("files this build did not write", () => {
                 strips: [
                     {
                         id: "strip-main",
-                        tabs: [{ id: "a", pageId: "map", label: "A" }, { pageId: "map", label: "nameless" }],
+                        tabs: [
+                            { id: "a", pageId: "map", label: "A" },
+                            { pageId: "map", label: "nameless" },
+                        ],
                         groups: [{ id: "g1", name: "One", tabIds: ["a", "ghost"] }],
                         pinnedOrder: ["ghost"],
-                        slots: [{ kind: "group", groupId: "g1" }, { kind: "tab", tabId: "ghost" }],
+                        slots: [
+                            { kind: "group", groupId: "g1" },
+                            { kind: "tab", tabId: "ghost" },
+                        ],
                         activeTabId: "ghost",
                     },
                 ],
@@ -197,13 +248,21 @@ describe("files this build did not write", () => {
         const strip = readTabWorkspace(storage)?.strips[0];
         expect(strip?.label).toBe("strip-main");
         expect(strip?.windowId).toBe("main");
-        expect(strip?.tabs[0]).toMatchObject({ label: "a", icon: null, dirty: false, appearance: null });
+        expect(strip?.tabs[0]).toMatchObject({
+            label: "a",
+            icon: null,
+            dirty: false,
+            appearance: null,
+        });
         expect(strip?.slots).toEqual([{ kind: "tab", tabId: "a" }]);
     });
 
     it("refuses a strip with no tabs, so it cannot shadow the defaults", () => {
         const storage = memoryStorage(
-            JSON.stringify({ version: TAB_STORAGE_VERSION, strips: [{ id: "strip-main", tabs: [] }] }),
+            JSON.stringify({
+                version: TAB_STORAGE_VERSION,
+                strips: [{ id: "strip-main", tabs: [] }],
+            }),
         );
         expect(readTabWorkspace(storage)).toBeNull();
     });
@@ -249,7 +308,10 @@ describe("mirroring into the application-settings history", () => {
         const workspace = saved();
         writeTabWorkspace(workspace, memoryStorage(), "material-bluemap-settings-tabs");
         expect(recordAppSetting).toHaveBeenCalledTimes(1);
-        expect(recordAppSetting).toHaveBeenCalledWith("tabs.material-bluemap-settings-tabs", workspace);
+        expect(recordAppSetting).toHaveBeenCalledWith(
+            "tabs.material-bluemap-settings-tabs",
+            workspace,
+        );
     });
 
     it("still mirrors when there is no local storage to write to at all", () => {

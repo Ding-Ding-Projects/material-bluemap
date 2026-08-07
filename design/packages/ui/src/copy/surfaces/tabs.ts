@@ -537,6 +537,24 @@ export const TABS_FIXED = {
     "tabs.strip.label": { en: "{strip}, {count} tabs", yue: "{strip}，{count} 個分頁" },
     "tabs.strip.newTab": { en: "Open a new tab", yue: "開個新分頁" },
     "tabs.strip.overflowList": { en: "Tabs that do not fit", yue: "擺唔落嘅分頁" },
+    "tabs.placement.title": { en: "Tab strip edge", yue: "分頁列擺邊條邊" },
+    "tabs.placement.button": {
+        en: "Move this tab strip. Current edge: {placement}.",
+        yue: "搬呢條分頁列。而家喺 {placement} 邊。",
+    },
+    "tabs.placement.description": {
+        en: "Choose the edge for this strip. The choice is saved for this strip without changing its tabs, pins, groups, or order.",
+        yue: "揀呢條分頁列擺邊條邊。選擇會獨立儲低，唔會郁入面啲分頁、釘住項目、群組或者次序。",
+    },
+    "tabs.placement.search": { en: "Search tab strip edges", yue: "搜尋分頁列邊位" },
+    "tabs.placement.left": { en: "Left edge", yue: "左邊" },
+    "tabs.placement.right": { en: "Right edge", yue: "右邊" },
+    "tabs.placement.top": { en: "Top edge", yue: "上邊" },
+    "tabs.placement.bottom": { en: "Bottom edge", yue: "下邊" },
+    "tabs.placement.provenance": {
+        en: "Source: this strip's saved setting. Built-in fallback for fresh and migrated profiles: Left edge.",
+        yue: "來源：呢條分頁列自己儲低嘅設定。新 profile 同舊記錄遷移嘅內置後備值：左邊。",
+    },
 
     /*
      * Accessible names for a tab button. Pinned and unsaved are separate states that can

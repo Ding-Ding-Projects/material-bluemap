@@ -49,7 +49,9 @@ export { default as TabPlanConfirm } from "./TabPlanConfirm.vue";
 
 export {
     DEFAULT_GROUP_COLOR,
+    DEFAULT_TAB_PLACEMENT,
     GROUP_COLORS,
+    TAB_PLACEMENTS,
     addTab,
     assignTabToGroup,
     closeTabs,
@@ -75,6 +77,7 @@ export {
     setGroupColor,
     setTabAppearance,
     setTabDirty,
+    setTabPlacement,
     stripSegments,
     tabOrder,
     unpinTab,
@@ -86,6 +89,7 @@ export type {
     StripSegment,
     TabGroup,
     TabPage,
+    TabPlacement,
     TabRecord,
     TabRegion,
     TabSlot,
@@ -128,5 +132,10 @@ export type {
 export { filterMenuItems } from "./tabMenus.js";
 export type { TabMenuItem } from "./tabMenus.js";
 
-export { DEFAULT_TAB_STORAGE_KEY, TAB_STORAGE_VERSION, readTabWorkspace, writeTabWorkspace } from "./tabStorage.js";
+export {
+    DEFAULT_TAB_STORAGE_KEY,
+    TAB_STORAGE_VERSION,
+    readTabWorkspace,
+    writeTabWorkspace,
+} from "./tabStorage.js";
 export type { TabStorage } from "./tabStorage.js";

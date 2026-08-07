@@ -38,12 +38,18 @@ import {
     type TabWorkspaceState,
 } from "./tabModel.js";
 
-function emptyStrip(id: string, label: string, windowId: string, windowLabel: string): TabStripState {
+function emptyStrip(
+    id: string,
+    label: string,
+    windowId: string,
+    windowLabel: string,
+): TabStripState {
     return {
         id,
         label,
         windowId,
         windowLabel,
+        placement: "left",
         tabs: [],
         groups: [],
         pinnedOrder: [],
@@ -55,7 +61,13 @@ function emptyStrip(id: string, label: string, windowId: string, windowLabel: st
 /** The main strip: a pinned map, a group of two renders, and two loose tabs. */
 function mainStrip(): TabStripState {
     let strip = emptyStrip("strip-main", "Main", "window-1", "Material BlueMap");
-    for (const label of ["Overworld map", "Nether render", "End render", "Settings", "Änderungen"]) {
+    for (const label of [
+        "Overworld map",
+        "Nether render",
+        "End render",
+        "Settings",
+        "Änderungen",
+    ]) {
         strip = addTab(strip, { id: label, pageId: "map", label });
     }
     strip = pinTab(strip, "Overworld map");
@@ -70,7 +82,9 @@ function mainStrip(): TabStripState {
 function otherStrip(): TabStripState {
     let strip = emptyStrip("strip-side", "Side", "window-2", "Second window");
     strip = addTab(strip, { id: "side-settings", pageId: "settings", label: "Settings" });
-    strip = createGroup(strip, { id: "g-notes", name: "Render notes", color: "info" }, ["side-settings"]);
+    strip = createGroup(strip, { id: "g-notes", name: "Render notes", color: "info" }, [
+        "side-settings",
+    ]);
     return strip;
 }
 
@@ -121,16 +135,17 @@ describe("1: the current strip", () => {
     it("matches the visible label and nothing behind it", () => {
         // Every tab's `pageId` is "map"; searching for it must find none of them.
         expect(searchStripTabs(mainStrip(), plain("pageId"))).toEqual([]);
-        expect(searchStripTabs(mainStrip(), plain("map")).map((hit) => hit.label)).toEqual(["Overworld map"]);
+        expect(searchStripTabs(mainStrip(), plain("map")).map((hit) => hit.label)).toEqual([
+            "Overworld map",
+        ]);
     });
 });
 
 describe("2: inside one group", () => {
     it("returns that group's tabs and refuses to widen to the strip", () => {
-        expect(searchGroupTabs(mainStrip(), "g-renders", plain("")).map((hit) => hit.label)).toEqual([
-            "Nether render",
-            "End render",
-        ]);
+        expect(
+            searchGroupTabs(mainStrip(), "g-renders", plain("")).map((hit) => hit.label),
+        ).toEqual(["Nether render", "End render"]);
         // "Settings" exists in the strip and not in this group.
         expect(searchGroupTabs(mainStrip(), "g-renders", plain("settings"))).toEqual([]);
     });
@@ -203,9 +218,15 @@ describe("the scopes do not leak into one another", () => {
     });
 
     it("handles Unicode, a case-sensitive pattern and a zero-width one", () => {
-        expect(searchStripTabs(mainStrip(), plain("änderungen")).map((hit) => hit.label)).toEqual(["Änderungen"]);
-        expect(searchStripTabs(mainStrip(), regex("^End", "")).map((hit) => hit.label)).toEqual(["End render"]);
-        expect(searchStripTabs(mainStrip(), regex("^", "")).map((hit) => hit.label)).toHaveLength(5);
+        expect(searchStripTabs(mainStrip(), plain("änderungen")).map((hit) => hit.label)).toEqual([
+            "Änderungen",
+        ]);
+        expect(searchStripTabs(mainStrip(), regex("^End", "")).map((hit) => hit.label)).toEqual([
+            "End render",
+        ]);
+        expect(searchStripTabs(mainStrip(), regex("^", "")).map((hit) => hit.label)).toHaveLength(
+            5,
+        );
     });
 });
 
@@ -218,7 +239,10 @@ describe("the corpora the builders preview against", () => {
             "Settings",
             "Änderungen",
         ]);
-        expect(groupSample(mainStrip(), "g-renders").split("\n")).toEqual(["Nether render", "End render"]);
+        expect(groupSample(mainStrip(), "g-renders").split("\n")).toEqual([
+            "Nether render",
+            "End render",
+        ]);
         expect(groupNameSample(workspace()).split("\n")).toEqual(["Renders", "Render notes"]);
         expect(workspaceSample(workspace()).split("\n")).toHaveLength(6);
     });

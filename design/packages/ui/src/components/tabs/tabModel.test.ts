@@ -32,6 +32,7 @@ import {
     setGroupAppearance,
     setGroupCollapsed,
     setTabAppearance,
+    setTabPlacement,
     stripSegments,
     tabOrder,
     unpinTab,
@@ -43,6 +44,7 @@ const EMPTY: TabStripState = {
     label: "Main",
     windowId: "window-1",
     windowLabel: "Material BlueMap",
+    placement: "left",
     tabs: [],
     groups: [],
     pinnedOrder: [],
@@ -90,11 +92,26 @@ describe("opening and closing", () => {
     });
 });
 
+describe("four-edge placement", () => {
+    it("changes only the strip edge and preserves every tab-layout field", () => {
+        const before = createGroup(pinTab(stripOf("a", "b", "c"), "a"), { id: "g", name: "Work" }, [
+            "b",
+        ]);
+        const after = setTabPlacement(before, "bottom");
+
+        expect(after.placement).toBe("bottom");
+        expect({ ...after, placement: "left" }).toEqual(before);
+    });
+});
+
 describe("pinning", () => {
     it("moves a tab out of the ordinary region and into the pinned one", () => {
         const strip = pinTab(stripOf("a", "b", "c"), "b");
         expect(pinnedTabs(strip).map((tab) => tab.id)).toEqual(["b"]);
-        expect(strip.slots).toEqual([{ kind: "tab", tabId: "a" }, { kind: "tab", tabId: "c" }]);
+        expect(strip.slots).toEqual([
+            { kind: "tab", tabId: "a" },
+            { kind: "tab", tabId: "c" },
+        ]);
         expect(ids(strip)).toEqual(["b", "a", "c"]);
     });
 
@@ -206,7 +223,10 @@ describe("groups", () => {
         const strip = createGroup(stripOf("a", "b", "c"), { id: "g1", name: "One" }, ["a", "b"]);
         const segments = stripSegments(strip);
         expect(segments.map((segment) => segment.kind)).toEqual(["group", "tab"]);
-        expect(segments[0]?.kind === "group" && segments[0].tabs.map((tab) => tab.id)).toEqual(["a", "b"]);
+        expect(segments[0]?.kind === "group" && segments[0].tabs.map((tab) => tab.id)).toEqual([
+            "a",
+            "b",
+        ]);
     });
 });
 
@@ -216,12 +236,31 @@ describe("repairing a structure that came off disk", () => {
             ...EMPTY,
             tabs: [
                 { id: "a", pageId: "map", label: "A", icon: null, dirty: false, appearance: null },
-                { id: "a", pageId: "map", label: "A again", icon: null, dirty: false, appearance: null },
+                {
+                    id: "a",
+                    pageId: "map",
+                    label: "A again",
+                    icon: null,
+                    dirty: false,
+                    appearance: null,
+                },
                 { id: "b", pageId: "map", label: "B", icon: null, dirty: false, appearance: null },
             ],
-            groups: [{ id: "g1", name: "One", color: "primary", collapsed: false, tabIds: ["b", "ghost", "b"], appearance: null }],
+            groups: [
+                {
+                    id: "g1",
+                    name: "One",
+                    color: "primary",
+                    collapsed: false,
+                    tabIds: ["b", "ghost", "b"],
+                    appearance: null,
+                },
+            ],
             pinnedOrder: ["a", "a", "ghost"],
-            slots: [{ kind: "group", groupId: "g1" }, { kind: "group", groupId: "gone" }],
+            slots: [
+                { kind: "group", groupId: "g1" },
+                { kind: "group", groupId: "gone" },
+            ],
             activeTabId: "ghost",
         });
 
@@ -235,8 +274,19 @@ describe("repairing a structure that came off disk", () => {
     it("takes a pinned tab out of the group that also claimed it", () => {
         const strip = normalizeStrip({
             ...EMPTY,
-            tabs: [{ id: "a", pageId: "map", label: "A", icon: null, dirty: false, appearance: null }],
-            groups: [{ id: "g1", name: "One", color: "primary", collapsed: false, tabIds: ["a"], appearance: null }],
+            tabs: [
+                { id: "a", pageId: "map", label: "A", icon: null, dirty: false, appearance: null },
+            ],
+            groups: [
+                {
+                    id: "g1",
+                    name: "One",
+                    color: "primary",
+                    collapsed: false,
+                    tabIds: ["a"],
+                    appearance: null,
+                },
+            ],
             pinnedOrder: ["a"],
             slots: [],
             activeTabId: "a",
@@ -259,7 +309,9 @@ describe("repairing a structure that came off disk", () => {
     });
 
     it("changes nothing the second time, so a repair cannot creep", () => {
-        const once = normalizeStrip(createGroup(pinTab(stripOf("a", "b", "c"), "c"), { name: "One" }, ["a"]));
+        const once = normalizeStrip(
+            createGroup(pinTab(stripOf("a", "b", "c"), "c"), { name: "One" }, ["a"]),
+        );
         expect(normalizeStrip(once)).toEqual(once);
     });
 });
@@ -270,7 +322,9 @@ describe("the appearance slot", () => {
         strip = setTabAppearance(strip, "a", { anything: { nested: true } });
         strip = setGroupAppearance(strip, "g1", { tint: "#ff0000" });
 
-        expect(strip.tabs.find((tab) => tab.id === "a")?.appearance).toEqual({ anything: { nested: true } });
+        expect(strip.tabs.find((tab) => tab.id === "a")?.appearance).toEqual({
+            anything: { nested: true },
+        });
         expect(strip.groups[0]?.appearance).toEqual({ tint: "#ff0000" });
     });
 
@@ -314,7 +368,8 @@ describe("filtering the overflow menu's own segments", () => {
     // gained, proven directly against fixtures rather than by forcing a real overflow
     // inside a mounted component -- jsdom has no layout engine, so nothing would ever
     // actually measure as not fitting there.
-    const matches = (query: string) => (label: string) => label.toLowerCase().includes(query.toLowerCase());
+    const matches = (query: string) => (label: string) =>
+        label.toLowerCase().includes(query.toLowerCase());
 
     function segmentsOf(strip: TabStripState): ReturnType<typeof stripSegments> {
         return stripSegments(strip);
@@ -331,10 +386,11 @@ describe("filtering the overflow menu's own segments", () => {
     });
 
     it("keeps every member of a group whose own name matches, even ones that do not", () => {
-        const withGroup = createGroup(stripOf("Alpha", "Bravo", "Charlie"), { name: "My Project" }, [
-            "Bravo",
-            "Charlie",
-        ]);
+        const withGroup = createGroup(
+            stripOf("Alpha", "Bravo", "Charlie"),
+            { name: "My Project" },
+            ["Bravo", "Charlie"],
+        );
         const segments = segmentsOf(withGroup);
 
         const filtered = filterHiddenSegments(segments, matches("project"));
@@ -346,10 +402,11 @@ describe("filtering the overflow menu's own segments", () => {
     });
 
     it("narrows a non-matching group down to just the members that match", () => {
-        const withGroup = createGroup(stripOf("Alpha", "Bravo", "Charlie"), { name: "My Project" }, [
-            "Bravo",
-            "Charlie",
-        ]);
+        const withGroup = createGroup(
+            stripOf("Alpha", "Bravo", "Charlie"),
+            { name: "My Project" },
+            ["Bravo", "Charlie"],
+        );
         const segments = segmentsOf(withGroup);
 
         const filtered = filterHiddenSegments(segments, matches("bravo"));
@@ -361,10 +418,11 @@ describe("filtering the overflow menu's own segments", () => {
     });
 
     it("drops a group entirely once neither its name nor any member matches", () => {
-        const withGroup = createGroup(stripOf("Alpha", "Bravo", "Charlie"), { name: "My Project" }, [
-            "Bravo",
-            "Charlie",
-        ]);
+        const withGroup = createGroup(
+            stripOf("Alpha", "Bravo", "Charlie"),
+            { name: "My Project" },
+            ["Bravo", "Charlie"],
+        );
         const segments = segmentsOf(withGroup);
 
         const filtered = filterHiddenSegments(segments, matches("nothing here matches that"));
@@ -373,10 +431,11 @@ describe("filtering the overflow menu's own segments", () => {
     });
 
     it("returns every segment unchanged when the query matches everything", () => {
-        const withGroup = createGroup(stripOf("Alpha", "Bravo", "Charlie"), { name: "My Project" }, [
-            "Bravo",
-            "Charlie",
-        ]);
+        const withGroup = createGroup(
+            stripOf("Alpha", "Bravo", "Charlie"),
+            { name: "My Project" },
+            ["Bravo", "Charlie"],
+        );
         const segments = segmentsOf(withGroup);
 
         const filtered = filterHiddenSegments(segments, () => true);

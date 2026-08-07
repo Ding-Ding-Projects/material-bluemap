@@ -76,8 +76,20 @@ beforeAll(() => {
     // the flat, unconditional answer sent something elsewhere in Vuetify's own visibility
     // logic into a loop that never returned.
     Element.prototype.getClientRects = function (): DOMRectList {
-        const rect = { x: 0, y: 0, width: 1, height: 1, top: 0, right: 1, bottom: 1, left: 0, toJSON: () => ({}) };
-        return Object.assign([rect], { item: (index: number) => (index === 0 ? rect : null) }) as unknown as DOMRectList;
+        const rect = {
+            x: 0,
+            y: 0,
+            width: 1,
+            height: 1,
+            top: 0,
+            right: 1,
+            bottom: 1,
+            left: 0,
+            toJSON: () => ({}),
+        };
+        return Object.assign([rect], {
+            item: (index: number) => (index === 0 ? rect : null),
+        }) as unknown as DOMRectList;
     };
     Object.defineProperty(HTMLElement.prototype, "offsetParent", {
         configurable: true,
@@ -151,13 +163,28 @@ const STRIP: TabStripState = {
     label: "Main",
     windowId: "w1",
     windowLabel: "Material BlueMap",
+    placement: "left",
     tabs: [],
     pinnedOrder: [],
     slots: [],
     activeTabId: null,
     groups: [
-        { id: "g1", name: "Research", color: "primary", collapsed: false, tabIds: ["a", "b"], appearance: null },
-        { id: "g2", name: "Reference", color: "secondary", collapsed: false, tabIds: ["c"], appearance: null },
+        {
+            id: "g1",
+            name: "Research",
+            color: "primary",
+            collapsed: false,
+            tabIds: ["a", "b"],
+            appearance: null,
+        },
+        {
+            id: "g2",
+            name: "Reference",
+            color: "secondary",
+            collapsed: false,
+            tabIds: ["c"],
+            appearance: null,
+        },
     ],
 };
 
@@ -166,9 +193,8 @@ function mountPicker(
     excludeGroupId: string | null = null,
 ): VueWrapper {
     const host = defineComponent({
-        setup: () =>
-            () =>
-                h(VApp, () => [h(TabGroupPicker, { strip, excludeGroupId, tabLabel: "Settings" })]),
+        setup: () => () =>
+            h(VApp, () => [h(TabGroupPicker, { strip, excludeGroupId, tabLabel: "Settings" })]),
     });
     return trackedMount(host, { global: { plugins: [vuetify, emptyI18n()] } });
 }
@@ -222,7 +248,16 @@ describe("the group list", () => {
         const longName = "Survival server backups · 生存伍器備份檔案归檔";
         const wrapper = mountPicker({
             ...STRIP,
-            groups: [{ id: "g1", name: longName, color: "primary", collapsed: false, tabIds: ["a"], appearance: null }],
+            groups: [
+                {
+                    id: "g1",
+                    name: longName,
+                    color: "primary",
+                    collapsed: false,
+                    tabIds: ["a"],
+                    appearance: null,
+                },
+            ],
         });
         const chip = wrapper.find(".mb-tab-group-picker__swatch");
         expect(chip.exists()).toBe(true);
@@ -395,11 +430,15 @@ describe("focus", () => {
         // live document, so this one test (and only this one) mounts attached rather than
         // detached the way every other test here does.
         const host = defineComponent({
-            setup: () =>
-                () =>
-                    h(VApp, () => [h(TabGroupPicker, { strip: STRIP, excludeGroupId: null, tabLabel: "Settings" })]),
+            setup: () => () =>
+                h(VApp, () => [
+                    h(TabGroupPicker, { strip: STRIP, excludeGroupId: null, tabLabel: "Settings" }),
+                ]),
         });
-        const wrapper = mount(host, { global: { plugins: [vuetify, emptyI18n()] }, attachTo: document.body });
+        const wrapper = mount(host, {
+            global: { plugins: [vuetify, emptyI18n()] },
+            attachTo: document.body,
+        });
         try {
             const vm = picker(wrapper).vm as unknown as { focus: () => void };
             vm.focus();
@@ -418,15 +457,21 @@ describe("focus", () => {
  * into -- both reasons `NoticeBulkToolbar.test.ts` and the `focus` suite above already mount
  * attached rather than detached. Every test below does the same for the same two reasons.
  */
-function mountAttached(strip: TabStripState = STRIP, excludeGroupId: string | null = null): VueWrapper {
+function mountAttached(
+    strip: TabStripState = STRIP,
+    excludeGroupId: string | null = null,
+): VueWrapper {
     const host = defineComponent({
-        setup: () => () => h(VApp, () => [h(TabGroupPicker, { strip, excludeGroupId, tabLabel: "Settings" })]),
+        setup: () => () =>
+            h(VApp, () => [h(TabGroupPicker, { strip, excludeGroupId, tabLabel: "Settings" })]),
     });
     return mount(host, { global: { plugins: [vuetify, emptyI18n()] }, attachTo: document.body });
 }
 
 function cancelButton(wrapper: VueWrapper): HTMLElement {
-    const button = wrapper.findAll("button").find((candidate) => candidate.text().includes("Cancel"));
+    const button = wrapper
+        .findAll("button")
+        .find((candidate) => candidate.text().includes("Cancel"));
     if (button === undefined) throw new Error("Cancel button not found");
     return button.element as HTMLElement;
 }
@@ -494,9 +539,11 @@ describe("Tab, with the teleported regex builder open", () => {
     }
 
     function builderFocusable(builder: HTMLElement): HTMLElement[] {
-        return [...builder.querySelectorAll<HTMLElement>('input, button, [tabindex]:not([tabindex="-1"])')].filter(
-            (element) => !element.hasAttribute("disabled"),
-        );
+        return [
+            ...builder.querySelectorAll<HTMLElement>(
+                'input, button, [tabindex]:not([tabindex="-1"])',
+            ),
+        ].filter((element) => !element.hasAttribute("disabled"));
     }
 
     /**
@@ -551,7 +598,11 @@ describe("Tab, with the teleported regex builder open", () => {
             target.focus();
             expect(document.activeElement).toBe(target);
 
-            const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+            const event = new KeyboardEvent("keydown", {
+                key: "Tab",
+                bubbles: true,
+                cancelable: true,
+            });
             target.dispatchEvent(event);
             await wrapper.vm.$nextTick();
 
@@ -564,18 +615,24 @@ describe("Tab, with the teleported regex builder open", () => {
         }
     });
 
-    it("wraps Shift+Tab from the popover's own first control back to the \".*\" button that opened it", async () => {
+    it('wraps Shift+Tab from the popover\'s own first control back to the ".*" button that opened it', async () => {
         const wrapper = mountAttached();
         try {
             const builder = await openBuilder(wrapper);
             const focusable = builderFocusable(builder);
             const first = focusable[0] as HTMLElement;
-            const builderButton = wrapper.find('[aria-label="Open the regex builder"]').element as HTMLElement;
+            const builderButton = wrapper.find('[aria-label="Open the regex builder"]')
+                .element as HTMLElement;
 
             first.focus();
             expect(document.activeElement).toBe(first);
 
-            const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true });
+            const event = new KeyboardEvent("keydown", {
+                key: "Tab",
+                shiftKey: true,
+                bubbles: true,
+                cancelable: true,
+            });
             first.dispatchEvent(event);
             await wrapper.vm.$nextTick();
 
@@ -586,12 +643,13 @@ describe("Tab, with the teleported regex builder open", () => {
         }
     });
 
-    it("steps forward from the search field's own \".*\" button into the popover rather than jumping past it to Cancel", async () => {
+    it('steps forward from the search field\'s own ".*" button into the popover rather than jumping past it to Cancel', async () => {
         const wrapper = mountAttached();
         try {
             const builder = await openBuilder(wrapper);
             const focusable = builderFocusable(builder);
-            const builderButton = wrapper.find('[aria-label="Open the regex builder"]').element as HTMLElement;
+            const builderButton = wrapper.find('[aria-label="Open the regex builder"]')
+                .element as HTMLElement;
 
             builderButton.focus();
             expect(document.activeElement).toBe(builderButton);

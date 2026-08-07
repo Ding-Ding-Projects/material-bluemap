@@ -183,6 +183,7 @@ const emit = defineEmits<{
     reveal: [groupId: string];
     "open-page": [pageId: string];
     apply: [plan: TabClosePlan, options: { closeUnsaved: boolean; keepEmptyGroups: boolean }];
+    "set-placement": [placement: "left" | "right" | "top" | "bottom"];
 }>();
 
 const { t } = useI18n();
@@ -194,6 +195,9 @@ const groupAppearanceId = (groupId: string): string => `group.${groupId}`;
 
 const pinned = computed(() => pinnedTabs(props.strip));
 const segments = computed(() => stripSegments(props.strip));
+const vertical = computed(
+    () => props.strip.placement === "left" || props.strip.placement === "right",
+);
 
 /* -------------------------------------------------------------------------- */
 /* Registering every tab and group as an appearance target                    */
@@ -306,12 +310,12 @@ const segmentKey = (index: number): string => {
 function measure(): void {
     const host = ordinaryEl.value;
     if (host === null) return;
-    available.value = host.clientWidth;
+    available.value = vertical.value ? host.clientHeight : host.clientWidth;
     const next = { ...widths.value };
     for (const element of Array.from(host.querySelectorAll<HTMLElement>("[data-segment]"))) {
         const key = element.dataset["segment"];
         if (key === undefined) continue;
-        const width = element.offsetWidth;
+        const width = vertical.value ? element.offsetHeight : element.offsetWidth;
         if (width > 0) next[key] = width;
     }
     widths.value = next;
@@ -372,7 +376,8 @@ const order = computed(() => focusOrder(props.strip, props.revealed));
 /** Exactly one tab is in the page's tab order; the arrows do the rest. */
 function isRoving(tab: TabRecord): boolean {
     const current = focusedId.value;
-    if (current !== null && order.value.some((candidate) => candidate.id === current)) return tab.id === current;
+    if (current !== null && order.value.some((candidate) => candidate.id === current))
+        return tab.id === current;
     return order.value[0]?.id === tab.id;
 }
 
@@ -401,19 +406,25 @@ function onTabKeydown(event: KeyboardEvent, tab: TabRecord): void {
     // The reorder chord is checked first: it shares its arrows with plain
     // movement, and a chord that fell through would move focus as well as the tab.
     if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
-        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        const backward = vertical.value ? "ArrowUp" : "ArrowLeft";
+        const forward = vertical.value ? "ArrowDown" : "ArrowRight";
+        if (event.key === backward || event.key === forward) {
             event.preventDefault();
-            emit("move-tab", tab.id, event.key === "ArrowLeft" ? -1 : 1);
+            const rtl = !vertical.value && document.documentElement.dir === "rtl";
+            const direction = event.key === backward ? -1 : 1;
+            emit("move-tab", tab.id, rtl ? -direction : direction);
             focusTab(tab.id);
             return;
         }
     }
-    if (event.key === "ArrowLeft") {
+    const backward = vertical.value ? "ArrowUp" : "ArrowLeft";
+    const forward = vertical.value ? "ArrowDown" : "ArrowRight";
+    if (event.key === backward) {
         event.preventDefault();
-        step(-1);
-    } else if (event.key === "ArrowRight") {
+        step(!vertical.value && document.documentElement.dir === "rtl" ? 1 : -1);
+    } else if (event.key === forward) {
         event.preventDefault();
-        step(1);
+        step(!vertical.value && document.documentElement.dir === "rtl" ? -1 : 1);
     } else if (event.key === "Home") {
         event.preventDefault();
         const first = order.value[0];
@@ -613,7 +624,8 @@ const menuTabIsPinned = computed(() =>
 const menuTabGroup = computed(() =>
     tabMenuTab.value === null
         ? null
-        : (props.strip.groups.find((group) => group.tabIds.includes(tabMenuTab.value?.id ?? "")) ?? null),
+        : (props.strip.groups.find((group) => group.tabIds.includes(tabMenuTab.value?.id ?? "")) ??
+          null),
 );
 
 /*
@@ -754,8 +766,10 @@ function onTabMenuChoose(id: string): void {
 }
 
 const planTitle = computed(() => {
-    if (tabMenuPlan.value === "others") return t("tabs.action.closeOthers", "Close the other tabs...");
-    if (tabMenuPlan.value === "toStart") return t("tabs.action.closeToStart", "Close the tabs to the left...");
+    if (tabMenuPlan.value === "others")
+        return t("tabs.action.closeOthers", "Close the other tabs...");
+    if (tabMenuPlan.value === "toStart")
+        return t("tabs.action.closeToStart", "Close the tabs to the left...");
     return t("tabs.action.closeToEnd", "Close the tabs to the right...");
 });
 
@@ -765,10 +779,18 @@ function buildMenuPlan(includePinned: boolean): TabClosePlan {
     const kind = tabMenuPlan.value;
     if (tab === null || kind === null) return planCloseOthers(props.strip, "", includePinned);
     if (kind === "others") return planCloseOthers(props.strip, tab.id, includePinned);
-    return planCloseToEdge(props.strip, tab.id, kind === "toStart" ? "start" : "end", includePinned);
+    return planCloseToEdge(
+        props.strip,
+        tab.id,
+        kind === "toStart" ? "start" : "end",
+        includePinned,
+    );
 }
 
-function onPlanApplied(plan: TabClosePlan, options: { closeUnsaved: boolean; keepEmptyGroups: boolean }): void {
+function onPlanApplied(
+    plan: TabClosePlan,
+    options: { closeUnsaved: boolean; keepEmptyGroups: boolean },
+): void {
     closeTabMenu();
     emit("apply", plan, options);
 }
@@ -781,8 +803,8 @@ const groupMenuOpen = ref(false);
 const groupMenuId = ref<string | null>(null);
 const groupMenuTarget = ref<HTMLElement | [number, number] | undefined>(undefined);
 
-const groupMenuGroup = computed(() =>
-    props.strip.groups.find((group) => group.id === groupMenuId.value) ?? null,
+const groupMenuGroup = computed(
+    () => props.strip.groups.find((group) => group.id === groupMenuId.value) ?? null,
 );
 
 function openGroupMenu(groupId: string, target: HTMLElement | [number, number]): void {
@@ -818,9 +840,13 @@ function onGroupContextMenu(event: MouseEvent, groupId: string): void {
 
 function onGroupKeydown(event: KeyboardEvent, groupId: string, collapsed: boolean): void {
     if ((event.ctrlKey || event.metaKey) && event.shiftKey) {
-        if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        const backward = vertical.value ? "ArrowUp" : "ArrowLeft";
+        const forward = vertical.value ? "ArrowDown" : "ArrowRight";
+        if (event.key === backward || event.key === forward) {
             event.preventDefault();
-            emit("move-group", groupId, event.key === "ArrowLeft" ? -1 : 1);
+            const rtl = !vertical.value && document.documentElement.dir === "rtl";
+            const direction = event.key === backward ? -1 : 1;
+            emit("move-group", groupId, rtl ? -direction : direction);
             return;
         }
     }
@@ -845,8 +871,8 @@ const groupAppearanceOpen = ref(false);
 const groupAppearanceGroupId = ref<string | null>(null);
 const groupAppearanceTarget = ref<HTMLElement | undefined>(undefined);
 
-const groupAppearanceGroup = computed(() =>
-    props.strip.groups.find((group) => group.id === groupAppearanceGroupId.value) ?? null,
+const groupAppearanceGroup = computed(
+    () => props.strip.groups.find((group) => group.id === groupAppearanceGroupId.value) ?? null,
 );
 
 function openGroupAppearanceEditor(groupId: string): void {
@@ -871,6 +897,34 @@ function closeGroupAppearanceEditor(): void {
 const finderOpen = ref(false);
 const overflowOpen = ref(false);
 const newTabMenuOpen = ref(false);
+const placementOpen = ref(false);
+
+const placementQuery = ref("");
+const placementRegexMode = ref(false);
+const placementFlags = ref("i");
+const placementChoices = computed(() => [
+    { value: "left" as const, label: t("tabs.placement.left", "Left edge") },
+    { value: "right" as const, label: t("tabs.placement.right", "Right edge") },
+    { value: "top" as const, label: t("tabs.placement.top", "Top edge") },
+    { value: "bottom" as const, label: t("tabs.placement.bottom", "Bottom edge") },
+]);
+const placementOptions = computed(() => {
+    const matcher = createSettingMatcher(
+        placementQuery.value,
+        placementRegexMode.value,
+        placementFlags.value,
+    );
+    return placementChoices.value.filter((choice) => matcher.test(choice.label));
+});
+const placementSample = computed(() =>
+    placementChoices.value.map((choice) => choice.label).join("\n"),
+);
+
+watch(placementOpen, (open) => {
+    if (open) return;
+    placementQuery.value = "";
+    placementRegexMode.value = false;
+});
 
 /* -------------------------------------------------------------------------- */
 /* The new-tab picker's own filter                                            */
@@ -891,7 +945,9 @@ const newTabMatcher = computed(() =>
     createSettingMatcher(newTabQuery.value, newTabRegexMode.value, newTabFlags.value),
 );
 
-const filteredPages = computed(() => props.pages.filter((page) => newTabMatcher.value.test(page.label)));
+const filteredPages = computed(() =>
+    props.pages.filter((page) => newTabMatcher.value.test(page.label)),
+);
 
 const newTabSample = computed(() => props.pages.map((page) => page.label).join("\n"));
 
@@ -930,7 +986,11 @@ const filteredHiddenSegments = computed(() =>
 /** What the builder previews against: every row this menu can show, flattened. */
 const overflowSample = computed(() =>
     hiddenSegments.value
-        .flatMap((segment) => (segment.kind === "tab" ? [segment.tab.label] : [segment.group.name, ...segment.tabs.map((tab) => tab.label)]))
+        .flatMap((segment) =>
+            segment.kind === "tab"
+                ? [segment.tab.label]
+                : [segment.group.name, ...segment.tabs.map((tab) => tab.label)],
+        )
         .join("\n"),
 );
 
@@ -1004,17 +1064,21 @@ function onGroupResult(hit: GroupHit): void {
 }
 
 const tabCountLabel = computed(() =>
-    t("tabs.strip.label", { strip: props.strip.label, count: props.strip.tabs.length }, "{strip}, {count} tabs"),
+    t(
+        "tabs.strip.label",
+        { strip: props.strip.label, count: props.strip.tabs.length },
+        "{strip}, {count} tabs",
+    ),
 );
 </script>
 
 <template>
-    <div class="mb-tabs-strip-row">
+    <div class="mb-tabs-strip-row" :data-placement="strip.placement">
         <div
             class="mb-tabs-strip"
             role="tablist"
             :aria-label="tabCountLabel"
-            :aria-orientation="'horizontal'"
+            :aria-orientation="vertical ? 'vertical' : 'horizontal'"
         >
             <!--
                 The pinned region. Measured out of the budget before the ordinary
@@ -1041,7 +1105,7 @@ const tabCountLabel = computed(() =>
                     @drop="onDrop(tab)"
                 />
 
-                <v-divider vertical class="mb-tabs-strip__rule" />
+                <v-divider :vertical="!vertical" class="mb-tabs-strip__rule" />
             </div>
 
             <!-- The ordinary region: lone tabs and whole groups, in slot order. -->
@@ -1078,7 +1142,9 @@ const tabCountLabel = computed(() =>
                                 class="mb-tabs-strip__group-head"
                                 type="button"
                                 :style="groupStyles[segment.group.id]"
-                                :aria-expanded="isGroupExpanded(segment.group, revealed) ? 'true' : 'false'"
+                                :aria-expanded="
+                                    isGroupExpanded(segment.group, revealed) ? 'true' : 'false'
+                                "
                                 :aria-label="
                                     t(
                                         'tabs.group.headLabel',
@@ -1086,19 +1152,37 @@ const tabCountLabel = computed(() =>
                                         '{group}, {count} tabs',
                                     )
                                 "
-                                @click="emit('set-group-collapsed', segment.group.id, !segment.group.collapsed)"
-                                @keydown="onGroupKeydown($event, segment.group.id, segment.group.collapsed)"
+                                @click="
+                                    emit(
+                                        'set-group-collapsed',
+                                        segment.group.id,
+                                        !segment.group.collapsed,
+                                    )
+                                "
+                                @keydown="
+                                    onGroupKeydown(
+                                        $event,
+                                        segment.group.id,
+                                        segment.group.collapsed,
+                                    )
+                                "
                                 @contextmenu="onGroupContextMenu($event, segment.group.id)"
                             >
                                 <v-icon
-                                    :icon="isGroupExpanded(segment.group, revealed) ? mdiChevronDown : mdiChevronRight"
+                                    :icon="
+                                        isGroupExpanded(segment.group, revealed)
+                                            ? mdiChevronDown
+                                            : mdiChevronRight
+                                    "
                                     size="16"
                                     aria-hidden="true"
                                 />
                                 <v-chip size="x-small" :color="segment.group.color" variant="tonal">
                                     {{ segment.group.name }}
                                 </v-chip>
-                                <span class="mb-tabs-strip__count" aria-hidden="true">{{ segment.tabs.length }}</span>
+                                <span class="mb-tabs-strip__count" aria-hidden="true">{{
+                                    segment.tabs.length
+                                }}</span>
                             </button>
 
                             <v-btn
@@ -1113,7 +1197,12 @@ const tabCountLabel = computed(() =>
                                 variant="text"
                                 size="x-small"
                                 density="comfortable"
-                                @click="openGroupMenu(segment.group.id, $event.currentTarget as HTMLElement)"
+                                @click="
+                                    openGroupMenu(
+                                        segment.group.id,
+                                        $event.currentTarget as HTMLElement,
+                                    )
+                                "
                             />
 
                             <template v-if="isGroupExpanded(segment.group, revealed)">
@@ -1142,6 +1231,97 @@ const tabCountLabel = computed(() =>
         </div>
 
         <div class="mb-tabs-strip__controls">
+            <!-- Placement is owned by this strip, so every nested settings/editor strip
+                 gets the same guided, persisted control without borrowing a global value. -->
+            <v-btn
+                :aria-label="
+                    t(
+                        'tabs.placement.button',
+                        { placement: strip.placement },
+                        'Move this tab strip. Current edge: {placement}.',
+                    )
+                "
+                :aria-expanded="placementOpen ? 'true' : 'false'"
+                variant="text"
+                size="small"
+                density="comfortable"
+            >
+                <v-icon :icon="mdiDotsHorizontal" />
+                <v-tooltip
+                    activator="parent"
+                    location="bottom"
+                    :text="t('tabs.placement.title', 'Tab strip edge')"
+                />
+                <v-menu
+                    v-model="placementOpen"
+                    activator="parent"
+                    :close-on-content-click="false"
+                    location="bottom end"
+                    offset="4"
+                >
+                    <div class="mb-tabs-strip__sheet mb-tabs-strip__placement-sheet">
+                        <h3 class="mb-tabs-strip__placement-title">
+                            {{ t("tabs.placement.title", "Tab strip edge") }}
+                        </h3>
+                        <p class="mb-tabs-strip__placement-description">
+                            {{
+                                t(
+                                    "tabs.placement.description",
+                                    "Choose the edge for this strip. The choice is saved for this strip without changing its tabs, pins, groups, or order.",
+                                )
+                            }}
+                        </p>
+                        <ConfigSearchField
+                            v-model="placementQuery"
+                            v-model:regex="placementRegexMode"
+                            v-model:flags="placementFlags"
+                            :label="t('tabs.placement.search', 'Search tab strip edges')"
+                            :sample="placementSample"
+                            class="mb-tabs-strip__menu-filter"
+                        />
+                        <v-list
+                            density="compact"
+                            :aria-label="t('tabs.placement.title', 'Tab strip edge')"
+                        >
+                            <v-list-item
+                                v-for="choice in placementOptions"
+                                :key="choice.value"
+                                :active="strip.placement === choice.value"
+                                :aria-current="
+                                    strip.placement === choice.value ? 'true' : undefined
+                                "
+                                @click="
+                                    emit('set-placement', choice.value);
+                                    placementOpen = false;
+                                "
+                            >
+                                {{ choice.label }}
+                            </v-list-item>
+                        </v-list>
+                        <p
+                            v-if="placementOptions.length === 0"
+                            class="mb-tabs-strip__menu-empty"
+                            role="status"
+                        >
+                            {{
+                                t(
+                                    "tabs.menu.noMatch",
+                                    "No command here matches that. Clearing the filter brings them all back.",
+                                )
+                            }}
+                        </p>
+                        <p class="mb-tabs-strip__placement-provenance">
+                            {{
+                                t(
+                                    "tabs.placement.provenance",
+                                    "Source: this strip's saved setting. Built-in fallback for fresh and migrated profiles: Left edge.",
+                                )
+                            }}
+                        </p>
+                    </div>
+                </v-menu>
+            </v-btn>
+
             <!-- New tab: a real menu of the pages this shell can show. -->
             <v-btn
                 :icon="mdiPlus"
@@ -1151,7 +1331,12 @@ const tabCountLabel = computed(() =>
                 density="comfortable"
             >
                 <v-icon :icon="mdiPlus" />
-                <v-menu v-model="newTabMenuOpen" activator="parent" location="bottom end" offset="4">
+                <v-menu
+                    v-model="newTabMenuOpen"
+                    activator="parent"
+                    location="bottom end"
+                    offset="4"
+                >
                     <div class="mb-tabs-strip__sheet" @keydown="onNewTabMenuKeydown">
                         <ConfigSearchField
                             v-model="newTabQuery"
@@ -1162,7 +1347,11 @@ const tabCountLabel = computed(() =>
                             class="mb-tabs-strip__menu-filter"
                         />
 
-                        <p v-if="filteredPages.length === 0" class="mb-tabs-strip__menu-empty" role="status">
+                        <p
+                            v-if="filteredPages.length === 0"
+                            class="mb-tabs-strip__menu-empty"
+                            role="status"
+                        >
                             {{
                                 t(
                                     "tabs.menu.noMatch",
@@ -1171,8 +1360,16 @@ const tabCountLabel = computed(() =>
                             }}
                         </p>
 
-                        <v-list v-else density="compact" :aria-label="t('tabs.strip.newTab', 'Open a new tab')">
-                            <v-list-item v-for="page in filteredPages" :key="page.id" @click="emit('open-page', page.id)">
+                        <v-list
+                            v-else
+                            density="compact"
+                            :aria-label="t('tabs.strip.newTab', 'Open a new tab')"
+                        >
+                            <v-list-item
+                                v-for="page in filteredPages"
+                                :key="page.id"
+                                @click="emit('open-page', page.id)"
+                            >
                                 <template v-if="page.icon" #prepend>
                                     <v-icon :icon="page.icon" size="18" aria-hidden="true" />
                                 </template>
@@ -1210,7 +1407,12 @@ const tabCountLabel = computed(() =>
                     density="comfortable"
                 >
                     <v-icon :icon="mdiChevronDown" />
-                    <v-menu v-model="overflowOpen" activator="parent" location="bottom end" offset="4">
+                    <v-menu
+                        v-model="overflowOpen"
+                        activator="parent"
+                        location="bottom end"
+                        offset="4"
+                    >
                         <div class="mb-tabs-strip__sheet" @keydown="onOverflowMenuKeydown">
                             <ConfigSearchField
                                 v-model="overflowQuery"
@@ -1241,7 +1443,9 @@ const tabCountLabel = computed(() =>
                             >
                                 <template
                                     v-for="segment in filteredHiddenSegments"
-                                    :key="segment.kind === 'tab' ? segment.tab.id : segment.group.id"
+                                    :key="
+                                        segment.kind === 'tab' ? segment.tab.id : segment.group.id
+                                    "
                                 >
                                     <v-list-item
                                         v-if="segment.kind === 'tab'"
@@ -1256,12 +1460,20 @@ const tabCountLabel = computed(() =>
                                             command that refuses every click is worse
                                             than a heading that never claimed to be one.
                                         -->
-                                        <v-list-subheader>{{ segment.group.name }}</v-list-subheader>
+                                        <v-list-subheader>{{
+                                            segment.group.name
+                                        }}</v-list-subheader>
                                         <v-list-item
                                             v-for="tab in segment.tabs"
                                             :key="tab.id"
                                             class="mb-tabs-strip__overflow-member"
-                                            @click="onOverflowChoice(tab.id, segment.group.id, segment.group.collapsed)"
+                                            @click="
+                                                onOverflowChoice(
+                                                    tab.id,
+                                                    segment.group.id,
+                                                    segment.group.collapsed,
+                                                )
+                                            "
                                         >
                                             {{ tab.label }}
                                         </v-list-item>
@@ -1289,7 +1501,11 @@ const tabCountLabel = computed(() =>
                 density="comfortable"
             >
                 <v-icon :icon="mdiMagnify" />
-                <v-tooltip activator="parent" location="bottom" :text="t('tabs.find.title', 'Find a tab')" />
+                <v-tooltip
+                    activator="parent"
+                    location="bottom"
+                    :text="t('tabs.find.title', 'Find a tab')"
+                />
                 <v-menu
                     v-model="finderOpen"
                     activator="parent"
@@ -1308,7 +1524,10 @@ const tabCountLabel = computed(() =>
                             @ungroup="emit('assign', $event.tabId, null, $event.stripId)"
                             @close="emit('close', $event.tabId, $event.stripId)"
                             @focus-group="onGroupResult"
-                            @set-collapsed="(hit, collapsed) => emit('set-group-collapsed', hit.groupId, collapsed)"
+                            @set-collapsed="
+                                (hit, collapsed) =>
+                                    emit('set-group-collapsed', hit.groupId, collapsed)
+                            "
                             @apply="(plan, options) => emit('apply', plan, options)"
                         />
                     </div>
@@ -1342,7 +1561,11 @@ const tabCountLabel = computed(() =>
                     v-else-if="tabMenuTab !== null"
                     :items="tabMenuItems"
                     :label="
-                        t('tabs.action.menuLabel', { label: tabMenuTab.label }, 'Commands for the tab {label}')
+                        t(
+                            'tabs.action.menuLabel',
+                            { label: tabMenuTab.label },
+                            'Commands for the tab {label}',
+                        )
                     "
                     @choose="onTabMenuChoose"
                 />
@@ -1472,6 +1695,34 @@ const tabCountLabel = computed(() =>
     border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
+.mb-tabs-strip-row[data-placement="left"],
+.mb-tabs-strip-row[data-placement="right"] {
+    flex: 0 0 clamp(13rem, 22vw, 20rem);
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
+    padding-block: 4px;
+    padding-inline: 4px;
+    border-block-end: 0;
+}
+
+.mb-tabs-strip-row[data-placement="left"] {
+    border-inline-end: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+
+.mb-tabs-strip-row[data-placement="right"] {
+    border-inline-start: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+
+.mb-tabs-strip-row[data-placement="top"] {
+    border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+
+.mb-tabs-strip-row[data-placement="bottom"] {
+    border-block-start: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+    border-block-end: 0;
+}
+
 .mb-tabs-strip {
     display: flex;
     align-items: center;
@@ -1483,6 +1734,13 @@ const tabCountLabel = computed(() =>
      * into the overflow menu by `fitCount`, so there is nothing here to scroll.
      */
     overflow: hidden;
+}
+
+.mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip,
+.mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip {
+    flex-direction: column;
+    align-items: stretch;
+    min-height: 0;
 }
 
 .mb-tabs-strip__pinned,
@@ -1500,9 +1758,34 @@ const tabCountLabel = computed(() =>
     overflow: hidden;
 }
 
+.mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__pinned,
+.mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__ordinary,
+.mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__segment,
+.mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__group,
+.mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__pinned,
+.mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__ordinary,
+.mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__segment,
+.mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__group {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__ordinary,
+.mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__ordinary {
+    min-height: 0;
+}
+
 .mb-tabs-strip__rule {
     height: 20px;
     margin-inline: 4px;
+}
+
+.mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__rule,
+.mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__rule {
+    width: auto;
+    height: 1px;
+    margin-block: 4px;
+    margin-inline: 0;
 }
 
 .mb-tabs-strip__tab {
@@ -1521,6 +1804,13 @@ const tabCountLabel = computed(() =>
     line-height: 1.4;
     cursor: pointer;
     transition: background-color 120ms ease;
+}
+
+.mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__tab,
+.mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__tab {
+    width: 100%;
+    max-width: none;
+    border-radius: 8px;
 }
 
 .mb-tabs-strip__tab--pinned {
@@ -1596,6 +1886,55 @@ const tabCountLabel = computed(() =>
     align-items: center;
     gap: 2px;
     flex: 0 0 auto;
+}
+
+.mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__controls,
+.mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__controls {
+    justify-content: center;
+    flex-wrap: wrap;
+    padding-block-start: 4px;
+    border-block-start: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+
+.mb-tabs-strip__placement-sheet {
+    width: min(92vw, 24rem);
+    padding-block: 8px;
+}
+
+.mb-tabs-strip__placement-title,
+.mb-tabs-strip__placement-description,
+.mb-tabs-strip__placement-provenance {
+    margin: 0;
+    padding-inline: 12px;
+}
+
+.mb-tabs-strip__placement-title {
+    font-size: 0.9375rem;
+}
+
+.mb-tabs-strip__placement-description,
+.mb-tabs-strip__placement-provenance {
+    padding-block-start: 6px;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    font-size: 0.75rem;
+    line-height: 1.45;
+}
+
+.mb-tabs-strip__placement-provenance {
+    padding-block-end: 4px;
+}
+
+@media (max-width: 640px) {
+    .mb-tabs--left,
+    .mb-tabs--right {
+        min-width: 0;
+    }
+
+    .mb-tabs-strip-row[data-placement="left"],
+    .mb-tabs-strip-row[data-placement="right"] {
+        flex-basis: min(42vw, 15rem);
+        min-width: 8.5rem;
+    }
 }
 
 .mb-tabs-strip__sheet {

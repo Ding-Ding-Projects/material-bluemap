@@ -26,6 +26,7 @@
 import {
     addTab,
     closeTabs,
+    DEFAULT_TAB_PLACEMENT,
     normalizeStrip,
     renameTab,
     setActiveTab,
@@ -59,7 +60,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function asStringArray(value: unknown): string[] {
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+    return Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === "string")
+        : [];
 }
 
 /**
@@ -70,7 +73,9 @@ function asStringArray(value: unknown): string[] {
  * disk would be last month's wording of a section that has since been reworded, in a
  * language the user may have stopped using.
  */
-export function readEulaStrip(storage: EulaTabStorage | null = defaultStorage()): TabStripState | null {
+export function readEulaStrip(
+    storage: EulaTabStorage | null = defaultStorage(),
+): TabStripState | null {
     if (storage === null) return null;
     try {
         const raw = storage.getItem(STORAGE_KEY);
@@ -84,11 +89,14 @@ export function readEulaStrip(storage: EulaTabStorage | null = defaultStorage())
         const tabs = Array.isArray(strip["tabs"])
             ? strip["tabs"]
                   .filter(isRecord)
-                  .filter((tab) => typeof tab["id"] === "string" && typeof tab["pageId"] === "string")
+                  .filter(
+                      (tab) => typeof tab["id"] === "string" && typeof tab["pageId"] === "string",
+                  )
                   .map((tab) => ({
                       id: tab["id"] as string,
                       pageId: tab["pageId"] as string,
-                      label: typeof tab["label"] === "string" ? tab["label"] : (tab["id"] as string),
+                      label:
+                          typeof tab["label"] === "string" ? tab["label"] : (tab["id"] as string),
                       icon: typeof tab["icon"] === "string" ? tab["icon"] : null,
                       dirty: false,
                       appearance: isRecord(tab["appearance"]) ? tab["appearance"] : null,
@@ -102,7 +110,10 @@ export function readEulaStrip(storage: EulaTabStorage | null = defaultStorage())
                   .filter((group) => typeof group["id"] === "string")
                   .map((group) => ({
                       id: group["id"] as string,
-                      name: typeof group["name"] === "string" ? group["name"] : (group["id"] as string),
+                      name:
+                          typeof group["name"] === "string"
+                              ? group["name"]
+                              : (group["id"] as string),
                       color: typeof group["color"] === "string" ? group["color"] : "primary",
                       collapsed: group["collapsed"] === true,
                       tabIds: asStringArray(group["tabIds"]),
@@ -120,8 +131,12 @@ export function readEulaStrip(storage: EulaTabStorage | null = defaultStorage())
                             ? ({ kind: "tab", tabId: slot["tabId"] } as const)
                             : null,
                   )
-                  .filter((slot): slot is { kind: "tab"; tabId: string } | { kind: "group"; groupId: string } =>
-                      slot !== null,
+                  .filter(
+                      (
+                          slot,
+                      ): slot is
+                          { kind: "tab"; tabId: string } | { kind: "group"; groupId: string } =>
+                          slot !== null,
                   )
             : [];
 
@@ -132,6 +147,13 @@ export function readEulaStrip(storage: EulaTabStorage | null = defaultStorage())
             label: typeof strip["label"] === "string" ? strip["label"] : "strip-eula",
             windowId: "window-eula",
             windowLabel: typeof strip["windowLabel"] === "string" ? strip["windowLabel"] : "",
+            placement:
+                strip["placement"] === "left" ||
+                strip["placement"] === "right" ||
+                strip["placement"] === "top" ||
+                strip["placement"] === "bottom"
+                    ? strip["placement"]
+                    : DEFAULT_TAB_PLACEMENT,
             tabs,
             groups,
             pinnedOrder: asStringArray(strip["pinnedOrder"]),
@@ -144,7 +166,10 @@ export function readEulaStrip(storage: EulaTabStorage | null = defaultStorage())
 }
 
 /** Writes the strip, silently doing nothing where storage refuses. */
-export function writeEulaStrip(strip: TabStripState, storage: EulaTabStorage | null = defaultStorage()): void {
+export function writeEulaStrip(
+    strip: TabStripState,
+    storage: EulaTabStorage | null = defaultStorage(),
+): void {
     // Fire-and-forget mirror into the main process's own settings history, whether or not
     // there is a local `storage` to write to - see `appSettingsHistorySync.ts`'s own doc
     // comment.
@@ -158,6 +183,7 @@ export function writeEulaStrip(strip: TabStripState, storage: EulaTabStorage | n
                 strip: {
                     label: strip.label,
                     windowLabel: strip.windowLabel,
+                    placement: strip.placement,
                     tabs: strip.tabs.map((tab) => ({
                         id: tab.id,
                         pageId: tab.pageId,
@@ -186,12 +212,17 @@ export function writeEulaStrip(strip: TabStripState, storage: EulaTabStorage | n
 }
 
 /** A fresh strip: one tab per section, in document order, with the first one active. */
-export function seedEulaStrip(pages: readonly TabPage[], label: string, windowLabel: string): TabStripState {
+export function seedEulaStrip(
+    pages: readonly TabPage[],
+    label: string,
+    windowLabel: string,
+): TabStripState {
     const empty: TabStripState = {
         id: "strip-eula",
         label,
         windowId: "window-eula",
         windowLabel,
+        placement: DEFAULT_TAB_PLACEMENT,
         tabs: [],
         groups: [],
         pinnedOrder: [],
@@ -199,7 +230,13 @@ export function seedEulaStrip(pages: readonly TabPage[], label: string, windowLa
         activeTabId: null,
     };
     const seeded = pages.reduce<TabStripState>(
-        (state, page) => addTab(state, { id: `tab-${page.id}`, pageId: page.id, label: page.label, icon: page.icon }),
+        (state, page) =>
+            addTab(state, {
+                id: `tab-${page.id}`,
+                pageId: page.id,
+                label: page.label,
+                icon: page.icon,
+            }),
         empty,
     );
     const first = seeded.tabs[0];
@@ -229,14 +266,20 @@ export function reconcileEulaStrip(
     // Labels come from the document and the language mode, never from the file.
     for (const tab of strip.tabs) {
         const page = byId.get(tab.pageId);
-        if (page !== undefined && page.label !== tab.label) strip = renameTab(strip, tab.id, page.label);
+        if (page !== undefined && page.label !== tab.label)
+            strip = renameTab(strip, tab.id, page.label);
     }
 
     const covered = new Set(strip.tabs.map((tab) => tab.pageId));
     const wasActive = strip.activeTabId;
     for (const page of pages) {
         if (covered.has(page.id)) continue;
-        strip = addTab(strip, { id: `tab-${page.id}`, pageId: page.id, label: page.label, icon: page.icon });
+        strip = addTab(strip, {
+            id: `tab-${page.id}`,
+            pageId: page.id,
+            label: page.label,
+            icon: page.icon,
+        });
     }
     // `addTab` activates what it opens, which is right for a "new tab" gesture and wrong
     // here: appending sections the document grew must not move somebody off the section
