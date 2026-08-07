@@ -84,6 +84,9 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
   }),
 });
 
+const RELEASE_JOB_FINGERPRINT =
+  "9e570f9952d5290a40c91a21b188c91823a192f71a3f7d1dbaf853c78925b10e";
+
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
     sha: "11d5960a326750d5838078e36cf38b85af677262",
@@ -294,6 +297,32 @@ function stepFingerprint(text, stepName) {
     env: sha256(normalizeBlock(env)),
     run: sha256(normalizeBlock(regions[0].lines)),
   };
+}
+
+function jobBlock(lines, jobName) {
+  const start = lines.findIndex(
+    (line) => line === `  ${jobName}:` || line === `  ${jobName}: `,
+  );
+  if (start < 0) return null;
+  let end = lines.length;
+  for (let index = start + 1; index < lines.length; index++) {
+    if (/^  [A-Za-z0-9_-]+:\s*$/.test(lines[index])) {
+      end = index;
+      break;
+    }
+  }
+  return {
+    start,
+    end,
+    lines: lines
+      .slice(start, end)
+      .map((text, offset) => ({ number: start + offset + 1, text })),
+  };
+}
+
+function jobFingerprint(text, jobName) {
+  const block = jobBlock(text.split(/\r?\n/), jobName);
+  return block ? sha256(normalizeBlock(block.lines)) : null;
 }
 
 function bindingProblems(lines, region, file, expected) {
@@ -509,14 +538,9 @@ function actionDependencyProblems(text, file) {
 
   if (file !== ".github/workflows/ci.yml") return problems;
 
-  const releaseStart = lines.findIndex((line) => /^  release:\s*$/.test(line));
-  let releaseEnd = lines.length;
-  for (let index = releaseStart + 1; index < lines.length; index++) {
-    if (/^  [A-Za-z0-9_-]+:\s*$/.test(lines[index])) {
-      releaseEnd = index;
-      break;
-    }
-  }
+  const release = jobBlock(lines, "release");
+  const releaseStart = release?.start ?? -1;
+  const releaseEnd = release?.end ?? lines.length;
   const expectedReleaseNeeds =
     "needs: [check, workflows, package, jars, test-world, config-java-roundtrip]";
   const releaseNeeds =
@@ -535,6 +559,28 @@ function actionDependencyProblems(text, file) {
       message:
         "release must depend on every required build and workflow-security gate",
     });
+  }
+
+  const actualReleaseFingerprint = jobFingerprint(text, "release");
+  if (
+    actualReleaseFingerprint !== RELEASE_JOB_FINGERPRINT ||
+    !/^[0-9a-f]{64}$/.test(RELEASE_JOB_FINGERPRINT)
+  ) {
+    problems.push({
+      file,
+      line: releaseStart + 1 || 1,
+      stepName: null,
+      expression: null,
+      message:
+        "complete release job changed outside its reviewed SHA-256 contract",
+    });
+  }
+
+  for (const region of scriptRegions(text).filter(
+    (candidate) =>
+      candidate.keyLine > releaseStart + 1 && candidate.keyLine <= releaseEnd,
+  )) {
+    problems.push(...expressionProblems(region, file));
   }
 
   const regions = scriptRegions(text);
@@ -626,6 +672,7 @@ function main() {
 
 export {
   PINNED_ACTIONS,
+  RELEASE_JOB_FINGERPRINT,
   ACTION_INVENTORIES,
   WATCHED_SCRIPT_STEPS,
   WATCHED_STEP_FINGERPRINTS,
@@ -633,6 +680,7 @@ export {
   lintInventory,
   lintText,
   scriptRegions,
+  jobFingerprint,
   stepFingerprint,
 };
 

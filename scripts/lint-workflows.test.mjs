@@ -6,9 +6,11 @@ import { test } from "node:test";
 import {
   ACTION_INVENTORIES,
   PINNED_ACTIONS,
+  RELEASE_JOB_FINGERPRINT,
   WATCHED_SCRIPT_STEPS,
   WATCHED_STEP_FINGERPRINTS,
   actionDependencyProblems,
+  jobFingerprint,
   lintText,
   scriptRegions,
   stepFingerprint,
@@ -121,6 +123,34 @@ test("complete run and env fingerprints reject indirect execution and harmless d
         ),
     ),
   );
+});
+
+test("an adjacent executable release step cannot escape the reviewed inventory", () => {
+  const workflow = readFileSync(FILE, "utf8");
+  const publish = "      - name: Publish\n";
+  const injected = workflow.replace(
+    publish,
+    "      - name: Unreviewed adjacent shell\n" +
+      '        run: echo "${{ github.event.issue.title }}"\n\n' +
+      publish,
+  );
+  const problems = [
+    ...lintText(injected, FILE, WATCHED, WATCHED_STEP_FINGERPRINTS[FILE]),
+    ...actionDependencyProblems(injected, FILE),
+  ];
+  assert.ok(
+    problems.some((problem) =>
+      problem.message.startsWith("Actions expression is interpolated"),
+    ),
+  );
+  assert.ok(
+    problems.some((problem) =>
+      /complete release job changed outside its reviewed SHA-256 contract/.test(
+        problem.message,
+      ),
+    ),
+  );
+  assert.equal(jobFingerprint(workflow, "release"), RELEASE_JOB_FINGERPRINT);
 });
 
 test("all 49 release-chain actions are SHA-pinned and checkouts erase credentials", () => {
