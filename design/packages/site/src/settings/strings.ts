@@ -113,6 +113,10 @@ export const SETTINGS_STRINGS: StringTable = {
         en: "Source: responsive default — collapsed at 720 CSS pixels or narrower, expanded above it.",
         yue: "來源：響應式預設——720 CSS 像素或以下收合，再闊就展開。",
     },
+    "settings.provenance.scheduled-override": {
+        en: "Source: a temporary scheduled override; the stored base value is unchanged.",
+        yue: "來源：暫時排程覆寫；原本儲低嘅基礎值冇被改。",
+    },
     "settings.changedCount": {
         en: "{count} settings differ from their defaults",
         yue: "有 {count} 項設定同預設唔同",
