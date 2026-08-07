@@ -406,12 +406,22 @@ interface BlueMapWorldFolderListing {
     folder: string;
     entries: { path: string; directory: boolean }[];
     regionFiles: Record<string, number>;
+    regionExtents: Record<string, { minX: number; maxX: number; minZ: number; maxZ: number }>;
+    spawn: { x: number; z: number } | null;
+    spawnError: string | null;
     /**
      * The nether and/or the end, when a Spigot/Paper-style server split them into
      * sibling folders instead of nesting them inside this one. Keyed `"nether"` /
      * `"the_end"`.
      */
-    serverSiblings: Record<string, { worldFolder: string; regionFiles: number }>;
+    serverSiblings: Record<
+        string,
+        {
+            worldFolder: string;
+            regionFiles: number;
+            regionExtent: { minX: number; maxX: number; minZ: number; maxZ: number } | null;
+        }
+    >;
 }
 
 /**

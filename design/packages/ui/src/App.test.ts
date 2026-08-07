@@ -831,6 +831,20 @@ describe("the configuration button", () => {
         expect(configFab().getAttribute("aria-expanded")).toBe("true");
     });
 
+    it("carries an exact palette target through to the render-mask field", async () => {
+        const app = shell();
+
+        app.findComponent(CommandPalette).vm.$emit("open-config", {
+            screen: "maps",
+            fieldPath: "render-mask",
+        });
+        await settle();
+
+        const config = app.findComponent(ConfigScreen);
+        expect(config.props("initialScreen")).toBe("maps");
+        expect(config.props("initialFieldPath")).toBe("render-mask");
+    });
+
     it("leaves the page behind it mounted but inert, so four steps of work survive a look at the config", async () => {
         const app = shell();
         tabButton("Make a map").click();

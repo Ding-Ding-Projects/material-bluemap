@@ -285,6 +285,11 @@ export interface WorldProbeBridge {
         folder: string;
         entries: readonly { path: string; directory: boolean }[];
         regionFiles: Readonly<Record<string, number>>;
+        regionExtents?: Readonly<
+            Record<string, { minX: number; maxX: number; minZ: number; maxZ: number }>
+        >;
+        spawn?: { x: number; z: number } | null;
+        spawnError?: string | null;
         serverSiblings?: Readonly<Record<string, ServerSiblingDimension>>;
     }>;
 }

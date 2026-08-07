@@ -38,6 +38,8 @@ import {
     type ConfigWorkspace,
 } from "./configWorkspace.js";
 import { createSettingMatcher } from "./regexEngine.js";
+import { UNKNOWN_WORLD, type WorldOrientation } from "./maskCanvas.js";
+import { inspectMaskWorld } from "./maskWorld.js";
 
 /**
  * The maps screen: a list of every map config, and the full editor for the one
@@ -93,6 +95,31 @@ const listed = computed(() =>
 );
 
 const selected = computed(() => (props.selectedKey === null ? undefined : findEntry(props.workspace, props.selectedKey)));
+const selectedWorld = computed(() => {
+    const entry = selected.value;
+    if (entry === undefined) return "";
+    const field = entry.file.descriptor.fields.find((candidate) => candidate.path === "world");
+    return field === undefined ? "" : String(fieldValue(entry.file, field) ?? "");
+});
+const selectedDimension = computed(() => {
+    const entry = selected.value;
+    if (entry === undefined) return "minecraft:overworld";
+    const field = entry.file.descriptor.fields.find((candidate) => candidate.path === "dimension");
+    return field === undefined
+        ? "minecraft:overworld"
+        : String(fieldValue(entry.file, field) ?? "minecraft:overworld");
+});
+const maskWorld = ref<WorldOrientation>(UNKNOWN_WORLD);
+let maskWorldRead = 0;
+watch(
+    [selectedWorld, selectedDimension],
+    async ([folder, dimension]) => {
+        const read = ++maskWorldRead;
+        const measured = await inspectMaskWorld(folder, dimension);
+        if (read === maskWorldRead) maskWorld.value = measured;
+    },
+    { immediate: true },
+);
 
 const issues = computed(() => workspaceIssues(props.workspace));
 
@@ -390,6 +417,7 @@ const storageOptions = computed(() => storageIds(props.workspace));
                         )
                     "
                     :highlight-path="highlightPath"
+                    :world="maskWorld"
                     @set="onSet"
                     @clear="onClear"
                     @consent="emit('consent')"

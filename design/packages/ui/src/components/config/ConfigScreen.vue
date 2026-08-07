@@ -36,6 +36,7 @@ import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import { clearFieldValue, fieldValue, replaceText, setFieldValue } from "./configModel.js";
 import {
     createWorkspace,
+    entriesOfKind,
     isWorkspaceDirty,
     loadWorkspace,
     markWorkspaceSaved,
@@ -75,6 +76,8 @@ const props = withDefaults(
         jarPath?: string;
         /** Tab to reveal when the editor opens from the command palette. */
         initialScreen?: ScreenId | "history";
+        /** Exact field requested by the command palette after the workspace is ready. */
+        initialFieldPath?: string | null;
         /**
          * Injected in tests. Left out, the Electron bridge is probed instead,
          * which is why this one has no default: `undefined` means "probe" and
@@ -82,7 +85,13 @@ const props = withDefaults(
          */
         host?: ConfigHost | null;
     }>(),
-    { initialFolder: null, version: "5.22", jarPath: "bluemap-cli.jar", initialScreen: "core" },
+    {
+        initialFolder: null,
+        version: "5.22",
+        jarPath: "bluemap-cli.jar",
+        initialScreen: "core",
+        initialFieldPath: null,
+    },
 );
 
 const emit = defineEmits<{
@@ -187,6 +196,11 @@ watch(workspace, async (value) => {
     if (value === null) return;
     await nextTick();
     tabsNav.value?.revealPage(props.initialScreen);
+    const path = props.initialFieldPath;
+    if (path !== null && path !== undefined && props.initialScreen === "maps") {
+        const first = entriesOfKind(value, "map")[0];
+        if (first !== undefined) await goTo("maps", first.key, path);
+    }
 });
 
 // ---- consent ---------------------------------------------------------------

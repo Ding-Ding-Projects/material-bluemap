@@ -32,7 +32,12 @@ import { withGlobalReset } from "../appearance/appearanceStore.js";
 import { appearanceState, commitAppearance } from "../appearance/useAppearance.js";
 import { SCREENS } from "../config/configSearch.js";
 import { SETTINGS_ANCHORS, SETTINGS_SECTIONS } from "../settings/settingsSections.js";
-import { buildPaletteCatalog, type PaletteCatalogInput, type PaletteShellActions } from "./paletteCatalog.js";
+import {
+    buildPaletteCatalog,
+    type PaletteCatalogInput,
+    type PaletteConfigTarget,
+    type PaletteShellActions,
+} from "./paletteCatalog.js";
 import type { PaletteItem, PaletteSetting, Translate } from "./paletteItems.js";
 
 /**
@@ -53,10 +58,15 @@ const t: Translate = ((key: string, second: unknown, third?: unknown) => {
 function actions(): PaletteShellActions & {
     revealed: unknown[];
     settingsOpened: number;
-    configOpened: (string | null)[];
+    configOpened: PaletteConfigTarget[];
     profilesOpened: number;
 } {
-    const state = { revealed: [] as unknown[], settingsOpened: 0, configOpened: [] as (string | null)[], profilesOpened: 0 };
+    const state = {
+        revealed: [] as unknown[],
+        settingsOpened: 0,
+        configOpened: [] as PaletteConfigTarget[],
+        profilesOpened: 0,
+    };
     return {
         get revealed() {
             return state.revealed;
@@ -200,14 +210,14 @@ function input(overrides: Partial<PaletteCatalogInput> = {}): PaletteCatalogInpu
  */
 function fullActions(): PaletteShellActions & {
     pagesOpened: string[];
-    configOpened: (string | null)[];
+    configOpened: PaletteConfigTarget[];
     noticeCentre: number;
     tabFinder: number;
     changelog: number;
 } {
     const state = {
         pagesOpened: [] as string[],
-        configOpened: [] as (string | null)[],
+        configOpened: [] as PaletteConfigTarget[],
         noticeCentre: 0,
         tabFinder: 0,
         changelog: 0,
@@ -281,6 +291,17 @@ describe("what the catalogue covers", () => {
             expect(row.title).toBe(screen.label);
             expect(row.kind === "destination" && row.where).toContain(screen.label);
         }
+    });
+
+    it("has an exact destination for the render-mask editor instead of stopping at Maps", () => {
+        const row = byId(
+            buildPaletteCatalog(input({ canRouteConfigScreens: true })),
+            "config.maps.render-mask",
+        );
+
+        expect(row.kind).toBe("destination");
+        expect(row.title).toBe("Render mask editor");
+        expect(row.kind === "destination" && row.where).toContain("focuses its editor");
     });
 
     it("collapses those seven to one row while the shell cannot route, and keeps them findable", () => {
@@ -444,6 +465,17 @@ describe("teleporting", () => {
         if (combined.kind !== "destination") throw new Error("expected a destination");
         combined.go();
         expect(plain.configOpened).toEqual([null]);
+    });
+
+    it("passes an exact map-field target for the render-mask editor", () => {
+        const shell = actions();
+        const items = buildPaletteCatalog(input({ actions: shell, canRouteConfigScreens: true }));
+        const mask = byId(items, "config.maps.render-mask");
+        if (mask.kind !== "destination") throw new Error("expected a destination");
+
+        mask.go();
+
+        expect(shell.configOpened).toEqual([{ screen: "maps", fieldPath: "render-mask" }]);
     });
 
     it("opens a menu page through the menu's own API, with the title as a getter", () => {

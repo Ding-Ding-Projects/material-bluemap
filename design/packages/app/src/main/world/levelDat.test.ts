@@ -69,6 +69,8 @@ function ordinaryWorld(): number[] {
         ...longField("LastPlayed", 1_764_547_200_000n),
         ...intField("DataVersion", 4189),
         ...intField("GameType", 0),
+        ...intField("SpawnX", 12),
+        ...intField("SpawnZ", -34),
         ...byteField("hardcore", 0),
         ...byteField("allowCommands", 1),
         ...compoundField("Version", [
@@ -97,6 +99,8 @@ describe("the fields somebody chooses a world by", () => {
             hardcore: false,
             cheats: true,
             seed: "-4872364918273645501",
+            spawnX: 12,
+            spawnZ: -34,
         });
     });
 
@@ -160,6 +164,8 @@ describe("what it refuses to guess", () => {
             hardcore: null,
             cheats: null,
             seed: null,
+            spawnX: null,
+            spawnZ: null,
         });
     });
 

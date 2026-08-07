@@ -1032,7 +1032,16 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 @keydown.esc="closeConfig"
             >
                 <ConfigScreen
-                    :initial-screen="pendingConfigScreen ?? 'core'"
+                    :initial-screen="
+                        pendingConfigScreen !== null && typeof pendingConfigScreen === 'object'
+                            ? pendingConfigScreen.screen
+                            : (pendingConfigScreen ?? 'core')
+                    "
+                    :initial-field-path="
+                        pendingConfigScreen !== null && typeof pendingConfigScreen === 'object'
+                            ? pendingConfigScreen.fieldPath
+                            : null
+                    "
                     @consent="openSettings('mojang-download-consent')"
                     @saved="configSaved"
                 />

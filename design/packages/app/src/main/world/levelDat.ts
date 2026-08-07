@@ -60,6 +60,9 @@ export interface LevelDetails {
      * `RandomSeed`. Text rather than a number: see the note at the top of the file.
      */
     readonly seed: string | null;
+    /** Java world spawn, in block coordinates. Read independently; callers require the pair. */
+    readonly spawnX: number | null;
+    readonly spawnZ: number | null;
 }
 
 const NOTHING_KNOWN: LevelDetails = {
@@ -72,6 +75,8 @@ const NOTHING_KNOWN: LevelDetails = {
     hardcore: null,
     cheats: null,
     seed: null,
+    spawnX: null,
+    spawnZ: null,
 };
 
 /**
@@ -233,6 +238,12 @@ function readDataField(cursor: Cursor, entry: Entry, found: Mutable, depth: numb
             // already been read, because a world carrying both carries the new one as the
             // one the game actually used.
             if (entry.type === TAG_LONG && found.seed === null) found.seed = cursor.i64().toString();
+            return;
+        case "SpawnX":
+            if (entry.type === TAG_INT) found.spawnX = cursor.i32();
+            return;
+        case "SpawnZ":
+            if (entry.type === TAG_INT) found.spawnZ = cursor.i32();
             return;
         case "Version":
             if (entry.type === TAG_COMPOUND) readVersionCompound(cursor, found, depth);

@@ -114,6 +114,7 @@ export interface WorldFolderEntry {
 export interface ServerSiblingDimension {
     worldFolder: string;
     regionFiles: number;
+    regionExtent: { minX: number; maxX: number; minZ: number; maxZ: number } | null;
 }
 
 /**
@@ -130,6 +131,9 @@ export interface WorldFolderListing {
     folder: string;
     entries: WorldFolderEntry[];
     regionFiles: Record<string, number>;
+    regionExtents: Record<string, { minX: number; maxX: number; minZ: number; maxZ: number }>;
+    spawn: { x: number; z: number } | null;
+    spawnError: string | null;
     /** The nether and/or the end, when a server split them into sibling folders instead. */
     serverSiblings: Record<string, ServerSiblingDimension>;
 }

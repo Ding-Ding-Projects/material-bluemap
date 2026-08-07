@@ -35,6 +35,14 @@ export interface ServerSiblingDimension {
     /** The sibling's own folder, absolute. What BlueMap must be told `world` is, for it. */
     readonly worldFolder: string;
     readonly regionFiles: number;
+    readonly regionExtent?: WorldBlockExtent | null;
+}
+
+export interface WorldBlockExtent {
+    readonly minX: number;
+    readonly maxX: number;
+    readonly minZ: number;
+    readonly maxZ: number;
 }
 
 /**
@@ -51,6 +59,9 @@ export interface WorldFolderListing {
     readonly folder: string;
     readonly entries: readonly WorldFolderEntry[];
     readonly regionFiles: Readonly<Record<string, number>>;
+    readonly regionExtents?: Readonly<Record<string, WorldBlockExtent>>;
+    readonly spawn?: { readonly x: number; readonly z: number } | null;
+    readonly spawnError?: string | null;
     /**
      * The nether and/or the end, when they live in a sibling folder instead. Keyed
      * `"nether"` / `"the_end"`. Optional so every fixture and every bridge built before
@@ -101,6 +112,7 @@ export interface WorldDimension {
     /** Where its region files are, relative to the world folder that holds it. */
     readonly regionDirectory: string;
     readonly regionFiles: number;
+    readonly regionExtent?: WorldBlockExtent | null;
     /** Which of upstream's three map templates suits it. */
     readonly preset: MapPreset;
     /** Upstream's own sort order: 0, 100, 200, then 300 upward for the rest. */
@@ -130,6 +142,8 @@ export interface WorldInspection {
     /** Every dimension with region files, in sort order. Empty when not a world. */
     readonly dimensions: readonly WorldDimension[];
     readonly hasLevelDat: boolean;
+    readonly spawn?: { readonly x: number; readonly z: number } | null;
+    readonly spawnError?: string | null;
     /** True when the listing was never taken, so nothing was checked. */
     readonly unchecked: boolean;
 }
@@ -241,6 +255,7 @@ const SIBLING_KEY_FOR: Readonly<Record<string, string>> = {
 export function dimensionsIn(
     regionFiles: Readonly<Record<string, number>>,
     serverSiblings: Readonly<Record<string, ServerSiblingDimension>> = {},
+    regionExtents: Readonly<Record<string, WorldBlockExtent>> = {},
 ): WorldDimension[] {
     const found: WorldDimension[] = [];
 
@@ -253,6 +268,9 @@ export function dimensionsIn(
                 label: dimension.label,
                 regionDirectory: dimension.directory,
                 regionFiles: count,
+                ...(regionExtents[dimension.directory] === undefined
+                    ? {}
+                    : { regionExtent: regionExtents[dimension.directory] }),
                 preset: dimension.preset,
                 sorting: dimension.sorting,
                 custom: false,
@@ -272,6 +290,9 @@ export function dimensionsIn(
                 label: dimension.label,
                 regionDirectory: modernDirectory,
                 regionFiles: modernCount,
+                ...(regionExtents[modernDirectory] === undefined
+                    ? {}
+                    : { regionExtent: regionExtents[modernDirectory] }),
                 preset: dimension.preset,
                 sorting: dimension.sorting,
                 custom: false,
@@ -289,6 +310,9 @@ export function dimensionsIn(
             label: dimension.label,
             regionDirectory: dimension.directory,
             regionFiles: sibling.regionFiles,
+            ...(sibling.regionExtent === undefined
+                ? {}
+                : { regionExtent: sibling.regionExtent }),
             preset: dimension.preset,
             sorting: dimension.sorting,
             custom: false,
@@ -318,6 +342,9 @@ export function dimensionsIn(
             label: key,
             regionDirectory: directory,
             regionFiles: count,
+            ...(regionExtents[directory] === undefined
+                ? {}
+                : { regionExtent: regionExtents[directory] }),
             preset: "overworld",
             sorting: 0,
             custom: true,
@@ -363,6 +390,8 @@ export function uncheckedWorld(folder: string): WorldInspection {
         problems,
         dimensions: [],
         hasLevelDat: false,
+        spawn: null,
+        spawnError: "The world folder has not been inspected yet.",
         unchecked: true,
     };
 }
@@ -375,6 +404,8 @@ export function unreadableWorld(folder: string, detail: string): WorldInspection
         problems: [{ code: "unreadable", detail }],
         dimensions: [],
         hasLevelDat: false,
+        spawn: null,
+        spawnError: detail,
         unchecked: false,
     };
 }
@@ -395,7 +426,11 @@ export function inspectWorldFolder(listing: WorldFolderListing): WorldInspection
     if (!isAbsolutePath(folder)) problems.push({ code: "relative", detail: null });
 
     const hasLevelDat = hasLevelDatAtRoot(listing.entries);
-    const dimensions = dimensionsIn(listing.regionFiles, listing.serverSiblings ?? {});
+    const dimensions = dimensionsIn(
+        listing.regionFiles,
+        listing.serverSiblings ?? {},
+        listing.regionExtents ?? {},
+    );
     const name = folderName(folder);
     const rootRegionFiles = listing.regionFiles[""] ?? 0;
 
@@ -418,6 +453,8 @@ export function inspectWorldFolder(listing: WorldFolderListing): WorldInspection
         problems,
         dimensions,
         hasLevelDat,
+        spawn: listing.spawn ?? null,
+        spawnError: listing.spawnError ?? "This build did not report the world's spawn point.",
         unchecked: false,
     };
 }

@@ -163,10 +163,12 @@ describe("a Spigot/Paper-style server layout", () => {
         expect(listing.serverSiblings["nether"]).toEqual({
             worldFolder: join(root, "world_nether"),
             regionFiles: 5,
+            regionExtent: { minX: 0, maxX: 511, minZ: 0, maxZ: 2559 },
         });
         expect(listing.serverSiblings["the_end"]).toEqual({
             worldFolder: join(root, "world_the_end"),
             regionFiles: 2,
+            regionExtent: { minX: 0, maxX: 511, minZ: 0, maxZ: 1023 },
         });
         // The in-folder table is untouched: the split layout never nests DIM-1/DIM1
         // inside the overworld's own folder, so nothing here is found there either.

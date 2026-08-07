@@ -14,6 +14,7 @@ import type { MapOptionsStepExpose } from "./MapOptionsStep.expose.js";
 import { WIZARD_STEPS, WIZARD_STEP_META, type WizardStep } from "./wizardSteps.js";
 import type { WorldInspection } from "./worldFolder.js";
 import type { RenderRequest } from "./worldBridge.js";
+import { maskWorldFor } from "../config/maskWorld.js";
 
 /**
  * The create-a-map wizard: five steps between "no map" and a render running.
@@ -185,6 +186,7 @@ const canStart = computed(
 );
 
 const dimensionLabel = computed(() => wizard.dimension.value?.label ?? wizard.dimensionKey.value);
+const maskWorld = computed(() => maskWorldFor(wizard.inspection.value, wizard.dimensionKey.value));
 
 /* ---- world ---------------------------------------------------------------- */
 
@@ -417,6 +419,7 @@ defineExpose({ wizard });
                 ref="optionsStep"
                 :file="wizard.file.value"
                 :changed-count="wizard.changes.value.length"
+                :world="maskWorld"
                 @set="setOption"
                 @clear="clearOption"
                 @consent="emit('consent')"

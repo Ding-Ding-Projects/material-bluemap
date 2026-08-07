@@ -32,6 +32,8 @@ import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { GlossaryTerm } from "../glossary/index.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { clearFieldValue, replaceText, setFieldValue } from "../config/configModel.js";
+import { UNKNOWN_WORLD, type WorldOrientation } from "../config/maskCanvas.js";
+import { inspectMaskWorld } from "../config/maskWorld.js";
 import {
     PROJECT_PRESETS,
     applyPreset,
@@ -138,6 +140,18 @@ const searchSummary = computed(() =>
 );
 
 const selected = computed(() => (props.selectedId === null ? undefined : findMap(props.project, props.selectedId)));
+const maskWorld = ref<WorldOrientation>(UNKNOWN_WORLD);
+let maskWorldRead = 0;
+
+watch(
+    [() => props.world, () => selected.value?.dimension ?? "minecraft:overworld"],
+    async ([folder, dimension]) => {
+        const read = ++maskWorldRead;
+        const measured = await inspectMaskWorld(folder, dimension);
+        if (read === maskWorldRead) maskWorld.value = measured;
+    },
+    { immediate: true },
+);
 
 /**
  * Keeps a selection pointing at a map that is really there.
@@ -788,6 +802,7 @@ function confirmRemoval(): void {
                         )
                     "
                     :highlight-path="highlight"
+                    :world="maskWorld"
                     @set="onSet"
                     @clear="onClear"
                     @consent="emit('consent')"

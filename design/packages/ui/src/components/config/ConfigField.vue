@@ -11,6 +11,7 @@ import ConfigMarkerSetsField from "./ConfigMarkerSetsField.vue";
 import ConfigMaskField from "./ConfigMaskField.vue";
 import { fieldValue, isExplicit, type EditableConfigFile } from "./configModel.js";
 import { isDefaultValue, toControlValue, valueToText } from "./fieldValue.js";
+import { UNKNOWN_WORLD, type WorldOrientation } from "./maskCanvas.js";
 
 /**
  * One setting, with everything around it that makes it usable without the file
@@ -29,8 +30,9 @@ const props = withDefaults(
         disabled?: boolean;
         /** Draws attention to this row after the search or palette navigates to it. */
         highlighted?: boolean;
+        world?: WorldOrientation;
     }>(),
-    { disabled: false, highlighted: false },
+    { disabled: false, highlighted: false, world: () => UNKNOWN_WORLD },
 );
 
 const emit = defineEmits<{
@@ -49,6 +51,7 @@ const docOpen = ref(false);
  * every binding in the template.
  */
 const isDisabled = computed(() => props.disabled === true);
+const worldOrientation = computed<WorldOrientation>(() => props.world);
 
 
 const value = computed(() => fieldValue(props.file, props.field));
@@ -169,6 +172,7 @@ function set(next: PlainValue): void {
                 :model-value="Array.isArray(value) ? value : []"
                 :label="field.label"
                 :disabled="isDisabled"
+                :world="worldOrientation"
                 @update:model-value="set"
             />
             <ConfigMarkerSetsField
