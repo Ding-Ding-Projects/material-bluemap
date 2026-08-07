@@ -83,7 +83,16 @@ describe("parseJarVersion", () => {
 });
 
 describe("findRepoRoot", () => {
-    it("walks up until it sees the vendored upstream source", () => {
+    it("walks up until it sees Git's repository marker", () => {
+        const marker = join(REPO, ".git");
+        const found = findRepoRoot(
+            join(REPO, "design", "packages", "app", "src", "main", "java"),
+            (path) => path === marker,
+        );
+        expect(found).toBe(REPO);
+    });
+
+    it("keeps the vendored upstream source as a fallback for exported trees", () => {
         const anchor = join(REPO, "vendor", "BlueMap", "settings.gradle.kts");
         const found = findRepoRoot(
             join(REPO, "design", "packages", "app", "src", "main", "java"),
