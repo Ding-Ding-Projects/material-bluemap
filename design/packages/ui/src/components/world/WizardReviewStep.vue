@@ -422,8 +422,23 @@ async function copyConfig(): Promise<void> {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    row-gap: 4px;
     font-size: 0.9375rem;
     padding: 4px 8px;
+    /*
+     * `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis; white-space:
+     * nowrap`, and `display: flex` above clears none of the three: `text-overflow` stops
+     * applying once the box is a flex container, `overflow: hidden` still clips, and the
+     * inherited `nowrap` leaves the text no line to break on. `flex-wrap: wrap` only ever
+     * moved whole items onto a second row; it could not make one long item shorter, and
+     * the long item here is the disclosure button's own label - "Show the map config this
+     * produces" in English, longer in several locales - which was cut off mid-character
+     * with no ellipsis. Same fix as `DockerWorldSourcePanel.vue`'s
+     * `.mb-docker-world__card > .v-card-title`.
+     */
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 .mb-world-review__subtitle {

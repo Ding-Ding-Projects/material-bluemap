@@ -336,7 +336,22 @@ function openMap(): void {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    row-gap: 4px;
     font-size: 0.9375rem;
+    /*
+     * `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis; white-space:
+     * nowrap`, and `display: flex` above clears none of the three: `text-overflow` stops
+     * applying once the box is a flex container, `overflow: hidden` still clips, and the
+     * inherited `nowrap` leaves the state text one unbreakable line. `flex-wrap: wrap`
+     * could only move whole items onto a second row; it could not make one item shorter,
+     * and the item that overruns here is the state `<span>` - "The render did not finish"
+     * is the longest English one and several locales are longer - which was cut off
+     * mid-character with no ellipsis. Same fix as `DockerWorldSourcePanel.vue`'s
+     * `.mb-docker-world__card > .v-card-title`.
+     */
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 .mb-world-run__line {

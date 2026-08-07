@@ -264,7 +264,26 @@ async function copyCommand(): Promise<void> {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
+    row-gap: 4px;
     font-size: 0.9375rem;
+    /*
+     * `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis; white-space:
+     * nowrap`, and turning it into a flex row clears none of the three: `text-overflow`
+     * stops applying once the box is a flex container, `overflow: hidden` still clips,
+     * and the inherited `nowrap` leaves the heading no line to break on. Both headings
+     * here are translated sentences - "What this run does" and "The command" are the
+     * English ones - so a longer locale was cut off mid-character with no ellipsis and
+     * nothing to say anything was missing. Same fix as
+     * `DockerWorldSourcePanel.vue`'s `.mb-docker-world__card > .v-card-title`.
+     *
+     * `flex-wrap: wrap` is here for the second heading: it carries an argument-count
+     * chip beside the text, and without a wrap that chip is pushed past the card edge
+     * rather than dropping to its own line.
+     */
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 .mb-config-run__list {

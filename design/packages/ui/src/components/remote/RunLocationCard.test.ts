@@ -25,6 +25,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import RunLocationCard from "./RunLocationCard.vue";
+import runLocationCardSource from "./RunLocationCard.vue?raw";
 import type {
     DockerStatus,
     DockerSummary,
@@ -488,5 +489,28 @@ describe("the fourth place", () => {
         await flushPromises();
 
         expect(wrapper.text()).toMatch(/refuses before packing/i);
+    });
+});
+
+describe("the card's heading, which turns its <v-card-title> into a flex row", () => {
+    /**
+     * Regression: `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis;
+     * white-space: nowrap` (Vuetify's own `VCard.css`). `.mb-run-location__title` makes it
+     * a flex row, and `display: flex` clears none of the three: `text-overflow` stops
+     * applying once the box is a flex container, `overflow: hidden` still clips, and the
+     * inherited `nowrap` leaves "Where this render runs" no line to break on. This card is
+     * one of the surfaces the wizard renders in a narrow column, so a longer translation
+     * was cut off mid-character with no ellipsis.
+     *
+     * `test.css` is not enabled for this workspace's `vitest.config.ts`, so no cascade is
+     * observable from a mounted component here; a `?raw` import reads the exact rule the
+     * fix landed in, the way `PagesScreen.test.ts` does for its own CSS fix.
+     */
+    it("clears the inherited overflow, text-overflow and white-space so the heading can wrap", () => {
+        const rule = /\.mb-run-location__title\s*\{[^}]*\}/s.exec(runLocationCardSource)?.[0] ?? "";
+        expect(rule).not.toBe("");
+        expect(rule).toContain("overflow: visible");
+        expect(rule).toContain("text-overflow: clip");
+        expect(rule).toContain("white-space: normal");
     });
 });

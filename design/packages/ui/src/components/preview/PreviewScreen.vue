@@ -346,6 +346,18 @@ const renderItems = computed(() =>
     display: flex;
     align-items: center;
     gap: 8px;
+    /*
+     * `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis; white-space:
+     * nowrap`, and `display: flex` above clears none of the three: `text-overflow` stops
+     * applying once the box is a flex container, `overflow: hidden` still clips, and the
+     * inherited `nowrap` leaves the heading no line to break on. The heading is a
+     * translated sentence - "Watch it live" in English - sharing the row with an icon, so
+     * a longer locale was cut off mid-character with no ellipsis. Same fix as
+     * `DockerWorldSourcePanel.vue`'s `.mb-docker-world__card > .v-card-title`.
+     */
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 .mb-preview__body {

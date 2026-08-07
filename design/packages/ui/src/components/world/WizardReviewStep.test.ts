@@ -25,6 +25,7 @@ import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
 import WizardReviewStep from "./WizardReviewStep.vue";
+import wizardReviewStepSource from "./WizardReviewStep.vue?raw";
 import type { FieldChange } from "../config/configModel.js";
 
 beforeAll(() => {
@@ -320,5 +321,29 @@ describe("the builder, opened from this field", () => {
         expect(rows(wrapper)).toHaveLength(0);
 
         wrapper.unmount();
+    });
+});
+
+describe("the review cards' heads, which turn their <v-card-title> into a flex row", () => {
+    /**
+     * Regression: `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis;
+     * white-space: nowrap` (Vuetify's own `VCard.css`). `.mb-world-review__head` makes it a
+     * flex row so an icon, and on the second card two buttons, sit beside the heading -
+     * but `display: flex` clears none of the three: `text-overflow` stops applying once the
+     * box is a flex container, `overflow: hidden` still clips, and the inherited `nowrap`
+     * leaves the text no line to break on. `flex-wrap: wrap` was already there and could
+     * only move whole items onto a second row, never shorten one, so the disclosure
+     * button's own label was cut off mid-character with no ellipsis.
+     *
+     * `test.css` is not enabled for this workspace's `vitest.config.ts`, so no cascade is
+     * observable from a mounted component here; a `?raw` import reads the exact rule the
+     * fix landed in, the way `PagesScreen.test.ts` does for its own CSS fix.
+     */
+    it("clears the inherited overflow, text-overflow and white-space so the heading can wrap", () => {
+        const rule = /\.mb-world-review__head\s*\{[^}]*\}/s.exec(wizardReviewStepSource)?.[0] ?? "";
+        expect(rule).not.toBe("");
+        expect(rule).toContain("overflow: visible");
+        expect(rule).toContain("text-overflow: clip");
+        expect(rule).toContain("white-space: normal");
     });
 });

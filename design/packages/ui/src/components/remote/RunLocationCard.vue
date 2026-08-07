@@ -496,6 +496,19 @@ defineExpose({
     gap: 8px;
     font-size: 1rem;
     padding: 10px 14px 0;
+    /*
+     * `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis; white-space:
+     * nowrap`, and `display: flex` above clears none of the three: `text-overflow` stops
+     * applying once the box is a flex container, `overflow: hidden` still clips, and the
+     * inherited `nowrap` leaves the heading no line to break on. The heading is a
+     * translated sentence - "Where this render runs" in English - and this card is one of
+     * the surfaces the wizard renders in a narrow column, so a longer locale was cut off
+     * mid-character with no ellipsis. Same fix as `DockerWorldSourcePanel.vue`'s
+     * `.mb-docker-world__card > .v-card-title`.
+     */
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
 }
 
 .mb-run-location__blurb {
