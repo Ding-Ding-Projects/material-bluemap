@@ -56,6 +56,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Document and index the gh release repair - [`c6093b3914`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c6093b3914701b40744ff4893364b8409be54200)
 - Merge cloud-runner phase into gh release repair - [`4a7ea0f843`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/4a7ea0f8438612cd7a541eec64f0568a62f502fe) _(summary of 5 commits, also listed here)_
 - Repair hosted-runner documentation links - [`7bf8e2a3d1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/7bf8e2a3d1344d38e971ee54f4dad1ec0341d082)
 - Restore GitHub-hosted workflow runners - [`b76c3d6a69`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b76c3d6a691d71a5ab0b5e2b36887262da41129a)

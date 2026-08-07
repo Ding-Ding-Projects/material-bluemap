@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "c6093b3914701b40744ff4893364b8409be54200",
+        shortSha: "c6093b3914",
+        date: "2026-08-06T20:45:58-04:00",
+        subject: "Document and index the gh release repair",
+        details: "Keep the handoff, roadmap, site evidence, and generated changelog aligned with the account-guarded release path. The changelog now knows the fix exists instead of making readers excavate it with a tiny brush.\n\n同步 handoff、roadmap、網站證據同 generated changelog，等帳戶鎖定 release 路徑有晒交代。Changelog 今次識得自己講，唔使讀者拎住細掃把考古。",
+        category: "docs",
+        areas: ["docs", "interface"],
+        files: 4,
+    },
+    {
         sha: "4a7ea0f8438612cd7a541eec64f0568a62f502fe",
         shortSha: "4a7ea0f843",
         date: "2026-08-06T20:45:18-04:00",
