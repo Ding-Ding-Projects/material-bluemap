@@ -22,11 +22,16 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- Fingerprint the complete release job - [`807cfd4a1e`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/807cfd4a1ef3a090128e023c82e5e618e63158a8)
 - Seal the release trust chain - [`b2e433899a`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/b2e433899af775c9e9a4666619013f4bc671beca)
 - Make release guards fail closed - [`6f53db19c0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/6f53db19c019975e9f717b39207195769437554f)
 - Limit release privileges and verify PNG structure - [`34a9a81f01`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/34a9a81f016ea7308fabc123d0f3483ef43cef23)
 - Close workflow guard bypasses - [`19dc47ba47`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/19dc47ba47e5f02cdd9d321a874fb81c2433fc18)
 - Harden release metadata boundaries - [`0a8c52cebd`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/0a8c52cebdbbaa1cfd020f4d5fb00eacf7459186)
+
+### Documentation
+
+- Document the sealed release boundary - [`c3c871c659`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/c3c871c6592de60b09f19156208c281548e5f5a7)
 
 ## 0.1.0-build.682 - 2026-08-06
 

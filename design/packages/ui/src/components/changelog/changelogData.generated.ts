@@ -26,6 +26,26 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "807cfd4a1ef3a090128e023c82e5e618e63158a8",
+        shortSha: "807cfd4a1e",
+        date: "2026-08-07T01:16:04-04:00",
+        subject: "Fingerprint the complete release job",
+        details: "Every executable region in release is now scanned, and the whole job is one reviewed contract; a surprise neighbour cannot borrow a new name and sneak past the three familiar bouncers.\n\nRelease 入面每段可執行內容而家全部照驗，成個 job 一齊對指紋；新鄰居就算改名扮街坊，都唔可以繞過原本三位守門員。",
+        category: "build",
+        areas: ["build"],
+        files: 2,
+    },
+    {
+        sha: "c3c871c6592de60b09f19156208c281548e5f5a7",
+        shortSha: "c3c871c659",
+        date: "2026-08-07T01:11:29-04:00",
+        subject: "Document the sealed release boundary",
+        details: "The security article, public surfaces and handoff now explain fingerprints, immutable actions, transport digests and the exact limits of each proof; the changelog no longer leaves the bouncers outside its own guest list.\n\n保安文章、公開頁面同交接而家講清楚指紋、釘死 action、運輸 digest 同每項證據嘅邊界；changelog 終於唔再漏咗門口兩位保安。",
+        category: "docs",
+        areas: ["docs", "interface", "site"],
+        files: 10,
+    },
+    {
         sha: "b2e433899af775c9e9a4666619013f4bc671beca",
         shortSha: "b2e433899a",
         date: "2026-08-07T01:04:34-04:00",

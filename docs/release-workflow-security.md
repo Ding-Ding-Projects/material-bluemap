@@ -16,6 +16,11 @@ unquoted read, and **any** reviewed-block change. The full-block fingerprint is 
 boundary: it catches indirect reads such as `printenv`, parameter indirection and a newly added line
 without pretending a list of dangerous shell spellings can ever be complete.
 
+The guard also scans every executable `run:` or `script:` region in the release job, irrespective
+of its display name, and pins a SHA-256 fingerprint of the complete normalized release job. The
+three named boundaries are therefore not an allowlist with gaps around it: inserting or renaming an
+adjacent shell step fails, and a direct Actions expression in that step receives its own diagnostic.
+
 `scripts/pick-dim-sum.mjs` treats catalog and release API responses as untrusted input. It checks
 the expected object/array shapes, field types, per-field character sets and bounds, exact dish ID,
 safe slug and filename shapes, release tag, asset size, and the exact public release-asset URL. The
@@ -34,10 +39,10 @@ complete image decoder.
 
 The watched inventory is deliberately hand-written in `scripts/lint-workflows.mjs`. Adding,
 renaming or splitting one of the three release steps requires reviewing the complete changed
-blocks, updating their expected bindings and replacing the stored fingerprints with
-`stepFingerprint()`'s new values. A fingerprint update is a security review decision, not a
-mechanical response to a red test. New dynamic values still need an exact `env:` binding, a quoted
-data-only use, and negative fixtures for their context.
+blocks, updating their expected bindings and replacing the stored step and complete-job fingerprints
+with `stepFingerprint()` and `jobFingerprint()` values. A fingerprint update is a security review
+decision, not a mechanical response to a red test. New dynamic values still need an exact `env:`
+binding, a quoted data-only use, and negative fixtures for their context.
 
 All 49 external action invocations in `ci.yml` and its `build-jars.yml` reusable workflow are pinned
 to full commit SHAs. To update one, resolve the intended major tag from the action's official
@@ -94,7 +99,8 @@ fail at its original 11 direct-expression sites. The assigned baseline
 `e13777927876a3d7898778f18193e9465bc97cc2` must fail at its exact 19 sites. The checked-in fixed
 workflow must have zero findings, exact provenance and reviewed block fingerprints. Focused fixtures
 also cover multiline expressions, YAML aliases, altered provenance, indirect `printenv`/parameter
-execution, harmless block drift, all 49 immutable action pins, release-gate dependency, real
+execution, harmless block drift, an adjacent differently named shell step, all 49 immutable action
+pins, release-gate dependency, real
 235-character alternative text, malformed schema, control characters, unsafe Markdown contexts,
 wrong asset origins, path containment, byte ceilings, corrupt CRCs, invalid PNG ordering and IHDR
 combinations, oversized indexed palettes, truncation and false `IEND` markers.

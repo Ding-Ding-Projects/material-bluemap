@@ -104,7 +104,9 @@ no checkout persists a credential. Dynamic catalog, artifact and tag values ente
 release scripts only through exact environment mappings and quoted data-only uses. A committed
 guard pins the complete normalized `env` and `run` blocks with SHA-256, so direct expressions,
 YAML indirection, `printenv`/parameter-indirection bypasses and even an unreviewed harmless line all
-fail closed. Publication explicitly depends on that guard job. All 49 external actions across the
+fail closed. It scans every executable release-job region and fingerprints the complete job, so an
+adjacent step with a new display name cannot sit outside the inventory. Publication explicitly
+depends on that guard job. All 49 external actions across the
 release workflow and its jar-building reusable workflow are pinned to full commit SHAs.
 
 Catalog metadata is type-, character- and length-bounded without printing rejected content. Photo

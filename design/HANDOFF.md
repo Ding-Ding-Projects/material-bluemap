@@ -12,7 +12,10 @@ Git so those counts and the 19 baseline line locations cannot drift behind a han
 The fixed steps use exact `env:` provenance and quoted data-only sinks. Reviewed SHA-256 fingerprints
 cover each complete normalized `env` and `run` block, so `printenv`, parameter indirection, an env
 alias, a new execution route and even a harmless added line fail until deliberately reviewed. The
-guard also pins all 49 external actions across `ci.yml` and `build-jars.yml` to full SHAs and checks
+complete normalized release job has its own fingerprint, and every executable region inside it is
+scanned regardless of display name; the adjacent-step regression proves a new named shell cannot
+sit outside the three watched boundaries. The guard also pins all 49 external actions across
+`ci.yml` and `build-jars.yml` to full SHAs and checks
 all eight release-chain checkouts use `persist-credentials: false`. Workflow permission defaults to
 `contents: read`, only `release` receives write, and release publication now depends on the
 workflow-security job.
@@ -23,7 +26,7 @@ paths, wrong asset origins and overlarge responses without echoing rejected valu
 `Content-Length` before reading, maintains the 50 MiB limit during streaming, and parses every PNG
 chunk and CRC, including IHDR combinations and indexed-palette bounds. Same-run SHA-256 records
 verify the packaged CLI, installer set and test-world bytes after artifact transport; they detect
-transport change, not a compromised producer. Focused Node tests pass 41/41. A read-only Ubuntu
+transport change, not a compromised producer. Focused Node tests pass 42/42. A read-only Ubuntu
 24.04 container ran checksum-verified actionlint 1.7.12 with real shellcheck across every workflow
 and exited 0. Windows actionlint's combined shellcheck bridge can block while writing the child's
 input before starting it, so Windows syntax-only actionlint is supplementary, not the combined proof.

@@ -99,15 +99,18 @@ node --test scripts/lint-workflows.test.mjs scripts/pick-dim-sum.test.mjs
 Its hand-written inventory pins each expected environment variable to its exact Actions expression
 and pins the complete normalized `env` and `run` blocks with SHA-256. Any added or altered line
 fails, including a line that recovers data indirectly through `printenv` or shell parameter
-indirection. The same guard inventories all 49 external action uses in `ci.yml` and
+indirection. It additionally scans every executable region in the release job and fingerprints the
+complete job, so a differently named adjacent shell step is not outside the inventory. The same
+guard inventories all 49 external action uses in `ci.yml` and
 `build-jars.yml`, requires immutable full SHAs, disables persisted checkout credentials and proves
 the release depends on the workflow-security job. The tests read the exact historical workflows
 from Git: 11 findings at recovered revision `98988e3`, 19 at the assigned
 `e13777927876a3d7898778f18193e9465bc97cc2` baseline, and zero in the fixed workflow.
 
-To change a watched script, review the entire new block and deliberately replace its stored
-`stepFingerprint()` values. To update an action, resolve and review the intended tag in the action's
-official repository with `git ls-remote`, then update its full SHA and per-file inventory count.
+To change a watched script or the release job structure, review the entire new boundary and
+deliberately replace its stored `stepFingerprint()` and `jobFingerprint()` values. To update an
+action, resolve and review the intended tag in the action's official repository with
+`git ls-remote`, then update its full SHA and per-file inventory count.
 
 Full boundary and verification notes: [Release workflow security](../docs/release-workflow-security.md).
 

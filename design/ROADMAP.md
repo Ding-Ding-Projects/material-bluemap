@@ -10,13 +10,15 @@ and all eight release-chain checkouts decline credential persistence. The releas
 for the workflow-security job before publication.
 
 The hand-written guard pins three steps, thirteen variable/provenance pairs, their complete
-normalized `env`/`run` fingerprints, and all 49 external action SHAs across `ci.yml` and
-`build-jars.yml`. Exact historical workflows stay red: recovered `98988e3` at 11 sites and the
+normalized `env`/`run` fingerprints, the complete release-job structure, and all 49 external action
+SHAs across `ci.yml` and `build-jars.yml`. Every executable release region is scanned irrespective
+of display name, so a newly inserted adjacent step fails. Exact historical workflows stay red:
+recovered `98988e3` at 11 sites and the
 assigned baseline at 19. The picker validates all 2,866 current catalog records, accepts the genuine
 235-character longest alt, caps declared and streamed photo bytes, and verifies PNG chunk ordering,
 IHDR combinations, indexed-palette bounds and CRCs. Same-run digests also verify transported CLI,
 installer and test-world bytes without claiming the producer itself is trusted. Focused tests pass
-41/41; Ubuntu 24.04 actionlint 1.7.12 with real shellcheck passes locally over every workflow.
+42/42; Ubuntu 24.04 actionlint 1.7.12 with real shellcheck passes locally over every workflow.
 Branch CI remains evidence-gated, and this phase does not publish a release or dispatch a workflow
 manually. See `../docs/release-workflow-security.md` and issue #90.
 
