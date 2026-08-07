@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiBackupRestore, mdiTuneVariant } from "@mdi/js";
 import {
@@ -20,6 +20,7 @@ import { filterFields, sampleTextFor } from "../config/configSearch.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import type { EditableConfigFile } from "../config/configModel.js";
 import { defaultOpenGroups, optionFields, optionGroups, reachesRender } from "./wizardSteps.js";
+import type { MapOptionsStepExpose } from "./MapOptionsStep.expose.js";
 
 /**
  * Step three: every remaining setting BlueMap's map config has.
@@ -59,6 +60,9 @@ const regexMode = ref(false);
 // useful per line.
 const flags = ref("im");
 const showAdvanced = ref(false);
+const root = ref<HTMLElement | null>(null);
+const teleportHighlightPath = ref<string | null>(null);
+let highlightTimer: ReturnType<typeof setTimeout> | null = null;
 
 const groups = computed(() => optionGroups());
 /**
@@ -91,13 +95,18 @@ const total = computed(() => optionFields().length);
 const shown = computed(() => rendered.value.reduce((sum, group) => sum + group.shown.length, 0));
 
 const summary = computed(() => {
-    if (matcher.value.error !== null) return t("world.options.badPattern", "The pattern is not valid, so nothing is shown.");
+    if (matcher.value.error !== null)
+        return t("world.options.badPattern", "The pattern is not valid, so nothing is shown.");
     // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n
     // compiles the fallback as a message too and consumes `{shown}` and `{total}` as
     // its own named parameters, so a later `replace` has nothing to substitute and
     // the counts vanish from the sentence that exists to state them.
     if (matcher.value.active) {
-        return t("world.options.matches", { shown: shown.value, total: total.value }, "{shown} of {total} settings match.");
+        return t(
+            "world.options.matches",
+            { shown: shown.value, total: total.value },
+            "{shown} of {total} settings match.",
+        );
     }
     const hidden = total.value - shown.value;
     return hidden === 0
@@ -122,11 +131,75 @@ function onQuery(value: string): void {
     if (value.trim() === "") return;
     chosenPanels.value = groups.value.map((group) => group.id);
 }
+
+function ownerFor(path: string) {
+    for (const group of groups.value) {
+        const field = group.fields
+            .filter((candidate) => path === candidate.path || path.startsWith(`${candidate.path}.`))
+            .sort((left, right) => right.path.length - left.path.length)[0];
+        if (field !== undefined) return { group, field };
+    }
+    return null;
+}
+
+const FOCUSABLE = [
+    "input:not([disabled])",
+    "textarea:not([disabled])",
+    "select:not([disabled])",
+    "button:not([disabled])",
+    '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+/**
+ * Parent-facing teleport. Every state change stays inside this component's ownership: clear
+ * its filter, reveal advanced rows, open the owning group, then use only this section's DOM.
+ */
+async function revealField(path: string): Promise<boolean> {
+    const owner = ownerFor(path);
+    if (owner === null) return false;
+
+    query.value = "";
+    if (owner.field.advanced || owner.group.advanced) showAdvanced.value = true;
+    if (!openPanels.value.includes(owner.group.id)) {
+        chosenPanels.value = [...openPanels.value, owner.group.id];
+    }
+
+    teleportHighlightPath.value = owner.field.path;
+    if (highlightTimer !== null) clearTimeout(highlightTimer);
+    highlightTimer = setTimeout(() => {
+        teleportHighlightPath.value = null;
+        highlightTimer = null;
+    }, 1600);
+
+    await nextTick();
+    await nextTick();
+    const element = root.value?.querySelector<HTMLElement>(
+        `[data-field-path="${CSS.escape(owner.field.path)}"]`,
+    );
+    if (element === undefined || element === null) return false;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    element.scrollIntoView({ block: "center", behavior: reducedMotion ? "auto" : "smooth" });
+    element.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    return true;
+}
+
+onBeforeUnmount(() => {
+    if (highlightTimer !== null) clearTimeout(highlightTimer);
+});
+
+defineExpose({ revealField } satisfies MapOptionsStepExpose);
 </script>
 
 <template>
-    <section class="mb-world-step" :aria-label="t('world.wizard.step.options', 'Options')">
-        <h3 class="mb-world-step__title">{{ t("world.options.title", "How the map should look") }}</h3>
+    <section
+        ref="root"
+        class="mb-world-step"
+        :aria-label="t('world.wizard.step.options', 'Options')"
+    >
+        <h3 class="mb-world-step__title">
+            {{ t("world.options.title", "How the map should look") }}
+        </h3>
         <p class="mb-world-step__blurb">
             {{
                 t(
@@ -145,7 +218,9 @@ function onQuery(value: string): void {
                 v-model:regex="regexMode"
                 v-model:flags="flags"
                 :label="t('world.options.search', 'Search these settings')"
-                :placeholder="t('world.options.searchHint', 'name, key or anything in the explanation')"
+                :placeholder="
+                    t('world.options.searchHint', 'name, key or anything in the explanation')
+                "
                 :sample="sample"
                 :summary="summary"
                 @update:model-value="onQuery"
@@ -179,7 +254,12 @@ function onQuery(value: string): void {
             {{ t("world.options.noMatches", "Nothing on this step matches that search.") }}
         </p>
 
-        <v-expansion-panels v-model="openPanels" multiple variant="accordion" class="mb-world-options__panels">
+        <v-expansion-panels
+            v-model="openPanels"
+            multiple
+            variant="accordion"
+            class="mb-world-options__panels"
+        >
             <v-expansion-panel v-for="group in rendered" :key="group.id" :value="group.id">
                 <v-expansion-panel-title>
                     <span class="mb-world-options__group">{{ group.label }}</span>
@@ -189,12 +269,20 @@ function onQuery(value: string): void {
                     <span class="mb-world-options__count">{{ group.shown.length }}</span>
                 </v-expansion-panel-title>
                 <v-expansion-panel-text>
-                    <p v-if="group.description" class="mb-world-step__blurb">{{ group.description }}</p>
-                    <div v-for="field in group.shown" :key="field.path" class="mb-world-options__field">
+                    <p v-if="group.description" class="mb-world-step__blurb">
+                        {{ group.description }}
+                    </p>
+                    <div
+                        v-for="field in group.shown"
+                        :key="field.path"
+                        class="mb-world-options__field"
+                    >
                         <ConfigField
                             :field="field"
                             :file="file"
-                            :highlighted="highlightPath === field.path"
+                            :highlighted="
+                                highlightPath === field.path || teleportHighlightPath === field.path
+                            "
                             @set="(target, value) => emit('set', target, value)"
                             @clear="(target) => emit('clear', target)"
                             @consent="emit('consent')"
@@ -212,7 +300,14 @@ function onQuery(value: string): void {
             </v-expansion-panel>
         </v-expansion-panels>
 
-        <v-alert v-if="file.document === null" type="error" density="compact" variant="tonal" class="mt-3" role="alert">
+        <v-alert
+            v-if="file.document === null"
+            type="error"
+            density="compact"
+            variant="tonal"
+            class="mt-3"
+            role="alert"
+        >
             {{
                 t(
                     "world.options.unparsed",

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiArrowLeft, mdiArrowRight, mdiCheck, mdiPlay } from "@mdi/js";
+import { mdiArrowLeft, mdiArrowRight, mdiCheck, mdiCrosshairsGps, mdiPlay } from "@mdi/js";
 import { VAlert, VBtn, VDivider, VSpacer } from "vuetify/components";
 import type { FieldMeta, PlainValue } from "@material-bluemap/config";
 import MapIdentityStep from "./MapIdentityStep.vue";
@@ -9,7 +9,8 @@ import MapOptionsStep from "./MapOptionsStep.vue";
 import MapStorageStep from "./MapStorageStep.vue";
 import WizardReviewStep from "./WizardReviewStep.vue";
 import WorldFolderStep from "./WorldFolderStep.vue";
-import { createMapWizard, type RunOptions } from "./wizardModel.js";
+import { createMapWizard, type RunOptions, type StepProblem } from "./wizardModel.js";
+import type { MapOptionsStepExpose } from "./MapOptionsStep.expose.js";
 import { WIZARD_STEPS, WIZARD_STEP_META, type WizardStep } from "./wizardSteps.js";
 import type { WorldInspection } from "./worldFolder.js";
 import type { RenderRequest } from "./worldBridge.js";
@@ -52,7 +53,9 @@ const props = withDefaults(
         probe?: ((folder: string) => Promise<WorldInspection>) | null;
         /** Points rendering at a folder. Its refusal is shown as written. */
         applyStorage?:
-            | ((value: string) => Promise<{ ok: true; directory: string } | { ok: false; message: string }>)
+            | ((
+                  value: string,
+              ) => Promise<{ ok: true; directory: string } | { ok: false; message: string }>)
             | null;
         /**
          * The project the chosen world already carries, when it carries one.
@@ -117,6 +120,7 @@ const wizard = createMapWizard({
     separator: props.separator ?? "/",
     ...(props.storage === null ? {} : { storageDirectory: props.storage.current }),
 });
+const optionsStep = ref<MapOptionsStepExpose | null>(null);
 
 const storageApplying = ref(false);
 const storageFailure = ref<string | null>(null);
@@ -129,7 +133,9 @@ const storageFailure = ref<string | null>(null);
  */
 const appliedDirectory = ref<string | null>(null);
 const storageApplied = computed(
-    () => appliedDirectory.value !== null && appliedDirectory.value === wizard.storageDirectory.value.trim(),
+    () =>
+        appliedDirectory.value !== null &&
+        appliedDirectory.value === wizard.storageDirectory.value.trim(),
 );
 
 /** The app may answer late; the field fills in when it does, unless it was edited. */
@@ -166,11 +172,17 @@ const problems = computed(() =>
     // own and the id the message is complaining about is already gone by the time
     // anything else could substitute it. The values have to go in before the
     // message is compiled, which is what the third argument is for.
-    wizard.problemsFor(wizard.step.value).map((problem) => t(problem.key, problem.vars ?? {}, problem.fallback)),
+    wizard.problemsFor(wizard.step.value).map((problem) => ({
+        problem,
+        text: t(problem.key, problem.vars ?? {}, problem.fallback),
+    })),
 );
+const problemTexts = computed(() => problems.value.map((entry) => entry.text));
 
 const isLast = computed(() => wizard.step.value === "review");
-const canStart = computed(() => renderable.value && WIZARD_STEPS.every((step) => wizard.canLeave(step)));
+const canStart = computed(
+    () => renderable.value && WIZARD_STEPS.every((step) => wizard.canLeave(step)),
+);
 
 const dimensionLabel = computed(() => wizard.dimension.value?.label ?? wizard.dimensionKey.value);
 
@@ -270,9 +282,22 @@ function goTo(step: WizardStep): void {
     wizard.goTo(step);
 }
 
+async function teleportToProblem(problem: StepProblem): Promise<void> {
+    const target = problem.target;
+    if (target === undefined || !wizard.canReach(target.step)) return;
+    wizard.goTo(target.step);
+    await nextTick();
+    if (target.step === "options") await optionsStep.value?.revealField(target.fieldPath);
+}
+
 function start(): void {
     if (!canStart.value) return;
-    emit("start", wizard.toRenderRequest(), wizard.configText(), wizard.storageDirectory.value.trim());
+    emit(
+        "start",
+        wizard.toRenderRequest(),
+        wizard.configText(),
+        wizard.storageDirectory.value.trim(),
+    );
 }
 
 /**
@@ -332,7 +357,10 @@ defineExpose({ wizard });
             </template>
         </v-alert>
 
-        <nav class="mb-world-wizard__steps" :aria-label="t('world.wizard.stepsLabel', 'Wizard steps')">
+        <nav
+            class="mb-world-wizard__steps"
+            :aria-label="t('world.wizard.stepsLabel', 'Wizard steps')"
+        >
             <v-btn
                 v-for="step in steps"
                 :key="step.id"
@@ -386,6 +414,7 @@ defineExpose({ wizard });
 
             <MapOptionsStep
                 v-else-if="wizard.step.value === 'options'"
+                ref="optionsStep"
                 :file="wizard.file.value"
                 :changed-count="wizard.changes.value.length"
                 @set="setOption"
@@ -403,7 +432,7 @@ defineExpose({ wizard });
                 :apply-failure="storageFailure"
                 :applied="storageApplied"
                 :file="wizard.file.value"
-                :problems="problems"
+                :problems="problemTexts"
                 @update:model-value="(value: string) => (wizard.storageDirectory.value = value)"
                 @apply="applyStorage"
                 @set="setOption"
@@ -437,20 +466,33 @@ defineExpose({ wizard });
             next to the button they block.
         -->
         <v-alert
-            v-for="problem in wizard.step.value === 'storage' ? [] : problems"
-            :key="problem"
+            v-for="entry in wizard.step.value === 'storage' ? [] : problems"
+            :key="`${entry.problem.key}:${entry.problem.target?.fieldPath ?? ''}`"
             type="warning"
             density="compact"
             variant="tonal"
             class="mb-world-wizard__problem"
         >
-            {{ problem }}
+            {{ entry.text }}
+            <template v-if="entry.problem.target" #append>
+                <v-btn
+                    :prepend-icon="mdiCrosshairsGps"
+                    variant="tonal"
+                    size="small"
+                    :aria-label="t('world.wizard.teleportToSetting', 'Teleport to setting')"
+                    @click="teleportToProblem(entry.problem)"
+                >
+                    {{ t("world.wizard.teleportToSetting", "Teleport to setting") }}
+                </v-btn>
+            </template>
         </v-alert>
 
         <v-divider />
 
         <div class="mb-world-wizard__actions">
-            <v-btn variant="text" @click="emit('cancel')">{{ t("world.wizard.cancel", "Cancel") }}</v-btn>
+            <v-btn variant="text" @click="emit('cancel')">{{
+                t("world.wizard.cancel", "Cancel")
+            }}</v-btn>
             <v-spacer />
             <v-btn
                 :prepend-icon="mdiArrowLeft"
@@ -470,7 +512,14 @@ defineExpose({ wizard });
             >
                 {{ t("world.wizard.next", "Next") }}
             </v-btn>
-            <v-btn v-else :prepend-icon="mdiPlay" :disabled="!canStart" color="primary" variant="flat" @click="start">
+            <v-btn
+                v-else
+                :prepend-icon="mdiPlay"
+                :disabled="!canStart"
+                color="primary"
+                variant="flat"
+                @click="start"
+            >
                 {{ t("world.wizard.start", "Render this map") }}
             </v-btn>
         </div>
