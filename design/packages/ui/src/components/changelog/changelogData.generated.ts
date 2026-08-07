@@ -26,6 +26,37 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/m
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "9a3aa2fd6bc23f11191094466e43b1e47e10043c",
+        shortSha: "9a3aa2fd6b",
+        date: "2026-08-06T23:40:25-04:00",
+        subject: "Merge the documentation gate repair ancestry",
+        details: "Record the exact red-to-green phase tip after its one-line inventory fix landed on main; the project editor now has both a shelf label and a proper seat in the family tree.\\n\\n記錄 docs gate 由紅變綠嘅 phase tip；一行 inventory 修正已落 main，project editor 而家既有書架標籤，族譜亦有正式座位。",
+        category: "other",
+        areas: ["other"],
+        files: 0,
+        summarizes: 2,
+    },
+    {
+        sha: "15369ae9c0180305b4e2e49093239d8078c69ead",
+        shortSha: "15369ae9c0",
+        date: "2026-08-06T23:39:18-04:00",
+        subject: "Index the project editor in application docs",
+        details: "Keep the in-app docs navigation aligned with docs/README.md. The project editor was invited to the table but left waiting in the uncategorized hallway; this one inventory entry gives it the proper seat.\n\n令 app 入面嘅文件導覽同 docs/README.md 對齊。Project editor 明明有名有姓，之前竟然企咗喺 uncategorized 門口食風；加返呢一格，終於有位坐。",
+        category: "interface",
+        areas: ["interface"],
+        files: 1,
+    },
+    {
+        sha: "26b6a5fd39871f4cdf8c66863f5314d3a1bb9e6b",
+        shortSha: "26b6a5fd39",
+        date: "2026-08-06T23:39:48-04:00",
+        subject: "Index the project editor in application docs",
+        details: "Keep the in-app docs navigation aligned with docs/README.md. The project editor was invited to the table but left waiting in the uncategorized hallway; this one inventory entry gives it the proper seat.\n\n令 app 入面嘅文件導覽同 docs/README.md 對齊。Project editor 明明有名有姓，之前竟然企咗喺 uncategorized 門口食風；加返呢一格，終於有位坐。",
+        category: "interface",
+        areas: ["interface"],
+        files: 1,
+    },
+    {
         sha: "53dade712771471613bc79d98f4f75e216e0a4c4",
         shortSha: "53dade7127",
         date: "2026-08-06T23:25:00-04:00",

@@ -22,6 +22,8 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Index the project editor in application docs - [`15369ae9c0`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/15369ae9c0180305b4e2e49093239d8078c69ead)
+- Index the project editor in application docs - [`26b6a5fd39`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/26b6a5fd39871f4cdf8c66863f5314d3a1bb9e6b)
 - Add unique artwork to high-impact actions - [`a90ba4439d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/a90ba4439d0f5056fb1061268fe3236c940e708f)
 - Wire masks to measured world context - [`5d511478a1`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/5d511478a17d687971c4fcff506e3dca41801830)
 - Teleport wizard errors to their exact settings - [`62027cfd9d`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/62027cfd9d3f149579f1ea094405e9b0b774ce23)
@@ -92,6 +94,7 @@ full message for the in-app changelog viewer.
 
 ### Elsewhere in the repository
 
+- Merge the documentation gate repair ancestry - [`9a3aa2fd6b`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/9a3aa2fd6bc23f11191094466e43b1e47e10043c) _(summary of 2 commits, also listed here)_
 - Merge the dialog artwork phase ancestry - [`53dade7127`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/53dade712771471613bc79d98f4f75e216e0a4c4) _(summary of 5 commits, also listed here)_
 - Merge the renderer-mask phase ancestry - [`cc0aae6290`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/cc0aae6290fdba3a6b510cbaa0e54f18663932ef) _(summary of 8 commits, also listed here)_
 - Merge the four-edge tab phase ancestry - [`767e15bddb`](https://github.com/Ding-Ding-Projects/material-bluemap/commit/767e15bddb0fdd45ddd9b856a945ba0fa9411623) _(summary of 13 commits, also listed here)_
