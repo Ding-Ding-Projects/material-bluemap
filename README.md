@@ -23,9 +23,9 @@ See [Rendering engines](#rendering-engines).
 
 ## Status: in development, and honest about it
 
-**[Download the latest Windows installer](https://github.com/Ding-Ding-Projects/material-bluemap/releases/latest)**
-· [all releases](https://github.com/Ding-Ding-Projects/material-bluemap/releases)
-· [documentation site](https://ding-ding-projects.github.io/material-bluemap/)
+**[Download the latest Windows installer](https://github.com/Ding-Ding-Projects/worldlens/releases/latest)**
+· [all releases](https://github.com/Ding-Ding-Projects/worldlens/releases)
+· [documentation site](https://ding-ding-projects.github.io/worldlens/)
 
 > **Rename in progress.** The product, packages, installer and machine identifiers are Worldlens.
 > The source repository and Pages URLs above retain their old path until the separate repository
@@ -131,7 +131,7 @@ states its behaviour, configuration, failure modes, security considerations and 
 | **Super confirmation**                     | Two keys and a full-travel slider before anything destructive, with an emergency exit throughout                                                                          | [`docs/super-confirmation.md`](docs/super-confirmation.md)                                                                                                           |
 
 [`docs/README.md`](docs/README.md) is the index, and every article is also published on the
-[documentation site](https://ding-ding-projects.github.io/material-bluemap/).
+[documentation site](https://ding-ding-projects.github.io/worldlens/).
 
 </details>
 
@@ -376,8 +376,8 @@ Requires **Node 22+** and **pnpm 10**. The upstream Java reference is a git subm
 reads it directly.
 
 ```sh
-git clone https://github.com/Ding-Ding-Projects/material-bluemap.git
-cd material-bluemap
+git clone https://github.com/Ding-Ding-Projects/worldlens.git
+cd worldlens
 git submodule update --init --recursive
 
 node scripts/bootstrap.mjs
@@ -521,7 +521,7 @@ uploaded rather than discovered halfway through.
 
 ## Documentation
 
-**[ding-ding-projects.github.io/material-bluemap](https://ding-ding-projects.github.io/material-bluemap/)**
+**[ding-ding-projects.github.io/worldlens](https://ding-ding-projects.github.io/worldlens/)**
 carries an article for every feature, each stating its behaviour, configuration, failure modes,
 security considerations and verification, with a visible badge saying whether the subject is
 shipped, ported but unverified, or only specified.
