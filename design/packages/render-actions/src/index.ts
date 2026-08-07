@@ -112,6 +112,7 @@ export {
     type WrittenShardConfig,
 } from "./config/renderConfig.js";
 export {
+    LEGACY_PROJECT_FILE_NAME,
     PROJECT_FILE_NAME,
     readProjectMapConfig,
     type ProjectMapConfigResult,

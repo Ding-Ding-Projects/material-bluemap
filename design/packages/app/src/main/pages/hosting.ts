@@ -79,13 +79,15 @@ export const GIT_COMMAND = "git";
 export const DEFAULT_PAGES_BRANCH = "gh-pages";
 
 /** The file that says a branch belongs to this application, and to which render. */
-export const PAGES_MARKER_FILE = ".material-bluemap-map.json";
+export const PAGES_MARKER_FILE = ".worldlens-map.json";
+export const LEGACY_PAGES_MARKER_FILE = ".material-bluemap-map.json";
 
 /** Bumped only if the marker's shape changes. An unknown version is still *ours*. */
 export const PAGES_MARKER_VERSION = 1;
 
 /** The value of the marker's `tool` field. Nothing else is accepted as ours. */
-export const PAGES_MARKER_TOOL = "material-bluemap";
+export const PAGES_MARKER_TOOL = "worldlens";
+export const LEGACY_PAGES_MARKER_TOOL = "material-bluemap";
 
 /** How long a Pages build is waited for before the result is reported as still building. */
 export const DEFAULT_POLL_INTERVAL_MS = 5_000;
@@ -392,7 +394,9 @@ export function readMarker(payload: unknown): PagesMarker | null {
         }
     }
     if (source === null) return null;
-    if (source["tool"] !== PAGES_MARKER_TOOL) return null;
+    if (source["tool"] !== PAGES_MARKER_TOOL && source["tool"] !== LEGACY_PAGES_MARKER_TOOL) {
+        return null;
+    }
 
     const renderId = text(source["renderId"]);
     const publishedAt = text(source["publishedAt"]);
@@ -739,12 +743,17 @@ export class PagesHost {
             const branchInfo = await ghJsonOrNull(`repos/${owner}/${repo}/branches/${branch}`, call);
             let marker: PagesMarker | null = null;
             if (branchInfo !== null) {
-                marker = readMarker(
-                    await ghJsonOrNull(
-                        `repos/${owner}/${repo}/contents/${PAGES_MARKER_FILE}?ref=${branch}`,
-                        call,
-                    ),
+                const currentMarker = await ghJsonOrNull(
+                    `repos/${owner}/${repo}/contents/${PAGES_MARKER_FILE}?ref=${branch}`,
+                    call,
                 );
+                const markerPayload =
+                    currentMarker ??
+                    (await ghJsonOrNull(
+                        `repos/${owner}/${repo}/contents/${LEGACY_PAGES_MARKER_FILE}?ref=${branch}`,
+                        call,
+                    ));
+                marker = readMarker(markerPayload);
             }
 
             return {

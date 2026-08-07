@@ -42,7 +42,11 @@ import { z } from "zod";
  * and a plausible collision. A leading dot was rejected for the opposite reason: a file
  * somebody cannot see is a file they cannot back up, move or delete on purpose.
  */
-export const PROJECT_FILE_NAME = "material-bluemap.project.json";
+export const PROJECT_FILE_NAME = "worldlens.project.json";
+export const LEGACY_PROJECT_FILE_NAME = "material-bluemap.project.json";
+export const PROJECT_FILE_NAMES = [PROJECT_FILE_NAME, LEGACY_PROJECT_FILE_NAME] as const;
+export const PROJECT_SCHEMA_ID = "worldlens.project";
+export const LEGACY_PROJECT_SCHEMA_ID = "material-bluemap.project";
 
 /**
  * The format version, which is a promise about reading rather than writing.
@@ -51,7 +55,7 @@ export const PROJECT_FILE_NAME = "material-bluemap.project.json";
  * rather than guess, because the failure mode of guessing is silently discarding the
  * settings it did not understand the moment it saves.
  */
-export const PROJECT_FORMAT_VERSION = 1;
+export const PROJECT_FORMAT_VERSION = 2;
 
 /** ISO 8601, with an offset. Stored as text so a file stays diffable and human-readable. */
 const timestamp = z.string().min(1);
@@ -98,7 +102,7 @@ export const projectMapSchema = z.object({
     sorting: z.number().int().default(0),
     /** False keeps the map in the project without rendering it in a render-everything run. */
     enabled: z.boolean().default(true),
-});
+}).passthrough();
 
 export type ProjectMap = z.infer<typeof projectMapSchema>;
 
@@ -117,6 +121,7 @@ export const projectStorageSchema = z
         /** The complete `storages/<id>.conf` body, HOCON. */
         config: z.string(),
     })
+    .passthrough()
     .refine((storage) => !/(^|\n)\s*connection-properties\s*[:{=]/.test(storage.config), {
         message:
             "a project file travels with the world, so it must not carry connection-properties: " +
@@ -140,7 +145,7 @@ export const projectRenderSchema = z.object({
      * uses the storage directory chosen during setup, which is the ordinary case.
      */
     outputFolder: z.string().nullable().default(null),
-});
+}).passthrough();
 
 export type ProjectRender = z.infer<typeof projectRenderSchema>;
 
@@ -153,6 +158,8 @@ export type ProjectRender = z.infer<typeof projectRenderSchema>;
  * and the app generates BlueMap's default at render time.
  */
 export const projectFileSchema = z.object({
+    /** Stable schema identity. Legacy and absent values are adapted on read. */
+    schema: z.enum([PROJECT_SCHEMA_ID, LEGACY_PROJECT_SCHEMA_ID]).optional(),
     /** Refused rather than guessed when it is from the future. See PROJECT_FORMAT_VERSION. */
     version: z.number().int().min(1),
     /** Stable across renames and moves, so a history can follow a project that was renamed. */
@@ -186,7 +193,7 @@ export const projectFileSchema = z.object({
      * the difference between a project somebody designed and one they accepted defaults for.
      */
     fromWizard: z.boolean().default(false),
-});
+}).passthrough();
 
 export type ProjectFile = z.infer<typeof projectFileSchema>;
 
@@ -226,7 +233,20 @@ export function parseProjectFile(text: string): ProjectReadResult {
         return { ok: false, failure: { kind: "too-new", version } };
     }
 
-    const parsed = projectFileSchema.safeParse(raw);
+    // Versioned, lossless adapters. Spreading keeps fields this build does not model;
+    // `.passthrough()` on every object keeps them through validation and serialization.
+    // Version 1 had no schema field and used the legacy filename. Version 2 writes the
+    // immutable Worldlens schema id, while still accepting the explicit legacy id.
+    const adapted =
+        typeof raw === "object" && raw !== null && !Array.isArray(raw) && (version === 1 || version === 2)
+            ? {
+                  ...(raw as Record<string, unknown>),
+                  version: PROJECT_FORMAT_VERSION,
+                  schema: PROJECT_SCHEMA_ID,
+              }
+            : raw;
+
+    const parsed = projectFileSchema.safeParse(adapted);
     if (!parsed.success) {
         return {
             ok: false,
@@ -251,7 +271,8 @@ export function parseProjectFile(text: string): ProjectReadResult {
  */
 export function serializeProjectFile(project: ProjectFile): string {
     const ordered: ProjectFile = {
-        version: project.version,
+        schema: PROJECT_SCHEMA_ID,
+        version: PROJECT_FORMAT_VERSION,
         id: project.id,
         name: project.name,
         createdAt: project.createdAt,
@@ -265,6 +286,28 @@ export function serializeProjectFile(project: ProjectFile): string {
         webserver: project.webserver,
         plugin: project.plugin,
         fromWizard: project.fromWizard,
+        ...Object.fromEntries(
+            Object.entries(project).filter(
+                ([key]) =>
+                    ![
+                        "schema",
+                        "version",
+                        "id",
+                        "name",
+                        "createdAt",
+                        "updatedAt",
+                        "appVersion",
+                        "maps",
+                        "storages",
+                        "render",
+                        "core",
+                        "webapp",
+                        "webserver",
+                        "plugin",
+                        "fromWizard",
+                    ].includes(key),
+            ),
+        ),
     };
     return `${JSON.stringify(ordered, null, 4)}\n`;
 }

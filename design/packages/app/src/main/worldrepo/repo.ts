@@ -70,13 +70,15 @@ import { GIT_COMMAND } from "../pages/hosting.js";
 export const DEFAULT_WORLD_BRANCH = "world";
 
 /** The file that says a branch belongs to this application, and to which sync target. */
-export const WORLD_REPO_MARKER_FILE = ".material-bluemap-world.json";
+export const WORLD_REPO_MARKER_FILE = ".worldlens-world.json";
+export const LEGACY_WORLD_REPO_MARKER_FILE = ".material-bluemap-world.json";
 
 /** Bumped only if the marker's shape changes. An unknown version is still *ours*. */
 export const WORLD_REPO_MARKER_VERSION = 1;
 
 /** The value of the marker's `tool` field. Nothing else is accepted as ours. */
-export const WORLD_REPO_MARKER_TOOL = "material-bluemap";
+export const WORLD_REPO_MARKER_TOOL = "worldlens";
+export const LEGACY_WORLD_REPO_MARKER_TOOL = "material-bluemap";
 
 /** How many paths are handed to one `git add`. Same number, same reason, as `pages/hosting.ts`. */
 export const STAGE_BATCH = 2_000;
@@ -346,7 +348,12 @@ export function readWorldMarker(payload: unknown): WorldRepoMarker | null {
         }
     }
     if (source === null) return null;
-    if (source["tool"] !== WORLD_REPO_MARKER_TOOL) return null;
+    if (
+        source["tool"] !== WORLD_REPO_MARKER_TOOL &&
+        source["tool"] !== LEGACY_WORLD_REPO_MARKER_TOOL
+    ) {
+        return null;
+    }
 
     const branch = text(source["branch"]);
     const updatedAt = text(source["updatedAt"]);
@@ -701,12 +708,17 @@ export class WorldRepoHost {
             const branchInfo = record(await ghJsonOrNull(`repos/${owner}/${repo}/branches/${branch}`, call));
             let marker: WorldRepoMarker | null = null;
             if (branchInfo !== null) {
-                marker = readWorldMarker(
-                    await ghJsonOrNull(
-                        `repos/${owner}/${repo}/contents/${WORLD_REPO_MARKER_FILE}?ref=${branch}`,
-                        call,
-                    ),
+                const currentMarker = await ghJsonOrNull(
+                    `repos/${owner}/${repo}/contents/${WORLD_REPO_MARKER_FILE}?ref=${branch}`,
+                    call,
                 );
+                const markerPayload =
+                    currentMarker ??
+                    (await ghJsonOrNull(
+                        `repos/${owner}/${repo}/contents/${LEGACY_WORLD_REPO_MARKER_FILE}?ref=${branch}`,
+                        call,
+                    ));
+                marker = readWorldMarker(markerPayload);
             }
 
             return {

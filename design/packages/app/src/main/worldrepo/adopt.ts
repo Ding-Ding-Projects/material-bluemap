@@ -95,6 +95,7 @@
  */
 
 import {
+    LEGACY_PROJECT_FILE_NAME,
     PROJECT_FILE_NAME,
     PROJECT_FORMAT_VERSION,
     parseProjectFile,
@@ -753,7 +754,17 @@ export async function buildAdoptionPlan(
     const bootstrap = await probeCiBootstrapMarker(owner, repo, runner, signal);
     const bootstrapMarker = bootstrap.outcome === "found" ? bootstrap.marker : null;
 
-    const projectFile = await fetchRepositoryFileText(owner, repo, PROJECT_FILE_NAME, branch, runner, signal);
+    let projectFile = await fetchRepositoryFileText(owner, repo, PROJECT_FILE_NAME, branch, runner, signal);
+    if (!projectFile.ok && projectFile.absent) {
+        projectFile = await fetchRepositoryFileText(
+            owner,
+            repo,
+            LEGACY_PROJECT_FILE_NAME,
+            branch,
+            runner,
+            signal,
+        );
+    }
     if (!projectFile.ok) {
         return {
             ok: false,
