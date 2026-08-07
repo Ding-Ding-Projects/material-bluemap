@@ -598,6 +598,7 @@ export function createSettingsPage(options: SettingsPageOptions): SettingsPageVi
                 announce(t("settings.resetOneDone", { name: t(definition.labelKey) }));
             },
             isDefault: (): boolean => store.isDefault(definition.id),
+            provenance: (): string => t(`settings.provenance.${store.provenance(definition.id)}`),
         };
         switch (definition.kind) {
             case "toggle":
@@ -1383,6 +1384,9 @@ function installBridges(store: SettingsStore, options: SettingsPageOptions): voi
             write: (value) => sidebar.setCollapsed(Boolean(value)),
             reset: () => sidebar.reset(),
             subscribe: (listener) => sidebar.subscribe(listener),
+            isDefault: () => !sidebar.hasExplicitChoice,
+            provenance: () =>
+                sidebar.hasExplicitChoice ? "stored" : "responsive-default",
         });
     }
 

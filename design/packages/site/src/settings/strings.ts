@@ -101,6 +101,18 @@ export const SETTINGS_STRINGS: StringTable = {
     },
     "settings.atDefault": { en: "Already at its default", yue: "已經係預設值" },
     "settings.changed": { en: "Changed", yue: "已改" },
+    "settings.provenance.stored": {
+        en: "Source: an explicit value stored in this browser.",
+        yue: "來源：呢個瀏覽器明確儲低嘅值。",
+    },
+    "settings.provenance.compiled-default": {
+        en: "Source: the application's compiled default.",
+        yue: "來源：應用程式編譯時嘅預設值。",
+    },
+    "settings.provenance.responsive-default": {
+        en: "Source: responsive default — collapsed at 720 CSS pixels or narrower, expanded above it.",
+        yue: "來源：響應式預設——720 CSS 像素或以下收合，再闊就展開。",
+    },
     "settings.changedCount": {
         en: "{count} settings differ from their defaults",
         yue: "有 {count} 項設定同預設唔同",

@@ -163,6 +163,11 @@ export const SETTINGS: readonly SettingDefinition[] = [
         descriptionKey: "set.sidebarCollapsed.desc",
         keywords: ["sidebar", "navigation", "rail", "collapse", "expand", "側欄", "收合", "展開"],
         defaultValue: false,
+        responsiveDefault: {
+            compactMaxWidth: 720,
+            compactValue: true,
+            wideValue: false,
+        },
     },
     {
         id: "motion.reduce",

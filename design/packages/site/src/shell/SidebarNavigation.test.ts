@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { Preferences } from "../platform/Preferences.js";
+import { AppearanceController } from "../appearance/controller.js";
+import { createSettingsPage } from "../settings/page.js";
 import {
     applySidebarNavigation,
     SIDEBAR_COLLAPSED_KEY,
@@ -57,6 +59,52 @@ describe("SidebarNavigation", () => {
         expect(state.collapsed).toBe(true);
         expect(state.provenance).toBe("responsive default");
         expect(storage.getItem(`mbm-site:${SIDEBAR_COLLAPSED_KEY}`)).toBeNull();
+    });
+
+    it("keeps fresh compact and desktop defaults out of changed ids and exports", () => {
+        for (const compact of [true, false]) {
+            const prefs = new Preferences(new MemoryStorage());
+            const sidebar = new SidebarNavigation(prefs, compact);
+            const page = createSettingsPage({
+                prefs,
+                appearance: new AppearanceController(prefs),
+                sidebar,
+            });
+            expect(page.store.getBoolean("tabs.sidebarCollapsed")).toBe(compact);
+            expect(page.store.isDefault("tabs.sidebarCollapsed")).toBe(true);
+            expect(page.store.provenance("tabs.sidebarCollapsed")).toBe("responsive-default");
+            expect(page.store.changedIds()).not.toContain("tabs.sidebarCollapsed");
+            expect(page.store.snapshot()).not.toHaveProperty("tabs.sidebarCollapsed");
+            page.destroy();
+        }
+    });
+
+    it("persists an explicit choice even when it equals the current compact default", () => {
+        const storage = new MemoryStorage();
+        const prefs = new Preferences(storage);
+        const compact = new SidebarNavigation(prefs, true);
+        const page = createSettingsPage({
+            prefs,
+            appearance: new AppearanceController(prefs),
+            sidebar: compact,
+        });
+
+        page.store.set("tabs.sidebarCollapsed", true);
+        expect(compact.hasExplicitChoice).toBe(true);
+        expect(page.store.isDefault("tabs.sidebarCollapsed")).toBe(false);
+        expect(page.store.provenance("tabs.sidebarCollapsed")).toBe("stored");
+        expect(page.store.changedIds()).toContain("tabs.sidebarCollapsed");
+        expect(page.store.snapshot()).toMatchObject({ "tabs.sidebarCollapsed": true });
+
+        const wide = new SidebarNavigation(new Preferences(storage), false);
+        expect(wide.collapsed).toBe(true);
+        expect(wide.provenance).toBe("stored");
+
+        page.store.reset("tabs.sidebarCollapsed");
+        expect(compact.collapsed).toBe(true);
+        expect(page.store.changedIds()).not.toContain("tabs.sidebarCollapsed");
+        expect(page.store.snapshot()).not.toHaveProperty("tabs.sidebarCollapsed");
+        page.destroy();
     });
 
     it("notifies the mounted shell when the state changes", () => {

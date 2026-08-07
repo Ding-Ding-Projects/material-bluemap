@@ -23,6 +23,10 @@ export interface SettingBridge {
     write(value: SettingValue): void;
     reset(): void;
     subscribe(listener: () => void): () => void;
+    /** Whether the controller is still using its default rather than an explicit value. */
+    readonly isDefault?: () => boolean;
+    /** Truthful source shown beside the setting. */
+    readonly provenance?: () => "stored" | "compiled-default" | "responsive-default";
 }
 
 export interface ImportReport {
@@ -113,7 +117,17 @@ export class SettingsStore {
     isDefault(id: string): boolean {
         const definition = this.definitions.get(id);
         if (definition === undefined) return true;
+        const bridge = this.bridges.get(id);
+        if (bridge?.isDefault !== undefined) return bridge.isDefault();
         return this.get(id) === definition.defaultValue;
+    }
+
+    provenance(id: string): "stored" | "compiled-default" | "responsive-default" {
+        const definition = this.definitions.get(id);
+        if (definition === undefined) return "compiled-default";
+        const bridge = this.bridges.get(id);
+        if (bridge?.provenance !== undefined) return bridge.provenance();
+        return this.prefs.read(KEY_PREFIX + id, "") === "" ? "compiled-default" : "stored";
     }
 
     changedIds(): readonly string[] {
@@ -125,14 +139,16 @@ export class SettingsStore {
         if (definition === undefined) throw new Error(`Unknown setting: ${id}`);
         const coerced = coerce(definition, value);
         if (coerced === null) return;
-        if (this.get(id) === coerced) return;
-
         const bridge = this.bridges.get(id);
         if (bridge !== undefined) {
+            // A value equal to the current responsive default is still an explicit choice.
+            // Let the bridge persist it when it currently reports itself as default.
+            if (this.get(id) === coerced && bridge.isDefault?.() !== true) return;
             bridge.write(coerced);
             this.emit([id]);
             return;
         }
+        if (this.get(id) === coerced) return;
         if (coerced === definition.defaultValue) this.prefs.remove(KEY_PREFIX + id);
         else this.prefs.write(KEY_PREFIX + id, encode(coerced));
         this.emit([id]);

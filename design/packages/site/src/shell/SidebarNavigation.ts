@@ -84,6 +84,10 @@ export class SidebarNavigation {
         return this.storedValue ? "stored" : "responsive default";
     }
 
+    get hasExplicitChoice(): boolean {
+        return this.storedValue;
+    }
+
     setCollapsed(collapsed: boolean): void {
         if (this.collapsedValue === collapsed && this.storedValue) return;
         this.collapsedValue = collapsed;
